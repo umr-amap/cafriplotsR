@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{add_sp_traits_measures}
 \alias{add_sp_traits_measures}
-\title{Add an observation in trait measurement table}
+\title{Add an observation in trait measurement table at species level}
 \usage{
 add_sp_traits_measures(
   new_data,
