@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{subplot_list}
 \alias{subplot_list}
-\title{List of subplot feature}
+\title{List of subplot features}
 \usage{
 subplot_list()
 }

@@ -9,14 +9,26 @@
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #' @param data_stand tibble
 #' @param column_searched string vector
-#' @param id_field name of the column that will store the id
+#' @param column_name name of the column that will store the id
+#' @param id_field string name of the column of the output that will contain the id
+#' @param id_table_name string name of the database table that contain the id
+#' @param db_connection PqConnection  connection of the database
+#' @param table_name string name of the table in the database to search into
+#' @param keep_columns string vector of the columns in the database table to keep in the output, by default NULL
 #'
 #' @examples
 #' # .link_table(data_stand = data_stand, column_searched = "method", column_name = "method", id_field = "id_method", db_connection = mydb, table_name = "methodslist")
 #'
 #'
 #' @export
-.link_table <- function(data_stand, column_searched, column_name, id_field, id_table_name, db_connection = mydb, table_name) {
+.link_table <- function(data_stand,
+                        column_searched,
+                        column_name,
+                        id_field,
+                        id_table_name,
+                        db_connection = mydb,
+                        table_name,
+                        keep_columns = NULL) {
 
   name_ <- "name"
 
@@ -47,13 +59,22 @@
         value_to_search = dplyr::pull(all_names_)[i],
         compared_table = all_names,
         column_name = column_name,
-        prompt_message = "Choose feature (G for pattern searching): "
+        prompt_message = "Choose feature (G for pattern searching, 0 is no match): "
       )
 
-    selected_name_id <-
-      sorted_matches$sorted_matches %>%
-      slice(sorted_matches$selected_name) %>%
-      pull({{id_table_name}})
+    if (sorted_matches$selected_name != 0) {
+
+      selected_name_id <-
+        sorted_matches$sorted_matches %>%
+        slice(sorted_matches$selected_name) %>%
+        pull({{id_table_name}})
+
+    } else {
+
+      selected_name_id <-
+        0
+
+    }
 
     id_[data_stand$name == dplyr::pull(all_names_[i,1])] <-
       selected_name_id
@@ -64,6 +85,17 @@
     data_stand %>%
     dplyr::mutate({{id_field}} := id_) %>%
     dplyr::select(-name)
+
+  if (!is.null(keep_columns)) {
+    data_stand <-
+      join_help_function(data_stand,
+                         all_names,
+                         id_field,
+                         id_table_name,
+                         keep_columns = keep_columns)
+
+  }
+
   # mutate(id_country = id_)
 
   return(data_stand)
@@ -762,8 +794,43 @@
 
 
 
+#' Internal function
+#'
+#' Looking for similar name
+#'
+#' @return tibble
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @param input string vector of one value containing the string to compare
+#' @param compared_table tibble including one column containing the different strings to which input should be compared
+#' @param column_name string the column name of compared_table containing the compared values
+.find_similar_string <- function(input, compared_table, column_name){
+  dist. <-
+    RecordLinkage::levenshteinSim(tolower(input),
+                                  tolower(compared_table %>%
+                                            dplyr::select(!!column_name) %>%
+                                            dplyr::pull()))
+
+  arranged_values <-
+    compared_table %>%
+    tibble::add_column(dist = dist.) %>%
+    dplyr::arrange(dplyr::desc(dist))
+
+  return(arranged_values)
+}
 
 
 
 
 
+join_help_function <- function(df1, df2, col1, col2, keep_columns) {
+  helper <- col2
+  names(helper) <- col1
+  df2 <-
+    df2 %>% dplyr::select(dplyr::all_of(c(keep_columns, id_table_name)))
+
+  output_dataframe <- dplyr::left_join(df1, df2, by = helper)
+
+  return(output_dataframe)
+
+}

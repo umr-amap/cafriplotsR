@@ -2,20 +2,20 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{add_method}
 \alias{add_method}
-\title{Add a trait in trait list}
+\title{Add a method in method list}
 \usage{
 add_method(new_method = NULL, new_description_method = NULL)
 }
 \arguments{
-\item{new_description_method}{}
+\item{new_method}{string value with new method descriptors, avoid space}
 
-\item{new_trait}{string value with new trait descritors - try to avoid space}
+\item{new_description_method}{}
 }
 \value{
 nothing
 }
 \description{
-Add trait and associated descriptors in trait list table
+Add method and associated descriptors in method list table
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}

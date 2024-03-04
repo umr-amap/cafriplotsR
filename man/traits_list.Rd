@@ -2,15 +2,15 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{traits_list}
 \alias{traits_list}
-\title{List of trait}
+\title{List of trait and features potentially liked to individual}
 \usage{
 traits_list(id_trait = NULL)
 }
 \value{
-A tibble of all traits
+A tibble of all traits and features that can be linked to individual
 }
 \description{
-Provide list of traits available
+Provide list of traits and features available
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}

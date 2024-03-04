@@ -11,7 +11,8 @@
   id_field,
   id_table_name,
   db_connection = mydb,
-  table_name
+  table_name,
+  keep_columns = NULL
 )
 }
 \arguments{
@@ -19,7 +20,17 @@
 
 \item{column_searched}{string vector}
 
-\item{id_field}{name of the column that will store the id}
+\item{column_name}{name of the column that will store the id}
+
+\item{id_field}{string name of the column of the output that will contain the id}
+
+\item{id_table_name}{string name of the database table that contain the id}
+
+\item{db_connection}{PqConnection  connection of the database}
+
+\item{table_name}{string name of the table in the database to search into}
+
+\item{keep_columns}{string vector of the columns in the database table to keep in the output, by default NULL}
 }
 \value{
 vector
