@@ -827,7 +827,7 @@ join_help_function <- function(df1, df2, col1, col2, keep_columns) {
   helper <- col2
   names(helper) <- col1
   df2 <-
-    df2 %>% dplyr::select(dplyr::all_of(c(keep_columns, id_table_name)))
+    df2 %>% dplyr::select(dplyr::all_of(c(keep_columns, col2)))
 
   output_dataframe <- dplyr::left_join(df1, df2, by = helper)
 

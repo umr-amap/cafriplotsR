@@ -207,7 +207,7 @@ query_individual_features <- function(id = NULL, multiple_census = FALSE, id_tra
                       trait,
                       issue,
                       id_trait_measures) %>%
-        dplyr::mutate(issue = str_squish(issue)) %>%
+        dplyr::mutate(issue = stringr::str_squish(issue)) %>%
         dplyr::mutate(rn = data.table::rowid(trait)) %>%
         tidyr::pivot_wider(
           names_from = trait,
@@ -247,7 +247,7 @@ query_individual_features <- function(id = NULL, multiple_census = FALSE, id_tra
                         issue,
                         id_trait_measures,
                         census_name) %>%
-          dplyr::mutate(issue = str_squish(issue)) %>%
+          dplyr::mutate(issue = stringr::str_squish(issue)) %>%
           dplyr::mutate(rn = data.table::rowid(trait)) %>%
           tidyr::pivot_wider(
             names_from = c(trait, census_name),
@@ -341,7 +341,7 @@ query_individual_features <- function(id = NULL, multiple_census = FALSE, id_tra
         id_trait_measures,
         census_name
       ) %>%
-      dplyr::mutate(traitvalue_char = str_squish(traitvalue_char)) %>%
+      dplyr::mutate(traitvalue_char = stringr::str_squish(traitvalue_char)) %>%
       dplyr::mutate(rn = data.table::rowid(trait)) %>%
       tidyr::pivot_wider(
         names_from = c(trait, census_name),
@@ -358,7 +358,7 @@ query_individual_features <- function(id = NULL, multiple_census = FALSE, id_tra
         traitvalue_char,
         id_trait_measures
       ) %>%
-      dplyr::mutate(traitvalue_char = str_squish(traitvalue_char)) %>%
+      dplyr::mutate(traitvalue_char = stringr::str_squish(traitvalue_char)) %>%
       dplyr::mutate(rn = data.table::rowid(trait)) %>%
       tidyr::pivot_wider(
         names_from = c(trait),

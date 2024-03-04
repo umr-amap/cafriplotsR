@@ -1498,6 +1498,9 @@ province_list <- function(country=NULL) {
 #' @return A tibble of all method
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#' @importFrom stringr str_squish
+#'
 #' @export
 method_list <- function() {
 
