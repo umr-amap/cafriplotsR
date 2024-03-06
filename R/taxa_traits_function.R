@@ -535,8 +535,8 @@ add_trait_taxa <- function(new_trait = NULL,
                            new_expectedunit = NULL,
                            new_comments = NULL) {
 
-  if (is.null(new_trait)) stop("define new trait")
-  if (is.null(new_valuetype)) stop("define new_valuetype")
+  if(is.null(new_trait)) stop("define new trait")
+  if(is.null(new_valuetype)) stop("define new_valuetype")
 
   if (!any(new_valuetype == c('numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character')))
     stop("valuetype should one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', or 'character'")

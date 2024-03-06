@@ -1568,7 +1568,7 @@ subplot_list <- function() {
   if(!exists("mydb")) call.mydb()
 
   nn <-
-    dplyr::tbl(mydb, "subplotype_list") %>%
+    try_open_postgres_table(table = "subplotype_list", con = mydb) %>%
     dplyr::collect()
 
   # dbDisconnect(mydb)
@@ -2303,7 +2303,7 @@ query_plots <- function(team_lead = NULL,
 
       res_individuals_full <-
         res_individuals_full %>%
-        dplyr::filter(ind_num_sous_plot == tag)
+        dplyr::filter(ind_num_sous_plot %in% tag)
 
     }
 
@@ -2915,7 +2915,8 @@ query_subplots <- function(ids_plots = NULL,
                     original_subplot_name,
                     id_sub_plots,
                     id_colnam,
-                    additional_people)
+                    additional_people,
+                    comment)
 
     if (any(extracted_data$valuetype == "numeric")) {
       numeric_subplots_pivot <-
@@ -5584,7 +5585,8 @@ add_individuals <- function(new_data ,
               id_field = "id_liste_plots",
               id_table_name = "id_liste_plots",
               db_connection = mydb,
-              table_name = "data_liste_plots")
+              table_name = "data_liste_plots",
+              keep_columns = "plot_name")
 
 
   ids_plot <-
@@ -5690,7 +5692,8 @@ add_individuals <- function(new_data ,
     new_data_renamed %>%
     dplyr::select(idtax_n) %>%
     dplyr::left_join(
-      dplyr::tbl(mydb_taxa, "table_taxa") %>%
+      try_open_postgres_table_mem(table = "table_taxa", con = mydb_taxa) %>%
+      # dplyr::tbl(mydb_taxa, "table_taxa") %>%
         dplyr::select(idtax_n, id_tax_famclass) %>%
         filter(idtax_n %in% !!new_data_renamed$idtax_n) %>%
         dplyr::collect(),
@@ -6582,11 +6585,20 @@ get_updates_diconame <- function(id = NULL,
 
   if(!exists("mydb")) call.mydb()
 
+  askYesNo(msg = "You are about to delete entries in the table that contain subplot features types. Do you confirm ?")
 
+  query <- "DELETE FROM subplotype_list WHERE MMM"
+  query <-
+    gsub(
+      pattern = "MMM",
+      replacement = paste0("id_subplotype IN ('",
+                           paste(unique(id), collapse = "', '"), "')"),
+      x = query
+    )
 
-  DBI::dbExecute(mydb,
-                 "DELETE FROM subplotype_list WHERE id_subplotype=$1", params=list(id)
-  )
+  rs <- DBI::dbSendQuery(mydb, query)
+  DBI::dbClearResult(rs)
+
 }
 
 #' Delete an entry in subplotype_list table
@@ -8739,7 +8751,7 @@ add_specimens <- function(new_data ,
   unmatch_id_diconame <-
     new_data_renamed %>%
     dplyr::select(idtax_n) %>%
-    dplyr::left_join(dplyr::tbl(mydb_taxa, "table_taxa") %>%
+    dplyr::left_join(try_open_postgres_table_mem(table = "table_taxa", con = mydb_taxa) %>%
                        dplyr::select(idtax_n, idtax_good_n) %>%
                        dplyr::filter(idtax_n %in% !!new_data_renamed$idtax_n) %>%
                        dplyr::collect() %>%
@@ -8756,121 +8768,17 @@ add_specimens <- function(new_data ,
     warning("locality column missing"
     )
 
-  ### Linking plot names
-  # if (!is.null(plot_name_field) &
-  #     !any(colnames(new_data_renamed) == "locality")) {
-  #   plot_name <- "plot_name"
-  #
-  #   new_data_renamed <-
-  #     new_data_renamed %>%
-  #     dplyr::rename_at(dplyr::vars(plot_name_field), ~ plot_name)
-  #
-  #   all_plot_names <-
-  #     dplyr::tbl(mydb, "data_liste_plots") %>%
-  #     dplyr::select(id_liste_plots, plot_name) %>%
-  #     dplyr::collect()
-  #
-  #   all_plot_name_new_dataset <-
-  #     dplyr::distinct(new_data_renamed, plot_name)
-  #
-  #   all_plot_name_new_dataset <-
-  #     all_plot_name_new_dataset %>%
-  #     dplyr::left_join(all_plot_names)
-  #
-  #   all_plot_name_new_dataset_no_match <-
-  #     all_plot_name_new_dataset %>%
-  #     dplyr::filter(is.na(id_liste_plots))
-  #
-  #   id_plotname <-
-  #     vector(mode = "integer", nrow(new_data_renamed))
-  #   for (i in 1:nrow(all_plot_name_new_dataset_no_match)) {
-  #     print(all_plot_name_new_dataset$plot_name[i])
-  #     sorted_matches <-
-  #       .find_similar_string(
-  #         input = all_plot_name_new_dataset$plot_name[i],
-  #         compared_table = all_plot_names,
-  #         column_name = "plot_name"
-  #       )
-  #     print(sorted_matches)
-  #     selected_name <-
-  #       readline(prompt = "Choose which name fit (if none enter 0): ")
-  #
-  #     selected_name <- as.integer(selected_name)
-  #
-  #     if (is.na(selected_name))
-  #       stop("Provide integer value for standardizing plot name")
-  #
-  #     if (selected_name == 0) {
-  #       print(paste(all_plot_name_new_dataset$plot_name[i], " not found"))
-  #     }
-  #
-  #     if (selected_name > 0) {
-  #       selected_name_id <-
-  #         sorted_matches %>%
-  #         slice(selected_name) %>%
-  #         dplyr::select(id_liste_plots) %>%
-  #         dplyr::pull()
-  #
-  #       id_plotname[new_data_renamed$plot_name == all_plot_name_new_dataset_no_match$plot_name[i]] <-
-  #         selected_name_id
-  #     }
-  #   }
-  #
-  #   new_data_renamed <-
-  #     new_data_renamed %>%
-  #     tibble::add_column(id_liste_plots = id_plotname)
-  #
-  #   if (new_data_renamed %>%
-  #       dplyr::filter(is.na(id_liste_plots),!is.na(plot_name)) %>%
-  #       nrow() > 0) {
-  #     print("Plot name not found !!")
-  #
-  #   }
-  #
-  #   ### importing plots information about specimens
-  #   new_data_renamed <-
-  #     new_data_renamed %>%
-  #     dplyr::left_join(
-  #       dplyr::tbl(mydb, "data_liste_plots") %>%
-  #         dplyr::select(
-  #           id_liste_plots,
-  #           country,
-  #           ddlat,
-  #           ddlon,
-  #           elevation,
-  #           locality_name,
-  #           province
-  #         ) %>%
-  #         dplyr::collect(),
-  #       by = c("id_liste_plots" = "id_liste_plots")
-  #     )
-  #
-  #   new_data_renamed <-
-  #     new_data_renamed %>%
-  #     dplyr::select(-id_liste_plots,-plot_name) %>%
-  #     dplyr::rename(locality = locality_name,
-  #                   majorarea = province)
-  #
-  # }
-
   ### Linking collectors names
   if (!is.null(collector_field)) {
-    # data_stand = new_data_renamed
-    # collector_field = 1
-    # new_data_renamed <-
-    #   .link_colnam(data_stand = new_data_renamed,
-    #                collector_field = collector_field)
+
 
     new_data_renamed <-
-      .link_table(
-      data_stand = new_data_renamed,
-      column_searched = collector_field,
-      column_name = "colnam",
-      id_field = "id_colnam",
-      id_table_name = "id_table_colnam",
-      db_connection = mydb,
-      table_name = "table_colnam"
-    )
+      .link_colnam(data_stand = new_data_renamed,
+                   column_searched = collector_field)
+
+    new_data_renamed <-
+      new_data_renamed %>%
+      dplyr::select(-original_colnam)
 
   } else{
     if (!any(colnames(new_data_renamed) == "id_colnam"))
@@ -8912,69 +8820,12 @@ add_specimens <- function(new_data ,
     group_by(colnbr, id_colnam, suffix) %>%
     count() %>%
     filter(n > 1)
-    # dplyr::mutate(combined = paste(colnbr, id_colnam, sep = "-")) %>%
-    # dplyr::group_by(combined) %>%
-    # dplyr::count() %>%
-    # dplyr::filter(n > 1)
 
   if (nrow(dup_imported_datasets) > 0) {
     print(dup_imported_datasets)
     stop("Duplicates in imported dataset")
   }
 
-  # link to table individuals
-  # unmatched_specimens_from_individuals <-
-  #   .query_unmatched_specimens()
-  #
-  # all_herbarium_individuals_not_linked <-
-  #   unmatched_specimens_from_individuals$all_herbarium_individuals_not_linked
-
-  ## checking for duplicates in unmatched specimens in data individuals
-  # dup_stand_specimens <-
-  #   all_herbarium_individuals_not_linked %>%
-  #   dplyr::group_by(colnbr, id_colnam) %>%
-  #   dplyr::count() %>%
-  #   dplyr::filter(n>1)
-  #
-  # if(nrow(dup_stand_specimens)) {
-  #   print(dup_stand_specimens)
-  #   warning("duplicates in specimens not linked in individuals table and carrying different identification")
-  # }
-
-  ### comparing id diconames from individuals and specimens
-  # linked_new_specimens_to_table_individuals <-
-  #   new_data_renamed %>%
-  #   # dplyr::select(colnbr, id_colnam, id_new_data, id_diconame_n) %>%
-  #   dplyr::mutate(colnbr = as.numeric(colnbr)) %>%
-  #   dplyr::mutate(combined = paste(colnbr, id_colnam, sep="-")) %>%
-  #   dplyr::select(combined, id_new_data, id_diconame_n) %>%
-  #   dplyr::left_join(all_herbarium_individuals_not_linked %>%
-  #                      dplyr::select(colnbr, id_colnam, id_diconame_n) %>%
-  #                      dplyr::mutate(colnbr = as.numeric(colnbr)) %>%
-  #                      dplyr::mutate(combined = paste(colnbr, id_colnam, sep="-")),
-  #                    by=c("combined"="combined"))
-  #
-  # cat(paste("Matchs from table individuals found for", nrow(linked_new_specimens_to_table_individuals), "specimens", "\n"))
-  #
-  # ## checking if taxo is different between table individuals and new specimens
-  # ## only select incongruent genus
-  # unmatch_taxo <-
-  #   linked_new_specimens_to_table_individuals %>%
-  #   dplyr::filter(id_diconame_n.x != id_diconame_n.y) %>%
-  #   dplyr::left_join(dplyr::tbl(mydb, "diconame") %>%
-  #                      dplyr::select(id_n, full_name_no_auth, tax_gen) %>%
-  #                      dplyr::collect(),
-  #                    by=c("id_diconame_n.x"="id_n")) %>%
-  #   dplyr::left_join(dplyr::tbl(mydb, "diconame") %>%
-  #                      dplyr::select(id_n, full_name_no_auth, tax_gen) %>%
-  #                      dplyr::collect(),
-  #                    by=c("id_diconame_n.y"="id_n")) %>%
-  #   dplyr::filter(tax_gen.x!=tax_gen.y)
-  #
-  # if(nrow(unmatch_taxo)>0) {
-  #   warning("Different genus between new specimens and corresponding matched individuals")
-  #   print(unmatch_taxo)
-  # }
 
   ## check if specimens are not already in database
   matched_specimens <-
@@ -9023,8 +8874,10 @@ add_specimens <- function(new_data ,
     confirmed <- utils::askYesNo("Confirm adding?")
 
     if(confirmed) {
-      message(paste0(nrow(new_data_renamed), " records added to specimens table"))
+
       DBI::dbWriteTable(mydb, "specimens", new_data_renamed, append = TRUE, row.names = FALSE)
+
+      message(paste0(nrow(new_data_renamed), " records added to specimens table"))
     }
 
   }
@@ -11265,7 +11118,7 @@ query_traits_measures <- function(idtax,
 
   } else {
 
-    table_taxa <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
+    table_taxa <- try_open_postgres_table_mem(table = "table_taxa", con = mydb_taxa)
 
     ids_syn <- table_taxa %>%
       dplyr::select(idtax_n, idtax_good_n) %>%
@@ -11557,7 +11410,7 @@ add_taxa_table_taxa <- function(ids = NULL) {
 
   if(!exists("mydb_taxa")) call.mydb.taxa(pass = "Anyuser2022", user = "common")
 
-  table_taxa <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
+  table_taxa <- try_open_postgres_table_mem(table = "table_taxa", con = mydb_taxa)
 
   table_taxa <-
     table_taxa %>%
@@ -12493,7 +12346,7 @@ update_taxa_link_table <- function() {
 
   call.mydb()
 
-  id_taxa_table <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa) %>%
+  id_taxa_table <- try_open_postgres_table_mem(table = "table_taxa", con = mydb_taxa) %>%
     # dplyr::tbl(mydb_taxa, "table_taxa") %>%
     dplyr::select(idtax_n, idtax_good_n) %>%
     dplyr::collect()
@@ -12551,6 +12404,8 @@ func_try_fetch <- function(con, sql) {
 #'
 #' Access to postgresql database table with repeating if no successful
 #'
+#' @param table string
+#' @param con connection to database
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #' @export
@@ -12580,7 +12435,17 @@ try_open_postgres_table <- function(table, con) {
   return(table_postgre)
 }
 
-
+#' Memoised try_open_postgres_table function
+#'
+#' Memoised 'try_open_postgres_table' function
+#'
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#' @importFrom memoise memoise
+#'
+#' @export
+try_open_postgres_table_mem <- memoise::memoise(try_open_postgres_table)
 
 
 
@@ -13039,14 +12904,12 @@ add_entry_taxa <- function(search_name_tps = NULL,
     if(!is.na(tax_fam) & !is.na(tax_gen) & !is.na(tax_esp))
       tax_rankesp <- "ESP"
 
-
     ## get id of class
     id_tax_fam_class <-
-      try_open_postgres_table(table = "table_tax_famclass", con = mydb_taxa) %>%
+      try_open_postgres_table_mem(table = "table_tax_famclass", con = mydb_taxa) %>%
       # tbl(mydb_taxa, "table_tax_famclass") %>%
       filter(tax_famclass == !!tax_famclass) %>%
       collect()
-
 
     new_rec <-
       dplyr::tibble(
@@ -13074,9 +12937,8 @@ add_entry_taxa <- function(search_name_tps = NULL,
         morpho_species = morpho_species
       )
 
-
     seek_dup <-
-      try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
+      try_open_postgres_table_mem(table = "table_taxa", con = mydb_taxa)
 
 
     if(!is.na(new_rec$tax_famclass))

@@ -6,6 +6,11 @@
 \usage{
 try_open_postgres_table(table, con)
 }
+\arguments{
+\item{table}{string}
+
+\item{con}{connection to database}
+}
 \description{
 Access to postgresql database table with repeating if no successful
 }

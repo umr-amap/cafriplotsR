@@ -28,13 +28,19 @@
                         id_table_name,
                         db_connection = mydb,
                         table_name,
-                        keep_columns = NULL) {
+                        keep_columns = NULL,
+                        keep_original_value = FALSE) {
 
-  name_ <- "name"
+  var <- rlang::enquo(column_searched)
+  var_new <- "name"
 
   data_stand <-
     data_stand %>%
-    dplyr::rename_at(dplyr::vars(all_of(column_searched)), ~ name_)
+    dplyr::rename(!!var_new := dplyr::all_of(!!var))
+
+  # data_stand <-
+  #   data_stand %>%
+  #   dplyr::rename_at(dplyr::vars(all_of(column_searched)), ~ name_)
 
   all_names_ <-
     dplyr::distinct(data_stand, name)
@@ -45,7 +51,6 @@
   all_names_ <-
     all_names_ %>%
     filter(!is.na(name))
-
 
   for (i in 1:nrow(all_names_)) {
 
@@ -83,8 +88,31 @@
 
   data_stand <-
     data_stand %>%
-    dplyr::mutate({{id_field}} := id_) %>%
-    dplyr::select(-name)
+    dplyr::mutate(id_field_ = id_)
+
+  var <- "id_field_"
+  var_new <- id_field
+  data_stand <-
+    data_stand %>%
+    dplyr::rename(!!var_new := dplyr::all_of(!!var))
+
+
+
+  if (keep_original_value) {
+
+    var <- "name"
+    var_new <- paste0("original_",column_name)
+
+    data_stand <-
+      data_stand %>%
+      dplyr::rename(!!var_new := !!var)
+
+  } else {
+    data_stand <-
+      data_stand %>% dplyr::select(-name)
+
+  }
+
 
   if (!is.null(keep_columns)) {
     data_stand <-
@@ -547,96 +575,86 @@
 
 
 
-# .link_colnam <- function(data_stand, collector_field, id_colnam = "id_colnam") {
-#   col_name <- "col_name"
-#
-#   data_stand <-
-#     data_stand %>%
-#     dplyr::rename_at(dplyr::vars(all_of(collector_field)), ~ col_name)
-#
-#   all_names_collector <-
-#     dplyr::distinct(data_stand, col_name)
-#
-#   id_colname <-
-#     vector(mode = "integer", nrow(data_stand))
-#
-#   all_names_collector <-
-#     all_names_collector %>%
-#     filter(!is.na(col_name))
-#
-#   for (i in 1:nrow(all_names_collector)) {
-#
-#     all_colnames <-
-#       dplyr::tbl(mydb, "table_colnam") %>%
-#       dplyr::collect()
-#
-#     sorted_matches <-
-#       .find_cat(
-#         value_to_search = dplyr::pull(all_names_collector)[i],
-#         compared_table = all_colnames,
-#         column_name = "colnam",
-#         prompt_message = "Choose corresponding name (choose the ID, see ID column) (G for searching a pattern, 0 if none corresponding): "
-#       )
-#
-#     if(sorted_matches$selected_name == 0) {
-#
-#       add <- utils::askYesNo(msg = "Add a new name?")
-#
-#       if(add) {
-#         new_colname <-
-#           readline(prompt="Provide a new collector name following same format: ")
-#
-#         new_family_name <-
-#           readline(prompt="Provide a new family_name name following same format: ")
-#
-#         new_surname <-
-#           readline(prompt="Provide a new surname name following same format: ")
-#
-#         new_nationality <-
-#           readline(prompt="Provide a nationality following same format: ")
-#
-#         new_rec <- tibble::tibble(
-#           colnam = new_colname,
-#           family_name = new_family_name,
-#           surname = new_surname,
-#           nationality = new_nationality
-#         )
-#
-#         DBI::dbWriteTable(mydb, "table_colnam", new_rec, append = TRUE,
-#                           row.names = FALSE)
-#
-#         selected_name_id <-
-#           dplyr::tbl(mydb, "table_colnam") %>%
-#           dplyr::filter(colnam == new_colname) %>%
-#           dplyr::select(id_table_colnam) %>%
-#           dplyr::collect() %>%
-#           dplyr::pull()
-#
-#       } else {
-#
-#         selected_name_id <- NA
-#
-#       }
-#
-#     } else {
-#
-#       selected_name_id <-
-#         sorted_matches$sorted_matches %>%
-#         slice(sorted_matches$selected_name) %>%
-#         pull(id_table_colnam)
-#
-#     }
-#
-#     id_colname[data_stand$col_name==dplyr::pull(all_names_collector[i,1])] <-
-#       selected_name_id
-#   }
-#
-#   data_stand <-
-#     data_stand %>%
-#     mutate("{id_colnam}" := id_colname)
-#
-#   return(data_stand)
-# }
+.link_colnam <- function(data_stand,
+                         column_searched,
+                         column_name = "colnam",
+                         id_field = "id_colnam",
+                         id_table_name = "id_table_colnam",
+                         db_connection = mydb,
+                         table_name = "table_colnam") {
+
+  data_stand <-
+    .link_table(
+      data_stand = data_stand,
+      column_searched = column_searched,
+      column_name = column_name,
+      id_field = id_field,
+      id_table_name = id_table_name,
+      db_connection = db_connection,
+      table_name = table_name,
+      keep_original_value = TRUE
+    )
+
+  original_ <- paste0("original_", column_name)
+
+  quo_var <- rlang::parse_expr(rlang::as_name(rlang::enquo(id_field)))
+
+  missing_colnams <- data_stand %>%
+    dplyr::select(all_of(c(id_field, original_))) %>%
+    filter(!!quo_var == 0)
+
+  if (nrow(missing_colnams) > 0) {
+
+    original_enquo <- rlang::parse_expr(rlang::as_name(enquo(original_)))
+    missing_colnams_unique <- missing_colnams %>% distinct(!!original_enquo)
+    for (i in 1:nrow(missing_colnams_unique)) {
+
+      print(missing_colnams_unique[i])
+
+      add <- utils::askYesNo(msg = "Add a new name?")
+
+      if(add) {
+        new_colname <-
+          readline(prompt="Provide a new collector name following same format: ")
+
+        new_family_name <-
+          readline(prompt="Provide a new family_name name following same format: ")
+
+        new_surname <-
+          readline(prompt="Provide a new surname name following same format: ")
+
+        new_nationality <-
+          readline(prompt="Provide a nationality following same format: ")
+
+        new_rec <- tibble::tibble(
+          colnam = new_colname,
+          family_name = new_family_name,
+          surname = new_surname,
+          nationality = new_nationality
+        )
+
+        DBI::dbWriteTable(mydb, "table_colnam", new_rec, append = TRUE,
+                          row.names = FALSE)
+
+        selected_name_id <-
+          dplyr::tbl(mydb, "table_colnam") %>%
+          dplyr::filter(colnam == new_colname) %>%
+          dplyr::select(id_table_colnam) %>%
+          dplyr::collect() %>%
+          dplyr::pull()
+
+        data_stand <-
+          data_stand %>%
+          mutate(id_colnam = replace(id_colnam, original_colnam == missing_colnams_unique[i], selected_name_id))
+
+      }
+
+    }
+
+  }
+
+  return(data_stand)
+}
 
 
 

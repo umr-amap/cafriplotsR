@@ -12,7 +12,8 @@
   id_table_name,
   db_connection = mydb,
   table_name,
-  keep_columns = NULL
+  keep_columns = NULL,
+  keep_original_value = FALSE
 )
 }
 \arguments{
