@@ -391,7 +391,7 @@ update_plot_data_batch <- function(new_data,
 
   if (is.null(col_names_corresp)) {
     col_names_corresp <- col_names_select
-    cli::cli_alert_info("col_names_corresp is set to names of col_names_select (it should be names of columns of data_individuals")
+    cli::cli_alert_info("col_names_corresp is set to names of col_names_select (it should be names of columns of data_liste_plots)")
   }
 
   all_colnames_ind <-

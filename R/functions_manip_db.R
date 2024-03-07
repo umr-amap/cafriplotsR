@@ -1967,7 +1967,7 @@ query_plots <- function(team_lead = NULL,
 
 
       id_liste_plots_match <-
-        .link_table(
+        .link_colnam(
         data_stand = tibble(colnam = team_lead),
         column_searched = "colnam",
         column_name = "colnam",
@@ -4042,7 +4042,7 @@ add_plots <- function(new_data,
       #     id_colnam = "id_team_leader"
       #   )
 
-      id_team_leader <- .link_table(
+      id_team_leader <- .link_colnam(
         data_stand = tibble(team_leader = " "),
         column_searched = "team_leader",
         column_name = "colnam",
@@ -4074,7 +4074,7 @@ add_plots <- function(new_data,
     #                id_colnam = "team_leader")
 
     id_team_leader <-
-      .link_table(
+      .link_colnam(
       data_stand = team_leader_sep,
       column_searched = "team_leader",
       column_name = "colnam",
@@ -4102,7 +4102,7 @@ add_plots <- function(new_data,
 
 
       id_pi <-
-        .link_table(
+        .link_colnam(
         data_stand = tibble(PI = " "),
         column_searched = "PI",
         column_name = "colnam",
@@ -4133,7 +4133,7 @@ add_plots <- function(new_data,
     #                collector_field = "PI", id_colnam = "PI")
 
     id_pi <-
-      .link_table(
+      .link_colnam(
       data_stand = pi_sep,
       column_searched = "PI",
       column_name = "colnam",
@@ -4158,7 +4158,7 @@ add_plots <- function(new_data,
       #                       collector_field = "data_manager",
       #                       id_colnam = "id_data_manager")
 
-      data_manager <- .link_table(
+      data_manager <- .link_colnam(
         data_stand = tibble(data_manager = " "),
         column_searched = "data_manager",
         column_name = "colnam",
@@ -4190,7 +4190,7 @@ add_plots <- function(new_data,
 
 
     data_manager_sep <-
-      .link_table(
+      .link_colnam(
       data_stand = data_manager_sep,
       column_searched = "data_manager",
       column_name = "colnam",
@@ -4221,7 +4221,7 @@ add_plots <- function(new_data,
     #                collector_field = "additional_people", id_colnam = "additional_people")
 
 
-    add_col_sep <- .link_table(
+    add_col_sep <- .link_colnam(
       data_stand = add_col_sep,
       column_searched = "additional_people",
       column_name = "colnam",
@@ -4425,7 +4425,7 @@ add_subplot_features <- function(new_data,
     # new_data_renamed <-
     #   .link_colnam(data_stand = new_data_renamed, collector_field = collector_field)
 
-    .link_table(
+    new_data_renamed <- .link_colnam(
       data_stand = new_data_renamed,
       column_searched = "collector_field",
       column_name = "colnam",
@@ -6895,7 +6895,7 @@ query_specimens <- function(collector = NULL,
   if(!exists("mydb")) call.mydb()
 
   diconames_id <-
-    try_open_postgres_table(table = "table_idtax", con = mydb) %>%
+    try_open_postgres_table_mem(table = "table_idtax", con = mydb) %>%
     dplyr::select(idtax_n, idtax_good_n) %>%
     dplyr::mutate(idtax_f = ifelse(is.na(idtax_good_n), idtax_n, idtax_good_n))
 
@@ -6944,17 +6944,17 @@ query_specimens <- function(collector = NULL,
   ## filter by collector or id_colnam (id of people table)
   if ((!is.null(collector) |
        !is.null(id_colnam)) & is.null(id_search)) {
-    if (is.null(id_colnam)) {
-      var <- rlang::enquo(collector)
 
-      query_speci <-
-        query_speci %>%
-        dplyr::filter(grepl(!!var, colnam))
-    } else{
-      query_speci <-
-        query_speci %>%
-        dplyr::filter(id_colnam == !!id_colnam)
+    if (is.null(id_colnam)) {
+
+      id_colnam <- .link_colnam(data_stand = tibble(colnam = collector),column_searched = "colnam")$id_colnam
+
     }
+
+    query_speci <-
+      query_speci %>%
+      dplyr::filter(id_colnam == !!id_colnam)
+
   }
 
   if(!is.null(number) & is.null(id_search)) {
@@ -6964,6 +6964,8 @@ query_specimens <- function(collector = NULL,
     query_speci <-
       query_speci %>%
       dplyr::filter(colnbr %in% var)
+
+
   }
 
   if(!is.null(id_colnam) & is.null(id_search)) {
@@ -6974,6 +6976,8 @@ query_specimens <- function(collector = NULL,
       query_speci %>%
       dplyr::filter(id_colnam %in% var)
   }
+
+
 
   if(!is.null(number_min) & is.null(id_search)) {
 
@@ -7028,10 +7032,10 @@ query_specimens <- function(collector = NULL,
       query_speci %>%
       dplyr::filter(id_specimen %in% var)
   }
-
   query <-
     query_speci %>%
     dplyr::collect()
+
 
   query_tax <- add_taxa_table_taxa(ids = unique(query$idtax_f))
   query_tax <- query_tax %>% collect()
@@ -7099,164 +7103,9 @@ query_specimens <- function(collector = NULL,
     # }
   }
 
-  # if(generate_labels) {
-  #
-  #   if (!any(rownames(utils::installed.packages()) == "measurements"))
-  #     stop("measurements package needed, please install it")
-  #
-  #   lat_convert <-
-  #     measurements::conv_unit(query$ddlat, from = "dec_deg", to = "deg_min_sec")
-  #   lat_convert_deg <-
-  #     as.double(unlist(lapply(strsplit(lat_convert, " "), function(x) x[[1]])))
-  #   lat_flag <-
-  #     ifelse(lat_convert_deg>0, "N", "S")
-  #   lat_convert_deg <-
-  #     abs(lat_convert_deg)
-  #   lat_convert_min <-
-  #     unlist(lapply(strsplit(lat_convert, " "), function(x) ifelse(length(x)>1, x[[2]], NA)))
-  #   lat_convert_sec <-
-  #     unlist(lapply(strsplit(lat_convert, " "), function(x) ifelse(length(x)>1, x[[3]], NA)))
-  #
-  #   long_convert <-
-  #     measurements::conv_unit(query$ddlon, from = "dec_deg", to = "deg_min_sec")
-  #   long_convert_deg <-
-  #     as.double(unlist(lapply(strsplit(long_convert, " "), function(x) x[[1]])))
-  #   long_flag <-
-  #     ifelse(lat_convert_deg>0, "E", "W")
-  #   long_convert_deg <-
-  #     abs(long_convert_deg)
-  #   long_convert_min <-
-  #     unlist(lapply(strsplit(long_convert, " "), function(x) ifelse(length(x)>1, x[[2]], NA)))
-  #   long_convert_sec <-
-  #     unlist(lapply(strsplit(long_convert, " "), function(x) ifelse(length(x)>1, x[[3]], NA)))
-  #
-  #   query_labels <-
-  #     query %>%
-  #     dplyr::mutate(specimen_code_up =
-  #                     paste0(colnam,' ' , ifelse(!is.na(specimen_nbe_char), specimen_nbe_char, colnbr))) %>%
-  #     tibble::add_column(
-  #       INSTITUTION_CODE = rep("BRLU", nrow(.)),
-  #       HERBARIUM = rep("BRLU", nrow(.)),
-  #       TITLE = rep(project_title, nrow(.)),
-  #       AUTHOR_OF_SPECIES = NA,
-  #       INFRASPECIFIC_RANK = NA,
-  #       INFRASPECIFIC_EPITHET = NA,
-  #       AUTHOR_OF_INFRASPECIFIC_RANK = NA,
-  #       COUNTY = NA,
-  #       IMAGE_URL = NA,
-  #       RELATED_INFORMATION = NA,
-  #       LAT_DEGREE = as.double(lat_convert_deg),
-  #       LAT_MINUTE = as.double(lat_convert_min),
-  #       LAT_SECOND = as.double(lat_convert_sec),
-  #       LON_DEGREE = as.double(long_convert_deg),
-  #       LON_MINUTE = as.double(long_convert_min),
-  #       LON_SECOND = as.double(long_convert_sec),
-  #       LAT_FLAG = lat_flag,
-  #       LON_FLAG = long_flag,
-  #       REMARKS = NA,
-  #       GEOREFERENCE_SOURCES = NA,
-  #       PROJECT = NA,
-  #       TYPE_STATUS = NA,
-  #       PROCESSED_BY = NA,
-  #       LOCAL_NAME = NA
-  #     ) %>%
-  #     dplyr::rename(
-  #       GLOBAL_UNIQUE_IDENTIFIER = id_specimen,
-  #       COLLECTION_CODE = colnbr,
-  #       COLLECTOR = colnam,
-  #       ADDITIONAL_COLLECTOR = add_col,
-  #       COLLECTOR_NUMBER = specimen_code_up,
-  #       FAMILY = tax_fam,
-  #       GENUS = tax_gen,
-  #       SPECIES = tax_esp,
-  #       COUNTRY = country,
-  #       STATE_PROVINCE = majorarea,
-  #       LOCALITY = locality,
-  #       ELEVATION = elevation,
-  #       ATTRIBUTES = description,
-  #       IDENTIFIED_BY = detby,
-  #       FULL_NAME = full_name
-  #     ) %>%
-  #     dplyr::mutate(
-  #       coly = ifelse(is.na(coly) | coly == 0, "", coly),
-  #       colm = ifelse(is.na(colm) | colm == 0, "", colm),
-  #       cold = ifelse(is.na(cold) | cold == 0, "", cold)
-  #     ) %>%
-  #     dplyr::mutate(
-  #       DATE_COLLECTED = paste(coly, colm, cold, sep = "-"),
-  #       DATE_IDENTIFIED = paste(
-  #         ifelse(is.na(dety) | dety == 0, "", dety),
-  #         ifelse(is.na(detm) |
-  #                  detm == 0, "", detm),
-  #         ifelse(is.na(detd) |
-  #                  detd == 0, "", detd),
-  #         sep = "-"
-  #       ),
-  #       DATE_LASTMODIFIED = paste(data_modif_y, data_modif_m, data_modif_d , sep =
-  #                                   "-")
-  #     ) %>%
-  #     dplyr::select(
-  #       INSTITUTION_CODE,
-  #       HERBARIUM,
-  #       TITLE,
-  #       AUTHOR_OF_SPECIES,
-  #       INFRASPECIFIC_RANK,
-  #       INFRASPECIFIC_EPITHET,
-  #       AUTHOR_OF_INFRASPECIFIC_RANK,
-  #       FULL_NAME,
-  #       COUNTY,
-  #       IMAGE_URL,
-  #       RELATED_INFORMATION,
-  #       LAT_DEGREE,
-  #       LAT_MINUTE,
-  #       LAT_SECOND,
-  #       LON_DEGREE,
-  #       LON_MINUTE,
-  #       LON_SECOND,
-  #       LAT_FLAG,
-  #       LON_FLAG,
-  #       REMARKS,
-  #       GEOREFERENCE_SOURCES,
-  #       PROJECT,
-  #       TYPE_STATUS,
-  #       PROCESSED_BY,
-  #       GLOBAL_UNIQUE_IDENTIFIER,
-  #       COLLECTION_CODE,
-  #       COLLECTOR,
-  #       ADDITIONAL_COLLECTOR,
-  #       COLLECTOR_NUMBER,
-  #       FAMILY,
-  #       GENUS,
-  #       SPECIES,
-  #       LOCAL_NAME,
-  #       COUNTRY,
-  #       STATE_PROVINCE,
-  #       LOCALITY,
-  #       ELEVATION,
-  #       ATTRIBUTES,
-  #       IDENTIFIED_BY,
-  #       DATE_COLLECTED,
-  #       DATE_IDENTIFIED,
-  #       DATE_LASTMODIFIED
-  #     )
-  #
-  #   herbarium_label(dat = query_labels,
-  #                   theme="GILLES",
-  #                   outfile = paste0(file_labels, ".rtf"))
-  #
-  # }
 
   nrow_query <-
     nrow(query)
-
-  # if (nrow(query) == 1 & show_previous_modif) {
-  #
-  #   if(nrow(modif_backups) > 0)
-  #     query <-
-  #     bind_rows(query,
-  #               modif_backups)
-  #
-  # }
 
   if(nrow(query) < 50)
   {
@@ -7586,7 +7435,7 @@ add_traits_measures <- function(new_data,
     #   .link_colnam(data_stand = new_data_renamed, collector_field = collector_field)
 
     new_data_renamed <-
-      .link_table(
+      .link_colnam(
       data_stand = new_data_renamed,
       column_searched = collector_field,
       column_name = "colnam",
@@ -9244,7 +9093,7 @@ replace_NA <- function(vec, inv = FALSE) {
   #                collector_field = 3)
 
   all_herbarium_individuals_not_linked <-
-    .link_table(
+    .link_colnam(
     data_stand = all_herbarium_individuals_not_linked,
     column_searched = "col_name",
     column_name = "colnam",
@@ -12201,7 +12050,7 @@ get_ref_specimen_ind <- function(collector = NULL, ids = NULL) {
     #   .link_colnam(data_stand = tibble(colnam = collector), collector_field = "colnam")
 
     collector <-
-      .link_table(
+      .link_colnam(
       data_stand = tibble(colnam = collector),
       column_searched = "colnam",
       column_name = "colnam",
@@ -12269,7 +12118,7 @@ get_ref_specimen_ind <- function(collector = NULL, ids = NULL) {
   # all_herb_not_linked <-
   #   .link_colnam(data_stand = all_herb_not_linked, collector_field = "coll")
 
-  all_herb_not_linked <- .link_table(
+  all_herb_not_linked <- .link_colnam(
     data_stand = all_herb_not_linked,
     column_searched = "coll",
     column_name = "colnam",

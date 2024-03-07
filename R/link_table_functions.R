@@ -38,51 +38,64 @@
     data_stand %>%
     dplyr::rename(!!var_new := dplyr::all_of(!!var))
 
-  # data_stand <-
-  #   data_stand %>%
-  #   dplyr::rename_at(dplyr::vars(all_of(column_searched)), ~ name_)
-
   all_names_ <-
     dplyr::distinct(data_stand, name)
 
-  id_ <-
-    vector(mode = "integer", nrow(data_stand))
+  all_names <-
+    try_open_postgres_table(table = table_name, con = db_connection) %>%
+    # dplyr::tbl(mydb, "table_countries") %>%
+    dplyr::collect() %>%
+    select(!!sym(id_table_name), !!sym(column_searched), all_of(keep_columns))
 
+  col_name <- rlang::as_name(column_name)
   all_names_ <-
     all_names_ %>%
-    filter(!is.na(name))
+       dplyr::left_join(all_names, by = c("name" = col_name))
 
-  for (i in 1:nrow(all_names_)) {
+  id_ <- data_stand %>%
+    left_join(all_names_ %>% select(name, {{id_table_name}}),
+              by = c("name" = "name")) %>%
+    pull({{id_table_name}})
 
-    all_names <-
-      try_open_postgres_table(table = table_name, con = db_connection) %>%
-      # dplyr::tbl(mydb, "table_countries") %>%
-      dplyr::collect()
+  all_names_no_match <-
+    all_names_ %>%
+    filter(is.na(!!rlang::sym(id_table_name)))
 
-    sorted_matches <-
-      .find_cat(
-        value_to_search = dplyr::pull(all_names_)[i],
-        compared_table = all_names,
-        column_name = column_name,
-        prompt_message = "Choose feature (G for pattern searching, 0 is no match): "
-      )
+  if (nrow(all_names_no_match) > 0) {
 
-    if (sorted_matches$selected_name != 0) {
+    for (i in 1:nrow(all_names_no_match)) {
 
-      selected_name_id <-
-        sorted_matches$sorted_matches %>%
-        slice(sorted_matches$selected_name) %>%
-        pull({{id_table_name}})
+      # all_names <-
+      #   try_open_postgres_table(table = table_name, con = db_connection) %>%
+      #   # dplyr::tbl(mydb, "table_countries") %>%
+      #   dplyr::collect()
 
-    } else {
+      sorted_matches <-
+        .find_cat(
+          value_to_search = dplyr::pull(all_names_no_match, name)[i],
+          compared_table = all_names,
+          column_name = column_name,
+          prompt_message = "Choose feature (G for pattern searching, 0 is no match): "
+        )
 
-      selected_name_id <-
-        0
+      if (sorted_matches$selected_name != 0) {
+
+        selected_name_id <-
+          sorted_matches$sorted_matches %>%
+          slice(sorted_matches$selected_name) %>%
+          pull({{id_table_name}})
+
+      } else {
+
+        selected_name_id <-
+          0
+
+      }
+
+      id_[data_stand$name == dplyr::pull(all_names_no_match, name)[i]] <-
+        selected_name_id
 
     }
-
-    id_[data_stand$name == dplyr::pull(all_names_[i,1])] <-
-      selected_name_id
 
   }
 
@@ -95,8 +108,6 @@
   data_stand <-
     data_stand %>%
     dplyr::rename(!!var_new := dplyr::all_of(!!var))
-
-
 
   if (keep_original_value) {
 
