@@ -39,13 +39,13 @@
     dplyr::rename(!!var_new := dplyr::all_of(!!var))
 
   all_names_ <-
-    dplyr::distinct(data_stand, name)
+    dplyr::distinct(data_stand, name) %>% filter(name != "")
 
   all_names <-
     try_open_postgres_table(table = table_name, con = db_connection) %>%
     # dplyr::tbl(mydb, "table_countries") %>%
     dplyr::collect() %>%
-    select(!!sym(id_table_name), !!sym(column_searched), all_of(keep_columns))
+    select(!!sym(id_table_name), !!sym(column_name), all_of(keep_columns))
 
   col_name <- rlang::as_name(column_name)
   all_names_ <-
@@ -620,7 +620,7 @@
     missing_colnams_unique <- missing_colnams %>% distinct(!!original_enquo)
     for (i in 1:nrow(missing_colnams_unique)) {
 
-      print(missing_colnams_unique[i])
+      print(missing_colnams_unique$original_colnam[i])
 
       add <- utils::askYesNo(msg = "Add a new name?")
 
@@ -656,7 +656,9 @@
 
         data_stand <-
           data_stand %>%
-          mutate(id_colnam = replace(id_colnam, original_colnam == missing_colnams_unique[i], selected_name_id))
+          mutate(!!sym(id_field) := replace(!!sym(id_field),
+                                     original_colnam == missing_colnams_unique$original_colnam[i],
+                                     selected_name_id))
 
       }
 

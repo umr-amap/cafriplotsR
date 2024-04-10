@@ -407,7 +407,7 @@ update_plot_data_batch <- function(new_data,
 
   for (i in 1:length(col_names_corresp))
     if(!any(col_names_corresp[i] == all_colnames_ind))
-      stop(paste(col_names_corresp[i], "not found in data_liste_plots, check others tables, observation/traits should be updated in traits_measurements table"))
+      stop(paste(col_names_corresp[i], "not found in data_liste_plots, check others tables, subplots features should be updated in data_liste_sub_plots table"))
 
   id_db <- col_names_corresp[id_col]
 
@@ -3180,8 +3180,7 @@ update_dico_name_batch <- function(new_data,
                                    id_col = 1,
                                    launch_update = FALSE,
                                    add_backup = TRUE,
-                                   ask_before_update = FALSE,
-                                   only_new_ident = FALSE) {
+                                   ask_before_update = FALSE) {
 
   if (exists("mydb_taxa")) rm(mydb_taxa)
   if (!exists("mydb_taxa")) call.mydb.taxa()

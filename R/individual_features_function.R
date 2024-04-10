@@ -16,10 +16,10 @@ query_individual_features <- function(id = NULL, multiple_census = FALSE, id_tra
   traits_measures <- func_try_fetch(con = mydb, sql = sql)
   traits_measures <- traits_measures %>% select(-starts_with("date_modif"), -id_specimen,-id_diconame)
 
-  if (!is.null(id_traits))
-    traits_measures <-
-    traits_measures %>%
-    filter(id_trait %in% id_traits)
+  # if (!is.null(id_traits))
+  #   traits_measures <-
+  #   traits_measures %>%
+  #   filter(id_trait %in% id_traits)
 
   if (multiple_census) {
 
@@ -55,7 +55,7 @@ query_individual_features <- function(id = NULL, multiple_census = FALSE, id_tra
 
   traits_char_multiple <- vector('list', 2)
   # issue_char_multiple <- vector('list', 2)
-  if (any(traits_measures$valuetype == "character") | any(traits_measures$valuetype == "ordinal")) {
+  if (any(traits_measures$valuetype == "character") | any(traits_measures$valuetype == "ordinal") | any(traits_measures$valuetype == "categorical")) {
 
     traits_char_list <- vector('list', 2)
 
@@ -63,19 +63,19 @@ query_individual_features <- function(id = NULL, multiple_census = FALSE, id_tra
 
       traits_char_list[[1]] <-
         traits_measures %>%
-        dplyr::filter(valuetype == "character" | valuetype == "ordinal") %>%
+        dplyr::filter(valuetype == "character" | valuetype == "ordinal" | valuetype == "categorical") %>%
         filter(is.na(id_sub_plots))
 
       traits_char_list[[2]] <-
         traits_measures %>%
-        dplyr::filter(valuetype == "character" | valuetype == "ordinal") %>%
+        dplyr::filter(valuetype == "character" | valuetype == "ordinal" | valuetype == "categorical") %>%
         filter(!is.na(id_sub_plots))
 
     } else {
 
       traits_char_list[[1]] <-
         traits_measures %>%
-        dplyr::filter(valuetype == "character" | valuetype == "ordinal")
+        dplyr::filter(valuetype == "character" | valuetype == "ordinal" | valuetype == "categorical")
 
     }
 
@@ -413,16 +413,20 @@ query_individual_features <- function(id = NULL, multiple_census = FALSE, id_tra
       group_by(id_data_individuals, id_sub_plots) %>%
       summarise(across(where(is.character), ~ stringr::str_c(.[!is.na(.)],
                                                              collapse = ", ")), # ~ paste(.x[!is.na(.x)], collapse = ",")
-                across(where(is.numeric), ~ .x[!is.na(.x)][1]))
+                across(where(is.numeric), ~ .x[!is.na(.x)][1])) %>%
+      ungroup() %>%
+      mutate(across(where(is.character), ~ na_if(., "")))
 
-    traits_char <- traits_char %>%
+    traits_char <-
+      traits_char %>%
       group_by(id_data_individuals) %>%
       select(-id_sub_plots) %>%
       dplyr::summarise(
         across(where(is.character), ~ stringr::str_c(.[!is.na(.)],
                                                      collapse = ", ")), # ~ paste(.x[!is.na(.x) & .x != ""], collapse = ",")
         across(where(is.numeric), ~ paste(.x[!is.na(.x)], collapse = ","))
-      )
+      ) %>%
+      mutate(across(where(is.character), ~ na_if(., "")))
 
   } else {
     traits_char <- NA

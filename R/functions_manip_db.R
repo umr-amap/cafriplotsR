@@ -2367,11 +2367,15 @@ query_plots <- function(team_lead = NULL,
       queried_traits_tax <-
         query_traits_measures(idtax = unique(res_individuals_full$idtax_individual_f))
 
-      queried_traits_tax$traits_idtax_num <-
+
+
+      if (!is.null(nrow(queried_traits_tax$traits_idtax_num)))
+        queried_traits_tax$traits_idtax_num <-
         queried_traits_tax$traits_idtax_num %>%
         dplyr::select(-starts_with("basisofrecord"))
 
-      queried_traits_tax$traits_idtax_char <-
+      if (!is.null(nrow(queried_traits_tax$traits_idtax_char)))
+        queried_traits_tax$traits_idtax_char <-
         queried_traits_tax$traits_idtax_char %>%
         dplyr::select(-starts_with("basisofrecord"))
 
@@ -5692,7 +5696,7 @@ add_individuals <- function(new_data ,
     new_data_renamed %>%
     dplyr::select(idtax_n) %>%
     dplyr::left_join(
-      try_open_postgres_table_mem(table = "table_taxa", con = mydb_taxa) %>%
+      try_open_postgres_table(table = "table_taxa", con = mydb_taxa) %>%
       # dplyr::tbl(mydb_taxa, "table_taxa") %>%
         dplyr::select(idtax_n, id_tax_famclass) %>%
         filter(idtax_n %in% !!new_data_renamed$idtax_n) %>%
@@ -6895,7 +6899,7 @@ query_specimens <- function(collector = NULL,
   if(!exists("mydb")) call.mydb()
 
   diconames_id <-
-    try_open_postgres_table_mem(table = "table_idtax", con = mydb) %>%
+    try_open_postgres_table(table = "table_idtax", con = mydb) %>%
     dplyr::select(idtax_n, idtax_good_n) %>%
     dplyr::mutate(idtax_f = ifelse(is.na(idtax_good_n), idtax_n, idtax_good_n))
 
@@ -7401,7 +7405,7 @@ add_traits_measures <- function(new_data,
     cli::cli_alert_info("no decimallatitude provided")
     new_data_renamed <-
       new_data_renamed %>%
-      tibble::add_column(decimallatitude = NA) %>%
+      dplyr::mutate(decimallatitude = NA) %>%
       dplyr::mutate(decimallatitude = as.double(decimallatitude))
 
     if (is.null(plot_name_field) & is.null(individual_plot_field) &
@@ -7414,7 +7418,7 @@ add_traits_measures <- function(new_data,
     cli::cli_alert_info("no decimallongitude provided")
     new_data_renamed <-
       new_data_renamed %>%
-      tibble::add_column(decimallongitude = NA) %>%
+      dplyr::mutate(decimallongitude = NA) %>%
       dplyr::mutate(decimallongitude = as.double(decimallongitude))
 
     if (is.null(plot_name_field) & is.null(individual_plot_field) &
@@ -8817,7 +8821,7 @@ replace_NA <- function(vec, inv = FALSE) {
 
   if(type_data == "trait")
     corresponding_data <-
-      dplyr::tbl(mydb, "table_traits")
+      dplyr::tbl(mydb_taxa, "table_traits")
 
   if(type_data == "sp_trait_measures")
     corresponding_data <-
@@ -10967,7 +10971,7 @@ query_traits_measures <- function(idtax,
 
   } else {
 
-    table_taxa <- try_open_postgres_table_mem(table = "table_taxa", con = mydb_taxa)
+    table_taxa <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
 
     ids_syn <- table_taxa %>%
       dplyr::select(idtax_n, idtax_good_n) %>%
@@ -11052,7 +11056,8 @@ query_traits_measures <- function(idtax,
         # dplyr::mutate(rn = data.table::rowid(trait)) %>%
         tidyr::pivot_wider(
           names_from = trait,
-          values_from = c(traitvalue_char, basisofrecord, id_trait_measures)
+          values_from = c(traitvalue_char, basisofrecord, id_trait_measures),
+          names_prefix = "taxa_level_"
         ) %>%
         dplyr::select(-rn)
 
@@ -11259,7 +11264,7 @@ add_taxa_table_taxa <- function(ids = NULL) {
 
   if(!exists("mydb_taxa")) call.mydb.taxa(pass = "Anyuser2022", user = "common")
 
-  table_taxa <- try_open_postgres_table_mem(table = "table_taxa", con = mydb_taxa)
+  table_taxa <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
 
   table_taxa <-
     table_taxa %>%
@@ -12047,7 +12052,6 @@ get_ref_specimen_ind <- function(collector = NULL, ids = NULL) {
   if (!is.null(collector)) {
 
     # collector <-
-    #   .link_colnam(data_stand = tibble(colnam = collector), collector_field = "colnam")
 
     collector <-
       .link_colnam(
@@ -12195,7 +12199,7 @@ update_taxa_link_table <- function() {
 
   call.mydb()
 
-  id_taxa_table <- try_open_postgres_table_mem(table = "table_taxa", con = mydb_taxa) %>%
+  id_taxa_table <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa) %>%
     # dplyr::tbl(mydb_taxa, "table_taxa") %>%
     dplyr::select(idtax_n, idtax_good_n) %>%
     dplyr::collect()
@@ -12755,7 +12759,7 @@ add_entry_taxa <- function(search_name_tps = NULL,
 
     ## get id of class
     id_tax_fam_class <-
-      try_open_postgres_table_mem(table = "table_tax_famclass", con = mydb_taxa) %>%
+      try_open_postgres_table(table = "table_tax_famclass", con = mydb_taxa) %>%
       # tbl(mydb_taxa, "table_tax_famclass") %>%
       filter(tax_famclass == !!tax_famclass) %>%
       collect()
@@ -12787,7 +12791,7 @@ add_entry_taxa <- function(search_name_tps = NULL,
       )
 
     seek_dup <-
-      try_open_postgres_table_mem(table = "table_taxa", con = mydb_taxa)
+      try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
 
 
     if(!is.na(new_rec$tax_famclass))

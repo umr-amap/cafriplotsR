@@ -11,8 +11,7 @@ update_dico_name_batch(
   id_col = 1,
   launch_update = FALSE,
   add_backup = TRUE,
-  ask_before_update = FALSE,
-  only_new_ident = FALSE
+  ask_before_update = FALSE
 )
 }
 \arguments{
