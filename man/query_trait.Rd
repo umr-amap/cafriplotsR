@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{query_trait}
 \alias{query_trait}
-\title{Query in trait table}
+\title{Query in taxa trait table}
 \usage{
 query_trait(id_trait = NULL, pattern = NULL)
 }
@@ -15,7 +15,7 @@ query_trait(id_trait = NULL, pattern = NULL)
 tibble with query results
 }
 \description{
-Query in trait table by id or pattern
+Query in taxa trait table by id or pattern
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}

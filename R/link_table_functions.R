@@ -166,40 +166,45 @@
     dplyr::tbl(mydb, "traitlist") %>%
     dplyr::collect()
 
-  sorted_matches <-
-    .find_similar_string(input = trait,
-                         compared_table = all_traits,
-                         column_name = column_name)
-  print(trait)
 
-  selected_name <- ""
-  slide <- 0
-  while (selected_name == "") {
-    slide <- slide + 1
-    sorted_matches %>%
-      tibble::add_column(ID = seq(1, nrow(.), 1)) %>%
-      dplyr::select(ID, trait, traitdescription) %>%
-      dplyr::slice((1 + (slide - 1) * 10):((slide) * 10)) %>%
-      print()
-    selected_name <-
-      readline(prompt = "Choose ID whose trait fit (if none enter 0): ")
-    if (slide * 10 > nrow(sorted_matches))
-      slide <- 0
-  }
+  selected_name_res <- .find_cat(value_to_search = trait,
+                             compared_table = all_traits,
+                             column_name = "trait")
 
-  selected_name <- as.integer(selected_name)
+  # sorted_matches <-
+  #   .find_similar_string(input = trait,
+  #                        compared_table = all_traits,
+  #                        column_name = column_name)
+  # print(trait)
+  #
+  # selected_name <- ""
+  # slide <- 0
+  # while (selected_name == "") {
+  #   slide <- slide + 1
+  #   sorted_matches %>%
+  #     tibble::add_column(ID = seq(1, nrow(.), 1)) %>%
+  #     dplyr::select(ID, trait, traitdescription) %>%
+  #     dplyr::slice((1 + (slide - 1) * 10):((slide) * 10)) %>%
+  #     print()
+  #   selected_name <-
+  #     readline(prompt = "Choose ID whose trait fit (if none enter 0): ")
+  #   if (slide * 10 > nrow(sorted_matches))
+  #     slide <- 0
+  # }
+
+  selected_name <- selected_name_res$selected_name
 
   if(is.na(selected_name))
     stop("Provide integer value for standardizing trait name")
 
   selected_trait_id <-
-    sorted_matches %>%
+    selected_name_res$sorted_matches %>%
     dplyr::slice(selected_name) %>%
     dplyr::select(id_trait) %>%
     dplyr::pull()
 
   select_trait_features <-
-    sorted_matches %>%
+    selected_name_res$sorted_matches  %>%
     dplyr::slice(selected_name)
 
   if (select_trait_features$valuetype == "numeric") {

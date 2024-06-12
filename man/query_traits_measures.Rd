@@ -9,7 +9,8 @@ query_traits_measures(
   idtax_good = NULL,
   add_taxa_info = FALSE,
   trait_cat_mode = "most_frequent",
-  verbose = TRUE
+  verbose = TRUE,
+  pivot_table = TRUE
 )
 }
 \arguments{

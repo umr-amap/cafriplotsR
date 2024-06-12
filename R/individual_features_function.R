@@ -937,3 +937,38 @@ query_individual_features <- function(id = NULL, multiple_census = FALSE, id_tra
 
 
 }
+
+
+
+
+#' Delete an entry in individual feature table
+#'
+#' Delete an entry in individual/trait feature table using id for selection
+#'
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#' @param id integer
+#'
+#' @return No values
+#' @export
+.delete_individual_feature_type <- function(id) {
+
+  if(!exists("mydb")) call.mydb()
+
+  # DBI::dbExecute(mydb,
+  #                "DELETE FROM data_traits_measures WHERE id_trait_measures=$1", params=list(id)
+  # )
+
+  query <- "DELETE FROM traitlist WHERE MMM"
+  query <-
+    gsub(
+      pattern = "MMM",
+      replacement = paste0("id_trait IN ('",
+                           paste(unique(id), collapse = "', '"), "')"),
+      x = query
+    )
+
+  rs <- DBI::dbSendQuery(mydb, query)
+  DBI::dbClearResult(rs)
+}

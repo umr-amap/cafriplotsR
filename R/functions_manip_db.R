@@ -4431,7 +4431,7 @@ add_subplot_features <- function(new_data,
 
     new_data_renamed <- .link_colnam(
       data_stand = new_data_renamed,
-      column_searched = "collector_field",
+      column_searched = collector_field,
       column_name = "colnam",
       id_field = "id_colnam",
       id_table_name = "id_table_colnam",
@@ -8351,6 +8351,9 @@ add_traits_measures <- function(new_data,
       if (valuetype$valuetype == "numeric")
         val_type <- "numeric"
 
+      if (valuetype$valuetype == "integer")
+        val_type <- "numeric"
+
       cli::cli_h3("data_to_add")
       data_to_add <-
         dplyr::tibble(
@@ -10963,7 +10966,8 @@ query_traits_measures <- function(idtax,
                                   idtax_good = NULL,
                                   add_taxa_info = FALSE,
                                   trait_cat_mode = "most_frequent",
-                                  verbose = TRUE) {
+                                  verbose = TRUE,
+                                  pivot_table = TRUE) {
 
   if (!is.null(idtax_good)) {
 
@@ -11051,94 +11055,103 @@ query_traits_measures <- function(idtax,
                       trait,
                       traitvalue_char,
                       basisofrecord,
-                      id_trait_measures) %>%
-        mutate(rn = 1:nrow(.)) %>%
-        # dplyr::mutate(rn = data.table::rowid(trait)) %>%
-        tidyr::pivot_wider(
-          names_from = trait,
-          values_from = c(traitvalue_char, basisofrecord, id_trait_measures),
-          names_prefix = "taxa_level_"
-        ) %>%
-        dplyr::select(-rn)
+                      measurementremarks,
+                      id_trait_measures)
 
-      names(traits_idtax_char) <- gsub("traitvalue_char_", "", names(traits_idtax_char))
-
-      traits_idtax_concat <-
+      if (pivot_table) {
         traits_idtax_char %>%
-        dplyr::select(idtax, starts_with("id_trait_")) %>%
-        dplyr::mutate(across(starts_with("id_trait_"), as.character)) %>%
-        dplyr::group_by(idtax) %>%
-        dplyr::mutate(dplyr::across(where(is.character),
-                                    ~ stringr::str_c(.[!is.na(.)],
-                                                     collapse = ", "))) %>%
-        dplyr::ungroup() %>%
-        dplyr::distinct()
+          mutate(rn = 1:nrow(.)) %>%
+          # dplyr::mutate(rn = data.table::rowid(trait)) %>%
+          tidyr::pivot_wider(
+            names_from = trait,
+            values_from = c(traitvalue_char, basisofrecord, id_trait_measures),
+            names_prefix = "taxa_level_"
+          ) %>%
+          dplyr::select(-rn)
 
+        names(traits_idtax_char) <- gsub("traitvalue_char_", "", names(traits_idtax_char))
 
-      if (trait_cat_mode == "all_unique") {
-
-        if (verbose) cli::cli_alert_info("Extracting all unique values for categorical traits")
-
-        ### concatenate all distinct values
-        traits_idtax_char <-
+        traits_idtax_concat <-
           traits_idtax_char %>%
-          dplyr::select(-starts_with("id_trait_")) %>%
+          dplyr::select(idtax, starts_with("id_trait_")) %>%
+          dplyr::mutate(across(starts_with("id_trait_"), as.character)) %>%
           dplyr::group_by(idtax) %>%
           dplyr::mutate(dplyr::across(where(is.character),
                                       ~ stringr::str_c(.[!is.na(.)],
                                                        collapse = ", "))) %>%
-          dplyr::distinct() %>%
-          dplyr::ungroup()
+          dplyr::ungroup() %>%
+          dplyr::distinct()
 
-      }
 
-      if (trait_cat_mode == "most_frequent") {
+        if (trait_cat_mode == "all_unique") {
 
-        if (verbose) cli::cli_alert_info("Extracting most frequent value for categorical traits")
+          if (verbose) cli::cli_alert_info("Extracting all unique values for categorical traits")
+
+          ### concatenate all distinct values
+          traits_idtax_char <-
+            traits_idtax_char %>%
+            dplyr::select(-starts_with("id_trait_")) %>%
+            dplyr::group_by(idtax) %>%
+            dplyr::mutate(dplyr::across(where(is.character),
+                                        ~ stringr::str_c(.[!is.na(.)],
+                                                         collapse = ", "))) %>%
+            dplyr::distinct() %>%
+            dplyr::ungroup()
+
+        }
+
+        if (trait_cat_mode == "most_frequent") {
+
+          if (verbose) cli::cli_alert_info("Extracting most frequent value for categorical traits")
+
+          traits_idtax_char <-
+            traits_idtax_char %>%
+            dplyr::select(-starts_with("id_trait_")) %>%
+            group_by(idtax, across(where(is.character))) %>%
+            count() %>%
+            arrange(idtax, desc(n)) %>%
+            ungroup() %>%
+            group_by(idtax) %>%
+            dplyr::summarise_if(is.character, ~ first(.x[!is.na(.x)]))
+
+
+          # trait_multiple_val <- max_unique_val %>% filter(max_n > 1) %>% pull(trait)
+          #
+          # traits_idtax_char_multiple <-
+          #   traits_idtax_char %>%
+          #   dplyr::select(-starts_with("id_trait_")) %>%
+          #   group_by(idtax, across({{trait_multiple_val}})) %>%
+          #   count() %>%
+          #   arrange(idtax, desc(n)) %>%
+          #   ungroup() %>%
+          #   group_by(idtax) %>%
+          #   dplyr::summarise_if(is.character, ~ first(.x[!is.na(.x)]))
+          #
+          # trait_unique_val <- max_unique_val %>% filter(max_n == 1) %>% pull(trait)
+          #
+          # traits_idtax_char_multiple <-
+          #   traits_idtax_char %>%
+          #   # dplyr::select(-starts_with("id_trait_"),
+          #   #               idtax,
+          #   #               all_of(trait_unique_val),
+          #   #               -all_of(trait_multiple_val)) %>%
+          #   group_by(idtax, across({{trait_unique_val}})) %>%
+          #   count() %>%
+          #   ungroup() %>%
+          #   group_by(idtax) %>%
+          #   dplyr::summarise_if(is.character, ~ .x[!is.na(.x)])
+
+
+        }
 
         traits_idtax_char <-
-          traits_idtax_char %>%
-          dplyr::select(-starts_with("id_trait_")) %>%
-          group_by(idtax, across(where(is.character))) %>%
-          count() %>%
-          arrange(idtax, desc(n)) %>%
-          ungroup() %>%
-          group_by(idtax) %>%
-          dplyr::summarise_if(is.character, ~ first(.x[!is.na(.x)]))
-
-
-        # trait_multiple_val <- max_unique_val %>% filter(max_n > 1) %>% pull(trait)
-        #
-        # traits_idtax_char_multiple <-
-        #   traits_idtax_char %>%
-        #   dplyr::select(-starts_with("id_trait_")) %>%
-        #   group_by(idtax, across({{trait_multiple_val}})) %>%
-        #   count() %>%
-        #   arrange(idtax, desc(n)) %>%
-        #   ungroup() %>%
-        #   group_by(idtax) %>%
-        #   dplyr::summarise_if(is.character, ~ first(.x[!is.na(.x)]))
-        #
-        # trait_unique_val <- max_unique_val %>% filter(max_n == 1) %>% pull(trait)
-        #
-        # traits_idtax_char_multiple <-
-        #   traits_idtax_char %>%
-        #   # dplyr::select(-starts_with("id_trait_"),
-        #   #               idtax,
-        #   #               all_of(trait_unique_val),
-        #   #               -all_of(trait_multiple_val)) %>%
-        #   group_by(idtax, across({{trait_unique_val}})) %>%
-        #   count() %>%
-        #   ungroup() %>%
-        #   group_by(idtax) %>%
-        #   dplyr::summarise_if(is.character, ~ .x[!is.na(.x)])
+          left_join(traits_idtax_char,
+                    traits_idtax_concat, by = c("idtax" = "idtax"))
 
 
       }
 
-      traits_idtax_char <-
-        left_join(traits_idtax_char,
-                  traits_idtax_concat, by = c("idtax" = "idtax"))
+
 
       if (add_taxa_info) {
 
@@ -13100,9 +13113,9 @@ choice_trait_cat <- function(id_trait) {
 
 
 
-#' Query in trait table
+#' Query in taxa trait table
 #'
-#' Query in trait table by id or pattern
+#' Query in taxa trait table by id or pattern
 #'
 #' @return tibble with query results
 #'
