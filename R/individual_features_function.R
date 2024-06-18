@@ -1,6 +1,9 @@
 
 
-query_individual_features <- function(id = NULL, multiple_census = FALSE, id_traits = NULL, pivot_table = TRUE) {
+query_individual_features <- function(id = NULL,
+                                      multiple_census = FALSE,
+                                      id_traits = NULL,
+                                      pivot_table = TRUE) {
 
   tbl <- "data_traits_measures"
   tbl2 <- "traitlist"
@@ -13,8 +16,10 @@ query_individual_features <- function(id = NULL, multiple_census = FALSE, id_tra
     sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*}) AND id_trait IN ({vals2*})",
                           vals = id, vals2 = id_traits, .con = mydb)
 
-  traits_measures <- func_try_fetch(con = mydb, sql = sql)
-  traits_measures <- traits_measures %>% select(-starts_with("date_modif"), -id_specimen,-id_diconame)
+  traits_measures <-
+    suppressMessages(func_try_fetch(con = mydb, sql = sql))
+  traits_measures <-
+    traits_measures %>% select(-starts_with("date_modif"), -id_specimen,-id_diconame)
 
   # if (!is.null(id_traits))
   #   traits_measures <-

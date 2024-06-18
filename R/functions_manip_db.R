@@ -1960,12 +1960,6 @@ query_plots <- function(team_lead = NULL,
     id_plots_filtered <- c()
     if (!is.null(team_lead)) {
 
-      # id_liste_plots_match <-
-      #   .link_colnam(data_stand = tibble(colnam = team_lead),
-      #                                      collector_field = 1)
-
-
-
       id_liste_plots_match <-
         .link_colnam(
         data_stand = tibble(colnam = team_lead),
@@ -12260,7 +12254,7 @@ func_try_fetch <- function(con, sql) {
     if (rep_try == 10)
       stop("Failed to connect to database")
   }
-  res_q <- res_q %>% as_tibble
+  res_q <- res_q %>% as_tibble(.name_repair = "universal")
   DBI::dbClearResult(rs)
 
   return(res_q)
