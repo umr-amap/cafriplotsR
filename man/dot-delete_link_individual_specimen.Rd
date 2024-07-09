@@ -4,7 +4,11 @@
 \alias{.delete_link_individual_specimen}
 \title{Delete an entry in trait measurement table}
 \usage{
-.delete_link_individual_specimen(id_ind = NULL, id_specimen = NULL)
+.delete_link_individual_specimen(
+  id_ind = NULL,
+  id_specimen = NULL,
+  id_link = NULL
+)
 }
 \arguments{
 \item{id_ind}{integer}

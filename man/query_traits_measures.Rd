@@ -10,7 +10,8 @@ query_traits_measures(
   add_taxa_info = FALSE,
   trait_cat_mode = "most_frequent",
   verbose = TRUE,
-  pivot_table = TRUE
+  pivot_table = TRUE,
+  include_remarks = FALSE
 )
 }
 \arguments{

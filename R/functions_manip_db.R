@@ -2359,9 +2359,7 @@ query_plots <- function(team_lead = NULL,
       cli::cli_alert_info("Extracting taxa-level traits")
 
       queried_traits_tax <-
-        query_traits_measures(idtax = unique(res_individuals_full$idtax_individual_f))
-
-
+        query_traits_measures(idtax = unique(res_individuals_full$idtax_individual_f), )
 
       if (!is.null(nrow(queried_traits_tax$traits_idtax_num)))
         queried_traits_tax$traits_idtax_num <-
@@ -2859,7 +2857,7 @@ query_subplots <- function(ids_plots = NULL,
   } else {
 
     sub_plot_data <-
-      dplyr::tbl(mydb, "data_liste_sub_plots") %>%
+      try_open_postgres_table(table = "data_liste_sub_plots", con = mydb) %>%
       dplyr::filter(id_table_liste_plots %in% !!ids_plots)
 
   }
@@ -3017,7 +3015,6 @@ query_subplots <- function(ids_plots = NULL,
       census_plots_nbr <- NULL
       census_features <- NA
     }
-
 
     if (any(grepl("table_", extracted_data$valuetype))) {
 
@@ -6649,11 +6646,52 @@ get_updates_diconame <- function(id = NULL,
   #                "DELETE FROM data_traits_measures WHERE id_trait_measures=$1", params=list(id)
   # )
 
+  feats <- query_traits_measures_features(id_trait_measures = id)
+
+  if (!is.na(feats$all_feat_pivot)) {
+
+    print(feats)
+
+    rm_feats <- askYesNo(msg = "Remove associated features")
+
+    if (rm_feats) .delete_entry_trait_measure_features(id = feats$all_feat_pivot$id_ind_meas_feat)
+
+  }
+
   query <- "DELETE FROM data_traits_measures WHERE MMM"
   query <-
     gsub(
       pattern = "MMM",
       replacement = paste0("id_trait_measures IN ('",
+                           paste(unique(id), collapse = "', '"), "')"),
+      x = query
+    )
+
+  rs <- DBI::dbSendQuery(mydb, query)
+  DBI::dbClearResult(rs)
+}
+
+
+#' Delete an entry in trait measurement features table
+#'
+#' Delete an entry in trait measurement features table using id for selection
+#'
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#' @param id integer
+#'
+#' @return No values
+#' @export
+.delete_entry_trait_measure_features <- function(id) {
+
+  if(!exists("mydb")) call.mydb()
+
+  query <- "DELETE FROM data_ind_measures_feat WHERE MMM"
+  query <-
+    gsub(
+      pattern = "MMM",
+      replacement = paste0("id_ind_meas_feat IN ('",
                            paste(unique(id), collapse = "', '"), "')"),
       x = query
     )
@@ -6685,7 +6723,8 @@ get_updates_diconame <- function(id = NULL,
 #' @return No values
 #' @export
 .delete_link_individual_specimen <- function(id_ind = NULL,
-                                             id_specimen = NULL) {
+                                             id_specimen = NULL,
+                                             id_link = NULL) {
 
   if(!exists("mydb")) call.mydb()
 
@@ -6734,12 +6773,24 @@ get_updates_diconame <- function(id = NULL,
     }
 
 
-    # if(confirm)
-    #   for (i in 1:nrow(selected_link))
-    #     DBI::dbExecute(mydb,
-    #                    "DELETE FROM data_link_specimens WHERE id_specimen=$1",
-    #                    params=list(selected_link$id_specimen[i]))
   }
+
+  if (!is.null(id_link)) {
+
+    query <- "DELETE FROM data_link_specimens WHERE MMM"
+    query <-
+      gsub(
+        pattern = "MMM",
+        replacement = paste0("id_link_specimens IN ('",
+                             paste(unique(id_link), collapse = "', '"), "')"),
+        x = query
+      )
+
+    rs <- DBI::dbSendQuery(mydb, query)
+    DBI::dbClearResult(rs)
+
+  }
+
 
 }
 
@@ -7146,67 +7197,6 @@ query_specimens <- function(collector = NULL,
 
 
 
-#' Add a trait in trait list
-#'
-#' Add trait and associated descriptors in trait list table
-#'
-#' @return nothing
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#' @param new_trait string value with new trait descritors - try to avoid space
-#' @param new_relatedterm string related trait to new trait
-#' @param new_valuetype string one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character'
-#' @param new_maxallowedvalue numeric if valuetype is numeric, indicate the maximum allowed value
-#' @param new_minallowedvalue numeric if valuetype is numeric, indicate the minimum allowed value
-#' @param new_traitdescription string full description of trait
-#' @param new_factorlevels string a vector of all possible value if valuetype is categorical or ordinal
-#' @param new_expectedunit string expected unit (unitless if none)
-#' @param new_comments string any comments
-#'
-#' @export
-add_trait <- function(new_trait = NULL,
-                      new_relatedterm = NULL,
-                      new_valuetype = NULL,
-                      new_maxallowedvalue = NULL,
-                      new_minallowedvalue = NULL,
-                      new_traitdescription = NULL,
-                      new_factorlevels = NULL,
-                      new_expectedunit = NULL,
-                      new_comments = NULL) {
-
-  call.mydb.taxa()
-
-  if(is.null(new_trait)) stop("define new trait")
-  if(is.null(new_valuetype)) stop("define new_valuetype")
-
-  if(!any(new_valuetype==c('numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character', 'table_data_liste_plots')))
-    stop("valuetype should one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character' or 'table_data_liste_plots'")
-
-  if(new_valuetype=="numeric" | new_valuetype=="integer")
-    if(!is.numeric(new_maxallowedvalue) & !is.integer(new_maxallowedvalue)) stop("valuetype numeric of integer and max value not of this type")
-  if(new_valuetype=="numeric" | new_valuetype=="integer")
-    if(!is.numeric(new_minallowedvalue) & !is.integer(new_minallowedvalue)) stop("valuetype numeric of integer and min value not of this type")
-
-  if(!exists("mydb")) call.mydb()
-
-  new_data_renamed <- tibble(trait = new_trait,
-                             relatedterm = ifelse(is.null(new_relatedterm), NA, new_relatedterm),
-                             valuetype = new_valuetype,
-                             maxallowedvalue = ifelse(is.null(new_maxallowedvalue), NA, new_maxallowedvalue),
-                             minallowedvalue = ifelse(is.null(new_minallowedvalue), NA, new_minallowedvalue),
-                             traitdescription = ifelse(is.null(new_traitdescription), NA, new_traitdescription),
-                             factorlevels = ifelse(is.null(new_factorlevels), NA, new_factorlevels),
-                             expectedunit = ifelse(is.null(new_expectedunit), NA, new_expectedunit),
-                             comments = ifelse(is.null(new_comments), NA, new_comments))
-
-  print(new_data_renamed)
-
-  Q <- utils::askYesNo("confirm adding this trait?")
-
-  if(Q) DBI::dbWriteTable(mydb, "traitlist", new_data_renamed, append = TRUE, row.names = FALSE)
-
-}
-
 
 
 #' Add a type in subplot table
@@ -7303,6 +7293,7 @@ add_subplottype <- function(new_type = NULL,
 #' @param id_tag_plot string column name which contain the ID of individuals table
 #' @param id_specimen string column name which contain the ID of specimen
 #' @param traits_field string vector listing trait columns names in new_data
+#' @param features_field string vector listing features (column names) to link to measurementsin new_data
 #' @param add_data logical whether or not data should be added - by default FALSE
 #' @param allow_multiple_value if multiple values linked to one individual can be uploaded at once
 #'
@@ -7317,6 +7308,7 @@ add_traits_measures <- function(new_data,
                                 id_tag_plot = NULL,
                                 id_specimen = NULL,
                                 traits_field,
+                                features_field = NULL,
                                 allow_multiple_value = FALSE,
                                 add_data = FALSE) {
 
@@ -8175,7 +8167,9 @@ add_traits_measures <- function(new_data,
                              dplyr::filter(traitid == !!unique(data_trait$id_trait)) %>%
                              dplyr::select(id_data_individuals, traitvalue) %>%
                              dplyr::collect(),
-                           by=c("id_data_individuals"="id_data_individuals")) %>%
+                           by=c("id_data_individuals"="id_data_individuals"),
+                           relationship = "many-to-many") %>%
+          filter(!is.na(traitvalue)) %>%
           dplyr::group_by(id_data_individuals) %>%
           dplyr::summarise(traitvalue = max(traitvalue, na.rm = TRUE),
                            trait = dplyr::first(trait)) %>%
@@ -8475,6 +8469,34 @@ add_traits_measures <- function(new_data,
                           row.names = FALSE)
 
         cli::cli_alert_success("Adding data : {nrow(data_to_add)} values added")
+
+
+        if (!is.null(features_field)) {
+
+          imported_data <- tbl(mydb, "data_traits_measures") %>%
+            filter(date_modif_d == !!data_to_add$date_modif_d[1],
+                   date_modif_m == !!data_to_add$date_modif_m[1],
+                   date_modif_y == !!data_to_add$date_modif_y[1]) %>%
+            select(id_trait_measures, id_data_individuals) %>%
+            collect()
+
+          ids <- imported_data %>% slice((nrow(imported_data)-nrow(data_to_add)+1):nrow(imported_data))
+
+          data_feats <- data_trait %>% select(all_of(features_field), id_data_individuals) %>%
+            mutate(id_trait_measures = ids$id_trait_measures,
+                   id_data_individuals = ids$id_data_individuals)
+
+          add_traits_measures_features(
+            new_data = data_feats,
+            id_trait_measures = "id_trait_measures",
+            features = features_field,
+            add_data = T
+          )
+
+        }
+
+
+
       }
 
     } else{
@@ -8854,7 +8876,7 @@ replace_NA <- function(vec, inv = FALSE) {
 
       corresponding_data <-
         dplyr::tbl(mydb, "data_traits_measures") %>%
-        dplyr::select(id_trait_measures, traitvalue, issue)
+        dplyr::select(id_trait_measures, traitvalue, issue, measurementremarks)
       # %>%
         # dplyr::collect() %>%
         # rename(!!new_name := traitvalue)
@@ -10961,7 +10983,8 @@ query_traits_measures <- function(idtax,
                                   add_taxa_info = FALSE,
                                   trait_cat_mode = "most_frequent",
                                   verbose = TRUE,
-                                  pivot_table = TRUE) {
+                                  pivot_table = TRUE,
+                                  include_remarks = FALSE) {
 
   if (!is.null(idtax_good)) {
 
@@ -11052,8 +11075,14 @@ query_traits_measures <- function(idtax,
                       measurementremarks,
                       id_trait_measures)
 
+      if (!include_remarks)
+        traits_idtax_char <-
+          traits_idtax_char %>%
+          dplyr::select(-measurementremarks)
+
       if (pivot_table) {
-        traits_idtax_char %>%
+        traits_idtax_char <-
+          traits_idtax_char %>%
           mutate(rn = 1:nrow(.)) %>%
           # dplyr::mutate(rn = data.table::rowid(trait)) %>%
           tidyr::pivot_wider(
@@ -11141,7 +11170,6 @@ query_traits_measures <- function(idtax,
         traits_idtax_char <-
           left_join(traits_idtax_char,
                     traits_idtax_concat, by = c("idtax" = "idtax"))
-
 
       }
 
@@ -13206,7 +13234,47 @@ query_colnam <- function(id_colnam = NULL, pattern = NULL) {
 }
 
 
+#' Query link between specimens and individuals
+#'
+#' Query links between specimens and individuals
+#'
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#' @param id_ind integer
+#' @param id_specimen integer
+#'
+#' @return No values
+#' @export
+query_link_individual_specimen <- function(id_ind = NULL,
+                                             id_specimen = NULL) {
 
+  if(!exists("mydb")) call.mydb()
+
+
+  if(!is.null(id_ind)) {
+
+    selected_link <-
+      dplyr::tbl(mydb, "data_link_specimens") %>%
+      dplyr::filter(id_n %in% !!id_ind) %>%
+      dplyr::collect() %>%
+      as.data.frame()
+
+  }
+
+  if(!is.null(id_specimen)) {
+
+    selected_link <-
+      dplyr::tbl(mydb, "data_link_specimens") %>%
+      dplyr::filter(id_specimen %in% !!id_specimen) %>%
+      dplyr::collect() %>%
+      as.data.frame()
+
+  }
+
+  return(selected_link)
+
+}
 
 
 
@@ -13267,143 +13335,165 @@ query_colnam <- function(id_colnam = NULL, pattern = NULL) {
 
 #' Divide 1 ha square plots into 25 squares subplots of 400m² following a regular 5*5 grid
 #'
-#' @param coordinates_sf a spatial object representing the plot geometries, either a \code{SpatialPolygonsDataFrame} or \code{sf} object. Each line should correspond to a single plot.
+#' @param coordinates a dataframe with long and lat coord for all the 20 'jalons' around the plot.
 #' @param plot_name the name as character of the column where the plot name are stored. Default value is 'plot_name'.
-#'
+#' @param crs the crs. ex : 'EPSG:32633'
+#' @param long the name as character of the column where the longitude are stored. Default value is 'typevalue_ddlon'
+#' @param lat the name as character of the column where the longitude are stored. Default value is "typevalue_ddlat"
+#' @param XRel the name as character of the column where the longitude are stored. Default value is 'XRel'
+#' @param YRel the name as character of the column where the longitude are stored. Default value is 'YRel'
+#' @param order 1 or 2. Condition the subplot name order. If the line 0 in Y goes a bit to the south choose 1, and 2 if it goes a bit to the North.
 #' @return A \code{sf} object with the 25 subplots geometries with 2 fields : sous_plot_name and plot_name for each plot.
-#'
-#' @details The function takes either a \code{SpatialPolygonsDataFrame} or \code{sf} object containing the plot geometries and the plot names. For each plot, it first
-#' identifies the 4 corners, then creates the 25 square subplots following a regular 5*5 grid. The subplots are named using the xy coordinates inside the plot, starting
-#' from 0_0 for the southeasterly corner to 80_80 for the northwesternly.
-#'
-#' @author Hugo Leblanc
-#'
+#' @details The function works well with the $coordinates dataframe export by the query_plots function. The subplots names
+#' could be in the wrong order depending on the orientation of the plot. To fit this problem, change the value of 'order'
 #' @examples
-#' ## Test 1
+#' library(mapview)
+#' myplots <- query_plots(locality_name = "Mbalmayo", show_all_coordinates = TRUE, map = T, extract_individuals = F, extract_traits = F, method = '1ha-IRD')
+#' myplots_coord <- myplots$coordinates
+#' coordinates_sf <- myplots_coord
 #'
-#' # Define the coordinates of the 4 corners
-#' x1 <- c(0, 1, 1, 0, 0)
-#' y1 <- c(0, 0, 1, 1, 0)
-#' x2 <- c(2, 2, 3, 3, 2)
-#' y2 <- c(1, 2, 2, 1, 1)
+#' test1 <- divid_plot(coordinates_sf = coordinates_sf,
+#' plot_name = 'id_table_liste_plots',
+#' crs = 'EPSG32633',
+#' long = "typevalue_ddlon",
+#' lat = "typevalue_ddlat",
+#' XRel = "Xrel",
+#' YRel = "Yrel",
+#' order = 1))
 #'
-#' # Combine x and y coordinates into matrix
-#' coords1 <- cbind(x1, y1)
-#' coords2 <- cbind(x2, y2)
+#' # To modify the order of the subplot names
 #'
-#' # Rotate by 20 degrees the matrix coord1
-#' angle <- pi/9  # angle in radians
-#' rotation_mat <- matrix(c(cos(angle), sin(angle), -sin(angle), cos(angle)), nrow = 2)
-#' coords1 <- coords1 %*% rotation_mat
+#' test2 <- divid_plot(coordinates_sf = coordinates_sf,
+#' plot_name = 'id_table_liste_plots',
+#' crs = 'EPSG32633',
+#' long = "typevalue_ddlon",
+#' lat = "typevalue_ddlat",
+#' XRel = "Xrel",
+#' YRel = "Yrel",
+#' order = 2))
 #'
-#' # Create SF object
-#' poly1 <- st_sfc(st_polygon(list(coords1)))
-#' poly2 <- st_sfc(st_polygon(list(coords2)))
+#' mapview::mapview(test1, zcol = 'sous_plot_name')
+#' mapview::mapview(test2, zcol = 'sous_plot_name')
 #'
-#' coordinates_sf <-
-#'   st_as_sf(data.frame(
-#'     plot_name = c('Plot_001', 'Plot_002'),
-#'     geometry = c(poly1, poly2)
-#'   ))
-#'
-#' #Plot
-#' plot(coordinates_sf$geometry)
-#'
-#' # Divide the plot into smaller squares
-#' sub_plot <- divid_plot(coordinates_sf = coordinates_sf, plot_name = 'plot_name')
-#'
-#' # Plot the plots and the result subplots
-#' par(mfrow = c(1, 2))
-#' plot(coordinates_sf$geometry, main = "Plots")
-#' plot(sub_plot$geometry, main = "Subplots")
-#'
-#' # Plot the plots and the result subplots
-#' library(ggplot2)
-#' ggplot(sub_plot)  +
-#'   geom_sf() +
-#'   scale_fill_continuous(type = 'viridis')+
-#'   geom_sf_text(aes(label = as.character(sous_plot_name)))
-#'
-#' ## Test 2
-#' library(plotsdatabase)
-#'
-#' # Extract datas
-#' x <- query_plots(locality_name = "Mbalmayo", extract_individuals = TRUE, show_all_coordinates = TRUE)
-#'
-#' coordinates_sf <- x$coordinates_sf
-#' sub_plot <- divid_plot(coordinates_sf,'plot_name')
-#'
-#' par(mfrow = c(1, 1))
-#' for(i in 1:length(unique(sub_plot$plot_name))) {
-#'
-#'   print(ggplot(sub_plot %>% filter(plot_name == unique(plot_name)[i]))  +
-#'           geom_sf() +
-#'           scale_fill_continuous(type = 'viridis')+
-#'           geom_sf_label(aes(label = as.character(sous_plot_name)))  +
-#'           ggtitle(paste(unique(unique(sub_plot$plot_name)[i]))) )
-#' }
-#'
-#' @import dplyr sf
 #' @importFrom forcats fct_recode
+#' @importFrom BIOMASS correctCoordGPS cutPlot
 #' @export
-divid_plot <- function (coordinates_sf, plot_name = 'plot_name') {
 
-  # Get plot data by name
-  names <- coordinates_sf[[plot_name]]
-  n <- 5
+
+
+divid_plot <- function (coordinates_sf,
+                        plot_name = 'plot_name',
+                        crs = NULL,
+                        long = "typevalue_ddlon",
+                        lat = "typevalue_ddlat",
+                        XRel = "Xrel",
+                        YRel = "Yrel",
+                        order = 1 ) {
+
+  # Get plot data by plot_name
+  names <- unique(coordinates_sf[,plot_name]) %>% pull
 
   for (i in 1:length(names)){
 
-    plot <- coordinates_sf[i,]
+    plot <- coordinates_sf %>% filter(id_table_liste_plots == unique(id_table_liste_plots)[i])
 
-       ##### STEP 1 : EXTRACT THE 4 CORNERS OF THE PLOT i
+    #####################################################################
+    ##### STEP 1 : GET THE 'JALONS'
+    #####################################################################
 
-    coord <- plot %>%
-      st_coordinates() %>%
-      as.data.frame() %>%
-      distinct(X, Y, .keep_all = TRUE) %>%
-      mutate ( corner = case_when(
-        X == min(X[which(Y %in% sort(Y)[1:2])]) ~ 1, #'bottom left',
-        X == max(X[which(Y %in% sort(Y)[1:2])]) ~ 4, #'bottom right',
-        X == min(X[which(Y %in% sort(Y)[3:4])]) ~ 2, #'top left',
-        X == max(X[which(Y %in% sort(Y)[3:4])]) ~ 3 )) %>% #'top right'
-      arrange(corner) %>%
-      select(-c(corner,L1,L2)) %>%
-      as.matrix()
+    correct_plot <- BIOMASS::correctCoordGPS(
+      longlat = plot[, c(long, lat)],
+      coordRel = plot[, c(XRel, YRel)],
+      rangeX = c(0, 100),
+      rangeY = c(0, 100),
+      drawPlot = TRUE,
+      maxDist = 10,
+      rmOutliers = TRUE
+    )
+
+    sub_plotsf <- BIOMASS::cutPlot(
+      projCoord = correct_plot$cornerCoords,
+      plot = rep("plot", 4),
+      corner = c(1, 2, 4, 3),
+      gridsize = 20, dimX = 100, dimY = 100
+    ) %>%
+      mutate(sousplot = rep(str_remove(unique(subplot), 'plot_'), each = 4),
+             jalon = paste(XRel,YRel,sep='_')) %>%
+      select(sousplot, jalon, XRel, YRel, XAbs, YAbs, corner)
+
+    sub_plotsf$sousplot <- fct_recode(sub_plotsf$sousplot,
+                                      "0_0" = '0_0',
+                                      "0_20" = '0_1',
+                                      "0_40" = '0_2',
+                                      "0_60" = '0_3',
+                                      "0_80" = '0_4',
+                                      "20_0" = '1_0',
+                                      "20_20" = '1_1',
+                                      "20_40" = '1_2',
+                                      "20_60" = '1_3',
+                                      "20_80" = '1_4',
+                                      "40_0" = '2_0',
+                                      "40_20" = '2_1',
+                                      "40_40" = '2_2',
+                                      "40_60" = '2_3',
+                                      "40_80" = '2_4',
+                                      "60_0" = '3_0',
+                                      "60_20" = '3_1',
+                                      "60_40" = '3_2',
+                                      "60_60" = '3_3',
+                                      "60_80" = '3_4',
+                                      "80_0" = '4_0',
+                                      "80_20" = '4_1',
+                                      "80_40" = '4_2',
+                                      "80_60" = '4_3',
+                                      "80_80" = '4_4'
+    )
 
 
-    ##### STEP 2 : CREATE THE 25 SUBPLOT SQUARES
+    #####################################################################
+    ##### STEP 2 : FROM 'JALONS' TO SUBPLOTS
+    #####################################################################
 
-    y_length <- (coord[2,2]-coord[1,2]) / n
-    x_length <- (coord[4,1]-coord[1,1]) / n
+    sub_plotsf <- sub_plotsf %>%
+      group_by(sousplot) %>%
+      summarise(sousplot = unique(sousplot),
+                X1 = XAbs[1],
+                X2 = XAbs[2],
+                X3 = XAbs[4],
+                X4 = XAbs[3],
+                X5 = XAbs[1],
+                Y1 = YAbs[1],
+                Y2 = YAbs[2],
+                Y3 = YAbs[4],
+                Y4 = YAbs[3],
+                Y5 = YAbs[1])%>%
+      mutate(X = str_split(sousplot, '_', simplify = T)[,1],
+             Y = str_split(sousplot, '_', simplify = T)[,2]) %>%
+      arrange(X,Y) %>%
+      select(-c(X,Y))
 
-    for (y in 1:n){
+    for (j in 1:25) {
 
-      for (x in 1:n){
-
-        tmp  <-   st_polygon(
-          list(
-            rbind(
-              c(coord[1,1]+(x-1)*x_length,coord[1,2]+(y-1)*y_length),
-              c(coord[1,1]+(x-1)*x_length,coord[1,2]+y*y_length),
-              c(coord[1,1]+x*x_length,coord[1,2]+y*y_length),
-              c(coord[1,1]+x*x_length,coord[1,2]+(y-1)*y_length),
-              c(coord[1,1]+(x-1)*x_length,coord[1,2]+(y-1)*y_length)
-            )
+      tmp  <-   st_polygon(
+        list(
+          rbind(
+            c(X = sub_plotsf$X1[j],Y = sub_plotsf$Y1[j]),
+            c(X = sub_plotsf$X2[j],Y = sub_plotsf$Y2[j]),
+            c(X = sub_plotsf$X3[j],Y = sub_plotsf$Y3[j]),
+            c(X = sub_plotsf$X4[j],Y = sub_plotsf$Y4[j]),
+            c(X = sub_plotsf$X1[j],Y = sub_plotsf$Y1[j])
           )
         )
+      )
 
-        assign (paste('smaller_square',x,y, sep = "_"), tmp)
-
-      }
+      assign (paste('tttttt',j,sep = "_"), tmp)
 
     }
 
-    #### STEP 3 : ASSIGN plot_name AND subplot_name TO SUBPLOTS
 
     nrows <- 25
 
-    sub_plot <- st_sf(crs = st_crs(plot),
+    sub_plot <- st_sf(crs= crs,
                       sous_plot_name = 1:nrows,
                       geometry = st_sfc(lapply(1:nrows,
                                                function(x) st_geometrycollection())
@@ -13411,39 +13501,79 @@ divid_plot <- function (coordinates_sf, plot_name = 'plot_name') {
     ) # Create a fake multipolygons of 25 object with the good crs
 
     # Add the right 25 polygon geometry
-    for (j in 1:25) {sub_plot$geometry[j] <- mget(ls(pattern = "smaller_square"))[[j]]}
+    for (j in 1:25) {sub_plot$geometry[j] <- mget(ls(pattern = "tttttt"))[[j]]}
+
+
+    #####################################################################
+    ##### STEP 3 : ADD subplot names
+    #####################################################################
 
     sub_plot <- sub_plot %>% mutate(plot_name = names[i]) # Add the plot name
 
     sub_plot$sous_plot_name <- as.character(sub_plot$sous_plot_name) # Renamme the subplot id
 
-    sub_plot$sous_plot_name <- forcats::fct_recode(sub_plot$sous_plot_name,
-                                          "0_0" = '1',
-                                          "20_0" = '2',
-                                          "40_0" = '3',
-                                          "60_0" = '4',
-                                          "80_0" = '5',
-                                          "0_20" = '6',
-                                          "20_20" = '7',
-                                          "40_20" = '8',
-                                          "60_20" = '9',
-                                          "80_20" = '10',
-                                          "0_40" = '11',
-                                          "20_40" = '12',
-                                          "40_40" = '13',
-                                          "60_40" = '14',
-                                          "80_40" = '15',
-                                          "0_60" = '16',
-                                          "20_60" = '17',
-                                          "40_60" = '18',
-                                          "60_60" = '19',
-                                          "80_60" = '20',
-                                          "0_80" = '21',
-                                          "20_80" = '22',
-                                          "40_80" = '23',
-                                          "60_80" = '24',
-                                          "80_80" = '25'
-    )
+    if(order == 1 ){
+
+      sub_plot$sous_plot_name <- fct_recode(sub_plot$sous_plot_name,
+                                            "0_0" = '1',
+                                            "0_20" = '12',
+                                            "0_40" = '19',
+                                            "0_60" = '20',
+                                            "0_80" = '21',
+                                            "20_0" = '22',
+                                            "20_20" = '23',
+                                            "20_40" = '24',
+                                            "20_60" = '25',
+                                            "20_80" = '2',
+                                            "40_0" = '3',
+                                            "40_20" = '4',
+                                            "40_40" = '5',
+                                            "40_60" = '6',
+                                            "40_80" = '7',
+                                            "60_0" = '8',
+                                            "60_20" = '9',
+                                            "60_40" = '10',
+                                            "60_60" = '11',
+                                            "60_80" = '13',
+                                            "80_0" = '14',
+                                            "80_20" = '15',
+                                            "80_40" = '16',
+                                            "80_60" = '17',
+                                            "80_80" = '18'
+      )
+    }
+
+    if( order == 2) {
+
+      sub_plot$sous_plot_name <- fct_recode(sub_plot$sous_plot_name,
+                                            "80_0" = '1',
+                                            "80_20" = '12',
+                                            "80_40" = '19',
+                                            "80_60" = '20',
+                                            "80_80" = '21',
+                                            "60_0" = '22',
+                                            "60_20" = '23',
+                                            "60_40" = '24',
+                                            "60_60" = '25',
+                                            "60_80" = '2',
+                                            "40_0" = '3',
+                                            "40_20" = '4',
+                                            "40_40" = '5',
+                                            "40_60" = '6',
+                                            "40_80" = '7',
+                                            "20_0" = '8',
+                                            "20_20" = '9',
+                                            "20_40" = '10',
+                                            "20_60" = '11',
+                                            "20_80" = '13',
+                                            "0_0" = '14',
+                                            "0_20" = '15',
+                                            "0_40" = '16',
+                                            "0_60" = '17',
+                                            "0_80" = '18'
+      )
+    }
+
 
     sub_plot$sous_plot_name <- factor(sub_plot$sous_plot_name,
                                       levels = c("0_0","0_20","0_40","0_60","0_80",
@@ -13451,6 +13581,7 @@ divid_plot <- function (coordinates_sf, plot_name = 'plot_name') {
                                                  "40_0","40_20","40_40","40_60","40_80",
                                                  "60_0","60_20","60_40","60_60","60_80",
                                                  "80_0","80_20","80_40","80_60","80_80"))
+
 
 
     assign(paste('subplot',names[i],sep = '_'),sub_plot)

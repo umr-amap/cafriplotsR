@@ -1236,8 +1236,8 @@ update_ident_specimens <- function(colnam = NULL,
         )
 
       ## correcting if NA is not well coded and null
-      if(!is.na(new_values$detby))
-        if(new_values$detby == "NA")
+      if (!is.na(new_values$detby))
+        if (new_values$detby == "NA")
           new_values$detby <- NA
 
 
@@ -1245,7 +1245,7 @@ update_ident_specimens <- function(colnam = NULL,
                                     dplyr::select(!!colnames(new_values)),
                                   vec_2 = new_values)
 
-      if(!is.na(comp_res$comp_html))
+      if (!is.na(comp_res$comp_html))
         print(comp_res$comp_html)
 
 

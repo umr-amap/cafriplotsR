@@ -3,7 +3,8 @@
 query_individual_features <- function(id = NULL,
                                       multiple_census = FALSE,
                                       id_traits = NULL,
-                                      pivot_table = TRUE) {
+                                      pivot_table = TRUE,
+                                      extract_trait_measures_features = FALSE) {
 
   tbl <- "data_traits_measures"
   tbl2 <- "traitlist"
@@ -20,6 +21,28 @@ query_individual_features <- function(id = NULL,
     suppressMessages(func_try_fetch(con = mydb, sql = sql))
   traits_measures <-
     traits_measures %>% select(-starts_with("date_modif"), -id_specimen,-id_diconame)
+
+  if (extract_trait_measures_features) {
+
+    feats <- query_traits_measures_features(id_trait_measures = traits_measures$id_trait_measures)
+
+    if (any(!is.na(feats$all_feat_pivot))) {
+
+      feats_unique <- feats$all_feat_pivot %>%
+        mutate(id_ind_meas_feat = as.character(id_ind_meas_feat)) %>%
+        group_by(id_trait_measures) %>%
+        summarise(across(where(is.numeric), ~mean(., na.rm = T)),
+                  across(where(is.character), ~paste(., collapse = "|")))
+
+      traits_measures <-
+        traits_measures %>%
+        dplyr::left_join(feats_unique,
+                         by = c("id_trait_measures" = "id_trait_measures"))
+    }
+
+  }
+
+
 
   # if (!is.null(id_traits))
   #   traits_measures <-
@@ -977,3 +1000,364 @@ query_individual_features <- function(id = NULL,
   rs <- DBI::dbSendQuery(mydb, query)
   DBI::dbClearResult(rs)
 }
+
+
+
+
+#' Add a trait in trait list
+#'
+#' Add trait and associated descriptors in trait list table
+#'
+#' @return nothing
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @param new_trait string value with new trait descritors - try to avoid space
+#' @param new_relatedterm string related trait to new trait
+#' @param new_valuetype string one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character'
+#' @param new_maxallowedvalue numeric if valuetype is numeric, indicate the maximum allowed value
+#' @param new_minallowedvalue numeric if valuetype is numeric, indicate the minimum allowed value
+#' @param new_traitdescription string full description of trait
+#' @param new_factorlevels string a vector of all possible value if valuetype is categorical or ordinal
+#' @param new_expectedunit string expected unit (unitless if none)
+#' @param new_comments string any comments
+#'
+#' @export
+add_trait <- function(new_trait = NULL,
+                      new_relatedterm = NULL,
+                      new_valuetype = NULL,
+                      new_maxallowedvalue = NULL,
+                      new_minallowedvalue = NULL,
+                      new_traitdescription = NULL,
+                      new_factorlevels = NULL,
+                      new_expectedunit = NULL,
+                      new_comments = NULL) {
+
+  call.mydb()
+
+  if(is.null(new_trait)) stop("define new trait")
+  if(is.null(new_valuetype)) stop("define new_valuetype")
+
+  if(!any(new_valuetype==c('numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character', 'table_data_liste_plots')))
+    stop("valuetype should one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character' or 'table_data_liste_plots'")
+
+  if(new_valuetype=="numeric" | new_valuetype=="integer")
+    if(!is.numeric(new_maxallowedvalue) & !is.integer(new_maxallowedvalue)) stop("valuetype numeric of integer and max value not of this type")
+  if(new_valuetype=="numeric" | new_valuetype=="integer")
+    if(!is.numeric(new_minallowedvalue) & !is.integer(new_minallowedvalue)) stop("valuetype numeric of integer and min value not of this type")
+
+  if(!exists("mydb")) call.mydb()
+
+  new_data_renamed <- tibble(trait = new_trait,
+                             relatedterm = ifelse(is.null(new_relatedterm), NA, new_relatedterm),
+                             valuetype = new_valuetype,
+                             maxallowedvalue = ifelse(is.null(new_maxallowedvalue), NA, new_maxallowedvalue),
+                             minallowedvalue = ifelse(is.null(new_minallowedvalue), NA, new_minallowedvalue),
+                             traitdescription = ifelse(is.null(new_traitdescription), NA, new_traitdescription),
+                             factorlevels = ifelse(is.null(new_factorlevels), NA, new_factorlevels),
+                             expectedunit = ifelse(is.null(new_expectedunit), NA, new_expectedunit),
+                             comments = ifelse(is.null(new_comments), NA, new_comments))
+
+  print(new_data_renamed)
+
+  Q <- utils::askYesNo("confirm adding this trait?")
+
+  if(Q) DBI::dbWriteTable(mydb, "traitlist", new_data_renamed, append = TRUE, row.names = FALSE)
+
+}
+
+
+
+
+
+
+#' List, selected trait measures features
+#'
+#' Table of srait measures features
+#'
+#' @return A tibble of all subplots
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#'
+#' @param id_trait_measures integer
+#'
+#'
+#' @export
+query_traits_measures_features <- function(id_trait_measures  = NULL) {
+
+  feat_data <-
+    try_open_postgres_table(table = "data_ind_measures_feat", con = mydb) %>%
+    dplyr::filter(id_trait_measures %in% !!id_trait_measures)
+
+  nbe_feat_data <- nrow(feat_data %>%
+                             dplyr::collect())
+
+  if (nbe_feat_data  > 0) {
+
+    all_sub_type <-
+      feat_data %>%
+      dplyr::distinct(id_trait) %>%
+      dplyr::left_join(
+        dplyr::tbl(mydb, "traitlist") %>%
+          dplyr::select(trait, valuetype, traitdescription, id_trait),
+        by = c("id_trait" = "id_trait")
+      )
+
+    extracted_data <-
+      feat_data %>%
+      dplyr::left_join(all_sub_type,
+                       by = c("id_trait" = "id_trait")) %>%
+      dplyr::collect() %>%
+      dplyr::select(id_trait_measures,
+                    trait,
+                    valuetype,
+                    typevalue,
+                    typevalue_char,
+                    id_ind_meas_feat)
+
+    # extracted_data <- extracted_data %>%
+    #   group_by(id_trait_measures, trait) %>%
+    #   summarise(valuetype = first(valuetype),
+    #             typevalue = mean(typevalue, na.rm = T),
+    #             n = n()) %>%
+    #   filter(n > 1)
+
+    if (any(extracted_data$valuetype == "numeric")) {
+      numeric_subplots_pivot <-
+        extracted_data %>%
+        filter(valuetype == "numeric") %>%
+        select(id_trait_measures, typevalue, trait, id_ind_meas_feat) %>%
+        tidyr::pivot_wider(
+          names_from = "trait",
+          values_from = "typevalue",
+          values_fn = ~ mean(.x, na.rm = TRUE)
+        )
+    } else {
+      numeric_subplots_pivot <- NULL
+    }
+
+    if (any(extracted_data$valuetype == "character")) {
+      character_feat_pivot <-
+        extracted_data %>%
+        filter(valuetype == "character") %>%
+        select(id_trait_measures, typevalue, trait, id_ind_meas_feat)  %>%
+        tidyr::pivot_wider(
+          names_from = "trait",
+          values_from = "typevalue_char",
+          values_fn = ~ paste(.x, collapse = "|")
+        )
+    } else {
+      character_subplots_pivot <- NULL
+    }
+
+    all_feat_pivot <-
+      c(list(character_subplots_pivot),
+        list(numeric_subplots_pivot))
+
+    all_feat_pivot <-
+      purrr::reduce(all_feat_pivot[!unlist(lapply(all_feat_pivot, is.null))],
+                    dplyr::full_join,
+                    by = 'id_trait_measures')
+
+
+  } else {
+
+    all_feat_pivot <- NA
+
+  }
+
+  return(list(all_feat_pivot = all_feat_pivot))
+
+}
+
+
+
+
+
+add_traits_measures_features <- function(new_data,
+                                         id_trait_measures = "id_trait_measures",
+                                         features,
+                                         allow_multiple_value = FALSE,
+                                         add_data =FALSE) {
+
+  for (i in 1:length(features))
+    if (!any(colnames(new_data) == features[i]))
+      stop(paste("features field provide not found in new_data", features[i]))
+
+  new_data_renamed <- new_data
+
+  ## removing entries with NA values for traits
+  new_data_renamed <-
+    new_data_renamed %>%
+    dplyr::filter_at(dplyr::vars(!!features), dplyr::any_vars(!is.na(.)))
+
+  if (nrow(new_data_renamed) == 0)
+    stop("no values for selected features(s)")
+
+  new_data_renamed <-
+    new_data_renamed %>%
+    mutate(id_new_data = 1:nrow(.))
+
+  new_data_renamed <-
+    new_data_renamed %>%
+    rename(id_trait_measures := all_of(id_trait_measures))
+
+  link_trait_measures <-
+    new_data_renamed %>%
+    dplyr::left_join(
+      try_open_postgres_table(table = "data_traits_measures", con = mydb) %>%
+        dplyr::select(id_trait_measures) %>%
+        dplyr::filter(id_trait_measures %in% !!unique(new_data_renamed$id_trait_measures)) %>%
+        dplyr::collect() %>%
+        dplyr::mutate(rrr = 1),
+      by = c("id_trait_measures" = "id_trait_measures")
+    )
+
+  if (dplyr::filter(link_trait_measures, is.na(rrr)) %>%
+      nrow() > 0) {
+    print(dplyr::filter(link_trait_measures, is.na(rrr)))
+    stop("provided trait_measures not found in data_traits_measures")
+  }
+
+
+  ### preparing dataset to add for each trait
+  list_add_data <- vector('list', length(features))
+  for (i in 1:length(features)) {
+
+    feat <- features[i]
+    if(!any(colnames(new_data_renamed) == feat))
+      stop(paste("feat field not found", feat))
+
+    data_feat <-
+      new_data_renamed
+
+    data_feat <-
+      data_feat %>%
+      dplyr::filter(!is.na(!!sym(feat)))
+
+    if(nrow(data_feat) > 0) {
+      ### adding trait id and adding potential issues based on trait
+      data_feat <-
+        .link_trait(data_stand = data_feat, trait = feat)
+
+      if (any(data_feat$trait == 0)) {
+
+        add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
+
+        if(!add_0)
+          data_feat <-
+            data_feat %>%
+            dplyr::filter(trait != 0)
+
+      }
+
+      ## see what type of value numeric of character
+      valuetype <-
+        data_feat %>%
+        dplyr::distinct(id_trait) %>%
+        dplyr::left_join(
+          dplyr::tbl(mydb, "traitlist") %>%
+            dplyr::select(valuetype, id_trait) %>%
+            dplyr::collect(),
+          by = c("id_trait" = "id_trait")
+        )
+
+      cli::cli_h3(".add_modif_field")
+      data_feat <-
+        .add_modif_field(dataset = data_feat)
+
+
+      if (valuetype$valuetype == "ordinal" |
+          valuetype$valuetype == "character")
+        val_type <- "character"
+
+      if (valuetype$valuetype == "numeric")
+        val_type <- "numeric"
+
+      if (valuetype$valuetype == "integer")
+        val_type <- "numeric"
+
+      cli::cli_h3("data_to_add")
+      data_to_add <-
+        dplyr::tibble(
+          id_trait_measures = data_feat$id_trait_measures,
+          id_trait = data_feat$id_trait,
+          typevalue = ifelse(
+            rep(val_type == "numeric", nrow(data_feat)),
+            data_feat$trait,
+            NA
+          ),
+          typevalue_char = ifelse(
+            rep(val_type == "character", nrow(data_feat)),
+            as.character(data_feat$trait),
+            NA
+          ),
+          date_modif_d = data_feat$date_modif_d,
+          date_modif_m = data_feat$date_modif_m,
+          date_modif_y = data_feat$date_modif_y
+        )
+
+      list_add_data[[i]] <-
+        data_to_add
+
+      print(data_to_add)
+
+      if (data_to_add %>% dplyr::distinct() %>% nrow() != nrow(data_to_add)) {
+
+        duplicates_lg <- duplicated(data_to_add)
+
+        cli::cli_alert_warning("Duplicates in new data for {feat} concerning {length(duplicates_lg[duplicates_lg])} id(s)")
+
+        cf_merge <-
+          askYesNo(msg = "confirm merging duplicates?")
+
+        if (cf_merge) {
+
+          # issues_dup <- data_to_add %>%
+          #   filter(id_trait_measures %in% data_to_add[duplicates_lg, "id_trait_measures"]) %>%
+          #   dplyr::select(issue, id_trait_measures)
+
+          ## resetting issue
+          if(any(grepl("identical value", issues_dup$issue))) {
+
+            issues_dup_modif_issue <-
+              issues_dup[grepl("identical value", issues_dup$issue),]
+
+            data_to_add <-
+              data_to_add %>%
+              mutate(issue = replace(issue, id_trait_measures %in% issues_dup_modif_issue$id_trait_measures, NA))
+
+          }
+
+          data_to_add <- data_to_add %>% dplyr::distinct()
+        } else {
+          if (!allow_multiple_value) stop()
+        }
+
+      }
+
+      response <-
+        utils::askYesNo("Confirm add these data to data_ind_measures_feat table?")
+
+      if(add_data & response) {
+
+        DBI::dbWriteTable(mydb, "data_ind_measures_feat",
+                          data_to_add,
+                          append = TRUE,
+                          row.names = FALSE)
+
+        cli::cli_alert_success("Adding data : {nrow(data_to_add)} values added")
+      }
+
+    } else{
+
+      cli::cli_alert_info("no added data for {trait} - no values different of 0")
+
+    }
+  }
+
+
+  return(list(list_features_add = list_add_data))
+
+}
+
