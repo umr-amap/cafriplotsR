@@ -2141,6 +2141,11 @@ query_plots <- function(team_lead = NULL,
           left_join(res %>% dplyr::select(id_liste_plots, plot_name),
                     by = c("id_liste_plots" = "id_liste_plots"))
 
+        coordinates_subplots <-
+          coordinates_subplots %>%
+          left_join(res %>% dplyr::select(id_liste_plots, plot_name),
+                    by = c("id_table_liste_plots" = "id_liste_plots"))
+
       } else {
 
         show_all_coordinates <- FALSE
@@ -13335,8 +13340,7 @@ query_link_individual_specimen <- function(id_ind = NULL,
 
 #' Divide 1 ha square plots into 25 squares subplots of 400m² following a regular 5*5 grid
 #'
-#' @param coordinates a dataframe with long and lat coord for all the 20 'jalons' around the plot.
-#' @param plot_name the name as character of the column where the plot name are stored. Default value is 'plot_name'.
+#' @param coordinates the second element of the list outpout of query_plots with show_all_coordinates TRUE
 #' @param crs the crs. ex : 'EPSG:32633'
 #' @param long the name as character of the column where the longitude are stored. Default value is 'typevalue_ddlon'
 #' @param lat the name as character of the column where the longitude are stored. Default value is "typevalue_ddlat"
@@ -13353,7 +13357,7 @@ query_link_individual_specimen <- function(id_ind = NULL,
 #' coordinates_sf <- myplots_coord
 #'
 #' test1 <- divid_plot(coordinates_sf = coordinates_sf,
-#' plot_name = 'id_table_liste_plots',
+#' plot_name = 'plot_name',
 #' crs = 'EPSG32633',
 #' long = "typevalue_ddlon",
 #' lat = "typevalue_ddlat",
@@ -13378,12 +13382,8 @@ query_link_individual_specimen <- function(id_ind = NULL,
 #' @importFrom forcats fct_recode
 #' @importFrom BIOMASS correctCoordGPS cutPlot
 #' @export
-
-
-
-divid_plot <- function (coordinates_sf,
-                        plot_name = 'plot_name',
-                        crs = NULL,
+divid_plot <- function (coordinates,
+                        crs =  'EPSG32633',
                         long = "typevalue_ddlon",
                         lat = "typevalue_ddlat",
                         XRel = "Xrel",
@@ -13391,11 +13391,11 @@ divid_plot <- function (coordinates_sf,
                         order = 1 ) {
 
   # Get plot data by plot_name
-  names <- unique(coordinates_sf[,plot_name]) %>% pull
+  names <- distinct(coordinates, plot_name, id_table_liste_plots)
 
-  for (i in 1:length(names)){
+  for (i in 1:nrow(names)){
 
-    plot <- coordinates_sf %>% filter(id_table_liste_plots == unique(id_table_liste_plots)[i])
+    plot <- coordinates %>% filter(id_table_liste_plots == names$id_table_liste_plots[i])
 
     #####################################################################
     ##### STEP 1 : GET THE 'JALONS'
@@ -13406,7 +13406,7 @@ divid_plot <- function (coordinates_sf,
       coordRel = plot[, c(XRel, YRel)],
       rangeX = c(0, 100),
       rangeY = c(0, 100),
-      drawPlot = TRUE,
+      drawPlot = F,
       maxDist = 10,
       rmOutliers = TRUE
     )
@@ -13508,7 +13508,7 @@ divid_plot <- function (coordinates_sf,
     ##### STEP 3 : ADD subplot names
     #####################################################################
 
-    sub_plot <- sub_plot %>% mutate(plot_name = names[i]) # Add the plot name
+    sub_plot <- sub_plot %>% mutate(plot_name = names$plot_name[i]) # Add the plot name
 
     sub_plot$sous_plot_name <- as.character(sub_plot$sous_plot_name) # Renamme the subplot id
 
@@ -13584,7 +13584,7 @@ divid_plot <- function (coordinates_sf,
 
 
 
-    assign(paste('subplot',names[i],sep = '_'),sub_plot)
+    assign(paste('subplot',names$plot_name[i],sep = '_'),sub_plot)
 
   }
 
