@@ -4,30 +4,12 @@
 \alias{divid_plot}
 \title{Divide 1 ha square plots into 25 squares subplots of 400m² following a regular 5*5 grid}
 \usage{
-divid_plot(
-  coordinates,
-  crs = "EPSG32633",
-  long = "typevalue_ddlon",
-  lat = "typevalue_ddlat",
-  XRel = "Xrel",
-  YRel = "Yrel",
-  order = 1
-)
+divid_plot(coordinates_sf, plot_name = "plot_name")
 }
 \arguments{
-\item{coordinates}{the second element of the list outpout of query_plots with show_all_coordinates TRUE}
+\item{coordinates_sf}{a spatial object representing the plot geometries, either a \code{SpatialPolygonsDataFrame} or \code{sf} object. Each line should correspond to a single plot.}
 
-\item{crs}{the crs. ex : 'EPSG:32633'}
-
-\item{long}{the name as character of the column where the longitude are stored. Default value is 'typevalue_ddlon'}
-
-\item{lat}{the name as character of the column where the longitude are stored. Default value is "typevalue_ddlat"}
-
-\item{XRel}{the name as character of the column where the longitude are stored. Default value is 'XRel'}
-
-\item{YRel}{the name as character of the column where the longitude are stored. Default value is 'YRel'}
-
-\item{order}{1 or 2. Condition the subplot name order. If the line 0 in Y goes a bit to the south choose 1, and 2 if it goes a bit to the North.}
+\item{plot_name}{the name as character of the column where the plot name are stored. Default value is 'plot_name'.}
 }
 \value{
 A \code{sf} object with the 25 subplots geometries with 2 fields : sous_plot_name and plot_name for each plot.
@@ -36,36 +18,70 @@ A \code{sf} object with the 25 subplots geometries with 2 fields : sous_plot_nam
 Divide 1 ha square plots into 25 squares subplots of 400m² following a regular 5*5 grid
 }
 \details{
-The function works well with the $coordinates dataframe export by the query_plots function. The subplots names
-could be in the wrong order depending on the orientation of the plot. To fit this problem, change the value of 'order'
+The function takes either a \code{SpatialPolygonsDataFrame} or \code{sf} object containing the plot geometries and the plot names. For each plot, it first
+identifies the 4 corners, then creates the 25 square subplots following a regular 5*5 grid. The subplots are named using the xy coordinates inside the plot, starting
+from 0_0 for the southeasterly corner to 80_80 for the northwesternly.
 }
 \examples{
-library(mapview)
-myplots <- query_plots(locality_name = "Mbalmayo", show_all_coordinates = TRUE, map = T, extract_individuals = F, extract_traits = F, method = '1ha-IRD')
-myplots_coord <- myplots$coordinates
-coordinates_sf <- myplots_coord
+## Test 1
 
-test1 <- divid_plot(coordinates_sf = coordinates_sf,
-plot_name = 'plot_name',
-crs = 'EPSG32633',
-long = "typevalue_ddlon",
-lat = "typevalue_ddlat",
-XRel = "Xrel",
-YRel = "Yrel",
-order = 1))
+# Define the coordinates of the 4 corners
+x1 <- c(0, 1, 1, 0, 0)
+y1 <- c(0, 0, 1, 1, 0)
+x2 <- c(2, 2, 3, 3, 2)
+y2 <- c(1, 2, 2, 1, 1)
 
-# To modify the order of the subplot names
+# Combine x and y coordinates into matrix
+coords1 <- cbind(x1, y1)
+coords2 <- cbind(x2, y2)
 
-test2 <- divid_plot(coordinates_sf = coordinates_sf,
-plot_name = 'id_table_liste_plots',
-crs = 'EPSG32633',
-long = "typevalue_ddlon",
-lat = "typevalue_ddlat",
-XRel = "Xrel",
-YRel = "Yrel",
-order = 2))
+# Rotate by 20 degrees the matrix coord1
+angle <- pi/9  # angle in radians
+rotation_mat <- matrix(c(cos(angle), sin(angle), -sin(angle), cos(angle)), nrow = 2)
+coords1 <- coords1 \%*\% rotation_mat
 
-mapview::mapview(test1, zcol = 'sous_plot_name')
-mapview::mapview(test2, zcol = 'sous_plot_name')
+# Create SF object
+poly1 <- st_sfc(st_polygon(list(coords1)))
+poly2 <- st_sfc(st_polygon(list(coords2)))
+
+coordinates_sf <-
+  st_as_sf(data.frame(
+    plot_name = c('Plot_001', 'Plot_002'),
+    geometry = c(poly1, poly2)
+  ))
+
+#Plot
+plot(coordinates_sf$geometry)
+
+# Divide the plot into smaller squares
+sub_plot <- divid_plot(coordinates_sf = coordinates_sf, plot_name = 'plot_name')
+
+# Plot the plots and the result subplots
+par(mfrow = c(1, 2))
+plot(coordinates_sf$geometry, main = "Plots")
+plot(sub_plot$geometry, main = "Subplots")
+
+# Plot the plots and the result subplots
+library(ggplot2)
+ggplot(sub_plot)  +
+  geom_sf() +
+  scale_fill_continuous(type = 'viridis')+
+  geom_sf_text(aes(label = as.character(sous_plot_name)))
+
+# Extract datas
+x <- query_plots(locality_name = "Mbalmayo", extract_individuals = F, show_all_coordinates = TRUE)
+
+coordinates_sf <- x$coordinates_sf
+sub_plot <- divid_plot(coordinates_sf,'plot_name')
+
+par(mfrow = c(1, 1))
+for(i in 1:length(unique(sub_plot$plot_name))) {
+
+  print(ggplot(sub_plot \%>\% filter(plot_name == unique(plot_name)[i]))  +
+          geom_sf() +
+          scale_fill_continuous(type = 'viridis')+
+          geom_sf_label(aes(label = as.character(sous_plot_name)))  +
+          ggtitle(paste(unique(unique(sub_plot$plot_name)[i]))) )
+}
 
 }
