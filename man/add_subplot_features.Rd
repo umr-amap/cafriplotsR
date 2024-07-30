@@ -15,7 +15,8 @@ add_subplot_features(
   subplottype_field,
   add_data = FALSE,
   ask_before_update = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  check_existing_data = TRUE
 )
 }
 \arguments{
@@ -38,6 +39,8 @@ add_subplot_features(
 \item{ask_before_update}{logical ask before adding}
 
 \item{verbose}{logical}
+
+\item{check_existing_data}{logical if it should be checked if imported data already exist in the database}
 }
 \value{
 list of tibbles that should be/have been added

@@ -5,9 +5,8 @@
 \title{Divide 1 ha square plots into 25 squares subplots of 400m² following a regular 5*5 grid}
 \usage{
 divid_plot(
-  coordinates_sf,
-  plot_name = "plot_name",
-  crs = NULL,
+  coordinates,
+  crs = "EPSG32633",
   long = "typevalue_ddlon",
   lat = "typevalue_ddlat",
   XRel = "Xrel",
@@ -16,7 +15,7 @@ divid_plot(
 )
 }
 \arguments{
-\item{plot_name}{the name as character of the column where the plot name are stored. Default value is 'plot_name'.}
+\item{coordinates}{the second element of the list outpout of query_plots with show_all_coordinates TRUE}
 
 \item{crs}{the crs. ex : 'EPSG:32633'}
 
@@ -29,8 +28,6 @@ divid_plot(
 \item{YRel}{the name as character of the column where the longitude are stored. Default value is 'YRel'}
 
 \item{order}{1 or 2. Condition the subplot name order. If the line 0 in Y goes a bit to the south choose 1, and 2 if it goes a bit to the North.}
-
-\item{coordinates}{a dataframe with long and lat coord for all the 20 'jalons' around the plot.}
 }
 \value{
 A \code{sf} object with the 25 subplots geometries with 2 fields : sous_plot_name and plot_name for each plot.
@@ -49,7 +46,7 @@ myplots_coord <- myplots$coordinates
 coordinates_sf <- myplots_coord
 
 test1 <- divid_plot(coordinates_sf = coordinates_sf,
-plot_name = 'id_table_liste_plots',
+plot_name = 'plot_name',
 crs = 'EPSG32633',
 long = "typevalue_ddlon",
 lat = "typevalue_ddlat",

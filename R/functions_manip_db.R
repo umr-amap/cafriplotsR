@@ -2074,10 +2074,18 @@ query_plots <- function(team_lead = NULL,
         coordinates_subplots_plot_sf <- vector('list', length(all_plots_coord))
         for (j in 1:length(all_plots_coord)) {
 
+          grouped_coordinates <-
+            all_coordinates_subplots_rf %>%
+            dplyr::select(-type) %>%
+            dplyr::filter(id_table_liste_plots == all_plots_coord[j]) %>%
+            group_by(coord1, coord2, coord3, id_table_liste_plots) %>%
+            summarise(typevalue = mean(typevalue),
+                      id_sub_plots = stringr::str_c(id_sub_plots,
+                                                    collapse = ", ")) %>%
+            ungroup()
+
           coordinates_subplots <-
-            tidyr::pivot_wider(all_coordinates_subplots_rf %>%
-                                 dplyr::select(-type) %>%
-                                 dplyr::filter(id_table_liste_plots == all_plots_coord[j]),
+            tidyr::pivot_wider(grouped_coordinates,
                                names_from = coord3,
                                values_from = c(typevalue, id_sub_plots))
 
@@ -2085,8 +2093,12 @@ query_plots <- function(team_lead = NULL,
 
             coordinates_subplots <-
               coordinates_subplots %>%
-              mutate(Xrel = as.numeric(coord1) - min(as.numeric(coord1)),
-                     Yrel = as.numeric(coord2) - min(as.numeric(coord2)))
+              mutate(coord1 = as.numeric(coord1),
+                     coord2 = as.numeric(coord2))
+
+            coordinates_subplots <- coordinates_subplots %>%
+              mutate(Xrel = coord1 - min(coordinates_subplots$coord1),
+                     Yrel = coord2 - min(coordinates_subplots$coord2))
 
             if(all(coordinates_subplots$coord4 == 'plot')) {
 
@@ -4359,6 +4371,7 @@ add_plots <- function(new_data,
 #' @param add_data logical whether or not data should be added - by default FALSE
 #' @param ask_before_update logical ask before adding
 #' @param verbose logical
+#' @param check_existing_data logical if it should be checked if imported data already exist in the database
 #'
 #' @export
 add_subplot_features <- function(new_data,
@@ -4371,7 +4384,8 @@ add_subplot_features <- function(new_data,
                                  subplottype_field,
                                  add_data = FALSE,
                                  ask_before_update = TRUE,
-                                 verbose = TRUE) {
+                                 verbose = TRUE,
+                                 check_existing_data = TRUE) {
 
   if(!exists("mydb")) call.mydb()
 
@@ -4589,34 +4603,39 @@ add_subplot_features <- function(new_data,
     list_add_data[[i]] <-
       data_to_add
 
-    ## check if new data already exist in database
-    selected_new_data <-
-      data_to_add %>%
-      dplyr::select(id_table_liste_plots, id_type_sub_plot, typevalue) %>%
-      dplyr::rename(typevalue_new = typevalue)
+    if (check_existing_data) {
+      ## check if new data already exist in database
+      selected_new_data <-
+        data_to_add %>%
+        dplyr::select(id_table_liste_plots, id_type_sub_plot, typevalue) %>%
+        dplyr::rename(typevalue_new = typevalue)
 
-    all_existing_data <-
-      dplyr::tbl(mydb, "data_liste_sub_plots") %>%
-      dplyr::select(id_table_liste_plots, id_type_sub_plot, typevalue) %>%
-      dplyr::collect() %>%
-      dplyr::rename(typevalue_old = typevalue)
+      all_existing_data <-
+        dplyr::tbl(mydb, "data_liste_sub_plots") %>%
+        dplyr::select(id_table_liste_plots, id_type_sub_plot, typevalue) %>%
+        dplyr::collect() %>%
+        dplyr::rename(typevalue_old = typevalue)
 
-    crossing_data <-
-      selected_new_data %>%
-      dplyr::left_join(
-        all_existing_data,
-        by = c(
-          "id_table_liste_plots" = "id_table_liste_plots",
-          "id_type_sub_plot" = "id_type_sub_plot"
-        )
-      ) %>%
-      filter(!is.na(typevalue_old))
+      crossing_data <-
+        selected_new_data %>%
+        dplyr::left_join(
+          all_existing_data,
+          by = c(
+            "id_table_liste_plots" = "id_table_liste_plots",
+            "id_type_sub_plot" = "id_type_sub_plot"
+          )
+        ) %>%
+        filter(!is.na(typevalue_old))
 
-    continue <- TRUE
-    if(nrow(crossing_data) > 0) {
-      message("Data to be imported already exist in the database")
-      print(crossing_data)
-      continue <- utils::askYesNo(msg = "Continue importing?")
+      continue <- TRUE
+      if(nrow(crossing_data) > 0) {
+        cli::cli_alert_info("Data to be imported already exist in the database")
+        print(crossing_data)
+        continue <- utils::askYesNo(msg = "Continue importing?")
+      }
+
+    } else {
+      continue <- TRUE
     }
 
     print(data_to_add)
