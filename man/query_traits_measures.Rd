@@ -5,7 +5,7 @@
 \title{Query for traits}
 \usage{
 query_traits_measures(
-  idtax,
+  idtax = NULL,
   idtax_good = NULL,
   add_taxa_info = FALSE,
   id_trait = NULL,
@@ -21,6 +21,8 @@ query_traits_measures(
 \item{idtax_good}{vector of idtax_good; NULL if no synonym}
 
 \item{add_taxa_info}{logical}
+
+\item{id_trait}{integer indicating the id of the trait to look for}
 
 \item{trait_cat_mode}{vector string if "most_frequent" then the most frequent value for categorical trait is given, if "all_unique" then all unique value separated by comma}
 

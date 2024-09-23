@@ -11014,11 +11014,12 @@ merge_individuals_taxa <- function(id_individual = NULL,
 #' @param idtax vector of idtax_n
 #' @param idtax_good vector of idtax_good; NULL if no synonym
 #' @param add_taxa_info logical
+#' @param id_trait integer indicating the id of the trait to look for
 #' @param trait_cat_mode vector string if "most_frequent" then the most frequent value for categorical trait is given, if "all_unique" then all unique value separated by comma
 #' @param verbose logical
 #'
 #' @export
-query_traits_measures <- function(idtax,
+query_traits_measures <- function(idtax = NULL,
                                   idtax_good = NULL,
                                   add_taxa_info = FALSE,
                                   id_trait = NULL,
@@ -11027,39 +11028,57 @@ query_traits_measures <- function(idtax,
                                   pivot_table = TRUE,
                                   include_remarks = FALSE) {
 
-  if (!is.null(idtax_good)) {
+  tbl <- "table_traits_measures"
+  tbl2 <- "table_traits"
 
-    idtax_tb <- dplyr::tibble(idtax = idtax, idtax_good = idtax_good)
+  if (!is.null(idtax)) {
+
+    if (!is.null(idtax_good)) {
+
+      idtax_tb <- dplyr::tibble(idtax = idtax, idtax_good = idtax_good)
+
+    } else {
+
+      table_taxa <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
+
+      ids_syn <- table_taxa %>%
+        dplyr::select(idtax_n, idtax_good_n) %>%
+        dplyr::filter(idtax_good_n %in% !!idtax) %>%
+        dplyr::collect()
+
+      idtax <- unique(c(idtax, ids_syn$idtax_n))
+
+      idtax_tb <- table_taxa %>%
+        dplyr::select(idtax_n, idtax_good_n) %>%
+        dplyr::filter(idtax_n %in% !!idtax) %>%
+        dplyr::collect() %>%
+        dplyr::rename(idtax = idtax_n,
+                      idtax_good = idtax_good_n)
+
+    }
+
+
+    if (!is.null(id_trait)) {
+      sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.fk_id_trait = {`tbl2`}.id_trait  WHERE id_trait IN ({vals2*}) AND idtax IN ({vals*})",
+                            vals = idtax, .con = mydb_taxa, vals2 = id_trait)
+    } else {
+      sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.fk_id_trait = {`tbl2`}.id_trait  WHERE idtax IN ({vals*})",
+                            vals = idtax, .con = mydb_taxa)
+    }
 
   } else {
 
-    table_taxa <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
-
-    ids_syn <- table_taxa %>%
-      dplyr::select(idtax_n, idtax_good_n) %>%
-      dplyr::filter(idtax_good_n %in% !!idtax) %>%
-      dplyr::collect()
-
-    idtax <- unique(c(idtax, ids_syn$idtax_n))
-
-    idtax_tb <- table_taxa %>%
-      dplyr::select(idtax_n, idtax_good_n) %>%
-      dplyr::filter(idtax_n %in% !!idtax) %>%
-      dplyr::collect() %>%
-      dplyr::rename(idtax = idtax_n,
-             idtax_good = idtax_good_n)
+    sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.fk_id_trait = {`tbl2`}.id_trait  WHERE id_trait IN ({vals2*})",
+                          vals = idtax, .con = mydb_taxa, vals2 = id_trait)
 
   }
 
-  tbl <- "table_traits_measures"
-  tbl2 <- "table_traits"
+  traits_found <-
+    func_try_fetch(con = mydb_taxa, sql = sql)
+
   # sql <-glue::glue_sql("SELECT * FROM {`tbl`} WHERE idtax IN ({vals*}) LEFT OUTER JOIN table_traits ON table_traits_measures.id_trait = table_traits.id_trait",
   #                      vals = idtax, .con = mydb_taxa)
 
-  sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.id_trait = {`tbl2`}.id_trait  WHERE idtax IN ({vals*})",
-                       vals = idtax, .con = mydb_taxa)
-
-  traits_found <- func_try_fetch(con = mydb_taxa, sql = sql)
 
   traits_found <-
     traits_found %>%
