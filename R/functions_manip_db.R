@@ -6672,13 +6672,20 @@ get_updates_diconame <- function(id = NULL,
 
   feats <- query_traits_measures_features(id_trait_measures = id)
 
-  if (!is.na(feats$all_feat_pivot)) {
+  if (!is.null(dim(feats$all_feat_pivot))) {
+
+    feats$all_feat_pivot <-
+      test <-
+      feats$all_feat_pivot %>%
+      mutate(id_ind_meas_feat_n = str_extract_all(id_ind_meas_feat, "[[:digit:]]+"))
+
 
     print(feats)
 
     rm_feats <- askYesNo(msg = "Remove associated features")
 
-    if (rm_feats) .delete_entry_trait_measure_features(id = feats$all_feat_pivot$id_ind_meas_feat)
+    if (rm_feats)
+      .delete_entry_trait_measure_features(id = as.numeric(unlist(feats$all_feat_pivot$id_ind_meas_feat_n)))
 
   }
 
@@ -6998,6 +7005,7 @@ query_specimens <- function(collector = NULL,
       ddlat,
       ddlon,
       country,
+      locality,
       detby,
       detd,
       detm,
@@ -7339,6 +7347,12 @@ add_traits_measures <- function(new_data,
   for (i in 1:length(traits_field))
     if (!any(colnames(new_data) == traits_field[i]))
       stop(paste("traits_field provide not found in new_data", traits_field[i]))
+
+  if (!is.null(features_field)) for (i in 1:length(features_field))
+    if (!any(colnames(new_data) == features_field[i]))
+      stop(paste("features_field provide not found in new_data", features_field[i]))
+
+
 
   if (!is.null(col_names_select) & !is.null(col_names_corresp)) {
     new_data_renamed <-
@@ -8502,18 +8516,20 @@ add_traits_measures <- function(new_data,
                    date_modif_m == !!data_to_add$date_modif_m[1],
                    date_modif_y == !!data_to_add$date_modif_y[1]) %>%
             select(id_trait_measures, id_data_individuals) %>%
-            collect()
+            collect() %>%
+            arrange(id_trait_measures)
 
           ids <- imported_data %>% slice((nrow(imported_data)-nrow(data_to_add)+1):nrow(imported_data))
 
-          data_feats <- data_trait %>% select(all_of(features_field), id_data_individuals) %>%
+          data_feats <-
+            data_trait %>% select(all_of(features_field), id_data_individuals) %>%
             mutate(id_trait_measures = ids$id_trait_measures,
                    id_data_individuals = ids$id_data_individuals)
 
           add_traits_measures_features(
             new_data = data_feats,
             id_trait_measures = "id_trait_measures",
-            features = features_field,
+            features = features_field , #
             add_data = T
           )
 
@@ -10996,7 +11012,7 @@ merge_individuals_taxa <- function(id_individual = NULL,
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #' @param idtax vector of idtax_n
-#' @param idtax_good vector of idtax_good; NA if no synonym
+#' @param idtax_good vector of idtax_good; NULL if no synonym
 #' @param add_taxa_info logical
 #' @param trait_cat_mode vector string if "most_frequent" then the most frequent value for categorical trait is given, if "all_unique" then all unique value separated by comma
 #' @param verbose logical
@@ -11005,6 +11021,7 @@ merge_individuals_taxa <- function(id_individual = NULL,
 query_traits_measures <- function(idtax,
                                   idtax_good = NULL,
                                   add_taxa_info = FALSE,
+                                  id_trait = NULL,
                                   trait_cat_mode = "most_frequent",
                                   verbose = TRUE,
                                   pivot_table = TRUE,

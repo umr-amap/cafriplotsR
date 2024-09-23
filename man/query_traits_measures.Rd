@@ -8,6 +8,7 @@ query_traits_measures(
   idtax,
   idtax_good = NULL,
   add_taxa_info = FALSE,
+  id_trait = NULL,
   trait_cat_mode = "most_frequent",
   verbose = TRUE,
   pivot_table = TRUE,
@@ -17,7 +18,7 @@ query_traits_measures(
 \arguments{
 \item{idtax}{vector of idtax_n}
 
-\item{idtax_good}{vector of idtax_good; NA if no synonym}
+\item{idtax_good}{vector of idtax_good; NULL if no synonym}
 
 \item{add_taxa_info}{logical}
 

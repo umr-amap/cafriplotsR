@@ -28,11 +28,13 @@ query_individual_features <- function(id = NULL,
 
     if (any(!is.na(feats$all_feat_pivot))) {
 
-      feats_unique <- feats$all_feat_pivot %>%
+      feats_unique <-
+        feats$all_feat_pivot %>%
         mutate(id_ind_meas_feat = as.character(id_ind_meas_feat)) %>%
         group_by(id_trait_measures) %>%
         summarise(across(where(is.numeric), ~mean(., na.rm = T)),
-                  across(where(is.character), ~paste(., collapse = "|")))
+                  across(where(is.character), ~paste(.[!is.na(.)], collapse = "|"))) %>%
+        mutate(across(where(is.character), ~na_if(.x, "")))
 
       traits_measures <-
         traits_measures %>%
@@ -1037,8 +1039,8 @@ add_trait <- function(new_trait = NULL,
   if(is.null(new_trait)) stop("define new trait")
   if(is.null(new_valuetype)) stop("define new_valuetype")
 
-  if(!any(new_valuetype==c('numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character', 'table_data_liste_plots')))
-    stop("valuetype should one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character' or 'table_data_liste_plots'")
+  if(!any(new_valuetype==c('numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character', 'table_data_liste_plots', 'table_colnam')))
+    stop("valuetype should one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character', 'table_data_liste_plots' or 'table_colnam'")
 
   if(new_valuetype=="numeric" | new_valuetype=="integer")
     if(!is.numeric(new_maxallowedvalue) & !is.integer(new_maxallowedvalue)) stop("valuetype numeric of integer and max value not of this type")
@@ -1131,7 +1133,8 @@ query_traits_measures_features <- function(id_trait_measures  = NULL) {
           names_from = "trait",
           values_from = "typevalue",
           values_fn = ~ mean(.x, na.rm = TRUE)
-        )
+        ) %>%
+        mutate(id_ind_meas_feat = as.character(id_ind_meas_feat))
     } else {
       numeric_subplots_pivot <- NULL
     }
@@ -1140,24 +1143,97 @@ query_traits_measures_features <- function(id_trait_measures  = NULL) {
       character_feat_pivot <-
         extracted_data %>%
         filter(valuetype == "character") %>%
-        select(id_trait_measures, typevalue, trait, id_ind_meas_feat)  %>%
+        select(id_trait_measures, typevalue_char, trait, id_ind_meas_feat)  %>%
         tidyr::pivot_wider(
           names_from = "trait",
           values_from = "typevalue_char",
           values_fn = ~ paste(.x, collapse = "|")
-        )
+        ) %>%
+        mutate(id_ind_meas_feat = as.character(id_ind_meas_feat))
     } else {
-      character_subplots_pivot <- NULL
+      character_feat_pivot <- NULL
     }
 
-    all_feat_pivot <-
-      c(list(character_subplots_pivot),
-        list(numeric_subplots_pivot))
+    if (any(extracted_data$valuetype == "ordinal")) {
+      ordinal_subplots_pivot <-
+        extracted_data %>%
+        filter(valuetype == "ordinal") %>%
+        select(id_trait_measures, typevalue_char, trait, id_ind_meas_feat)  %>%
+        tidyr::pivot_wider(
+          names_from = "trait",
+          values_from = "typevalue_char",
+          values_fn = ~ paste(.x, collapse = "|")
+        ) %>%
+        mutate(id_ind_meas_feat = as.character(id_ind_meas_feat))
+    } else {
+      ordinal_subplots_pivot <- NULL
+    }
+
+
+    if (any(grepl("table_colnam", extracted_data$valuetype))) {
+
+      table_ids_subplots <- extracted_data %>%
+        filter(grepl("table_", valuetype))
+
+      allvalutype <- distinct(table_ids_subplots, valuetype)
+
+
+      table_valutype_list <- vector('list', nrow(allvalutype))
+      for (i in 1:nrow(allvalutype)) {
+
+        ids_ <-
+          case_when(
+            table_ids_subplots$valuetype[i] == "table_colnam" ~ "id_table_colnam"
+          )
+
+        col_to_keep_ <-
+          case_when(
+            table_ids_subplots$valuetype[i] == "table_colnam" ~ "colnam"
+          )
+
+        table_collected <-
+          tbl(mydb, table_ids_subplots$valuetype[i]) %>%
+          collect()
+
+        table_ids_subplots <-
+          table_ids_subplots %>%
+          left_join(table_collected %>%
+                      dplyr::select(all_of(c(col_to_keep_, ids_))),
+                    by = c("typevalue" = ids_)) %>%
+          mutate(typevalue_char = !!rlang::parse_expr(col_to_keep_)) %>%
+          dplyr::select(-all_of(col_to_keep_))
+
+        table_valutype_list[[i]] <-
+          table_ids_subplots %>%
+          select(id_trait_measures, typevalue_char, trait, id_ind_meas_feat) %>%
+          mutate(id_ind_meas_feat = as.character(id_ind_meas_feat)) %>%
+          tidyr::pivot_wider(
+            names_from = "trait",
+            values_from = c("typevalue_char", "id_ind_meas_feat"),
+            values_fn = ~ paste(., collapse = "|")
+          ) %>%
+          rename(id_ind_meas_feat =  id_ind_meas_feat_colnam,
+                 colnam = typevalue_char_colnam)
+      }
+    } else {
+      table_valutype_list <- NULL
+    }
+
+    # all_feat_pivot <-
+    #   c(list(character_subplots_pivot),
+    #     list(numeric_subplots_pivot),
+    #     table_valutype_list)
 
     all_feat_pivot <-
-      purrr::reduce(all_feat_pivot[!unlist(lapply(all_feat_pivot, is.null))],
-                    dplyr::full_join,
-                    by = 'id_trait_measures')
+      bind_rows(list(list(character_feat_pivot),
+                     list(numeric_subplots_pivot),
+                     list(ordinal_subplots_pivot),
+                     table_valutype_list))
+
+    # all_feat_pivot <-
+    #   purrr::reduce(all_feat_pivot[!unlist(lapply(all_feat_pivot, is.null))],
+    #                 dplyr::full_join,
+    #                 by = c('id_trait_measures'))
 
 
   } else {
@@ -1240,17 +1316,6 @@ add_traits_measures_features <- function(new_data,
       data_feat <-
         .link_trait(data_stand = data_feat, trait = feat)
 
-      if (any(data_feat$trait == 0)) {
-
-        add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
-
-        if(!add_0)
-          data_feat <-
-            data_feat %>%
-            dplyr::filter(trait != 0)
-
-      }
-
       ## see what type of value numeric of character
       valuetype <-
         data_feat %>%
@@ -1262,6 +1327,40 @@ add_traits_measures_features <- function(new_data,
           by = c("id_trait" = "id_trait")
         )
 
+      if(valuetype$valuetype == "table_colnam") {
+
+        add_col_sep <-
+          data_feat %>%
+          tidyr::separate_rows(trait, sep = ",") %>%
+          mutate(trait = stringr::str_squish(trait))
+
+        add_col_sep <- .link_colnam(
+          data_stand = add_col_sep,
+          column_searched = "trait",
+          column_name = "colnam",
+          id_field = "trait",
+          id_table_name = "id_table_colnam",
+          db_connection = mydb,
+          table_name = "table_colnam"
+        )
+
+        data_feat <-add_col_sep
+
+      }
+
+      if (any(data_feat$trait == 0)) {
+
+        add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
+
+        if(!add_0)
+          data_feat <-
+            data_feat %>%
+            dplyr::filter(trait != 0)
+
+      }
+
+
+
       cli::cli_h3(".add_modif_field")
       data_feat <-
         .add_modif_field(dataset = data_feat)
@@ -1271,7 +1370,7 @@ add_traits_measures_features <- function(new_data,
           valuetype$valuetype == "character")
         val_type <- "character"
 
-      if (valuetype$valuetype == "numeric")
+      if (valuetype$valuetype == "numeric" | valuetype$valuetype == "table_colnam")
         val_type <- "numeric"
 
       if (valuetype$valuetype == "integer")
