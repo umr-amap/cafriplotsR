@@ -162,7 +162,7 @@ add_sp_traits_measures <- function(new_data,
   for (i in 1:length(traits_field)) {
 
     trait <- traits_field[i]
-    if(!any(colnames(new_data_renamed) == trait))
+    if (!any(colnames(new_data_renamed) == trait))
       stop(paste("trait field not found", trait))
 
     data_trait <-
@@ -178,7 +178,7 @@ add_sp_traits_measures <- function(new_data,
       data_trait %>%
       dplyr::filter(!is.na(trait))
 
-    if(any(data_trait$trait == 0)) {
+    if (any(data_trait$trait == 0)) {
 
       add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
 
@@ -204,7 +204,7 @@ add_sp_traits_measures <- function(new_data,
         queried_trait %>%
         dplyr::select(valuetype, id_trait, factorlevels, relatedterm, list_factors)
 
-      if(!any(is.na(unlist(queried_trait$list_factors)))) {
+      if (!any(is.na(unlist(queried_trait$list_factors)))) {
 
         TypeValue <- "character"
 
@@ -355,7 +355,7 @@ add_sp_traits_measures <- function(new_data,
           measurementmethod = ifelse(rep(
             any(colnames(data_trait) == "measurementmethod"), nrow(data_trait)
           ), data_trait$measurementmethod, NA),
-          id_trait = data_trait$id_trait,
+          fk_id_trait = data_trait$id_trait,
           traitvalue =
             ifelse(
               rep(any(TypeValue == "numeric"), nrow(data_trait))
@@ -373,9 +373,9 @@ add_sp_traits_measures <- function(new_data,
             any(colnames(data_trait) == "original_tax_name"), nrow(data_trait)
           ), data_trait$original_tax_name, NA),
           issue = data_trait$issue,
-          date_modif_d = data_trait$data_modif_d,
-          date_modif_m = data_trait$data_modif_m,
-          date_modif_y = data_trait$data_modif_y
+          date_modif_d = data_trait$date_modif_d,
+          date_modif_m = data_trait$date_modif_m,
+          date_modif_y = data_trait$date_modif_y
         )
 
       list_add_data[[i]] <-
@@ -386,7 +386,7 @@ add_sp_traits_measures <- function(new_data,
       ### identify if measures are already within DB
       cli::cli_alert_info("Identifying if imported values are already in DB")
 
-      trait_id <- unique(data_to_add$id_trait)
+      trait_id <- unique(data_to_add$fk_id_trait)
       selected_data_traits <-
         data_to_add %>%
         dplyr::select(idtax,
@@ -394,7 +394,7 @@ add_sp_traits_measures <- function(new_data,
                       traitvalue,
                       issue,
                       basisofrecord,
-                      id_trait,
+                      fk_id_trait,
                       measurementremarks)
 
       all_vals <-
@@ -404,9 +404,9 @@ add_sp_traits_measures <- function(new_data,
                       traitvalue,
                       issue,
                       basisofrecord,
-                      id_trait,
+                      fk_id_trait,
                       measurementremarks) %>%
-        dplyr::filter(id_trait == !!trait_id) %>% #, !is.na(id_sub_plots)
+        dplyr::filter(fk_id_trait == !!trait_id) %>% #, !is.na(id_sub_plots)
         dplyr::collect()
 
       if (TypeValue == "numeric") {
@@ -441,7 +441,7 @@ add_sp_traits_measures <- function(new_data,
                          all_vals) %>%
         dplyr::filter(is.na(issue)) %>%
         dplyr::group_by(idtax,
-                        id_trait,
+                        fk_id_trait,
                         trait,
                         basisofrecord,
                         measurementremarks) %>%
@@ -453,7 +453,7 @@ add_sp_traits_measures <- function(new_data,
         cli::cli_alert_danger("Some values are already in DB")
         print(duplicated_rows %>%
                 dplyr::ungroup() %>%
-                dplyr::select(idtax, id_trait, basisofrecord))
+                dplyr::select(idtax, fk_id_trait, basisofrecord))
 
         cli::cli_alert_danger("Excluding {nrow(duplicated_rows)} values because already in DB")
         data_to_add <-
