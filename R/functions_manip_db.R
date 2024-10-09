@@ -2351,7 +2351,8 @@ query_plots <- function(team_lead = NULL,
           show_multiple_census = show_multiple_census
       )
 
-    all_traits_list <- all_traits_list[unlist(lapply(all_traits_list, is.data.frame))]
+    all_traits_list <-
+      all_traits_list[unlist(lapply(all_traits_list, is.data.frame))]
 
     if (length(all_traits_list) > 0)
       res_individuals_full <-
@@ -2791,7 +2792,7 @@ query_plots <- function(team_lead = NULL,
   res_list$extract <- res
 
   if (nrow(res) < 100)
-    print_table(res)
+    print_table(res_print = res)
 
   if(show_multiple_census) {
     res_list$census_features <- census_features
@@ -8915,8 +8916,9 @@ replace_NA <- function(vec, inv = FALSE) {
       # new_name <- col_new[-id_col_nbr]
 
       corresponding_data <-
-        dplyr::tbl(mydb, "data_traits_measures") %>%
-        dplyr::select(id_trait_measures, traitvalue, issue, measurementremarks)
+        dplyr::tbl(mydb, "data_traits_measures")
+      # %>%
+      #   dplyr::select(id_trait_measures, traitvalue, issue, measurementremarks)
       # %>%
         # dplyr::collect() %>%
         # rename(!!new_name := traitvalue)
@@ -9383,7 +9385,7 @@ growth_computing <- function(dataset,
   if (!any(metadata[[2]]$typevalue > 1))
     stop("Only one census recorded for all selected plots")
 
-  if (!any(names(dataset) == "id_table_liste_plots_n"))
+  if (!any(names(dataset$extract) == "id_table_liste_plots_n"))
     stop("id_table_liste_plots_n column missing in dataset, make sure you obtain dataset with remove_ids = F")
 
   all_ids_plot <-
@@ -9410,7 +9412,7 @@ growth_computing <- function(dataset,
     cli::cli_alert_info(plot_names[plot])
 
     selected_dataset <-
-      dataset %>%
+      dataset$extract %>%
       dplyr::filter(id_table_liste_plots_n == all_ids_plot[plot])
 
     selected_metadata_census <-
@@ -9468,7 +9470,7 @@ growth_computing <- function(dataset,
       selected_metadata_census %>%
       dplyr::filter(!is.na(year) & !is.na(month))
 
-    if(!not_run) {
+    if (!not_run) {
       for (i in 1:(nrow(selected_metadata_census) - 1)) {
 
         splitted_census <-
@@ -9543,10 +9545,13 @@ growth_computing <- function(dataset,
 
         censuses <- .time_diff(census1 = splitted_census[[i]], census2 = splitted_census[[i+1]])
 
-        censuses <- .trim.growth(censuses = censuses,
-                                 err.limit = err.limit,
-                                 maxgrow = maxgrow,
-                                 mindbh = mindbh)
+        censuses <-
+          .trim.growth(
+            censuses = censuses,
+            err.limit = err.limit,
+            maxgrow = maxgrow,
+            mindbh = mindbh
+          )
 
         size1 <- censuses$dbh_mm_census1
         size2 <- censuses$dbh_mm_census2
@@ -11401,41 +11406,6 @@ add_taxa_table_taxa <- function(ids = NULL) {
 }
 
 
-#' Table taxa
-#'
-#'
-#' Rainbio taxonomic backbone
-#'
-#' @docType data
-#'
-#' @usage data(table_taxa_tb)
-#'
-#' @format An object data.frame/tibble
-#'
-#' @keywords datasets
-#'
-#'
-#' @examples
-#' data(table_taxa_tb)
-"table_taxa_tb"
-
-
-#' phylo_tree
-#'
-#' Phylogeny from Janssens et al 2020
-#'
-#' @docType data
-#'
-#' @usage data(phylo_tree)
-#'
-#' @format An object of class phylo
-#'
-#' @keywords datasets
-#'
-#'
-#' @examples
-#' data(phylo_tree)
-"phylo_tree"
 
 
 #' Get species-plot data frame

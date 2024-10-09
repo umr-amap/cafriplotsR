@@ -1184,7 +1184,8 @@ update_ident_specimens <- function(colnam = NULL,
                      family = new_family,
                      check_synonymy = F,
                      extract_traits = F,
-                     class = NULL)
+                     class = NULL,
+                     verbose = FALSE)
 
       } else {
 
@@ -1198,7 +1199,8 @@ update_ident_specimens <- function(colnam = NULL,
           ids = id_new_taxa,
           check_synonymy = F,
           extract_traits = F,
-          class = NULL
+          class = NULL,
+          verbose = FALSE
         )
 
     }
@@ -1372,10 +1374,17 @@ update_ident_specimens <- function(colnam = NULL,
 
           colnames_speci <-
             dplyr::tbl(mydb, "followup_updates_specimens") %>%
-            dplyr::select(-date_modified, -modif_type, -id_fol_up_specimens) %>%
-            dplyr::collect() %>%
-            dplyr::top_n(1) %>%
             colnames()
+
+          colnames_speci <-
+            colnames_speci[which(!colnames_speci %in% c("date_modified",
+                                                     "modif_type",
+                                                     "id_fol_up_specimens"))]
+
+            # dplyr::select(-date_modified, -modif_type, -id_fol_up_specimens) %>%
+            # dplyr::collect() %>%
+            # dplyr::top_n(1) %>%
+            # colnames()
 
           queried_speci <-
             queried_speci %>%
@@ -1383,8 +1392,8 @@ update_ident_specimens <- function(colnam = NULL,
 
           queried_speci <-
             queried_speci %>%
-            tibble::add_column(date_modified=Sys.Date()) %>%
-            tibble::add_column(modif_type=paste0(modif_types, collapse = ""))
+            mutate(date_modified = Sys.Date()) %>%
+            mutate(modif_type = paste0(modif_types, collapse = ""))
 
           DBI::dbWriteTable(mydb, "followup_updates_specimens", queried_speci, append = TRUE, row.names = FALSE)
         }
@@ -1804,7 +1813,7 @@ update_trait_list_table <- function(trait_searched = NULL,
 #'
 #' @return No return value individuals updated
 #' @export
-update_traits_measures <- function(new_data,
+update_individuals_features_measures <- function(new_data,
                                    col_names_select = NULL,
                                    col_names_corresp = NULL,
                                    id_trait = NULL,
