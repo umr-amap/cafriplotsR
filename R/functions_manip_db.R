@@ -2065,98 +2065,107 @@ query_plots <- function(team_lead = NULL,
                         typevalue,
                         id_sub_plots,
                         id_table_liste_plots) %>%
-          arrange(coord2)
+          arrange(coord2) %>%
+          left_join(res %>% select(id_liste_plots, method),
+                    by = c("id_table_liste_plots" = "id_liste_plots"))
 
+        all_coordinates_subplots_rf <-
+          all_coordinates_subplots_rf %>%
+          filter(coord4 == "plot")
 
-        all_plots_coord <- unique(all_coordinates_subplots_rf$id_table_liste_plots)
+        if (nrow(all_coordinates_subplots_rf) > 0) {
+          all_plots_coord <- unique(all_coordinates_subplots_rf$id_table_liste_plots)
 
-        coordinates_subplots_plot <- vector('list', length(all_plots_coord))
-        coordinates_subplots_plot_sf <- vector('list', length(all_plots_coord))
-        for (j in 1:length(all_plots_coord)) {
+          coordinates_subplots_plot <- vector('list', length(all_plots_coord))
+          coordinates_subplots_plot_sf <- vector('list', length(all_plots_coord))
+          for (j in 1:length(all_plots_coord)) {
 
-          grouped_coordinates <-
-            all_coordinates_subplots_rf %>%
-            dplyr::select(-type) %>%
-            dplyr::filter(id_table_liste_plots == all_plots_coord[j]) %>%
-            group_by(coord1, coord2, coord3, id_table_liste_plots) %>%
-            summarise(typevalue = mean(typevalue),
-                      id_sub_plots = stringr::str_c(id_sub_plots,
-                                                    collapse = ", ")) %>%
-            ungroup()
-
-          coordinates_subplots <-
-            tidyr::pivot_wider(grouped_coordinates,
-                               names_from = coord3,
-                               values_from = c(typevalue, id_sub_plots))
-
-          if (nrow(coordinates_subplots) > 0) {
+            grouped_coordinates <-
+              all_coordinates_subplots_rf %>%
+              dplyr::select(-type) %>%
+              dplyr::filter(id_table_liste_plots == all_plots_coord[j]) %>%
+              group_by(coord1, coord2, coord3, id_table_liste_plots) %>%
+              summarise(typevalue = mean(typevalue),
+                        id_sub_plots = stringr::str_c(id_sub_plots,
+                                                      collapse = ", ")) %>%
+              ungroup()
 
             coordinates_subplots <-
-              coordinates_subplots %>%
-              mutate(coord1 = as.numeric(coord1),
-                     coord2 = as.numeric(coord2))
+              tidyr::pivot_wider(grouped_coordinates,
+                                 names_from = coord3,
+                                 values_from = c(typevalue, id_sub_plots))
 
-            coordinates_subplots <- coordinates_subplots %>%
-              mutate(Xrel = coord1 - min(coordinates_subplots$coord1),
-                     Yrel = coord2 - min(coordinates_subplots$coord2))
+            if (nrow(coordinates_subplots) > 0) {
 
-            if(all(coordinates_subplots$coord4 == 'plot')) {
+              coordinates_subplots <-
+                coordinates_subplots %>%
+                mutate(coord1 = as.numeric(coord1),
+                       coord2 = as.numeric(coord2))
 
-              cor_coord <-
-                suppressWarnings(BIOMASS::correctCoordGPS(
-                  longlat = coordinates_subplots[, c("typevalue_ddlon", "typevalue_ddlat")],
-                  rangeX = c(0, dist(range(as.numeric(coordinates_subplots$coord1)))),
-                  rangeY = c(0, dist(range(as.numeric(coordinates_subplots$coord2)))),
-                  coordRel = coordinates_subplots %>%
-                    dplyr::select(Xrel, Yrel),
-                  drawPlot = F,
-                  rmOutliers = T
-                ))
+              coordinates_subplots <-
+                coordinates_subplots %>%
+                mutate(Xrel = coord1 - min(coordinates_subplots$coord1),
+                       Yrel = coord2 - min(coordinates_subplots$coord2))
 
-              poly_plot <- st_as_sf(cor_coord$polygon)
-              sf::st_crs(poly_plot) <- cor_coord$codeUTM
+                cor_coord <-
+                  suppressWarnings(BIOMASS::correctCoordGPS(
+                    longlat = coordinates_subplots[, c("typevalue_ddlon", "typevalue_ddlat")],
+                    rangeX = c(0, dist(range(as.numeric(coordinates_subplots$coord1)))),
+                    rangeY = c(0, dist(range(as.numeric(coordinates_subplots$coord2)))),
+                    coordRel = coordinates_subplots %>%
+                      dplyr::select(Xrel, Yrel),
+                    drawPlot = F,
+                    rmOutliers = T
+                  ))
 
-              poly_plot <- sf::st_transform(poly_plot, 4326)
+                poly_plot <- sf::st_as_sf(cor_coord$polygon)
+                sf::st_crs(poly_plot) <- cor_coord$codeUTM
 
-              poly_plot <-
-                poly_plot %>%
-                dplyr::mutate(id_liste_plots = all_plots_coord[j])
-              # %>%
-              #   left_join(res %>%
-              #               dplyr::select(plot_name, id_liste_plots),
-              #             by = c("plot_name" = "plot_name"))
+                poly_plot <- sf::st_transform(poly_plot, 4326)
 
-              coordinates_subplots_plot_sf[[j]] <-
-                poly_plot
+                poly_plot <-
+                  poly_plot %>%
+                  dplyr::mutate(id_liste_plots = all_plots_coord[j])
+                # %>%
+                #   left_join(res %>%
+                #               dplyr::select(plot_name, id_liste_plots),
+                #             by = c("plot_name" = "plot_name"))
+
+                coordinates_subplots_plot_sf[[j]] <-
+                  poly_plot
+
+
+            } else {
+
+              cli::cli_alert_danger("No coordinates for {all_plots_coord[j]} available")
+
+
             }
 
-          } else {
-
-            cli::cli_alert_danger("No coordinates for {all_plots_coord[j]} available")
-
+            coordinates_subplots_plot[[j]] <-
+              coordinates_subplots
 
           }
 
-          coordinates_subplots_plot[[j]] <-
-            coordinates_subplots
+          coordinates_subplots <-
+            bind_rows(coordinates_subplots_plot)
+
+          coordinates_subplots_plot_sf <-
+            do.call('rbind', coordinates_subplots_plot_sf)
+
+          coordinates_subplots_plot_sf <-
+            coordinates_subplots_plot_sf %>%
+            left_join(res %>% dplyr::select(id_liste_plots, plot_name),
+                      by = c("id_liste_plots" = "id_liste_plots"))
+
+          coordinates_subplots <-
+            coordinates_subplots %>%
+            left_join(res %>% dplyr::select(id_liste_plots, plot_name),
+                      by = c("id_table_liste_plots" = "id_liste_plots"))
 
         }
 
-        coordinates_subplots <-
-          bind_rows(coordinates_subplots_plot)
 
-        coordinates_subplots_plot_sf <-
-          do.call('rbind', coordinates_subplots_plot_sf)
-
-        coordinates_subplots_plot_sf <-
-          coordinates_subplots_plot_sf %>%
-          left_join(res %>% dplyr::select(id_liste_plots, plot_name),
-                    by = c("id_liste_plots" = "id_liste_plots"))
-
-        coordinates_subplots <-
-          coordinates_subplots %>%
-          left_join(res %>% dplyr::select(id_liste_plots, plot_name),
-                    by = c("id_table_liste_plots" = "id_liste_plots"))
 
       } else {
 
