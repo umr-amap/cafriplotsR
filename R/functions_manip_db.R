@@ -1644,6 +1644,7 @@ traits_list <- function(id_trait = NULL) {
 #' @param remove_ids logical remove all ids columns, by default TRUE
 #' @param collapse_multiple_val logical whether multiple traits measures should be collapsed (resulting values as character, separated by dash)
 #' @param extract_traits whether species level traits should be extracted as well
+#' @param extract_individual_features whether individual level trait or features should be extracted
 #' @param traits_to_genera if species-level traits should be extrapolated to genus level, by default is FALSE
 #' @param wd_fam_level logical, if wood density should be given at family level or not NOT YET FULLY AVAILABLE
 #' @param include_liana logical, if liana should be included, by default FALSE
@@ -1681,6 +1682,7 @@ query_plots <- function(team_lead = NULL,
                         remove_ids = TRUE,
                         collapse_multiple_val = FALSE,
                         extract_traits = TRUE,
+                        extract_individual_features = TRUE,
                         traits_to_genera = FALSE,
                         wd_fam_level = FALSE,
                         include_liana = FALSE,
@@ -2349,27 +2351,31 @@ query_plots <- function(team_lead = NULL,
       res_individuals_full %>%
       dplyr::left_join(selec_plot_tables,
                        by = c("id_table_liste_plots_n" = "id_liste_plots"))
-
-    #### Add traits at individual levels
-    all_traits <- traits_list()
-    all_traits_list <-
-      .get_trait_individuals_values(
-        traits =  all_traits$id_trait, #
-        src_individuals = res_individuals_full,
-        # id_individuals = res_individuals_full$id_n,
+    
+    if (extract_individual_features) {
+      #### Add traits at individual levels
+      all_traits <- traits_list()
+      all_traits_list <-
+        .get_trait_individuals_values(
+          traits =  all_traits$id_trait, #
+          src_individuals = res_individuals_full,
+          # id_individuals = res_individuals_full$id_n,
           show_multiple_census = show_multiple_census
-      )
-
-    all_traits_list <-
-      all_traits_list[unlist(lapply(all_traits_list, is.data.frame))]
-
-    if (length(all_traits_list) > 0)
-      res_individuals_full <-
-      res_individuals_full %>%
-      left_join(purrr::reduce(all_traits_list,
-                              dplyr::full_join,
-                              by = 'id_data_individuals'),
-                by = c('id_n' = 'id_data_individuals'))
+        )
+      
+      all_traits_list <-
+        all_traits_list[unlist(lapply(all_traits_list, is.data.frame))]
+      
+      if (length(all_traits_list) > 0)
+        res_individuals_full <-
+        res_individuals_full %>%
+        left_join(purrr::reduce(all_traits_list,
+                                dplyr::full_join,
+                                by = 'id_data_individuals'),
+                  by = c('id_n' = 'id_data_individuals'))
+      
+    }
+    
     # if (length(all_traits_list) > 0) {
     #   for (i in 1:length(all_traits_list)) {
     #     res_individuals_full <-
@@ -7560,7 +7566,7 @@ add_traits_measures <- function(new_data,
       new_data_renamed %>%
       dplyr::left_join(
         dplyr::tbl(mydb, "data_individuals") %>%
-          dplyr::select(idtax_n, id_n) %>%
+          dplyr::select(idtax_n, id_n, sous_plot_name) %>%
           dplyr::filter(id_n %in% !!unique(new_data_renamed$id_n)) %>%
           dplyr::collect() %>%
           dplyr::mutate(rrr = 1),
@@ -8283,7 +8289,7 @@ add_traits_measures <- function(new_data,
         dplyr::tbl(mydb, "data_traits_measures") %>%
         dplyr::select(id_data_individuals, traitid, id_table_liste_plots, id_sub_plots,
                       traitvalue, traitvalue_char, issue) %>%
-        dplyr::filter(traitid == trait_id) %>% #, !is.na(id_sub_plots)
+        dplyr::filter(traitid == trait_id, id_data_individuals %in% !!selected_data_traits$id_data_individuals) %>% #, !is.na(id_sub_plots)
         dplyr::collect()
 
       if (valuetype$valuetype == "numeric")
@@ -8309,8 +8315,6 @@ add_traits_measures <- function(new_data,
                       trait = traitvalue_char) %>%
         dplyr::select(-traitvalue) %>%
         dplyr::mutate(trait = stringr::str_trim(trait))
-
-
 
       if (nrow(all_vals) > 0) {
         duplicated_rows <-
@@ -11055,6 +11059,8 @@ query_traits_measures <- function(idtax = NULL,
 
       table_taxa <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
 
+      # table_taxa <- try_open_postgres_table(table = "table_idtax", con = mydb)
+
       ids_syn <- table_taxa %>%
         dplyr::select(idtax_n, idtax_good_n) %>%
         dplyr::filter(idtax_good_n %in% !!idtax) %>%
@@ -11063,7 +11069,7 @@ query_traits_measures <- function(idtax = NULL,
       idtax <- unique(c(idtax, ids_syn$idtax_n))
 
       idtax_tb <- table_taxa %>%
-        dplyr::select(idtax_n, idtax_good_n) %>%
+        # dplyr::select(idtax_n, idtax_good_n) %>%
         dplyr::filter(idtax_n %in% !!idtax) %>%
         dplyr::collect() %>%
         dplyr::rename(idtax = idtax_n,
@@ -11084,11 +11090,27 @@ query_traits_measures <- function(idtax = NULL,
 
     sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.fk_id_trait = {`tbl2`}.id_trait  WHERE id_trait IN ({vals2*})",
                           vals = idtax, .con = mydb_taxa, vals2 = id_trait)
+    
+    idtax_tb <- 
+      table_taxa %>%
+      dplyr::rename(idtax = idtax_n,
+                    idtax_good = idtax_good_n)
 
   }
 
   traits_found <-
     func_try_fetch(con = mydb_taxa, sql = sql)
+  
+  if (is.null(idtax)) {
+    
+    idtax <- unique(traits_found$idtax)
+    
+    idtax_tb <- 
+      idtax_tb %>%
+      dplyr::filter(idtax %in% !!idtax) %>%
+      dplyr::collect()
+  }
+    
 
   # sql <-glue::glue_sql("SELECT * FROM {`tbl`} WHERE idtax IN ({vals*}) LEFT OUTER JOIN table_traits ON table_traits_measures.id_trait = table_traits.id_trait",
   #                      vals = idtax, .con = mydb_taxa)
@@ -13861,5 +13883,97 @@ rm_field <- function(data, field) {
 
 
 
-
-
+#' Add 1ha IRd plot coordinates
+#'
+#' print table as html in viewer reordered
+#'
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @param dataset tibble
+#' @param ddlat column name of dataset containing latitude in decimal degrees
+#' @param ddlon column name of dataset containing longitude in decimal degrees
+#' @param launch_add_data whether addd data or not
+#' @param X_theo column that contain the X quadrat name
+#' @param Y_theo column that contain the Y quadrat name
+#' @param check_existing_data check if data already exists
+#' @param add_cols string character vectors with columns names of dataset of additonal information
+#' @param cor_cols string character vectors with colums names corresponding to add_cols
+#' @param collector_field string vector of size one with column name containing the name of the person collecting data
+#'
+#' @return print html in viewer
+#' @export
+add_plot_coordinates <-
+  function(dataset,
+           ddlat = "Latitude",
+           ddlon = "Longitude",
+           launch_add_data = FALSE,
+           X_theo = "X_theo",
+           Y_theo = "Y_theo",
+           check_existing_data = TRUE,
+           add_cols = NULL,
+           cor_cols = NULL,
+           collector_field = NULL) {
+    
+    X_theo_p <- dplyr::sym(X_theo)
+    Y_theo_p <- dplyr::sym(Y_theo)
+    
+    dataset <- 
+      dataset %>% 
+      mutate(quadrat = paste(!!X_theo_p, !!Y_theo_p, sep = "_"))
+    
+    all_q <- dataset %>%
+      distinct(quadrat) %>% pull()
+    
+    all_cols <- c(ddlat, ddlon)
+    
+    res_l <- vector('list', length(all_cols))
+    for (i in 1:length(all_cols)) {
+      col_s <- dplyr::sym(all_cols[i])
+      
+      if (!any(names(dataset) == col_s))
+        stop(glue::glue("{col_s} column not found"))
+      
+      if (i == 1)
+        names_pref <- "ddlat_plot_X_Y_"
+      if (i == 2)
+        names_pref <- "ddlon_plot_X_Y_"
+      
+      dataset <-
+        dataset %>%
+        mutate(!!col_s := as.numeric(!!col_s))
+      
+      res_l[[i]] <-
+        tidyr::pivot_wider(
+          data = dataset,
+          names_from = quadrat,
+          values_from = !!col_s,
+          names_prefix = names_pref
+        ) %>%
+        group_by(plot_name) %>%
+        summarise(across(starts_with(names_pref), ~ mean(.x, na.rm = TRUE)),
+                  across(all_of(add_cols), ~ first(.x)),
+                  across(all_of(collector_field), ~ first(.x)))
+      
+      print(res_l[[i]])
+      
+      if (launch_add_data) {
+        
+        add_subplot_features(new_data = res_l[[i]], 
+                             col_names_select = add_cols, 
+                             col_names_corresp = cor_cols, 
+                             plot_name_field = "plot_name", 
+                             collector_field = collector_field,
+                             subplottype_field = res_l[[i]] %>% 
+                               dplyr::select(starts_with("ddl")) %>% names(), 
+                             add_data = TRUE,
+                             ask_before_update = FALSE,
+                             check_existing_data = check_existing_data)
+        
+      } else {
+        cli::cli_alert_danger("No data added because launch_add_data is FALSE")
+      }
+    }
+    
+    return(res_l)
+    
+  }

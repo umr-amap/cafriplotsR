@@ -1,29 +1,114 @@
 
-
+#' Query for features linked to individual
+#'
+#' Query for features linked to a given individual in inventories
+#'
+#' @return tibble
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @param id numeric vector of id from individuals
+#' @param multiple_census boolean whether multiple census should be shown
+#' @param id_traits numeric vector of id from traits/features
+#' @param pivot_table boolean whether results should be pivoted into multiple columns
+#' @param extract_trait_measures_features boolean whether adding additional features linked to traits/features, only if pivot_table is FALSE
+#'
+#' @export
 query_individual_features <- function(id = NULL,
                                       multiple_census = FALSE,
                                       id_traits = NULL,
                                       pivot_table = TRUE,
-                                      extract_trait_measures_features = FALSE) {
+                                      extract_trait_measures_features = FALSE,
+                                      extract_linked_individuals = FALSE) {
 
-  tbl <- "data_traits_measures"
-  tbl2 <- "traitlist"
+  if (length(id) > 50000) {
+    chunk_size <- 5000
+    
+    chunks <- split(id, gl(length(id)/chunk_size, chunk_size, length(id)))
+    
+    cli::cli_alert_warning("Individual features queried by chunks because of large number of values")
+    
+  } else {
+    
+    chunks <- list(id)
+    
+  }
+  
+  traits_measures_list <- vector('list', length(chunks))
+  for (i in 1:length(chunks)) {
+    
+    if (length(chunks) > 1) cat(i, " ")
+    
+    if (!is.null(id) & is.null(id_traits))
+      sql <- .sql_query_trait_ind(id_in = chunks[[i]], mydb = mydb)
+    
+    if (!is.null(id) & !is.null(id_traits))
+      sql <- .sql_query_trait_ind_2(id_ind = chunks[[i]], id_traits = id_traits, mydb = mydb)
+    
+    if (is.null(id) & !is.null(id_traits))
+      sql <- .sql_query_trait(id_traits = id_traits, mydb = mydb)
+    
+    traits_measures_list[[i]] <-
+      suppressMessages(func_try_fetch(con = mydb, sql = sql))
+    
+  }
+  
+  traits_measures <- 
+    bind_rows(traits_measures_list)
+  
+  
+  
+  # if (length(id) > 50000) {
+  #   chunk_size <- 5000
+  #   
+  #   chunks <- split(id, gl(length(id)/chunk_size, chunk_size, length(id)))
+  #   
+  #   cli::cli_alert_warning("Individual features queried by chunks because of large number of values")
+  #   
+  #   traits_measures_list <- vector('list', length(chunks))
+  #   for (i in 1:length(chunks)) {
+  #     cat(i, " ")
+  #     
+  #     if (!is.null(id) & is.null(id_traits))
+  #       sql <- .sql_query_trait(id_in = chunks[[i]])
+  #       
+  #       # sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*})",
+  #       #                       vals = chunks[[i]], .con = mydb)
+  #     
+  #     if (!is.null(id) & !is.null(id_traits))
+  #       sql <- .sql_query_trait_ind_2(id_ind = chunks[[i]], id_traits = id_traits)
+  #       # sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*}) AND id_trait IN ({vals2*})",
+  #       #                       vals = chunks[[i]], vals2 = id_traits, .con = mydb)
+  #     
+  #     traits_measures_list[[i]] <-
+  #       suppressMessages(func_try_fetch(con = mydb, sql = sql))
+  #     
+  #   }
+  #   
+  #   traits_measures <- 
+  #     bind_rows(traits_measures_list)
+  #   
+  # } else {
+  #   
+  #   if (!is.null(id) & is.null(id_traits))
+  #     sql <- .sql_query_trait(id_in = id)
+  #     # sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*})",
+  #     #                       vals = id, .con = mydb)
+  #   
+  #   if (!is.null(id) & !is.null(id_traits))
+  #     sql <- .sql_query_trait_ind_2(id_ind = id, id_traits = id_traits)
+  #     # sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*}) AND id_trait IN ({vals2*})",
+  #     #                       vals = id, vals2 = id_traits, .con = mydb)
+  #   
+  #   traits_measures <-
+  #     suppressMessages(func_try_fetch(con = mydb, sql = sql))
+  # }
 
-  if (!is.null(id) & is.null(id_traits))
-    sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*})",
-                        vals = id, .con = mydb)
-
-  if (!is.null(id) & !is.null(id_traits))
-    sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*}) AND id_trait IN ({vals2*})",
-                          vals = id, vals2 = id_traits, .con = mydb)
-
-  traits_measures <-
-    suppressMessages(func_try_fetch(con = mydb, sql = sql))
+  ### Error : Failed to fetch row : SSL SYSCALL error: EOF detected
   traits_measures <-
     traits_measures %>% select(-starts_with("date_modif"))
 
   traits_measures <-
-    rm_field(data = traits_measures, field = c("id_specimen",
+    rm_field(data = traits_measures, field = c(
                                              "id_diconame"))
 
   if (extract_trait_measures_features) {
@@ -320,13 +405,55 @@ query_individual_features <- function(id = NULL,
 
   if (is.null(traits_char_multiple[[2]]))
     traits_char_multiple[[2]] <- NA
+  
+  
+  if (extract_linked_individuals & nrow(traits_measures) > 0) {
+    
+    ind_data <-
+      query_plots(
+        id_individual = unique(traits_measures$id_data_individuals),
+        extract_subplot_features = FALSE,
+        extract_traits = FALSE,
+        extract_individual_features = FALSE
+      )
+    
+    
+  } else {
+    ind_data <- NA
+  }
 
   return(list(traits_char = traits_char_multiple[unlist(lapply(traits_char_multiple, is.data.frame))],
               # issue_char = issue_char,
               traits_num = traits_num_multiple[unlist(lapply(traits_num_multiple, is.data.frame))],
-              issue_num = issue_num_multiple[unlist(lapply(issue_num_multiple, is.data.frame))]))
+              issue_num = issue_num_multiple[unlist(lapply(issue_num_multiple, is.data.frame))],
+              ind_data = ind_data))
 
 }
+
+
+
+
+.sql_query_trait_ind <- function(id_ind, mydb = mydb, tbl = "data_traits_measures", tbl2 = "traitlist") {
+  
+  sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*})",
+                        vals = id_ind, .con = mydb)
+  return(sql)
+}
+
+.sql_query_trait_ind_2 <- function(id_ind, id_traits, mydb = mydb, tbl = "data_traits_measures", tbl2 = "traitlist") {
+  
+  sql <-glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*}) AND id_trait IN ({vals2*})",
+                       vals = id_ind, vals2 = id_traits, .con = mydb)
+  return(sql)
+}
+
+.sql_query_trait <- function(id_traits, mydb = mydb, tbl = "data_traits_measures", tbl2 = "traitlist") {
+  
+  sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_trait IN ({vals*})",
+                        vals = id_traits, .con = mydb)
+  return(sql)
+}
+
 
 
 .pivot_tab <- function(dataset, cat, census) {
