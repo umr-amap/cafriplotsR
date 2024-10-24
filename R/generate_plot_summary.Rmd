@@ -19,7 +19,7 @@ library(knitr)
 library(tidyverse)
 library(kableExtra)
 source("D:/MonDossierR/database.transects/plotsdatabase/R/functions_manip_db.R")
-call.mydb(pass = "Amap2020", user = "dauby")
+
 plot_name <- "Nemeyong005"
 options(knitr.kable.NA = '')
 
