@@ -20,8 +20,8 @@ query_individual_features <- function(id = NULL,
                                       extract_trait_measures_features = FALSE,
                                       extract_linked_individuals = FALSE) {
 
-  if (length(id) > 50000) {
-    chunk_size <- 5000
+  if (length(id) > 1000) {
+    chunk_size <- 1000
     
     chunks <- split(id, gl(length(id)/chunk_size, chunk_size, length(id)))
     
@@ -33,10 +33,12 @@ query_individual_features <- function(id = NULL,
     
   }
   
+  pb <- txtProgressBar(min = 0, max = length(chunks), style = 3)
   traits_measures_list <- vector('list', length(chunks))
   for (i in 1:length(chunks)) {
+    setTxtProgressBar(pb, i)
     
-    if (length(chunks) > 1) cat(i, " ")
+    # if (length(chunks) > 1) cat(i, " ")
     
     if (!is.null(id) & is.null(id_traits))
       sql <- .sql_query_trait_ind(id_in = chunks[[i]], mydb = mydb)
@@ -51,6 +53,8 @@ query_individual_features <- function(id = NULL,
       suppressMessages(func_try_fetch(con = mydb, sql = sql))
     
   }
+  
+  close(pb)
   
   traits_measures <- 
     bind_rows(traits_measures_list)
@@ -409,13 +413,44 @@ query_individual_features <- function(id = NULL,
   
   if (extract_linked_individuals & nrow(traits_measures) > 0) {
     
-    ind_data <-
-      query_plots(
-        id_individual = unique(traits_measures$id_data_individuals),
-        extract_subplot_features = FALSE,
-        extract_traits = FALSE,
-        extract_individual_features = FALSE
-      )
+    ids_ind <- unique(traits_measures$id_data_individuals)
+    
+    if (length(ids_ind) > 30000) {
+      chunk_size <- 30000
+      
+      chunks <- split(ids_ind, gl(length(ids_ind)/chunk_size, chunk_size, length(ids_ind)))
+      
+      # cli::cli_alert_warning("Individual linked queried by chunks because of large number of values")
+      
+    } else {
+      
+      chunks <- list(ids_ind)
+      
+    }
+    pb <- txtProgressBar(min = 0, max = length(chunks), style = 3)
+    traits_measures_list <- vector('list', length(chunks))
+    
+    ind_data_list <- vector('list', length(chunks))
+    for (i in 1:length(chunks)) { # 
+      setTxtProgressBar(pb, i)
+      
+      ind_data_list[[i]] <- 
+        merge_individuals_taxa(id_individual = chunks[[i]])
+      
+    }
+    close(pb)
+    
+    ind_data <- 
+      bind_rows(ind_data_list)
+    
+    
+    # ind_data <-
+    #   query_plots(
+    #     id_individual = unique(traits_measures$id_data_individuals),
+    #     extract_subplot_features = FALSE,
+    #     extract_traits = FALSE,
+    #     extract_individual_features = FALSE
+    #   )
     
     
   } else {

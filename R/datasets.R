@@ -33,4 +33,41 @@
 #'
 #' @examples
 #' data(phylo_tree)
-"phylo_tree"
+
+
+
+#' model_wd_2
+#'
+#' Linear model to predict whole-tree wood density from Global Wood Density database
+#'
+#' @docType data
+#'
+#' @usage data(model_wd_2)
+#'
+#' @format An object of class lm
+#'
+#' @keywords datasets
+#' @references Momo et al 2020
+#'
+#'
+#' @examples
+#' data(model_wd_2)
+"model_wd_2"
+
+
+#' model_wd_1
+#'
+#' Linear model to predict whole-tree wood density from small branches wood density
+#'
+#' @docType data
+#'
+#' @usage data(model_wd_2)
+#'
+#' @format An object of class lm
+#'
+#' @keywords datasets
+#' @references Momo et al 2020
+#'
+#' @examples
+#' data(model_wd_2)
+"model_wd_1"

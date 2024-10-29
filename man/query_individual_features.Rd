@@ -9,7 +9,8 @@ query_individual_features(
   multiple_census = FALSE,
   id_traits = NULL,
   pivot_table = TRUE,
-  extract_trait_measures_features = FALSE
+  extract_trait_measures_features = FALSE,
+  extract_linked_individuals = FALSE
 )
 }
 \arguments{

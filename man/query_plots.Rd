@@ -28,6 +28,7 @@ query_plots(
   remove_ids = TRUE,
   collapse_multiple_val = FALSE,
   extract_traits = TRUE,
+  extract_individual_features = TRUE,
   traits_to_genera = FALSE,
   wd_fam_level = FALSE,
   include_liana = FALSE,
@@ -76,6 +77,8 @@ query_plots(
 \item{collapse_multiple_val}{logical whether multiple traits measures should be collapsed (resulting values as character, separated by dash)}
 
 \item{extract_traits}{whether species level traits should be extracted as well}
+
+\item{extract_individual_features}{whether individual level trait or features should be extracted}
 
 \item{traits_to_genera}{if species-level traits should be extrapolated to genus level, by default is FALSE}
 
