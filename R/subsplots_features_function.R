@@ -255,7 +255,10 @@ query_subplots <- function(ids_plots = NULL,
           dplyr::rename(!!date_name_enquo1 := date) %>%
           dplyr::rename(!!date_name_enquo2 := date_julian)
         
-        census_dates_lists[[i]] <-census_features_selected
+        census_dates_lists[[i]] <- 
+          census_features_selected %>% 
+          dplyr::select(id_table_liste_plots, 
+                        starts_with("date_census_"))
         
       }
       
