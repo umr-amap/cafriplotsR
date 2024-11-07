@@ -11,6 +11,8 @@ update_colnam(
   new_surname = NULL,
   new_family_name = NULL,
   new_nationality = NULL,
+  new_contact = NULL,
+  new_institute = NULL,
   ask_before_update = TRUE,
   add_backup = TRUE,
   show_results = TRUE
