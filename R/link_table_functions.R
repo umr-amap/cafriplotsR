@@ -291,17 +291,29 @@
 #' @export
 .link_subplotype <- function(data_stand, subplotype) {
 
+  subplotype_newnames <- "subplotype"
+  
+  data_stand <- data_stand %>%
+    dplyr::rename_with(.cols = dplyr::all_of(subplotype),
+                       .fn = ~ subplotype_newnames)
+  
   all_subplotype <-
     try_open_postgres_table(table = "subplotype_list", con = mydb) %>%
     dplyr::collect()
-
-  sorted_matches <-
-    .find_cat(
-      value_to_search = subplotype,
-      compared_table = all_subplotype,
-      column_name = "type",
-      prompt_message = "Choose subplot feature (G for pattern searching): "
-    )
+  
+  
+  sorted_matches <- .find_cat(value_to_search = subplotype,
+                                 compared_table = all_subplotype,
+                                 column_name = "type",
+                                 prompt_message = "Choose subplot feature (G for pattern searching): ")
+  
+  # sorted_matches <-
+  #   .find_cat(
+  #     value_to_search = subplotype,
+  #     compared_table = all_subplotype,
+  #     column_name = "type",
+  #     prompt_message = "Choose subplot feature (G for pattern searching): "
+  #   )
 
   selected_name <- as.integer(sorted_matches$selected_name)
 
