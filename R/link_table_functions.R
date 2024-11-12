@@ -331,31 +331,31 @@
     dplyr::slice(selected_name)
 
   if(select_type_features$valuetype == "numeric") {
-    if(any(is.na(as.numeric(data_stand$subplottype)))) {
+    if(any(is.na(as.numeric(data_stand$subplotype)))) {
       warning("Numeric value expected but some are not")
-      print(data_stand[which(is.na(as.numeric(data_stand$subplottype))),])
+      print(data_stand[which(is.na(as.numeric(data_stand$subplotype))),])
     }
 
-    data_stand$subplottype <-
-      as.numeric(data_stand$subplottype)
+    data_stand$subplotype <-
+      as.numeric(data_stand$subplotype)
   }
 
   issues <- vector(mode = "character", length = nrow(data_stand))
   if(select_type_features$valuetype == "numeric") {
-    if(any(data_stand$subplottype[!is.na(data_stand$subplottype)] < select_type_features$minallowedvalue)) {
+    if(any(data_stand$subplotype[!is.na(data_stand$subplotype)] < select_type_features$minallowedvalue)) {
       warning(paste(subplotype, "values lower than minallowedvalue for", subplottype, "for",
                     sum(data_stand$subplottype < select_type_features$minallowedvalue), "entries"))
-      issues[data_stand$subplottype < select_type_features$minallowedvalue] <-
-        paste(subplottype, "lower than minallowedvalue")
+      issues[data_stand$subplotype < select_type_features$minallowedvalue] <-
+        paste(subplotype, "lower than minallowedvalue")
     }
   }
 
   if(select_type_features$valuetype == "numeric") {
-    if(any(data_stand$subplottype[!is.na(data_stand$subplottype)] > select_type_features$maxallowedvalue)) {
-      warning(paste(subplottype, "values lower than maxallowedvalue for", subplottype, "for",
-                    sum(data_stand$subplottype > select_type_features$maxallowedvalue), "entries"))
+    if(any(data_stand$subplotype[!is.na(data_stand$subplotype)] > select_type_features$maxallowedvalue)) {
+      warning(paste(subplottype, "values lower than maxallowedvalue for", subplotype, "for",
+                    sum(data_stand$subplotype > select_type_features$maxallowedvalue), "entries"))
       issues[data_stand$subplottype > select_type_features$maxallowedvalue] <-
-        paste(subplottype, "higher than maxallowedvalue")
+        paste(subplotype, "higher than maxallowedvalue")
     }
   }
 
