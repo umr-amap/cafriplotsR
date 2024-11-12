@@ -32,7 +32,8 @@ query_plots(
   traits_to_genera = FALSE,
   wd_fam_level = FALSE,
   include_liana = FALSE,
-  extract_subplot_features = TRUE
+  extract_subplot_features = TRUE,
+  concatenate_stem = FALSE
 )
 }
 \arguments{
@@ -85,6 +86,8 @@ query_plots(
 \item{wd_fam_level}{logical, if wood density should be given at family level or not NOT YET FULLY AVAILABLE}
 
 \item{include_liana}{logical, if liana should be included, by default FALSE}
+
+\item{concatenate_stem}{logical, if TRUE, multi stem are concatacted into a single row}
 }
 \value{
 A tibble of all plots or individuals

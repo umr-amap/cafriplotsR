@@ -355,7 +355,6 @@ query_subplots <- function(ids_plots = NULL,
 #' @param new_data tibble
 #' @param col_names_select string vector
 #' @param col_names_corresp string vector
-#' @param collector_field string column name which contain the collector name
 #' @param plot_name_field string column name which contain the plot_name for linking
 #' @param id_plot_name string id of plot_name
 #' @param subplottype_field string vector listing trait columns names in new_data
@@ -368,11 +367,11 @@ query_subplots <- function(ids_plots = NULL,
 add_subplot_features <- function(new_data,
                                  col_names_select = NULL,
                                  col_names_corresp= NULL,
-                                 collector_field = NULL,
                                  plot_name_field = NULL,
                                  id_plot_name = NULL,
                                  id_plot_name_corresp = "id_table_liste_plots_n",
                                  subplottype_field,
+                                 features_field = NULL,
                                  add_data = FALSE,
                                  ask_before_update = TRUE,
                                  verbose = TRUE,
@@ -395,6 +394,9 @@ add_subplot_features <- function(new_data,
       new_data
   }
   
+  if (!is.null(features_field)) for (i in 1:length(features_field))
+    if (!any(colnames(new_data) == features_field[i]))
+      stop(paste("features_field provide not found in new_data", features_field[i]))
   
   if(is.null(plot_name_field) & is.null(id_plot_name)) stop("no plot links provided, provide either plot_name_field or id_plot_name")
   
@@ -424,28 +426,28 @@ add_subplot_features <- function(new_data,
     mutate(id_new_data = 1:nrow(.))
   
   ### Linking collectors names
-  if(!is.null(collector_field)) {
-    if(!any(colnames(new_data_renamed) == collector_field))
-      stop("no collector_field found in new dataset")
-    # new_data_renamed <-
-    #   .link_colnam(data_stand = new_data_renamed, collector_field = collector_field)
-    
-    new_data_renamed <- .link_colnam(
-      data_stand = new_data_renamed,
-      column_searched = collector_field,
-      column_name = "colnam",
-      id_field = "id_colnam",
-      id_table_name = "id_table_colnam",
-      db_connection = mydb,
-      table_name = "table_colnam"
-    )
-    
-  }else{
-    if (verbose)  cli::cli_alert_warning("no information on collector provided")
-    new_data_renamed <-
-      new_data_renamed %>%
-      tibble::add_column(id_colnam = NA)
-  }
+  # if(!is.null(collector_field)) {
+  #   if(!any(colnames(new_data_renamed) == collector_field))
+  #     stop("no collector_field found in new dataset")
+  #   # new_data_renamed <-
+  #   #   .link_colnam(data_stand = new_data_renamed, collector_field = collector_field)
+  #   
+  #   new_data_renamed <- .link_colnam(
+  #     data_stand = new_data_renamed,
+  #     column_searched = collector_field,
+  #     column_name = "colnam",
+  #     id_field = "id_colnam",
+  #     id_table_name = "id_table_colnam",
+  #     db_connection = mydb,
+  #     table_name = "table_colnam"
+  #   )
+  #   
+  # }else{
+  #   if (verbose)  cli::cli_alert_warning("no information on collector provided")
+  #   new_data_renamed <-
+  #     new_data_renamed %>%
+  #     tibble::add_column(id_colnam = NA)
+  # }
   
   ### Linking plot names
   if (!is.null(plot_name_field)) {
@@ -529,22 +531,24 @@ add_subplot_features <- function(new_data,
     data_subplottype <-
       new_data_renamed
     
-    subplottype_name <-
-      "subplottype"
-    
-    data_subplottype <-
-      data_subplottype %>%
-      dplyr::rename_with(.cols = dplyr::all_of(subplottype),
-                         .fn = ~ subplottype_name)
-    
-    data_subplottype <-
-      data_subplottype %>%
-      dplyr::filter(!is.na(subplottype))
-    
     ### adding subplot id and adding potential issues based on subplot
     data_subplottype <-
       .link_subplotype(data_stand = data_subplottype,
                        subplotype = subplottype)
+    
+    # subplottype_name <-
+    #   "subplottype"
+    # 
+    # data_subplottype <-
+    #   data_subplottype %>%
+    #   dplyr::rename_with(.cols = dplyr::all_of(subplottype),
+    #                      .fn = ~ subplottype_name)
+    
+    data_subplottype <-
+      data_subplottype %>%
+      dplyr::filter(!is.na(subplotype))
+    
+
     
     print(".add_modif_field")
     data_subplottype <-
@@ -563,16 +567,16 @@ add_subplot_features <- function(new_data,
     print("data_to_add")
     data_to_add <-
       dplyr::tibble(id_table_liste_plots = data_subplottype$id_liste_plots,
-                    id_colnam = data_subplottype$id_colnam,
+                    # id_colnam = data_subplottype$id_colnam,
                     year = data_subplottype$year,
                     month = data_subplottype$month,
                     day = data_subplottype$day,
                     id_type_sub_plot = data_subplottype$id_subplottype,
                     # typevalue = data_subplottype$subplottype,
                     typevalue = ifelse(rep(any(valuetype$valuetype %in% c("numeric", "table_colnam")),
-                                           nrow(data_subplottype)), data_subplottype$subplottype, NA),
+                                           nrow(data_subplottype)), data_subplottype$subplotype, NA),
                     typevalue_char = ifelse(rep(valuetype$valuetype == "character",
-                                                nrow(data_subplottype)), data_subplottype$subplottype, NA),
+                                                nrow(data_subplottype)), data_subplottype$subplotype, NA),
                     original_subplot_name = ifelse(rep(any(colnames(data_subplottype)=="original_subplot_name"),
                                                        nrow(data_subplottype)), data_subplottype$original_subplot_name, NA),
                     issue = data_subplottype$issue,
@@ -650,6 +654,36 @@ add_subplot_features <- function(new_data,
                         data_to_add, append = TRUE, row.names = FALSE)
       
       cli::cli_alert_success("{nrow(data_to_add)} line imported in data_liste_sub_plots")
+      
+      
+      
+      
+      if (!is.null(features_field)) {
+        
+        imported_data <- tbl(mydb, "data_liste_sub_plots") %>%
+          filter(date_modif_d == !!data_to_add$date_modif_d[1],
+                 date_modif_m == !!data_to_add$date_modif_m[1],
+                 date_modif_y == !!data_to_add$date_modif_y[1]) %>%
+          select(id_sub_plots, id_table_liste_plots) %>%
+          collect() %>%
+          arrange(id_sub_plots)
+        
+        ids <- imported_data %>% slice((nrow(imported_data)-nrow(data_to_add)+1):nrow(imported_data))
+        
+        data_feats <-
+          data_subplottype %>% 
+          select(all_of(features_field)) %>%
+          mutate(id_sub_plots = ids$id_sub_plots,
+                 id_table_liste_plots = ids$id_table_liste_plots)
+        
+        add_subplot_observations_feat(
+          new_data = data_feats,
+          id_sub_plots = "id_sub_plots",
+          features = features_field , #
+          add_data = T
+        )
+        
+      }
       
     } else {
       

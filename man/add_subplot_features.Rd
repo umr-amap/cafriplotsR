@@ -8,11 +8,11 @@ add_subplot_features(
   new_data,
   col_names_select = NULL,
   col_names_corresp = NULL,
-  collector_field = NULL,
   plot_name_field = NULL,
   id_plot_name = NULL,
   id_plot_name_corresp = "id_table_liste_plots_n",
   subplottype_field,
+  features_field = NULL,
   add_data = FALSE,
   ask_before_update = TRUE,
   verbose = TRUE,
@@ -25,8 +25,6 @@ add_subplot_features(
 \item{col_names_select}{string vector}
 
 \item{col_names_corresp}{string vector}
-
-\item{collector_field}{string column name which contain the collector name}
 
 \item{plot_name_field}{string column name which contain the plot_name for linking}
 
