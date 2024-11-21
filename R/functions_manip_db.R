@@ -1741,23 +1741,37 @@ query_plots <- function(team_lead = NULL,
     # query <- "SELECT * FROM data_liste_plots WHERE  team_leader ILIKE '%Dauby%' AND country IN ('Gabon', 'Cameroun')"
 
     if (!is.null(country)) {
-
-      id_liste_plots_match <- vector('list', length(country))
-      for (i in 1:length(country)) {
-
-        query_country <-
-          paste0("SELECT * FROM table_countries WHERE country ILIKE '%", country[i], "%'")
-
-        rs_country <- func_try_fetch(con = mydb, sql = query_country)
-        rs_country <- dplyr::as_tibble(rs_country)
-
-        id_liste_plots_match[[i]] <- rs_country$id_country
-      }
+      
+      list_country <-
+        .link_table(
+          data_stand = tibble(country = country),
+          column_searched = "country",
+          column_name = "country",
+          id_field = "id_country",
+          id_table_name = "id_country",
+          db_connection = mydb,
+          table_name = "table_countries"
+        )
+      
+      # id_liste_plots_match <- vector('list', length(country))
+      # for (i in 1:length(country)) {
+      #   
+      # 
+      #   
+      # 
+      #   query_country <-
+      #     paste0("SELECT * FROM table_countries WHERE country ILIKE '%", country[i], "%'")
+      # 
+      #   rs_country <- func_try_fetch(con = mydb, sql = query_country)
+      #   rs_country <- dplyr::as_tibble(rs_country)
+      # 
+      #   id_liste_plots_match[[i]] <- rs_country$id_country
+      # }
 
       query <-
         gsub(
           pattern = "MMM",
-          replacement = paste0("id_country IN ('", paste(unlist(id_liste_plots_match), collapse = "', '"), "') AND MMM"),
+          replacement = paste0("id_country IN ('", paste(list_country$id_country, collapse = "', '"), "') AND MMM"),
           x = query
         )
     }

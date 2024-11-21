@@ -75,7 +75,7 @@
           value_to_search = dplyr::pull(all_names_no_match, name)[i],
           compared_table = all_names,
           column_name = column_name,
-          prompt_message = "Choose feature (G for pattern searching, 0 is no match): "
+          prompt_message = "Choose feature (type 'G' for pattern searching, 0 is no match), 'enter' for scrolling the list: "
         )
 
       if (sorted_matches$selected_name != 0) {
