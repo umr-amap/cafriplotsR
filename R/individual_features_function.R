@@ -11,14 +11,15 @@
 #' @param id_traits numeric vector of id from traits/features
 #' @param pivot_table boolean whether results should be pivoted into multiple columns
 #' @param extract_trait_measures_features boolean whether adding additional features linked to traits/features, only if pivot_table is FALSE
-#'
+#' @param remove_obs_with_issue boolean whether features with issue should be excluded
 #' @export
 query_individual_features <- function(id = NULL,
                                       multiple_census = FALSE,
                                       id_traits = NULL,
                                       pivot_table = TRUE,
                                       extract_trait_measures_features = FALSE,
-                                      extract_linked_individuals = FALSE) {
+                                      extract_linked_individuals = FALSE,
+                                      remove_obs_with_issue = TRUE) {
 
   if (length(id) > 1000) {
     chunk_size <- 1000
@@ -59,6 +60,10 @@ query_individual_features <- function(id = NULL,
   traits_measures <- 
     bind_rows(traits_measures_list)
   
+  if (remove_obs_with_issue)
+    traits_measures <-
+    traits_measures %>%
+    filter(is.na(issue))
   
   
   # if (length(id) > 50000) {
@@ -581,21 +586,23 @@ query_individual_features <- function(id = NULL,
 #' @param skip_dates logical whether include day, month and year of observations
 #' @param show_multiple_measures logical whether multiple measures (i.e. census or sometimes more than one value for given measure)
 #' @param collapse_multiple_val logical whether multiple traits measures should be collapsed (resulting values as character, separated by dash)
-#'
+#' @param remove_obs_with_issue logical
 #'
 #' @export
 .get_trait_individuals_values <- function(traits,
                                           src_individuals = NULL,
                                           ids_plot = NULL,
                                           skip_dates = TRUE,
-                                          show_multiple_census = FALSE) {
+                                          show_multiple_census = FALSE,
+                                          remove_obs_with_issue = TRUE) {
 
   cli::cli_alert_info("Extracting individual-level traits and features")
 
   traits_measures <-
     query_individual_features(id = src_individuals$id_n,
                               multiple_census = show_multiple_census,
-                              id_traits = traits)
+                              id_traits = traits,
+                              remove_obs_with_issue = remove_obs_with_issue)
 
   if (length(traits_measures$traits_char) > 0) {
 

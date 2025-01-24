@@ -623,7 +623,7 @@ add_subplot_features <- function(new_data,
         filter(!is.na(typevalue_old))
       
       continue <- TRUE
-      if(nrow(crossing_data) > 0) {
+      if (nrow(crossing_data) > 0) {
         cli::cli_alert_info("Data to be imported already exist in the database")
         print(crossing_data)
         continue <- utils::askYesNo(msg = "Continue importing?")

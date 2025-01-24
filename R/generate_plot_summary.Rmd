@@ -12,15 +12,17 @@ output:
 
 
 ```{r setup, include=FALSE}
-
+call.mydb(pass = "AmapENS2024", user = "dauby")
 # RUN <- TRUE
 # knitr::opts_chunk$set(echo = FALSE, comment = NA, fig.align = "center", include = RUN)
 library(knitr)
 library(tidyverse)
 library(kableExtra)
-source("D:/MonDossierR/database.transects/plotsdatabase/R/functions_manip_db.R")
+# source("D:/MonDossierR/database.transects/plotsdatabase/R/functions_manip_db.R")
 
-plot_name <- "Nemeyong005"
+
+
+plot_name <- "nemeyong001"
 options(knitr.kable.NA = '')
 
 ```

@@ -33,7 +33,8 @@ query_plots(
   wd_fam_level = FALSE,
   include_liana = FALSE,
   extract_subplot_features = TRUE,
-  concatenate_stem = FALSE
+  concatenate_stem = FALSE,
+  remove_obs_with_issue = TRUE
 )
 }
 \arguments{
@@ -88,6 +89,8 @@ query_plots(
 \item{include_liana}{logical, if liana should be included, by default FALSE}
 
 \item{concatenate_stem}{logical, if TRUE, multi stem are concatacted into a single row}
+
+\item{remove_obs_with_issue}{logical, whether individual features should be excluded, default is TRUE}
 }
 \value{
 A tibble of all plots or individuals
