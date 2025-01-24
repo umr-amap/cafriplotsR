@@ -350,9 +350,9 @@
     }
   }
 
-  if(select_type_features$valuetype == "numeric") {
-    if(any(data_stand$subplotype[!is.na(data_stand$subplotype)] > select_type_features$maxallowedvalue)) {
-      warning(paste(subplottype, "values lower than maxallowedvalue for", subplotype, "for",
+  if (select_type_features$valuetype == "numeric") {
+    if (any(data_stand$subplotype[!is.na(data_stand$subplotype)] > select_type_features$maxallowedvalue)) {
+      warning(paste(subplottype, "values higher than maxallowedvalue for", subplotype, "for",
                     sum(data_stand$subplotype > select_type_features$maxallowedvalue), "entries"))
       issues[data_stand$subplottype > select_type_features$maxallowedvalue] <-
         paste(subplotype, "higher than maxallowedvalue")

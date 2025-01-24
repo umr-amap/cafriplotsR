@@ -10,7 +10,8 @@ query_individual_features(
   id_traits = NULL,
   pivot_table = TRUE,
   extract_trait_measures_features = FALSE,
-  extract_linked_individuals = FALSE
+  extract_linked_individuals = FALSE,
+  remove_obs_with_issue = TRUE
 )
 }
 \arguments{
@@ -23,6 +24,8 @@ query_individual_features(
 \item{pivot_table}{boolean whether results should be pivoted into multiple columns}
 
 \item{extract_trait_measures_features}{boolean whether adding additional features linked to traits/features, only if pivot_table is FALSE}
+
+\item{remove_obs_with_issue}{boolean whether features with issue should be excluded}
 }
 \value{
 tibble

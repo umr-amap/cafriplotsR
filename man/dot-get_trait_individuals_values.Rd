@@ -9,7 +9,8 @@
   src_individuals = NULL,
   ids_plot = NULL,
   skip_dates = TRUE,
-  show_multiple_census = FALSE
+  show_multiple_census = FALSE,
+  remove_obs_with_issue = TRUE
 )
 }
 \arguments{
@@ -18,6 +19,8 @@
 \item{ids_plot}{numeric vector with id_plots requested}
 
 \item{skip_dates}{logical whether include day, month and year of observations}
+
+\item{remove_obs_with_issue}{logical}
 
 \item{id_individuals}{numeric vector with id_n individuals requested}
 

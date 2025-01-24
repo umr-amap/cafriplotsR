@@ -1627,6 +1627,7 @@ traits_list <- function(id_trait = NULL) {
 #' @param wd_fam_level logical, if wood density should be given at family level or not NOT YET FULLY AVAILABLE
 #' @param include_liana logical, if liana should be included, by default FALSE
 #' @param concatenate_stem logical, if TRUE, multi stem are concatacted into a single row
+#' @param remove_obs_with_issue logical, whether individual features should be excluded, default is TRUE
 #'
 #' @importFrom DBI dbSendQuery dbFetch dbClearResult dbWriteTable
 #' @importFrom stringr str_flatten str_trim str_extract
@@ -1666,7 +1667,8 @@ query_plots <- function(team_lead = NULL,
                         wd_fam_level = FALSE,
                         include_liana = FALSE,
                         extract_subplot_features = TRUE,
-                        concatenate_stem = FALSE) {
+                        concatenate_stem = FALSE,
+                        remove_obs_with_issue = TRUE) {
 
   if (!exists("mydb")) call.mydb()
 
@@ -2183,7 +2185,7 @@ query_plots <- function(team_lead = NULL,
 
   res <- res %>% dplyr::arrange(plot_name)
 
-  if(map) {
+  if (map) {
 
     cli::cli_rule(left = "Mapping")
 
@@ -2262,7 +2264,7 @@ query_plots <- function(team_lead = NULL,
 
   }
 
-  if(extract_individuals) {
+  if (extract_individuals) {
 
     ## getting all metadata
     selec_plot_tables <-
@@ -2354,7 +2356,8 @@ query_plots <- function(team_lead = NULL,
           traits =  all_traits$id_trait, #
           src_individuals = res_individuals_full,
           # id_individuals = res_individuals_full$id_n,
-          show_multiple_census = show_multiple_census
+          show_multiple_census = show_multiple_census, 
+          remove_obs_with_issue = remove_obs_with_issue
         )
       
       all_traits_list <-
@@ -7451,7 +7454,9 @@ replace_NA <- function(vec, inv = FALSE) {
       dplyr::select(dplyr::contains(paste0("census_", i)),
                     dplyr::contains(paste0("date_census_", i)),
                     dplyr::contains(paste0("date_census_julian_", i)),
-             id_n)
+             id_n,
+             ind_num_sous_plot,
+             plot_name)
 
     stem_census <- paste0("stem_diameter_census_", i)
     stem_census_enquo <-
@@ -8477,107 +8482,109 @@ query_taxa <-
       }
     }
 
-    if(!is.null(res)) {
-      res <-
-        res %>%
-        mutate(tax_sp_level = ifelse(!is.na(tax_esp), paste(tax_gen, tax_esp), NA)) %>%
-        mutate(tax_infra_level = ifelse(!is.na(tax_esp),
-                                        paste0(tax_gen,
-                                               " ",
-                                               tax_esp,
-                                               ifelse(!is.na(tax_rank01), paste0(" ", tax_rank01), ""),
-                                               ifelse(!is.na(tax_nam01), paste0(" ", tax_nam01), ""),
-                                               ifelse(!is.na(tax_rank02), paste0(" ", tax_rank02), ""),
-                                               ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), "")),
-                                        NA)) %>%
-        mutate(tax_infra_level_auth = ifelse(!is.na(tax_esp),
-                                             paste0(tax_gen,
-                                                    " ",
-                                                    tax_esp,
-                                                    ifelse(!is.na(author1), paste0(" ", author1), ""),
-                                                    ifelse(!is.na(tax_rank01), paste0(" ", tax_rank01), ""),
-                                                    ifelse(!is.na(tax_nam01), paste0(" ", tax_nam01), ""),
-                                                    ifelse(!is.na(author2), paste0(" ", author2), ""),
-                                                    ifelse(!is.na(tax_rank02), paste0(" ", tax_rank02), ""),
-                                                    ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), ""),
-                                                    ifelse(!is.na(author3), paste0(" ", author3), "")),
-                                             NA)) %>%
-        dplyr::mutate(introduced_status = stringr::str_trim(introduced_status)) %>%
-        dplyr::mutate(tax_sp_level = as.character(tax_sp_level),
-                      tax_infra_level = as.character(tax_infra_level),
-                      tax_infra_level_auth = as.character(tax_infra_level_auth)) %>%
-        dplyr::select(-tax_famclass) %>%
-        left_join(dplyr::tbl(mydb_taxa, "table_tax_famclass") %>%
-                    dplyr::collect(),
-                  by = c("id_tax_famclass" = "id_tax_famclass")) %>%
-        dplyr::relocate(tax_famclass, .after = tax_order) %>%
-        dplyr::relocate(year_description, .after = citation) %>%
-        dplyr::relocate(data_modif_d, .after = morpho_species) %>%
-        dplyr::relocate(data_modif_m, .after = morpho_species) %>%
-        dplyr::relocate(data_modif_y, .after = morpho_species) %>%
-        dplyr::relocate(tax_sp_level, .before = idtax_n) %>%
-        dplyr::relocate(id_tax_famclass, .after = morpho_species)
-
-      if(extract_traits) {
-
-        traitsqueried <-
-          query_traits_measures(idtax = res$idtax_n, idtax_good = res$idtax_good_n)
-
-        if (length(traitsqueried$traits_idtax_num) > 1)
-          res <-
-            res %>%
-            left_join(traitsqueried$traits_idtax_num,
-                      by = c("idtax_n" = "idtax"))
-
-        if (length(traitsqueried$traits_idtax_char) > 1)
-          res <-
-            res %>%
-            left_join(traitsqueried$traits_idtax_char,
-                      by = c("idtax_n" = "idtax"))
-
-        # if (any(class(traitsqueried$traits_idtax_num) == "data.frame"))
-        #   res <-
-        #     res %>%
-        #     left_join(traitsqueried$traits_idtax_num,
-        #               by = c("idtax_n" = "idtax"))
-        #
-        # if (any(class(traitsqueried$traits_idtax_char) == "data.frame"))
-        #   res <-
-        #     res %>%
-        #     left_join(traitsqueried$traits_idtax_char,
-        #               by = c("idtax_n" = "idtax"))
-
-      }
-
-
-
-    }
-
     if (!is.null(res)) {
-      if (any(names(res) == "a_habit"))
+      
+      if (nrow(res) > 0) {
+        
         res <-
           res %>%
-          dplyr::select(-a_habit,-a_habit_secondary)
+          mutate(tax_sp_level = ifelse(!is.na(tax_esp), paste(tax_gen, tax_esp), NA)) %>%
+          mutate(tax_infra_level = ifelse(!is.na(tax_esp),
+                                          paste0(tax_gen,
+                                                 " ",
+                                                 tax_esp,
+                                                 ifelse(!is.na(tax_rank01), paste0(" ", tax_rank01), ""),
+                                                 ifelse(!is.na(tax_nam01), paste0(" ", tax_nam01), ""),
+                                                 ifelse(!is.na(tax_rank02), paste0(" ", tax_rank02), ""),
+                                                 ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), "")),
+                                          NA)) %>%
+          mutate(tax_infra_level_auth = ifelse(!is.na(tax_esp),
+                                               paste0(tax_gen,
+                                                      " ",
+                                                      tax_esp,
+                                                      ifelse(!is.na(author1), paste0(" ", author1), ""),
+                                                      ifelse(!is.na(tax_rank01), paste0(" ", tax_rank01), ""),
+                                                      ifelse(!is.na(tax_nam01), paste0(" ", tax_nam01), ""),
+                                                      ifelse(!is.na(author2), paste0(" ", author2), ""),
+                                                      ifelse(!is.na(tax_rank02), paste0(" ", tax_rank02), ""),
+                                                      ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), ""),
+                                                      ifelse(!is.na(author3), paste0(" ", author3), "")),
+                                               NA)) %>%
+          dplyr::mutate(introduced_status = stringr::str_trim(introduced_status)) %>%
+          dplyr::mutate(tax_sp_level = as.character(tax_sp_level),
+                        tax_infra_level = as.character(tax_infra_level),
+                        tax_infra_level_auth = as.character(tax_infra_level_auth)) %>%
+          dplyr::select(-tax_famclass) %>%
+          left_join(dplyr::tbl(mydb_taxa, "table_tax_famclass") %>%
+                      dplyr::collect(),
+                    by = c("id_tax_famclass" = "id_tax_famclass")) %>%
+          dplyr::relocate(tax_famclass, .after = tax_order) %>%
+          dplyr::relocate(year_description, .after = citation) %>%
+          dplyr::relocate(data_modif_d, .after = morpho_species) %>%
+          dplyr::relocate(data_modif_m, .after = morpho_species) %>%
+          dplyr::relocate(data_modif_y, .after = morpho_species) %>%
+          dplyr::relocate(tax_sp_level, .before = idtax_n) %>%
+          dplyr::relocate(id_tax_famclass, .after = morpho_species)
+        
+        if(extract_traits) {
+          
+          traitsqueried <-
+            query_traits_measures(idtax = res$idtax_n, idtax_good = res$idtax_good_n)
+          
+          if (length(traitsqueried$traits_idtax_num) > 1)
+            res <-
+              res %>%
+              left_join(traitsqueried$traits_idtax_num,
+                        by = c("idtax_n" = "idtax"))
+          
+          if (length(traitsqueried$traits_idtax_char) > 1)
+            res <-
+              res %>%
+              left_join(traitsqueried$traits_idtax_char,
+                        by = c("idtax_n" = "idtax"))
+          
+          # if (any(class(traitsqueried$traits_idtax_num) == "data.frame"))
+          #   res <-
+          #     res %>%
+          #     left_join(traitsqueried$traits_idtax_num,
+          #               by = c("idtax_n" = "idtax"))
+          #
+          # if (any(class(traitsqueried$traits_idtax_char) == "data.frame"))
+          #   res <-
+          #     res %>%
+          #     left_join(traitsqueried$traits_idtax_char,
+          #               by = c("idtax_n" = "idtax"))
+          
+        }
+        
+        if (any(names(res) == "a_habit"))
+          res <-
+            res %>%
+            dplyr::select(-a_habit,-a_habit_secondary)
+        
+        if (any(names(res) == "fktax"))
+          res <-
+            res %>%
+            dplyr::select(-fktax)
+        
+        if (any(names(res) == "id_good"))
+          res <-
+            res %>%
+            dplyr::select(-id_good)
+        
+        if (any(names(res) == "tax_tax"))
+          res <-
+            res %>%
+            dplyr::select(-tax_tax)
+      }
+      
 
-      if (any(names(res) == "fktax"))
-        res <-
-          res %>%
-          dplyr::select(-fktax)
 
-      if (any(names(res) == "id_good"))
-        res <-
-          res %>%
-          dplyr::select(-id_good)
-
-      if (any(names(res) == "tax_tax"))
-        res <-
-          res %>%
-          dplyr::select(-tax_tax)
 
     }
 
     if(!is.null(res)) {
-      if (verbose & nrow(res) < 50) {
+      if (verbose & nrow(res) < 50 & nrow(res) > 0) {
 
         res_print <-
           res %>%
@@ -8601,7 +8608,7 @@ query_taxa <-
 
       }
 
-      if(verbose & nrow(res) >= 20)
+      if(verbose & nrow(res) >= 50)
         cli::cli_alert_info("Not showing html table because too many taxa")
     }
 
@@ -9660,7 +9667,9 @@ add_taxa_table_taxa <- function(ids = NULL) {
                                                 ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), ""),
                                                 ifelse(!is.na(author3), paste0(" ", author3), "")),
                                          NA)) %>%
-    dplyr::select(-year_description)
+    dplyr::select(-year_description,
+                  -tax_rankinf,
+                  -tax_infra_level_auth)
 
   if (!is.null(ids)) {
 
