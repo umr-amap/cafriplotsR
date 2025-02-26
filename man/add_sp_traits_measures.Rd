@@ -12,7 +12,8 @@ add_sp_traits_measures(
   collector = NULL,
   idtax = NULL,
   add_data = FALSE,
-  ask_before_update = TRUE
+  ask_before_update = TRUE,
+  features_field = NULL
 )
 }
 \arguments{

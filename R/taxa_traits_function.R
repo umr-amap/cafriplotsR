@@ -27,7 +27,8 @@ add_sp_traits_measures <- function(new_data,
                                    collector = NULL,
                                    idtax = NULL,
                                    add_data = FALSE,
-                                   ask_before_update = TRUE) {
+                                   ask_before_update = TRUE,
+                                   features_field = NULL) {
 
 
   # if (exists("mydb_taxa")) rm(mydb_taxa)
@@ -64,65 +65,6 @@ add_sp_traits_measures <- function(new_data,
   if (nrow(new_data_renamed) == 0)
     stop("no values for selected trait(s)")
 
-  # if (!any(col_names_corresp == "day")) {
-  #   cli::cli_alert_info("no information collection day provided")
-  #   new_data_renamed <-
-  #     new_data_renamed %>%
-  #     mutate(day = NA) %>%
-  #     mutate(day = as.numeric(day))
-  # }
-  #
-  # if (!any(col_names_corresp == "year")) {
-  #   cli::cli_alert_info("no information collection year provided")
-  #   new_data_renamed <-
-  #     new_data_renamed %>%
-  #     mutate(year = NA) %>%
-  #     mutate(year = as.numeric(year))
-  # }
-  #
-  # if (!any(col_names_corresp == "month")) {
-  #   cli::cli_alert_info("no information collection month provided")
-  #   new_data_renamed <-
-  #     new_data_renamed %>%
-  #     mutate(month = NA) %>%
-  #     mutate(month = as.numeric(month))
-  # }
-  #
-  # if(!any(col_names_corresp == "country")) {
-  #   cli::cli_alert_info("no country provided")
-  #
-  #   new_data_renamed <-
-  #     new_data_renamed %>%
-  #     mutate(idcountry = NA) %>%
-  #     mutate(idcountry = as.numeric(idcountry))
-  #
-  # } else {
-  #
-  #   new_data_renamed <-
-  #     .link_country(data_stand = new_data_renamed,
-  #                   country_field = "country")
-  # }
-  #
-  # if (!any(col_names_corresp == "decimallatitude")) {
-  #   cli::cli_alert_info("no decimallatitude provided")
-  #   new_data_renamed <-
-  #     new_data_renamed %>%
-  #     tibble::add_column(decimallatitude = NA) %>%
-  #     dplyr::mutate(decimallatitude = as.double(decimallatitude))
-  # }
-  #
-  # if (!any(col_names_corresp == "decimallongitude")) {
-  #   cli::cli_alert_info("no decimallongitude provided")
-  #   new_data_renamed <-
-  #     new_data_renamed %>%
-  #     tibble::add_column(decimallongitude = NA) %>%
-  #     dplyr::mutate(decimallongitude = as.double(decimallongitude))
-  # }
-  #
-  # new_data_renamed <-
-  #   new_data_renamed %>%
-  #   tibble::add_column(id_new_data = 1:nrow(.))
-
   ### Linking collectors names
   if(!is.null(collector)) {
 
@@ -152,8 +94,7 @@ add_sp_traits_measures <- function(new_data,
 
     new_data_renamed <-
       new_data_renamed %>%
-      mutate(idcolnam = NA) %>%
-      mutate(idcolnam = as.numeric(idcolnam))
+      mutate(idcolnam = NA_real_)
 
   }
 
@@ -355,7 +296,7 @@ add_sp_traits_measures <- function(new_data,
           measurementmethod = ifelse(rep(
             any(colnames(data_trait) == "measurementmethod"), nrow(data_trait)
           ), data_trait$measurementmethod, NA),
-          fk_id_trait = data_trait$id_trait,
+          id_trait = data_trait$id_trait,
           traitvalue =
             ifelse(
               rep(any(TypeValue == "numeric"), nrow(data_trait))
@@ -386,7 +327,7 @@ add_sp_traits_measures <- function(new_data,
       ### identify if measures are already within DB
       cli::cli_alert_info("Identifying if imported values are already in DB")
 
-      trait_id <- unique(data_to_add$fk_id_trait)
+      trait_id <- unique(data_to_add$id_trait)
       selected_data_traits <-
         data_to_add %>%
         dplyr::select(idtax,
@@ -394,7 +335,7 @@ add_sp_traits_measures <- function(new_data,
                       traitvalue,
                       issue,
                       basisofrecord,
-                      fk_id_trait,
+                      id_trait,
                       measurementremarks)
 
       all_vals <-
@@ -404,9 +345,9 @@ add_sp_traits_measures <- function(new_data,
                       traitvalue,
                       issue,
                       basisofrecord,
-                      fk_id_trait,
+                      id_trait,
                       measurementremarks) %>%
-        dplyr::filter(fk_id_trait == !!trait_id) %>% #, !is.na(id_sub_plots)
+        dplyr::filter(id_trait == !!trait_id) %>% #, !is.na(id_sub_plots)
         dplyr::collect()
 
       if (TypeValue == "numeric") {
@@ -441,7 +382,7 @@ add_sp_traits_measures <- function(new_data,
                          all_vals) %>%
         dplyr::filter(is.na(issue)) %>%
         dplyr::group_by(idtax,
-                        fk_id_trait,
+                        id_trait,
                         trait,
                         basisofrecord,
                         measurementremarks) %>%
@@ -453,7 +394,7 @@ add_sp_traits_measures <- function(new_data,
         cli::cli_alert_danger("Some values are already in DB")
         print(duplicated_rows %>%
                 dplyr::ungroup() %>%
-                dplyr::select(idtax, fk_id_trait, basisofrecord))
+                dplyr::select(idtax, id_trait, basisofrecord))
 
         cli::cli_alert_danger("Excluding {nrow(duplicated_rows)} values because already in DB")
         data_to_add <-
@@ -640,4 +581,219 @@ traits_taxa_list <- function(id_trait = NULL) {
   }
 
   return(all_colnames_ind)
+}
+
+
+
+
+
+
+add_sp_trait_measures_features <- function(new_data,
+                                         id_trait_measures = "id_trait_measures",
+                                         features,
+                                         allow_multiple_value = FALSE,
+                                         add_data = FALSE) {
+  
+  for (i in 1:length(features))
+    if (!any(colnames(new_data) == features[i]))
+      stop(paste("features field provide not found in new_data", features[i]))
+  
+  new_data_renamed <- new_data
+  
+  ## removing entries with NA values for traits
+  new_data_renamed <-
+    new_data_renamed %>%
+    dplyr::filter_at(dplyr::vars(!!features), dplyr::any_vars(!is.na(.)))
+  
+  if (nrow(new_data_renamed) == 0)
+    stop("no values for selected features(s)")
+  
+  new_data_renamed <-
+    new_data_renamed %>%
+    mutate(id_new_data = 1:nrow(.))
+  
+  new_data_renamed <-
+    new_data_renamed %>%
+    rename(id_trait_measures := all_of(id_trait_measures))
+  
+  link_trait_measures <-
+    new_data_renamed %>%
+    dplyr::left_join(
+      try_open_postgres_table(table = "table_traits_measures", con = mydb_taxa) %>%
+        dplyr::select(id_trait_measures) %>%
+        dplyr::filter(id_trait_measures %in% !!unique(new_data_renamed$id_trait_measures)) %>%
+        dplyr::collect() %>%
+        dplyr::mutate(rrr = 1),
+      by = c("id_trait_measures" = "id_trait_measures")
+    )
+  
+  if (dplyr::filter(link_trait_measures, is.na(rrr)) %>%
+      nrow() > 0) {
+    print(dplyr::filter(link_trait_measures, is.na(rrr)))
+    stop("provided trait_measures not found in table_traits_measures")
+  }
+  
+  
+  ### preparing dataset to add for each trait
+  list_add_data <- vector('list', length(features))
+  for (i in 1:length(features)) {
+    
+    feat <- features[i]
+    if(!any(colnames(new_data_renamed) == feat))
+      stop(paste("feat field not found", feat))
+    
+    data_feat <-
+      new_data_renamed
+    
+    data_feat <-
+      data_feat %>%
+      dplyr::filter(!is.na(!!sym(feat)))
+    
+    if(nrow(data_feat) > 0) {
+      ### adding trait id and adding potential issues based on trait
+      data_feat <-
+        .link_sp_trait(data_stand = data_feat, trait = feat)
+      
+      ## see what type of value numeric of character
+      valuetype <-
+        data_feat %>%
+        dplyr::distinct(id_trait) %>%
+        dplyr::left_join(
+          dplyr::tbl(mydb, "traitlist") %>%
+            dplyr::select(valuetype, id_trait) %>%
+            dplyr::collect(),
+          by = c("id_trait" = "id_trait")
+        )
+      
+      if (valuetype$valuetype == "table_colnam") {
+        
+        add_col_sep <-
+          data_feat %>%
+          tidyr::separate_rows(trait, sep = ",") %>%
+          mutate(trait = stringr::str_squish(trait))
+        
+        add_col_sep <- .link_colnam(
+          data_stand = add_col_sep,
+          column_searched = "trait",
+          column_name = "colnam",
+          id_field = "trait",
+          id_table_name = "id_table_colnam",
+          db_connection = mydb,
+          table_name = "table_colnam"
+        )
+        
+        data_feat <-add_col_sep
+        
+      }
+      
+      if (any(data_feat$trait == 0)) {
+        
+        add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
+        
+        if(!add_0)
+          data_feat <-
+            data_feat %>%
+            dplyr::filter(trait != 0)
+        
+      }
+      
+      
+      
+      cli::cli_h3(".add_modif_field")
+      data_feat <-
+        .add_modif_field(dataset = data_feat)
+      
+      
+      if (valuetype$valuetype == "ordinal" |
+          valuetype$valuetype == "character")
+        val_type <- "character"
+      
+      if (valuetype$valuetype == "numeric" | valuetype$valuetype == "table_colnam")
+        val_type <- "numeric"
+      
+      if (valuetype$valuetype == "integer")
+        val_type <- "numeric"
+      
+      cli::cli_h3("data_to_add")
+      data_to_add <-
+        dplyr::tibble(
+          id_trait_measures = data_feat$id_trait_measures,
+          id_trait = data_feat$id_trait,
+          typevalue = ifelse(
+            rep(val_type == "numeric", nrow(data_feat)),
+            data_feat$trait,
+            NA
+          ),
+          typevalue_char = ifelse(
+            rep(val_type == "character", nrow(data_feat)),
+            as.character(data_feat$trait),
+            NA
+          ),
+          date_modif_d = data_feat$date_modif_d,
+          date_modif_m = data_feat$date_modif_m,
+          date_modif_y = data_feat$date_modif_y
+        )
+      
+      list_add_data[[i]] <-
+        data_to_add
+      
+      print(data_to_add)
+      
+      if (data_to_add %>% dplyr::distinct() %>% nrow() != nrow(data_to_add)) {
+        
+        duplicates_lg <- duplicated(data_to_add)
+        
+        cli::cli_alert_warning("Duplicates in new data for {feat} concerning {length(duplicates_lg[duplicates_lg])} id(s)")
+        
+        cf_merge <-
+          askYesNo(msg = "confirm merging duplicates?")
+        
+        if (cf_merge) {
+          
+          # issues_dup <- data_to_add %>%
+          #   filter(id_trait_measures %in% data_to_add[duplicates_lg, "id_trait_measures"]) %>%
+          #   dplyr::select(issue, id_trait_measures)
+          
+          ## resetting issue
+          if(any(grepl("identical value", issues_dup$issue))) {
+            
+            issues_dup_modif_issue <-
+              issues_dup[grepl("identical value", issues_dup$issue),]
+            
+            data_to_add <-
+              data_to_add %>%
+              mutate(issue = replace(issue, id_trait_measures %in% issues_dup_modif_issue$id_trait_measures, NA))
+            
+          }
+          
+          data_to_add <- data_to_add %>% dplyr::distinct()
+        } else {
+          if (!allow_multiple_value) stop()
+        }
+        
+      }
+      
+      response <-
+        utils::askYesNo("Confirm add these data to table_traits_measures_feat table?")
+      
+      if(add_data & response) {
+        
+        DBI::dbWriteTable(mydb_taxa, "table_traits_measures_feat",
+                          data_to_add,
+                          append = TRUE,
+                          row.names = FALSE)
+        
+        cli::cli_alert_success("Adding data : {nrow(data_to_add)} values added")
+      }
+      
+    } else{
+      
+      cli::cli_alert_info("no added data for {trait} - no values different of 0")
+      
+    }
+  }
+  
+  
+  return(list(list_features_add = list_add_data))
+  
 }
