@@ -436,3 +436,43 @@
   DBI::dbClearResult(rs)
   
 }
+
+
+
+#' Delete an entry in species trait list
+#'
+#' Delete an entry in species traitlist entry using id for selection
+#'
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#' @param id integer
+#'
+#' @return No values
+.delete_sp_trait_list <- function(id) {
+  
+  if(!exists("mydb_taxa")) call.mydb()
+  
+  traits_taxa_list() %>% 
+    filter(id_trait %in% !!id) %>% 
+    print()
+  
+  if_cont <- askYesNo(msg = "Continue ?")
+  
+  if (if_cont) {
+    query <- "DELETE FROM table_traits WHERE MMM"
+    query <-
+      gsub(
+        pattern = "MMM",
+        replacement = paste0("id_trait IN ('",
+                             paste(unique(id), collapse = "', '"), "')"),
+        x = query
+      )
+    
+    rs <- DBI::dbSendQuery(mydb_taxa, query)
+    DBI::dbClearResult(rs)
+  }
+  
+  
+  
+}
