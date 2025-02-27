@@ -9213,9 +9213,9 @@ query_traits_measures <- function(idtax = NULL,
         dplyr::select(-starts_with("id_trait_")) %>%
         dplyr::group_by(idtax) %>%
         dplyr::summarise(dplyr::across(where(is.numeric),
-                                       .fns= list(mean = mean,
-                                                  sd = sd,
-                                                  n = length),
+                                       .fns= list(mean = ~mean(., na.rm = T),
+                                                  sd = ~sd(., na.rm = T),
+                                                  n = ~length(.[!is.na(.)])),
                                        .names = "{.col}_{.fn}"))
 
       traits_idtax_num <-
