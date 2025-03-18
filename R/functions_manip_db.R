@@ -2440,8 +2440,6 @@ query_plots <- function(team_lead = NULL,
         #   dplyr::select(id_n, tax_gen)
         
         
-        
-        
         res_traits_to_genera <- 
           .traits_to_genera_aggreg(dataset = res_individuals_full, 
                                    wd_fam_level = wd_fam_level)
@@ -2627,7 +2625,7 @@ query_plots <- function(team_lead = NULL,
   
   all_sp_genera <-
     all_sp_genera %>%
-    filter(tax_gen %in% unique(list_genera$tax_gen),
+    filter(tax_gen %in% unique(list_genus$tax_gen),
            !is.na(tax_infra_level))
   
   all_val_sp <- query_traits_measures(idtax = all_sp_genera %>%
@@ -6548,7 +6546,7 @@ add_specimens <- function(new_data ,
   unmatch_id_diconame <-
     new_data_renamed %>%
     dplyr::select(idtax_n) %>%
-    dplyr::left_join(try_open_postgres_table_mem(table = "table_taxa", con = mydb_taxa) %>%
+    dplyr::left_join(try_open_postgres_table(table = "table_taxa", con = mydb_taxa) %>%
                        dplyr::select(idtax_n, idtax_good_n) %>%
                        dplyr::filter(idtax_n %in% !!new_data_renamed$idtax_n) %>%
                        dplyr::collect() %>%
@@ -9444,10 +9442,12 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
 
   if(launch_adding_data) {
 
-    cli::cli_alert_success("Added links : {nrow(data_to_add)} rows to link table")
 
     DBI::dbWriteTable(mydb, "data_link_specimens",
                       data_to_add, append = TRUE, row.names = FALSE)
+    
+    
+    cli::cli_alert_success("Added links : {nrow(data_to_add)} rows to link table")
   }
 
 }
@@ -10010,14 +10010,14 @@ func_try_fetch <- function(con, sql) {
 
     if (any(grepl("Failed to prepare query", res_q[1]))) {
       rep <- TRUE
-      cli::cli_alert_warning("failed to query, trying again")
+      cli::cli_alert_warning("----")
       rep_try <- rep_try + 1
     } else {
       rep <- FALSE
     }
 
     if (rep_try == 10)
-      stop("Failed to connect to database")
+      stop("Failed to connect to database, check your connection")
   }
   res_q <- res_q %>% as_tibble(.name_repair = "universal")
   DBI::dbClearResult(rs)
@@ -10047,7 +10047,7 @@ try_open_postgres_table <- function(table, con) {
 
     if (any(grepl("Failed to prepare query", res_q[1]))) {
       rep <- TRUE
-      cli::cli_alert_warning("failed to query, trying again")
+      cli::cli_alert_warning("---")
       rep_try <- rep_try + 1
     } else {
       rep <- FALSE
@@ -10059,18 +10059,6 @@ try_open_postgres_table <- function(table, con) {
 
   return(table_postgre)
 }
-
-#' Memoised try_open_postgres_table function
-#'
-#' Memoised 'try_open_postgres_table' function
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @importFrom memoise memoise
-#'
-#' @export
-try_open_postgres_table_mem <- memoise::memoise(try_open_postgres_table)
 
 
 

@@ -11,9 +11,9 @@ add_sp_traits_measures(
   traits_field,
   collector = NULL,
   idtax = NULL,
+  features_field = NULL,
   add_data = FALSE,
-  ask_before_update = TRUE,
-  features_field = NULL
+  ask_before_update = TRUE
 )
 }
 \arguments{
@@ -23,21 +23,17 @@ add_sp_traits_measures(
 
 \item{col_names_corresp}{string vector}
 
-\item{traits_field}{string vector listing trait columns names in new_data}
+\item{collector}{string column name which contain the collector name}
+
+\item{idtax}{string column name which contain the individual tag for linking}
 
 \item{add_data}{logical whether or not data should be added - by default FALSE}
 
-\item{collector_field}{string column name which contain the collector name}
-
 \item{plot_name_field}{string column name which contain the plot_name for linking}
-
-\item{individual_plot_field}{string column name which contain the individual tag for linking}
 
 \item{id_plot_name}{string column name which contain the ID of plot_name}
 
 \item{id_tag_plot}{string column name which contain the ID of individuals table}
-
-\item{id_specimen}{string column name which contain the ID of specimen}
 }
 \value{
 list of tibbles that should be/have been added
