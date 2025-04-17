@@ -5177,7 +5177,9 @@ add_individuals <- function(new_data ,
       note = as.character()
     )
 
-  if(!exists("mydb")) call.mydb()
+  if (!exists("mydb")) call.mydb()
+  if (!exists("mydb_taxa")) call.mydb.taxa()
+  
 
   if(length(col_names_select) != length(col_names_corresp))
     stop("Provide same numbers of corresponding and selected colnames")
@@ -8922,6 +8924,9 @@ query_traits_measures <- function(idtax = NULL,
                                   pivot_table = TRUE,
                                   include_remarks = FALSE) {
 
+  if (!exists("mydb")) call.mydb()
+  if (!exists("mydb_taxa")) call.mydb.taxa()
+  
   tbl <- "table_traits_measures"
   tbl2 <- "table_traits"
 
@@ -8955,17 +8960,19 @@ query_traits_measures <- function(idtax = NULL,
 
 
     if (!is.null(id_trait)) {
-      sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.id_trait = {`tbl2`}.id_trait  WHERE id_trait IN ({vals2*}) AND idtax IN ({vals*})",
+      sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.fk_id_trait = {`tbl2`}.id_trait  WHERE id_trait IN ({vals2*}) AND idtax IN ({vals*})",
                             vals = idtax, .con = mydb_taxa, vals2 = id_trait)
     } else {
-      sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.id_trait = {`tbl2`}.id_trait  WHERE idtax IN ({vals*})",
+      sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.fk_id_trait = {`tbl2`}.id_trait  WHERE idtax IN ({vals*})",
                             vals = idtax, .con = mydb_taxa)
     }
 
   } else {
+    
+    table_taxa <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
 
-    sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.id_trait = {`tbl2`}.id_trait  WHERE id_trait IN ({vals2*})",
-                          vals = idtax, .con = mydb_taxa, vals2 = id_trait)
+    sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.fk_id_trait = {`tbl2`}.id_trait  WHERE id_trait IN ({vals2*})",
+                          .con = mydb_taxa, vals2 = id_trait)
     
     idtax_tb <- 
       table_taxa %>%
@@ -8976,6 +8983,10 @@ query_traits_measures <- function(idtax = NULL,
 
   traits_found <-
     func_try_fetch(con = mydb_taxa, sql = sql)
+  
+  # traits_found <- 
+  #   traits_found %>% 
+  #   rename(id_trait = fk_id_trait)
   
   if (is.null(idtax)) {
     
