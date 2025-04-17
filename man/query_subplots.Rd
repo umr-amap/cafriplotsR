@@ -6,6 +6,7 @@
 \usage{
 query_subplots(
   ids_plots = NULL,
+  ids_subplots = NULL,
   team_lead = NULL,
   plot_name = NULL,
   tag = NULL,
@@ -19,6 +20,8 @@ query_subplots(
 )
 }
 \arguments{
+\item{ids_subplots}{integer}
+
 \item{team_lead}{string fuzzy person name to look for}
 
 \item{plot_name}{string fuzzy plot name to look for}

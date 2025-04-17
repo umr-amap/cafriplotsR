@@ -2153,8 +2153,9 @@ add_traits_measures <- function(new_data,
       all_vals <-
         dplyr::tbl(mydb, "data_traits_measures") %>%
         dplyr::select(id_data_individuals, traitid, id_table_liste_plots, id_sub_plots,
-                      traitvalue, traitvalue_char, issue) %>%
-        dplyr::filter(traitid == trait_id, id_data_individuals %in% !!selected_data_traits$id_data_individuals) %>% #, !is.na(id_sub_plots)
+                      traitvalue, traitvalue_char, issue, id_trait_measures) %>%
+        dplyr::filter(traitid == trait_id, 
+                      id_data_individuals %in% !!selected_data_traits$id_data_individuals) %>% #, !is.na(id_sub_plots)
         dplyr::collect()
       
       if (valuetype$valuetype == "numeric")
@@ -2352,8 +2353,10 @@ add_traits_measures <- function(new_data,
         
         if (cf_merge) {
           
+          id_n_dup <- data_to_add[duplicates_lg, "id_data_individuals"] %>% pull()
+          
           issues_dup <- data_to_add %>%
-            filter(id_data_individuals %in% data_to_add[duplicates_lg, "id_data_individuals"]) %>%
+            filter(id_data_individuals %in% id_n_dup) %>%
             dplyr::select(issue, id_data_individuals)
           
           ## resetting issue
@@ -2378,7 +2381,7 @@ add_traits_measures <- function(new_data,
       response <-
         utils::askYesNo("Confirm add these data to data_traits_measures table?")
       
-      if(add_data & response) {
+      if (add_data & response) {
         
         DBI::dbWriteTable(mydb, "data_traits_measures",
                           data_to_add,
