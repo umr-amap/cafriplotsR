@@ -116,21 +116,25 @@ query_subplots <- function(ids_plots = NULL,
       dplyr::filter(id_table_liste_plots %in% ids_plots) %>% 
       collect()
     
-  } else {
+  } 
     
-    if (!is.null(ids_plots) & is.null(ids_subplots))
-      sql <- .sql_query_subplot_plot(id_plots = ids_plots, mydb_ = mydb)
+  if (!is.null(ids_plots) &
+      is.null(ids_subplots))
+    sql <- .sql_query_subplot_plot(id_plots = ids_plots, mydb_ = mydb)
+  
+  if (!is.null(ids_plots) & !is.null(ids_subplots))
+    sql <- .sql_query_subplot_plot_2(id_plots = ids_plots,
+                                     id_subplots = ids_subplots,
+                                     mydb_ = mydb)
+  
+  if (is.null(ids_plots) & !is.null(ids_subplots))
+    sql <- .sql_query_subplot(id_subplots = ids_subplots, mydb_ = mydb)
+  
+  sub_plot_data <-
+    suppressMessages(func_try_fetch(con = mydb, sql = sql)
+    )
     
-    if (!is.null(ids_plots) & !is.null(ids_subplots))
-      sql <- .sql_query_subplot_plot_2(id_plots = ids_plots, id_subplots = ids_subplots, mydb_ = mydb)
-    
-    if (is.null(ids_plots) & !is.null(ids_subplots))
-      sql <- .sql_query_subplot(id_subplots = ids_subplots, mydb_ = mydb)
-    
-    sub_plot_data <-
-      suppressMessages(func_try_fetch(con = mydb, sql = sql))
-    
-  }
+  
 
   
   nbe_subplot_data <- nrow(dplyr::distinct(sub_plot_data,
@@ -1113,7 +1117,9 @@ query_subplot_observations_feat <- function(id_sub_plots  = NULL,
     #   filter(n > 1)
     
     if (pivot_table) {
+      
       if (any(extracted_data$valuetype == "numeric")) {
+        
         numeric_subplots_pivot <-
           extracted_data %>%
           filter(valuetype == "numeric") %>%
@@ -1124,11 +1130,15 @@ query_subplot_observations_feat <- function(id_sub_plots  = NULL,
             values_fn = ~ mean(.x, na.rm = TRUE)
           ) %>%
           mutate(id_subplot_feat = as.character(id_subplot_feat))
+        
       } else {
+        
         numeric_subplots_pivot <- NULL
+        
       }
       
       if (any(extracted_data$valuetype == "character")) {
+        
         character_feat_pivot <-
           extracted_data %>%
           filter(valuetype == "character") %>%
@@ -1139,6 +1149,7 @@ query_subplot_observations_feat <- function(id_sub_plots  = NULL,
             values_fn = ~ paste(.x, collapse = "|")
           ) %>%
           mutate(id_subplot_feat = as.character(id_subplot_feat))
+        
       } else {
         character_feat_pivot <- NULL
       }
@@ -1166,26 +1177,29 @@ query_subplot_observations_feat <- function(id_sub_plots  = NULL,
         
         allvalutype <- distinct(table_ids_subplots, type)
         
-        
         table_valutype_list <- vector('list', nrow(allvalutype))
         for (i in 1:nrow(allvalutype)) {
           
+          table_ids_subplots_filt <- 
+            table_ids_subplots %>% 
+            filter(type == allvalutype$type[i])
+          
           ids_ <-
             case_when(
-              table_ids_subplots$valuetype[i] == "table_colnam" ~ "id_table_colnam"
+              table_ids_subplots_filt$valuetype[i] == "table_colnam" ~ "id_table_colnam"
             )
           
           col_to_keep_ <-
             case_when(
-              table_ids_subplots$valuetype[i] == "table_colnam" ~ "colnam"
+              table_ids_subplots_filt$valuetype[i] == "table_colnam" ~ "colnam"
             )
           
           table_collected <-
-            tbl(mydb, table_ids_subplots$valuetype[i]) %>%
+            tbl(mydb, table_ids_subplots_filt$valuetype[i]) %>%
             collect()
           
-          table_ids_subplots <-
-            table_ids_subplots %>%
+          table_ids_subplots_filt <-
+            table_ids_subplots_filt %>%
             left_join(table_collected %>%
                         dplyr::select(all_of(c(col_to_keep_, ids_))),
                       by = c("typevalue" = ids_)) %>%
@@ -1193,7 +1207,7 @@ query_subplot_observations_feat <- function(id_sub_plots  = NULL,
             dplyr::select(-all_of(col_to_keep_))
           
           table_ids_subplots_piv <- 
-            table_ids_subplots %>%
+            table_ids_subplots_filt %>%
             select(id_sub_plots, typevalue_char, type, id_subplot_feat) %>%
             mutate(id_subplot_feat = as.character(id_subplot_feat)) %>%
             tidyr::pivot_wider(
@@ -1211,6 +1225,7 @@ query_subplot_observations_feat <- function(id_sub_plots  = NULL,
           table_valutype_list[[i]] <-
             table_ids_subplots_piv
         }
+        
       } else {
         table_valutype_list <- NULL
       }

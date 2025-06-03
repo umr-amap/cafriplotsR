@@ -9,6 +9,7 @@ add_individuals(
   col_names_select,
   col_names_corresp,
   id_col,
+  features_field = NULL,
   launch_adding_data = FALSE
 )
 }
@@ -20,6 +21,8 @@ add_individuals(
 \item{col_names_corresp}{string}
 
 \item{id_col}{integer indicate which name of col_names_select is the id for matching plot in metadata}
+
+\item{features_field}{vector string of field names in new_data containing the features associated with individual or stem data}
 
 \item{launch_adding_data}{logical FALSE whether adding should be done or not}
 }

@@ -1543,7 +1543,8 @@ add_method <- function(new_method = NULL,
 
   print(new_data_renamed)
 
-  Q <- utils::askYesNo("confirm adding this metho?")
+  # Q <- utils::askYesNo("confirm adding this method ?")
+  Q <- choose_prompt(message = "confirm adding this method ?")
 
   if(Q) DBI::dbWriteTable(mydb, "methodslist", new_data_renamed, append = TRUE, row.names = FALSE)
 
@@ -2279,7 +2280,9 @@ query_plots <- function(team_lead = NULL,
                     id_liste_plots,
                     dplyr::contains("date_census"),
                     dplyr::contains("team_leader"),
-                    dplyr::contains("principal_investigator"))
+                    dplyr::contains("principal_investigator"),
+                    ddlat,
+                    ddlon)
 
     res_individuals_full <-
       merge_individuals_taxa(id_individual = id_individual,
@@ -3998,8 +4001,8 @@ add_plots <- function(new_data,
 
     cli::cli_alert_danger("missing team_leader column")
 
-    chose_pi <- askYesNo(msg = "Choose one team_leader for all plot ?")
-
+    chose_pi <- choose_prompt(message = "Choose one team_leader for all plot ?")
+    
     if (chose_pi) {
       # id_team_leader <-
       #   .link_colnam(
@@ -4060,8 +4063,8 @@ add_plots <- function(new_data,
 
     cli::cli_alert_danger("missing PI column")
 
-    chose_pi <- askYesNo(msg = "Choose one PI for all plot ?")
-
+    chose_pi <- choose_prompt(message = "Choose one PI for all plot ?")
+    
     if (chose_pi) {
       # id_pi <- .link_colnam(data_stand = tibble(PI = " "),
       #                       collector_field = "PI", id_colnam = "id_pi")
@@ -4117,8 +4120,8 @@ add_plots <- function(new_data,
 
     cli::cli_alert_danger("missing data_manager column")
 
-    chose_data_manager <- askYesNo(msg = "Choose one data_manager for all plot ?")
-
+    chose_data_manager <- choose_prompt(message = "Choose one data_manager for all plot ?")
+    
     if (chose_data_manager) {
       # data_manager <- .link_colnam(data_stand = tibble(data_manager = " "),
       #                       collector_field = "data_manager",
@@ -4229,8 +4232,10 @@ add_plots <- function(new_data,
       data_modif_y = lubridate::year(Sys.Date())
     )
 
-  add <- utils::askYesNo(msg = "Add these data to the table of plot data?")
-
+  add <- choose_prompt(message = "Add these data to the table of plot data?")
+  
+  
+  
   if(add) {
     DBI::dbWriteTable(mydb, "data_liste_plots", new_data_renamed, append = TRUE, row.names = FALSE)
     cli::cli_alert_success("{nrow(new_data_renamed)} plot imported in data_liste_plots")
@@ -5162,6 +5167,8 @@ add_plots <- function(new_data,
 #' @param col_names_corresp string
 #' @param id_col integer indicate which name of col_names_select is the id for matching plot in metadata
 #' @param launch_adding_data logical FALSE whether adding should be done or not
+#' @param features_field vector string of field names in new_data containing the features associated with individual or stem data
+#'
 #'
 #' @return No return value individuals updated
 #' @export
@@ -5169,6 +5176,7 @@ add_individuals <- function(new_data ,
                             col_names_select,
                             col_names_corresp,
                             id_col,
+                            features_field = NULL,
                             launch_adding_data = FALSE) {
 
   logs <-
@@ -5179,10 +5187,13 @@ add_individuals <- function(new_data ,
 
   if (!exists("mydb")) call.mydb()
   if (!exists("mydb_taxa")) call.mydb.taxa()
-  
 
   if(length(col_names_select) != length(col_names_corresp))
     stop("Provide same numbers of corresponding and selected colnames")
+  
+  if (!is.null(features_field)) for (i in 1:length(features_field))
+    if (!any(colnames(new_data) == features_field[i]))
+      stop(paste("features_field provide not found in new_data", features_field[i]))
 
   # new_data_renamed <-
   #   new_data %>%
@@ -5557,7 +5568,9 @@ add_individuals <- function(new_data ,
         print(missing_herb_type)
 
         complete_type_specimen <-
-          askYesNo(msg = "Complete automatically type specimen by taking the first individual?")
+          choose_prompt(message = "Complete automatically type specimen by taking the first individual?")
+        
+        
 
         if(complete_type_specimen) {
 
@@ -5684,7 +5697,8 @@ add_individuals <- function(new_data ,
 
     print(list(new_data_renamed, logs))
 
-    confirmed <- utils::askYesNo("Confirm adding?")
+    confirmed <- choose_prompt(message = "Confirm adding?")
+    
 
     if(confirmed) {
 
@@ -6668,7 +6682,7 @@ add_specimens <- function(new_data ,
 
     print(list(new_data_renamed))
 
-    confirmed <- utils::askYesNo("Confirm adding?")
+    confirmed <- choose_prompt(message = "Confirm adding?")
 
     if(confirmed) {
 
@@ -10172,7 +10186,8 @@ add_entry_taxa <- function(search_name_tps = NULL,
           tax_order <- NULL
 
         morpho_species <-
-          askYesNo(msg = "This is NOT a morphotaxa, confirm or set NO if it is a morphotaxa", default = FALSE)
+          choose_prompt(message = "This is NOT a morphotaxa, confirm or set NO if it is a morphotaxa (Press Enter for YES)")
+        
         morpho_species <- !morpho_species
 
       } else {
@@ -10395,7 +10410,9 @@ add_entry_taxa <- function(search_name_tps = NULL,
       dplyr::collect()
     if(nrow(searched_tax_fam)==0) {
       tax_fam_new <-
-        utils::askYesNo(msg = "The provided family name is currently not present in the dictionnary. Are you sure it is correctly spelled?", default = FALSE)
+        choose_prompt(message = "The provided family name is currently not present in the dictionnary. Are you sure it is correctly spelled? (Press Enter for YES)")
+      
+      
     }
   }
 
@@ -11599,3 +11616,60 @@ add_plot_coordinates <-
     return(res_l)
     
   }
+
+
+
+#' Add 1ha IRd plot coordinates
+#'
+#' print table as html in viewer reordered
+#'
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @param dataset tibble
+#' @param ddlat column name of dataset containing latitude in decimal degrees
+#' @param ddlon column name of dataset containing longitude in decimal degrees
+#' @param launch_add_data whether addd data or not
+#' @param X_theo column that contain the X quadrat name
+#' @param Y_theo column that contain the Y quadrat name
+#' @param check_existing_data check if data already exists
+#' @param add_cols string character vectors with columns names of dataset of additonal information
+#' @param cor_cols string character vectors with colums names corresponding to add_cols
+#' @param collector_field string vector of size one with column name containing the name of the person collecting data
+#'
+#' @return print html in viewer
+#' @import cli cli_h1 cli_ul cli_alert_success cli_alert_danger
+#' @export
+choose_prompt <- function(choices_vec = c("Yes", "No", "Cancel"),
+                          message ="") {
+  
+  cli_h1(message)
+  cli_ul(choices_vec)
+  
+  # Prompt
+  selection <- readline(prompt = "Choose from 1 (above) to x (below)")
+
+  
+  if (selection == "")
+    selection <- 1
+  print(selection)
+  
+  # Validate and respond
+  selection <- as.integer(selection)
+  if (!is.na(selection) && selection >= 1 && selection <= length(choices)) {
+    cli_alert_success("You selected {.strong {choices[selection]}}.")
+  } else {
+    cli_alert_danger("Invalid selection.")
+  }
+  
+  if (selection == 1) 
+    val_logical <- TRUE
+  
+  if (selection == 2) 
+    val_logical <- FALSE
+  
+  if (selection == 3) 
+    val_logical <- NA
+  
+  return(val_logical)
+  
+}

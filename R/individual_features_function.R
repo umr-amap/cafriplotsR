@@ -787,7 +787,8 @@ add_trait <- function(new_trait = NULL,
 
   print(new_data_renamed)
 
-  Q <- utils::askYesNo("confirm adding this trait?")
+  # Q <- utils::askYesNo("confirm adding this trait?")
+  Q <- choose_prompt(message = "confirm adding this trait ?")
 
   if(Q) DBI::dbWriteTable(mydb, "traitlist", new_data_renamed, append = TRUE, row.names = FALSE)
 
@@ -1076,8 +1077,10 @@ add_traits_measures_features <- function(new_data,
 
       if (any(data_feat$trait == 0)) {
 
-        add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
+        # add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
 
+        add_0 <- choose_prompt(message = "Some value are equal to 0. Do you want to add these values anyway ??")
+        
         if(!add_0)
           data_feat <-
             data_feat %>%
@@ -1133,8 +1136,11 @@ add_traits_measures_features <- function(new_data,
 
         cli::cli_alert_warning("Duplicates in new data for {feat} concerning {length(duplicates_lg[duplicates_lg])} id(s)")
 
-        cf_merge <-
-          askYesNo(msg = "confirm merging duplicates?")
+        # cf_merge <-
+        #   askYesNo(msg = "confirm merging duplicates?")
+        
+        cf_merge <- 
+          choose_prompt(message = "confirm merging duplicates ?")
 
         if (cf_merge) {
 
@@ -1161,8 +1167,11 @@ add_traits_measures_features <- function(new_data,
 
       }
 
-      response <-
-        utils::askYesNo("Confirm add these data to data_ind_measures_feat table?")
+      # response <-
+      #   utils::askYesNo("Confirm add these data to data_ind_measures_feat table?")
+      
+      response <- 
+        choose_prompt(message = "Confirm add these data to data_ind_measures_feat table ?")
 
       if(add_data & response) {
 
@@ -1483,9 +1492,12 @@ add_traits_measures <- function(new_data,
   
   ### check for different census for concerned plots
   multiple_census <- FALSE
-  census_check <- utils::askYesNo(msg = "Link trait measures to census (only for permanent plots) ?")
+  # census_check <- utils::askYesNo(msg = "Link trait measures to census (only for permanent plots) ?")
   
-  if(census_check) {
+  census_check <- 
+    choose_prompt(message = "Link trait measures to census (only for permanent plots) ?")
+    
+  if (census_check) {
     unique_ids_plots <- unique(new_data_renamed$id_liste_plots)
     censuses <-
       try_open_postgres_table(table = "data_liste_sub_plots", con = mydb) %>%
@@ -1623,7 +1635,10 @@ add_traits_measures <- function(new_data,
       
       if (any(data_trait$trait == 0)) {
         
-        add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
+        # add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
+        
+        add_0 <- 
+          choose_prompt(message = "Some value are equal to 0. Do you want to add these values anyway ??")
         
         if(!add_0)
           data_trait <-
@@ -1824,7 +1839,8 @@ add_traits_measures <- function(new_data,
           
           cli::cli_alert_info("Found {nrow(linked_individuals_likely_dup)} measures likely already in db")
           
-          remove_dup <- askYesNo(msg = "Remove these measures?")
+          # remove_dup <- askYesNo(msg = "Remove these measures?")
+          remove_dup <- choose_prompt(message = "Remove these measures?")
           if(remove_dup)
             data_trait <-
             data_trait %>%
@@ -1865,8 +1881,11 @@ add_traits_measures <- function(new_data,
           print(paste(nrow(not_linked_ind), "measures"))
           print(not_linked_ind %>%
                   as.data.frame())
+          # remove_not_link <-
+          #   utils::askYesNo(msg = "Remove these measures ?")
+          
           remove_not_link <-
-            utils::askYesNo(msg = "Remove these measures ?")
+            choose_prompt(message = "Remove these measures?")
           
           unlinked_individuals <-
             not_linked_ind
@@ -2147,7 +2166,7 @@ add_traits_measures <- function(new_data,
       if (nrow(duplicated_rows) > 0) {
         print(duplicated_rows)
         cli::cli_alert_warning("Duplicated values for dataset to upload")
-        if (!askYesNo(msg = "Are you sure you want to continue ?")) stop("check duplicated value")
+        if (!choose_prompt(message = "Are you sure you want to continue ?")) stop("check duplicated value")
       }
       
       all_vals <-
@@ -2230,7 +2249,8 @@ add_traits_measures <- function(new_data,
                   dplyr::ungroup() %>%
                   dplyr::select(id_data_individuals, id_liste_plots, id_sub_plots))
           
-          rm_val <- askYesNo(msg = "Exclude these values ?")
+          # rm_val <- askYesNo(msg = "Exclude these values ?")
+          rm_val <- choose_prompt(message = "Exclude these values ?")
           
           if (rm_val) {
             
@@ -2348,8 +2368,10 @@ add_traits_measures <- function(new_data,
         
         cli::cli_alert_warning("Duplicates in new data for {trait} concerning {length(duplicates_lg[duplicates_lg])} id(s)")
         
+        # cf_merge <-
+        #   askYesNo(msg = "confirm merging duplicates?")
         cf_merge <-
-          askYesNo(msg = "confirm merging duplicates?")
+          choose_prompt(message = "confirm merging duplicates?")
         
         if (cf_merge) {
           
@@ -2378,8 +2400,11 @@ add_traits_measures <- function(new_data,
         
       }
       
-      response <-
-        utils::askYesNo("Confirm add these data to data_traits_measures table?")
+      # response <-
+      #   utils::askYesNo("Confirm add these data to data_traits_measures table?")
+      
+      response <- 
+        choose_prompt(message = "Confirm add these data to data_traits_measures table?")
       
       if (add_data & response) {
         
