@@ -69,7 +69,9 @@
   
   if(!exists("mydb")) call.mydb()
   
-  askYesNo(msg = "You are about to delete entries in the table that contain subplot features types. Do you confirm ?")
+  # askYesNo(msg = "You are about to delete entries in the table that contain subplot features types. Do you confirm ?")
+  
+  choose_prompt(message = "You are about to delete entries in the table that contain subplot features types. Do you confirm ?")
   
   query <- "DELETE FROM subplotype_list WHERE MMM"
   query <-
@@ -147,7 +149,8 @@
     
     print(feats)
     
-    rm_feats <- askYesNo(msg = "Remove associated features")
+    # askYesNo(msg = "Remove associated features")
+    rm_feats <- choose_prompt(message = "Remove associated features ?")
     
     if (rm_feats)
       .delete_entry_trait_measure_features(id = as.numeric(unlist(feats$all_feat_pivot$id_ind_meas_feat_n)))
@@ -223,8 +226,11 @@
       as.data.frame()
     
     print(selected_link)
-    confirm <-
-      utils::askYesNo(msg = "Confirm removing these links?")
+    # confirm <-
+    #   utils::askYesNo(msg = "Confirm removing these links?")
+    
+    confirm <- 
+      choose_prompt(message = "Confirm removing these links?")
     
     if(confirm)
       for (i in 1:nrow(selected_link))
@@ -242,8 +248,8 @@
     
     print(selected_link)
     
-    confirm <-
-      utils::askYesNo(msg = "Confirm removing these links?")
+    confirm <- 
+      choose_prompt(message = "Confirm removing these links?")
     
     if(confirm) {
       query <- "DELETE FROM data_link_specimens WHERE MMM"
@@ -308,7 +314,10 @@
     
     print(ind_feat)
     
-    rm_feats <- askYesNo(msg = "Remove associated individual features ?")
+    # rm_feats <- askYesNo(msg = "Remove associated individual features ?")
+    
+    rm_feats <- 
+      choose_prompt(message = "Remove associated individual features ?")
     
     if (rm_feats) {
       if (length(ind_feat$traits_char) > 0)
@@ -457,7 +466,10 @@
     filter(id_trait %in% !!id) %>% 
     print()
   
-  if_cont <- askYesNo(msg = "Continue ?")
+  # if_cont <- askYesNo(msg = "Continue ?")
+  
+  if_cont <- 
+    choose_prompt(message = "Continue ?")
   
   if (if_cont) {
     query <- "DELETE FROM table_traits WHERE MMM"
