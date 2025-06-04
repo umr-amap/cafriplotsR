@@ -10,7 +10,7 @@
 #'
 #' @param coordinates tibble output of query_plots, element coordinates
 #'
-#' @importFrom data.table between data.table
+#' @importFrom data.table between data.table setnames
 #' @importFrom ggpubr ggarrange
 #' 
 #' @return list
@@ -134,7 +134,7 @@ extract_corners = function(coordinates, map_res = FALSE) {
     cornerCoord <- data.table(plot = plot, X = projCoord[, 1],
                               Y = projCoord[, 2], cornerNum = cornerNum)
     
-    setnames(cornerCoord, colnames(cornerCoord), c("plot", "X",
+    data.table::setnames(cornerCoord, colnames(cornerCoord), c("plot", "X",
                                                    "Y", "cornerNum"))
     cornerCoord <- cornerCoord[order(cornerNum), .SD, by = plot]
     dimRel <- data.table(plot = unique(plot), dimX = dimX, dimY = dimY)
@@ -428,7 +428,7 @@ latlong2UTM <-
   function (coord){
   
   coord <- data.table(coord, check.names = TRUE)
-  setnames(coord, colnames(coord), c("long", "lat"))
+  data.table::setnames(coord, colnames(coord), c("long", "lat"))
   if (!requireNamespace("proj4")) {
     stop("Please install the package 'proj4'\n\n         \t\tinstall.packages('proj4').")
   }
@@ -513,7 +513,7 @@ bilinear_interpolation <-
       rate_A*u_A + rate_B*u_B + rate_C*u_C + rate_D*u_D,
       rate_A*v_A + rate_B*v_B + rate_C*v_C + rate_D*v_D
     )
-    setnames(interp_df, new = to_corner_coord_colnames)
+    data.table::setnames(interp_df, new = to_corner_coord_colnames)
     interp_df
   }
   
