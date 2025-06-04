@@ -11033,206 +11033,132 @@ query_link_individual_specimen <- function(id_ind = NULL,
 
 
 
-#' Divide 1 ha square plots into 25 squares subplots of 400m² following a regular 5*5 grid
-#'
-#' @param coordinates_sf a spatial object representing the plot geometries, either a \code{SpatialPolygonsDataFrame} or \code{sf} object. Each line should correspond to a single plot.
-#' @param plot_name the name as character of the column where the plot name are stored. Default value is 'plot_name'.
-#' @return A \code{sf} object with the 25 subplots geometries with 2 fields : sous_plot_name and plot_name for each plot.
-#' @details The function takes either a \code{SpatialPolygonsDataFrame} or \code{sf} object containing the plot geometries and the plot names. For each plot, it first
-#' identifies the 4 corners, then creates the 25 square subplots following a regular 5*5 grid. The subplots are named using the xy coordinates inside the plot, starting
-#' from 0_0 for the southeasterly corner to 80_80 for the northwesternly.
-#' @examples
-#' ## Test 1
-#'
-#' # Define the coordinates of the 4 corners
-#' x1 <- c(0, 1, 1, 0, 0)
-#' y1 <- c(0, 0, 1, 1, 0)
-#' x2 <- c(2, 2, 3, 3, 2)
-#' y2 <- c(1, 2, 2, 1, 1)
-#'
-#' # Combine x and y coordinates into matrix
-#' coords1 <- cbind(x1, y1)
-#' coords2 <- cbind(x2, y2)
-#'
-#' # Rotate by 20 degrees the matrix coord1
-#' angle <- pi/9  # angle in radians
-#' rotation_mat <- matrix(c(cos(angle), sin(angle), -sin(angle), cos(angle)), nrow = 2)
-#' coords1 <- coords1 %*% rotation_mat
-#'
-#' # Create SF object
-#' poly1 <- st_sfc(st_polygon(list(coords1)))
-#' poly2 <- st_sfc(st_polygon(list(coords2)))
-#'
-#' coordinates_sf <-
-#'   st_as_sf(data.frame(
-#'     plot_name = c('Plot_001', 'Plot_002'),
-#'     geometry = c(poly1, poly2)
-#'   ))
-#'
-#' #Plot
-#' plot(coordinates_sf$geometry)
-#'
-#' # Divide the plot into smaller squares
-#' sub_plot <- divid_plot(coordinates_sf = coordinates_sf, plot_name = 'plot_name')
-#'
-#' # Plot the plots and the result subplots
-#' par(mfrow = c(1, 2))
-#' plot(coordinates_sf$geometry, main = "Plots")
-#' plot(sub_plot$geometry, main = "Subplots")
-#'
-#' # Plot the plots and the result subplots
-#' library(ggplot2)
-#' ggplot(sub_plot)  +
-#'   geom_sf() +
-#'   scale_fill_continuous(type = 'viridis')+
-#'   geom_sf_text(aes(label = as.character(sous_plot_name)))
-#'
-#' # Extract datas
-#' x <- query_plots(locality_name = "Mbalmayo", extract_individuals = F, show_all_coordinates = TRUE)
-#'
-#' coordinates_sf <- x$coordinates_sf
-#' sub_plot <- divid_plot(coordinates_sf,'plot_name')
-#'
-#' par(mfrow = c(1, 1))
-#' for(i in 1:length(unique(sub_plot$plot_name))) {
-#'
-#'   print(ggplot(sub_plot %>% filter(plot_name == unique(plot_name)[i]))  +
-#'           geom_sf() +
-#'           scale_fill_continuous(type = 'viridis')+
-#'           geom_sf_label(aes(label = as.character(sous_plot_name)))  +
-#'           ggtitle(paste(unique(unique(sub_plot$plot_name)[i]))) )
-#' }
-#'
-#' @importFrom forcats fct_recode
-#' @importFrom sf st_polygon st_sf
-#'
-#' @export
-divid_plot <- function (coordinates_sf, plot_name = 'plot_name') {
-
-  # Get plot data by name
-  names <- coordinates_sf[[plot_name]]
-  n <- 5
-
-  for (i in 1:length(names)){
-
-    plot <- coordinates_sf[i,]
-
-    #####################################################################
-    ##### STEP 1 : EXTRACT THE 4 CORNERS OF THE PLOT i
-    #####################################################################
-
-    coord <- plot %>%
-      st_coordinates() %>%
-      as.data.frame() %>%
-      distinct(X, Y, .keep_all = TRUE) %>%
-      mutate ( corner = case_when(
-        X == min(X[which(Y %in% sort(Y)[1:2])]) ~ 1, #'bottom left',
-        X == max(X[which(Y %in% sort(Y)[1:2])]) ~ 4, #'bottom right',
-        X == min(X[which(Y %in% sort(Y)[3:4])]) ~ 2, #'top left',
-        X == max(X[which(Y %in% sort(Y)[3:4])]) ~ 3 )) %>% #'top right'
-      arrange(corner) %>%
-      select(-c(corner,L1,L2)) %>%
-      as.matrix()
-
-
-    #####################################################################
-    ##### STEP 2 : CREATE THE 25 SUBPLOT SQUARES
-    #####################################################################
-
-    y_length <- (coord[2,2]-coord[1,2]) / n
-    x_length <- (coord[4,1]-coord[1,1]) / n
-    x_shift <- (coord[2,1]-coord[1,1]) / n
-    y_shift <- (coord[4,2]-coord[1,2]) / n
-
-    for (y in 1:n){
-
-      for (x in 1:n){
-
-        tmp  <-   sf::st_polygon(
-          list(
-            rbind(
-              c(coord[1,1]+(x-1)*x_length+(y-1)*x_shift,coord[1,2]+(y-1)*y_length+(x-1)*y_shift),
-              c(coord[1,1]+(x-1)*x_length+(y)*x_shift,coord[1,2]+y*y_length+(x-1)*y_shift),
-              c(coord[1,1]+x*x_length+(y)*x_shift,coord[1,2]+y*y_length+(x)*y_shift),
-              c(coord[1,1]+x*x_length+(y-1)*x_shift,coord[1,2]+(y-1)*y_length+(x)*y_shift),
-              c(coord[1,1]+(x-1)*x_length+(y-1)*x_shift,coord[1,2]+(y-1)*y_length+(x-1)*y_shift)
-            )
-          )
-        )
-
-        assign (paste('smaller_square',x,y, sep = "_"), tmp)
-
-      }
-
-    }
-
-    #####################################################################
-    #### STEP 3 : ASSIGN plot_name AND subplot_name TO SUBPLOTS
-    #####################################################################
-
-    nrows <- 25
-
-    sub_plot <- st_sf(crs = st_crs(plot),
-                      sous_plot_name = 1:nrows,
-                      geometry = st_sfc(lapply(1:nrows,
-                                               function(x) st_geometrycollection())
-                      )
-    ) # Create a fake multipolygons of 25 object with the good crs
-
-    # Add the right 25 polygon geometry
-    for (j in 1:25) {sub_plot$geometry[j] <- mget(ls(pattern = "smaller_square"))[[j]]}
-
-    sub_plot <- sub_plot %>% mutate(plot_name = names[i]) # Add the plot name
-
-    sub_plot$sous_plot_name <- as.character(sub_plot$sous_plot_name) # Renamme the subplot id
-
-    sub_plot$sous_plot_name <- fct_recode(sub_plot$sous_plot_name,
-                                          "0_0" = '1',
-                                          "0_20" = '2',
-                                          "0_40" = '3',
-                                          "0_60" = '4',
-                                          "0_80" = '5',
-                                          "20_0" = '6',
-                                          "20_20" = '7',
-                                          "20_40" = '8',
-                                          "20_60" = '9',
-                                          "20_80" = '10',
-                                          "40_0" = '11',
-                                          "40_20" = '12',
-                                          "40_40" = '13',
-                                          "40_60" = '14',
-                                          "40_80" = '15',
-                                          "60_0" = '16',
-                                          "60_20" = '17',
-                                          "60_40" = '18',
-                                          "60_60" = '19',
-                                          "60_80" = '20',
-                                          "80_0" = '21',
-                                          "80_20" = '22',
-                                          "80_40" = '23',
-                                          "80_60" = '24',
-                                          "80_80" = '25'
-    )
-
-    sub_plot$sous_plot_name <- factor(sub_plot$sous_plot_name,
-                                      levels = c("0_0","0_20","0_40","0_60","0_80",
-                                                 "20_0","20_20","20_40","20_60","20_80",
-                                                 "40_0","40_20","40_40","40_60","40_80",
-                                                 "60_0","60_20","60_40","60_60","60_80",
-                                                 "80_0","80_20","80_40","80_60","80_80"))
-
-
-
-
-
-    assign(paste('subplot',names[i],sep = '_'),sub_plot)
-
-  }
-
-  sub_plot <- do.call(rbind,mget(ls(pattern = "subplot"))) # combine all multipolygons in the same sf
-  print(plot(sub_plot$geometry, col = sub_plot$sous_plot_name))
-  return (sub_plot)
-}
+# divid_plot <- function (coordinates_sf, plot_name = 'plot_name') {
+# 
+#   # Get plot data by name
+#   names <- coordinates_sf[[plot_name]]
+#   n <- 5
+# 
+#   for (i in 1:length(names)){
+# 
+#     plot <- coordinates_sf[i,]
+# 
+#     #####################################################################
+#     ##### STEP 1 : EXTRACT THE 4 CORNERS OF THE PLOT i
+#     #####################################################################
+# 
+#     coord <- plot %>%
+#       st_coordinates() %>%
+#       as.data.frame() %>%
+#       distinct(X, Y, .keep_all = TRUE) %>%
+#       mutate ( corner = case_when(
+#         X == min(X[which(Y %in% sort(Y)[1:2])]) ~ 1, #'bottom left',
+#         X == max(X[which(Y %in% sort(Y)[1:2])]) ~ 4, #'bottom right',
+#         X == min(X[which(Y %in% sort(Y)[3:4])]) ~ 2, #'top left',
+#         X == max(X[which(Y %in% sort(Y)[3:4])]) ~ 3 )) %>% #'top right'
+#       arrange(corner) %>%
+#       select(-c(corner,L1,L2)) %>%
+#       as.matrix()
+# 
+# 
+#     #####################################################################
+#     ##### STEP 2 : CREATE THE 25 SUBPLOT SQUARES
+#     #####################################################################
+# 
+#     y_length <- (coord[2,2]-coord[1,2]) / n
+#     x_length <- (coord[4,1]-coord[1,1]) / n
+#     x_shift <- (coord[2,1]-coord[1,1]) / n
+#     y_shift <- (coord[4,2]-coord[1,2]) / n
+# 
+#     for (y in 1:n){
+# 
+#       for (x in 1:n){
+# 
+#         tmp  <-   sf::st_polygon(
+#           list(
+#             rbind(
+#               c(coord[1,1]+(x-1)*x_length+(y-1)*x_shift,coord[1,2]+(y-1)*y_length+(x-1)*y_shift),
+#               c(coord[1,1]+(x-1)*x_length+(y)*x_shift,coord[1,2]+y*y_length+(x-1)*y_shift),
+#               c(coord[1,1]+x*x_length+(y)*x_shift,coord[1,2]+y*y_length+(x)*y_shift),
+#               c(coord[1,1]+x*x_length+(y-1)*x_shift,coord[1,2]+(y-1)*y_length+(x)*y_shift),
+#               c(coord[1,1]+(x-1)*x_length+(y-1)*x_shift,coord[1,2]+(y-1)*y_length+(x-1)*y_shift)
+#             )
+#           )
+#         )
+# 
+#         assign (paste('smaller_square',x,y, sep = "_"), tmp)
+# 
+#       }
+# 
+#     }
+# 
+#     #####################################################################
+#     #### STEP 3 : ASSIGN plot_name AND subplot_name TO SUBPLOTS
+#     #####################################################################
+# 
+#     nrows <- 25
+# 
+#     sub_plot <- st_sf(crs = st_crs(plot),
+#                       sous_plot_name = 1:nrows,
+#                       geometry = st_sfc(lapply(1:nrows,
+#                                                function(x) st_geometrycollection())
+#                       )
+#     ) # Create a fake multipolygons of 25 object with the good crs
+# 
+#     # Add the right 25 polygon geometry
+#     for (j in 1:25) {sub_plot$geometry[j] <- mget(ls(pattern = "smaller_square"))[[j]]}
+# 
+#     sub_plot <- sub_plot %>% mutate(plot_name = names[i]) # Add the plot name
+# 
+#     sub_plot$sous_plot_name <- as.character(sub_plot$sous_plot_name) # Renamme the subplot id
+# 
+#     sub_plot$sous_plot_name <- fct_recode(sub_plot$sous_plot_name,
+#                                           "0_0" = '1',
+#                                           "0_20" = '2',
+#                                           "0_40" = '3',
+#                                           "0_60" = '4',
+#                                           "0_80" = '5',
+#                                           "20_0" = '6',
+#                                           "20_20" = '7',
+#                                           "20_40" = '8',
+#                                           "20_60" = '9',
+#                                           "20_80" = '10',
+#                                           "40_0" = '11',
+#                                           "40_20" = '12',
+#                                           "40_40" = '13',
+#                                           "40_60" = '14',
+#                                           "40_80" = '15',
+#                                           "60_0" = '16',
+#                                           "60_20" = '17',
+#                                           "60_40" = '18',
+#                                           "60_60" = '19',
+#                                           "60_80" = '20',
+#                                           "80_0" = '21',
+#                                           "80_20" = '22',
+#                                           "80_40" = '23',
+#                                           "80_60" = '24',
+#                                           "80_80" = '25'
+#     )
+# 
+#     sub_plot$sous_plot_name <- factor(sub_plot$sous_plot_name,
+#                                       levels = c("0_0","0_20","0_40","0_60","0_80",
+#                                                  "20_0","20_20","20_40","20_60","20_80",
+#                                                  "40_0","40_20","40_40","40_60","40_80",
+#                                                  "60_0","60_20","60_40","60_60","60_80",
+#                                                  "80_0","80_20","80_40","80_60","80_80"))
+# 
+# 
+# 
+# 
+# 
+#     assign(paste('subplot',names[i],sep = '_'),sub_plot)
+# 
+#   }
+# 
+#   sub_plot <- do.call(rbind,mget(ls(pattern = "subplot"))) # combine all multipolygons in the same sf
+#   print(plot(sub_plot$geometry, col = sub_plot$sous_plot_name))
+#   return (sub_plot)
+# }
 
 
 
@@ -11637,7 +11563,7 @@ add_plot_coordinates <-
 #' @param collector_field string vector of size one with column name containing the name of the person collecting data
 #'
 #' @return print html in viewer
-#' @import cli cli_h1 cli_ul cli_alert_success cli_alert_danger
+#' @importFrom cli cli_h1 cli_ul cli_alert_success cli_alert_danger
 #' @export
 choose_prompt <- function(choices_vec = c("Yes", "No", "Cancel"),
                           message ="") {
@@ -11655,8 +11581,8 @@ choose_prompt <- function(choices_vec = c("Yes", "No", "Cancel"),
   
   # Validate and respond
   selection <- as.integer(selection)
-  if (!is.na(selection) && selection >= 1 && selection <= length(choices)) {
-    cli_alert_success("You selected {.strong {choices[selection]}}.")
+  if (!is.na(selection) && selection >= 1 && selection <= length(choices_vec)) {
+    cli_alert_success("You selected {.strong {choices_vec[selection]}}.")
   } else {
     cli_alert_danger("Invalid selection.")
   }
