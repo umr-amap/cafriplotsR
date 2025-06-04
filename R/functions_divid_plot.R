@@ -10,8 +10,9 @@
 #'
 #' @param coordinates tibble output of query_plots, element coordinates
 #'
-#' @importFrom data.table between data.table setnames
+#' @importFrom data.table between data.table setnames rbindlist
 #' @importFrom ggpubr ggarrange
+#' @importFrom sf st_multipoint
 #' 
 #' @return list
 #' @export
@@ -137,7 +138,7 @@ extract_corners = function(coordinates, map_res = FALSE) {
     data.table::setnames(cornerCoord, colnames(cornerCoord), c("plot", "X",
                                                    "Y", "cornerNum"))
     cornerCoord <- cornerCoord[order(cornerNum), .SD, by = plot]
-    dimRel <- data.table(plot = unique(plot), dimX = dimX, dimY = dimY)
+    dimRel <- data.table::data.table(plot = unique(plot), dimX = dimX, dimY = dimY)
     gridFunction <- function(data, gridsize) {
       absCoordMat <- as.matrix(data[, .(X, Y)])
       plotDimX <- as.numeric(unique(data[, "dimX"]))
@@ -157,7 +158,7 @@ extract_corners = function(coordinates, map_res = FALSE) {
     cornerCoord <- cornerCoord[dimRel, on = "plot"][, gridFunction(.SD,
                                                                    gridsize), by = plot]
     numberingCorner <- function(data) {
-      rbindlist(apply(data[XRel < max(XRel) & YRel < max(YRel),
+      data.table::rbindlist(apply(data[XRel < max(XRel) & YRel < max(YRel),
                            -"plot"], 1, function(x) {
                              X <- x["XRel"]
                              Y <- x["YRel"]
@@ -421,7 +422,7 @@ divid_plot <- function (corners) {
 #'
 #' @param coord sf POINT the outputs WGS 84 of extract_corners function
 #' 
-#' @importFrom data.table setDF
+#' @importFrom data.table setDF is.data.table data.table
 #'
 #' 
 latlong2UTM <- 
@@ -442,7 +443,7 @@ latlong2UTM <-
   coord[, `:=`(codeUTM, codelatlong2UTM(long, lat))]
   coord[, `:=`(c("X", "Y"), proj4::project(.(long, lat), proj = unique(.BY))),
         by = codeUTM]
-  setDF(coord)
+  data.table::setDF(coord)
   return(coord)
 }
 
@@ -470,11 +471,11 @@ bilinear_interpolation <-
   if(nrow(from_corner_coord)!=4 | nrow(to_corner_coord)!=4 | nrow(from_corner_coord)!=nrow(from_corner_coord)) {
     stop("from_corner_coord and to_corner_coord must have 4 rows representing the 4 corners of the plot")
   }
-  if(!(is.data.frame(coord) | is.matrix(coord) | is.data.table(coord))){
+  if(!(is.data.frame(coord) | is.matrix(coord) | data.table::is.data.table(coord))){
     stop("tree coordinates must be a data.frame, a matrix or a data.table")
   }
-  if(is.data.table(coord)) coord <- data.frame(coord)
-  if(is.data.table(from_corner_coord) | is.data.table(to_corner_coord)) {
+  if (data.table::is.data.table(coord)) coord <- data.frame(coord)
+  if (data.table::is.data.table(from_corner_coord) | data.table::is.data.table(to_corner_coord)) {
     from_corner_coord <- data.frame(from_corner_coord)
     to_corner_coord <- data.frame(to_corner_coord)
   }
