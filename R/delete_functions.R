@@ -45,11 +45,25 @@
   
   if (!exists("mydb_taxa")) call.mydb.taxa()
   
-  tbl <- "table_traits_measures"
-  sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE id_trait_measures IN ({vals*})",
-                        vals = id, .con = mydb_taxa)
+  # tbl <- "table_traits_measures"
+  # sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE id_trait_measures IN ({vals*})",
+  #                       vals = id, .con = mydb_taxa)
+  # 
+  # valuetype <- func_try_fetch(con = mydb_taxa, sql = sql)
   
-  valuetype <- func_try_fetch(con = mydb_taxa, sql = sql)
+  query <- "DELETE FROM table_traits_measures WHERE MMM"
+  query <-
+    gsub(
+      pattern = "MMM",
+      replacement = paste0("id_trait_measures IN ('",
+                           paste(unique(id), collapse = "', '"), "')"),
+      x = query
+    )
+  
+  rs <- DBI::dbSendQuery(mydb_taxa, query)
+  DBI::dbClearResult(rs)
+  
+  
   
 }
 

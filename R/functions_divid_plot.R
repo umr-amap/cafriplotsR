@@ -520,3 +520,98 @@ bilinear_interpolation <-
   
   return(apply_bilinear_interpolation(x=coord[,1],y=coord[,2],to_corner_coord_colnames=colnames(to_corner_coord)[1:2]))
 }
+
+
+
+#' Project stems in geographical space
+#'
+#' Project stems in geogaphical space
+#'
+#'
+#' @author Gilles Dauby
+#'
+#' @param coord_sf sf polygon output of query_plots, using show_all_coordinates TRUE
+#' @param coord_rel tibble extract of query_plots individuals with relative coordinates
+#' 
+#' @details
+#' The coord_rel should have the columns x_100 and y_100 that are the relative coordinates in the plot
+#'  
+#' @export
+proj_rel_xy <- 
+  function(coord_sf,
+           coord_rel) {
+    
+    res_list <- vector('list', length(unique(coord_rel$plot_name)))
+    for (i in 1:length(unique(coordinates$plot_name))) {
+      
+      square_geo <- 
+        coord_sf %>% filter(plot_name == unique(coordinates$plot_name)[i])
+      
+      utm_plot <- 
+        latlong2UTM(coord = st_coordinates(square_geo)[, c("X", "Y")])
+      
+      square_proj <- 
+        st_transform(square_geo, utm_plot$codeUTM[1])
+      
+      square_matrix <- st_coordinates(square_proj)[1:4, ]  # Get the 4 corners
+      origin <- 
+        square_matrix[1, 1:2]  # First point (assumed to be origin)
+      v1 <- square_matrix[2, 1:2] - origin  # Local x direction (from pt 1 to 2)
+      v2 <- square_matrix[4, 1:2] - origin  # Local y direction (from pt 1 to 4)
+      
+      relative_coords <- 
+        coord_rel %>% 
+        filter(plot_name == unique(coordinates$plot_name)[i]) %>% 
+        select(x_100, y_100, id_n)
+      
+      size <- 100
+      
+      absolute_coords <- t(apply(relative_coords, 1, function(pt) {
+        origin + pt[1] * v1 / size + pt[2] * v2 / size
+      }))
+      
+      
+      reproj_coords <- 
+        absolute_coords %>% 
+        as_tibble() %>% 
+        mutate(id_n = relative_coords$id_n,
+               plot_name = unique(coordinates$plot_name)[i])
+      
+      res_list[[i]] <- 
+        reproj_coords
+    }
+    
+    return(res_list)
+    
+    
+    
+  }
+
+#' Project stems in geographical space
+#'
+#' Project stems in geogaphical space
+#'
+#'
+#' @author Gilles Dauby
+#'
+#' @param dataset extract of query_plots individuals TRUE
+#' 
+#' @details
+#' Add columns x_100 and y_100 with relative position in plot based on position_x_iphone and positions_y_iphone
+#' 
+#' 
+#'  
+#' @export
+get_plot_rel_xy <- function(dataset) {
+  
+  tmp <- 
+    dataset %>% 
+    mutate(
+      x_quadrat = as.numeric(stringr::str_split(sous_plot_name, '_', simplify = T)[,1]),
+      y_quadrat = as.numeric(stringr::str_split(sous_plot_name, '_', simplify = T)[,2]),
+      x_100 = position_x_iphone + x_quadrat,
+      y_100 = position_y_iphone + y_quadrat) 
+  
+  return(tmp)
+  
+}
