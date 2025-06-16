@@ -298,7 +298,7 @@ add_sp_traits_measures <- function(new_data,
           measurementmethod = ifelse(rep(
             any(colnames(data_trait) == "measurementmethod"), nrow(data_trait)
           ), data_trait$measurementmethod, NA),
-          id_trait = data_trait$id_trait,
+          fk_id_trait = data_trait$id_trait,
           traitvalue =
             ifelse(
               rep(any(TypeValue == "numeric"), nrow(data_trait))
@@ -329,7 +329,7 @@ add_sp_traits_measures <- function(new_data,
       ### identify if measures are already within DB
       cli::cli_alert_info("Identifying if imported values are already in DB")
 
-      trait_id <- unique(data_to_add$id_trait)
+      trait_id <- unique(data_to_add$fk_id_trait)
       selected_data_traits <-
         data_to_add %>%
         dplyr::select(idtax,
@@ -337,7 +337,7 @@ add_sp_traits_measures <- function(new_data,
                       traitvalue,
                       issue,
                       basisofrecord,
-                      id_trait,
+                      fk_id_trait,
                       measurementremarks)
 
       all_vals <-
@@ -347,9 +347,9 @@ add_sp_traits_measures <- function(new_data,
                       traitvalue,
                       issue,
                       basisofrecord,
-                      id_trait,
+                      fk_id_trait,
                       measurementremarks) %>%
-        dplyr::filter(id_trait == !!trait_id) %>% #, !is.na(id_sub_plots)
+        dplyr::filter(fk_id_trait == !!trait_id) %>% #, !is.na(id_sub_plots)
         dplyr::collect()
 
       if (TypeValue == "numeric") {
@@ -384,7 +384,7 @@ add_sp_traits_measures <- function(new_data,
                          all_vals) %>%
         dplyr::filter(is.na(issue)) %>%
         dplyr::group_by(idtax,
-                        id_trait,
+                        fk_id_trait,
                         trait,
                         basisofrecord,
                         measurementremarks) %>%
@@ -397,10 +397,11 @@ add_sp_traits_measures <- function(new_data,
         cli::cli_alert_danger("Some values are already in DB")
         print(duplicated_rows %>%
                 dplyr::ungroup() %>%
-                dplyr::select(idtax, id_trait, basisofrecord))
+                dplyr::select(idtax, fk_id_trait, basisofrecord))
 
         exclud_yes <- 
-          askYesNo(msg = "Exclude duplicated rows ?")
+          choose_prompt(message = "Exclude duplicated rows ?")
+        
         
         if (exclud_yes) {
           cli::cli_alert_danger("Excluding {nrow(duplicated_rows)} values because already in DB")
@@ -425,7 +426,8 @@ add_sp_traits_measures <- function(new_data,
 
       if (ask_before_update) {
         response <-
-          utils::askYesNo("Confirm add these data to data_traits_measures table?")
+          choose_prompt(message = "Confirm add these data to data_traits_measures table ?")
+        
       } else {
         response <- TRUE
       }
@@ -463,8 +465,6 @@ add_sp_traits_measures <- function(new_data,
           )
           
         }
-        
-        
         
       }
 

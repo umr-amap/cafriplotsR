@@ -120,15 +120,18 @@ query_subplots <- function(ids_plots = NULL,
     
   if (!is.null(ids_plots) &
       is.null(ids_subplots))
-    sql <- .sql_query_subplot_plot(id_plots = ids_plots, mydb_ = mydb)
+    sql <- 
+      .sql_query_subplot_plot(id_plots = ids_plots, mydb_ = mydb)
   
   if (!is.null(ids_plots) & !is.null(ids_subplots))
-    sql <- .sql_query_subplot_plot_2(id_plots = ids_plots,
+    sql <- 
+      .sql_query_subplot_plot_2(id_plots = ids_plots,
                                      id_subplots = ids_subplots,
                                      mydb_ = mydb)
   
   if (is.null(ids_plots) & !is.null(ids_subplots))
-    sql <- .sql_query_subplot(id_subplots = ids_subplots, mydb_ = mydb)
+    sql <- 
+      .sql_query_subplot(id_subplots = ids_subplots, mydb_ = mydb)
   
   sub_plot_data <-
     suppressMessages(func_try_fetch(con = mydb, sql = sql)
@@ -634,7 +637,8 @@ add_subplot_features <- function(new_data,
                     date_modif_y = data_subplottype$date_modif_y)
     
     if(any(is.na(data_to_add$id_table_liste_plots))) {
-      rm_na <- utils::askYesNo(msg = "Remove features not linked to plot?")
+      rm_na <- choose_prompt(message = "Remove features not linked to plot ?")
+      
       
       if(rm_na) data_to_add <-
           data_to_add %>%
@@ -673,7 +677,8 @@ add_subplot_features <- function(new_data,
       if (nrow(crossing_data) > 0) {
         cli::cli_alert_info("Data to be imported already exist in the database")
         print(crossing_data)
-        continue <- utils::askYesNo(msg = "Continue importing?")
+        continue <- choose_prompt(message = "Continue importing ?")
+        
       }
       
     } else {
@@ -686,7 +691,7 @@ add_subplot_features <- function(new_data,
       
       if (ask_before_update) {
         response <-
-          utils::askYesNo("Confirm add these data to data_liste_sub_plots table?")
+          choose_prompt(message = "Confirm add these data to data_liste_sub_plots table?")
       } else {
         response <- TRUE
       }
@@ -836,7 +841,8 @@ add_subplottype <- function(new_type = NULL,
   
   print(new_data_renamed)
   
-  Q <- utils::askYesNo("confirm adding this type?")
+  Q <- choose_prompt(message = "confirm adding this type?")
+  
   
   if(Q)
     DBI::dbWriteTable(mydb, "subplotype_list", new_data_renamed, append = TRUE, row.names = FALSE)
@@ -951,7 +957,7 @@ add_subplot_observations_feat <- function(new_data,
       if (any(data_feat$subplotype == 0)) {
 
         add_0 <-
-          utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
+          choose_prompt(message = "Some value are equal to 0. Do you want to add these values anyway ??")
 
         if(!add_0)
           data_feat <-
@@ -1009,8 +1015,8 @@ add_subplot_observations_feat <- function(new_data,
         cli::cli_alert_warning("Duplicates in new data for {feat} concerning {length(duplicates_lg[duplicates_lg])} id(s)")
         
         cf_merge <-
-          askYesNo(msg = "confirm merging duplicates?")
-        
+          choose_prompt(message = "confirm merging duplicates ?")
+
         if (cf_merge) {
           
           # issues_dup <- data_to_add %>%
@@ -1037,8 +1043,8 @@ add_subplot_observations_feat <- function(new_data,
       }
       
       response <-
-        utils::askYesNo("Confirm add these data to data_subplot_feat table?")
-      
+        choose_prompt(message = "Confirm add these data to data_subplot_feat table?")
+
       if(add_data & response) {
         
         DBI::dbWriteTable(mydb, "data_subplot_feat",
