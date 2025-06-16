@@ -10,7 +10,7 @@
 #'
 #' @param coordinates tibble output of query_plots, element coordinates
 #'
-#' @importFrom data.table between data.table setnames rbindlist
+#' @importFrom data.table data.table setnames rbindlist
 #' @importFrom ggpubr ggarrange
 #' @importFrom sf st_multipoint
 #' 
@@ -542,10 +542,10 @@ proj_rel_xy <-
            coord_rel) {
     
     res_list <- vector('list', length(unique(coord_rel$plot_name)))
-    for (i in 1:length(unique(coordinates$plot_name))) {
+    for (i in 1:length(unique(coord_rel$plot_name))) {
       
       square_geo <- 
-        coord_sf %>% filter(plot_name == unique(coordinates$plot_name)[i])
+        coord_sf %>% filter(plot_name == unique(coord_rel$plot_name)[i])
       
       utm_plot <- 
         latlong2UTM(coord = st_coordinates(square_geo)[, c("X", "Y")])
@@ -561,7 +561,7 @@ proj_rel_xy <-
       
       relative_coords <- 
         coord_rel %>% 
-        filter(plot_name == unique(coordinates$plot_name)[i]) %>% 
+        filter(plot_name == unique(coord_rel$plot_name)[i]) %>% 
         select(x_100, y_100, id_n)
       
       size <- 100
@@ -575,7 +575,7 @@ proj_rel_xy <-
         absolute_coords %>% 
         as_tibble() %>% 
         mutate(id_n = relative_coords$id_n,
-               plot_name = unique(coordinates$plot_name)[i])
+               plot_name = unique(coord_rel$plot_name)[i])
       
       res_list[[i]] <- 
         reproj_coords
