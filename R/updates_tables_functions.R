@@ -3551,3 +3551,167 @@ update_subplottype_list_table <- function(subplottype_searched = NULL,
   
 }
 
+
+
+
+
+#' Update method table
+#'
+#' Update method _ at a time
+#'
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @param new_data data frame data containing id and new values
+#' @param col_names_select string plot name of the selected plots
+#' @param col_names_corresp string of the selected plots
+#' @param id_col integer indicate which name of col_names_select is the id for matching data
+#' @param launch_update logical if TRUE updates are performed
+#' @param add_backup logical whether backup of modified data should be recorded
+#'
+#'
+#' @return No return value individuals updated
+#' @export
+update_method_batch <- function(new_data,
+                                   col_names_select = NULL,
+                                   col_names_corresp = NULL,
+                                   id_col = 1,
+                                   launch_update = FALSE,
+                                   add_backup = TRUE) {
+  
+  if(!exists("mydb")) call.mydb()
+  
+  if (is.null(col_names_select)) {
+    col_names_select <- names(new_data)
+    cli::cli_alert_info("col_names_select is set as all names of new_data")
+  }
+  
+  if (is.null(col_names_corresp)) {
+    col_names_corresp <- col_names_select
+    cli::cli_alert_info("col_names_corresp is set to names of col_names_select (it should be names of columns of methodslist)")
+  }
+  
+  all_colnames_ind <-
+    dplyr::tbl(mydb, "methodslist") %>%
+    colnames()
+  
+  if(length(col_names_select) != length(col_names_corresp))
+    stop("col_names_select and col_names_corresp should have same length")
+  
+  for (i in 1:length(col_names_select))
+    if(!any(col_names_select[i] == colnames(new_data)))
+      stop(paste(col_names_select[i], "not found in new_data"))
+  
+  for (i in 1:length(col_names_corresp))
+    if(!any(col_names_corresp[i] == all_colnames_ind))
+      stop(paste(col_names_corresp[i], "not found in methodslist"))
+  
+  id_db <- col_names_corresp[id_col]
+  
+  if(!any(id_db == c("id_method"))) stop("id for matching should be id_method")
+  
+  new_data_renamed <-
+    .rename_data(dataset = new_data,
+                 col_old = col_names_select,
+                 col_new = col_names_corresp)
+  
+  # new_data_renamed <-
+  #   new_data %>%
+  #   dplyr::rename_at(dplyr::vars(col_names_select[-id_col]), ~ col_names_corresp[-id_col])
+  
+  # dataset = new_data_renamed
+  # col_new = col_names_corresp
+  # id_col_nbr = id_col
+  # type_data = "individuals"
+  
+  output_matches <- .find_ids(dataset = new_data_renamed,
+                              col_new = col_names_corresp,
+                              id_col_nbr = id_col,
+                              type_data = "methodslist")
+  
+  matches_all <-
+    output_matches[[2]]
+  
+  for (i in 1:length(matches_all)) {
+    
+    field <- names(matches_all)[i]
+    var_new <- paste0(field, "_new")
+    matches <- matches_all[[i]]
+    
+    if(launch_update & nrow(matches) > 0) {
+      
+      matches <-
+        matches %>%
+        dplyr::select(id, dplyr::contains("_new"))
+      # matches <-
+      #   .add_modif_field(matches)
+      
+      all_id_match <- dplyr::pull(dplyr::select(matches, id))
+      
+      # if(add_backup) {
+      #   
+      #   quo_var_id <- rlang::parse_expr(quo_name(rlang::enquo(id_db)))
+      #   
+      #   all_rows_to_be_updated <-
+      #     dplyr::tbl(mydb, "data_liste_plots") %>%
+      #     dplyr::filter(!!quo_var_id %in% all_id_match) %>%
+      #     dplyr::collect()
+      #   
+      #   colnames_plots <-
+      #     dplyr::tbl(mydb, "followup_updates_liste_plots")  %>%
+      #     dplyr::select(-date_modified, -modif_type, -id_fol_up_plots) %>%
+      #     dplyr::collect() %>%
+      #     dplyr::top_n(1) %>%
+      #     colnames()
+      #   
+      #   all_rows_to_be_updated <-
+      #     all_rows_to_be_updated %>%
+      #     dplyr::select(dplyr::one_of(colnames_plots))
+      #   
+      #   all_rows_to_be_updated <-
+      #     all_rows_to_be_updated %>%
+      #     mutate(date_modified = Sys.Date()) %>%
+      #     mutate(modif_type = field)
+      #   
+      #   print(all_rows_to_be_updated %>%
+      #           dplyr::select(modif_type, date_modified))
+      #   
+      #   DBI::dbWriteTable(mydb, "followup_updates_liste_plots",
+      #                     all_rows_to_be_updated,
+      #                     append = TRUE,
+      #                     row.names = FALSE)
+      # }
+      
+      # if(any(names(matches) == "idtax_n_new"))
+      #   matches <-
+      #   matches %>%
+      #   dplyr::mutate(idtax_n_new == as.integer(idtax_n_new))
+      
+      ## create a temporary table with new data
+      DBI::dbWriteTable(mydb, "temp_table", matches,
+                        overwrite=T, fileEncoding = "UTF-8", row.names=F)
+      
+      query_up <-
+        paste0("UPDATE methodslist t1 SET ",field," = t2.",var_new, " FROM temp_table t2 WHERE t1.", id_db," = t2.id")
+      
+      rs <-
+        DBI::dbSendStatement(mydb, query_up)
+      
+      cat("Rows updated", RPostgres::dbGetRowsAffected(rs))
+      rs@sql
+      DBI::dbClearResult(rs)
+      
+      cli::cli_alert_success("Successful update")
+      
+    } else{
+      
+      if (launch_update & nrow(matches) == 0)
+        cat("\n No new values found")
+      
+      if (!launch_update)
+        cli::cli_alert_danger("No update because launch_update is FALSE")
+      
+    }
+  }
+  
+  return(matches_all)
+}
