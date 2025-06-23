@@ -2757,60 +2757,6 @@ query_plots <- function(team_lead = NULL,
       gsub("value_", "", names(dataset_pivot_wider_char))
     
     
-    # for (j in 1:length(colnames_traits)) {
-    #   
-    #   if (colnames_traits[j] %in% names(res_individuals_full)) {
-    #     
-    #     var1 <- paste0(colnames_traits[j], ".y")
-    #     var2 <- paste0(colnames_traits[j], ".x")
-    #     
-    #     res_individuals_full <-
-    #       res_individuals_full %>%
-    #       left_join(
-    #         traits_idtax_char %>%
-    #           dplyr::select(tax_gen, colnames_traits[j]),
-    #         by = c("tax_gen" = "tax_gen")
-    #       ) %>%
-    #       # dplyr::select(
-    #       #   tax_sp_level,
-    #       #   id_n,
-    #       #   tax_gen,
-    #       #   paste0(colnames_traits[j], ".x"),
-    #       #   paste0(colnames_traits[j], ".y")
-    #       # ) %>%
-    #       mutate("{colnames_traits[j]}" :=
-    #                ifelse(is.na(!!rlang::parse_expr(quo_name(rlang::enquo(var2)))),
-    #                       ifelse(is.na(!!rlang::parse_expr(quo_name(rlang::enquo(var1)))),
-    #                              NA,
-    #                              !!rlang::parse_expr(quo_name(rlang::enquo(var1)))),
-    #                       !!rlang::parse_expr(quo_name(rlang::enquo(var2))))) %>%
-    #       mutate("source_{colnames_traits[j]}" :=
-    #                ifelse(is.na(!!rlang::parse_expr(quo_name(rlang::enquo(var2)))),
-    #                       ifelse(is.na(!!rlang::parse_expr(quo_name(rlang::enquo(var1)))),
-    #                              NA,
-    #                              "genus"),
-    #                       "species")) %>%
-    #       dplyr::select(-paste0(colnames_traits[j], ".x"),
-    #                     -paste0(colnames_traits[j], ".y"))
-    #     
-    #   } else {
-    #     
-    #     var1 <- colnames_traits[j]
-    #     
-    #     res_individuals_full <-
-    #       res_individuals_full %>%
-    #       left_join(
-    #         traits_idtax_char %>%
-    #           dplyr::select(tax_gen, colnames_traits[j]),
-    #         by = c("tax_gen" = "tax_gen")
-    #       ) %>%
-    #       mutate("source_{colnames_traits[j]}" :=
-    #                ifelse(is.na(!!rlang::parse_expr(quo_name(rlang::enquo(var1)))),
-    #                       NA,
-    #                       "genus"))
-    #     
-    #   }
-    # }
   } else {
     dataset_pivot_wider_char <- NA
   }
@@ -2854,9 +2800,9 @@ query_plots <- function(team_lead = NULL,
       dplyr::select(-starts_with("id_trait_"), -idtax) %>%
       dplyr::group_by(tax_gen) %>%
       dplyr::summarise(dplyr::across(where(is.numeric),
-                                     .fns= list(mean = mean,
-                                                sd = sd,
-                                                n = length),
+                                     .fns= list(mean = ~mean(., na.rm= TRUE),
+                                                sd = ~sd(., na.rm= TRUE),
+                                                n = ~sum(!is.na(.))),
                                      .names = "{.col}_{.fn}"))
     
     
@@ -2890,6 +2836,20 @@ query_plots <- function(team_lead = NULL,
       arrange(tax_gen, trait) %>% 
       filter(!is.na(value))
     
+    ## traits with no values at species level
+    if (any(!colnames_traits %in% colnames_data)) {
+      
+      no_val_genus_level <- 
+        expand_grid(id_n = unique(dataset_pivot$id_n),
+                    trait = colnames_traits[!colnames_traits %in% colnames_data]) %>% 
+        left_join(dataset %>% select(id_n, tax_gen, tax_fam)) %>% 
+        left_join(dataset_traits_pivot,
+                  by = c("tax_gen" = "tax_gen",
+                         "trait" = "trait"))
+    } else {
+      no_val_genus_level <- NULL
+    }
+    
     dataset_genus_level <- 
       dataset_pivot %>% 
       filter(is.na(value)) %>% 
@@ -2897,6 +2857,8 @@ query_plots <- function(team_lead = NULL,
       left_join(dataset_traits_pivot,
                 by = c("tax_gen" = "tax_gen",
                        "trait" = "trait"))
+    
+    dataset_genus_level <- bind_rows(dataset_genus_level, no_val_genus_level)
     
     dataset_sp_level <- 
       dataset_pivot %>% 
@@ -2907,12 +2869,10 @@ query_plots <- function(team_lead = NULL,
       #                  "trait" = "trait")) %>% 
       mutate(source = "species")
     
-    
     dataset_genus_level_filled <- 
       dataset_genus_level  %>% 
       filter(!is.na(value)) %>% 
       mutate(source = "genus")
-    
     
     dataset_genus_level_unfilled <- 
       dataset_genus_level  %>% 
@@ -2929,90 +2889,38 @@ query_plots <- function(team_lead = NULL,
       gsub("value_", "", names(dataset_pivot_wider_num))
     
     
-    # for (j in 1:length(colnames_traits)) {
-    #   
-    #   if (colnames_traits[j] %in% names(res_individuals_full)) {
-    #     
-    #     var1 <- paste0(colnames_traits[j], ".y")
-    #     var2 <- paste0(colnames_traits[j], ".x")
-    #     
-    #     res_individuals_full <-
-    #       res_individuals_full %>%
-    #       left_join(
-    #         traits_idtax_num %>%
-    #           dplyr::select(tax_gen, colnames_traits[j]),
-    #         by = c("tax_gen" = "tax_gen")
-    #       ) %>%
-    #       # dplyr::select(
-    #       #   tax_sp_level,
-    #       #   id_n,
-    #       #   tax_gen,
-    #       #   paste0(colnames_traits[j], ".x"),
-    #       #   paste0(colnames_traits[j], ".y")
-    #       # ) %>%
-    #       mutate("{colnames_traits[j]}" :=
-    #                ifelse(is.na(!!rlang::parse_expr(quo_name(rlang::enquo(var2)))),
-    #                       ifelse(is.na(!!rlang::parse_expr(quo_name(rlang::enquo(var1)))),
-    #                              NA,
-    #                              !!rlang::parse_expr(quo_name(rlang::enquo(var1)))),
-    #                       !!rlang::parse_expr(quo_name(rlang::enquo(var2))))) %>%
-    #       mutate("source_{colnames_traits[j]}" :=
-    #                ifelse(is.na(!!rlang::parse_expr(quo_name(rlang::enquo(var2)))),
-    #                       ifelse(is.na(!!rlang::parse_expr(quo_name(rlang::enquo(var1)))),
-    #                              NA,
-    #                              "genus"),
-    #                       "species")) %>%
-    #       dplyr::select(-paste0(colnames_traits[j], ".x"),
-    #                     -paste0(colnames_traits[j], ".y"))
-    #     
-    #     
-    #   } else {
-    #     
-    #     var1 <- colnames_traits[j]
-    #     
-    #     res_individuals_full <-
-    #       res_individuals_full %>%
-    #       left_join(
-    #         traits_idtax_num %>%
-    #           dplyr::select(tax_gen, colnames_traits[j]),
-    #         by = c("tax_gen" = "tax_gen")
-    #       ) %>%
-    #       mutate("source_{colnames_traits[j]}" :=
-    #                ifelse(is.na(!!rlang::parse_expr(quo_name(rlang::enquo(var1)))),
-    #                       NA,
-    #                       "genus"))
-    #     
-    #   }
-    # }
-    
     if (any(colnames_traits == "taxa_level_wood_density_mean")) {
       
-      cli::cli_alert_info("Setting wood density SD to averaged species and genus level according to BIOMASS dataset")
-      
-      sd_10 <- BIOMASS::sd_10
-      
-      
-      ### replacing wd sd to species and genus level sd from biomass
-      dataset_pivot_wider_num <-
-        dataset_pivot_wider_num %>%
-        mutate(taxa_level_wood_density_sd = replace(taxa_level_wood_density_sd,
-                                                    source_taxa_level_wood_density_mean == "species",
-                                                    sd_10$sd[1])) %>%
-        mutate(taxa_level_wood_density_sd = replace(taxa_level_wood_density_sd,
-                                                    source_taxa_level_wood_density_mean == "genus",
-                                                    sd_10$sd[2]))
-      
-      if (wd_fam_level_add) {
+      if (any(names(dataset_pivot_wider_num) == "taxa_level_wood_density_sd")) {
+        cli::cli_alert_info("Setting wood density SD to averaged species and genus level according to BIOMASS dataset")
         
+        sd_10 <- BIOMASS::sd_10
+        
+        
+        ### replacing wd sd to species and genus level sd from biomass
         dataset_pivot_wider_num <-
           dataset_pivot_wider_num %>%
-          mutate(taxa_level_wood_density_sd = replace(
-            taxa_level_wood_density_sd,
-            is.na(tax_gen) & !is.na(tax_fam),
-            sd_10$sd[3]
-          ))
+          mutate(taxa_level_wood_density_sd = replace(taxa_level_wood_density_sd,
+                                                      source_taxa_level_wood_density_mean == "species",
+                                                      sd_10$sd[1])) %>%
+          mutate(taxa_level_wood_density_sd = replace(taxa_level_wood_density_sd,
+                                                      source_taxa_level_wood_density_mean == "genus",
+                                                      sd_10$sd[2]))
         
+        if (wd_fam_level_add) {
+          
+          dataset_pivot_wider_num <-
+            dataset_pivot_wider_num %>%
+            mutate(taxa_level_wood_density_sd = replace(
+              taxa_level_wood_density_sd,
+              is.na(tax_gen) & !is.na(tax_fam),
+              sd_10$sd[3]
+            ))
+          
+        }
       }
+      
+      
       
       # %>%
       #   filter(!is.na(tax_gen), is.na(tax_sp_level))
@@ -6796,6 +6704,10 @@ replace_NA <- function(vec, inv = FALSE) {
   if(type_data == "specimens")
     corresponding_data <-
       dplyr::tbl(mydb, "specimens")
+  
+  if(type_data == "methodslist")
+    corresponding_data <-
+      dplyr::tbl(mydb, "methodslist")
 
   if(type_data == "trait_measures") {
     # all_data <-
