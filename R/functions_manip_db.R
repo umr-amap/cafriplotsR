@@ -1594,41 +1594,34 @@ traits_list <- function(id_trait = NULL) {
 
 
 
-#' List, extract map selected plots
+#' List, extract and map selected plots and associated individuals
 #'
-#' Provide and map list of selected plots, including associated traits for individuals
+#' This function queries a PostgreSQL inventory database to return a list of forest plots or individuals, 
+#' with options to include associated traits and metadata, and to generate maps.
 #'
-#' @return A tibble of all plots or individuals
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #'
-#' @param team_lead string fuzzy person name to look for
-#' @param plot_name string fuzzy plot name to look for
-#' @param tag numeric exact tag number of the plot
-#' @param country string fuzzy country name to look for
-#' @param province string fuzzy province name to look for
-#' @param locality_name string fuzzy locality_name name to look for
-#' @param method stringfuzzy method name to look for
-#' @param date_y integer year of collect
-#' @param extract_individuals logical whether individuals instead of plot list as output
-#' @param map logical whether map whould be produced
-#' @param zoom integer positive values indicating zoom level for ggplot style map
-#' @param label logical for ggplot map, whether adding label or not
-#' @param try_optimal_label logical if map is ggplot
-#' @param map_type string mapview or ggplot, mapview by default
-#' @param id_individual numeric id of individual to be extracted
-#' @param id_plot numeric id of plot to be extracted
-#' @param id_specimen numeric id of specimen linked to individuals
-#' @param show_multiple_census logical whether multiple census should be shown, by default FALSE
-#' @param remove_ids logical remove all ids columns, by default TRUE
-#' @param collapse_multiple_val logical whether multiple traits measures should be collapsed (resulting values as character, separated by dash)
-#' @param extract_traits whether species level traits should be extracted as well
-#' @param extract_individual_features whether individual level trait or features should be extracted
-#' @param traits_to_genera if species-level traits should be extrapolated to genus level, by default is FALSE
-#' @param wd_fam_level logical, if wood density should be given at family level or not NOT YET FULLY AVAILABLE
-#' @param include_liana logical, if liana should be included, by default FALSE
-#' @param concatenate_stem logical, if TRUE, multi stem are concatacted into a single row
-#' @param remove_obs_with_issue logical, whether individual features should be excluded, default is TRUE
+#' @param plot_name String. Fuzzy match on plot name.
+#' @param tag Numeric. Exact tag number of the plot.
+#' @param country String. Fuzzy match on country name.
+#' @param locality_name String. Fuzzy match on locality name.
+#' @param method String. Fuzzy match on inventory method.
+#' @param extract_individuals Logical. If TRUE, returns individual-level data instead of plot list.
+#' @param map Logical. If TRUE, produces an interactive map of selected plots.
+#' @param id_individual Numeric. ID of a specific individual to extract (see id_n column of database)
+#' @param id_plot Numeric. ID of a specific plot to extract.
+#' @param id_specimen Numeric. ID of a herbarium specimen linked to individuals.
+#' @param show_multiple_census Logical. Whether to include multiple censuses. Default is FALSE.
+#' @param remove_ids Logical. If TRUE, removes ID columns from the output. Default is TRUE.
+#' @param collapse_multiple_val Logical. If TRUE, collapses multiple trait values into a single character string (dash-separated).
+#' @param extract_traits Logical. Whether to extract species-level traits.
+#' @param extract_individual_features Logical. Whether to extract individual-level traits or features.
+#' @param traits_to_genera Logical. If TRUE, extrapolates species-level traits to genus level.
+#' @param wd_fam_level Logical. If TRUE, uses wood density at family level (currently not fully available).
+#' @param include_liana Logical. Whether to include liana individuals. Default is FALSE.
+#' @param concatenate_stem Logical. If TRUE, concatenates multi-stem individuals into a single row.
+#' @param remove_obs_with_issue Logical. Whether to exclude individuals with issues. Default is TRUE.
 #'
 #' @importFrom DBI dbSendQuery dbFetch dbClearResult dbWriteTable
 #' @importFrom stringr str_flatten str_trim str_extract
@@ -1638,22 +1631,20 @@ traits_list <- function(id_trait = NULL) {
 #' @importFrom glue glue_sql
 #'
 #' @return A tibble of plots or individuals if extract_individuals is TRUE
-#'
+#' 
+#' @examples
+#' \dontrun{
+#'   get_plot_data(country = "Gabon", extract_individuals = TRUE, map = TRUE)
+#' }
+#' 
 #' @export
-query_plots <- function(team_lead = NULL,
-                        plot_name = NULL,
+query_plots <- function(plot_name = NULL,
                         tag = NULL,
                         country = NULL,
-                        province = NULL,
                         locality_name = NULL,
                         method = NULL,
-                        date_y = NULL,
                         extract_individuals = FALSE,
                         map = FALSE,
-                        zoom = 0,
-                        label = T,
-                        try_optimal_label = F,
-                        map_type = "mapview",
                         id_individual = NULL,
                         id_plot = NULL,
                         id_tax = NULL,
@@ -1673,30 +1664,23 @@ query_plots <- function(team_lead = NULL,
 
   if (!exists("mydb")) call.mydb()
   
-  if (show_multiple_census)
-    remove_obs_with_issue <- FALSE
+  if (show_multiple_census && remove_obs_with_issue)
+    cli::cli_alert_info("Disabling `remove_obs_with_issue` because multiple censuses are shown")
+  
+  remove_obs_with_issue <- if (show_multiple_census) FALSE else remove_obs_with_issue
+  
 
   if (!is.null(id_individual) | !is.null(id_specimen))
   {
+    
 
     if (!is.null(id_specimen)) {
 
-      cli::cli_rule(left = "Extracting individuals linked to specimens")
-
-      tbl <- "data_link_specimens"
-      sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE id_specimen IN ({vals*})",
-                            vals = id_specimen, .con = mydb)
-
-      res <- func_try_fetch(con = mydb, sql = sql)
-
-      if (nrow(res) == 0) {
-        stop("No individuals in the database linked to this specimen")
-      }
-
-      if (!is.null(id_individual)) cli::cli_alert_info("id_individual provided is not considered and individuals linked to id_specimen is used instead")
-
-      id_individual <- res$id_n
-
+      if (!is.null(id_individual)) 
+        cli::cli_alert_info("id_individual provided is not considered and individuals linked to id_specimen is used instead")
+      
+      id_individual <- .extract_by_specimen(id_specimen = id_specimen, con = mydb)
+      
     }
 
     cli::cli_rule(left = "Extracting from queried individuals - id_individual")
@@ -1713,13 +1697,16 @@ query_plots <- function(team_lead = NULL,
 
     id_plot <-
       res %>%
-      dplyr::select(id_table_liste_plots_n) %>%
+      dplyr::distinct(id_table_liste_plots_n) %>%
       pull()
 
   }
   
-  if (!is.null(tag))
+  if (!is.null(tag)) {
+    if (!extract_individuals) 
+      cli::cli_alert_info("extract_individuals is set as TRUE because tag is not null")
     extract_individuals <- TRUE
+  }
 
   if (!is.null(id_tax))
   {
@@ -1742,273 +1729,44 @@ query_plots <- function(team_lead = NULL,
   }
 
   if (is.null(id_plot)) {
-
-    query <- 'SELECT * FROM data_liste_plots WHERE MMM'
-
-      # query <- gsub(pattern = "MMM", replacement = paste0(" team_leader ILIKE '%", team_lead, "%' AND MMM"), x=query)
-
-    # query <- "SELECT * FROM data_liste_plots WHERE  team_leader ILIKE '%Dauby%' AND country IN ('Gabon', 'Cameroun')"
-
-    if (!is.null(country)) {
-      
-      list_country <-
-        .link_table(
-          data_stand = tibble(country = country),
-          column_searched = "country",
-          column_name = "country",
-          id_field = "id_country",
-          id_table_name = "id_country",
-          db_connection = mydb,
-          table_name = "table_countries"
-        )
-      
-      # id_liste_plots_match <- vector('list', length(country))
-      # for (i in 1:length(country)) {
-      #   
-      # 
-      #   
-      # 
-      #   query_country <-
-      #     paste0("SELECT * FROM table_countries WHERE country ILIKE '%", country[i], "%'")
-      # 
-      #   rs_country <- func_try_fetch(con = mydb, sql = query_country)
-      #   rs_country <- dplyr::as_tibble(rs_country)
-      # 
-      #   id_liste_plots_match[[i]] <- rs_country$id_country
-      # }
-
-      query <-
-        gsub(
-          pattern = "MMM",
-          replacement = paste0("id_country IN ('", paste(list_country$id_country, collapse = "', '"), "') AND MMM"),
-          x = query
-        )
-    }
-
-    if (!is.null(locality_name)) {
-      if (length(locality_name) == 1) {
-        query <-
-          gsub(
-            pattern = "MMM",
-            replacement = paste0(" locality_name ILIKE '%", locality_name, "%' AND MMM"),
-            x = query
-          )
-      } else {
-
-        id_liste_plots_match <- vector('list', length(locality_name))
-        for (i in 1:length(locality_name)) {
-
-          query_loc <-
-            paste0("SELECT * FROM data_liste_plots WHERE locality_name ILIKE '%", locality_name[i], "%'")
-
-          res_loc <- func_try_fetch(con = mydb, sql = query_loc)
-
-          # rs_loc <- DBI::dbSendQuery(mydb, query_loc)
-          # res_loc <- DBI::dbFetch(rs_loc)
-          # DBI::dbClearResult(rs_loc)
-          # res_loc <- dplyr::as_tibble(res_loc)
-          id_liste_plots_match[[i]] <- res_loc$id_liste_plots
-        }
-
-        query <-
-          gsub(
-          pattern = "MMM",
-          replacement = paste0(
-            "id_liste_plots IN ('",
-            paste(unlist(id_liste_plots_match), collapse = "', '"),
-            "') AND MMM"
-          ),
-          x = query
-        )
-      }
-    }
-
-    if (!is.null(province)) {
-      if (length(province) == 1) {
-        query <-
-          gsub(
-            pattern = "MMM",
-            replacement = paste0(" province ILIKE '%", province, "%' AND MMM"),
-            x = query
-          )
-      } else{
-        query <-
-          gsub(
-            pattern = "MMM",
-            replacement = paste0(
-              "province IN ('",
-              paste(province, collapse = "', '"),
-              "') AND MMM"
-            ),
-            x = query
-          )
-      }
-    }
-
-    if (!is.null(method)) {
-      query_method <- 'SELECT * FROM methodslist WHERE MMM'
-      if (length(method) == 1) {
-        query_method <-
-          gsub(
-            pattern = "MMM",
-            replacement = paste0(" method ILIKE '%", method, "%' AND MMM"),
-            x = query_method
-          )
-
-      } else {
-        query_method <-
-          gsub(
-            pattern = "MMM",
-            replacement = paste0("method IN ('", paste(method, collapse = "', '"), "') AND MMM"),
-            x = query_method
-          )
-      }
-
-      query_method <-
-        gsub(pattern = "AND MMM", replacement = "", query_method)
-
-      res_meth <- func_try_fetch(con = mydb, sql = query_method)
-
-      # rs_meth <- DBI::dbSendQuery(mydb, query_method)
-      # res_meth <- DBI::dbFetch(rs_meth)
-      # DBI::dbClearResult(rs_meth)
-      # res_meth <- dplyr::as_tibble(res_meth)
-
-      if (nrow(res_meth) == 0) {
-        warning("no method selected!")
-
-      } else {
-        cli::cli_alert_info("method(s) selected {res_meth}")
-
-        query <-
-          gsub(
-            pattern = "MMM",
-            replacement = paste0(
-              "id_method IN ('",
-              paste(res_meth$id_method, collapse = "', '"),
-              "') AND MMM"
-            ),
-            x = query
-          )
-      }
-    }
-
-    if (!is.null(plot_name)) {
-      if (length(plot_name) == 1) {
-        query <-
-          gsub(
-            pattern = "MMM",
-            replacement = paste0(" plot_name ILIKE '%", plot_name, "%' AND MMM"),
-            x = query
-          )
-      } else {
-        query <-
-          gsub(
-            pattern = "MMM",
-            replacement = paste0(
-              "plot_name IN ('",
-              paste(plot_name, collapse = "', '"),
-              "') AND MMM"
-            ),
-            x = query
-          )
-      }
-    }
-
-    query <- gsub(pattern = "AND MMM", replacement = "", query)
-
-    if(grepl("WHERE MMM", query)) query <- gsub(pattern = " WHERE MMM", replacement = "", query)
-
+    
+  
+    query <- .build_plot_query(con = mydb, country = country, plot_name = plot_name, 
+                               method = method, locality_name = locality_name)
+    
     res <- func_try_fetch(con = mydb, sql = query)
-
-    res <-
-      res %>%
-      dplyr::select(-id_old)
-
 
   } else {
 
     cli::cli_rule(left = "Extracting from queried plot - id_plot")
-
-    res <-
-      dplyr::tbl(mydb, "data_liste_plots") %>%
-      dplyr::filter(id_liste_plots %in% id_plot) %>%
-      dplyr::collect() %>%
-      dplyr::select(-id_old)
-
+    
+    sss <- glue::glue_sql("id_liste_plots IN ({vals*})", vals = id_plot, .con = con)
+    full_query <- glue::glue_sql("SELECT * FROM data_liste_plots WHERE {DBI::SQL(sss)}", .con = con)
+    res <- func_try_fetch(con = mydb, sql = full_query)
+    
   }
-
-  ## link method
+  
   res <-
     res %>%
-    dplyr::select(-method) %>% # remove old method
-    dplyr::left_join(dplyr::tbl(mydb, "methodslist") %>%
-                       dplyr::collect(),
-                     by = c("id_method" = "id_method")) %>%
-    dplyr::relocate(method, .after = data_provider)
-
-  ## link country
-  res <-
-    res %>%
-    dplyr::select(-country) %>% # remove old method
-    dplyr::left_join(dplyr::tbl(mydb, "table_countries") %>%
-                       dplyr::collect(),
-                     by = c("id_country" = "id_country")) %>%
-    # dplyr::rename(country = colnam) %>%
-    dplyr::relocate(country, .after = additional_people)
+    dplyr::select(-id_old)
+  
+  res <- 
+    .link_metadata_tables(res = res, con = mydb)
 
   if (extract_subplot_features & nrow(res) > 0) {
 
     all_subplots <- query_subplots(ids_plots =  res$id_liste_plots,
                                    verbose = FALSE)
 
-    id_plots_filtered <- c()
-    if (!is.null(team_lead)) {
-
-      id_liste_plots_match <-
-        .link_colnam(
-        data_stand = tibble(colnam = team_lead),
-        column_searched = "colnam",
-        column_name = "colnam",
-        id_field = "id_colnam",
-        id_table_name = "id_table_colnam",
-        db_connection = mydb,
-        table_name = "table_colnam"
-      )
-
-      if (!exists("id_liste_plots_match")) {
-        cli::cli_alert_warning("no team_leader found based on team_lead provided")
-      } else {
-
-        ids_team_lead <-
-          id_liste_plots_match$id_colnam
-
-        id_plots_filtered <-
-          all_subplots$all_subplots %>%
-          filter(type == "team_leader") %>%
-          filter(typevalue %in% ids_team_lead) %>%
-          pull(id_table_liste_plots)
-
-        if (nrow(id_plots_filtered) == 0)
-          cli::cli_alert_danger("No plot found for this team_leader")
-
-        all_subplots$all_subplot_pivot <-
-          all_subplots$all_subplot_pivot %>%
-          filter(id_table_liste_plots %in% id_plots_filtered)
-
-        all_subplots$all_subplots <-
-          all_subplots$all_subplots %>%
-          filter(id_table_liste_plots %in% id_plots_filtered)
-      }
-    }
-
     if (any(!is.na(all_subplots$census_features))) {
       census_features <- all_subplots$census_features
 
       census_features <-
         census_features %>%
-        dplyr::left_join(res %>% dplyr::select(plot_name, id_liste_plots),
-                         by = c("id_table_liste_plots" = "id_liste_plots")) %>%
+        dplyr::left_join(
+          res %>% dplyr::select(plot_name, id_liste_plots),
+          by = c("id_table_liste_plots" = "id_liste_plots")
+        ) %>%
         dplyr::relocate(plot_name, .before = year)
     }
 
@@ -2020,23 +1778,18 @@ query_plots <- function(team_lead = NULL,
       dplyr::left_join(all_subplots$all_subplot_pivot,
                        by = c("id_liste_plots" = "id_table_liste_plots"))
 
-    if (any(names(res) == "data_manager"))
-      res <- res %>%
-      dplyr::relocate(data_manager, .after = plot_name)
-
-    if (any(names(res) == "principal_investigator"))
+    relocate_fields <- c(
+      "plot_name",
+      "data_manager",
+      "principal_investigator",
+      "additional_people",
+      "team_leader"
+    )
+    
     res <- res %>%
-      dplyr::relocate(principal_investigator, .after = plot_name)
+      relocate(any_of(relocate_fields), .after = "plot_name")
 
-    if (any(names(res) == "additional_people"))
-      res <- res %>%
-      dplyr::relocate(additional_people, .after = plot_name)
-
-    if (any(names(res) == "team_leader"))
-      res <- res %>%
-      dplyr::relocate(team_leader, .after = plot_name)
-
-    if(show_all_coordinates) {
+    if (show_all_coordinates) {
 
       if (any(!is.na(all_subplots$all_subplots))) {
         all_ids_subplot_coordinates <-
@@ -2046,7 +1799,7 @@ query_plots <- function(team_lead = NULL,
         all_ids_subplot_coordinates <- tibble()
       }
 
-      if(nrow(all_ids_subplot_coordinates) > 0) {
+      if (nrow(all_ids_subplot_coordinates) > 0) {
 
         cli::cli_alert_info('Extracting coordinates')
 
@@ -2079,112 +1832,24 @@ query_plots <- function(team_lead = NULL,
           filter(coord4 == "plot")
 
         if (nrow(all_coordinates_subplots_rf) > 0) {
-          all_plots_coord <- unique(all_coordinates_subplots_rf$id_table_liste_plots)
-
-          coordinates_subplots_plot <- vector('list', length(all_plots_coord))
-          coordinates_subplots_plot_sf <- vector('list', length(all_plots_coord))
-          for (j in 1:length(all_plots_coord)) {
-
-            grouped_coordinates <-
-              all_coordinates_subplots_rf %>%
-              dplyr::select(-type) %>%
-              dplyr::filter(id_table_liste_plots == all_plots_coord[j]) %>%
-              group_by(coord1, coord2, coord3, id_table_liste_plots) %>%
-              summarise(typevalue = mean(typevalue),
-                        id_sub_plots = stringr::str_c(id_sub_plots,
-                                                      collapse = ", ")) %>%
-              ungroup()
-
-            coordinates_subplots <-
-              tidyr::pivot_wider(grouped_coordinates,
-                                 names_from = coord3,
-                                 values_from = c(typevalue, id_sub_plots))
-
-            if (nrow(coordinates_subplots) > 0) {
-
-              coordinates_subplots <-
-                coordinates_subplots %>%
-                mutate(coord1 = as.numeric(coord1),
-                       coord2 = as.numeric(coord2))
-
-              coordinates_subplots <-
-                coordinates_subplots %>%
-                mutate(Xrel = coord1 - min(coordinates_subplots$coord1),
-                       Yrel = coord2 - min(coordinates_subplots$coord2))
-
-                cor_coord <-
-                  suppressWarnings(BIOMASS::correctCoordGPS(
-                    longlat = coordinates_subplots[, c("typevalue_ddlon", "typevalue_ddlat")],
-                    rangeX = c(0, dist(range(as.numeric(coordinates_subplots$coord1)))),
-                    rangeY = c(0, dist(range(as.numeric(coordinates_subplots$coord2)))),
-                    coordRel = coordinates_subplots %>%
-                      dplyr::select(Xrel, Yrel),
-                    drawPlot = F,
-                    rmOutliers = T
-                  ))
-
-                poly_plot <- sf::st_as_sf(cor_coord$polygon)
-                sf::st_crs(poly_plot) <- cor_coord$codeUTM
-
-                poly_plot <- sf::st_transform(poly_plot, 4326)
-
-                poly_plot <-
-                  poly_plot %>%
-                  dplyr::mutate(id_liste_plots = all_plots_coord[j])
-                # %>%
-                #   left_join(res %>%
-                #               dplyr::select(plot_name, id_liste_plots),
-                #             by = c("plot_name" = "plot_name"))
-
-                coordinates_subplots_plot_sf[[j]] <-
-                  poly_plot
-
-
-            } else {
-
-              cli::cli_alert_danger("No coordinates for {all_plots_coord[j]} available")
-
-
-            }
-
-            coordinates_subplots_plot[[j]] <-
-              coordinates_subplots
-
-          }
-
-          coordinates_subplots <-
-            bind_rows(coordinates_subplots_plot)
-
-          coordinates_subplots_plot_sf <-
-            do.call('rbind', coordinates_subplots_plot_sf)
-
-          coordinates_subplots_plot_sf <-
-            coordinates_subplots_plot_sf %>%
-            left_join(res %>% dplyr::select(id_liste_plots, plot_name),
-                      by = c("id_liste_plots" = "id_liste_plots"))
-
-          coordinates_subplots <-
-            coordinates_subplots %>%
-            left_join(res %>% dplyr::select(id_liste_plots, plot_name),
-                      by = c("id_table_liste_plots" = "id_liste_plots"))
+          
+          coord_processed <- .process_coordinates(all_coordinates = all_coordinates_subplots_rf, res = res)
+   
+          coordinates_subplots_plot_sf <- 
+            coord_processed$coordinates_sf %>%
+            left_join(res %>% select(id_liste_plots, plot_name), by = "id_liste_plots")
+          
+          coordinates_subplots <- 
+            coord_processed$coordinates_raw %>%
+            left_join(res %>% select(id_liste_plots, plot_name), by = c("id_table_liste_plots" = "id_liste_plots"))
 
         }
-
-
-
       } else {
-
+        
         show_all_coordinates <- FALSE
         cli::cli_alert_danger("No coordinates for quadrat available")
-
       }
-
     }
-
-    if (length(id_plots_filtered) > 0)
-      res <-
-      res %>% filter(id_liste_plots %in% id_plots_filtered)
-
   }
 
   if (nrow(res) == 0)
@@ -2196,10 +1861,10 @@ query_plots <- function(team_lead = NULL,
 
     cli::cli_rule(left = "Mapping")
 
-    if (requireNamespace("spData", quietly = TRUE)) {
-      library(spData)
-      data(world)
-    }
+    # if (requireNamespace("spData", quietly = TRUE)) {
+    #   library(spData)
+    #   data(world)
+    # }
 
     if(any(is.na(res$ddlat)) | any(is.na(res$ddlon))) {
       not_georef_plot <-
@@ -2218,53 +1883,16 @@ query_plots <- function(team_lead = NULL,
     data_sf <- sf::st_as_sf(res, coords = c("ddlon", "ddlat"), crs = 4326)
     bbox_data <- sf::st_bbox(data_sf)
 
-    if(map_type == "ggplot") {
+    map_types <- c("OpenStreetMap.DE",
+                   "Esri.WorldImagery",
+                   "Esri.WorldPhysical")
 
-      outputmap <-
-        ggplot2::ggplot() +
-        ggplot2::geom_sf(data = world, alpha=0.8)
-
-      if(label) {
-        if(try_optimal_label) {
-
-          if (!any(rownames(utils::installed.packages()) == "ggrepel"))
-            stop("ggrepel package needed, please install it")
-
-          outputmap <-
-            outputmap +
-            ggrepel::geom_text_repel(ggplot2::aes(x= res$ddlon, y= res$ddlat, label= data_sf$plot_name), hjust=0, vjust=0)
-
-        }else{
-          outputmap <-
-            outputmap +
-            ggplot2::geom_text(ggplot2::aes(x= res$ddlon, y= res$ddlat, label= data_sf$plot_name), hjust=0, vjust=0)
-        }
-      }
-
-      outputmap <- outputmap +
-        ggplot2::geom_sf(data = data_sf)
-
-      outputmap <-
-        outputmap +
-        ggplot2::coord_sf(xlim = c(bbox_data[1]-zoom, bbox_data[3]+zoom), ylim = c(bbox_data[2]-zoom, bbox_data[4]+zoom))
-
-
-    }
-
-    if(map_type == "mapview") {
-      map_types <- c("OpenStreetMap.DE",
-                     "Esri.WorldImagery",
-                     "Esri.WorldPhysical")
-
-      print(map_type)
-      outputmap <-  mapview::mapview(data_sf, map.types = map_types)
-
-      if(show_all_coordinates) {
-        if(!is.null(unlist(coordinates_subplots_plot_sf)))
-          outputmap <- outputmap +
-            mapview::mapview(coordinates_subplots_plot_sf, map.types = map_types)
-      }
-
+    outputmap <-  mapview::mapview(data_sf, map.types = map_types)
+    
+    if(show_all_coordinates) {
+      if(!is.null(unlist(coordinates_subplots_plot_sf)))
+        outputmap <- outputmap +
+          mapview::mapview(coordinates_subplots_plot_sf, map.types = map_types)
     }
 
     print(outputmap)
@@ -2559,10 +2187,6 @@ query_plots <- function(team_lead = NULL,
 
     cli::cli_alert_warning("Identifiers are removed because the parameter 'remove_ids' = {remove_ids} ")
 
-    # res <-
-    #   res %>%
-    #   dplyr::select_at(which(!grepl("id_", colnames(res))))
-
     res <-
       res %>%
       dplyr::rename(idDB = id_liste_plots) %>%
@@ -2608,6 +2232,191 @@ query_plots <- function(team_lead = NULL,
 }
 
 
+.process_coordinates <- function(all_coordinates, res) {
+  
+  all_plots_coord <- unique(all_coordinates$id_table_liste_plots)
+  coordinates_sf_list <- vector('list', length(all_plots_coord))
+  coordinates_data_list <- vector('list', length(all_plots_coord))
+  
+  for (j in seq_along(all_plots_coord)) {
+    id_plot <- all_plots_coord[j]
+    grouped <- all_coordinates %>%
+      filter(id_table_liste_plots == id_plot) %>%
+      group_by(coord1, coord2, coord3, id_table_liste_plots) %>%
+      summarise(
+        typevalue = mean(typevalue),
+        id_sub_plots = str_c(id_sub_plots, collapse = ", "),
+        .groups = "drop"
+      ) %>%
+      pivot_wider(names_from = coord3, values_from = c(typevalue, id_sub_plots)) %>%
+      mutate(
+        coord1 = as.numeric(coord1),
+        coord2 = as.numeric(coord2),
+        Xrel = coord1 - min(coord1),
+        Yrel = coord2 - min(coord2)
+      )
+    
+    if (nrow(grouped) == 0) next
+    
+    cor_coord <- suppressMessages(suppressWarnings(BIOMASS::correctCoordGPS(
+      longlat = grouped[, c("typevalue_ddlon", "typevalue_ddlat")],
+      rangeX = c(0, diff(range(grouped$coord1))),
+      rangeY = c(0, diff(range(grouped$coord2))),
+      coordRel = grouped %>% select(Xrel, Yrel),
+      drawPlot = FALSE, rmOutliers = TRUE
+    )))
+    
+    poly_plot <- st_as_sf(cor_coord$polygon) %>%
+      st_set_crs(cor_coord$codeUTM) %>%
+      st_transform(4326) %>%
+      mutate(id_liste_plots = id_plot)
+    
+    coordinates_sf_list[[j]] <- poly_plot
+    coordinates_data_list[[j]] <- grouped
+  }
+  
+  list(
+    coordinates_sf = do.call(bind_rows, coordinates_sf_list),
+    coordinates_raw = bind_rows(coordinates_data_list)
+  )
+}
+
+.link_metadata_tables <- function(res, con) {
+  # Liste des tables de métadonnées connues à joindre
+  metadata_tables <- list(
+    id_country = list(table = "table_countries", keep = c("country")),
+    id_method = list(table = "methodslist", keep = c("method"))
+  )
+  
+  # Colonnes présentes dans le tibble
+  cols_in_res <- colnames(res)
+  
+  # Pour chaque clé étrangère détectée dans res
+  for (id_col in names(metadata_tables)) {
+    if (id_col %in% cols_in_res) {
+      meta_info <- metadata_tables[[id_col]]
+      table_name <- meta_info$table
+      keep_cols <- meta_info$keep
+      
+      # Récupère la table de la base
+      meta_tbl <- tryCatch({
+        dplyr::tbl(con, table_name) %>% dplyr::collect()
+      }, error = function(e) {
+        warning(glue::glue("Impossible de collecter {table_name} : {e$message}"))
+        return(NULL)
+      })
+      
+      # Effectue la jointure si succès
+      if (!is.null(meta_tbl)) {
+        # Pour éviter les conflits de nom de colonnes
+        keep_cols_clean <- setdiff(keep_cols, names(res))
+        if (length(keep_cols_clean) < length(keep_cols)) 
+          res <- rm_field(res, field = keep_cols)
+        
+        meta_tbl <- dplyr::select(meta_tbl, dplyr::all_of(c(id_col, keep_cols)))
+        res <- dplyr::left_join(res, meta_tbl, by = id_col)
+      }
+    }
+  }
+  
+  return(res)
+}
+
+
+.build_plot_query <- function(
+    con,
+    country = NULL,
+    plot_name = NULL,
+    method = NULL,
+    locality_name = NULL
+) {
+  
+  where_clauses <- c()
+  
+  # Filter by country
+  if (!is.null(country)) {
+    list_country <- .link_table(
+      data_stand = tibble::tibble(country = country),
+      column_searched = "country",
+      column_name = "country",
+      id_field = "id_country",
+      id_table_name = "id_country",
+      db_connection = con,
+      table_name = "table_countries"
+    )
+    
+    if (nrow(list_country) > 0) {
+      clause <- glue::glue_sql("id_country IN ({vals*})", vals = list_country$id_country, .con = con)
+      where_clauses <- c(where_clauses, clause)
+    }
+  }
+  
+  # Filter by plot name
+  if (!is.null(plot_name)) {
+    if (length(plot_name) == 1) {
+      clause <- glue::glue_sql("plot_name ILIKE {like}", like = paste0("%", plot_name, "%"), .con = con)
+    } else {
+      clause <- glue::glue_sql("plot_name IN ({vals*})", vals = plot_name, .con = con)
+    }
+    where_clauses <- c(where_clauses, clause)
+  }
+  
+  # Filter by method
+  if (!is.null(method)) {
+    
+    patterns <- lapply(method, function(x) glue::glue_sql("method ILIKE {pattern}", pattern = paste0("%", x, "%"), .con = con))
+    query_method <- glue::glue_sql(
+      "SELECT * FROM methodslist WHERE {DBI::SQL(glue::glue_collapse(patterns, sep = ' OR '))}",
+      .con = con
+    )
+
+    res_meth <- func_try_fetch(con = con, sql = query_method)
+    if (nrow(res_meth) > 0) {
+      clause <- glue::glue_sql("id_method IN ({vals*})", vals = res_meth$id_method, .con = con)
+      where_clauses <- c(where_clauses, clause)
+    } else {
+      cli::cli_alert_warning("No method found matching: {method}")
+    }
+  }
+  
+  # Filter by locality name
+  if (!is.null(locality_name)) {
+    if (length(locality_name) == 1) {
+      clause <- glue::glue_sql("locality_name ILIKE {like}", like = paste0("%", locality_name, "%"), .con = con)
+      where_clauses <- c(where_clauses, clause)
+    } else {
+      ids <- lapply(locality_name, function(loc) {
+        sql <- glue::glue_sql("SELECT id_liste_plots FROM data_liste_plots WHERE locality_name ILIKE {like}",
+                              like = paste0("%", loc, "%"), .con = con)
+        func_try_fetch(con = con, sql = sql)$id_liste_plots
+      }) %>% unlist()
+      if (length(ids) > 0) {
+        clause <- glue::glue_sql("id_liste_plots IN ({vals*})", vals = ids, .con = con)
+        where_clauses <- c(where_clauses, clause)
+      }
+    }
+  }
+  
+  # Combine everything
+  base_query <- "SELECT * FROM data_liste_plots"
+  if (length(where_clauses) > 0) {
+    full_query <- glue::glue_sql("{DBI::SQL(base_query)} WHERE {DBI::SQL(paste(where_clauses, collapse = ' AND '))}", .con = con)
+  } else {
+    full_query <- glue::glue_sql("{DBI::SQL(base_query)}", .con = con)
+  }
+  
+  return(full_query)
+}
+
+
+.extract_by_specimen <- function(id_specimen, con) {
+  tbl <- "data_link_specimens"
+  sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE id_specimen IN ({vals*})",
+                        vals = id_specimen, .con = con)
+  res <- func_try_fetch(con = con, sql = sql)
+  if (nrow(res) == 0) stop("No individuals linked to this specimen")
+  return(res$id_n)
+}
 
 .traits_to_genera_aggreg <- function(dataset, wd_fam_level_add = wd_fam_level) {
   

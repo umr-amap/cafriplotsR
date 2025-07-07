@@ -33,26 +33,85 @@ subplot_list <- function() {
 }
 
 
-.sql_query_subplot_plot <- function(id_plots, 
-                                    mydb_ = mydb, 
-                                    tbl = "data_liste_sub_plots", 
-                                    tbl2 = "subplotype_list") {
-  
-  sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.id_type_sub_plot = {`tbl2`}.id_subplotype WHERE id_table_liste_plots IN ({vals*})",
-                        vals = id_plots, .con = mydb_)
-  return(sql)
+# .sql_query_subplot_plot <- function(id_plots, 
+#                                     mydb_ = mydb, 
+#                                     tbl = "data_liste_sub_plots", 
+#                                     tbl2 = "subplotype_list") {
+#   
+#   sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.id_type_sub_plot = {`tbl2`}.id_subplotype WHERE id_table_liste_plots IN ({vals*})",
+#                         vals = id_plots, .con = mydb_)
+#   return(sql)
+# }
+# 
+# .sql_query_subplot_plot_2 <- function(id_plots,
+#                                       id_subplots,
+#                                       mydb_ = mydb, 
+#                                       tbl = "data_liste_sub_plots", 
+#                                       tbl2 = "subplotype_list") {
+#   
+#   sql <-glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.id_type_sub_plot = {`tbl2`}.id_subplotype WHERE id_table_liste_plots IN ({vals*}) AND id_subplotype IN ({vals2*})",
+#                        vals = id_plots, vals2 = id_subplots, .con = mydb_)
+#   return(sql)
+# }
+
+.sql_join_subplots_clause <- function(tbl, tbl2, con) {
+  glue::glue_sql(
+    "{`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.id_type_sub_plot = {`tbl2`}.id_subplotype",
+    tbl = tbl,
+    tbl2 = tbl2,
+    .con = con
+  )
 }
 
-.sql_query_subplot_plot_2 <- function(id_plots,
-                                      id_subplots,
-                                      mydb_ = mydb, 
-                                      tbl = "data_liste_sub_plots", 
-                                      tbl2 = "subplotype_list") {
+sql_query_subplots_by_plot_ids <- function(id_plots, 
+                                           mydb_ = mydb, 
+                                           tbl = "data_liste_sub_plots", 
+                                           tbl2 = "subplotype_list") {
+  stopifnot(length(id_plots) > 0)
   
-  sql <-glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.id_type_sub_plot = {`tbl2`}.id_subplotype WHERE id_table_liste_plots IN ({vals*}) AND id_subplotype IN ({vals2*})",
-                       vals = id_plots, vals2 = id_subplots, .con = mydb)
-  return(sql)
+  join_clause <- .sql_join_subplots_clause(tbl, tbl2, con = mydb_)
+  
+  glue::glue_sql(
+    "SELECT * FROM {join_clause} WHERE {`tbl`}.id_table_liste_plots IN ({vals*})",
+    join_clause = join_clause,
+    tbl = tbl,
+    vals = id_plots,
+    .con = mydb_
+  )
 }
+
+sql_query_subplots_by_plot_and_subplot_ids <- function(id_plots,
+                                                      id_subplots,
+                                                      mydb_ = mydb,
+                                                      tbl = "data_liste_sub_plots",
+                                                      tbl2 = "subplotype_list") {
+  stopifnot(length(id_plots) > 0, length(id_subplots) > 0)
+  
+  join_clause <- .sql_join_subplots_clause(tbl, tbl2, con = mydb_)
+  
+  glue::glue_sql(
+    "SELECT * FROM {join_clause} WHERE {`tbl`}.id_table_liste_plots IN ({vals*}) AND {`tbl`}.id_sub_plots IN ({vals2*})",
+    join_clause = join_clause,
+    tbl = tbl,
+    vals = id_plots,
+    vals2 = id_subplots,
+    .con = mydb_
+  )
+}
+
+
+.build_sql_query_subplots <- function(ids_plots, ids_subplots, con) {
+  if (!is.null(ids_plots) && is.null(ids_subplots)) {
+    return(sql_query_subplots_by_plot_ids(id_plots = ids_plots, mydb_ = con))
+  } else if (!is.null(ids_plots) && !is.null(ids_subplots)) {
+    return(sql_query_subplots_by_plot_and_subplot_ids(id_plots = ids_plots, id_subplots = ids_subplots, mydb_ = con))
+  } else if (is.null(ids_plots) && !is.null(ids_subplots)) {
+    return(.sql_query_subplot(id_subplots = ids_subplots, mydb_ = con))
+  } else {
+    cli::cli_abort("No values for plots or subplots queried")
+  }
+}
+
 
 
 
@@ -67,11 +126,9 @@ subplot_list <- function() {
 #'
 #' @param id_plots integer
 #' @param ids_subplots integer
-#' @param team_lead string fuzzy person name to look for
 #' @param plot_name string fuzzy plot name to look for
 #' @param tag numeric exact tag number of the plot
 #' @param country string fuzzy country name to look for
-#' @param province string fuzzy province name to look for
 #' @param locality_name string fuzzy locality_name name to look for
 #' @param method stringfuzzy method name to look for
 #' @param subtype string subtype to select
@@ -82,11 +139,8 @@ subplot_list <- function() {
 #' @export
 query_subplots <- function(ids_plots = NULL,
                            ids_subplots = NULL,
-                           team_lead = NULL,
                            plot_name = NULL,
-                           tag = NULL,
                            country = NULL,
-                           province = NULL,
                            locality_name = NULL,
                            method = NULL,
                            subtype = NULL,
@@ -96,49 +150,24 @@ query_subplots <- function(ids_plots = NULL,
   
   if (is.null(ids_plots) & is.null(ids_subplots)) {
     
-    queried_plots <-
-      query_plots(
-        team_lead = team_lead,
-        plot_name = plot_name,
-        tag = tag,
-        country = country,
-        province = province,
-        locality_name = locality_name,
-        method = method,
-        remove_ids = FALSE,
-        extract_subplot_features = FALSE,
-      )
+    queried_plots_sql <- 
+      .build_plot_query(con = mydb,
+                      plot_name = plot_name,
+                      country = country,
+                      locality_name = locality_name,
+                      method = method)
+    
+    queried_plots <- func_try_fetch(con = mydb, sql = queried_plots_sql)
     
     ids_plots <- queried_plots$id_liste_plots
     
-    sub_plot_data <-
-      dplyr::tbl(mydb, "data_liste_sub_plots") %>%
-      dplyr::filter(id_table_liste_plots %in% ids_plots) %>% 
-      collect()
-    
-  } 
-    
-  if (!is.null(ids_plots) &
-      is.null(ids_subplots))
-    sql <- 
-      .sql_query_subplot_plot(id_plots = ids_plots, mydb_ = mydb)
+  }
   
-  if (!is.null(ids_plots) & !is.null(ids_subplots))
-    sql <- 
-      .sql_query_subplot_plot_2(id_plots = ids_plots,
-                                     id_subplots = ids_subplots,
-                                     mydb_ = mydb)
-  
-  if (is.null(ids_plots) & !is.null(ids_subplots))
-    sql <- 
-      .sql_query_subplot(id_subplots = ids_subplots, mydb_ = mydb)
+  sql <- .build_sql_query_subplots(ids_plots, ids_subplots, con = mydb)
   
   sub_plot_data <-
     suppressMessages(func_try_fetch(con = mydb, sql = sql)
     )
-    
-  
-
   
   nbe_subplot_data <- nrow(dplyr::distinct(sub_plot_data,
                                            id_table_liste_plots))
@@ -149,26 +178,14 @@ query_subplots <- function(ids_plots = NULL,
   
   if (nbe_subplot_data > 0) {
     
-    # all_sub_type <-
-    #   sub_plot_data %>%
-    #   dplyr::distinct(id_type_sub_plot) %>%
-    #   dplyr::left_join(
-    #     dplyr::tbl(mydb, "subplotype_list") %>%
-    #       dplyr::select(type, valuetype, typedescription, id_subplotype),
-    #     by = c("id_type_sub_plot" = "id_subplotype")
-    #   )
-    
     if (!is.null(subtype)) {
+      
       sub_plot_data <-
         sub_plot_data %>%
         dplyr::filter(grepl(subtype, type))
       
       cli::cli_alert_info("Selected subplot features: {all_sub_type$type}")
       
-      # sub_plot_data <-
-      #   sub_plot_data %>%
-      #   dplyr::filter(id_type_sub_plot %in% !!(all_sub_type %>%
-      #                                            dplyr::pull(id_type_sub_plot)))
       
     }
     
@@ -188,7 +205,6 @@ query_subplots <- function(ids_plots = NULL,
                     original_subplot_name,
                     id_sub_plots,
                     comment)
-    
     
     if (extract_subplots_obs_features) {
       
@@ -212,36 +228,11 @@ query_subplots <- function(ids_plots = NULL,
       
     }
     
+    numeric_subplots_pivot <- 
+      build_numeric_pivot(dataset = extracted_data)
     
-    if (any(extracted_data$valuetype == "numeric")) {
-      numeric_subplots_pivot <-
-        extracted_data %>%
-        filter(valuetype == "numeric",
-               type != "census") %>%
-        select(id_table_liste_plots, typevalue, type) %>%
-        tidyr::pivot_wider(
-          names_from = "type",
-          values_from = "typevalue",
-          values_fn = ~ mean(.x, na.rm = TRUE)
-        )
-    } else {
-      numeric_subplots_pivot <- NULL
-    }
-    
-    if (any(extracted_data$valuetype == "character")) {
-      character_subplots_pivot <-
-        extracted_data %>%
-        filter(valuetype == "character",
-               type != "census") %>%
-        select(id_table_liste_plots, typevalue_char, type) %>%
-        tidyr::pivot_wider(
-          names_from = "type",
-          values_from = "typevalue_char",
-          values_fn = ~ paste(.x, collapse = "|")
-        )
-    } else {
-      character_subplots_pivot <- NULL
-    }
+    character_subplots_pivot <- 
+      build_character_pivot(dataset = extracted_data)
     
     if (any(extracted_data$type == "census")) {
       
@@ -257,19 +248,6 @@ query_subplots <- function(ids_plots = NULL,
       
       census_features <-
         census_plots 
-      # %>%
-      #   # dplyr::left_join(dplyr::tbl(mydb, "table_colnam") %>%
-      #   #                    filter(id_table_colnam %in% !!census_plots$id_colnam) %>%
-      #   #                    collect(),
-      #   #                  by = c("id_colnam" = "id_table_colnam")) %>%
-      #   dplyr::select(
-      #     year,
-      #     month,
-      #     day,
-      #     typevalue,
-      #     id_sub_plots,
-      #     id_table_liste_plots
-      #   )
       
       nbr_census <- dplyr::distinct(census_features, typevalue)
       census_dates_lists <- vector('list', nrow(nbr_census))
@@ -392,7 +370,25 @@ query_subplots <- function(ids_plots = NULL,
   
 }
 
+build_numeric_pivot <- function(dataset) {
+  if (!any(dataset$valuetype == "numeric")) return(NULL)
+  dataset %>%
+    filter(valuetype == "numeric", type != "census") %>%
+    select(id_table_liste_plots, typevalue, type) %>%
+    pivot_wider(names_from = "type",
+                values_from = "typevalue",
+                values_fn = ~ mean(.x, na.rm = TRUE))
+}
 
+build_character_pivot <- function(dataset) {
+  if (!any(dataset$valuetype == "character")) return(NULL)
+  dataset %>%
+    filter(valuetype == "character", type != "census") %>%
+    select(id_table_liste_plots, typevalue_char, type) %>%
+    pivot_wider(names_from = "type",
+                values_from = "typevalue_char",
+                values_fn = ~ paste(.x, collapse = "|"))
+}
 
 
 #' Add an observation in subplot_features table
