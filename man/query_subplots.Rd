@@ -34,8 +34,6 @@ query_subplots(
 \item{extract_subplots_obs_features}{logical}
 
 \item{id_plots}{integer}
-
-\item{tag}{numeric exact tag number of the plot}
 }
 \value{
 A tibble of all subplots
