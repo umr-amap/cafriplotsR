@@ -2,23 +2,16 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{query_plots}
 \alias{query_plots}
-\title{List, extract map selected plots}
+\title{List, extract and map selected plots and associated individuals}
 \usage{
 query_plots(
-  team_lead = NULL,
   plot_name = NULL,
   tag = NULL,
   country = NULL,
-  province = NULL,
   locality_name = NULL,
   method = NULL,
-  date_y = NULL,
   extract_individuals = FALSE,
   map = FALSE,
-  zoom = 0,
-  label = T,
-  try_optimal_label = F,
-  map_type = "mapview",
   id_individual = NULL,
   id_plot = NULL,
   id_tax = NULL,
@@ -38,67 +31,58 @@ query_plots(
 )
 }
 \arguments{
-\item{team_lead}{string fuzzy person name to look for}
+\item{plot_name}{String. Fuzzy match on plot name.}
 
-\item{plot_name}{string fuzzy plot name to look for}
+\item{tag}{Numeric. Exact tag number of the plot.}
 
-\item{tag}{numeric exact tag number of the plot}
+\item{country}{String. Fuzzy match on country name.}
 
-\item{country}{string fuzzy country name to look for}
+\item{locality_name}{String. Fuzzy match on locality name.}
 
-\item{province}{string fuzzy province name to look for}
+\item{method}{String. Fuzzy match on inventory method.}
 
-\item{locality_name}{string fuzzy locality_name name to look for}
+\item{extract_individuals}{Logical. If TRUE, returns individual-level data instead of plot list.}
 
-\item{method}{stringfuzzy method name to look for}
+\item{map}{Logical. If TRUE, produces an interactive map of selected plots.}
 
-\item{date_y}{integer year of collect}
+\item{id_individual}{Numeric. ID of a specific individual to extract (see id_n column of database)}
 
-\item{extract_individuals}{logical whether individuals instead of plot list as output}
+\item{id_plot}{Numeric. ID of a specific plot to extract.}
 
-\item{map}{logical whether map whould be produced}
+\item{id_specimen}{Numeric. ID of a herbarium specimen linked to individuals.}
 
-\item{zoom}{integer positive values indicating zoom level for ggplot style map}
+\item{show_multiple_census}{Logical. Whether to include multiple censuses. Default is FALSE.}
 
-\item{label}{logical for ggplot map, whether adding label or not}
+\item{remove_ids}{Logical. If TRUE, removes ID columns from the output. Default is TRUE.}
 
-\item{try_optimal_label}{logical if map is ggplot}
+\item{collapse_multiple_val}{Logical. If TRUE, collapses multiple trait values into a single character string (dash-separated).}
 
-\item{map_type}{string mapview or ggplot, mapview by default}
+\item{extract_traits}{Logical. Whether to extract species-level traits.}
 
-\item{id_individual}{numeric id of individual to be extracted}
+\item{extract_individual_features}{Logical. Whether to extract individual-level traits or features.}
 
-\item{id_plot}{numeric id of plot to be extracted}
+\item{traits_to_genera}{Logical. If TRUE, extrapolates species-level traits to genus level.}
 
-\item{id_specimen}{numeric id of specimen linked to individuals}
+\item{wd_fam_level}{Logical. If TRUE, uses wood density at family level (currently not fully available).}
 
-\item{show_multiple_census}{logical whether multiple census should be shown, by default FALSE}
+\item{include_liana}{Logical. Whether to include liana individuals. Default is FALSE.}
 
-\item{remove_ids}{logical remove all ids columns, by default TRUE}
+\item{concatenate_stem}{Logical. If TRUE, concatenates multi-stem individuals into a single row.}
 
-\item{collapse_multiple_val}{logical whether multiple traits measures should be collapsed (resulting values as character, separated by dash)}
-
-\item{extract_traits}{whether species level traits should be extracted as well}
-
-\item{extract_individual_features}{whether individual level trait or features should be extracted}
-
-\item{traits_to_genera}{if species-level traits should be extrapolated to genus level, by default is FALSE}
-
-\item{wd_fam_level}{logical, if wood density should be given at family level or not NOT YET FULLY AVAILABLE}
-
-\item{include_liana}{logical, if liana should be included, by default FALSE}
-
-\item{concatenate_stem}{logical, if TRUE, multi stem are concatacted into a single row}
-
-\item{remove_obs_with_issue}{logical, whether individual features should be excluded, default is TRUE}
+\item{remove_obs_with_issue}{Logical. Whether to exclude individuals with issues. Default is TRUE.}
 }
 \value{
-A tibble of all plots or individuals
-
 A tibble of plots or individuals if extract_individuals is TRUE
 }
 \description{
-Provide and map list of selected plots, including associated traits for individuals
+This function queries a PostgreSQL inventory database to return a list of forest plots or individuals, 
+with options to include associated traits and metadata, and to generate maps.
+}
+\examples{
+\dontrun{
+  get_plot_data(country = "Gabon", extract_individuals = TRUE, map = TRUE)
+}
+
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}

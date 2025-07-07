@@ -7,11 +7,8 @@
 query_subplots(
   ids_plots = NULL,
   ids_subplots = NULL,
-  team_lead = NULL,
   plot_name = NULL,
-  tag = NULL,
   country = NULL,
-  province = NULL,
   locality_name = NULL,
   method = NULL,
   subtype = NULL,
@@ -22,15 +19,9 @@ query_subplots(
 \arguments{
 \item{ids_subplots}{integer}
 
-\item{team_lead}{string fuzzy person name to look for}
-
 \item{plot_name}{string fuzzy plot name to look for}
 
-\item{tag}{numeric exact tag number of the plot}
-
 \item{country}{string fuzzy country name to look for}
-
-\item{province}{string fuzzy province name to look for}
 
 \item{locality_name}{string fuzzy locality_name name to look for}
 
@@ -43,6 +34,8 @@ query_subplots(
 \item{extract_subplots_obs_features}{logical}
 
 \item{id_plots}{integer}
+
+\item{tag}{numeric exact tag number of the plot}
 }
 \value{
 A tibble of all subplots
