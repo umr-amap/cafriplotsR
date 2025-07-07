@@ -375,7 +375,7 @@ build_numeric_pivot <- function(dataset) {
   dataset %>%
     filter(valuetype == "numeric", type != "census") %>%
     select(id_table_liste_plots, typevalue, type) %>%
-    pivot_wider(names_from = "type",
+    tidyr::pivot_wider(names_from = "type",
                 values_from = "typevalue",
                 values_fn = ~ mean(.x, na.rm = TRUE))
 }
@@ -385,7 +385,7 @@ build_character_pivot <- function(dataset) {
   dataset %>%
     filter(valuetype == "character", type != "census") %>%
     select(id_table_liste_plots, typevalue_char, type) %>%
-    pivot_wider(names_from = "type",
+    tidyr::pivot_wider(names_from = "type",
                 values_from = "typevalue_char",
                 values_fn = ~ paste(.x, collapse = "|"))
 }
