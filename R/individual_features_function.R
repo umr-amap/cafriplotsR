@@ -593,7 +593,9 @@ query_individual_features <- function(id = NULL,
 #' @param show_multiple_measures logical whether multiple measures (i.e. census or sometimes more than one value for given measure)
 #' @param collapse_multiple_val logical whether multiple traits measures should be collapsed (resulting values as character, separated by dash)
 #' @param remove_obs_with_issue logical
-#'
+#' 
+#' @importFrom data.table setDT is.data.table
+#' 
 #' @export
 .get_trait_individuals_values <- function(traits,
                                           src_individuals = NULL,
@@ -689,10 +691,9 @@ query_individual_features <- function(id = NULL,
     if (length(char_list) == 0) return(NA)
     
     dt <- rbindlist(char_list, fill = TRUE, use.names = TRUE)
-    setDT(dt)
+    data.table::setDT(dt)
     dt <- unique(dt)
     
-    # Remplacer "" par NA pour les colonnes de caractères
     for (col in names(dt)) {
       if (is.character(dt[[col]])) {
         dt[[col]][dt[[col]] == ""] <- NA_character_
@@ -701,7 +702,6 @@ query_individual_features <- function(id = NULL,
     
     trait_cols <- setdiff(names(dt), c("id_data_individuals", "id_sub_plots"))
     
-    # Agrégation par id_data_individuals et id_sub_plots
     dt1 <- dt[, {
       out <- list()
       for (col in trait_cols) {
@@ -803,11 +803,11 @@ query_individual_features <- function(id = NULL,
   # }
   
   process_traits_num_dt <- function(df, collapse_cols = character()) {
-    if (!is.data.table(df)) setDT(df)
+    if (!data.table::is.data.table(df)) data.table::setDT(df)
     
     # Séparation des colonnes à collapse vs moyenne
-    collapse_cols <- intersect(collapse_cols, names(df))
-    mean_cols <- setdiff(names(df), c("id_data_individuals", "id_sub_plots", collapse_cols))
+    collapse_cols <- data.table::intersect(collapse_cols, names(df))
+    mean_cols <- data.table::setdiff(names(df), c("id_data_individuals", "id_sub_plots", collapse_cols))
     
     # Étape 1 : résumé par (id_data_individuals, id_sub_plots)
     df1 <- df[, lapply(.SD, function(x) mean(x, na.rm = TRUE)),
@@ -819,7 +819,7 @@ query_individual_features <- function(id = NULL,
               .SDcols = collapse_cols]
     
     # Fusion des deux résumés intermédiaires
-    df_combined <- merge(df1, df2, by = c("id_data_individuals", "id_sub_plots"), all = TRUE)
+    df_combined <- data.table::merge(df1, df2, by = c("id_data_individuals", "id_sub_plots"), all = TRUE)
     
     # Étape 2 : résumé final par individu
     df_final <- df_combined[, lapply(.SD, function(x) {
