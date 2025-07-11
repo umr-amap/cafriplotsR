@@ -1506,9 +1506,7 @@ method_list <- function() {
 
   if(!exists("mydb")) call.mydb()
 
-  nn <-
-    dplyr::tbl(mydb, "methodslist") %>%
-    collect() 
+  nn <- func_try_fetch(con = mydb, sql = glue::glue_sql("SELECT * FROM methodslist"))
   
   # dbDisconnect(mydb)
   return(nn)
@@ -1731,8 +1729,12 @@ query_plots <- function(plot_name = NULL,
   if (is.null(id_plot)) {
     
   
-    query <- .build_plot_query(con = mydb, country = country, plot_name = plot_name, 
-                               method = method, locality_name = locality_name)
+    query <- .build_plot_query(con = mydb, 
+                               country = country, 
+                               plot_name = plot_name, 
+                               method = method, 
+                               locality_name = 
+                                 locality_name)
     
     res <- func_try_fetch(con = mydb, sql = query)
 
@@ -1740,15 +1742,15 @@ query_plots <- function(plot_name = NULL,
 
     cli::cli_rule(left = "Extracting from queried plot - id_plot")
     
-    sss <- glue::glue_sql("id_liste_plots IN ({vals*})", vals = id_plot, .con = con)
-    full_query <- glue::glue_sql("SELECT * FROM data_liste_plots WHERE {DBI::SQL(sss)}", .con = con)
+    sss <- glue::glue_sql("id_liste_plots IN ({vals*})", vals = id_plot, .con = mydb)
+    full_query <- glue::glue_sql("SELECT * FROM data_liste_plots WHERE {DBI::SQL(sss)}", .con = mydb)
     res <- func_try_fetch(con = mydb, sql = full_query)
     
   }
   
   res <-
     res %>%
-    dplyr::select(-id_old)
+    dplyr::select(-any_of(c("id_old")))
   
   res <- 
     .link_metadata_tables(res = res, con = mydb)
@@ -1861,11 +1863,6 @@ query_plots <- function(plot_name = NULL,
 
     cli::cli_rule(left = "Mapping")
 
-    # if (requireNamespace("spData", quietly = TRUE)) {
-    #   library(spData)
-    #   data(world)
-    # }
-
     if(any(is.na(res$ddlat)) | any(is.na(res$ddlon))) {
       not_georef_plot <-
         dplyr::filter(res, is.na(ddlat), is.na(ddlon)) %>%
@@ -1917,8 +1914,8 @@ query_plots <- function(plot_name = NULL,
                              id_plot = selec_plot_tables$id_liste_plots,
                              id_tax = id_tax)
 
-    res_individuals_full <- rm_field(data = res_individuals_full,
-             field = c("photo_tranche",
+    res_individuals_full <- res_individuals_full %>%
+      select(-any_of(c("photo_tranche",
                        "liane",
                        "dbh",
                        "dbh_height",
@@ -1952,8 +1949,8 @@ query_plots <- function(plot_name = NULL,
                        "strate_cat",
                        "position_transect",
                        "position_x",
-                       "position_y"))
-
+                       "position_y")))
+    
     if(!is.null(tag)) {
 
       res_individuals_full <-
@@ -2010,17 +2007,6 @@ query_plots <- function(plot_name = NULL,
       
     }
     
-    # if (length(all_traits_list) > 0) {
-    #   for (i in 1:length(all_traits_list)) {
-    #     res_individuals_full <-
-    #       res_individuals_full %>%
-    #       dplyr::left_join(all_traits_list[[i]] %>%
-    #                          dplyr::select(-id_old),
-    #                        by = c("id_n" = "id_n"))
-    #
-    #   }
-    # }
-
     if (extract_traits) {
 
       cli::cli_alert_info("Extracting taxa-level traits")
@@ -2111,17 +2097,17 @@ query_plots <- function(plot_name = NULL,
     res <-
       res_individuals_full %>%
       dplyr::arrange(id_n) %>%
-      dplyr::relocate(plot_name, .before = id_old) %>%
-      dplyr::relocate(locality_name, .before = id_old) %>%
-      dplyr::relocate(sous_plot_name, .before = id_old) %>%
-      dplyr::relocate(ind_num_sous_plot, .before = id_old) %>%
-      dplyr::relocate(tax_sp_level, .before = id_old) %>%
-      dplyr::relocate(tax_infra_level, .before = id_old) %>%
-      dplyr::relocate(tax_gen, .before = id_old) %>%
-      dplyr::relocate(tax_fam, .before = id_old) %>%
-      dplyr::relocate(colnam, .before = id_old) %>%
-      dplyr::relocate(colnbr, .before = id_old) %>%
-      dplyr::relocate(suffix, .before = id_old)
+      dplyr::relocate(plot_name, .before = 3) %>%
+      dplyr::relocate(locality_name, .before = 3) %>%
+      dplyr::relocate(sous_plot_name, .before = 3) %>%
+      dplyr::relocate(ind_num_sous_plot, .before = 3) %>%
+      dplyr::relocate(tax_sp_level, .before = 3) %>%
+      dplyr::relocate(tax_infra_level, .before = 3) %>%
+      dplyr::relocate(tax_gen, .before = 3) %>%
+      dplyr::relocate(tax_fam, .before = 3) %>%
+      dplyr::relocate(colnam, .before = 3) %>%
+      dplyr::relocate(colnbr, .before = 3) %>%
+      dplyr::relocate(suffix, .before = 3)
 
     if (any(names(res_individuals_full) == "stem_diameter"))
       res <-
@@ -4036,135 +4022,179 @@ add_plots <- function(new_data,
 
 
 
-#' Internal function
+# .comp_print_vec <- function(vec_1, vec_2) {
+# 
+#   # vec_2 <- vec_2 %>%
+#   #   replace(., is.na(.), -9999)
+# 
+#   vars_2_num <- names(vec_2)[unlist(lapply(vec_2, is.numeric))]
+#   vars_2_char <- names(vec_2)[unlist(lapply(vec_2, is.character))]
+# 
+#   vec_2 <- vec_2 %>%
+#     mutate_at(vars(all_of(c(
+#       vars_2_num
+#     ))),
+#     ~ tidyr::replace_na(. , -9999))
+# 
+#   vec_2 <- vec_2 %>%
+#     mutate_at(vars(all_of(c(
+#       vars_2_char
+#     ))),
+#     ~ tidyr::replace_na(. , "-9999"))
+# 
+#   vars_1_num <- names(vec_2)[unlist(lapply(vec_1, is.numeric))]
+#   vars_1_char <- names(vec_2)[unlist(lapply(vec_1, is.character))]
+# 
+#   vec_1 <- vec_1 %>%
+#     mutate_at(vars(all_of(c(
+#       vars_1_num
+#     ))),
+#     ~ tidyr::replace_na(. , -9999))
+#   vec_1 <- vec_1 %>%
+#     mutate_at(vars(all_of(c(
+#       vars_1_char
+#     ))),
+#     ~ tidyr::replace_na(. , "-9999"))
+# 
+#   vec_2_miss <- vec_2
+#   vec_2_miss <- vec_2_miss %>%
+#     mutate_if(is.character, list(~ if_else(. == "-9999", TRUE, FALSE)))
+#   vec_2_miss <- vec_2_miss %>%
+#     mutate_if(is.numeric, list(~ if_else(. == -9999, TRUE, FALSE)))
+# 
+#   vec_1_miss <- vec_1
+#   vec_1_miss <- vec_1_miss %>%
+#     mutate_if(is.character, list(~ if_else(. == "-9999", TRUE, FALSE)))
+#   vec_1_miss <- vec_1_miss %>%
+#     mutate_if(is.numeric, list(~ if_else(. == -9999, TRUE, FALSE)))
+# 
+#   comp_val <-
+#     vec_1 != vec_2
+# 
+#   comp_val <-
+#     as_tibble(comp_val)
+# 
+#   comp_val <-
+#     comp_val %>%
+#     dplyr::select_if(~isTRUE(.))
+# 
+#   if (ncol(comp_val) > 0) {
+# 
+#     if (any(colnames(vec_1) == "idtax_n")) {
+#       old_tax <-
+#         query_taxa(ids = vec_2$idtax_n, check_synonymy = F, class = NULL, extract_traits = F)
+# 
+#       new_tax <-
+#         query_taxa(ids = vec_1$idtax_n, check_synonymy = F, class = NULL, extract_traits = F)
+# 
+#       vec_1 <-
+#         vec_1 %>%
+#         dplyr::left_join(
+#           new_tax %>%
+#             dplyr::select(tax_fam, tax_gen, tax_esp, idtax_n),
+#           by = c("idtax_n" = "idtax_n")
+#         )
+# 
+#       vec_2 <-
+#         vec_2 %>%
+#         dplyr::left_join(
+#           old_tax %>%
+#             dplyr::select(tax_fam, tax_gen, tax_esp, idtax_n),
+#           by = c("idtax_n" = "idtax_n")
+#         )
+# 
+#     }
+# 
+#     comp_tb <-
+#       tibble(
+#         cols = colnames(vec_1),
+#         current = unlist(vec_1),
+#         new = unlist(vec_2)
+#       )
+# 
+#     comp_tb_html <- comp_tb
+# 
+#     comp_tb_html <-
+#       comp_tb_html %>%
+#       replace(., is.na(.),"-9999") %>%
+#       mutate(new :=
+#                kableExtra::cell_spec(new, "html",
+#                                      color = ifelse(new != current, "red", "blue"))) %>%
+#       replace(., . == "-9999", NA)
+# 
+#     comp_tb_html <-
+#       comp_tb_html %>%
+#       kableExtra::kable(format = "html", escape = F) %>%
+#       kableExtra::kable_styling("striped", full_width = F)
+# 
+#     return(list(comp_tb = comp_val, comp_html = comp_tb_html))
+# 
+#   } else{
+# 
+#     return(list(comp_tb = FALSE, comp_html = NA))
+# 
+#   }
+# 
+#   # print(comp_tb_html)
+# 
+# }
+# 
+
+#' Compare two row-tibbles and generate HTML with differences
 #'
-#' Compare two rows and provide cols that differ and html with coloring different values
-#'
-#'
+#' @param vec_1 A tibble with one row
+#' @param vec_2 A tibble with one row
+#' 
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param vec_1 tibble one row and same col numbers of vec_2
-#' @param vec_2 tibble one row and same col numbers of vec_1
-#'
-#' @importFrom kableExtra cell_spec kable_styling
-#'
-#' @return A list with one tibble of logical and a html table
+#' 
+#' @return A list: (1) tibble of differing columns, (2) HTML table highlighting differences
 #' @export
 .comp_print_vec <- function(vec_1, vec_2) {
+  
+  stopifnot(nrow(vec_1) == 1, nrow(vec_2) == 1)
+  stopifnot(ncol(vec_1) == ncol(vec_2), all(names(vec_1) == names(vec_2)))
+  
+  vec_1 <- replace_NA(vec_1)
+  vec_2 <- replace_NA(vec_2)
 
-  # vec_2 <- vec_2 %>%
-  #   replace(., is.na(.), -9999)
-
-  vars_2_num <- names(vec_2)[unlist(lapply(vec_2, is.numeric))]
-  vars_2_char <- names(vec_2)[unlist(lapply(vec_2, is.character))]
-
-  vec_2 <- vec_2 %>%
-    mutate_at(vars(all_of(c(
-      vars_2_num
-    ))),
-    ~ tidyr::replace_na(. , -9999))
-
-  vec_2 <- vec_2 %>%
-    mutate_at(vars(all_of(c(
-      vars_2_char
-    ))),
-    ~ tidyr::replace_na(. , "-9999"))
-
-  vars_1_num <- names(vec_2)[unlist(lapply(vec_1, is.numeric))]
-  vars_1_char <- names(vec_2)[unlist(lapply(vec_1, is.character))]
-
-  vec_1 <- vec_1 %>%
-    mutate_at(vars(all_of(c(
-      vars_1_num
-    ))),
-    ~ tidyr::replace_na(. , -9999))
-  vec_1 <- vec_1 %>%
-    mutate_at(vars(all_of(c(
-      vars_1_char
-    ))),
-    ~ tidyr::replace_na(. , "-9999"))
-
-  vec_2_miss <- vec_2
-  vec_2_miss <- vec_2_miss %>%
-    mutate_if(is.character, list(~ if_else(. == "-9999", TRUE, FALSE)))
-  vec_2_miss <- vec_2_miss %>%
-    mutate_if(is.numeric, list(~ if_else(. == -9999, TRUE, FALSE)))
-
-  vec_1_miss <- vec_1
-  vec_1_miss <- vec_1_miss %>%
-    mutate_if(is.character, list(~ if_else(. == "-9999", TRUE, FALSE)))
-  vec_1_miss <- vec_1_miss %>%
-    mutate_if(is.numeric, list(~ if_else(. == -9999, TRUE, FALSE)))
-
-  comp_val <-
-    vec_1 != vec_2
-
-  comp_val <-
-    as_tibble(comp_val)
-
-  comp_val <-
-    comp_val %>%
-    dplyr::select_if(~isTRUE(.))
-
-  if (ncol(comp_val) > 0) {
-
-    if (any(colnames(vec_1) == "idtax_n")) {
-      old_tax <-
-        query_taxa(ids = vec_2$idtax_n, check_synonymy = F, class = NULL, extract_traits = F)
-
-      new_tax <-
-        query_taxa(ids = vec_1$idtax_n, check_synonymy = F, class = NULL, extract_traits = F)
-
-      vec_1 <-
-        vec_1 %>%
-        dplyr::left_join(
-          new_tax %>%
-            dplyr::select(tax_fam, tax_gen, tax_esp, idtax_n),
-          by = c("idtax_n" = "idtax_n")
-        )
-
-      vec_2 <-
-        vec_2 %>%
-        dplyr::left_join(
-          old_tax %>%
-            dplyr::select(tax_fam, tax_gen, tax_esp, idtax_n),
-          by = c("idtax_n" = "idtax_n")
-        )
-
-    }
-
-    comp_tb <-
-      tibble(
-        cols = colnames(vec_1),
-        current = unlist(vec_1),
-        new = unlist(vec_2)
-      )
-
-    comp_tb_html <- comp_tb
-
-    comp_tb_html <-
-      comp_tb_html %>%
-      replace(., is.na(.),"-9999") %>%
-      mutate(new :=
-               kableExtra::cell_spec(new, "html",
-                                     color = ifelse(new != current, "red", "blue"))) %>%
-      replace(., . == "-9999", NA)
-
-    comp_tb_html <-
-      comp_tb_html %>%
-      kableExtra::kable(format = "html", escape = F) %>%
-      kableExtra::kable_styling("striped", full_width = F)
-
-    return(list(comp_tb = comp_val, comp_html = comp_tb_html))
-
-  } else{
-
+  comp_val <- vec_1 != vec_2
+  comp_val <- as_tibble(comp_val)
+  diff_cols <- comp_val %>% select(where(~ any(.)))
+  
+  if (ncol(diff_cols) == 0) {
     return(list(comp_tb = FALSE, comp_html = NA))
-
   }
-
-  # print(comp_tb_html)
-
+  
+  if ("idtax_n" %in% names(vec_1)) {
+    old_tax <- query_taxa(ids = vec_2$idtax_n, check_synonymy = FALSE,
+                          class = NULL, extract_traits = FALSE)
+    new_tax <- query_taxa(ids = vec_1$idtax_n, check_synonymy = FALSE,
+                          class = NULL, extract_traits = FALSE)
+    
+    vec_1 <- dplyr::left_join(vec_1, new_tax %>% dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp), by = "idtax_n")
+    vec_2 <- dplyr::left_join(vec_2, old_tax %>% dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp), by = "idtax_n")
+  }
+  
+  comp_tb <- 
+    tibble(
+    cols = names(vec_1),
+    current = unlist(replace_NA(vec_1, inv = T), use.names = FALSE),
+    new = unlist(replace_NA(vec_2, inv = T), use.names = FALSE),
+    current_comp = unlist(vec_1, use.names = FALSE),
+    new_comp = unlist(vec_2, use.names = FALSE)
+  )
+  
+  comp_tb_html <- 
+    comp_tb %>%
+    mutate(new = kableExtra::cell_spec(
+      new, "html",
+      color = ifelse(current_comp != new_comp, "red", "blue"))
+    ) %>%
+    select(-new_comp, -current_comp) %>% 
+    kableExtra::kable("html", escape = FALSE) %>%
+    kableExtra::kable_styling("striped", full_width = FALSE)
+  
+  return(list(comp_tb = diff_cols, comp_html = comp_tb_html))
 }
 
 
@@ -6414,57 +6444,26 @@ add_specimens <- function(new_data ,
 
 }
 
-
-#' Internal function
+#' Replace or restore missing values in a data frame
 #'
-#' Replace NA by 9999
+#' Replaces NA values with -9999 for numeric columns and "-9999" for character columns,
+#' or inversely restores NAs from those values if `inv = TRUE`.
 #'
-#' @return tibble
+#' @param df A data frame or tibble.
+#' @param inv Logical. If TRUE, replaces standard sentinel values back to NA.
 #'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#' @param vec vector
+#' @return A data frame with modified missing values.
 #'
 #' @export
-replace_NA <- function(vec, inv = FALSE) {
-
-  vec_num <- names(vec)[unlist(lapply(vec, is.numeric))]
-  vec_char <- names(vec)[unlist(lapply(vec, is.character))]
-
-  if(!inv) {
-    vec <- vec %>%
-      dplyr::mutate_at(dplyr::vars(dplyr::all_of(c(
-        vec_num
-      ))),
-      ~ tidyr::replace_na(. , -9999))
-
-    vec <- vec %>%
-      dplyr::mutate_at(dplyr::vars(dplyr::all_of(c(
-        vec_char
-      ))),
-      ~ tidyr::replace_na(. , "-9999"))
-
-  }
-
-  if(inv) {
-
-    vec <- vec %>%
-      dplyr::mutate_at(dplyr::vars(dplyr::all_of(c(
-        vec_char
-      ))),
-      ~ dplyr::na_if(. , "-9999"))
-
-    vec <- vec %>%
-      dplyr::mutate_at(dplyr::vars(dplyr::all_of(c(
-        vec_num
-      ))),
-      ~ dplyr::na_if(. , -9999))
-
-  }
-
-  return(vec)
-
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+replace_NA <- function(df, inv = FALSE) {
+  num_fun <- if (inv) ~ dplyr::na_if(.x, -9999) else ~ tidyr::replace_na(.x, -9999)
+  chr_fun <- if (inv) ~ dplyr::na_if(.x, "-9999") else ~ tidyr::replace_na(.x, "-9999")
+  
+  df %>%
+    dplyr::mutate(dplyr::across(where(is.numeric), num_fun)) %>%
+    dplyr::mutate(dplyr::across(where(is.character), chr_fun))
 }
-
 
 #' Internal function
 #'
@@ -6591,7 +6590,7 @@ replace_NA <- function(vec, inv = FALSE) {
     matches <-
       dplyr::left_join(select_col_new, select_col_old, by = c("id"="id"))
 
-    matches <- replace_NA(vec = matches)
+    matches <- replace_NA(df = matches)
 
 
     # matches[,2] <-
@@ -6611,8 +6610,8 @@ replace_NA <- function(vec, inv = FALSE) {
 
     if (nrow(matches) > 0) {
 
-      matches[, 2] <- replace_NA(vec = matches[, 2], inv = T)
-      matches[, 3] <- replace_NA(vec = matches[, 3], inv = T)
+      matches[, 2] <- replace_NA(df = matches[,2], inv = T)
+      matches[, 3] <- replace_NA(df = matches[,3], inv = T)
 
     }
 
@@ -9736,40 +9735,102 @@ update_taxa_link_table <- function() {
 }
 
 
-#' Send query to postgresql database
+#' Safely execute a SQL query with automatic retry
 #'
-#' Access to postgresql database with repeating if no successful
+#' This function attempts to execute a SQL query using \code{DBI::dbSendQuery()} and \code{DBI::dbFetch()},
+#' with automatic retries in case of transient database failures such as connection loss
+#' or query preparation errors.
+#'
+#' @param con A DBI connection object.
+#' @param sql A SQL query string, typically created using \code{glue::glue_sql()}.
+#' @param max_attempts Integer. Maximum number of attempts before giving up. Default is 10.
+#' @param wait_seconds Numeric. Time in seconds to wait between retries. Default is 1.
+#' @param verbose Logical. If \code{TRUE}, displays informative messages. Default is \code{TRUE}.
+#'
+#' @return A tibble containing the query results, with unique column names.
+#'
+#' @details
+#' This function is designed for read queries (e.g., \code{SELECT}) that return results.
+#' For write queries (e.g., \code{UPDATE}, \code{INSERT}, \code{DELETE}), use a variant that uses \code{dbExecute()} or \code{dbSendStatement()}.
+#'
+#' If the database connection is lost, the function stops immediately.
+#' If the query fails to prepare (e.g., due to a lock or temporary issue), the function retries up to \code{max_attempts}.
 #'
 #'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #' @export
-func_try_fetch <- function(con, sql) {
-  rep <- TRUE
-  rep_try <- 1
-  while(rep) {
-
-    res_q <- try({rs <- DBI::dbSendQuery(con, sql);
-    DBI::dbFetch(rs)}, silent = T)
-
-    if (any(grepl("Lost connection to database", res_q[1])))
-      stop("Lost connection to database")
-
-    if (any(grepl("Failed to prepare query", res_q[1]))) {
-      rep <- TRUE
-      cli::cli_alert_warning("----")
-      rep_try <- rep_try + 1
+func_try_fetch <- function(con, sql, max_attempts = 10, wait_seconds = 1, verbose = TRUE) {
+  attempt <- 1
+  success <- FALSE
+  result <- NULL
+  last_error <- NULL
+  
+  while (attempt <= max_attempts && !success) {
+    if (verbose) cli::cli_alert_info("Attempt {attempt} of {max_attempts}...")
+    
+    try_result <- try({
+      rs <- DBI::dbSendQuery(con, sql)
+      result <- DBI::dbFetch(rs)
+      DBI::dbClearResult(rs)
+    }, silent = TRUE)
+    
+    if (inherits(try_result, "try-error")) {
+      error_message <- conditionMessage(attr(try_result, "condition"))
+      
+      if (grepl("Lost connection to database", error_message, ignore.case = TRUE)) {
+        stop("❌ Lost connection to database. Aborting.")
+      }
+      
+      if (grepl("Failed to prepare query", error_message, ignore.case = TRUE)) {
+        cli::cli_alert_warning("Failed to prepare query (attempt {attempt}): {error_message}")
+        last_error <- error_message
+        attempt <- attempt + 1
+        Sys.sleep(wait_seconds)
+      } else {
+        stop(glue::glue("❌ Unhandled error: {error_message}"))
+      }
+      
     } else {
-      rep <- FALSE
+      success <- TRUE
     }
-
-    if (rep_try == 10)
-      stop("Failed to connect to database, check your connection")
   }
-  res_q <- res_q %>% as_tibble(.name_repair = "universal")
-  DBI::dbClearResult(rs)
-
-  return(res_q)
+  
+  if (!success) {
+    stop(glue::glue("❌ Failed to fetch query after {max_attempts} attempts. Last error: {last_error}"))
+  }
+  
+  # Return as tibble (with unique column names)
+  tibble::as_tibble(result, .name_repair = "unique")
 }
+
+
+
+# func_try_fetch <- function(con, sql) {
+#   rep <- TRUE
+#   rep_try <- 1
+#   while(rep) {
+# 
+#     res_q <- try({rs <- DBI::dbSendQuery(con, sql);
+#     DBI::dbFetch(rs)}, silent = T)
+# 
+#     if (any(grepl("Lost connection to database", res_q[1])))
+#       stop("Lost connection to database")
+# 
+#     if (any(grepl("Failed to prepare query", res_q[1]))) {
+#       rep <- TRUE
+#       cli::cli_alert_warning("----")
+#       rep_try <- rep_try + 1
+#     } else {
+#       rep <- FALSE
+#     }
+# 
+#     if (rep_try == 10)
+#       stop("Failed to connect to database, check your connection")
+#   }
+#   res_q <- res_q %>% as_tibble(.name_repair = "universal")
+#   DBI::dbClearResult(rs)
+# 
+#   return(res_q)
+# }
 
 #' Open postgresql database table
 #'

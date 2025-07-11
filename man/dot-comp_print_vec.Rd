@@ -2,20 +2,20 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{.comp_print_vec}
 \alias{.comp_print_vec}
-\title{Internal function}
+\title{Compare two row-tibbles and generate HTML with differences}
 \usage{
 .comp_print_vec(vec_1, vec_2)
 }
 \arguments{
-\item{vec_1}{tibble one row and same col numbers of vec_2}
+\item{vec_1}{A tibble with one row}
 
-\item{vec_2}{tibble one row and same col numbers of vec_1}
+\item{vec_2}{A tibble with one row}
 }
 \value{
-A list with one tibble of logical and a html table
+A list: (1) tibble of differing columns, (2) HTML table highlighting differences
 }
 \description{
-Compare two rows and provide cols that differ and html with coloring different values
+Compare two row-tibbles and generate HTML with differences
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}

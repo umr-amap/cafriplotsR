@@ -2,18 +2,21 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{replace_NA}
 \alias{replace_NA}
-\title{Internal function}
+\title{Replace or restore missing values in a data frame}
 \usage{
-replace_NA(vec, inv = FALSE)
+replace_NA(df, inv = FALSE)
 }
 \arguments{
-\item{vec}{vector}
+\item{df}{A data frame or tibble.}
+
+\item{inv}{Logical. If TRUE, replaces standard sentinel values back to NA.}
 }
 \value{
-tibble
+A data frame with modified missing values.
 }
 \description{
-Replace NA by 9999
+Replaces NA values with -9999 for numeric columns and "-9999" for character columns,
+or inversely restores NAs from those values if `inv = TRUE`.
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}

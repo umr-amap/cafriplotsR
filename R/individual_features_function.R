@@ -116,9 +116,12 @@ query_individual_features <- function(id = NULL,
   traits_measures <-
     traits_measures %>% select(-starts_with("date_modif"))
 
-  traits_measures <-
-    rm_field(data = traits_measures, field = c(
-                                             "id_diconame"))
+  # traits_measures <-
+  #   rm_field(data = traits_measures, field = c(
+  #                                            "id_diconame"))
+  
+  traits_measures <- traits_measures %>%
+    dplyr::select(-any_of(c("id_diconame")))
 
   if (extract_trait_measures_features) {
 
@@ -210,7 +213,7 @@ query_individual_features <- function(id = NULL,
     if (nrow(traits_char_list[[1]]) > 0 & pivot_table) {
 
       traits_char_multiple[[1]] <- .pivot_tab(dataset = traits_char_list[[1]],
-                                              cat = "char", census = multiple_census)
+                                              cat = "char", census = FALSE)
       names(traits_char_multiple[[1]]) <-
         gsub("traitvalue_char_", "", names(traits_char_multiple[[1]]))
 
@@ -230,7 +233,9 @@ query_individual_features <- function(id = NULL,
     if (multiple_census) {
       if (nrow(traits_char_list[[2]]) > 0 & pivot_table) {
 
-        traits_char_multiple[[2]] <- .pivot_tab(dataset = traits_char_list[[2]], cat = "char", census = multiple_census)
+        traits_char_multiple[[2]] <- .pivot_tab(dataset = traits_char_list[[2]], 
+                                                cat = "char", 
+                                                census = multiple_census)
 
         traits_char_multiple[[2]] <-
           traits_char_multiple[[2]] %>%
@@ -533,7 +538,8 @@ query_individual_features <- function(id = NULL,
 
 
   if (cat == "char" & census)
-    res <- dataset %>%
+    res <- 
+      dataset %>%
       dplyr::select(
         id_sub_plots,
         id_data_individuals,
@@ -603,86 +609,308 @@ query_individual_features <- function(id = NULL,
                               multiple_census = show_multiple_census,
                               id_traits = traits,
                               remove_obs_with_issue = remove_obs_with_issue)
+  
+  cli::cli_alert_info("Extracting character values")
 
-  if (length(traits_measures$traits_char) > 0) {
+  # process_traits_char <- function(char_list, mode_cols = character()) {
+  #   if (length(char_list) == 0) return(NA)
+  #   
+  #   mode_value <- function(x) {
+  #     x <- x[!is.na(x)]
+  #     if (length(x) == 0) return(NA_character_)
+  #     ux <- unique(x)
+  #     ux[which.max(tabulate(match(x, ux)))]
+  #   }
+  #   
+  #   summarise_fun <- function(colname) {
+  #     if (colname %in% mode_cols) {
+  #       function(x) {
+  #         x <- x[!is.na(x) & x != ""]
+  #         if (length(x) == 0) return(NA_character_)
+  #         ux <- unique(x)
+  #         ux[which.max(tabulate(match(x, ux)))]
+  #       }
+  #     } else {
+  #       function(x) {
+  #         x <- x[!is.na(x) & x != ""]
+  #         if (length(x) == 0) return(NA_character_)
+  #         str_c(x, collapse = ", ")
+  #       }
+  #     }
+  #   }
+  #   
+  #   summarise_num <- function(x) {
+  #     x <- na.omit(x)
+  #     if (length(x) == 0) return(NA_character_)
+  #     str_c(x, collapse = ",")
+  #   }
+  #   
+  #   df <- purrr::reduce(char_list, full_join, by = c("id_data_individuals", "id_sub_plots"))
+  #   
+  #   df1 <- df %>%
+  #     group_by(id_data_individuals, id_sub_plots) %>%
+  #     summarise(across(
+  #       everything(),
+  #       .fns = function(x, colname = cur_column()) {
+  #         if (is.character(x)) {
+  #           summarise_fun(colname)(x)
+  #         } else if (is.numeric(x)) {
+  #           x <- na.omit(x)
+  #           if (length(x) == 0) NA_real_ else x[1]
+  #         } else {
+  #           x
+  #         }
+  #       }
+  #     ), .groups = "drop")
+  #   
+  #   df2 <- df1 %>%
+  #     select(-id_sub_plots) %>%
+  #     group_by(id_data_individuals) %>%
+  #     summarise(across(
+  #       everything(),
+  #       .fns = function(x, colname = cur_column()) {
+  #         if (is.character(x)) {
+  #           summarise_fun(colname)(x)
+  #         } else if (is.numeric(x)) {
+  #           summarise_num(x)
+  #         } else {
+  #           x
+  #         }
+  #       }
+  #     ), .groups = "drop")
+  #   
+  #   return(df2)
+  # }
+  # 
+  # traits_char <- process_traits_char(char_list = traits_measures$traits_char, 
+  #                                    mode_cols = "light_observations")
+  
+  process_traits_char_dt <- function(char_list, mode_cols = character()) {
+    if (length(char_list) == 0) return(NA)
+    
+    dt <- rbindlist(char_list, fill = TRUE, use.names = TRUE)
+    setDT(dt)
+    dt <- unique(dt)
+    
+    # Remplacer "" par NA pour les colonnes de caractères
+    for (col in names(dt)) {
+      if (is.character(dt[[col]])) {
+        dt[[col]][dt[[col]] == ""] <- NA_character_
+      }
+    }
+    
+    trait_cols <- setdiff(names(dt), c("id_data_individuals", "id_sub_plots"))
+    
+    # Agrégation par id_data_individuals et id_sub_plots
+    dt1 <- dt[, {
+      out <- list()
+      for (col in trait_cols) {
+        x <- get(col)
+        if (is.character(x)) {
+          x <- x[!is.na(x)]
+          if (col %in% mode_cols) {
+            val <- if (length(x) == 0) NA_character_ else names(sort(table(x), decreasing = TRUE))[1]
+          } else {
+            val <- if (length(x) == 0) NA_character_ else str_c(x, collapse = ", ")
+          }
+        } else if (is.numeric(x)) {
+          val <- if (all(is.na(x))) NA_real_ else as.numeric(x[!is.na(x)][1])
+        } else {
+          val <- x
+        }
+        out[[col]] <- val
+      }
+      out
+    }, by = .(id_data_individuals, id_sub_plots)]
+    
+    # Agrégation finale par individu
+    dt2 <- dt1[, {
+      out <- list()
+      for (col in trait_cols) {
+        x <- get(col)
+        if (is.character(x)) {
+          x <- x[!is.na(x)]
+          if (col %in% mode_cols) {
+            val <- if (length(x) == 0) NA_character_ else names(sort(table(x), decreasing = TRUE))[1]
+          } else {
+            val <- if (length(x) == 0) NA_character_ else str_c(x, collapse = ", ")
+          }
+        } else if (is.numeric(x)) {
+          x <- x[!is.na(x)]
+          val <- if (length(x) == 0) NA_character_ else str_c(as.numeric(x), collapse = ",")
+        } else {
+          val <- x
+        }
+        out[[col]] <- val
+      }
+      out
+    }, by = .(id_data_individuals)]
+    
+    return(as_tibble(dt2))
+  }
+  
+  traits_char <- process_traits_char_dt(char_list = traits_measures$traits_char, 
+                                     mode_cols = "light_observations")
 
-    traits_char <-
-      purrr::reduce(traits_measures$traits_char,
-                    dplyr::full_join,
-                    by = c('id_data_individuals', 'id_sub_plots'))
+  # if (length(traits_measures$traits_char) > 0) {
+  # 
+  #   traits_char <-
+  #     purrr::reduce(traits_measures$traits_char,
+  #                   dplyr::full_join,
+  #                   by = c('id_data_individuals', 'id_sub_plots'))
+  # 
+  #   traits_char <-
+  #     traits_char %>%
+  #     group_by(id_data_individuals, id_sub_plots) %>%
+  #     summarise(across(where(is.character), ~ stringr::str_c(.[!is.na(.)],
+  #                                                            collapse = ", ")), # ~ paste(.x[!is.na(.x)], collapse = ",")
+  #               across(where(is.numeric), ~ .x[!is.na(.x)][1])) %>%
+  #     ungroup() %>%
+  #     mutate(across(where(is.character), ~ na_if(., "")))
+  # 
+  #   traits_char <-
+  #     traits_char %>%
+  #     group_by(id_data_individuals) %>%
+  #     select(-id_sub_plots) %>%
+  #     dplyr::summarise(
+  #       across(where(is.character), ~ stringr::str_c(.[!is.na(.)],
+  #                                                    collapse = ", ")), # ~ paste(.x[!is.na(.x) & .x != ""], collapse = ",")
+  #       across(where(is.numeric), ~ paste(.x[!is.na(.x)], collapse = ","))
+  #     ) %>%
+  #     mutate(across(where(is.character), ~ na_if(., "")))
+  # 
+  # } else {
+  #   traits_char <- NA
+  # }
 
-    traits_char <-
-      traits_char %>%
+  # process_traits_num <- function(num_list) {
+  #   if (length(num_list) == 0) return(NA)
+  #   
+  #   purrr::reduce(num_list, full_join, by = c("id_data_individuals", "id_sub_plots")) %>%
+  #     group_by(id_data_individuals, id_sub_plots) %>%
+  #     summarise(
+  #       across(starts_with("id_trait"), ~ str_c(na.omit(.x), collapse = ", ")),
+  #       across(!starts_with("id_trait"), ~ mean(.x, na.rm = TRUE)),
+  #       .groups = "drop"
+  #     ) %>%
+  #     select(-id_sub_plots) %>%
+  #     group_by(id_data_individuals) %>%
+  #     summarise(
+  #       across(!starts_with("id_"), ~ mean(na.omit(.x))),
+  #       across(starts_with("id_"), ~ str_c(na.omit(.x), collapse = ", ")),
+  #       .groups = "drop"
+  #     )
+  # }
+  
+  process_traits_num_dt <- function(df, collapse_cols = character()) {
+    if (!is.data.table(df)) setDT(df)
+    
+    # Séparation des colonnes à collapse vs moyenne
+    collapse_cols <- intersect(collapse_cols, names(df))
+    mean_cols <- setdiff(names(df), c("id_data_individuals", "id_sub_plots", collapse_cols))
+    
+    # Étape 1 : résumé par (id_data_individuals, id_sub_plots)
+    df1 <- df[, lapply(.SD, function(x) mean(x, na.rm = TRUE)),
+              by = .(id_data_individuals, id_sub_plots),
+              .SDcols = mean_cols]
+    
+    df2 <- df[, lapply(.SD, function(x) paste(na.omit(x), collapse = ",")),
+              by = .(id_data_individuals, id_sub_plots),
+              .SDcols = collapse_cols]
+    
+    # Fusion des deux résumés intermédiaires
+    df_combined <- merge(df1, df2, by = c("id_data_individuals", "id_sub_plots"), all = TRUE)
+    
+    # Étape 2 : résumé final par individu
+    df_final <- df_combined[, lapply(.SD, function(x) {
+      if (is.numeric(x)) mean(x, na.rm = TRUE)
+      else {
+        val <- paste(na.omit(x), collapse = ",")
+        if (val == "") NA_character_ else val
+      }
+    }), by = id_data_individuals]
+    
+    return(as_tibble(df_final))
+  }
+  
+  # traits_num <- process_traits_num(num_list = traits_measures$traits_num)
+  
+  cli::cli_alert_info("Extracting numeric values")
+  
+  traits_num <-
+    process_traits_num_dt(df = purrr::reduce(
+      traits_measures$traits_num,
+      full_join,
+      by = c("id_data_individuals", "id_sub_plots")
+    ))
+  
+  # if (length(traits_measures$traits_num) > 0) {
+  # 
+  #   traits_num <-
+  #     purrr::reduce(traits_measures$traits_num,
+  #                   dplyr::full_join,
+  #                   by = c('id_data_individuals', 'id_sub_plots'))
+  # 
+  #   traits_num <-
+  #     traits_num %>%
+  #     group_by(id_data_individuals, id_sub_plots) %>%
+  #     summarise(across(starts_with("id_trait"), ~ stringr::str_c(.[!is.na(.)],
+  #                                                                collapse = ", ")), # ~ paste(.x[!is.na(.x)], collapse = ",")
+  #               across(!starts_with("id_trait"), ~ mean(.x, na.rm = T)))
+  # 
+  #   issue_num <-
+  #     purrr::reduce(traits_measures$issue_num,
+  #                   dplyr::full_join,
+  #                   by = c('id_data_individuals', 'id_sub_plots'))
+  # 
+  #   issue_num <-
+  #     issue_num %>%
+  #     group_by(id_data_individuals, id_sub_plots) %>%
+  #     summarise(across(starts_with("id_trait"), ~ .x[!is.na(.x)][1]),
+  #               across(!starts_with("id_trait"), ~ .x[!is.na(.x)][1]))
+  # 
+  #   traits_num <-
+  #     traits_num %>%
+  #     select(-id_sub_plots) %>%
+  #     group_by(id_data_individuals) %>%
+  #     dplyr::summarise(
+  #       across(!starts_with("id_"), ~ mean(.x[!is.na(.x)])),
+  #       across(starts_with("id_"), ~ stringr::str_c(.[!is.na(.)],
+  #                                                   collapse = ", ")) # ~ paste(.x[!is.na(.x)], collapse = ",")
+  #     )
+  # 
+  #   issue_num <-
+  #     issue_num %>%
+  #     select(-id_sub_plots) %>%
+  #     group_by(id_data_individuals) %>%
+  #     dplyr::summarise(
+  #       across(!starts_with("id_"), ~ last(.x[!is.na(.x)])),
+  #       across(starts_with("id_"), ~ last(.x[!is.na(.x)]))
+  #     )
+  # 
+  # } else {
+  #   traits_num <- NA
+  #   issue_num <- NA
+  # }
+  
+  process_issues_num <- function(issue_list) {
+    if (length(issue_list) == 0) return(NA)
+    
+    purrr::reduce(issue_list, full_join, by = c("id_data_individuals", "id_sub_plots")) %>%
       group_by(id_data_individuals, id_sub_plots) %>%
-      summarise(across(where(is.character), ~ stringr::str_c(.[!is.na(.)],
-                                                             collapse = ", ")), # ~ paste(.x[!is.na(.x)], collapse = ",")
-                across(where(is.numeric), ~ .x[!is.na(.x)][1])) %>%
-      ungroup() %>%
-      mutate(across(where(is.character), ~ na_if(., "")))
-
-    traits_char <-
-      traits_char %>%
-      group_by(id_data_individuals) %>%
-      select(-id_sub_plots) %>%
-      dplyr::summarise(
-        across(where(is.character), ~ stringr::str_c(.[!is.na(.)],
-                                                     collapse = ", ")), # ~ paste(.x[!is.na(.x) & .x != ""], collapse = ",")
-        across(where(is.numeric), ~ paste(.x[!is.na(.x)], collapse = ","))
+      summarise(
+        across(everything(), ~ first(na.omit(.x))),
+        .groups = "drop"
       ) %>%
-      mutate(across(where(is.character), ~ na_if(., "")))
-
-  } else {
-    traits_char <- NA
-  }
-
-  if (length(traits_measures$traits_num) > 0) {
-
-    traits_num <-
-      purrr::reduce(traits_measures$traits_num,
-                    dplyr::full_join,
-                    by = c('id_data_individuals', 'id_sub_plots'))
-
-    traits_num <-
-      traits_num %>%
-      group_by(id_data_individuals, id_sub_plots) %>%
-      summarise(across(starts_with("id_trait"), ~ stringr::str_c(.[!is.na(.)],
-                                                                 collapse = ", ")), # ~ paste(.x[!is.na(.x)], collapse = ",")
-                across(!starts_with("id_trait"), ~ mean(.x, na.rm = T)))
-
-    issue_num <-
-      purrr::reduce(traits_measures$issue_num,
-                    dplyr::full_join,
-                    by = c('id_data_individuals', 'id_sub_plots'))
-
-    issue_num <-
-      issue_num %>%
-      group_by(id_data_individuals, id_sub_plots) %>%
-      summarise(across(starts_with("id_trait"), ~ .x[!is.na(.x)][1]),
-                across(!starts_with("id_trait"), ~ .x[!is.na(.x)][1]))
-
-    traits_num <-
-      traits_num %>%
       select(-id_sub_plots) %>%
       group_by(id_data_individuals) %>%
-      dplyr::summarise(
-        across(!starts_with("id_"), ~ mean(.x[!is.na(.x)])),
-        across(starts_with("id_"), ~ stringr::str_c(.[!is.na(.)],
-                                                    collapse = ", ")) # ~ paste(.x[!is.na(.x)], collapse = ",")
+      summarise(
+        across(everything(), ~ last(na.omit(.x))),
+        .groups = "drop"
       )
-
-    issue_num <-
-      issue_num %>%
-      select(-id_sub_plots) %>%
-      group_by(id_data_individuals) %>%
-      dplyr::summarise(
-        across(!starts_with("id_"), ~ last(.x[!is.na(.x)])),
-        across(starts_with("id_"), ~ last(.x[!is.na(.x)]))
-      )
-
-  } else {
-    traits_num <- NA
-    issue_num <- NA
   }
+  
+  issue_num <- process_issues_num(traits_measures$issue_num)
 
   all_traits_list <- list(traits_char = traits_char,
                           traits_num = traits_num,
