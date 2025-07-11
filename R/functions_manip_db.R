@@ -1772,7 +1772,11 @@ query_plots <- function(plot_name = NULL,
         dplyr::relocate(plot_name, .before = year)
     }
 
-    res <- rm_field(res, field = c("additional_people", "team_leader"))
+    # res <- rm_field(res, field = c("additional_people", "team_leader"))
+    
+    res <- 
+      res %>%
+      dplyr::select(-any_of(c("additional_people", "team_leader")))
 
     if (any(!is.na(all_subplots$all_subplot_pivot)))
       res <-
@@ -1965,8 +1969,12 @@ query_plots <- function(plot_name = NULL,
         res_individuals_full %>%
         dplyr::filter(liana == FALSE)
 
-      res_individuals_full <- rm_field(data = res_individuals_full,
-                                       field = c("liana"))
+      # res_individuals_full <- rm_field(data = res_individuals_full,
+      #                                  field = c("liana"))
+      
+      res_individuals_full <- 
+        res_individuals_full %>% 
+        dplyr::select(-any_of(c("liana")))
 
     }
 
@@ -2296,8 +2304,12 @@ query_plots <- function(plot_name = NULL,
       if (!is.null(meta_tbl)) {
         # Pour éviter les conflits de nom de colonnes
         keep_cols_clean <- setdiff(keep_cols, names(res))
-        if (length(keep_cols_clean) < length(keep_cols)) 
-          res <- rm_field(res, field = keep_cols)
+        if (length(keep_cols_clean) < length(keep_cols))
+          # res <- rm_field(res, field = keep_cols)
+          res <-
+            res %>%
+            dplyr::select(-any_of(keep_cols))
+        
         
         meta_tbl <- dplyr::select(meta_tbl, dplyr::all_of(c(id_col, keep_cols)))
         res <- dplyr::left_join(res, meta_tbl, by = id_col)
@@ -3909,9 +3921,13 @@ add_plots <- function(new_data,
 
   }
 
+  # new_data_renamed <-
+  #   rm_field(new_data_renamed,
+  #            field = c("team_leader", "PI", "additional_people", "data_manager"))
+  
   new_data_renamed <-
-    rm_field(new_data_renamed,
-             field = c("team_leader", "PI", "additional_people", "data_manager"))
+    new_data_renamed %>%
+    dplyr::select(-any_of(c("team_leader", "PI", "additional_people", "data_manager")))
 
   col_names_corresp <-
     col_names_corresp[which(!col_names_corresp %in% c("team_leader", "PI", "additional_people", "data_manager"))]
@@ -10500,8 +10516,13 @@ add_entry_taxa <- function(search_name_tps = NULL,
         if(nrow(syn_searched)>1) stop("More than 1 taxa as synonym. Select only one.")
         if(nrow(syn_searched)==0) stop("No taxa found in the dictionnary. Select one.")
 
-        update_dico_name(new_id_diconame_good = syn_searched$idtax_good_n, id_search = new_entry$idtax_n,
-                         ask_before_update = FALSE, add_backup = FALSE, show_results = FALSE)
+        update_dico_name(
+          synonym_of = list(id = syn_searched$idtax_good_n),
+          id_search = new_entry$idtax_n,
+          ask_before_update = FALSE,
+          add_backup = FALSE,
+          show_results = FALSE
+        )
 
       } else {
         # update_dico_name(new_id_diconame_good = new_entry$id_n, id_search = new_entry$id_n,
@@ -11211,22 +11232,22 @@ print_table <- function(res_print) {
 
 
 
-rm_field <- function(data, field) {
-
-  if (any(names(data) %in% field)) {
-
-    field <-
-      field[which(field %in% names(data))]
-
-    data <-
-      data %>%
-      dplyr::select(-all_of(field))
-
-  }
-
-  return(data)
-
-}
+# rm_field <- function(data, field) {
+# 
+#   if (any(names(data) %in% field)) {
+# 
+#     field <-
+#       field[which(field %in% names(data))]
+# 
+#     data <-
+#       data %>%
+#       dplyr::select(-all_of(field))
+# 
+#   }
+# 
+#   return(data)
+# 
+# }
 
 
 
@@ -11309,7 +11330,6 @@ add_plot_coordinates <-
                              col_names_select = add_cols, 
                              col_names_corresp = cor_cols, 
                              plot_name_field = "plot_name", 
-                             collector_field = collector_field,
                              subplottype_field = res_l[[i]] %>% 
                                dplyr::select(starts_with("ddl")) %>% names(), 
                              add_data = TRUE,
