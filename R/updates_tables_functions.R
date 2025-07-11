@@ -118,8 +118,8 @@ update_plot_data <- function(team_lead = NULL,
           cli::cli_alert_info(glue::glue("{colname_type} information already available for this plot"))
           print(subplots_list$all_subplot_pivot %>% pull(colname_type))
 
-          conf <- askYesNo(msg = glue::glue("Add {colname_type} information ?"))
-
+          # conf <- askYesNo(msg = glue::glue("Add {colname_type} information ?"))
+          conf <- choose_prompt(message =  glue::glue("Add {colname_type} information ?"))
         }
 
       } else {
@@ -132,8 +132,8 @@ update_plot_data <- function(team_lead = NULL,
 
         if (ask_before_update) {
 
-          Q <- utils::askYesNo("Confirm adding these modifications?")
-
+          # Q <- utils::askYesNo("Confirm adding these modifications?")
+          choose_prompt(message =  "Confirm these modifications?")
         } else {
 
           Q <- TRUE
@@ -280,7 +280,8 @@ update_plot_data <- function(team_lead = NULL,
 
         if (ask_before_update) {
 
-          Q <- utils::askYesNo("Confirm these modifications?")
+          # Q <- utils::askYesNo("Confirm these modifications?")
+          Q <- choose_prompt(message =  "Confirm these modifications?")
 
         } else {
 
@@ -680,7 +681,7 @@ update_subplots_table <- function(subplots_id = NULL,
         print()
 
       Q <-
-        utils::askYesNo(msg = "Do you confirm you want to update these rows for selected fields?", default = FALSE)
+        choose_prompt(message =  "Do you confirm you want to update these rows for selected fields?")
     }else{
       Q <- TRUE
     }
@@ -1362,7 +1363,8 @@ update_ident_specimens <- function(colnam = NULL,
 
       if (ask_before_update) {
 
-        confirmed <- utils::askYesNo("Confirm this update?")
+        # confirmed <- utils::askYesNo("Confirm this update?")
+        confirmed <- choose_prompt(message =  "Confirm this update?")
 
       } else
       {
@@ -1722,7 +1724,7 @@ update_trait_list_table <- function(trait_searched = NULL,
         print()
 
       Q <-
-        utils::askYesNo(msg = "Do you confirm you want to update these rows for selected fields?", default = FALSE)
+        choose_prompt(message =  "Do you confirm you want to update these rows for selected fields?")
     }else{
       Q <- TRUE
     }
@@ -2303,8 +2305,9 @@ update_trait_measures <- function(new_data,
 
   if(ask_before_update & confirm_new_ident) {
 
-    confirm <-
-      askYesNo(msg = 'Confirm update ?')
+    # confirm <-
+    #   askYesNo(msg = 'Confirm update ?')
+    confirm <- choose_prompt(message =  "Confirm update ?")
 
     print(confirm)
 
@@ -2615,8 +2618,10 @@ update_colnam <- function(colnam_searched = NULL,
       .comp_print_vec(vec_1 = sel_query_colnam[2,],
                       vec_2 = sel_query_colnam[1,])
 
-      Q <-
-        utils::askYesNo(msg = "Do you confirm you want to update these rows for selected fields?", default = FALSE)
+      # Q <-
+      #   utils::askYesNo(msg = "Do you confirm you want to update these rows for selected fields?", default = FALSE)
+      Q <- choose_prompt(message =  "Do you confirm you want to update these rows for selected fields?")
+      
     }else{
       Q <- TRUE
     }
@@ -2963,8 +2968,9 @@ update_dico_name <- function(genus_searched = NULL,
       if(query_tax$idtax_good_n != query_tax$idtax_n) {
 
         query_taxa(ids = query_tax$idtax_good_n)
-        Q.syn <-
-          utils::askYesNo("Taxa selected is already a synonym of this taxa. Are you sure you want to modify this?", default = FALSE)
+        # Q.syn <-
+        #   utils::askYesNo("Taxa selected is already a synonym of this taxa. Are you sure you want to modify this?", default = FALSE)
+        Q.syn <- choose_prompt(message =  "Taxa selected is already a synonym of this taxa. Are you sure you want to modify this?")
       }
     }
 
@@ -2983,8 +2989,10 @@ update_dico_name <- function(genus_searched = NULL,
         print(syn_of_new_syn %>%
                 dplyr::select(tax_fam, tax_gen, tax_esp, tax_rank01, tax_nam01, idtax_n, idtax_good_n))
 
-        Q.syn2 <-
-          utils::askYesNo("Do you confirm to also modify the synonymies of these selected names?", default = FALSE)
+        # Q.syn2 <-
+        #   utils::askYesNo("Do you confirm to also modify the synonymies of these selected names?", default = FALSE)
+        
+        Q.syn2 <- choose_prompt(message =  "Do you confirm to also modify the synonymies of these selected names?")
 
         if(Q.syn2)
           ids_others_names_synonyms <-
@@ -3072,9 +3080,11 @@ update_dico_name <- function(genus_searched = NULL,
 
     if(ask_before_update) {
 
-      Q <-
-        utils::askYesNo(msg = "Do you confirm you want to update these rows for selected fields?", default = FALSE)
+      # Q <-
+      #   utils::askYesNo(msg = "Do you confirm you want to update these rows for selected fields?", default = FALSE)
 
+      Q <- choose_prompt(message =  "Do you confirm you want to update these rows for selected fields?")
+      
     } else{
 
       Q <- TRUE
@@ -3252,8 +3262,9 @@ update_dico_name_batch <- function(new_data,
 
   if(ask_before_update) {
 
-    confirm <-
-      askYesNo(msg = 'Confirm update ?')
+    # confirm <-
+    #   askYesNo(msg = 'Confirm update ?')
+    confirm <- choose_prompt(message =  "Confirm update ?")
 
     print(confirm)
 
@@ -3391,28 +3402,24 @@ update_subplottype_list_table <- function(subplottype_searched = NULL,
                 new_typedescription, new_expectedunit)
   if(!any(!is.null(new_vals))) stop("\n No new values to be updated.")
   
-  ### querying for entries to be modified
-  if (!is.null(subplottype_searched)) {
-    query <- 'SELECT * FROM subplotype_list WHERE MMM'
-    query <- gsub(
-      pattern = "MMM",
-      replacement = paste0(" type ILIKE '%",
-                           subplottype_searched, "%'"),
-      x = query
+  sql_query <- if (!is.null(subplottype_searched)) {
+    glue::glue_sql(
+      "SELECT * FROM subplotype_list WHERE type ILIKE {pattern}",
+      pattern = paste0("%", subplottype_searched, "%"),
+      .con = mydb
     )
-    
-    rs <- DBI::dbSendQuery(mydb, query)
-    query_trait <- DBI::dbFetch(rs)
-    DBI::dbClearResult(rs)
-    
   } else {
-    query_subplotype <-
-      dplyr::tbl(mydb, "subplotype_list") %>%
-      dplyr::filter(id_subplotype == !!id_subplotype) %>%
-      dplyr::collect()
+    glue::glue_sql(
+      "SELECT * FROM subplotype_list WHERE id_subplotype = {id}",
+      id = id_subplotype,
+      .con = mydb
+    )
   }
   
+  query_subplotype <- func_try_fetch(mydb, sql_query)
+  
   print(query_subplotype %>% as.data.frame())
+  
   if (nrow(query_subplotype) > 1)
     stop("more than one subplotype selected, select one")
   if (nrow(query_subplotype) == 0)
@@ -3433,9 +3440,7 @@ update_subplottype_list_table <- function(subplottype_searched = NULL,
                   expectedunit = ifelse(!is.null(new_expectedunit), as.character(new_expectedunit),
                                         query_subplotype$expectedunit))
   
-  new_vals <-
-    new_vals %>%
-    replace(., is.na(.), -9999)
+  new_vals <- replace_NA(df = new_vals)
   
   sel_query_subplotype <-
     dplyr::bind_rows(new_vals, query_subplotype %>%
@@ -3474,14 +3479,20 @@ update_subplottype_list_table <- function(subplottype_searched = NULL,
     
     if (ask_before_update) {
       
-      sel_query_subplotype %>%
-        dplyr::select(!!names(comp_vals)) %>%
-        dplyr::select(which(comp_vals)) %>%
-        print()
+      # sel_query_subplotype %>%
+      #   dplyr::select(!!names(comp_vals)) %>%
+      #   dplyr::select(which(comp_vals)) %>%
+      #   print()
       
-      Q <-
-        utils::askYesNo(msg = "Do you confirm you want to update these rows for selected fields?",
-                        default = FALSE)
+      .comp_print_vec(vec_1 = sel_query_subplotype[2,],
+                      vec_2 = sel_query_subplotype[1,])$comp_html
+      
+      # Q <-
+      #   utils::askYesNo(msg = "Do you confirm you want to update these rows for selected fields?",
+      #                   default = FALSE)
+      
+      Q <- choose_prompt(message =  "Do you confirm you want to update these rows for selected fields?")
+      
     } else{
       
       Q <- TRUE
@@ -3715,3 +3726,4 @@ update_method_batch <- function(new_data,
   
   return(matches_all)
 }
+

@@ -2,13 +2,33 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{func_try_fetch}
 \alias{func_try_fetch}
-\title{Send query to postgresql database}
+\title{Safely execute a SQL query with automatic retry}
 \usage{
-func_try_fetch(con, sql)
+func_try_fetch(con, sql, max_attempts = 10, wait_seconds = 1, verbose = TRUE)
+}
+\arguments{
+\item{con}{A DBI connection object.}
+
+\item{sql}{A SQL query string, typically created using \code{glue::glue_sql()}.}
+
+\item{max_attempts}{Integer. Maximum number of attempts before giving up. Default is 10.}
+
+\item{wait_seconds}{Numeric. Time in seconds to wait between retries. Default is 1.}
+
+\item{verbose}{Logical. If \code{TRUE}, displays informative messages. Default is \code{TRUE}.}
+}
+\value{
+A tibble containing the query results, with unique column names.
 }
 \description{
-Access to postgresql database with repeating if no successful
+This function attempts to execute a SQL query using \code{DBI::dbSendQuery()} and \code{DBI::dbFetch()},
+with automatic retries in case of transient database failures such as connection loss
+or query preparation errors.
 }
-\author{
-Gilles Dauby, \email{gilles.dauby@ird.fr}
+\details{
+This function is designed for read queries (e.g., \code{SELECT}) that return results.
+For write queries (e.g., \code{UPDATE}, \code{INSERT}, \code{DELETE}), use a variant that uses \code{dbExecute()} or \code{dbSendStatement()}.
+
+If the database connection is lost, the function stops immediately.
+If the query fails to prepare (e.g., due to a lock or temporary issue), the function retries up to \code{max_attempts}.
 }
