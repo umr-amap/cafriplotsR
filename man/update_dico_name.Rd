@@ -67,8 +67,6 @@ update_dico_name(
 
 \item{new_full_name_used2}{string new full_name_used2}
 
-\item{new_id_diconame_good}{integer if the selected name should be put in synonymy, id of the taxa}
-
 \item{id_search}{integer id of the taxa searched}
 
 \item{no_synonym_modif}{logical FALSE by default, if TRUE and if the selected taxa is considered as synonym, then this will be modified and the selected taxa will not longer be a synonym}

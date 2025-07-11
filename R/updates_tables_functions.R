@@ -56,7 +56,6 @@ update_plot_data <- function(team_lead = NULL,
   if (is.null(id_table_plot)) {
     quer_plots <-
       query_plots(
-        team_lead = team_lead,
         plot_name = plot_name,
         country = country,
         method = method,
@@ -638,7 +637,7 @@ update_subplots_table <- function(subplots_id = NULL,
     )
 
 
-  sel_query_subplots <- replace_NA(vec = sel_query_subplots)
+  sel_query_subplots <- replace_NA(df = sel_query_subplots)
 
   # sel_query_subplots <-
   #   sel_query_subplots %>%
@@ -1700,7 +1699,7 @@ update_trait_list_table <- function(trait_searched = NULL,
                        dplyr::select(-valuetype, -id_trait, -date_modif_d, -date_modif_m, -date_modif_y))
 
   sel_query_trait <-
-    replace_NA(vec = sel_query_trait)
+    replace_NA(df = sel_query_trait)
 
   comp_vals <-
     apply(sel_query_trait, MARGIN = 2, FUN = function(x) x[1]!=x[2:length(x)])
@@ -2591,14 +2590,14 @@ update_colnam <- function(colnam_searched = NULL,
                                    queried_colnam$institute))
 
   new_vals <-
-    replace_NA(vec = new_vals)
+    replace_NA(df = new_vals)
 
   sel_query_colnam <-
     dplyr::bind_rows(new_vals, queried_colnam %>%
                        dplyr::select(-id_table_colnam))
 
   sel_query_colnam <-
-    replace_NA(vec = sel_query_colnam)
+    replace_NA(df = sel_query_colnam)
 
   comp_vals <-
     apply(sel_query_colnam, MARGIN = 2, FUN = function(x) x[1]!=x[2:length(x)])
@@ -2710,7 +2709,6 @@ update_colnam <- function(colnam_searched = NULL,
 #' @param new_full_name_no_auth string new full name without authors - if not provided concatenate of new_esp and new_genus
 #' @param new_full_name_used string new full_name_used
 #' @param new_full_name_used2 string new full_name_used2
-#' @param new_id_diconame_good integer if the selected name should be put in synonymy, id of the taxa
 #' @param id_search integer id of the taxa searched
 #' @param ask_before_update logical TRUE by default, ask for confirmation before updating
 #' @param add_backup logical TRUE by default, add backup of modified data
