@@ -65,60 +65,11 @@ query_individual_features <- function(id = NULL,
     traits_measures %>%
     filter(is.na(issue))
   
-  
-  # if (length(id) > 50000) {
-  #   chunk_size <- 5000
-  #   
-  #   chunks <- split(id, gl(length(id)/chunk_size, chunk_size, length(id)))
-  #   
-  #   cli::cli_alert_warning("Individual features queried by chunks because of large number of values")
-  #   
-  #   traits_measures_list <- vector('list', length(chunks))
-  #   for (i in 1:length(chunks)) {
-  #     cat(i, " ")
-  #     
-  #     if (!is.null(id) & is.null(id_traits))
-  #       sql <- .sql_query_trait(id_in = chunks[[i]])
-  #       
-  #       # sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*})",
-  #       #                       vals = chunks[[i]], .con = mydb)
-  #     
-  #     if (!is.null(id) & !is.null(id_traits))
-  #       sql <- .sql_query_trait_ind_2(id_ind = chunks[[i]], id_traits = id_traits)
-  #       # sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*}) AND id_trait IN ({vals2*})",
-  #       #                       vals = chunks[[i]], vals2 = id_traits, .con = mydb)
-  #     
-  #     traits_measures_list[[i]] <-
-  #       suppressMessages(func_try_fetch(con = mydb, sql = sql))
-  #     
-  #   }
-  #   
-  #   traits_measures <- 
-  #     bind_rows(traits_measures_list)
-  #   
-  # } else {
-  #   
-  #   if (!is.null(id) & is.null(id_traits))
-  #     sql <- .sql_query_trait(id_in = id)
-  #     # sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*})",
-  #     #                       vals = id, .con = mydb)
-  #   
-  #   if (!is.null(id) & !is.null(id_traits))
-  #     sql <- .sql_query_trait_ind_2(id_ind = id, id_traits = id_traits)
-  #     # sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.traitid = {`tbl2`}.id_trait WHERE id_data_individuals IN ({vals*}) AND id_trait IN ({vals2*})",
-  #     #                       vals = id, vals2 = id_traits, .con = mydb)
-  #   
-  #   traits_measures <-
-  #     suppressMessages(func_try_fetch(con = mydb, sql = sql))
-  # }
 
   ### Error : Failed to fetch row : SSL SYSCALL error: EOF detected
   traits_measures <-
     traits_measures %>% select(-starts_with("date_modif"))
 
-  # traits_measures <-
-  #   rm_field(data = traits_measures, field = c(
-  #                                            "id_diconame"))
   
   traits_measures <- traits_measures %>%
     dplyr::select(-any_of(c("id_diconame")))
@@ -594,7 +545,7 @@ query_individual_features <- function(id = NULL,
 #' @param collapse_multiple_val logical whether multiple traits measures should be collapsed (resulting values as character, separated by dash)
 #' @param remove_obs_with_issue logical
 #' 
-#' @importFrom data.table setDT is.data.table
+#' @importFrom data.table setDT is.data.table rowid
 #' 
 #' @export
 .get_trait_individuals_values <- function(traits,
@@ -806,8 +757,8 @@ query_individual_features <- function(id = NULL,
     if (!data.table::is.data.table(df)) data.table::setDT(df)
     
     # Séparation des colonnes à collapse vs moyenne
-    collapse_cols <- data.table::intersect(collapse_cols, names(df))
-    mean_cols <- data.table::setdiff(names(df), c("id_data_individuals", "id_sub_plots", collapse_cols))
+    collapse_cols <- intersect(collapse_cols, names(df))
+    mean_cols <- setdiff(names(df), c("id_data_individuals", "id_sub_plots", collapse_cols))
     
     # Étape 1 : résumé par (id_data_individuals, id_sub_plots)
     df1 <- df[, lapply(.SD, function(x) mean(x, na.rm = TRUE)),
@@ -819,7 +770,7 @@ query_individual_features <- function(id = NULL,
               .SDcols = collapse_cols]
     
     # Fusion des deux résumés intermédiaires
-    df_combined <- data.table::merge(df1, df2, by = c("id_data_individuals", "id_sub_plots"), all = TRUE)
+    df_combined <- merge(df1, df2, by = c("id_data_individuals", "id_sub_plots"), all = TRUE)
     
     # Étape 2 : résumé final par individu
     df_final <- df_combined[, lapply(.SD, function(x) {
