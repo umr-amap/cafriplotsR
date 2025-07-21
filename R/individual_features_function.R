@@ -991,164 +991,303 @@ add_trait <- function(new_trait = NULL,
 #'
 #'
 #' @export
-query_traits_measures_features <- function(id_trait_measures  = NULL) {
+query_traits_measures_features <- function(id_trait_measures  = NULL, src = "individuals") {
 
-  feat_data <-
-    try_open_postgres_table(table = "data_ind_measures_feat", con = mydb) %>%
+  con <- if (src == "individuals") mydb else mydb_taxa
+  table_name <- if (src == "individuals") "data_ind_measures_feat" else "table_traits_measures_feat"
+  trait_table <- if (src == "individuals") "traitlist" else "table_traits"
+  id_col <- if (src == "individuals") "id_ind_meas_feat" else "id_taxa_trait_feat"
+  
+  # Retrieve data
+  feat_data <- try_open_postgres_table(table = table_name, con = con) %>%
     dplyr::filter(id_trait_measures %in% !!id_trait_measures)
-
-  nbe_feat_data <- nrow(feat_data %>%
-                             dplyr::collect())
-
-  if (nbe_feat_data  > 0) {
-
-    all_sub_type <-
-      feat_data %>%
-      dplyr::distinct(id_trait) %>%
-      dplyr::left_join(
-        dplyr::tbl(mydb, "traitlist") %>%
-          dplyr::select(trait, valuetype, traitdescription, id_trait),
-        by = c("id_trait" = "id_trait")
-      )
-
-    extracted_data <-
-      feat_data %>%
-      dplyr::left_join(all_sub_type,
-                       by = c("id_trait" = "id_trait")) %>%
-      dplyr::collect() %>%
-      dplyr::select(id_trait_measures,
-                    trait,
-                    valuetype,
-                    typevalue,
-                    typevalue_char,
-                    id_ind_meas_feat)
-
-    # extracted_data <- extracted_data %>%
-    #   group_by(id_trait_measures, trait) %>%
-    #   summarise(valuetype = first(valuetype),
-    #             typevalue = mean(typevalue, na.rm = T),
-    #             n = n()) %>%
-    #   filter(n > 1)
-
-    if (any(extracted_data$valuetype == "numeric")) {
-      numeric_subplots_pivot <-
-        extracted_data %>%
-        filter(valuetype == "numeric") %>%
-        select(id_trait_measures, typevalue, trait, id_ind_meas_feat) %>%
-        tidyr::pivot_wider(
-          names_from = "trait",
-          values_from = "typevalue",
-          values_fn = ~ mean(.x, na.rm = TRUE)
-        ) %>%
-        mutate(id_ind_meas_feat = as.character(id_ind_meas_feat))
-    } else {
-      numeric_subplots_pivot <- NULL
-    }
-
-    if (any(extracted_data$valuetype == "character")) {
-      character_feat_pivot <-
-        extracted_data %>%
-        filter(valuetype == "character") %>%
-        select(id_trait_measures, typevalue_char, trait, id_ind_meas_feat)  %>%
-        tidyr::pivot_wider(
-          names_from = "trait",
-          values_from = "typevalue_char",
-          values_fn = ~ paste(.x, collapse = "|")
-        ) %>%
-        mutate(id_ind_meas_feat = as.character(id_ind_meas_feat))
-    } else {
-      character_feat_pivot <- NULL
-    }
-
-    if (any(extracted_data$valuetype == "ordinal")) {
-      ordinal_subplots_pivot <-
-        extracted_data %>%
-        filter(valuetype == "ordinal") %>%
-        select(id_trait_measures, typevalue_char, trait, id_ind_meas_feat)  %>%
-        tidyr::pivot_wider(
-          names_from = "trait",
-          values_from = "typevalue_char",
-          values_fn = ~ paste(.x, collapse = "|")
-        ) %>%
-        mutate(id_ind_meas_feat = as.character(id_ind_meas_feat))
-    } else {
-      ordinal_subplots_pivot <- NULL
-    }
-
-
-    if (any(grepl("table_colnam", extracted_data$valuetype))) {
-
-      table_ids_subplots <- extracted_data %>%
-        filter(grepl("table_", valuetype))
-
-      allvalutype <- distinct(table_ids_subplots, valuetype)
-
-
-      table_valutype_list <- vector('list', nrow(allvalutype))
-      for (i in 1:nrow(allvalutype)) {
-
-        ids_ <-
-          case_when(
-            table_ids_subplots$valuetype[i] == "table_colnam" ~ "id_table_colnam"
-          )
-
-        col_to_keep_ <-
-          case_when(
-            table_ids_subplots$valuetype[i] == "table_colnam" ~ "colnam"
-          )
-
-        table_collected <-
-          tbl(mydb, table_ids_subplots$valuetype[i]) %>%
-          collect()
-
-        table_ids_subplots <-
-          table_ids_subplots %>%
-          left_join(table_collected %>%
-                      dplyr::select(all_of(c(col_to_keep_, ids_))),
-                    by = c("typevalue" = ids_)) %>%
-          mutate(typevalue_char = !!rlang::parse_expr(col_to_keep_)) %>%
-          dplyr::select(-all_of(col_to_keep_))
-
-        table_valutype_list[[i]] <-
-          table_ids_subplots %>%
-          select(id_trait_measures, typevalue_char, trait, id_ind_meas_feat) %>%
-          mutate(id_ind_meas_feat = as.character(id_ind_meas_feat)) %>%
-          tidyr::pivot_wider(
-            names_from = "trait",
-            values_from = c("typevalue_char", "id_ind_meas_feat"),
-            values_fn = ~ paste(., collapse = "|")
-          ) %>%
-          rename(id_ind_meas_feat =  id_ind_meas_feat_colnam,
-                 colnam = typevalue_char_colnam)
-      }
-    } else {
-      table_valutype_list <- NULL
-    }
-
-    # all_feat_pivot <-
-    #   c(list(character_subplots_pivot),
-    #     list(numeric_subplots_pivot),
-    #     table_valutype_list)
-
-    all_feat_pivot <-
-      bind_rows(list(list(character_feat_pivot),
-                     list(numeric_subplots_pivot),
-                     list(ordinal_subplots_pivot),
-                     table_valutype_list))
-
-    # all_feat_pivot <-
-    #   purrr::reduce(all_feat_pivot[!unlist(lapply(all_feat_pivot, is.null))],
-    #                 dplyr::full_join,
-    #                 by = c('id_trait_measures'))
-
+  
+  if (src == "individuals") sql <- glue::glue_sql("SELECT COUNT(*) AS n FROM data_ind_measures_feat WHERE id_trait_measures IN ({vals*})",
+                                                  vals = id_trait_measures, .con = con, table = table_name)
+  if (src == "taxa") sql <- glue::glue_sql("SELECT COUNT(*) AS n FROM table_traits_measures_feat WHERE id_trait_measures IN ({vals*})",
+                                                  vals = id_trait_measures, .con = con, table = table_name)
+  
+  count_vals <- func_try_fetch(con = con, sql = sql)
+  
+  # Early exit
+  if (count_vals == 0)
+    return(list(all_feat_pivot = NA))
+  
+  # Trait metadata
+  trait_meta <- try_open_postgres_table(trait_table, con = con) %>%
+    dplyr::select(trait, valuetype, traitdescription, id_trait)
+  
+  # Join metadata
+  extracted_data <- feat_data %>%
+    dplyr::distinct(id_trait_measures, id_trait, !!sym(id_col), typevalue, typevalue_char) %>%
+    dplyr::left_join(trait_meta, by = "id_trait") %>%
+    dplyr::collect() %>%
+    mutate(!!sym(id_col) := as.character(!!sym(id_col)))
+  
+  extracted_data <- data.table::as.data.table(extracted_data)
+  
+  # Character traits
+  if ("character" %in% extracted_data$valuetype) {
+    char_dt <- extracted_data[valuetype == "character"]
+    
+    formula_dt <- as.formula(paste("id_trait_measures +", id_col, "~ trait"))
+    
+    character_pivot <- data.table::dcast(
+      char_dt,
+      formula = formula_dt,
+      value.var = "typevalue_char",
+      fun.aggregate = function(x) paste(na.omit(unique(x)), collapse = "|")
+    )
 
   } else {
-
-    all_feat_pivot <- NA
-
+    character_pivot <- NULL
   }
+  
+  # Numeric traits
+  if ("numeric" %in% extracted_data$valuetype) {
+    
+    num_dt <- extracted_data[valuetype == "numeric"]
+    
+    formula_dt <- as.formula(paste("id_trait_measures +", id_col, "~ trait"))
+    
+    numeric_pivot <- dcast(
+      num_dt,
+      formula = formula_dt,
+      value.var = "typevalue",
+      fun.aggregate = function(x) mean(as.numeric(x), na.rm = TRUE)
+    )
+    
+  } else {
+    numeric_pivot <- NULL
+  }
+  
+  # Ordinal traits
+  if ("ordinal" %in% extracted_data$valuetype) {
+    
+    ord_dt <- extracted_data[valuetype == "ordinal"]
+    
+    formula_dt <- as.formula(paste("id_trait_measures +", id_col, "~ trait"))
+    
+    ordinal_pivot <- dcast(
+      ord_dt,
+      formula = formula_dt,
+      value.var = "typevalue_char",
+      fun.aggregate = function(x) paste(na.omit(unique(x)), collapse = "|")
+    )
+  } else {
+    ordinal_pivot <- NULL
+  }
+  
+  table_df <- extracted_data %>% filter(grepl("^table_", valuetype))
+  
+  # Handle table_* valuetypes
+  table_valutype_list <- list()
+  if (nrow(table_df)) {
+    for (vt in unique(table_df$valuetype)) {
+      ids_col <- switch(vt,
+                        "table_colnam" = "id_table_colnam",
+                        stop("Unknown table_* valuetype: ", vt)
+      )
+      col_keep <- switch(vt,
+                         "table_colnam" = "colnam"
+      )
+      tbl_values <- tbl(mydb, vt) %>% select(all_of(c(col_keep, ids_col))) %>% collect()
+      
+      tmp <- table_df %>% filter(valuetype == vt) %>%
+        left_join(tbl_values, by = setNames(ids_col, "typevalue")) %>%
+        mutate(typevalue_char = .data[[col_keep]]) %>%
+        select(id_trait_measures, trait, typevalue_char, !!sym(id_col))
+      
+      table_valutype_list[[vt]] <- 
+        tmp %>%
+        select(id_trait_measures, typevalue_char, trait, !!rlang::sym(id_col)) %>%
+        mutate(!!id_col := as.character(!!rlang::sym(id_col))) %>%
+        tidyr::pivot_wider(
+          names_from = "trait",
+          values_from = c("typevalue_char", "id_ind_meas_feat"),
+          values_fn = ~ paste(., collapse = "|")
+        ) %>%
+        rename(!!id_col :=  id_ind_meas_feat_colnam,
+               colnam = typevalue_char_colnam)
+      
+    }
+  }
+  
+  all_feat_pivot <- rbindlist(
+    c(
+      list(as_tibble(character_pivot)),
+      list(as_tibble(numeric_pivot)),
+      list(as_tibble(ordinal_pivot)),
+      table_valutype_list
+    ),
+    fill = TRUE,
+    use.names = TRUE
+  )
+  
+  return(list(all_feat_pivot = as_tibble(all_feat_pivot)))
 
-  return(list(all_feat_pivot = all_feat_pivot))
+  # if (src == "individuals") {
+  #   feat_data <-
+  #     try_open_postgres_table(table = "data_ind_measures_feat", con = mydb) %>%
+  #     dplyr::filter(id_trait_measures %in% !!id_trait_measures)    
+  # }
+  # 
+  # if (src == "taxa") {
+  #   feat_data <-
+  #     try_open_postgres_table(table = "table_traits_measures_feat", con = mydb_taxa) %>%
+  #     dplyr::filter(id_trait_measures %in% !!id_trait_measures)
+  # }
+  # 
+  # nbe_feat_data <- nrow(feat_data %>%
+  #                            dplyr::collect())
+  # 
+  # if (nbe_feat_data  > 0) {
+  # 
+  #   if (src == "individuals") {
+  #     all_sub_type <-
+  #       feat_data %>%
+  #       dplyr::distinct(id_trait) %>%
+  #       dplyr::left_join(
+  #         dplyr::tbl(mydb, "traitlist") %>%
+  #           dplyr::select(trait, valuetype, traitdescription, id_trait),
+  #         by = c("id_trait" = "id_trait")
+  #       )
+  #   }
+  #   
+  #   if (src == "taxa") {
+  #     all_sub_type <-
+  #       feat_data %>%
+  #       dplyr::distinct(id_trait) %>%
+  #       dplyr::left_join(
+  #         try_open_postgres_table(table = "table_traits", con = mydb_taxa) %>%
+  #           dplyr::select(trait, valuetype, traitdescription, id_trait),
+  #         by = c("id_trait" = "id_trait")
+  #       )
+  #   }
+  #   
+  #   id_col <- if (src == "individuals") "id_ind_meas_feat" else "id_taxa_trait_feat"
+  # 
+  #   extracted_data <-
+  #     feat_data %>%
+  #     dplyr::left_join(all_sub_type,
+  #                      by = c("id_trait" = "id_trait")) %>%
+  #     dplyr::collect() %>%
+  #     dplyr::select(id_trait_measures,
+  #                   trait,
+  #                   valuetype,
+  #                   typevalue,
+  #                   typevalue_char,
+  #                   !!rlang::sym(id_col))
+  # 
+  # 
+  #   if (any(extracted_data$valuetype == "numeric")) {
+  #     numeric_subplots_pivot <-
+  #       extracted_data %>%
+  #       filter(valuetype == "numeric") %>%
+  #       select(id_trait_measures, typevalue, trait, !!rlang::sym(id_col)) %>%
+  #       tidyr::pivot_wider(
+  #         names_from = "trait",
+  #         values_from = "typevalue",
+  #         values_fn = ~ mean(.x, na.rm = TRUE)
+  #       ) %>%
+  #       mutate(!!id_col := as.character(!!rlang::sym(id_col)))
+  #   } else {
+  #     numeric_subplots_pivot <- NULL
+  #   }
+  # 
+  #   if (any(extracted_data$valuetype == "character")) {
+  #     character_feat_pivot <-
+  #       extracted_data %>%
+  #       filter(valuetype == "character") %>%
+  #       select(id_trait_measures, typevalue_char, trait, !!rlang::sym(id_col))  %>%
+  #       tidyr::pivot_wider(
+  #         names_from = "trait",
+  #         values_from = "typevalue_char",
+  #         values_fn = ~ paste(.x, collapse = "|")
+  #       ) %>%
+  #       mutate(!!id_col := as.character(!!rlang::sym(id_col)))
+  #   } else {
+  #     character_feat_pivot <- NULL
+  #   }
+  # 
+  #   if (any(extracted_data$valuetype == "ordinal")) {
+  #     ordinal_subplots_pivot <-
+  #       extracted_data %>%
+  #       filter(valuetype == "ordinal") %>%
+  #       select(id_trait_measures, typevalue_char, trait, !!rlang::sym(id_col))  %>%
+  #       tidyr::pivot_wider(
+  #         names_from = "trait",
+  #         values_from = "typevalue_char",
+  #         values_fn = ~ paste(.x, collapse = "|")
+  #       ) %>%
+  #       mutate(!!id_col := as.character(!!rlang::sym(id_col)))
+  #   } else {
+  #     ordinal_subplots_pivot <- NULL
+  #   }
+  # 
+  # 
+  #   if (any(grepl("table_colnam", extracted_data$valuetype))) {
+  # 
+  #     table_ids_subplots <- extracted_data %>%
+  #       filter(grepl("table_", valuetype))
+  # 
+  #     allvalutype <- distinct(table_ids_subplots, valuetype)
+  # 
+  # 
+  #     table_valutype_list <- vector('list', nrow(allvalutype))
+  #     for (i in 1:nrow(allvalutype)) {
+  # 
+  #       ids_ <-
+  #         case_when(
+  #           table_ids_subplots$valuetype[i] == "table_colnam" ~ "id_table_colnam"
+  #         )
+  # 
+  #       col_to_keep_ <-
+  #         case_when(
+  #           table_ids_subplots$valuetype[i] == "table_colnam" ~ "colnam"
+  #         )
+  # 
+  #       table_collected <-
+  #         tbl(mydb, table_ids_subplots$valuetype[i]) %>%
+  #         collect()
+  # 
+  #       table_ids_subplots <-
+  #         table_ids_subplots %>%
+  #         left_join(table_collected %>%
+  #                     dplyr::select(all_of(c(col_to_keep_, ids_))),
+  #                   by = c("typevalue" = ids_)) %>%
+  #         mutate(typevalue_char = !!rlang::parse_expr(col_to_keep_)) %>%
+  #         dplyr::select(-all_of(col_to_keep_))
+  # 
+  #       table_valutype_list[[i]] <-
+  #         table_ids_subplots %>%
+  #         select(id_trait_measures, typevalue_char, trait, !!rlang::sym(id_col)) %>%
+  #         mutate(!!id_col := as.character(!!rlang::sym(id_col))) %>%
+  #         tidyr::pivot_wider(
+  #           names_from = "trait",
+  #           values_from = c("typevalue_char", "id_ind_meas_feat"),
+  #           values_fn = ~ paste(., collapse = "|")
+  #         ) %>%
+  #         rename(!!id_col :=  id_ind_meas_feat_colnam,
+  #                colnam = typevalue_char_colnam)
+  #     }
+  #   } else {
+  #     table_valutype_list <- NULL
+  #   }
+  # 
+  #   all_feat_pivot <-
+  #     bind_rows(list(list(character_feat_pivot),
+  #                    list(numeric_subplots_pivot),
+  #                    list(ordinal_subplots_pivot),
+  #                    table_valutype_list))
+  # 
+  # } else {
+  # 
+  #   all_feat_pivot <- NA
+  # 
+  # }
+  # 
+  # return(list(all_feat_pivot = all_feat_pivot))
 
 }
 

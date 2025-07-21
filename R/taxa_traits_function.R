@@ -1,4 +1,400 @@
 
+#' Query for taxa level traits
+#'
+#' Query for traits for given taxa, include synonyms or not
+#'
+#' @return vector
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @param idtax vector of idtax_n
+#' @param idtax_good vector of idtax_good; NULL if no synonym
+#' @param add_taxa_info logical
+#' @param id_trait integer indicating the id of the trait to look for
+#' @param trait_cat_mode vector string if "most_frequent" then the most frequent value for categorical trait is given, if "all_unique" then all unique value separated by comma
+#' @param verbose logical
+#' @param pivot_table logical
+#' @param include_remarks logical
+#' @param extract_trait_measures_features logical
+#' 
+#' @export
+query_traits_measures <- function(idtax = NULL,
+                                  idtax_good = NULL,
+                                  add_taxa_info = FALSE,
+                                  id_trait = NULL,
+                                  trait_cat_mode = "most_frequent",
+                                  verbose = TRUE,
+                                  pivot_table = TRUE,
+                                  include_remarks = FALSE,
+                                  extract_trait_measures_features = FALSE) {
+  
+  if (!exists("mydb")) call.mydb()
+  if (!exists("mydb_taxa")) call.mydb.taxa()
+  
+  tbl <- "table_traits_measures"
+  tbl2 <- "table_traits"
+  
+  if (!is.null(idtax)) {
+    
+    if (!is.null(idtax_good)) {
+      
+      idtax_tb <- dplyr::tibble(idtax = idtax, idtax_good = idtax_good)
+      
+    } else {
+      
+      table_taxa <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
+      
+      # table_taxa <- try_open_postgres_table(table = "table_idtax", con = mydb)
+      
+      ids_syn <- table_taxa %>%
+        dplyr::select(idtax_n, idtax_good_n) %>%
+        dplyr::filter(idtax_good_n %in% !!idtax) %>%
+        dplyr::collect()
+      
+      idtax <- unique(c(idtax, ids_syn$idtax_n))
+      
+      idtax_tb <- table_taxa %>%
+        # dplyr::select(idtax_n, idtax_good_n) %>%
+        dplyr::filter(idtax_n %in% !!idtax) %>%
+        dplyr::collect() %>%
+        dplyr::rename(idtax = idtax_n,
+                      idtax_good = idtax_good_n)
+      
+    }
+    
+    
+    if (!is.null(id_trait)) {
+      sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.fk_id_trait = {`tbl2`}.id_trait  WHERE id_trait IN ({vals2*}) AND idtax IN ({vals*})",
+                            vals = idtax, .con = mydb_taxa, vals2 = id_trait)
+    } else {
+      sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.fk_id_trait = {`tbl2`}.id_trait  WHERE idtax IN ({vals*})",
+                            vals = idtax, .con = mydb_taxa)
+    }
+    
+  } else {
+    
+    table_taxa <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
+    
+    sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.fk_id_trait = {`tbl2`}.id_trait  WHERE id_trait IN ({vals2*})",
+                          .con = mydb_taxa, vals2 = id_trait)
+    
+    idtax_tb <- 
+      table_taxa %>%
+      dplyr::rename(idtax = idtax_n,
+                    idtax_good = idtax_good_n)
+    
+  }
+  
+  traits_found <-
+    func_try_fetch(con = mydb_taxa, sql = sql)
+  
+  # traits_found <- 
+  #   traits_found %>% 
+  #   rename(id_trait = fk_id_trait)
+  
+  if (is.null(idtax)) {
+    
+    idtax <- unique(traits_found$idtax)
+    
+    idtax_tb <- 
+      idtax_tb %>%
+      dplyr::filter(idtax %in% !!idtax) %>%
+      dplyr::collect()
+  }
+  
+  
+  # sql <-glue::glue_sql("SELECT * FROM {`tbl`} WHERE idtax IN ({vals*}) LEFT OUTER JOIN table_traits ON table_traits_measures.id_trait = table_traits.id_trait",
+  #                      vals = idtax, .con = mydb_taxa)
+  
+  
+  traits_found <-
+    traits_found %>%
+    dplyr::left_join(idtax_tb %>%
+                       dplyr::select(idtax, idtax_good),
+                     by = c("idtax" = "idtax")) %>%
+    dplyr::mutate(idtax = ifelse(is.na(idtax_good), idtax, idtax_good)) %>%
+    dplyr::select(-idtax_good)
+  
+  if (extract_trait_measures_features) {
+    
+    feats <- query_traits_measures_features(id_trait_measures = traits_found$id_trait_measures, src = "taxa")
+    
+    if (any(!is.na(feats$all_feat_pivot))) {
+      
+      feats_unique <-
+        feats$all_feat_pivot %>%
+        mutate(id_taxa_trait_feat = as.character(id_taxa_trait_feat)) %>%
+        group_by(id_trait_measures) %>%
+        summarise(across(where(is.numeric), ~mean(., na.rm = T)),
+                  across(where(is.character), ~paste(.[!is.na(.)], collapse = "|"))) %>%
+        mutate(across(where(is.character), ~na_if(.x, "")))
+      
+
+    }
+    
+  }
+  
+  if (add_taxa_info) {
+    
+    taxa_infos <-
+      add_taxa_table_taxa(ids = traits_found$idtax) %>%
+      collect() %>%
+      dplyr::select(idtax_n,
+                    idtax_good_n,
+                    tax_fam,
+                    tax_gen,
+                    tax_esp,
+                    tax_infra_level)
+    
+    traits_found <-
+      traits_found %>%
+      left_join(taxa_infos,
+                by = c("idtax" = "idtax_n"))
+    
+  }
+  
+  if(nrow(traits_found) > 0) {
+    
+    if (any(traits_found$valuetype == "categorical")) {
+      
+      traits_idtax_char <-
+        traits_found %>%
+        dplyr::filter(valuetype == "categorical") %>%
+        dplyr::select(idtax,
+                      trait,
+                      traitvalue_char,
+                      basisofrecord,
+                      measurementremarks,
+                      id_trait_measures)
+      
+      if (!include_remarks)
+        traits_idtax_char <-
+          traits_idtax_char %>%
+          dplyr::select(-measurementremarks)
+      
+      if (pivot_table) {
+        traits_idtax_char <-
+          traits_idtax_char %>%
+          mutate(rn = 1:nrow(.)) %>%
+          # dplyr::mutate(rn = data.table::rowid(trait)) %>%
+          tidyr::pivot_wider(
+            names_from = trait,
+            values_from = c(traitvalue_char, basisofrecord, id_trait_measures),
+            names_prefix = "taxa_level_"
+          ) %>%
+          dplyr::select(-rn)
+        
+        names(traits_idtax_char) <- gsub("traitvalue_char_", "", names(traits_idtax_char))
+        
+        traits_idtax_concat <-
+          traits_idtax_char %>%
+          dplyr::select(idtax, starts_with("id_trait_")) %>%
+          dplyr::mutate(across(starts_with("id_trait_"), as.character)) %>%
+          dplyr::group_by(idtax) %>%
+          dplyr::mutate(dplyr::across(where(is.character),
+                                      ~ stringr::str_c(.[!is.na(.)],
+                                                       collapse = ", "))) %>%
+          dplyr::ungroup() %>%
+          dplyr::distinct()
+        
+        
+        if (trait_cat_mode == "all_unique") {
+          
+          if (verbose) cli::cli_alert_info("Extracting all unique values for categorical traits")
+          
+          ### concatenate all distinct values
+          traits_idtax_char <-
+            traits_idtax_char %>%
+            dplyr::select(-starts_with("id_trait_")) %>%
+            dplyr::group_by(idtax) %>%
+            dplyr::mutate(dplyr::across(where(is.character),
+                                        ~ stringr::str_c(.[!is.na(.)],
+                                                         collapse = ", "))) %>%
+            dplyr::distinct() %>%
+            dplyr::ungroup()
+          
+        }
+        
+        if (trait_cat_mode == "most_frequent") {
+          
+          if (verbose) cli::cli_alert_info("Extracting most frequent value for categorical traits")
+          
+          traits_idtax_char <-
+            traits_idtax_char %>%
+            dplyr::select(-starts_with("id_trait_")) %>%
+            group_by(idtax, across(where(is.character))) %>%
+            count() %>%
+            arrange(idtax, desc(n)) %>%
+            ungroup() %>%
+            group_by(idtax) %>%
+            dplyr::summarise_if(is.character, ~ first(.x[!is.na(.x)]))
+          
+          
+          # trait_multiple_val <- max_unique_val %>% filter(max_n > 1) %>% pull(trait)
+          #
+          # traits_idtax_char_multiple <-
+          #   traits_idtax_char %>%
+          #   dplyr::select(-starts_with("id_trait_")) %>%
+          #   group_by(idtax, across({{trait_multiple_val}})) %>%
+          #   count() %>%
+          #   arrange(idtax, desc(n)) %>%
+          #   ungroup() %>%
+          #   group_by(idtax) %>%
+          #   dplyr::summarise_if(is.character, ~ first(.x[!is.na(.x)]))
+          #
+          # trait_unique_val <- max_unique_val %>% filter(max_n == 1) %>% pull(trait)
+          #
+          # traits_idtax_char_multiple <-
+          #   traits_idtax_char %>%
+          #   # dplyr::select(-starts_with("id_trait_"),
+          #   #               idtax,
+          #   #               all_of(trait_unique_val),
+          #   #               -all_of(trait_multiple_val)) %>%
+          #   group_by(idtax, across({{trait_unique_val}})) %>%
+          #   count() %>%
+          #   ungroup() %>%
+          #   group_by(idtax) %>%
+          #   dplyr::summarise_if(is.character, ~ .x[!is.na(.x)])
+          
+          
+        }
+        
+        traits_idtax_char <-
+          left_join(traits_idtax_char,
+                    traits_idtax_concat, by = c("idtax" = "idtax"))
+        
+      } else {
+        
+        if (extract_trait_measures_features) {
+          if (feats_unique %>% filter(id_trait_measures %in% traits_idtax_char$id_trait_measures) %>% nrow() > 0)
+            traits_idtax_char <-
+              traits_idtax_char %>%
+              dplyr::left_join(feats_unique,
+                               by = c("id_trait_measures" = "id_trait_measures"))
+        } 
+          
+          
+        
+      }
+      
+      if (add_taxa_info) {
+        
+        traits_idtax_char <-
+          traits_idtax_char %>%
+          left_join(taxa_infos,
+                    by = c("idtax" = "idtax_n"))
+      }
+      
+    } else {
+      
+      traits_idtax_char <- NA
+      
+    }
+    
+    if (any(traits_found$valuetype == "numeric")) {
+      
+      traits_idtax_num <-
+        traits_found %>%
+        filter(valuetype == "numeric") %>%
+        dplyr::select(idtax,
+                      trait,
+                      traitvalue,
+                      basisofrecord,
+                      id_trait_measures)
+      
+      if (pivot_table) {
+        
+        traits_idtax_num <- 
+          traits_idtax_num  %>%
+          dplyr::mutate(rn = data.table::rowid(trait)) %>%
+          tidyr::pivot_wider(
+            names_from = trait,
+            values_from = c(traitvalue, basisofrecord, id_trait_measures),
+            names_prefix = "taxa_level_"
+          ) %>%
+          dplyr::select(-rn) %>%
+          dplyr::mutate(across(starts_with("id_trait_"), as.character))
+        
+        names(traits_idtax_num) <- gsub("traitvalue_", "", names(traits_idtax_num))
+        
+        traits_idtax_concat <-
+          traits_idtax_num %>%
+          dplyr::select(idtax, starts_with("id_trait_")) %>%
+          dplyr::mutate(dplyr::across(starts_with("id_trait_"), as.character)) %>%
+          dplyr::group_by(idtax) %>%
+          dplyr::mutate(dplyr::across(where(is.character),
+                                      ~ stringr::str_c(.[!is.na(.)],
+                                                       collapse = ", "))) %>%
+          dplyr::ungroup() %>%
+          dplyr::distinct()
+        
+        ### concatenate all distinct values
+        traits_idtax_num_summarized <-
+          traits_idtax_num %>%
+          dplyr::select(-starts_with("id_trait_")) %>%
+          dplyr::group_by(idtax) %>%
+          dplyr::summarise(dplyr::across(where(is.numeric),
+                                         .fns= list(mean = ~mean(., na.rm = T),
+                                                    sd = ~sd(., na.rm = T),
+                                                    n = ~length(.[!is.na(.)])),
+                                         .names = "{.col}_{.fn}"))
+        
+        traits_idtax_num <-
+          traits_idtax_num_summarized %>%
+          left_join(traits_idtax_concat, by = c("idtax" = "idtax"))
+      } else {
+        
+        if (extract_trait_measures_features) {
+          if (feats_unique %>% filter(id_trait_measures %in% traits_idtax_num$id_trait_measures) %>% nrow() > 0)
+            traits_idtax_num <-
+              traits_idtax_num %>%
+              dplyr::left_join(feats_unique,
+                               by = c("id_trait_measures" = "id_trait_measures"))
+        } 
+        
+        
+        
+      }
+      
+      
+      # if (!is.null(idtax_good))
+      traits_idtax_num <-
+        traits_idtax_num %>%
+        left_join(idtax_tb %>%
+                    dplyr::select(idtax, idtax_good),
+                  by = c("idtax" = "idtax")) %>%
+        # dplyr::select(idtax, idtax_good) %>%
+        dplyr::mutate(idtax = ifelse(is.na(idtax_good), idtax, idtax_good)) %>%
+        dplyr::select(-idtax_good)
+      
+      if (add_taxa_info) {
+        
+        traits_idtax_num <-
+          traits_idtax_num %>%
+          left_join(taxa_infos,
+                    by = c("idtax" = "idtax_n"))
+      }
+      
+      
+    } else {
+      
+      traits_idtax_num <- NA
+      
+    }
+    
+  } else {
+    
+    traits_found <- NA
+    traits_idtax_num <- NA
+    traits_idtax_char <- NA
+    
+  }
+  
+
+  
+  return(list(traits_found = traits_found,
+              traits_idtax_num = traits_idtax_num,
+              traits_idtax_char = traits_idtax_char))
+}
 
 #' Add an observation in trait measurement table at species level
 #'
