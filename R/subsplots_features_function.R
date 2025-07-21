@@ -862,7 +862,8 @@ add_subplottype <- function(new_type = NULL,
   
   if(is.null(new_type)) stop("define new type")
   
-  if(dplyr::tbl(mydb, "subplotype_list") %>%
+  
+  if(try_open_postgres_table(table = "subplotype_list", con = mydb) %>%
      dplyr::distinct(type) %>%
      dplyr::filter(type == !!new_type) %>%
      dplyr::collect() %>%
