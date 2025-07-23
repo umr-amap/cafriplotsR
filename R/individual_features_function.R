@@ -21,6 +21,8 @@ query_individual_features <- function(id = NULL,
                                       extract_linked_individuals = FALSE,
                                       remove_obs_with_issue = TRUE) {
 
+  mydb <- call.mydb()
+  
   if (length(id) > 1000) {
     chunk_size <- 1000
     

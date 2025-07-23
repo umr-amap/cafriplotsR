@@ -12,6 +12,9 @@ credentials <- new.env()
 create_db_config <- function() {
   path <- file.path(Sys.getenv("HOME"), ".mydb_config.R")
   if (file.exists(path)) {
+    config_path <- file.path(Sys.getenv("HOME"), ".mydb_config.R")
+    # print(config_path)
+    source(config_path, local = F)
     return(invisible(FALSE))
   }
   
@@ -24,8 +27,7 @@ create_db_config <- function() {
   )
   message("Database config file created at: ", path)
   
-  config_path <- file.path(Sys.getenv("HOME"), ".mydb_config.R")
-  source(config_path, local = F)
+
   
   invisible(TRUE)
 }
