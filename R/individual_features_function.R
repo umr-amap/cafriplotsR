@@ -889,7 +889,7 @@ query_individual_features <- function(id = NULL,
 #' @export
 .delete_individual_feature_type <- function(id) {
 
-  if(!exists("mydb")) call.mydb()
+  mydb <- call.mydb()
 
   # DBI::dbExecute(mydb,
   #                "DELETE FROM data_traits_measures WHERE id_trait_measures=$1", params=list(id)
@@ -939,7 +939,7 @@ add_trait <- function(new_trait = NULL,
                       new_expectedunit = NULL,
                       new_comments = NULL) {
 
-  call.mydb()
+  mydb <- call.mydb()
 
   if(is.null(new_trait)) stop("define new trait")
   if(is.null(new_valuetype)) stop("define new_valuetype")
@@ -951,8 +951,6 @@ add_trait <- function(new_trait = NULL,
     if(!is.numeric(new_maxallowedvalue) & !is.integer(new_maxallowedvalue)) stop("valuetype numeric of integer and max value not of this type")
   if(new_valuetype=="numeric" | new_valuetype=="integer")
     if(!is.numeric(new_minallowedvalue) & !is.integer(new_minallowedvalue)) stop("valuetype numeric of integer and min value not of this type")
-
-  if(!exists("mydb")) call.mydb()
 
   new_data_renamed <- tibble(trait = new_trait,
                              relatedterm = ifelse(is.null(new_relatedterm), NA, new_relatedterm),
