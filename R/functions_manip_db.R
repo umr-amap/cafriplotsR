@@ -2081,7 +2081,7 @@ query_plots <- function(plot_name = NULL,
 
   }
 
-  if(remove_ids & !extract_individuals) {
+  if (remove_ids & !extract_individuals) {
 
     cli::cli_alert_warning("Identifiers are removed because the parameter 'remove_ids' = {remove_ids} ")
 
