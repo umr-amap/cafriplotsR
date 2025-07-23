@@ -30,6 +30,8 @@
                         table_name,
                         keep_columns = NULL,
                         keep_original_value = FALSE) {
+  
+  mydb <- call.mydb()
 
   var <- rlang::enquo(column_searched)
   var_new <- "name"
@@ -639,7 +641,9 @@
 
       print(missing_colnams_unique$original_colnam[i])
 
-      add <- utils::askYesNo(msg = "Add a new name?")
+      add <- 
+        choose_prompt(message = "Add a new name?")
+      
 
       if(add) {
         new_colname <-

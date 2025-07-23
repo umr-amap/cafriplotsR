@@ -10,7 +10,8 @@
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #' @export
 subplot_list <- function() {
-  if(!exists("mydb")) call.mydb()
+  
+  mydb <- call.mydb()  
   
   nn <-
     try_open_postgres_table(table = "subplotype_list", con = mydb) %>%
@@ -146,6 +147,8 @@ query_subplots <- function(ids_plots = NULL,
                            verbose = TRUE,
                            extract_subplots_obs_features = FALSE
 ) {
+  
+  mydb <- call.mydb()
   
   if (is.null(ids_plots) & is.null(ids_subplots)) {
     
@@ -483,7 +486,7 @@ add_subplot_features <- function(new_data,
                                  verbose = TRUE,
                                  check_existing_data = TRUE) {
   
-  if(!exists("mydb")) call.mydb()
+  mydb <- call.mydb() 
   
   for (i in 1:length(subplottype_field)) if(!any(colnames(new_data)==subplottype_field[i]))
     stop(paste("subplottype_field provide not found in new_data", subplottype_field[i]))
@@ -885,7 +888,7 @@ add_subplottype <- function(new_type = NULL,
   if (new_valuetype=="numeric" | new_valuetype=="integer")
     if (!is.numeric(new_minallowedvalue) & !is.integer(new_minallowedvalue)) stop("valuetype numeric of integer and min value not of this type")
   
-  if(!exists("mydb")) call.mydb()
+  mydb <- call.mydb() 
   
   new_data_renamed <- tibble(type = new_type,
                              valuetype = new_valuetype,

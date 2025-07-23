@@ -4,7 +4,7 @@
 \alias{query_traits_measures_features}
 \title{List, selected trait measures features}
 \usage{
-query_traits_measures_features(id_trait_measures = NULL)
+query_traits_measures_features(id_trait_measures = NULL, src = "individuals")
 }
 \arguments{
 \item{id_trait_measures}{integer}

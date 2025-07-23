@@ -1300,122 +1300,6 @@ launch_stand_tax_app <- function() {
 
 
 
-
-#' Load the database
-#'
-#' Load the database and ask for password
-#'
-#' @param pass string
-#' @param user string
-#'
-#' @importFrom rstudioapi askForPassword
-#' @importFrom RPostgres Postgres
-#' @return The database is loaded
-#' #'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#' @export
-call.mydb <- function(pass=NULL, user=NULL, offline = FALSE) {
-
-  if(!exists("mydb")) {
-
-    if(!offline) {
-
-      if(is.null(pass))
-        pass <- rstudioapi::askForPassword("Please enter your password")
-
-      if(is.null(user))
-        user <- rstudioapi::askForPassword("Please enter your user name")
-
-
-      # mydb <- DBI::dbConnect(RPostgres::Postgres(),dbname = 'plots_transects',
-      #                   host = 'localhost',
-      #                   port = 5432, # or any other port specified by your DBA
-      #                   user = 'postgres',
-      #                   password = pass)
-
-      mydb <- DBI::dbConnect(RPostgres::Postgres(),
-                             dbname = 'plots_transects',
-                             host = 'dg474899-001.dbaas.ovh.net',
-                             port = 35699, # or any other port specified by your DBA
-                             user = user,
-                             password = pass)
-
-    } else {
-
-      # mydb <-
-      #   list(data_liste_plots = dplyr::tbl(mydb, "data_liste_plots"),
-      #        data_liste_sub_plots = dplyr::tbl(mydb, "data_liste_sub_plots"),
-      #        table_colnam = dplyr::tbl(mydb, "table_colnam"),
-      #        subplotype_list = dplyr::tbl(mydb, "subplotype_list"),
-      #        specimens = dplyr::tbl(mydb, "specimens"),
-      #        diconame = dplyr::tbl(mydb, "diconame"),
-      #        data_individuals = dplyr::tbl(mydb, "data_individuals"),
-      #        data_link_specimens = dplyr::tbl(mydb, "data_link_specimens"),
-      #        subplotype_list = dplyr::tbl(mydb, "subplotype_list"),
-      #        traitlist = dplyr::tbl(mydb, "traitlist"),
-      #        data_traits_measures = dplyr::tbl(mydb, "data_traits_measures"))
-
-      mydb <-
-        list(data_liste_plots = data_liste_plots,
-             data_liste_sub_plots = data_liste_sub_plots,
-             table_colnam = table_colnam,
-             subplotype_list = subplotype_list,
-             specimens = specimens,
-             diconame = diconame,
-             data_individuals = data_individuals,
-             data_link_specimens = data_link_specimens,
-             subplotype_list = subplotype_list,
-             traitlist = traitlist,
-             data_traits_measures = data_traits_measures)
-
-
-    }
-
-    assign("mydb", mydb, envir = .GlobalEnv)
-
-    # return(mydb)
-  }
-}
-
-
-#' Load the taxonomic database
-#'
-#' Load the database and ask for password
-#'
-#' @param pass string
-#' @param user string
-#'
-#' @return The database is loaded
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#' @export
-call.mydb.taxa <- function(pass=NULL, user=NULL) {
-
-  if(!exists("mydb_taxa")) {
-
-    if(is.null(pass))
-      pass <- rstudioapi::askForPassword("Please enter your password")
-
-    if(is.null(user))
-      user <- rstudioapi::askForPassword("Please enter your user name")
-
-    mydb_taxa <- DBI::dbConnect(
-      RPostgres::Postgres(),
-      dbname = 'rainbio',
-      host = 'dg474899-001.dbaas.ovh.net',
-      port = 35699,
-      # or any other port specified by your DBA
-      user = user,
-      password = pass
-    )
-
-    assign("mydb_taxa", mydb_taxa, envir = .GlobalEnv)
-
-  }
-}
-
-
-
 #' List of countries
 #'
 #' Provide list of countries where plots occur
@@ -1427,7 +1311,7 @@ call.mydb.taxa <- function(pass=NULL, user=NULL) {
 #' @export
 country_list <- function() {
 
-  if(!exists("mydb")) call.mydb() # mydb <-
+  mydb <- call.mydb()
 
   nn <-
     dplyr::tbl(mydb, "data_liste_plots")
@@ -1463,7 +1347,8 @@ country_list <- function() {
 #' @importFrom rlang enquo
 #' @export
 province_list <- function(country=NULL) {
-  if(!exists("mydb")) call.mydb()
+  
+  mydb <- call.mydb()
 
   nn <-
     dplyr::tbl(mydb, "data_liste_plots")
@@ -1504,9 +1389,10 @@ province_list <- function(country=NULL) {
 #' @export
 method_list <- function() {
 
-  if(!exists("mydb")) call.mydb()
+  mydb <- call.mydb()
 
-  nn <- func_try_fetch(con = mydb, sql = glue::glue_sql("SELECT * FROM methodslist"))
+  nn <- func_try_fetch(con = mydb, 
+                       sql = glue::glue_sql("SELECT * FROM methodslist"))
   
   # dbDisconnect(mydb)
   return(nn)
@@ -1532,7 +1418,7 @@ add_method <- function(new_method = NULL,
 
   if(is.null(new_method)) stop("define new method")
 
-  if(!exists("mydb")) call.mydb()
+  mydb <- call.mydb()
 
   new_data_renamed <- tibble(
     method = new_method,
@@ -1546,6 +1432,8 @@ add_method <- function(new_method = NULL,
 
   if(Q) DBI::dbWriteTable(mydb, "methodslist", new_data_renamed, append = TRUE, row.names = FALSE)
 
+  
+  on.exit(DBI::dbDisconnect(mydb), add = TRUE)
 }
 
 
@@ -1562,7 +1450,7 @@ add_method <- function(new_method = NULL,
 #' @export
 traits_list <- function(id_trait = NULL) {
 
-  if (!exists("mydb")) call.mydb()
+  mydb <- call.mydb()
 
   all_colnames_ind <-
     try_open_postgres_table(table = "traitlist", con = mydb) %>%
@@ -1659,15 +1547,17 @@ query_plots <- function(plot_name = NULL,
                         extract_subplot_features = TRUE,
                         concatenate_stem = FALSE,
                         remove_obs_with_issue = TRUE) {
-
-  if (!exists("mydb")) call.mydb()
+  
+  
+  mydb <- call.mydb()
+  
   
   if (show_multiple_census && remove_obs_with_issue)
     cli::cli_alert_info("Disabling `remove_obs_with_issue` because multiple censuses are shown")
   
   remove_obs_with_issue <- if (show_multiple_census) FALSE else remove_obs_with_issue
   
-
+  
   if (!is.null(id_individual) | !is.null(id_specimen))
   {
     
@@ -1680,7 +1570,7 @@ query_plots <- function(plot_name = NULL,
       id_individual <- .extract_by_specimen(id_specimen = id_specimen, con = mydb)
       
     }
-
+    
     cli::cli_rule(left = "Extracting from queried individuals - id_individual")
     extract_individuals <- TRUE
 
@@ -1690,13 +1580,17 @@ query_plots <- function(plot_name = NULL,
     tbl <- "data_individuals"
     sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE id_n IN ({vals*})",
                          vals = id_individual, .con = mydb)
+    
 
+    
     res <- func_try_fetch(con = mydb, sql = sql)
 
     id_plot <-
       res %>%
       dplyr::distinct(id_table_liste_plots_n) %>%
       pull()
+    
+    
 
   }
   
@@ -1728,6 +1622,7 @@ query_plots <- function(plot_name = NULL,
 
   if (is.null(id_plot)) {
     
+    
   
     query <- .build_plot_query(con = mydb, 
                                country = country, 
@@ -1737,6 +1632,9 @@ query_plots <- function(plot_name = NULL,
                                  locality_name)
     
     res <- func_try_fetch(con = mydb, sql = query)
+    
+    
+    
 
   } else {
 
@@ -1754,11 +1652,14 @@ query_plots <- function(plot_name = NULL,
   
   res <- 
     .link_metadata_tables(res = res, con = mydb)
+  
+  
 
   if (extract_subplot_features & nrow(res) > 0) {
 
     all_subplots <- query_subplots(ids_plots =  res$id_liste_plots,
                                    verbose = FALSE)
+
 
     if (any(!is.na(all_subplots$census_features))) {
       census_features <- all_subplots$census_features
@@ -1859,8 +1760,10 @@ query_plots <- function(plot_name = NULL,
     }
   }
 
-  if (nrow(res) == 0)
-    stop("No plot are found based on inputs")
+  if (nrow(res) == 0) {
+    cli::cli_alert_danger("No plot are found based on inputs")
+    return(NA)
+  }
 
   res <- res %>% dplyr::arrange(plot_name)
 
@@ -2330,6 +2233,7 @@ query_plots <- function(plot_name = NULL,
     locality_name = NULL
 ) {
   
+  
   where_clauses <- c()
   
   # Filter by country
@@ -2403,6 +2307,7 @@ query_plots <- function(plot_name = NULL,
   } else {
     full_query <- glue::glue_sql("{DBI::SQL(base_query)}", .con = con)
   }
+  
   
   return(full_query)
 }
@@ -2803,8 +2708,8 @@ explore_allometric_taxa <- function(genus_searched = NULL,
                                     tax_fam_searched = NULL,
                                     id_search = NULL) {
 
-  if(!exists("mydb")) call.mydb()
-  if(!exists("mydb_taxa")) call.mydb.taxa()
+  mydb <- call.mydb()
+  mydb_taxa <- call.mydb.taxa()
 
   res_taxa <- query_taxa(
     genus = genus_searched,
@@ -3587,7 +3492,6 @@ herbarium_label <-
 #'
 #' @importFrom methods new
 #' @importFrom stats dist sd
-#' @importFrom utils askYesNo data
 #' @importFrom kableExtra cell_spec kable_styling
 #'
 #' @return No return value, new plots are added
@@ -3596,7 +3500,7 @@ add_plots <- function(new_data,
                       col_names_select,
                       col_names_corresp) {
 
-  if(!exists("mydb")) call.mydb()
+  mydb <- call.mydb()
 
   new_data_renamed <-
     new_data
@@ -4949,8 +4853,8 @@ add_individuals <- function(new_data ,
       note = as.character()
     )
 
-  if (!exists("mydb")) call.mydb()
-  if (!exists("mydb_taxa")) call.mydb.taxa()
+  mydb <- call.mydb()
+  mydb_taxa <- call.mydb.taxa()
 
   if(length(col_names_select) != length(col_names_corresp))
     stop("Provide same numbers of corresponding and selected colnames")
@@ -5502,7 +5406,7 @@ get_updates_diconame <- function(id = NULL,
                                  last = NULL) {
 
 
-  if(!exists("mydb")) call.mydb()
+  mydb <- call.mydb()
 
   tb <-
     dplyr::tbl(mydb, "followup_updates_diconames")
@@ -5984,7 +5888,7 @@ query_specimens <- function(collector = NULL,
                             file_labels = "labels",
                             extract_linked_individuals = FALSE) {
 
-  if(!exists("mydb")) call.mydb()
+  mydb <- call.mydb()
 
   diconames_id <-
     try_open_postgres_table(table = "table_idtax", con = mydb) %>%
@@ -6276,7 +6180,7 @@ add_specimens <- function(new_data ,
   #     note = as.character()
   #   )
 
-  if(!exists("mydb")) call.mydb()
+  mydb <- call.mydb()
 
   if(length(col_names_select)!=length(col_names_corresp))
     stop("Provide same numbers of corresponding and selected colnames")
@@ -7507,7 +7411,7 @@ query_taxa <-
 
     # if(!exists("mydb")) call.mydb()
 
-    if(!exists("mydb_taxa")) call.mydb.taxa(pass = "Anyuser2022", user = "common")
+    mydb_taxa <- call.mydb.taxa()
 
     if(!is.null(class)) {
 
@@ -8544,6 +8448,9 @@ query_taxa <-
 merge_individuals_taxa <- function(id_individual = NULL,
                                    id_plot = NULL,
                                    id_tax = NULL) {
+  
+  mydb_taxa <- call.mydb.taxa()
+  mydb <- call.mydb()
 
   specimens <- try_open_postgres_table(table = "specimens", con = mydb)
 
@@ -8592,7 +8499,8 @@ merge_individuals_taxa <- function(id_individual = NULL,
   ## TO BE e_dED POTENTIALLY IF MORE THAN ONE SPECIMEN IS LINKED TO ONE INDIVIDUAL
   ## CODE TO EXTRACT THE "BEST" IDENTIFICATION IF DIFFERENT TO BE IMPLEMENETED
   links_specimens <-
-    dplyr::tbl(mydb, "data_link_specimens") %>%
+    try_open_postgres_table(table = "data_link_specimens", con = mydb) %>% 
+    # dplyr::tbl(mydb, "data_link_specimens") %>%
     dplyr::select(id_n, id_specimen) %>%
     dplyr::group_by(id_n) %>%
     dplyr::summarise(id_specimen = max(id_specimen, na.rm = T))
@@ -8629,7 +8537,8 @@ merge_individuals_taxa <- function(id_individual = NULL,
                                               idtax_specimen_f,
                                               idtax_f))
 
-  taxa_extract <- add_taxa_table_taxa(ids = res_individuals_full %>% pull(idtax_individual_f))
+  taxa_extract <- 
+    add_taxa_table_taxa(ids = res_individuals_full %>% pull(idtax_individual_f))
   taxa_extract <- taxa_extract %>% collect()
 
   res_individuals_full <- res_individuals_full %>% collect()
@@ -8667,9 +8576,10 @@ merge_individuals_taxa <- function(id_individual = NULL,
 #' @export
 add_taxa_table_taxa <- function(ids = NULL) {
 
-  if(!exists("mydb_taxa")) call.mydb.taxa(pass = "Anyuser2022", user = "common")
-
-  table_taxa <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
+  mydb_taxa <- call.mydb.taxa()
+  
+  table_taxa <- 
+    try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
 
   table_taxa <-
     table_taxa %>%
@@ -9364,9 +9274,9 @@ get_ref_specimen_ind <- function(collector = NULL, ids = NULL) {
 update_taxa_link_table <- function() {
 
   # if (exists("mydb_taxa")) rm(mydb_taxa)
-  call.mydb.taxa()
+  mydb_taxa <- call.mydb.taxa()
 
-  call.mydb()
+  mydb <- call.mydb()
 
   id_taxa_table <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa) %>%
     # dplyr::tbl(mydb_taxa, "table_taxa") %>%
@@ -9495,7 +9405,10 @@ func_try_fetch <- function(con, sql, max_attempts = 10, wait_seconds = 1, verbos
 #' @export
 try_open_postgres_table <- function(table, con) {
 
-  if (!exists("mydb")) call.mydb()
+  # mydb <- call.mydb()
+  # mydb_taxa <- call.mydb.taxa()
+  # 
+  # print(con)
   
   rep <- TRUE
   rep_try <- 1
@@ -9566,7 +9479,7 @@ add_entry_taxa <- function(search_name_tps = NULL,
 
   # if (!exists("mydb")) call.mydb()
   # if (exists("mydb_taxa")) rm(mydb_taxa)
-  if (!exists("mydb_taxa")) call.mydb.taxa()
+  mydb_taxa <- call.mydb.taxa()
 
   if (is.null(search_name_tps) &
       is.null(tax_gen) & is.null(tax_esp) & is.null(tax_fam))
@@ -10342,7 +10255,7 @@ choice_trait_cat <- function(id_trait) {
 #' @export
 query_trait <- function(id_trait = NULL, pattern = NULL) {
 
-  if(!exists("mydb_taxa")) call.mydb.taxa(pass = "Anyuser2022", user = "common")
+  mydb_taxa <- call.mydb.taxa()
 
   if (!is.null(id_trait)) {
     cli::cli_alert_info("query trait by id")
@@ -10401,7 +10314,7 @@ query_trait <- function(id_trait = NULL, pattern = NULL) {
 #' @export
 query_colnam <- function(id_colnam = NULL, pattern = NULL) {
 
-  if(!exists("mydb")) call.mydb()
+  mydb <- call.mydb()
 
   if (!is.null(id_colnam)) {
     cli::cli_alert_info("query colnam by id")
@@ -10443,7 +10356,7 @@ query_colnam <- function(id_colnam = NULL, pattern = NULL) {
 query_link_individual_specimen <- function(id_ind = NULL,
                                              id_specimen = NULL) {
 
-  if(!exists("mydb")) call.mydb()
+  mydb <- call.mydb()
 
 
   if(!is.null(id_ind)) {

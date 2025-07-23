@@ -27,8 +27,8 @@ query_traits_measures <- function(idtax = NULL,
                                   include_remarks = FALSE,
                                   extract_trait_measures_features = FALSE) {
   
-  if (!exists("mydb")) call.mydb()
-  if (!exists("mydb_taxa")) call.mydb.taxa()
+  mydb <- call.mydb()
+  mydb_taxa <- call.mydb.taxa()
   
   tbl <- "table_traits_measures"
   tbl2 <- "table_traits"
@@ -127,6 +127,11 @@ query_traits_measures <- function(idtax = NULL,
         summarise(across(where(is.numeric), ~mean(., na.rm = T)),
                   across(where(is.character), ~paste(.[!is.na(.)], collapse = "|"))) %>%
         mutate(across(where(is.character), ~na_if(.x, "")))
+      
+      traits_found <- 
+        traits_found %>% 
+        left_join(feats_unique,
+                  by = c("id_trait_measures" = "id_trait_measures"))
       
 
     }
@@ -265,7 +270,9 @@ query_traits_measures <- function(idtax = NULL,
       } else {
         
         if (extract_trait_measures_features) {
-          if (feats_unique %>% filter(id_trait_measures %in% traits_idtax_char$id_trait_measures) %>% nrow() > 0)
+          if (feats_unique %>% 
+              filter(id_trait_measures %in% traits_idtax_char$id_trait_measures) %>% 
+              nrow() > 0)
             traits_idtax_char <-
               traits_idtax_char %>%
               dplyr::left_join(feats_unique,
@@ -344,7 +351,9 @@ query_traits_measures <- function(idtax = NULL,
       } else {
         
         if (extract_trait_measures_features) {
-          if (feats_unique %>% filter(id_trait_measures %in% traits_idtax_num$id_trait_measures) %>% nrow() > 0)
+          if (feats_unique %>% 
+              filter(id_trait_measures %in% traits_idtax_num$id_trait_measures) %>% 
+              nrow() > 0)
             traits_idtax_num <-
               traits_idtax_num %>%
               dplyr::left_join(feats_unique,
@@ -434,7 +443,7 @@ add_sp_traits_measures <- function(new_data,
     if (!any(colnames(new_data) == features_field[i]))
       stop(paste("features_field provide not found in new_data", features_field[i]))
   
-  if (!exists("mydb_taxa")) call.mydb.taxa()
+  mydb_taxa <- call.mydb.taxa()
 
   if(is.null(idtax))
     stop("provide a column containing link to taxa")
@@ -519,8 +528,11 @@ add_sp_traits_measures <- function(new_data,
 
     if (any(data_trait$trait == 0)) {
 
-      add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
 
+      add_0 <- 
+        choose_prompt(message = "Some value are equal to 0. Do you want to add these values anyway ??")
+      
+      
       if(!add_0)
         data_trait <-
           data_trait %>%
@@ -641,7 +653,8 @@ add_sp_traits_measures <- function(new_data,
         cli::cli_alert_warning("Duplicates in new data for {trait} concerning {length(duplicates_lg[duplicates_lg])} id(s)")
 
         cf_merge <-
-          askYesNo(msg = "confirm merging duplicates?")
+          choose_prompt(message = "confirm merging duplicates?")
+        
 
         if (cf_merge) {
 
@@ -987,7 +1000,9 @@ add_sp_traits_measures_features <- function(new_data,
       
       if (any(data_feat$trait == 0)) {
         
-        add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
+        add_0 <- 
+          choose_prompt(message = "Some value are equal to 0. Do you want to add these values anyway ??")
+        
         
         if(!add_0)
           data_feat <-
@@ -1043,7 +1058,8 @@ add_sp_traits_measures_features <- function(new_data,
         cli::cli_alert_warning("Duplicates in new data for {feat} concerning {length(duplicates_lg[duplicates_lg])} id(s)")
         
         cf_merge <-
-          askYesNo(msg = "confirm merging duplicates?")
+          choose_prompt(message = "confirm merging duplicates?")
+        
         
         if (cf_merge) {
           
@@ -1071,7 +1087,8 @@ add_sp_traits_measures_features <- function(new_data,
       }
       
       response <-
-        utils::askYesNo("Confirm add these data to data_ind_measures_feat table?")
+        choose_prompt(message = "Confirm add these data to data_ind_measures_feat table?")
+      
       
       if(add_data & response) {
         
@@ -1139,9 +1156,9 @@ add_trait_taxa <- function(new_trait = NULL,
   if(new_valuetype=="numeric" | new_valuetype=="integer")
     if(!is.numeric(new_minallowedvalue) & !is.integer(new_minallowedvalue)) stop("valuetype numeric of integer and min value not of this type")
 
-  if (exists("mydb_taxa")) rm(mydb_taxa)
-  if (!exists("mydb_taxa")) call.mydb.taxa()
-
+  mydb_taxa <- 
+    call.mydb.taxa(pass = NULL, user = NULL, reset = TRUE)
+  
   new_data_renamed <- tibble(trait = new_trait,
                              relatedterm = ifelse(is.null(new_relatedterm), NA, new_relatedterm),
                              valuetype = new_valuetype,
@@ -1154,7 +1171,7 @@ add_trait_taxa <- function(new_trait = NULL,
 
   print(new_data_renamed)
 
-  Q <- utils::askYesNo("confirm adding this trait?")
+  Q <- choose_prompt(message = "confirm adding this trait ?")
 
   if(Q) DBI::dbWriteTable(mydb_taxa, "table_traits", new_data_renamed, append = TRUE, row.names = FALSE)
 
@@ -1173,8 +1190,8 @@ add_trait_taxa <- function(new_trait = NULL,
 #' @export
 add_growth_form_taxa <- function(idtax) {
 
-  if (exists("mydb_taxa")) rm(mydb_taxa)
-  if (!exists("mydb_taxa")) call.mydb.taxa()
+  mydb_taxa <- 
+    call.mydb.taxa(pass = NULL, user = NULL, reset = TRUE)
 
   if (length(idtax) > 1)
     stop("Only one taxa at the same time")
@@ -1340,7 +1357,7 @@ add_sp_trait_measures_features <- function(new_data,
       
       if (any(data_feat$trait == 0)) {
         
-        add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
+        add_0 <- choose_prompt(message = "Some value are equal to 0. Do you want to add these values anyway ??")
         
         if(!add_0)
           data_feat <-
@@ -1397,8 +1414,8 @@ add_sp_trait_measures_features <- function(new_data,
         
         cli::cli_alert_warning("Duplicates in new data for {feat} concerning {length(duplicates_lg[duplicates_lg])} id(s)")
         
-        cf_merge <-
-          askYesNo(msg = "confirm merging duplicates?")
+        cf_merge <- 
+          choose_prompt(message = "confirm merging duplicates?")
         
         if (cf_merge) {
           
@@ -1426,7 +1443,7 @@ add_sp_trait_measures_features <- function(new_data,
       }
       
       response <-
-        utils::askYesNo("Confirm add these data to table_traits_measures_feat table?")
+        choose_prompt(message = "Confirm add these data to table_traits_measures_feat table?")
       
       if(add_data & response) {
         
