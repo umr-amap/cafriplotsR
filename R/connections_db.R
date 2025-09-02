@@ -18,6 +18,7 @@ create_db_config <- function() {
     return(invisible(FALSE))
   }
   
+  
   cat(
     'db_host <- "dg474899-001.dbaas.ovh.net"\n',
     'db_port <- 35699\n',
