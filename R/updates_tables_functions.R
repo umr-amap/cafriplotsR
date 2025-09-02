@@ -9,7 +9,6 @@
 #' @param plot_name string plot name of the selected plots
 #' @param country string country of the selected plots
 #' @param method string method of the selected plots
-#' @param date_y integer year of collect of the selected plots
 #' @param id_table_plot integer id of plot to be updated
 #' @param new_team_leader string new team leader
 #' @param new_principal_investigator string
@@ -32,7 +31,6 @@ update_plot_data <- function(team_lead = NULL,
                              plot_name = NULL,
                              country = NULL,
                              method = NULL,
-                             date_y = NULL,
                              id_table_plot = NULL,
                              new_plot_name = NULL,
                              new_team_leader = NULL,
@@ -59,7 +57,6 @@ update_plot_data <- function(team_lead = NULL,
         plot_name = plot_name,
         country = country,
         method = method,
-        date_y = date_y,
         remove_ids = FALSE
       )
   } else {
@@ -1113,7 +1110,7 @@ update_ident_specimens <- function(colnam = NULL,
                                    only_new_ident = TRUE,
                                    ask_before_update = TRUE) {
 
-  if(!exists("mydb")) call.mydb()
+  mydb <- call.mydb()
 
   if(is.null(id_speci)) {
 

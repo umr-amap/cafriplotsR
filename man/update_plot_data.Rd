@@ -9,7 +9,6 @@ update_plot_data(
   plot_name = NULL,
   country = NULL,
   method = NULL,
-  date_y = NULL,
   id_table_plot = NULL,
   new_plot_name = NULL,
   new_team_leader = NULL,
@@ -37,8 +36,6 @@ update_plot_data(
 \item{country}{string country of the selected plots}
 
 \item{method}{string method of the selected plots}
-
-\item{date_y}{integer year of collect of the selected plots}
 
 \item{id_table_plot}{integer id of plot to be updated}
 
