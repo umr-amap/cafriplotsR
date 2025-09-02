@@ -10,7 +10,7 @@ credentials <- new.env()
 #' Writes DB connection config to ~/.mydb_config.R
 #' @export
 create_db_config <- function() {
-  path <- file.path(Sys.getenv("HOME"), ".mydb_config.R")
+  path <- file.path(path.expand("~"), ".mydb_config.R")
   if (file.exists(path)) {
     config_path <- file.path(Sys.getenv("HOME"), ".mydb_config.R")
     # print(config_path)
