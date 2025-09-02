@@ -790,12 +790,18 @@ query_individual_features <- function(id = NULL,
   
   cli::cli_alert_info("Extracting numeric values")
   
-  traits_num <-
-    process_traits_num_dt(df = purrr::reduce(
-      traits_measures$traits_num,
-      full_join,
-      by = c("id_data_individuals", "id_sub_plots")
-    ))
+  if (length(traits_measures$issue_num) > 0) {
+    traits_num <-
+      process_traits_num_dt(df = purrr::reduce(
+        traits_measures$traits_num,
+        full_join,
+        by = c("id_data_individuals", "id_sub_plots")
+      ))    
+  } else {
+    traits_num <- NA
+  }
+  
+
   
   # if (length(traits_measures$traits_num) > 0) {
   # 
@@ -1050,7 +1056,7 @@ query_traits_measures_features <- function(id_trait_measures  = NULL, src = "ind
     
     formula_dt <- as.formula(paste("id_trait_measures +", id_col, "~ trait"))
     
-    numeric_pivot <- dcast(
+    numeric_pivot <- data.table::dcast(
       num_dt,
       formula = formula_dt,
       value.var = "typevalue",
@@ -1068,7 +1074,7 @@ query_traits_measures_features <- function(id_trait_measures  = NULL, src = "ind
     
     formula_dt <- as.formula(paste("id_trait_measures +", id_col, "~ trait"))
     
-    ordinal_pivot <- dcast(
+    ordinal_pivot <- data.table::dcast(
       ord_dt,
       formula = formula_dt,
       value.var = "typevalue_char",

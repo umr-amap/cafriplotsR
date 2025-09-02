@@ -613,6 +613,8 @@
                          db_connection = mydb,
                          table_name = "table_colnam") {
 
+  mydb <- call.mydb()
+  
   data_stand <-
     .link_table(
       data_stand = data_stand,

@@ -1145,6 +1145,8 @@ add_subplot_observations_feat <- function(new_data,
 query_subplot_observations_feat <- function(id_sub_plots  = NULL,
                                             pivot_table = TRUE) {
   
+  mydb <- call.mydb()
+  
   feat_data <-
     try_open_postgres_table(table = "data_subplot_feat", con = mydb) %>%
     dplyr::filter(id_sub_plots %in% !!id_sub_plots)
