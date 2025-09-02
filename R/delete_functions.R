@@ -239,18 +239,24 @@
       dplyr::collect() %>%
       as.data.frame()
     
-    print(selected_link)
+    
     # confirm <-
     #   utils::askYesNo(msg = "Confirm removing these links?")
     
-    confirm <- 
-      choose_prompt(message = "Confirm removing these links?")
+    if (nrow(selected_link) > 0) {
+      print(selected_link)
+      
+      confirm <- 
+        choose_prompt(message = "Confirm removing these links?")
+      
+      if(confirm)
+        for (i in 1:nrow(selected_link))
+          DBI::dbExecute(mydb,
+                         "DELETE FROM data_link_specimens WHERE id_n=$1",
+                         params=list(selected_link$id_n[i]))
+    }
     
-    if(confirm)
-      for (i in 1:nrow(selected_link))
-        DBI::dbExecute(mydb,
-                       "DELETE FROM data_link_specimens WHERE id_n=$1",
-                       params=list(selected_link$id_n[i]))
+    
   }
   
   if(!is.null(id_specimen)) {
@@ -323,6 +329,11 @@
   
   ind_feat <- query_individual_features(id = id, pivot_table = F, remove_obs_with_issue = F)
   
+  link_specimens <- 
+    try_open_postgres_table(table = "data_link_specimens", con = mydb) %>% 
+    filter(id_n == !!id) %>% 
+    collect()
+  
   if (length(ind_feat$traits_char) > 0 | 
       length(ind_feat$traits_num) > 0) {
     
@@ -340,6 +351,18 @@
       if (length(ind_feat$traits_num) > 0)
         .delete_entry_trait_measure(id = ind_feat$traits_num[[1]]$id_trait_measures)      
     }
+  }
+  
+  if (nrow(link_specimens) > 0) {
+    
+    print(link_specimens)
+    
+    rm_link <- 
+      choose_prompt(message = "Remove links to specimens ?")
+    
+    if (rm_link)
+      .delete_link_individual_specimen(id_ind = id)
+    
   }
   
   query <- "DELETE FROM data_individuals WHERE MMM"
