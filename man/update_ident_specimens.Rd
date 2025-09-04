@@ -8,6 +8,7 @@ update_ident_specimens(
   colnam = NULL,
   number = NULL,
   id_speci = NULL,
+  id_colnam = NULL,
   new_genus = NULL,
   new_species = NULL,
   new_family = NULL,
@@ -31,6 +32,8 @@ update_ident_specimens(
 \item{number}{integer specimen number}
 
 \item{id_speci}{integer id of specimen}
+
+\item{id_colnam}{integer id of collector name}
 
 \item{new_genus}{string new genus name}
 

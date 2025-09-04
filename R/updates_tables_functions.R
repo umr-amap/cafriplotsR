@@ -537,6 +537,8 @@ update_plot_data_batch <- function(new_data,
 #'
 #'
 #' @return No return value individuals updated
+#' 
+#' @importFrom tidyr replace_na
 #' @export
 update_subplots_table <- function(subplots_id = NULL,
                                   new_id_type_sub_plot = NULL,
@@ -1076,6 +1078,7 @@ update_individuals <- function(new_data,
 #' @param colnam string collector name
 #' @param number integer specimen number
 #' @param id_speci integer id of specimen
+#' @param id_colnam integer id of collector name
 #' @param new_genus string new genus name
 #' @param new_species string new species name
 #' @param new_family string new family name
@@ -1094,6 +1097,7 @@ update_individuals <- function(new_data,
 update_ident_specimens <- function(colnam = NULL,
                                    number = NULL,
                                    id_speci = NULL,
+                                   id_colnam = NULL,
                                    new_genus = NULL,
                                    new_species = NULL,
                                    new_family = NULL,
@@ -1119,19 +1123,34 @@ update_ident_specimens <- function(colnam = NULL,
     # new_data_renamed <-
     #   .link_colnam(data_stand = tibble(collector = colnam), collector_field = "collector")
 
-    new_data_renamed <- .link_table(
-      data_stand = tibble(collector = colnam),
-      column_searched = "collector",
-      column_name = "colnam",
-      id_field = "id_colnam",
-      id_table_name = "id_table_colnam",
-      db_connection = mydb,
-      table_name = "table_colnam"
-    )
+    if (is.null(id_colnam)) {
+      
+      new_data_renamed <- .link_table(
+        data_stand = tibble(collector = colnam),
+        column_searched = "collector",
+        column_name = "colnam",
+        id_field = "id_colnam",
+        id_table_name = "id_table_colnam",
+        db_connection = mydb,
+        table_name = "table_colnam"
+      )
+      
+      queried_speci <-
+        query_specimens(id_colnam = new_data_renamed$id_colnam,
+                        number = number, subset_columns = FALSE)
+      
+    } else {
+      
+      queried_speci <-
+        query_specimens(id_colnam = id_colnam,
+                        number = number, subset_columns = FALSE)
+      
+      
+    }
+    
+    
 
-    queried_speci <-
-      query_specimens(id_colnam = new_data_renamed$id_colnam,
-                      number = number, subset_columns = FALSE)
+    
 
   } else {
 
