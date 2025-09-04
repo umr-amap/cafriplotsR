@@ -3424,7 +3424,7 @@ add_plots <- function(new_data,
     mutate(
       new = kableExtra::cell_spec(
         new, "html",
-        color = if_else(replace_na(current_comp, "") != replace_na(new_comp, ""), 
+        color = if_else(tidyr::replace_na(current_comp, "") != tidyr::replace_na(new_comp, ""), 
                         "red", "blue")
       )
     ) %>%
