@@ -1135,21 +1135,13 @@ update_ident_specimens <- function(colnam = NULL,
         table_name = "table_colnam"
       )
       
-      queried_speci <-
-        query_specimens(id_colnam = new_data_renamed$id_colnam,
-                        number = number, subset_columns = FALSE)
-      
-    } else {
-      
-      queried_speci <-
-        query_specimens(id_colnam = id_colnam,
-                        number = number, subset_columns = FALSE)
-      
+      id_colnam <- new_data_renamed$id_colnam
       
     }
     
-    
-
+    queried_speci <-
+      query_specimens(id_colnam = id_colnam,
+                      number = number, subset_columns = FALSE)
     
 
   } else {
@@ -1460,7 +1452,7 @@ update_ident_specimens <- function(colnam = NULL,
 
     cat("\n SPECIMEN NOT FOUND")
     return(dplyr::tibble(collector = dplyr::tbl(mydb, "table_colnam") %>%
-                           dplyr::filter(id_table_colnam == !!new_data_renamed$id_colnam) %>%
+                           dplyr::filter(id_table_colnam == !!id_colnam) %>%
                            dplyr::select(colnam) %>%
                            dplyr::collect() %>%
                            dplyr::pull(),
