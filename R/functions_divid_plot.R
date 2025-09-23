@@ -334,7 +334,7 @@ divid_plot <- function (corners) {
     nrows <- 25
     
     sub_plot <- st_sf(crs= 4326,
-                      sous_plot_name = 1:nrows,
+                      quadrat = 1:nrows,
                       geometry = st_sfc(lapply(1:nrows,
                                                function(x) st_geometrycollection())
                       )
@@ -351,9 +351,9 @@ divid_plot <- function (corners) {
     sub_plot <- sub_plot %>% 
       mutate(plot_name = all_plot$plot_name[i]) # Add the plot name
     
-    sub_plot$sous_plot_name <- as.character(sub_plot$sous_plot_name) # Renamme the subplot id
+    sub_plot$quadrat <- as.character(sub_plot$quadrat) # Renamme the subplot id
     
-    sub_plot$sous_plot_name <- fct_recode(sub_plot$sous_plot_name,
+    sub_plot$quadrat <- fct_recode(sub_plot$quadrat,
                                           "0_0" = '1',
                                           "0_20" = '12',
                                           "0_40" = '19',
@@ -384,8 +384,8 @@ divid_plot <- function (corners) {
     
     # Map ---------------------------------------------------------------------
     
-    map = mapview::mapview(sub_plot, zcol = "sous_plot_name", legend = FALSE) %>%
-      leafem::addStaticLabels(label = sub_plot$sous_plot_name,
+    map = mapview::mapview(sub_plot, zcol = "quadrat", legend = FALSE) %>%
+      leafem::addStaticLabels(label = sub_plot$quadrat,
                               noHide = TRUE,
                               direction = 'top',
                               textOnly = TRUE,
@@ -541,7 +541,10 @@ proj_rel_xy <-
   function(coord_sf,
            coord_rel) {
     
+    coord_rel <- coord_rel %>% ungroup()
+    
     res_list <- vector('list', length(unique(coord_rel$plot_name)))
+    utm_plot_list <- vector('list', length(unique(coord_rel$plot_name)))
     for (i in 1:length(unique(coord_rel$plot_name))) {
       
       square_geo <- 
@@ -549,6 +552,10 @@ proj_rel_xy <-
       
       utm_plot <- 
         latlong2UTM(coord = st_coordinates(square_geo)[, c("X", "Y")])
+      
+      utm_plot_list[[i]] <- 
+        tibble(plot_name = unique(coord_rel$plot_name)[i], 
+               utm = utm_plot$codeUTM[1])
       
       square_proj <- 
         st_transform(square_geo, utm_plot$codeUTM[1])
@@ -570,7 +577,6 @@ proj_rel_xy <-
         origin + pt[1] * v1 / size + pt[2] * v2 / size
       }))
       
-      
       reproj_coords <- 
         absolute_coords %>% 
         as_tibble() %>% 
@@ -581,7 +587,8 @@ proj_rel_xy <-
         reproj_coords
     }
     
-    return(res_list)
+    return(list(coords = bind_rows(res_list),
+                utm_code = bind_rows(utm_plot_list)))
     
     
     
@@ -602,16 +609,87 @@ proj_rel_xy <-
 #' 
 #'  
 #' @export
-get_plot_rel_xy <- function(dataset) {
+get_plot_rel_xy <- function(dataset,
+                            col_subplot = "quadrat",
+                            col_pos_x = "position_x_iphone",
+                            col_pos_y = "position_y_iphone") {
   
-  tmp <- 
-    dataset %>% 
+  col_subplot <- rlang::ensym(col_subplot)
+  col_pos_x   <- rlang::ensym(col_pos_x)
+  col_pos_y   <- rlang::ensym(col_pos_y)
+  
+  dataset %>%
     mutate(
-      x_quadrat = as.numeric(stringr::str_split(sous_plot_name, '_', simplify = T)[,1]),
-      y_quadrat = as.numeric(stringr::str_split(sous_plot_name, '_', simplify = T)[,2]),
-      x_100 = position_x_iphone + x_quadrat,
-      y_100 = position_y_iphone + y_quadrat) 
+      x_quadrat = as.numeric(stringr::str_split(!!col_subplot, "_", simplify = TRUE)[, 1]),
+      y_quadrat = as.numeric(stringr::str_split(!!col_subplot, "_", simplify = TRUE)[, 2]),
+      x_100 = !!col_pos_x + x_quadrat,
+      y_100 = !!col_pos_y + y_quadrat
+    )
+}
+
+
+#' Interpolate x y position based on neighnour 
+#'
+#' Experimental - Interpolate x y position based on neighnour, for isolated missing value only
+#'
+#'
+#' @author Gilles Dauby
+#'
+#' @param dataset extract
+#' @param col_subplot string column name of quadrat
+#' @param col_plot string column name of plot
+#' @param col_pos_x numeric column name of x relative positioning within quadrat
+#' @param col_pos_y numeric column name of y relative positioning within quadrat
+#' @param tag numeric tag of individual within plot
+#' 
+#' @details
+#' Interpolate and fill x and y positioning
+#' 
+#' @importFrom zoo na.approx
+#'  
+#' @export
+approximate_isolated_xy <- function(dataset,
+                                    col_subplot = "quadrat",
+                                    col_plot = "plot_name",
+                                    col_pos_x = "position_x_iphone",
+                                    col_pos_y = "position_y_iphone",
+                                    tag = "ind_num_sous_plot") {
   
-  return(tmp)
+  col_subplot <- rlang::ensym(col_subplot)
+  col_pos_x   <- rlang::ensym(col_pos_x)
+  col_pos_y   <- rlang::ensym(col_pos_y)
+  col_plot   <- rlang::ensym(col_plot)
+  tag   <- rlang::ensym(tag)
+  
+  all_unique_plots <- unique(dataset$plot_name)
+  res_plots <- vector("list", length(all_unique_plots))
+  for (i in 1:length(all_unique_plots)) {
+    
+    df <- 
+      dataset %>% 
+      filter(!!col_plot == all_unique_plots[i]) %>% 
+      rename(tag = !!tag,
+             x = !!col_pos_x,
+             y = !!col_pos_y)
+    
+    df_filled <- 
+      df %>%
+      arrange(tag) %>%
+      group_by(!!col_subplot) %>%   # stay inside quadrats
+      mutate(
+        x_filled = if (any(!is.na(x))) zoo::na.approx(x, x = tag, na.rm = FALSE) else x,
+        y_filled = if (any(!is.na(y))) zoo::na.approx(y, x = tag, na.rm = FALSE) else y
+      ) %>%
+      ungroup() %>% 
+      rename(!!col_pos_x := x_filled,
+             !!col_pos_y := y_filled,
+             !!tag := tag) %>% 
+      select(-x, -y)
+    
+    res_plots[[i]] <- df_filled
+  }
+  
+  
+  return(bind_rows(res_plots))
   
 }
