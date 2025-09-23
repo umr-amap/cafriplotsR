@@ -158,6 +158,8 @@
 #' @export
 .link_trait <- function(data_stand, trait, column_name = "trait", issues = NULL) {
 
+  mydb <- call.mydb()
+  
   trait_newnames <- "trait"
 
   data_stand <- data_stand %>%

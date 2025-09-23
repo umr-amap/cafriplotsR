@@ -1479,6 +1479,7 @@ traits_list <- function(id_trait = NULL) {
 #' @importFrom tidyselect vars_select_helpers
 #' @importFrom BIOMASS correctCoordGPS
 #' @importFrom glue glue_sql
+#' @importFrom stringr str_c
 #'
 #' @return A tibble of plots or individuals if extract_individuals is TRUE
 #' 
@@ -1486,6 +1487,63 @@ traits_list <- function(id_trait = NULL) {
 #' \dontrun{
 #'   get_plot_data(country = "Gabon", extract_individuals = TRUE, map = TRUE)
 #' }
+#' 
+#' @export
+
+
+#' Query plots from database
+#'
+#' @description
+#' This function queries a PostgreSQL inventory database to return a list of forest plots or individuals, 
+#' with options to include associated traits and metadata, and to generate interactive maps.
+#' 
+#' @param plot_name Optional. A single string specifying plot name.
+#' @param tag Optional. Tag identifier.
+#' @param country Optional. A single string specifying country.
+#' @param locality_name Optional. A single string specifying locality name.
+#' @param method Optional. Method identifier.
+#' @param extract_individuals Logical. Whether to extract individuals. Optional.
+#' @param map Logical. Whether to generate map. Optional.
+#' @param id_individual Optional. Individual identifiers.
+#' @param id_plot Optional. Plot identifiers.
+#' @param id_tax Optional. Taxonomic identifiers.
+#' @param id_specimen Optional. Specimen identifiers.
+#' @param show_multiple_census Logical. Whether to show multiple census data. Optional.
+#' @param show_all_coordinates Logical. Whether to show all coordinates. Optional.
+#' @param remove_ids Logical. Whether to remove ID columns from output. Optional.
+#' @param collapse_multiple_val Logical. Whether to collapse multiple values. Optional.
+#' @param extract_traits Logical. Whether to extract taxonomic traits. Optional.
+#' @param extract_individual_features Logical. Whether to extract individual-level features. Optional.
+#' @param traits_to_genera Logical. Whether to aggregate traits to genus level. Optional.
+#' @param wd_fam_level Logical. Whether to use family-level wood density. Optional.
+#' @param include_liana Logical. Whether to include lianas. Optional.
+#' @param extract_subplot_features Logical. Whether to extract subplot features. Optional.
+#' @param concatenate_stem Logical. Whether to concatenate multiple stems. Optional.
+#' @param remove_obs_with_issue Logical. Whether to remove observations with issues. Optional.
+#'
+#' @returns 
+#' A list or data frame containing plot data and associated information. When multiple 
+#' components are requested, returns a list with elements like `extract`, `census_features`, 
+#' `coordinates`, and `coordinates_sf`. If only one component is available, returns that 
+#' component directly. Returns `NA` if no plots are found matching the criteria.
+#'
+#' @importFrom DBI dbSendQuery dbFetch dbClearResult dbWriteTable
+#' @importFrom stringr str_flatten str_trim str_extract
+#' @importFrom date as.date
+#' @importFrom tidyselect vars_select_helpers
+#' @importFrom BIOMASS correctCoordGPS
+#' @importFrom glue glue_sql
+#' @importFrom stringr str_c
+#'
+#' @examples
+#' \dontrun{
+#'   query_plots(country = "Gabon", extract_individuals = FALSE)
+#'   
+#'   query_plots(country = "Cameroon")
+#'   
+#'   query_plots(plot_name = "mbalmayo001)
+#' }
+#' 
 #' 
 #' @export
 query_plots <- function(plot_name = NULL,
@@ -1514,7 +1572,6 @@ query_plots <- function(plot_name = NULL,
   
   
   mydb <- call.mydb()
-  
   
   if (show_multiple_census && remove_obs_with_issue)
     cli::cli_alert_info("Disabling `remove_obs_with_issue` because multiple censuses are shown")
@@ -1558,9 +1615,9 @@ query_plots <- function(plot_name = NULL,
 
   }
   
-  if (!is.null(tag)) {
+  if (!is.null(tag) | !is.null(id_individual)) {
     if (!extract_individuals) 
-      cli::cli_alert_info("extract_individuals is set as TRUE because tag is not null")
+      cli::cli_alert_info("extract_individuals is set as TRUE because tag or id_individual is not null")
     extract_individuals <- TRUE
   }
 
@@ -1576,11 +1633,6 @@ query_plots <- function(plot_name = NULL,
     id_plot <-
       merge_individuals_taxa(id_tax = id_tax) %>%
       pull(id_table_liste_plots_n)
-
-    # id_plot <-
-    #   tbl(mydb, "data_individuals") %>%
-    #   query_tax_all(id_search = idtax, extract_individuals = T, verbose = FALSE, simple_ind_extract = T) %>%
-    #   pull(id_table_liste_plots_n)
 
   }
 
@@ -1635,8 +1687,6 @@ query_plots <- function(plot_name = NULL,
         dplyr::relocate(plot_name, .before = year)
     }
 
-    # res <- rm_field(res, field = c("additional_people", "team_leader"))
-    
     res <- 
       res %>%
       dplyr::select(-any_of(c("additional_people", "team_leader", "data_provider")))
@@ -1820,7 +1870,8 @@ query_plots <- function(plot_name = NULL,
                        "position_transect",
                        "position_x",
                        "position_y",
-                       "id_old")))
+                       "id_old",
+                       "sous_plot_name")))
     
     if(!is.null(tag)) {
 
@@ -1836,9 +1887,6 @@ query_plots <- function(plot_name = NULL,
         res_individuals_full %>%
         dplyr::filter(liana == FALSE)
 
-      # res_individuals_full <- rm_field(data = res_individuals_full,
-      #                                  field = c("liana"))
-      
       res_individuals_full <- 
         res_individuals_full %>% 
         dplyr::select(-any_of(c("liana")))
@@ -1927,11 +1975,6 @@ query_plots <- function(plot_name = NULL,
         ### complete traits at genus level
         
         
-        # list_genus <- res_individuals_full %>%
-        #   # dplyr::filter(is.na(tax_sp_level)) %>%
-        #   dplyr::select(id_n, tax_gen)
-        
-        
         res_traits_to_genera <- 
           .traits_to_genera_aggreg(dataset = res_individuals_full, 
                                    wd_fam_level = wd_fam_level)
@@ -1979,7 +2022,7 @@ query_plots <- function(plot_name = NULL,
       dplyr::relocate(colnbr, .before = 3) %>%
       dplyr::relocate(suffix, .before = 3) %>%
       dplyr::relocate(locality_name, .before = 3) %>%
-      dplyr::relocate(sous_plot_name, .before = 3) %>%
+      # dplyr::relocate(sous_plot_name, .before = 3) %>%
       dplyr::relocate(ind_num_sous_plot, .before = 3) %>%
       dplyr::relocate(tax_sp_level, .before = 3) %>%
       dplyr::relocate(plot_name, .before = 3)
@@ -2032,9 +2075,6 @@ query_plots <- function(plot_name = NULL,
 
     cli::cli_alert_warning("ids removed - remove_ids = {remove_ids} ")
 
-    # res <-
-    #   res %>%
-    #   dplyr::select_at(which(!grepl("id_", colnames(res))))
 
     res <-
       res %>%
@@ -2055,8 +2095,6 @@ query_plots <- function(plot_name = NULL,
       dplyr::rename(id_liste_plots = idDB)
 
   }
-
-  # dbDisconnect(mydb)
 
   res_list <-
     list(
@@ -2106,7 +2144,7 @@ query_plots <- function(plot_name = NULL,
       group_by(coord1, coord2, coord3, id_table_liste_plots) %>%
       summarise(
         typevalue = mean(typevalue),
-        id_sub_plots = str_c(id_sub_plots, collapse = ", "),
+        id_sub_plots = stringr::str_c(id_sub_plots, collapse = ", "),
         .groups = "drop"
       ) %>%
       pivot_wider(names_from = coord3, values_from = c(typevalue, id_sub_plots)) %>%
@@ -4193,15 +4231,6 @@ add_individuals <- function(new_data ,
     new_data_renamed %>%
     dplyr::select(all_of(col_names_corresp))
 
-  # new_data_renamed <-
-  #   new_data %>%
-  #   dplyr::rename(plot_name= !!vars(col_names_select[id_col]))
-
-  ### Linking plot names
-
-  # new_data_renamed <-
-  #   .link_plot_name(data_stand = new_data_renamed, plot_name_field = "plot_name")
-
   new_data_renamed <-
     .link_table(data_stand = new_data_renamed,
               column_searched = "plot_name",
@@ -4329,89 +4358,64 @@ add_individuals <- function(new_data ,
   if (length(unmatch_id_diconame) > 0)
     stop(paste("idtax_n not found in diconame", unmatch_id_diconame))
 
-  ## checking DBH
-  # if(!any(colnames(new_data_renamed)=="dbh")) stop("dbh column missing")
   if(any(is.na(names(new_data_renamed) == "dbh"))) {
 
     message("\n dbh and others traits measure should be added independantly using add_traits_measures function")
 
   }
 
-
-
   ## checking column given method
   if(dplyr::pull(method) == "Large") {
 
-    if (!any(colnames(new_data_renamed) == "sous_plot_name"))
-      stop("sous_plot_name column missing")
+    # if (!any(colnames(new_data_renamed) == "tra"))
+    #   stop("sous_plot_name column missing")
     if (!any(colnames(new_data_renamed) == "ind_num_sous_plot"))
       stop("ind_num_sous_plot column missing")
-    # if (!any(colnames(new_data_renamed) == "dbh"))
-    #   stop("dbh column missing")
-    # if (!any(colnames(new_data_renamed) == "position_transect"))
-    #   stop("position_transect column missing")
-    # if (!any(colnames(new_data_renamed) == "strate_cat"))
-    #   stop("strate_cat column missing")
-
-    ## checking strate info
-    # miss_strate <-
+    
+    # type_sousplot <-
     #   new_data_renamed %>%
-    #   dplyr::filter(!strate_cat %in% c("Ad", "Ado"))
-
-    # if (nrow(miss_strate) > 0) {
-    #   warning(paste(
-    #     "strate_cat missing or not equal to Ad or Ado for",
-    #     nrow(miss_strate),
-    #     "individuals"
-    #   ))
-    #   print(miss_strate)
-    # }
-
-    ## checking sous_plot_name
-    type_sousplot <-
-      new_data_renamed %>%
-      dplyr::distinct(sous_plot_name) %>%
-      dplyr::pull()
-
-    if (!any(type_sousplot == c("A", "B", "C", "D")))
-      warning("sous_plot_name should include A B C and D")
+    #   dplyr::distinct(sous_plot_name) %>%
+    #   dplyr::pull()
+    # 
+    # if (!any(type_sousplot == c("A", "B", "C", "D")))
+    #   warning("sous_plot_name should include A B C and D")
 
     # check ind_num_sous_plot
-    for (i in unique(new_data_renamed$id_table_liste_plots_n)) {
-      for (j in c("A", "B", "C", "D")) {
-        duplicates_ind_plot <-
-          new_data_renamed %>%
-          dplyr::filter(id_table_liste_plots_n == i, sous_plot_name == j) %>%
-          dplyr::group_by(ind_num_sous_plot) %>%
-          dplyr::count() %>%
-          dplyr::filter(n > 1)
-
-      if(nrow(duplicates_ind_plot)>0) {
-        plot_name <-
-          dplyr::tbl(mydb, "data_liste_plots") %>%
-          dplyr::select(plot_name, id_liste_plots) %>%
-          dplyr::filter(id_liste_plots == i) %>%
-          dplyr::pull(plot_name)
-
-        warning(paste(nrow(duplicates_ind_plot),
-                      "duplicate in ind_num_sous_plot for ", plot_name, j))
-
-        logs <-
-          dplyr::bind_rows(logs,
-                           dplyr::tibble(
-                             column = "ind_num_sous_plot",
-                             note = paste(
-                               nrow(duplicates_ind_plot),
-                               "duplicate in ind_num_sous_plot for ",
-                               plot_name,
-                               j
-                             )
-                           ))
-      }
-
-      }
-
-    }
+    # for (i in unique(new_data_renamed$id_table_liste_plots_n)) {
+    #   for (j in c("A", "B", "C", "D")) {
+    #     duplicates_ind_plot <-
+    #       new_data_renamed %>%
+    #       dplyr::filter(id_table_liste_plots_n == i, sous_plot_name == j) %>%
+    #       dplyr::group_by(ind_num_sous_plot) %>%
+    #       dplyr::count() %>%
+    #       dplyr::filter(n > 1)
+    # 
+    #   if(nrow(duplicates_ind_plot)>0) {
+    #     plot_name <-
+    #       dplyr::tbl(mydb, "data_liste_plots") %>%
+    #       dplyr::select(plot_name, id_liste_plots) %>%
+    #       dplyr::filter(id_liste_plots == i) %>%
+    #       dplyr::pull(plot_name)
+    # 
+    #     warning(paste(nrow(duplicates_ind_plot),
+    #                   "duplicate in ind_num_sous_plot for ", plot_name, j))
+    # 
+    #     logs <-
+    #       dplyr::bind_rows(logs,
+    #                        dplyr::tibble(
+    #                          column = "ind_num_sous_plot",
+    #                          note = paste(
+    #                            nrow(duplicates_ind_plot),
+    #                            "duplicate in ind_num_sous_plot for ",
+    #                            plot_name,
+    #                            j
+    #                          )
+    #                        ))
+    #   }
+    # 
+    #   }
+    # 
+    # }
 
   }
 
@@ -5700,6 +5704,7 @@ add_specimens <- function(new_data ,
 #' @export
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 replace_NA <- function(df, inv = FALSE) {
+  
   num_fun <- if (inv) ~ dplyr::na_if(.x, -9999) else ~ tidyr::replace_na(.x, -9999)
   chr_fun <- if (inv) ~ dplyr::na_if(.x, "-9999") else ~ tidyr::replace_na(.x, "-9999")
   
@@ -5758,7 +5763,11 @@ replace_NA <- function(df, inv = FALSE) {
   
   if(type_data == "methodslist")
     corresponding_data <-
-      dplyr::tbl(mydb, "methodslist")
+      dplyr::tbl(mydb, "methodslist")  
+  
+  if(type_data == "data_link_specimens")
+    corresponding_data <-
+      dplyr::tbl(mydb, "data_link_specimens")
 
   if(type_data == "trait_measures") {
     # all_data <-
@@ -5978,7 +5987,9 @@ replace_NA <- function(df, inv = FALSE) {
     dplyr::tbl(mydb, "data_individuals") %>%
     dplyr::filter(herbarium_nbe_char %in% !!herb_specimen_diff_gen$herbarium_nbe_char) %>%
     dplyr::collect() %>%
-    dplyr::select(dbh, code_individu, sous_plot_name, ind_num_sous_plot, herbarium_nbe_char,
+    dplyr::select(dbh, code_individu, 
+                  # sous_plot_name, 
+                  ind_num_sous_plot, herbarium_nbe_char,
                   herbarium_code_char, herbarium_nbe_type, id_diconame_n) %>%
     dplyr::left_join(dplyr::tbl(mydb, "diconame") %>%
                        dplyr::select(id_n, full_name_no_auth, tax_gen, tax_esp, tax_fam) %>%
@@ -6455,14 +6466,14 @@ growth_computing <- function(dataset,
                   tax_gen,
                   tax_esp,
                   plot_name,
-                  sous_plot_name,
+                  # sous_plot_name,
                   ind_num_sous_plot,
                   id_table_liste_plots_n
                 ),
               by = c("id_n" = "id_n")
             ) %>%
             dplyr::relocate(plot_name,
-                            sous_plot_name,
+                            # sous_plot_name,
                             ind_num_sous_plot,
                             tax_sp_level,
                             tax_fam,
@@ -6540,7 +6551,7 @@ growth_computing <- function(dataset,
                 tax_gen,
                 tax_esp,
                 plot_name,
-                sous_plot_name,
+                # sous_plot_name,
                 ind_num_sous_plot,
                 id_table_liste_plots_n
               ),
@@ -8652,79 +8663,67 @@ update_taxa_link_table <- function() {
 #'
 #'
 #' @export
-func_try_fetch <- function(con, sql, max_attempts = 10, wait_seconds = 1, verbose = TRUE) {
-  attempt <- 1
-  success <- FALSE
-  result <- NULL
-  last_error <- NULL
-  
-  while (attempt <= max_attempts && !success) {
-    if (verbose) cli::cli_alert_info("Attempt {attempt} of {max_attempts}...")
+func_try_fetch <-
+  function(con,
+           sql,
+           max_attempts = 10,
+           wait_seconds = 1,
+           verbose = TRUE) {
+    attempt <- 1
+    success <- FALSE
+    result <- NULL
+    last_error <- NULL
     
-    try_result <- try({
-      rs <- DBI::dbSendQuery(con, sql)
-      result <- DBI::dbFetch(rs)
-      DBI::dbClearResult(rs)
-    }, silent = TRUE)
-    
-    if (inherits(try_result, "try-error")) {
-      error_message <- conditionMessage(attr(try_result, "condition"))
+    while (attempt <= max_attempts && !success) {
+      if (verbose)
+        cli::cli_alert_info("Attempt {attempt} of {max_attempts}...")
       
-      if (grepl("Lost connection to database", error_message, ignore.case = TRUE)) {
-        stop("❌ Lost connection to database. Aborting.")
-      }
+      try_result <- try({
+        rs <- DBI::dbSendQuery(con, sql)
+        result <- DBI::dbFetch(rs)
+        DBI::dbClearResult(rs)
+      }, silent = TRUE)
       
-      if (grepl("Failed to prepare query", error_message, ignore.case = TRUE)) {
-        cli::cli_alert_warning("Failed to prepare query (attempt {attempt}): {error_message}")
-        last_error <- error_message
-        attempt <- attempt + 1
-        Sys.sleep(wait_seconds)
+      if (inherits(try_result, "try-error")) {
+        error_message <- conditionMessage(attr(try_result, "condition"))
+        
+        if (grepl("Lost connection to database",
+                  error_message,
+                  ignore.case = TRUE)) {
+          stop("❌ Lost connection to database. Aborting.")
+        }
+        
+        if (grepl("Failed to prepare query", error_message, ignore.case = TRUE)) {
+          cli::cli_alert_warning("Failed to prepare query (attempt {attempt}): {error_message}")
+          last_error <- error_message
+          attempt <- attempt + 1
+          Sys.sleep(wait_seconds)
+        } else {
+          stop(glue::glue("❌ Unhandled error: {error_message}"))
+        }
+        
       } else {
-        stop(glue::glue("❌ Unhandled error: {error_message}"))
+        success <- TRUE
       }
-      
-    } else {
-      success <- TRUE
     }
+    
+    if (!success) {
+      stop(
+        glue::glue(
+          "❌ Failed to fetch query after {max_attempts} attempts. Last error: {last_error}"
+        )
+      )
+    }
+    
+    if (success && verbose) {
+      cli::cli_alert_success("✅ Successfully connected and fetched {nrow(result)} rows.")
+    }
+    
+    
+    # Return as tibble (with unique column names)
+    tibble::as_tibble(result, .name_repair = "unique")
   }
-  
-  if (!success) {
-    stop(glue::glue("❌ Failed to fetch query after {max_attempts} attempts. Last error: {last_error}"))
-  }
-  
-  # Return as tibble (with unique column names)
-  tibble::as_tibble(result, .name_repair = "unique")
-}
 
-
-
-# func_try_fetch <- function(con, sql) {
-#   rep <- TRUE
-#   rep_try <- 1
-#   while(rep) {
-# 
-#     res_q <- try({rs <- DBI::dbSendQuery(con, sql);
-#     DBI::dbFetch(rs)}, silent = T)
-# 
-#     if (any(grepl("Lost connection to database", res_q[1])))
-#       stop("Lost connection to database")
-# 
-#     if (any(grepl("Failed to prepare query", res_q[1]))) {
-#       rep <- TRUE
-#       cli::cli_alert_warning("----")
-#       rep_try <- rep_try + 1
-#     } else {
-#       rep <- FALSE
-#     }
-# 
-#     if (rep_try == 10)
-#       stop("Failed to connect to database, check your connection")
-#   }
-#   res_q <- res_q %>% as_tibble(.name_repair = "universal")
-#   DBI::dbClearResult(rs)
-# 
-#   return(res_q)
-# }
 
 #' Open postgresql database table
 #'
@@ -8735,13 +8734,27 @@ func_try_fetch <- function(con, sql, max_attempts = 10, wait_seconds = 1, verbos
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #' @export
+
+#' Try to open PostgreSQL table
+#'
+#' @description
+#' Access to postgresql database table with repeating if no successful
+#' 
+#' @param table A table name.
+#' @param con A database connection.
+#' 
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' 
+#' @returns 
+#' A `tbl` object representing the PostgreSQL table. The function will error
+#' if the connection to the database is lost or if it fails to connect after
+#' 10 attempts.
+#'
+#' @export
 try_open_postgres_table <- function(table, con) {
 
-  # mydb <- call.mydb()
-  # mydb_taxa <- call.mydb.taxa()
-  # 
-  # print(con)
-  
+  mydb <- call.mydb()
+
   rep <- TRUE
   rep_try <- 1
   while(rep) {
@@ -8798,7 +8811,6 @@ add_entry_taxa <- function(search_name_tps = NULL,
                            tax_name1 = NULL,
                            tax_rank2 = NULL,
                            tax_name2 = NULL,
-                           # a_habit = NULL,
                            author1 = NULL,
                            author2 = NULL,
                            author3 = NULL,
@@ -9711,7 +9723,7 @@ query_link_individual_specimen <- function(id_ind = NULL,
 
   }
 
-  return(selected_link)
+  return(selected_link %>% as_tibble())
 
 }
 
@@ -10015,32 +10027,32 @@ test.order.subplot <- function(ind.extract, sub_plot){
 
     tmp <- ind.extract %>%
       filter (plot_name == unique(ind.extract$plot_name)[i]) %>%
-      group_by(plot_name, sous_plot_name) %>%
+      group_by(plot_name, quadrat) %>%
       summarise(mean_id = mean(ind_num_sous_plot),
                 plot_name = unique(plot_name)) %>%
       ungroup()
 
-    tmp <- merge(tmp, sub_plot, by=c('plot_name','sous_plot_name'), all.x = TRUE) %>%
+    tmp <- merge(tmp, sub_plot, by=c('plot_name','quadrat'), all.x = TRUE) %>%
       arrange(mean_id)
 
 
-    if(length(tmp$sous_plot_name) != length(order) ) {
+    if(length(tmp$quadrat) != length(order) ) {
 
       print(paste(unique(ind.extract$plot_name)[i], '  : MISSING OR TOO MUCH SUBPLOTS'))
 
-      if (length(tmp$sous_plot_name) > length(order)){
+      if (length(tmp$quadrat) > length(order)){
         nmin <- length(order)
-        nmax <- length(tmp$sous_plot_name)
+        nmax <- length(tmp$quadrat)
         tmp_order <- order[nmin+1:nmax]
         tmp_order[nmin+1:nmax] <- NA
       }else{
-        tmp_order <- order[1:length(tmp$sous_plot_name)]
+        tmp_order <- order[1:length(tmp$quadrat)]
       }
 
 
       tmp <- st_as_sf(tmp) %>%
         mutate(check = case_when(
-          sous_plot_name == tmp_order ~ 'IT SEEMS GOOD',
+          quadrat == tmp_order ~ 'IT SEEMS GOOD',
           T ~ 'IT SEEMS BAD'
 
         ))
@@ -10053,14 +10065,14 @@ test.order.subplot <- function(ind.extract, sub_plot){
 
     }else{
 
-      if (FALSE %in% unique(tmp$sous_plot_name == order) ){
+      if (FALSE %in% unique(tmp$quadrat == order) ){
 
         print(paste(unique(ind.extract$plot_name)[i], '  : ORDER SUBPLOTS PROBLEM'))
 
 
         tmp <- st_as_sf(tmp) %>%
           mutate(check = case_when(
-            sous_plot_name == order ~ 'IT SEEMS GOOD',
+            quadrat == order ~ 'IT SEEMS GOOD',
             T ~ 'IT SEEMS BAD'
 
           ))

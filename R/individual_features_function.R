@@ -937,6 +937,30 @@ query_individual_features <- function(id = NULL,
 #' @param new_comments string any comments
 #'
 #' @export
+
+
+#' Add trait
+#'
+#' @description
+#' Add trait and associated descriptors in trait list table
+#' 
+#' @param new_trait A single string.
+#' @param new_relatedterm Optional. A single string.
+#' @param new_valuetype A single string, one of `"numeric"`, `"integer"`, `"categorical"`, `"ordinal"`, `"logical"`, `"character"`, `"table_data_liste_plots"`, or `"table_colnam"`.
+#' @param new_maxallowedvalue Optional. if valuetype is numeric, indicate the maximum allowed value
+#' @param new_minallowedvalue Optional. if valuetype is numeric, indicate the minimum allowed value
+#' @param new_traitdescription Optional. A single string.
+#' @param new_factorlevels Optional. Factor levels.
+#' @param new_expectedunit Optional. A single string.
+#' @param new_comments Optional. A single string.
+#'
+#' @returns 
+#' The function writes to a database table if confirmed by the user. The function
+#' will error if `new_trait` or `new_valuetype` are not provided, if `new_valuetype`
+#' is not one of the allowed values, or if numeric/integer value types don't match
+#' their corresponding min/max values.
+#'
+#' @export
 add_trait <- function(new_trait = NULL,
                       new_relatedterm = NULL,
                       new_valuetype = NULL,
@@ -952,24 +976,43 @@ add_trait <- function(new_trait = NULL,
   if(is.null(new_trait)) stop("define new trait")
   if(is.null(new_valuetype)) stop("define new_valuetype")
 
-  if(!any(new_valuetype==c('numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character', 'table_data_liste_plots', 'table_colnam')))
-    stop("valuetype should one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character', 'table_data_liste_plots' or 'table_colnam'")
-
-  if(new_valuetype=="numeric" | new_valuetype=="integer")
-    if(!is.numeric(new_maxallowedvalue) & !is.integer(new_maxallowedvalue)) stop("valuetype numeric of integer and max value not of this type")
-  if(new_valuetype=="numeric" | new_valuetype=="integer")
-    if(!is.numeric(new_minallowedvalue) & !is.integer(new_minallowedvalue)) stop("valuetype numeric of integer and min value not of this type")
-
-  new_data_renamed <- tibble(trait = new_trait,
-                             relatedterm = ifelse(is.null(new_relatedterm), NA, new_relatedterm),
-                             valuetype = new_valuetype,
-                             maxallowedvalue = ifelse(is.null(new_maxallowedvalue), NA, new_maxallowedvalue),
-                             minallowedvalue = ifelse(is.null(new_minallowedvalue), NA, new_minallowedvalue),
-                             traitdescription = ifelse(is.null(new_traitdescription), NA, new_traitdescription),
-                             factorlevels = ifelse(is.null(new_factorlevels), NA, new_factorlevels),
-                             expectedunit = ifelse(is.null(new_expectedunit), NA, new_expectedunit),
-                             comments = ifelse(is.null(new_comments), NA, new_comments))
-
+  if (!any(
+    new_valuetype == c(
+      'numeric',
+      'integer',
+      'categorical',
+      'ordinal',
+      'logical',
+      'character',
+      'table_data_liste_plots',
+      'table_colnam'
+    )
+  ))
+  stop(
+    "valuetype should one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character', 'table_data_liste_plots' or 'table_colnam'"
+  )
+  
+  if (new_valuetype == "numeric" | new_valuetype == "integer")
+    if (!is.numeric(new_maxallowedvalue) &
+        !is.integer(new_maxallowedvalue))
+      stop("valuetype numeric of integer and max value not of this type")
+  if (new_valuetype == "numeric" | new_valuetype == "integer")
+    if (!is.numeric(new_minallowedvalue) &
+        !is.integer(new_minallowedvalue))
+      stop("valuetype numeric of integer and min value not of this type")
+  
+  new_data_renamed <- tibble(
+    trait = new_trait,
+    relatedterm = ifelse(is.null(new_relatedterm), NA, new_relatedterm),
+    valuetype = new_valuetype,
+    maxallowedvalue = ifelse(is.null(new_maxallowedvalue), NA, new_maxallowedvalue),
+    minallowedvalue = ifelse(is.null(new_minallowedvalue), NA, new_minallowedvalue),
+    traitdescription = ifelse(is.null(new_traitdescription), NA, new_traitdescription),
+    factorlevels = ifelse(is.null(new_factorlevels), NA, new_factorlevels),
+    expectedunit = ifelse(is.null(new_expectedunit), NA, new_expectedunit),
+    comments = ifelse(is.null(new_comments), NA, new_comments)
+  )
+  
   print(new_data_renamed)
 
   # Q <- utils::askYesNo("confirm adding this trait?")
@@ -1558,6 +1601,8 @@ add_traits_measures <- function(new_data,
                                 allow_multiple_value = FALSE,
                                 add_data = FALSE) {
   
+  mydb <- call.mydb()
+  
   for (i in 1:length(traits_field))
     if (!any(colnames(new_data) == traits_field[i]))
       stop(paste("traits_field provide not found in new_data", traits_field[i]))
@@ -1764,7 +1809,10 @@ add_traits_measures <- function(new_data,
       new_data_renamed %>%
       dplyr::left_join(
         dplyr::tbl(mydb, "data_individuals") %>%
-          dplyr::select(idtax_n, id_n, sous_plot_name) %>%
+          dplyr::select(idtax_n, 
+                        id_n, 
+                        # sous_plot_name
+                        ) %>%
           dplyr::filter(id_n %in% !!unique(new_data_renamed$id_n)) %>%
           dplyr::collect() %>%
           dplyr::mutate(rrr = 1),
@@ -1773,7 +1821,10 @@ add_traits_measures <- function(new_data,
     
     if (dplyr::filter(link_individuals, is.na(rrr)) %>%
         nrow() > 0) {
-      print(dplyr::filter(link_individuals, is.na(sous_plot_name)))
+      print(dplyr::filter(link_individuals
+                          , 
+                          is.na(rrr)
+                          ))
       stop("provided id individuals not found in data_individuals")
     }
     
@@ -2739,7 +2790,6 @@ add_traits_measures <- function(new_data,
         
         cli::cli_alert_success("Adding data : {nrow(data_to_add)} values added")
         
-        
         if (!is.null(features_field)) {
           
           imported_data <- tbl(mydb, "data_traits_measures") %>%
@@ -2766,49 +2816,26 @@ add_traits_measures <- function(new_data,
           
         }
         
+      } else{
         
+        cli::cli_alert_danger("No added data for {trait} - add_data is FALSE")
         
       }
       
     } else{
       
-      cli::cli_alert_info("no added data for {trait} - no values different of 0")
+      cli::cli_alert_danger("No added data for {trait} - no values different of 0")
       
     }
   }
-  
-  # linked_problems_individuals_list <-
-  #   linked_problems_individuals_list %>%
-  #   dplyr::select(plot_name,
-  #                 ind_num_sous_plot,
-  #                 country,
-  #                 leaf_area,
-  #                 specific_leaf_area,
-  #                 dbh.x,
-  #                 dbh.y,
-  #                 original_tax_name,
-  #                 corrected.name,
-  #                 full_name_no_auth,
-  #                 id_table_liste_plots_n,
-  #                 ddlon,
-  #                 ddlat) %>%
-  #   left_join(tbl(mydb, "data_liste_plots") %>%
-  #               dplyr::select(plot_name, id_liste_plots) %>%
-  #               collect(), by=c("id_table_liste_plots_n"="id_liste_plots")) %>%
-  #   rename(dbh_provided = dbh.x,
-  #          dbh_database = dbh.y,
-  #          name_provided = original_tax_name,
-  #          name_provided_corrected = corrected.name,
-  #          name_database = full_name_no_auth,
-  #          plot_name_provided = plot_name.x,
-  #          plot_name_corrected = plot_name.y)
-  
   
   if(exists('unlinked_individuals'))
     return(list(list_traits_add = list_add_data, unlinked_individuals = unlinked_individuals))
   
   if(!exists('unlinked_individuals'))
     return(list(list_traits_add = list_add_data))
+  
+    
   
 }
 
