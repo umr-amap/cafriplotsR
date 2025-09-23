@@ -31,50 +31,65 @@ query_plots(
 )
 }
 \arguments{
-\item{plot_name}{String. Fuzzy match on plot name.}
+\item{plot_name}{Optional. A single string specifying plot name.}
 
-\item{tag}{Numeric. Exact tag number of the plot.}
+\item{tag}{Optional. Tag identifier.}
 
-\item{country}{String. Fuzzy match on country name.}
+\item{country}{Optional. A single string specifying country.}
 
-\item{locality_name}{String. Fuzzy match on locality name.}
+\item{locality_name}{Optional. A single string specifying locality name.}
 
-\item{method}{String. Fuzzy match on inventory method.}
+\item{method}{Optional. Method identifier.}
 
-\item{extract_individuals}{Logical. If TRUE, returns individual-level data instead of plot list.}
+\item{extract_individuals}{Logical. Whether to extract individuals. Optional.}
 
-\item{map}{Logical. If TRUE, produces an interactive map of selected plots.}
+\item{map}{Logical. Whether to generate map. Optional.}
 
-\item{id_individual}{Numeric. ID of a specific individual to extract (see id_n column of database)}
+\item{id_individual}{Optional. Individual identifiers.}
 
-\item{id_plot}{Numeric. ID of a specific plot to extract.}
+\item{id_plot}{Optional. Plot identifiers.}
 
-\item{id_specimen}{Numeric. ID of a herbarium specimen linked to individuals.}
+\item{id_tax}{Optional. Taxonomic identifiers.}
 
-\item{show_multiple_census}{Logical. Whether to include multiple censuses. Default is FALSE.}
+\item{id_specimen}{Optional. Specimen identifiers.}
 
-\item{remove_ids}{Logical. If TRUE, removes ID columns from the output. Default is TRUE.}
+\item{show_multiple_census}{Logical. Whether to show multiple census data. Optional.}
 
-\item{collapse_multiple_val}{Logical. If TRUE, collapses multiple trait values into a single character string (dash-separated).}
+\item{show_all_coordinates}{Logical. Whether to show all coordinates. Optional.}
 
-\item{extract_traits}{Logical. Whether to extract species-level traits.}
+\item{remove_ids}{Logical. Whether to remove ID columns from output. Optional.}
 
-\item{extract_individual_features}{Logical. Whether to extract individual-level traits or features.}
+\item{collapse_multiple_val}{Logical. Whether to collapse multiple values. Optional.}
 
-\item{traits_to_genera}{Logical. If TRUE, extrapolates species-level traits to genus level.}
+\item{extract_traits}{Logical. Whether to extract taxonomic traits. Optional.}
 
-\item{wd_fam_level}{Logical. If TRUE, uses wood density at family level (currently not fully available).}
+\item{extract_individual_features}{Logical. Whether to extract individual-level features. Optional.}
 
-\item{include_liana}{Logical. Whether to include liana individuals. Default is FALSE.}
+\item{traits_to_genera}{Logical. Whether to aggregate traits to genus level. Optional.}
 
-\item{concatenate_stem}{Logical. If TRUE, concatenates multi-stem individuals into a single row.}
+\item{wd_fam_level}{Logical. Whether to use family-level wood density. Optional.}
 
-\item{remove_obs_with_issue}{Logical. Whether to exclude individuals with issues. Default is TRUE.}
+\item{include_liana}{Logical. Whether to include lianas. Optional.}
+
+\item{extract_subplot_features}{Logical. Whether to extract subplot features. Optional.}
+
+\item{concatenate_stem}{Logical. Whether to concatenate multiple stems. Optional.}
+
+\item{remove_obs_with_issue}{Logical. Whether to remove observations with issues. Optional.}
 }
 \value{
 A tibble of plots or individuals if extract_individuals is TRUE
+
+A list or data frame containing plot data and associated information. When multiple 
+components are requested, returns a list with elements like `extract`, `census_features`, 
+`coordinates`, and `coordinates_sf`. If only one component is available, returns that 
+component directly. Returns `NA` if no plots are found matching the criteria.
 }
 \description{
+This function queries a PostgreSQL inventory database to return a list of forest plots or individuals, 
+with options to include associated traits and metadata, and to generate interactive maps.
+}
+\details{
 This function queries a PostgreSQL inventory database to return a list of forest plots or individuals, 
 with options to include associated traits and metadata, and to generate maps.
 }
@@ -82,6 +97,15 @@ with options to include associated traits and metadata, and to generate maps.
 \dontrun{
   get_plot_data(country = "Gabon", extract_individuals = TRUE, map = TRUE)
 }
+
+\dontrun{
+  query_plots(country = "Gabon", extract_individuals = FALSE)
+  
+  query_plots(country = "Cameroon")
+  
+  query_plots(plot_name = "mbalmayo001")
+}
+
 
 }
 \author{
