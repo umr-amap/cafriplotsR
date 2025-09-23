@@ -7,11 +7,19 @@
 try_open_postgres_table(table, con)
 }
 \arguments{
-\item{table}{string}
+\item{table}{A table name.}
 
-\item{con}{connection to database}
+\item{con}{A database connection.}
+}
+\value{
+A `tbl` object representing the PostgreSQL table. The function will error
+if the connection to the database is lost or if it fails to connect after
+10 attempts.
 }
 \description{
+Access to postgresql database table with repeating if no successful
+}
+\details{
 Access to postgresql database table with repeating if no successful
 }
 \author{

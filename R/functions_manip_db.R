@@ -1541,7 +1541,7 @@ traits_list <- function(id_trait = NULL) {
 #'   
 #'   query_plots(country = "Cameroon")
 #'   
-#'   query_plots(plot_name = "mbalmayo001)
+#'   query_plots(plot_name = "mbalmayo001")
 #' }
 #' 
 #' 

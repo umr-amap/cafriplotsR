@@ -4,7 +4,12 @@
 \alias{get_plot_rel_xy}
 \title{Project stems in geographical space}
 \usage{
-get_plot_rel_xy(dataset)
+get_plot_rel_xy(
+  dataset,
+  col_subplot = "quadrat",
+  col_pos_x = "position_x_iphone",
+  col_pos_y = "position_y_iphone"
+)
 }
 \arguments{
 \item{dataset}{extract of query_plots individuals TRUE}
