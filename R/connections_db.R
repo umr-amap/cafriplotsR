@@ -1,14 +1,113 @@
-#' 
-#' 
 # Internal environment to store connections
 .db_env <- new.env(parent = emptyenv())
 
 credentials <- new.env()
 
+
+
+#' Setup credentials storage in environment variables
+#'
+#' @description
+#' Helper function to configure credentials in .Renviron file.
+#' WARNING: Credentials will be stored in plain text. Only use on secure personal computers.
+#' 
+#' @param user Username for database
+#' @param pass Password for database
+#' 
+#' @export
+setup_db_credentials <- function(user = NULL, pass = NULL) {
+  
+  cli::cli_alert_warning("WARNING: Credentials will be stored in plain text in ~/.Renviron")
+  cli::cli_alert_warning("Only proceed if this is your personal, secure computer")
+  
+  if (interactive()) {
+    proceed <- readline("Do you want to continue? (yes/no): ")
+    if (tolower(proceed) != "yes") {
+      cli::cli_alert_info("Operation cancelled")
+      return(invisible(FALSE))
+    }
+  }
+  
+  # Demander les credentials si non fournis
+  if (is.null(user)) {
+    user <- readline("Enter database username: ")
+  }
+  
+  if (is.null(pass)) {
+    pass <- get_password_secure("Enter database password: ")
+  }
+  
+  # Chemin du fichier .Renviron
+  renviron_path <- file.path(path.expand("~"), ".Renviron")
+  
+  # Lire le contenu existant
+  if (file.exists(renviron_path)) {
+    existing_lines <- readLines(renviron_path)
+    # Supprimer les anciennes entrées MYDB si elles existent
+    existing_lines <- existing_lines[!grepl("^MYDB_USER=", existing_lines)]
+    existing_lines <- existing_lines[!grepl("^MYDB_PASS=", existing_lines)]
+  } else {
+    existing_lines <- character(0)
+  }
+  
+  # Ajouter les nouvelles credentials
+  new_lines <- c(
+    existing_lines,
+    paste0("MYDB_USER=", user),
+    paste0("MYDB_PASS=", pass)
+  )
+  
+  # Écrire dans .Renviron
+  writeLines(new_lines, renviron_path)
+  
+  cli::cli_alert_success("Credentials saved to ~/.Renviron")
+  cli::cli_alert_info("Restart R session for changes to take effect: .rs.restartR()")
+  cli::cli_alert_info("To remove credentials later, use: remove_db_credentials()")
+  
+  invisible(TRUE)
+}
+
+#' Remove stored credentials
+#' 
+#' @export
+remove_db_credentials <- function() {
+  renviron_path <- file.path(path.expand("~"), ".Renviron")
+  
+  if (!file.exists(renviron_path)) {
+    cli::cli_alert_info("No .Renviron file found")
+    return(invisible(FALSE))
+  }
+  
+  existing_lines <- readLines(renviron_path)
+  
+  # Filtrer les lignes MYDB
+  has_mydb <- any(grepl("^MYDB_USER=|^MYDB_PASS=", existing_lines))
+  
+  if (!has_mydb) {
+    cli::cli_alert_info("No stored credentials found")
+    return(invisible(FALSE))
+  }
+  
+  # Supprimer les entrées
+  new_lines <- existing_lines[!grepl("^MYDB_USER=|^MYDB_PASS=", existing_lines)]
+  
+  writeLines(new_lines, renviron_path)
+  
+  cli::cli_alert_success("Credentials removed from ~/.Renviron")
+  cli::cli_alert_info("Restart R session for changes to take effect: .rs.restartR()")
+  
+  # Nettoyer aussi le cache en mémoire
+  rm(list = c("user_db", "password"), envir = credentials, inherits = FALSE)
+  
+  invisible(TRUE)
+}
+
+
+
 #' Test database connection
 #'
 #' @description
-#' To test if the database connection if valid
+#' To test if the database connection is valid
 #' 
 #' @param con A database connection object.
 #'
@@ -20,7 +119,6 @@ test_connection <- function(con) {
   if (is.null(con)) return(FALSE)
   
   tryCatch({
-    # Test simple avec une requête légère
     DBI::dbGetQuery(con, "SELECT 1 as test")
     return(TRUE)
   }, error = function(e) {
@@ -28,32 +126,104 @@ test_connection <- function(con) {
   })
 }
 
+#' Get password securely
+#' @keywords internal
+get_password_secure <- function(prompt) {
+  if (interactive()) {
+    if (requireNamespace("getPass", quietly = TRUE)) {
+      return(getPass::getPass(prompt))
+    } else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+      return(rstudioapi::askForPassword(prompt))
+    } else {
+      warning("No secure password input available, using readline")
+      return(readline(paste0(prompt, " (WARNING: will be visible) ")))
+    }
+  } else {
+    stop("Cannot prompt for password in non-interactive session. Please provide password parameter.")
+  }
+}
+
+#' Get username securely
+#' @keywords internal
+get_username_secure <- function(prompt) {
+  if (interactive()) {
+    return(readline(prompt))
+  } else {
+    stop("Cannot prompt for username in non-interactive session. Please provide user parameter.")
+  }
+}
+
+#' Create local DB config file
+#'
+#' Writes DB connection config to ~/.mydb_config.R
+#' @export
+create_db_config <- function(config_path = NULL) {
+  if (is.null(config_path)) {
+    config_path <- file.path(path.expand("~"), ".mydb_config.R")
+  }
+  
+  if (file.exists(config_path)) {
+    tryCatch({
+      source(config_path, local = FALSE)
+      return(invisible(FALSE))
+    }, error = function(e) {
+      cli::cli_alert_warning("Error loading config file: {e$message}")
+      cli::cli_alert_info("Creating new config file...")
+    })
+  }
+  
+  # Template de configuration
+  config_content <- '
+# Database Configuration
+# Main database
+db_host <- "dg474899-001.dbaas.ovh.net"
+db_port <- 35699
+db_name <- "plots_transects"
+
+# Taxa database  
+db_name_taxa <- "rainbio"
+
+# Connection settings
+db_connect_timeout <- 10
+db_max_retries <- 3
+'
+  
+  cat(config_content, file = config_path)
+  message("Database config file created at: ", config_path)
+  source(config_path, local = FALSE)
+  
+  invisible(TRUE)
+}
+
+
 
 #' Connect to database
 #'
 #' @description
-#' A short description...
+#' Generic function to connect to main or taxa database
 #' 
 #' @param db_type One of `"main"` or `"taxa"`.
-#' @param pass A single string. Optional.
-#' @param user A single string. Optional.
-#' @param reset A single logical value. Optional.
-#' @param retry A single logical value. Optional.
+#' @param pass Password. If NULL, will check environment then prompt.
+#' @param user Username. If NULL, will check environment then prompt.
+#' @param reset If TRUE, forces new credential prompt.
+#' @param retry If TRUE, retry on failure.
+#' @param use_env_credentials If TRUE, tries to use MYDB_USER and MYDB_PASS from .Renviron (default: FALSE)
 #'
-#' @returns 
-#' A database connection object. The function will error if the connection
-#' fails after the maximum number of attempts.
-#'
+#' @returns A database connection object.
 #' @export
-connect_database <- function(db_type = c("main", "taxa"), pass = NULL, user = NULL, reset = FALSE, retry = TRUE) {
+connect_database <- function(db_type = c("main", "taxa"), 
+                             pass = NULL, 
+                             user = NULL, 
+                             reset = FALSE, 
+                             retry = TRUE,
+                             use_env_credentials = FALSE) {
   db_type <- match.arg(db_type)
   create_db_config()
   
-  # Utilisation des mêmes credentials pour les deux bases
+  # Variables selon le type de DB
   user_key <- "user_db"
   pass_key <- "password"
   
-  # Définir les variables selon le type de DB
   if (db_type == "main") {
     conn_var <- "mydb"
     db_name_var <- db_name
@@ -62,28 +232,38 @@ connect_database <- function(db_type = c("main", "taxa"), pass = NULL, user = NU
     db_name_var <- db_name_taxa
   }
   
-  # Reset: close existing connection and clear cache
+  # Reset
   if (reset) {
     if (!is.null(.db_env[[conn_var]])) {
       try(DBI::dbDisconnect(.db_env[[conn_var]]), silent = TRUE)
       .db_env[[conn_var]] <- NULL
     }
-    # Pour reset, on nettoie les credentials partagés
     if (exists(user_key, envir = credentials)) rm(list = user_key, envir = credentials)
     if (exists(pass_key, envir = credentials)) rm(list = pass_key, envir = credentials)
   }
   
-  # Test existing connection
+  # Test connexion existante
   if (!is.null(.db_env[[conn_var]]) && test_connection(.db_env[[conn_var]])) {
     return(.db_env[[conn_var]])
   } else if (!is.null(.db_env[[conn_var]])) {
-    # Connection exists but is broken
     cli::cli_alert_warning("{stringr::str_to_title(db_type)} database connection lost, reconnecting...")
     try(DBI::dbDisconnect(.db_env[[conn_var]]), silent = TRUE)
     .db_env[[conn_var]] <- NULL
   }
   
-  # Get credentials (partagés entre les deux bases)
+  # Essayer credentials d'environnement si activé
+  if (use_env_credentials && is.null(user) && is.null(pass)) {
+    env_user <- Sys.getenv("MYDB_USER")
+    env_pass <- Sys.getenv("MYDB_PASS")
+    
+    if (env_user != "" && env_pass != "") {
+      user <- env_user
+      pass <- env_pass
+      cli::cli_alert_info("Using stored credentials from environment")
+    }
+  }
+  
+  # Get credentials
   if (is.null(pass)) {
     if (!exists(pass_key, envir = credentials)) {
       credentials[[pass_key]] <- get_password_secure("Enter database password: ")
@@ -98,7 +278,7 @@ connect_database <- function(db_type = c("main", "taxa"), pass = NULL, user = NU
     user <- credentials[[user_key]]
   }
   
-  # Attempt connection with retry logic
+  # Tentative de connexion avec retry
   max_attempts <- if (retry) 3 else 1
   
   for (attempt in 1:max_attempts) {
@@ -113,7 +293,7 @@ connect_database <- function(db_type = c("main", "taxa"), pass = NULL, user = NU
         connect_timeout = 10
       )
       
-      # Vérification des droits pour la base taxa
+      # Vérification des droits pour taxa
       if (db_type == "taxa") {
         check_taxa_permissions(.db_env[[conn_var]])
       }
@@ -133,69 +313,31 @@ connect_database <- function(db_type = c("main", "taxa"), pass = NULL, user = NU
   }
 }
 
-list_user_policies <- function(con, user = NULL, table = NULL) {
-  sql_base <- "
-    SELECT 
-      schemaname,
-      tablename,
-      policyname,
-      roles,
-      cmd,
-      qual
-    FROM pg_policies
-  "
-  
-  conditions <- c()
-  if (!is.null(user)) {
-    conditions <- c(conditions, glue::glue("'{user}' = ANY(roles)"))
-  }
-  if (!is.null(table)) {
-    conditions <- c(conditions, glue::glue("tablename = '{table}'"))
-  }
-  
-  if (length(conditions) > 0) {
-    sql_base <- paste0(sql_base, " WHERE ", paste(conditions, collapse = " AND "))
-  }
-  
-  sql_base <- paste0(sql_base, " ORDER BY schemaname, tablename, policyname;")
-  
-  DBI::dbGetQuery(con, sql_base)
+#' Get primary database connection (wrapper)
+#' @export
+call.mydb <- function(pass = NULL, user = NULL, reset = FALSE, retry = TRUE, use_env_credentials = FALSE) {
+  connect_database("main", pass, user, reset, retry, use_env_credentials)
 }
 
-# Fonction helper pour des cas d'usage courants
-define_read_only_policy <- function(con, user, ids, table = "data_liste_plots") {
-  define_user_policy(con, user, ids, table, operations = "SELECT")
+#' Get taxa database connection (wrapper)
+#' @export
+call.mydb.taxa <- function(pass = NULL, user = NULL, reset = FALSE, retry = TRUE, use_env_credentials = FALSE) {
+  if (reset) {
+    cli::cli_alert_info("Taxa database: Remember that write operations are restricted")
+  }
+  connect_database("taxa", pass, user, reset, retry, use_env_credentials)
 }
 
-define_full_access_policy <- function(con, user, ids, table = "data_liste_plots") {
-  define_user_policy(con, user, ids, table, operations = "ALL")
-}
 
-define_read_write_policy <- function(con, user, ids, table = "data_liste_plots") {
-  define_user_policy(con, user, ids, table, operations = c("SELECT", "INSERT", "UPDATE"))
-}
 
 #' Check taxa database permissions
-#'
-#' @description
-#' A short description...
-#' 
-#' @param con A database connection object.
-#'
-#' @returns 
-#' Called for side effects. Prints messages about database access permissions
-#' and warns if write access is detected.
-#'
 #' @export
 check_taxa_permissions <- function(con) {
   tryCatch({
-    # Test des droits de lecture
     test_query <- "SELECT 1 LIMIT 1"
     DBI::dbGetQuery(con, test_query)
     
-    # Test des droits d'écriture (doit échouer normalement)
     write_test <- tryCatch({
-      # Utilise une table temporaire pour tester
       DBI::dbExecute(con, "CREATE TEMP TABLE test_write_permissions (id integer)")
       DBI::dbExecute(con, "DROP TABLE test_write_permissions")
       return(TRUE)
@@ -214,86 +356,8 @@ check_taxa_permissions <- function(con) {
   })
 }
 
-# Fonctions wrapper simplifiées
-call.mydb <- function(pass = NULL, user = NULL, reset = FALSE, retry = TRUE) {
-  connect_database("main", pass, user, reset, retry)
-}
-
-call.mydb.taxa <- function(pass = NULL, user = NULL, reset = FALSE, retry = TRUE) {
-  if (reset) {
-    cli::cli_alert_info("Taxa database: Remember that write operations are restricted")
-  }
-  connect_database("taxa", pass, user, reset, retry)
-}
-
-# Amélioration 3: Gestion sécurisée des credentials
-get_password_secure <- function(prompt) {
-  if (interactive()) {
-    # Utilise getPass si disponible, sinon rstudioapi si dans RStudio
-    if (requireNamespace("getPass", quietly = TRUE)) {
-      return(getPass::getPass(prompt))
-    } else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
-      return(rstudioapi::askForPassword(prompt))
-    } else {
-      warning("No secure password input available, using readline")
-      return(readline(paste0(prompt, " (WARNING: will be visible) ")))
-    }
-  } else {
-    stop("Cannot prompt for password in non-interactive session. Please provide password parameter.")
-  }
-}
-
-get_username_secure <- function(prompt) {
-  if (interactive()) {
-    return(readline(prompt))
-  } else {
-    stop("Cannot prompt for username in non-interactive session. Please provide user parameter.")
-  }
-}
-
-# Amélioration 4: Configuration plus flexible
-create_db_config <- function(config_path = NULL) {
-  if (is.null(config_path)) {
-    config_path <- file.path(path.expand("~"), ".mydb_config.R")
-  }
-  
-  if (file.exists(config_path)) {
-    tryCatch({
-      source(config_path, local = FALSE)
-      return(invisible(FALSE))
-    }, error = function(e) {
-      cli::cli_alert_warning("Error loading config file: {e$message}")
-      cli::cli_alert_info("Creating new config file...")
-    })
-  }
-  
-  # Template de configuration plus complet
-  config_content <- '
-# Database Configuration
-# Main database
-db_host <- "dg474899-001.dbaas.ovh.net"
-db_port <- 35699
-db_name <- "plots_transects"
-
-# Taxa database  
-db_name_taxa <- "rainbio"
-
-# Connection settings
-db_connect_timeout <- 10
-db_max_retries <- 3
-
-# Optional: SSL settings
-# db_sslmode <- "require"
-'
-  
-  cat(config_content, file = config_path)
-  message("Database config file created at: ", config_path)
-  source(config_path, local = FALSE)
-  
-  invisible(TRUE)
-}
-
-# Amélioration 5: Fonction de nettoyage des connexions
+#' Cleanup all database connections
+#' @export
 cleanup_connections <- function() {
   if (!is.null(.db_env$mydb)) {
     try(DBI::dbDisconnect(.db_env$mydb), silent = TRUE)
@@ -305,106 +369,13 @@ cleanup_connections <- function() {
     .db_env$mydb_taxa <- NULL
   }
   
-  # Clear credentials
   rm(list = ls(envir = credentials), envir = credentials)
   
   cli::cli_alert_success("All connections closed and credentials cleared")
 }
 
-# Amélioration 6: Policy management amélioré
-define_user_policy <- function(con, user, ids, 
-                               table = "data_liste_plots", 
-                               policy_name = NULL,
-                               operations = "SELECT",
-                               drop_existing = TRUE) {
-  
-  # Validation des paramètres
-  valid_ops <- c("SELECT", "INSERT", "UPDATE", "DELETE", "ALL")
-  
-  stopifnot(
-    "Connection must be valid" = !is.null(con) && test_connection(con),
-    "User must be specified" = !is.null(user) && nchar(user) > 0,
-    "IDs must be provided" = length(ids) > 0 && all(is.finite(ids)),
-    "Operations must be valid" = all(operations %in% valid_ops)
-  )
-  
-  # Si "ALL" est spécifié, on l'utilise seul
-  if ("ALL" %in% operations) {
-    operations <- "ALL"
-    cli::cli_alert_info("Using 'ALL' operations (overrides specific operations)")
-  }
-  
-  if (is.null(policy_name)) {
-    policy_name <- paste0("policy_", gsub("[^a-zA-Z0-9_]", "_", user))
-  }
-  
-  id_list <- paste(ids, collapse = ", ")
-  
-  tryCatch({
-    # Enable RLS first (idempotent)
-    sql_enable_rls <- glue::glue("ALTER TABLE {DBI::dbQuoteIdentifier(con, table)} ENABLE ROW LEVEL SECURITY;")
-    DBI::dbExecute(con, sql_enable_rls)
-    
-    # Drop existing policies if requested
-    if (drop_existing) {
-      # Drop policies with the same base name (could be multiple)
-      existing_policies <- list_user_policies(con, user = user, table = table)
-      policies_to_drop <- existing_policies[grepl(paste0("^", policy_name), existing_policies$policyname), ]
-      
-      for (policy in policies_to_drop$policyname) {
-        sql_drop <- glue::glue("DROP POLICY IF EXISTS {DBI::dbQuoteIdentifier(con, policy)} ON {DBI::dbQuoteIdentifier(con, table)};")
-        DBI::dbExecute(con, sql_drop)
-        cli::cli_alert_info("Dropped existing policy: {policy}")
-      }
-    }
-    
-    # Create policies for each operation (ou une seule si ALL)
-    if (length(operations) == 1 && operations == "ALL") {
-      # Une seule policy pour ALL
-      sql_create <- glue::glue("
-        CREATE POLICY {DBI::dbQuoteIdentifier(con, policy_name)}
-        ON {DBI::dbQuoteIdentifier(con, table)}
-        FOR ALL
-        TO {DBI::dbQuoteIdentifier(con, user)}
-        USING (id_liste_plots IN ({id_list}));
-      ")
-      DBI::dbExecute(con, sql_create)
-      cli::cli_alert_success("Policy '{policy_name}' created for ALL operations")
-      
-    } else {
-      # Une policy par opération
-      for (i in seq_along(operations)) {
-        op <- operations[i]
-        current_policy_name <- if (length(operations) > 1) {
-          paste0(policy_name, "_", tolower(op))
-        } else {
-          policy_name
-        }
-        
-        sql_create <- glue::glue("
-          CREATE POLICY {DBI::dbQuoteIdentifier(con, current_policy_name)}
-          ON {DBI::dbQuoteIdentifier(con, table)}
-          FOR {op}
-          TO {DBI::dbQuoteIdentifier(con, user)}
-          USING (id_liste_plots IN ({id_list}));
-        ")
-        DBI::dbExecute(con, sql_create)
-        cli::cli_alert_success("Policy '{current_policy_name}' created for {op} operations")
-      }
-    }
-    
-    # Log the policy creation
-    cli::cli_alert_info("User '{user}' granted {paste(operations, collapse = ', ')} access to plot IDs: {paste(ids, collapse = ', ')}")
-    
-    return(invisible(TRUE))
-    
-  }, error = function(e) {
-    cli::cli_alert_danger("Failed to create policy: {e$message}")
-    stop("Policy creation failed: ", e$message, call. = FALSE)
-  })
-}
-
-# Fonction pour obtenir des informations sur les connexions actives
+#' Get connection information
+#' @export
 get_connection_info <- function() {
   info <- list()
   
@@ -463,7 +434,8 @@ get_connection_info <- function() {
   return(info)
 }
 
-# Fonction pour afficher un résumé des connexions
+#' Print connection status
+#' @export
 print_connection_status <- function() {
   info <- get_connection_info()
   
@@ -494,23 +466,20 @@ print_connection_status <- function() {
   }
 }
 
-# Fonction pour un diagnostic complet
+#' Complete database diagnostic
+#' @export
 db_diagnostic <- function() {
   cli::cli_h1("Database Diagnostic")
   
-  # Status des connexions
   print_connection_status()
   
-  # Informations de configuration
   cli::cli_h2("Configuration")
   cli::cli_alert_info("Host: {db_host}:{db_port}")
   cli::cli_alert_info("Main database: {db_name}")
   cli::cli_alert_info("Taxa database: {db_name_taxa}")
   
-  # Test de connectivité basique
   cli::cli_h2("Connectivity Tests")
   
-  # Test main DB
   main_test <- tryCatch({
     con <- call.mydb()
     result <- DBI::dbGetQuery(con, "SELECT version() as version")
@@ -522,7 +491,6 @@ db_diagnostic <- function() {
     FALSE
   })
   
-  # Test taxa DB
   taxa_test <- tryCatch({
     con <- call.mydb.taxa()
     result <- DBI::dbGetQuery(con, "SELECT version() as version")
@@ -537,270 +505,134 @@ db_diagnostic <- function() {
   return(invisible(list(main = main_test, taxa = taxa_test)))
 }
 
+#' Define user policy for row-level security
+#' @export
+define_user_policy <- function(con, user, ids, 
+                               table = "data_liste_plots", 
+                               policy_name = NULL,
+                               operations = "SELECT",
+                               drop_existing = TRUE) {
+  
+  valid_ops <- c("SELECT", "INSERT", "UPDATE", "DELETE", "ALL")
+  
+  stopifnot(
+    "Connection must be valid" = !is.null(con) && test_connection(con),
+    "User must be specified" = !is.null(user) && nchar(user) > 0,
+    "IDs must be provided" = length(ids) > 0 && all(is.finite(ids)),
+    "Operations must be valid" = all(operations %in% valid_ops)
+  )
+  
+  if ("ALL" %in% operations) {
+    operations <- "ALL"
+    cli::cli_alert_info("Using 'ALL' operations (overrides specific operations)")
+  }
+  
+  if (is.null(policy_name)) {
+    policy_name <- paste0("policy_", gsub("[^a-zA-Z0-9_]", "_", user))
+  }
+  
+  id_list <- paste(ids, collapse = ", ")
+  
+  tryCatch({
+    sql_enable_rls <- glue::glue("ALTER TABLE {DBI::dbQuoteIdentifier(con, table)} ENABLE ROW LEVEL SECURITY;")
+    DBI::dbExecute(con, sql_enable_rls)
+    
+    if (drop_existing) {
+      existing_policies <- list_user_policies(con, user = user, table = table)
+      policies_to_drop <- existing_policies[grepl(paste0("^", policy_name), existing_policies$policyname), ]
+      
+      for (policy in policies_to_drop$policyname) {
+        sql_drop <- glue::glue("DROP POLICY IF EXISTS {DBI::dbQuoteIdentifier(con, policy)} ON {DBI::dbQuoteIdentifier(con, table)};")
+        DBI::dbExecute(con, sql_drop)
+        cli::cli_alert_info("Dropped existing policy: {policy}")
+      }
+    }
+    
+    if (length(operations) == 1 && operations == "ALL") {
+      sql_create <- glue::glue("
+        CREATE POLICY {DBI::dbQuoteIdentifier(con, policy_name)}
+        ON {DBI::dbQuoteIdentifier(con, table)}
+        FOR ALL
+        TO {DBI::dbQuoteIdentifier(con, user)}
+        USING (id_liste_plots IN ({id_list}));
+      ")
+      DBI::dbExecute(con, sql_create)
+      cli::cli_alert_success("Policy '{policy_name}' created for ALL operations")
+      
+    } else {
+      for (i in seq_along(operations)) {
+        op <- operations[i]
+        current_policy_name <- if (length(operations) > 1) {
+          paste0(policy_name, "_", tolower(op))
+        } else {
+          policy_name
+        }
+        
+        sql_create <- glue::glue("
+          CREATE POLICY {DBI::dbQuoteIdentifier(con, current_policy_name)}
+          ON {DBI::dbQuoteIdentifier(con, table)}
+          FOR {op}
+          TO {DBI::dbQuoteIdentifier(con, user)}
+          USING (id_liste_plots IN ({id_list}));
+        ")
+        DBI::dbExecute(con, sql_create)
+        cli::cli_alert_success("Policy '{current_policy_name}' created for {op} operations")
+      }
+    }
+    
+    cli::cli_alert_info("User '{user}' granted {paste(operations, collapse = ', ')} access to plot IDs: {paste(ids, collapse = ', ')}")
+    
+    return(invisible(TRUE))
+    
+  }, error = function(e) {
+    cli::cli_alert_danger("Failed to create policy: {e$message}")
+    stop("Policy creation failed: ", e$message, call. = FALSE)
+  })
+}
 
-#' 
-#' #' Create local DB config file
-#' #'
-#' #' Writes DB connection config to ~/.mydb_config.R
-#' create_db_config <- function() {
-#'   path <- file.path(path.expand("~"), ".mydb_config.R")
-#'   if (file.exists(path)) {
-#'     config_path <- file.path(path.expand("~"), ".mydb_config.R")
-#'     # print(config_path)
-#'     source(config_path, local = F)
-#'     return(invisible(FALSE))
-#'   }
-#'   
-#'   
-#'   cat(
-#'     'db_host <- "dg474899-001.dbaas.ovh.net"\n',
-#'     'db_port <- 35699\n',
-#'     'db_name <- "plots_transects"\n',
-#'     'db_name_taxa <- "rainbio"\n',
-#'     file = path
-#'   )
-#'   message("Database config file created at: ", path)
-#'   
-#' 
-#'   
-#'   invisible(TRUE)
-#' }
-#' 
-#' 
-#' 
-#' 
-#' call.mydb <- function(pass = NULL, user = NULL, reset = FALSE) {
-#'   create_db_config()
-#'   
-#'   # Reset: close existing connection and clear cache
-#'   if (reset && !is.null(.db_env$mydb)) {
-#'     try(DBI::dbDisconnect(.db_env$mydb), silent = TRUE)
-#'     .db_env$mydb <- NULL
-#'     rm(list = c("user_db", "password"), envir = credentials)
-#'   }
-#'   
-#'   # Return cached connection if available
-#'   if (!is.null(.db_env$mydb)) return(.db_env$mydb)
-#'   
-#'   # Prompt for password if not provided
-#'   if (is.null(pass)) {
-#'     if (!exists("password", envir = credentials)) {
-#'       credentials$password <- tryCatch(
-#'         getPass::getPass("Enter your password: "),
-#'         error = function(e) readline("Password: ")
-#'       )
-#'     }
-#'     pass <- credentials$password
-#'   }
-#'   
-#'   # Prompt for user if not provided
-#'   if (is.null(user)) {
-#'     if (!exists("user_db", envir = credentials)) {
-#'       credentials$user_db <- tryCatch(
-#'         getPass::getPass("Enter your user name: "),
-#'         error = function(e) readline("User: ")
-#'       )
-#'     }
-#'     user <- credentials$user_db
-#'   }
-#'   
-#'   # Connect
-#'   .db_env$mydb <- DBI::dbConnect(
-#'     RPostgres::Postgres(),
-#'     dbname   = db_name,
-#'     host     = db_host,
-#'     port     = db_port,
-#'     user     = user,
-#'     password = pass
-#'   )
-#'   
-#'   .db_env$mydb
-#' }
-#' 
-#' 
-#' 
-#' call.mydb.taxa <- function(pass = "Anyuser2022", user = "common", reset = FALSE) {
-#'   
-#'   create_db_config()
-#'   
-#'   if (reset) 
-#'     cli::cli_alert_warning("For adding entries of modify the taxonomic backbone, you must have the right to do it. Enter password and login.")
-#'   
-#'   if (reset) .db_env$mydb_taxa <- NULL
-#'   
-#'   if (!is.null(.db_env$mydb_taxa)) return(.db_env$mydb_taxa)
-#'   
-#'   if (is.null(pass) | reset == TRUE) {
-#'     
-#'     if (!exists("password_mydbtaxa", envir = credentials) | reset == TRUE) {
-#'       credentials$password_mydbtaxa <- tryCatch(
-#'         getPass::getPass("Enter your password name"),
-#'         error = function(e) readline("password: ")
-#'       )
-#'     }
-#'     pass <- credentials$password_mydbtaxa
-#'     
-#'   }
-#'   
-#'   if (is.null(user) | reset == TRUE) {
-#'     if (!exists("user_dbtaxa", envir = credentials) | reset == TRUE) {
-#'       credentials$user_dbtaxa <- tryCatch(
-#'         getPass::getPass("Enter your user name"),
-#'         error = function(e) readline("User: ")
-#'       )
-#'     }
-#'     user <- credentials$user_dbtaxa
-#'   }
-#'   
-#'   # .db_env$mydb_taxa <- DBI::dbConnect(
-#'   #   RPostgres::Postgres(),
-#'   #   dbname = "plots_transects",
-#'   #   host = "dg474899-001.dbaas.ovh.net",
-#'   #   port = 35699,
-#'   #   user = user,
-#'   #   password = pass
-#'   # )
-#'   
-#'   .db_env$mydb_taxa <- DBI::dbConnect(
-#'     RPostgres::Postgres(),
-#'     dbname = db_name_taxa,
-#'     host = db_host,
-#'     port = db_port,
-#'     user = user,
-#'     password = pass
-#'   )
-#'   
-#'   .db_env$mydb_taxa
-#'   
-#' }
-#' 
-#' 
-#' 
-#' define_user_policy <- function(con, user, ids, 
-#'                                table = "data_liste_plots", policy_name = NULL) {
-#'   stopifnot(length(ids) > 0, !is.null(user))
-#'   
-#'   if (is.null(policy_name)) {
-#'     policy_name <- paste0("policy_", user)
-#'   }
-#'   
-#'   id_list <- paste(ids, collapse = ", ")
-#'   
-#'   # Drop the policy if it already exists
-#'   sql_drop <- glue::glue(
-#'     "DROP POLICY IF EXISTS {DBI::dbQuoteIdentifier(con, policy_name)} ON {DBI::dbQuoteIdentifier(con, table)};"
-#'   )
-#'   
-#'   # Create the new policy
-#'   sql_create <- glue::glue("
-#'     CREATE POLICY {DBI::dbQuoteIdentifier(con, policy_name)}
-#'     ON {DBI::dbQuoteIdentifier(con, table)}
-#'     FOR SELECT
-#'     TO {DBI::dbQuoteIdentifier(con, user)}
-#'     USING (id_liste_plots IN ({id_list}));
-#'   ")
-#'   
-#'   # Enable RLS on the table (only needs to be done once per table)
-#'   sql_enable_rls <- glue::glue("ALTER TABLE {DBI::dbQuoteIdentifier(con, table)} ENABLE ROW LEVEL SECURITY;")
-#'   
-#'   dbExecute(con, sql_enable_rls)
-#'   dbExecute(con, sql_drop)
-#'   dbExecute(con, sql_create)
-#'   
-#'   cli::cli_alert_success("Policy {policy_name} updated for user {user} on table {table}")
-#'   
-#'   invisible(TRUE)
-#' }
-#' 
-#' 
-#' 
-#' # call.mydb <- function(pass=NULL, user=NULL, offline = FALSE) {
-#' #   
-#' #   if(!exists("mydb")) {
-#' #     
-#' #     if(!offline) {
-#' #       
-#' #       if(is.null(pass))
-#' #         pass <- rstudioapi::askForPassword("Please enter your password")
-#' #       
-#' #       if(is.null(user))
-#' #         user <- rstudioapi::askForPassword("Please enter your user name")
-#' #       
-#' #       
-#' #       # mydb <- DBI::dbConnect(RPostgres::Postgres(),dbname = 'plots_transects',
-#' #       #                   host = 'localhost',
-#' #       #                   port = 5432, # or any other port specified by your DBA
-#' #       #                   user = 'postgres',
-#' #       #                   password = pass)
-#' #       
-#' #       mydb <- DBI::dbConnect(RPostgres::Postgres(),
-#' #                              dbname = 'plots_transects',
-#' #                              host = 'dg474899-001.dbaas.ovh.net',
-#' #                              port = 35699, # or any other port specified by your DBA
-#' #                              user = user,
-#' #                              password = pass)
-#' #       
-#' #     } else {
-#' #       
-#' #       # mydb <-
-#' #       #   list(data_liste_plots = dplyr::tbl(mydb, "data_liste_plots"),
-#' #       #        data_liste_sub_plots = dplyr::tbl(mydb, "data_liste_sub_plots"),
-#' #       #        table_colnam = dplyr::tbl(mydb, "table_colnam"),
-#' #       #        subplotype_list = dplyr::tbl(mydb, "subplotype_list"),
-#' #       #        specimens = dplyr::tbl(mydb, "specimens"),
-#' #       #        diconame = dplyr::tbl(mydb, "diconame"),
-#' #       #        data_individuals = dplyr::tbl(mydb, "data_individuals"),
-#' #       #        data_link_specimens = dplyr::tbl(mydb, "data_link_specimens"),
-#' #       #        subplotype_list = dplyr::tbl(mydb, "subplotype_list"),
-#' #       #        traitlist = dplyr::tbl(mydb, "traitlist"),
-#' #       #        data_traits_measures = dplyr::tbl(mydb, "data_traits_measures"))
-#' #       
-#' #       mydb <-
-#' #         list(data_liste_plots = data_liste_plots,
-#' #              data_liste_sub_plots = data_liste_sub_plots,
-#' #              table_colnam = table_colnam,
-#' #              subplotype_list = subplotype_list,
-#' #              specimens = specimens,
-#' #              diconame = diconame,
-#' #              data_individuals = data_individuals,
-#' #              data_link_specimens = data_link_specimens,
-#' #              subplotype_list = subplotype_list,
-#' #              traitlist = traitlist,
-#' #              data_traits_measures = data_traits_measures)
-#' #       
-#' #       
-#' #     }
-#' #     
-#' #     assign("mydb", mydb, envir = .GlobalEnv)
-#' #     
-#' #     # return(mydb)
-#' #   }
-#' # }
-#' 
-#' 
-#' # call.mydb.taxa <- function(pass=NULL, user=NULL) {
-#' #   
-#' #   if(!exists("mydb_taxa")) {
-#' #     
-#' #     if(is.null(pass))
-#' #       pass <- rstudioapi::askForPassword("Please enter your password")
-#' #     
-#' #     if(is.null(user))
-#' #       user <- rstudioapi::askForPassword("Please enter your user name")
-#' #     
-#' #     mydb_taxa <- DBI::dbConnect(
-#' #       RPostgres::Postgres(),
-#' #       dbname = 'rainbio',
-#' #       host = 'dg474899-001.dbaas.ovh.net',
-#' #       port = 35699,
-#' #       # or any other port specified by your DBA
-#' #       user = user,
-#' #       password = pass
-#' #     )
-#' #     
-#' #     assign("mydb_taxa", mydb_taxa, envir = .GlobalEnv)
-#' #     
-#' #   }
-#' # }
-#' 
-#' 
+#' List user policies
+#' @export
+list_user_policies <- function(con, user = NULL, table = NULL) {
+  sql_base <- "
+    SELECT 
+      schemaname,
+      tablename,
+      policyname,
+      roles,
+      cmd,
+      qual
+    FROM pg_policies
+  "
+  
+  conditions <- c()
+  if (!is.null(user)) {
+    conditions <- c(conditions, glue::glue("'{user}' = ANY(roles)"))
+  }
+  if (!is.null(table)) {
+    conditions <- c(conditions, glue::glue("tablename = '{table}'"))
+  }
+  
+  if (length(conditions) > 0) {
+    sql_base <- paste0(sql_base, " WHERE ", paste(conditions, collapse = " AND "))
+  }
+  
+  sql_base <- paste0(sql_base, " ORDER BY schemaname, tablename, policyname;")
+  
+  DBI::dbGetQuery(con, sql_base)
+}
+
+#' Helper functions for common policy scenarios
+#' @export
+define_read_only_policy <- function(con, user, ids, table = "data_liste_plots") {
+  define_user_policy(con, user, ids, table, operations = "SELECT")
+}
+
+#' @export
+define_full_access_policy <- function(con, user, ids, table = "data_liste_plots") {
+  define_user_policy(con, user, ids, table, operations = "ALL")
+}
+
+#' @export
+define_read_write_policy <- function(con, user, ids, table = "data_liste_plots") {
+  define_user_policy(con, user, ids, table, operations = c("SELECT", "INSERT", "UPDATE"))
+}
