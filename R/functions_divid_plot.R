@@ -424,7 +424,7 @@ divid_plot <- function (corners) {
 #' 
 #' @importFrom data.table setDF is.data.table data.table
 #'
-#' 
+#' @export
 latlong2UTM <- 
   function (coord){
   

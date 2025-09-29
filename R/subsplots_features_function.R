@@ -34,26 +34,6 @@ subplot_list <- function() {
 }
 
 
-# .sql_query_subplot_plot <- function(id_plots, 
-#                                     mydb_ = mydb, 
-#                                     tbl = "data_liste_sub_plots", 
-#                                     tbl2 = "subplotype_list") {
-#   
-#   sql <- glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.id_type_sub_plot = {`tbl2`}.id_subplotype WHERE id_table_liste_plots IN ({vals*})",
-#                         vals = id_plots, .con = mydb_)
-#   return(sql)
-# }
-# 
-# .sql_query_subplot_plot_2 <- function(id_plots,
-#                                       id_subplots,
-#                                       mydb_ = mydb, 
-#                                       tbl = "data_liste_sub_plots", 
-#                                       tbl2 = "subplotype_list") {
-#   
-#   sql <-glue::glue_sql("SELECT * FROM {`tbl`} LEFT JOIN {`tbl2`} ON {`tbl`}.id_type_sub_plot = {`tbl2`}.id_subplotype WHERE id_table_liste_plots IN ({vals*}) AND id_subplotype IN ({vals2*})",
-#                        vals = id_plots, vals2 = id_subplots, .con = mydb_)
-#   return(sql)
-# }
 
 .sql_join_subplots_clause <- function(tbl, tbl2, con) {
   glue::glue_sql(
@@ -312,46 +292,6 @@ query_subplots <- function(ids_plots = NULL,
       table_valutype_list <- 
         build_table_pivot(extracted_data = extracted_data, con = mydb)
       
-      # table_ids_subplots <- extracted_data %>%
-      #   filter(grepl("table_", valuetype))
-      # 
-      # allvalutype <- distinct(table_ids_subplots, valuetype)
-      # 
-      # 
-      # table_valutype_list <- vector('list', nrow(allvalutype))
-      # for (i in 1:nrow(allvalutype)) {
-      #   
-      #   ids_ <-
-      #     case_when(
-      #       table_ids_subplots$valuetype[i] == "table_colnam" ~ "id_table_colnam"
-      #     )
-      #   
-      #   col_to_keep_ <-
-      #     case_when(
-      #       table_ids_subplots$valuetype[i] == "table_colnam" ~ "colnam"
-      #     )
-      #   
-      #   table_collected <-
-      #     tbl(mydb, table_ids_subplots$valuetype[i]) %>%
-      #     collect()
-      #   
-      #   table_ids_subplots <-
-      #     table_ids_subplots %>%
-      #     left_join(table_collected %>%
-      #                 dplyr::select(all_of(c(col_to_keep_, ids_))),
-      #               by = c("typevalue" = ids_)) %>%
-      #     mutate(typevalue_char = !!rlang::parse_expr(col_to_keep_)) %>%
-      #     dplyr::select(-all_of(col_to_keep_))
-      #   
-      #   table_valutype_list[[i]] <-
-      #     table_ids_subplots %>%
-      #     select(id_table_liste_plots, typevalue_char, type) %>%
-      #     tidyr::pivot_wider(
-      #       names_from = "type",
-      #       values_from = "typevalue_char",
-      #       values_fn = ~ paste(., collapse = ", ")
-      #     )
-      # }
     } else {
       table_valutype_list <- NULL
     }

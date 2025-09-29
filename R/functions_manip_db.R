@@ -1444,53 +1444,6 @@ traits_list <- function(id_trait = NULL) {
 
 
 
-#' List, extract and map selected plots and associated individuals
-#'
-#' This function queries a PostgreSQL inventory database to return a list of forest plots or individuals, 
-#' with options to include associated traits and metadata, and to generate maps.
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param plot_name String. Fuzzy match on plot name.
-#' @param tag Numeric. Exact tag number of the plot.
-#' @param country String. Fuzzy match on country name.
-#' @param locality_name String. Fuzzy match on locality name.
-#' @param method String. Fuzzy match on inventory method.
-#' @param extract_individuals Logical. If TRUE, returns individual-level data instead of plot list.
-#' @param map Logical. If TRUE, produces an interactive map of selected plots.
-#' @param id_individual Numeric. ID of a specific individual to extract (see id_n column of database)
-#' @param id_plot Numeric. ID of a specific plot to extract.
-#' @param id_specimen Numeric. ID of a herbarium specimen linked to individuals.
-#' @param show_multiple_census Logical. Whether to include multiple censuses. Default is FALSE.
-#' @param remove_ids Logical. If TRUE, removes ID columns from the output. Default is TRUE.
-#' @param collapse_multiple_val Logical. If TRUE, collapses multiple trait values into a single character string (dash-separated).
-#' @param extract_traits Logical. Whether to extract species-level traits.
-#' @param extract_individual_features Logical. Whether to extract individual-level traits or features.
-#' @param traits_to_genera Logical. If TRUE, extrapolates species-level traits to genus level.
-#' @param wd_fam_level Logical. If TRUE, uses wood density at family level (currently not fully available).
-#' @param include_liana Logical. Whether to include liana individuals. Default is FALSE.
-#' @param concatenate_stem Logical. If TRUE, concatenates multi-stem individuals into a single row.
-#' @param remove_obs_with_issue Logical. Whether to exclude individuals with issues. Default is TRUE.
-#'
-#' @importFrom DBI dbSendQuery dbFetch dbClearResult dbWriteTable
-#' @importFrom stringr str_flatten str_trim str_extract
-#' @importFrom date as.date
-#' @importFrom tidyselect vars_select_helpers
-#' @importFrom BIOMASS correctCoordGPS
-#' @importFrom glue glue_sql
-#' @importFrom stringr str_c
-#'
-#' @return A tibble of plots or individuals if extract_individuals is TRUE
-#' 
-#' @examples
-#' \dontrun{
-#'   get_plot_data(country = "Gabon", extract_individuals = TRUE, map = TRUE)
-#' }
-#' 
-#' @export
-
-
 #' Query plots from database
 #'
 #' @description
@@ -1637,27 +1590,34 @@ query_plots <- function(plot_name = NULL,
   }
 
   if (is.null(id_plot)) {
+    cli::cli_rule(left = "Building plot filter query")
     
-    query <- .build_plot_query(con = mydb, 
-                               country = country, 
-                               plot_name = plot_name, 
-                               method = method, 
-                               locality_name = 
-                                 locality_name)
+    query_builder <- PlotFilterBuilder$new(mydb)
     
+    if (!is.null(country)) {
+      query_builder <- query_builder$filter_country(country)
+    }
+    
+    if (!is.null(plot_name)) {
+      query_builder <- query_builder$filter_plot_name(plot_name)
+    }
+    
+    if (!is.null(method)) {
+      query_builder <- query_builder$filter_method(method)
+    }
+    
+    if (!is.null(locality_name)) {
+      query_builder <- query_builder$filter_locality(locality_name)
+    }
+    
+    query <- query_builder$build()
     res <- func_try_fetch(con = mydb, sql = query)
     
-    
-    
-
   } else {
-
     cli::cli_rule(left = "Extracting from queried plot - id_plot")
     
-    sss <- glue::glue_sql("id_liste_plots IN ({vals*})", vals = id_plot, .con = mydb)
-    full_query <- glue::glue_sql("SELECT * FROM data_liste_plots WHERE {DBI::SQL(sss)}", .con = mydb)
-    res <- func_try_fetch(con = mydb, sql = full_query)
-    
+    fetcher <- PlotFetcher$new(mydb)
+    res <- fetcher$fetch_by_ids(id_plot)
   }
   
   res <-
@@ -1666,8 +1626,6 @@ query_plots <- function(plot_name = NULL,
   
   res <- 
     .link_metadata_tables(res = res, con = mydb)
-  
-  
 
   if (extract_subplot_features & nrow(res) > 0) {
 
@@ -1817,264 +1775,27 @@ query_plots <- function(plot_name = NULL,
   }
 
   if (extract_individuals) {
-
-    ## getting all metadata
-    selec_plot_tables <-
-      res %>%
-      dplyr::select(plot_name,  locality_name, #team_leader,
-                    id_liste_plots,
-                    dplyr::contains("date_census"),
-                    dplyr::contains("team_leader"),
-                    dplyr::contains("principal_investigator"),
-                    ddlat,
-                    ddlon)
-
-    res_individuals_full <-
-      merge_individuals_taxa(id_individual = id_individual,
-                             id_plot = selec_plot_tables$id_liste_plots,
-                             id_tax = id_tax)
-
-    res_individuals_full <- res_individuals_full %>%
-      select(-any_of(c("photo_tranche",
-                       "liane",
-                       "dbh",
-                       "dbh_height",
-                       "tree_height",
-                       "branch_height",
-                       "branchlet_height",
-                       "crown_spread",
-                       "observations",
-                       "observations_census_2",
-                       "id_census2",
-                       "dbh_census2",
-                       "id_specimen_old",
-                       "tax_tax",
-                       "id_korup_ctfs",
-                       "tag_korup_ctfs",
-                       "id_table_data_senterre",
-                       "id_diconame",
-                       "code_individu",
-                       "author1",
-                       "author2",
-                       "author3",
-                       "tax_source",
-                       "citation",
-                       "id_tropicos",
-                       "id_brlu",
-                       "fktax",
-                       "multi_tiges_id",
-                       "multi_tiges_id_good",
-                       "multi_stem_id_good",
-                       "id_table_liste_plots",
-                       "strate_cat",
-                       "position_transect",
-                       "position_x",
-                       "position_y",
-                       "id_old",
-                       "sous_plot_name")))
     
-    if(!is.null(tag)) {
-
-      res_individuals_full <-
-        res_individuals_full %>%
-        dplyr::filter(ind_num_sous_plot %in% tag)
-
-    }
-
-    if (!include_liana) {
-
-      res_individuals_full <-
-        res_individuals_full %>%
-        dplyr::filter(liana == FALSE)
-
-      res_individuals_full <- 
-        res_individuals_full %>% 
-        dplyr::select(-any_of(c("liana")))
-
-    }
-
-
-    res_individuals_full <-
-      res_individuals_full %>%
-      # dplyr::collect() %>%
-      dplyr::mutate(original_tax_name = stringr::str_trim(original_tax_name))
-
-    #adding metada information
-    res_individuals_full <-
-      res_individuals_full %>%
-      dplyr::left_join(selec_plot_tables,
-                       by = c("id_table_liste_plots_n" = "id_liste_plots"))
+    res <- process_individuals(
+      plots_data = res,
+      con = mydb,
+      id_individual = id_individual,
+      id_tax = id_tax,
+      tag = tag,
+      include_liana = include_liana
+    )
     
-    if (extract_individual_features) {
-      #### Add traits at individual levels
-      all_traits <- traits_list()
-      all_traits_list <-
-        .get_trait_individuals_values(
-          traits =  all_traits$id_trait, #
-          src_individuals = res_individuals_full,
-          # id_individuals = res_individuals_full$id_n,
-          show_multiple_census = show_multiple_census, 
-          remove_obs_with_issue = remove_obs_with_issue
-        )
-      
-      all_traits_list <-
-        all_traits_list[unlist(lapply(all_traits_list, is.data.frame))]
-      
-      if (length(all_traits_list) > 0)
-        res_individuals_full <-
-        res_individuals_full %>%
-        left_join(purrr::reduce(all_traits_list,
-                                dplyr::full_join,
-                                by = 'id_data_individuals'),
-                  by = c('id_n' = 'id_data_individuals'))
-      
-    }
+    res <- enrich_with_traits(res, mydb, extract_individual_features, extract_traits, 
+                              traits_to_genera, wd_fam_level, show_multiple_census, 
+                              remove_obs_with_issue)
     
-    if (extract_traits) {
-
-      cli::cli_alert_info("Extracting taxa-level traits")
-
-      queried_traits_tax <-
-        query_traits_measures(idtax = unique(res_individuals_full$idtax_individual_f))
-
-      if (!is.null(nrow(queried_traits_tax$traits_idtax_num)))
-        queried_traits_tax$traits_idtax_num <-
-        queried_traits_tax$traits_idtax_num %>%
-        dplyr::select(-starts_with("basisofrecord"))
-
-      if (!is.null(nrow(queried_traits_tax$traits_idtax_char)))
-        queried_traits_tax$traits_idtax_char <-
-        queried_traits_tax$traits_idtax_char %>%
-        dplyr::select(-starts_with("basisofrecord"))
-
-      if (!is.null(nrow(queried_traits_tax$traits_found))) {
-
-        if (any(class(queried_traits_tax$traits_idtax_num) == "data.frame"))
-          res_individuals_full <-
-            res_individuals_full %>%
-            left_join(queried_traits_tax$traits_idtax_num,
-                      by = c("idtax_individual_f" = "idtax"))
-
-        if (any(class(queried_traits_tax$traits_idtax_char) == "data.frame"))
-          res_individuals_full <-
-            res_individuals_full %>%
-            left_join(queried_traits_tax$traits_idtax_char,
-                      by = c("idtax_individual_f" = "idtax"))
-
-      } else {
-
-          cli::cli_alert_info("No taxa-level traits found for extracted taxa")
-
-      }
-
-      if (traits_to_genera) {
-
-        cli::cli_alert_info("Taxa-level traits aggregated to genus if no values are available")
-        cli::cli_alert_info("Source of data added to columns names starting with source_")
-        
-        ### complete traits at genus level
-        
-        
-        res_traits_to_genera <- 
-          .traits_to_genera_aggreg(dataset = res_individuals_full, 
-                                   wd_fam_level = wd_fam_level)
-        
-        if (length(res_traits_to_genera$dataset_pivot_wider_char) > 1) {
-          col_names_char <- 
-            res_traits_to_genera$dataset_pivot_wider_char %>% select(-id_n, -tax_gen) %>% names()
-          col_names_dataset <- 
-            names(res_individuals_full)
-          
-          res_individuals_full <- res_individuals_full %>% 
-            select(-all_of(col_names_dataset[which(col_names_dataset %in% col_names_char)])) %>% 
-            left_join(res_traits_to_genera$dataset_pivot_wider_char %>% 
-                        select(-tax_gen),
-                      by = c("id_n" = "id_n"))
-          
-        }
-        
-        if (length(res_traits_to_genera$dataset_pivot_wider_num) > 1) {
-          col_names_num <- 
-            res_traits_to_genera$dataset_pivot_wider_num %>% select(-id_n, -tax_gen) %>% names()
-          col_names_dataset <- 
-            names(res_individuals_full)
-          
-          res_individuals_full <- res_individuals_full %>% 
-            select(-all_of(col_names_dataset[which(col_names_dataset %in% col_names_num)])) %>% 
-            left_join(res_traits_to_genera$dataset_pivot_wider_num %>% 
-                        select(-tax_gen),
-                      by = c("id_n" = "id_n"))
-          
-        }
-        
-      }
-
-
-    }
-
-    res <-
-      res_individuals_full %>%
-      dplyr::arrange(id_n) %>%
-      dplyr::relocate(tax_infra_level, .before = 3) %>%
-      dplyr::relocate(tax_gen, .before = 3) %>%
-      dplyr::relocate(tax_fam, .before = 3) %>%
-      dplyr::relocate(colnam, .before = 3) %>%
-      dplyr::relocate(colnbr, .before = 3) %>%
-      dplyr::relocate(suffix, .before = 3) %>%
-      dplyr::relocate(locality_name, .before = 3) %>%
-      # dplyr::relocate(sous_plot_name, .before = 3) %>%
-      dplyr::relocate(ind_num_sous_plot, .before = 3) %>%
-      dplyr::relocate(tax_sp_level, .before = 3) %>%
-      dplyr::relocate(plot_name, .before = 3)
-
-    if (any(names(res_individuals_full) == "stem_diameter"))
-      res <-
-      res %>%
-      dplyr::relocate(stem_diameter, .before = ind_num_sous_plot)
-
-    if (any(names(res_individuals_full) == "tree_height"))
-      res <-
-      res %>%
-      dplyr::relocate(tree_height, .before = ind_num_sous_plot)
+    res <- process_stems(res, concatenate_stem)
 
   }
   
-  if (extract_individuals & concatenate_stem) {
-    
-    cli::cli_alert_info("Multiple stem concatenated - column 'number_of_stem' show the number of stems")
-    
-    row_multiple_stems <- 
-      res %>% 
-      filter(!is.na(stem_grouping)) %>% 
-      nrow()
-    
-    if (row_multiple_stems > 0) {
-      
-      res <- 
-        res %>% 
-        mutate(id_n = ifelse(!is.na(stem_grouping), stem_grouping, id_n)) %>% 
-        group_by(id_n) %>% 
-        summarise(across(everything(), ~first(., na_rm = T)), number_of_stem = n()) %>% 
-        mutate(number_of_stem = na_if(number_of_stem, 1))
-
-    } else {
-      res <- 
-        res %>% 
-        mutate(number_of_stem = NA_integer_)
-    }
-    
-  } else {
-    
-    if (extract_individuals)
-      res <-
-        res %>%
-        mutate(number_of_stem = NA_integer_)
-  }
-
   if (remove_ids & extract_individuals) {
 
     cli::cli_alert_warning("ids removed - remove_ids = {remove_ids} ")
-
 
     res <-
       res %>%
@@ -2130,6 +1851,320 @@ query_plots <- function(plot_name = NULL,
 
 }
 
+
+#' Process individuals for query_plots
+#' 
+#' @description
+#' Extract and process individuals with filters and plot metadata
+#' 
+#' @param plots_data Data frame of plots
+#' @param con Database connection
+#' @param id_individual Vector of individual IDs (optional)
+#' @param id_tax Vector of taxonomic IDs (optional)
+#' @param tag Vector of tags (optional)
+#' @param include_liana Include lianas (logical)
+#' 
+#' @return Data frame of processed individuals
+#' @export
+process_individuals <- function(plots_data, con, 
+                                id_individual = NULL, 
+                                id_tax = NULL,
+                                tag = NULL, 
+                                include_liana = FALSE) {
+  
+  cli::cli_rule(left = "Processing individuals")
+  
+  # Extraction des métadonnées de plots
+  plot_metadata <- plots_data %>%
+    select(
+      plot_name, locality_name, id_liste_plots,
+      contains("date_census"), contains("team_leader"),
+      contains("principal_investigator"), ddlat, ddlon
+    )
+  
+  # Extraction via merge_individuals_taxa_v2
+  cli::cli_alert_info("Fetching individuals")
+  
+  individuals <- merge_individuals_taxa(
+    id_individual = id_individual,
+    id_plot = plot_metadata$id_liste_plots,
+    id_tax = id_tax,
+    clean_columns = TRUE
+  )
+  
+  # Filtrage par tag
+  if (!is.null(tag)) {
+    cli::cli_alert_info("Filtering by tag: {paste(tag, collapse = ', ')}")
+    individuals <- individuals %>%
+      dplyr::filter(ind_num_sous_plot %in% tag)
+  }
+  
+  # Exclusion des lianes
+  if (!include_liana) {
+    individuals <- individuals %>%
+      dplyr::filter(liana == FALSE) %>%
+      dplyr::select(-any_of("liana"))
+  }
+  
+  # Enrichissement avec métadonnées de plots
+  individuals <- individuals %>%
+    dplyr::left_join(plot_metadata, by = c("id_table_liste_plots_n" = "id_liste_plots"))
+  
+  # Réorganisation des colonnes
+  individuals <- reorganize_individual_columns(individuals)
+  
+  cli::cli_alert_success("Processed {nrow(individuals)} individuals")
+  
+  return(individuals)
+}
+
+
+
+#' Enrich individuals with all traits
+#' 
+#' @description
+#' Enrich with individual-level traits, taxonomic traits, and aggregate to genus level if needed
+#' 
+#' @param individuals Data frame of individuals
+#' @param con Database connection
+#' @param extract_individual_features Extract individual-level traits
+#' @param extract_traits Extract taxonomic traits
+#' @param traits_to_genera Aggregate traits to genus level
+#' @param wd_fam_level Use family-level wood density
+#' @param show_multiple_census Show multiple census data
+#' @param remove_obs_with_issue Remove observations with issues
+#' 
+#' @return Data frame enriched with traits
+#' @export
+enrich_with_traits <- function(individuals, con,
+                               extract_individual_features = TRUE,
+                               extract_traits = TRUE,
+                               traits_to_genera = FALSE,
+                               wd_fam_level = FALSE,
+                               show_multiple_census = FALSE,
+                               remove_obs_with_issue = TRUE) {
+  
+  mydb <- call.mydb()
+  
+  cli::cli_rule(left = "Processing traits")
+  
+  # Traits individuels
+  if (extract_individual_features) {
+    individuals <- enrich_individual_traits(
+      individuals, con, 
+      show_multiple_census, 
+      remove_obs_with_issue
+    )
+  }
+  
+  # Traits taxonomiques
+  if (extract_traits) {
+    individuals <- enrich_taxonomic_traits(individuals, con)
+  }
+  
+  # Agrégation au niveau genre
+  if (traits_to_genera) {
+    individuals <- aggregate_traits_to_genus(individuals, wd_fam_level)
+  }
+  
+  return(individuals)
+}
+
+#' Enrich with individual-level traits
+#' @keywords internal
+enrich_individual_traits <- function(individuals, con, show_multiple_census, remove_obs_with_issue) {
+  
+  cli::cli_alert_info("Enriching with individual-level traits")
+  
+  all_traits <- traits_list()
+  traits_aggregated <- get_individual_aggregated_features(
+    individual_ids = individuals$id_n,
+    trait_ids = all_traits$id_trait,  # Tous les traits
+    include_multi_census = show_multiple_census,
+    remove_issues = remove_obs_with_issue,
+    con = con
+  )
+  
+  # Vérifier qu'il y a des résultats
+  if (nrow(traits_aggregated) > 0 && ncol(traits_aggregated) > 1) {
+    individuals <- individuals %>%
+      left_join(traits_aggregated, by = c('id_n' = 'id_data_individuals'))
+  } else {
+    cli::cli_alert_info("No traits found to enrich")
+  }
+  
+  return(individuals)
+}
+
+#' Enrich with taxonomic-level traits
+#' @keywords internal
+enrich_taxonomic_traits <- function(individuals, con) {
+  
+  cli::cli_alert_info("Enriching with taxonomic-level traits")
+  
+  unique_taxa <- unique(individuals$idtax_individual_f)
+  queried_traits_tax <- query_traits_measures(idtax = unique_taxa)
+  
+  # Nettoyage des colonnes basisofrecord
+  if (!is.null(nrow(queried_traits_tax$traits_idtax_num))) {
+    queried_traits_tax$traits_idtax_num <- queried_traits_tax$traits_idtax_num %>%
+      select(-starts_with("basisofrecord"))
+  }
+  
+  if (!is.null(nrow(queried_traits_tax$traits_idtax_char))) {
+    queried_traits_tax$traits_idtax_char <- queried_traits_tax$traits_idtax_char %>%
+      select(-starts_with("basisofrecord"))
+  }
+  
+  # Jointure des traits si disponibles
+  if (!is.null(nrow(queried_traits_tax$traits_found))) {
+    
+    if (any(class(queried_traits_tax$traits_idtax_num) == "data.frame")) {
+      individuals <- individuals %>%
+        left_join(
+          queried_traits_tax$traits_idtax_num,
+          by = c("idtax_individual_f" = "idtax")
+        )
+    }
+    
+    if (any(class(queried_traits_tax$traits_idtax_char) == "data.frame")) {
+      individuals <- individuals %>%
+        left_join(
+          queried_traits_tax$traits_idtax_char,
+          by = c("idtax_individual_f" = "idtax")
+        )
+    }
+    
+  } else {
+    cli::cli_alert_info("No taxonomic traits found for extracted taxa")
+  }
+  
+  return(individuals)
+}
+
+#' Aggregate traits to genus level
+#' @keywords internal
+aggregate_traits_to_genus <- function(individuals, wd_fam_level) {
+  
+  cli::cli_alert_info("Aggregating traits to genus level")
+  cli::cli_alert_info("Source information added to columns starting with 'source_'")
+  
+  res_traits_to_genera <- .traits_to_genera_aggreg(
+    dataset = individuals,
+    wd_fam_level = wd_fam_level
+  )
+  
+  # Traitement des traits catégoriels
+  if (length(res_traits_to_genera$dataset_pivot_wider_char) > 1) {
+    col_names_char <- res_traits_to_genera$dataset_pivot_wider_char %>%
+      select(-id_n, -tax_gen) %>%
+      names()
+    
+    col_names_dataset <- names(individuals)
+    
+    individuals <- individuals %>%
+      select(-all_of(col_names_dataset[which(col_names_dataset %in% col_names_char)])) %>%
+      left_join(
+        res_traits_to_genera$dataset_pivot_wider_char %>% select(-tax_gen),
+        by = "id_n"
+      )
+  }
+  
+  # Traitement des traits numériques
+  if (length(res_traits_to_genera$dataset_pivot_wider_num) > 1) {
+    col_names_num <- res_traits_to_genera$dataset_pivot_wider_num %>%
+      select(-id_n, -tax_gen) %>%
+      names()
+    
+    col_names_dataset <- names(individuals)
+    
+    individuals <- individuals %>%
+      select(-all_of(col_names_dataset[which(col_names_dataset %in% col_names_num)])) %>%
+      left_join(
+        res_traits_to_genera$dataset_pivot_wider_num %>% select(-tax_gen),
+        by = "id_n"
+      )
+  }
+  
+  return(individuals)
+}
+
+#' Process multiple stems
+#' 
+#' @description
+#' Concatenate multiple stems if requested
+#' 
+#' @param individuals Data frame of individuals
+#' @param concatenate If TRUE, concatenate multiple stems
+#' 
+#' @return Data frame with processed stems
+#' @export
+process_stems <- function(individuals, concatenate = FALSE) {
+  
+  if (!concatenate) {
+    # Ajouter la colonne number_of_stem à NA
+    individuals <- individuals %>%
+      mutate(number_of_stem = NA_integer_)
+    return(individuals)
+  }
+  
+  cli::cli_alert_info("Concatenating multiple stems - column 'number_of_stem' shows stem count")
+  
+  row_multiple_stems <- individuals %>%
+    filter(!is.na(stem_grouping)) %>%
+    nrow()
+  
+  if (row_multiple_stems > 0) {
+    individuals <- individuals %>%
+      mutate(id_n = ifelse(!is.na(stem_grouping), stem_grouping, id_n)) %>%
+      group_by(id_n) %>%
+      summarise(
+        across(everything(), ~first(., na_rm = TRUE)),
+        number_of_stem = n(),
+        .groups = "drop"
+      ) %>%
+      mutate(number_of_stem = na_if(number_of_stem, 1))
+  } else {
+    individuals <- individuals %>%
+      mutate(number_of_stem = NA_integer_)
+  }
+  
+  return(individuals)
+}
+
+#' Reorganize columns for individuals data
+#' 
+#' @param individuals Data frame of individuals
+#' @return Data frame with reorganized columns
+#' @keywords internal
+reorganize_individual_columns <- function(individuals) {
+  
+  individuals <- individuals %>%
+    dplyr::arrange(id_n) %>%
+    dplyr::relocate(tax_infra_level, .before = 3) %>%
+    dplyr::relocate(tax_gen, .before = 3) %>%
+    dplyr::relocate(tax_fam, .before = 3) %>%
+    dplyr::relocate(colnam, .before = 3) %>%
+    dplyr::relocate(colnbr, .before = 3) %>%
+    dplyr::relocate(suffix, .before = 3) %>%
+    dplyr::relocate(locality_name, .before = 3) %>%
+    dplyr::relocate(ind_num_sous_plot, .before = 3) %>%
+    dplyr::relocate(tax_sp_level, .before = 3) %>%
+    dplyr::relocate(plot_name, .before = 3)
+  
+  # Colonnes conditionnelles
+  if ("stem_diameter" %in% names(individuals)) {
+    individuals <- individuals %>%
+      dplyr::relocate(stem_diameter, .before = ind_num_sous_plot)
+  }
+  
+  if ("tree_height" %in% names(individuals)) {
+    individuals <- individuals %>%
+      dplyr::relocate(tree_height, .before = ind_num_sous_plot)
+  }
+  
+  return(individuals)
+}
 
 .process_coordinates <- function(all_coordinates, res) {
   
@@ -2226,92 +2261,507 @@ query_plots <- function(plot_name = NULL,
 }
 
 
-.build_plot_query <- function(
-    con,
-    country = NULL,
-    plot_name = NULL,
-    method = NULL,
-    locality_name = NULL
-) {
-  
-  
-  where_clauses <- c()
-  
-  # Filter by country
-  if (!is.null(country)) {
-    list_country <- .link_table(
-      data_stand = tibble::tibble(country = country),
-      column_searched = "country",
-      column_name = "country",
-      id_field = "id_country",
-      id_table_name = "id_country",
-      db_connection = con,
-      table_name = "table_countries"
-    )
-    
-    if (nrow(list_country) > 0) {
-      clause <- glue::glue_sql("id_country IN ({vals*})", vals = list_country$id_country, .con = con)
-      where_clauses <- c(where_clauses, clause)
-    }
-  }
-  
-  # Filter by plot name
-  if (!is.null(plot_name)) {
-    if (length(plot_name) == 1) {
-      clause <- glue::glue_sql("plot_name ILIKE {like}", like = paste0("%", plot_name, "%"), .con = con)
-    } else {
-      clause <- glue::glue_sql("plot_name IN ({vals*})", vals = plot_name, .con = con)
-    }
-    where_clauses <- c(where_clauses, clause)
-  }
-  
-  # Filter by method
-  if (!is.null(method)) {
-    
-    patterns <- lapply(method, function(x) glue::glue_sql("method ILIKE {pattern}", pattern = paste0("%", x, "%"), .con = con))
-    query_method <- glue::glue_sql(
-      "SELECT * FROM methodslist WHERE {DBI::SQL(glue::glue_collapse(patterns, sep = ' OR '))}",
-      .con = con
-    )
-
-    res_meth <- func_try_fetch(con = con, sql = query_method)
-    if (nrow(res_meth) > 0) {
-      clause <- glue::glue_sql("id_method IN ({vals*})", vals = res_meth$id_method, .con = con)
-      where_clauses <- c(where_clauses, clause)
-    } else {
-      cli::cli_alert_warning("No method found matching: {method}")
-    }
-  }
-  
-  # Filter by locality name
-  if (!is.null(locality_name)) {
-    if (length(locality_name) == 1) {
-      clause <- glue::glue_sql("locality_name ILIKE {like}", like = paste0("%", locality_name, "%"), .con = con)
-      where_clauses <- c(where_clauses, clause)
-    } else {
-      ids <- lapply(locality_name, function(loc) {
-        sql <- glue::glue_sql("SELECT id_liste_plots FROM data_liste_plots WHERE locality_name ILIKE {like}",
-                              like = paste0("%", loc, "%"), .con = con)
-        func_try_fetch(con = con, sql = sql)$id_liste_plots
-      }) %>% unlist()
-      if (length(ids) > 0) {
-        clause <- glue::glue_sql("id_liste_plots IN ({vals*})", vals = ids, .con = con)
-        where_clauses <- c(where_clauses, clause)
-      }
-    }
-  }
-  
-  # Combine everything
-  base_query <- "SELECT * FROM data_liste_plots"
-  if (length(where_clauses) > 0) {
-    full_query <- glue::glue_sql("{DBI::SQL(base_query)} WHERE {DBI::SQL(paste(where_clauses, collapse = ' AND '))}", .con = con)
-  } else {
-    full_query <- glue::glue_sql("{DBI::SQL(base_query)}", .con = con)
-  }
-  
-  
-  return(full_query)
+if (!requireNamespace("R6", quietly = TRUE)) {
+  stop("Package R6 requested. Install with install.packages('R6')")
 }
+
+#' Query builder for plot
+#' 
+#' @description
+#' Allow building progressively a SQL query to filter plots
+#' following different criteria using the builder pattern
+#' 
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#' query <- PlotFilterBuilder$new(con)$
+#'   filter_country("Gabon")$
+#'   filter_method("transect")$
+#'   build()
+#' }
+#' @export
+PlotFilterBuilder <- R6::R6Class(
+  "PlotFilterBuilder",
+  
+  private = list(
+    con = NULL,
+    conditions = character(0),
+    
+    # Méthode interne pour ajouter une condition
+    add_condition = function(condition) {
+      if (!is.null(condition) && nchar(condition) > 0) {
+        private$conditions <- c(private$conditions, condition)
+      }
+      invisible(self)
+    }
+  ),
+  
+  public = list(
+    #' @description Initialiser le builder
+    #' @param connection Connexion DBI à la base de données
+    initialize = function(connection) {
+      stopifnot("Connection must be provided" = !is.null(connection))
+      private$con <- connection
+    },
+    
+    #' @description Filtrer par pays
+    #' @param country Nom(s) du/des pays
+    #' @param interactive Si TRUE, utilise .link_table pour correspondance floue interactive
+    filter_country = function(country, interactive = FALSE) {
+      if (is.null(country)) return(self)
+      
+      if (interactive) {
+        # Utilisation de .link_table pour correspondance interactive
+        data_with_country <- tibble::tibble(country = country)
+        
+        linked_data <- .link_table(
+          data_stand = data_with_country,
+          column_searched = "country",
+          column_name = "country",
+          id_field = "id_country",
+          id_table_name = "id_country",
+          db_connection = private$con,
+          table_name = "table_countries"
+        )
+        
+        country_ids <- linked_data %>%
+          filter(!is.na(id_country), id_country != 0) %>%
+          pull(id_country)
+        
+        if (length(country_ids) == 0) {
+          cli::cli_alert_warning("No valid countries selected")
+          return(self)
+        }
+        
+      } else {
+        # Correspondance directe (non-interactive, insensible à la casse)
+        countries_tbl <- try_open_postgres_table("table_countries", private$con) %>%
+          dplyr::collect() %>%
+          dplyr::filter(tolower(country) %in% tolower(!!country))
+        
+        if (nrow(countries_tbl) == 0) {
+          cli::cli_alert_warning("No countries found matching: {paste(country, collapse = ', ')}")
+          cli::cli_alert_info("Tip: Use interactive = TRUE for fuzzy matching")
+          return(self)
+        }
+        
+        country_ids <- countries_tbl$id_country
+      }
+      
+      condition <- glue::glue_sql(
+        "id_country IN ({ids*})", 
+        ids = country_ids, 
+        .con = private$con
+      )
+      private$add_condition(condition)
+    },
+    
+    #' @description Filtrer par nom de plot
+    #' @param plot_name Nom(s) du/des plots
+    #' @param interactive Si TRUE, utilise .link_table pour correspondance floue interactive
+    filter_plot_name = function(plot_name, interactive = FALSE) {
+      if (is.null(plot_name)) return(self)
+      
+      if (interactive) {
+        # Mode interactif avec .link_table
+        data_with_plots <- tibble::tibble(plot_name = plot_name)
+        
+        linked_data <- .link_table(
+          data_stand = data_with_plots,
+          column_searched = "plot_name",
+          column_name = "plot_name",
+          id_field = "id_liste_plots",
+          id_table_name = "id_liste_plots",
+          db_connection = private$con,
+          table_name = "data_liste_plots"
+        )
+        
+        plot_ids <- linked_data %>%
+          filter(!is.na(id_liste_plots), id_liste_plots != 0) %>%
+          pull(id_liste_plots)
+        
+        if (length(plot_ids) == 0) {
+          cli::cli_alert_warning("No valid plots selected")
+          return(self)
+        }
+        
+        # Utiliser filter_by_ids pour ces plots
+        condition <- glue::glue_sql(
+          "id_liste_plots IN ({ids*})", 
+          ids = plot_ids, 
+          .con = private$con
+        )
+        private$add_condition(condition)
+        
+      } else {
+        # Mode non-interactif
+        if (length(plot_name) == 1) {
+          # Recherche avec pattern matching (insensible à la casse)
+          condition <- glue::glue_sql(
+            "LOWER(plot_name) LIKE LOWER({pattern})", 
+            pattern = paste0("%", plot_name, "%"), 
+            .con = private$con
+          )
+        } else {
+          # Recherche exacte pour multiples noms (insensible à la casse)
+          condition <- glue::glue_sql(
+            "LOWER(plot_name) IN ({names*})", 
+            names = tolower(plot_name), 
+            .con = private$con
+          )
+        }
+        private$add_condition(condition)
+      }
+      
+      return(self)
+    },
+    
+    #' @description Filtrer par méthode
+    #' @param method Nom(s) de(s) méthode(s)
+    #' @param interactive Si TRUE, utilise .link_table pour correspondance floue interactive
+    filter_method = function(method, interactive = FALSE) {
+      if (is.null(method)) return(self)
+      
+      if (interactive) {
+        # Mode interactif avec .link_table
+        data_with_methods <- tibble::tibble(method = method)
+        
+        linked_data <- .link_table(
+          data_stand = data_with_methods,
+          column_searched = "method",
+          column_name = "method",
+          id_field = "id_method",
+          id_table_name = "id_method",
+          db_connection = private$con,
+          table_name = "methodslist"
+        )
+        
+        method_ids <- linked_data %>%
+          filter(!is.na(id_method), id_method != 0) %>%
+          pull(id_method)
+        
+        if (length(method_ids) == 0) {
+          cli::cli_alert_warning("No valid methods selected")
+          return(self)
+        }
+        
+        condition <- glue::glue_sql(
+          "id_method IN ({ids*})", 
+          ids = method_ids, 
+          .con = private$con
+        )
+        private$add_condition(condition)
+        
+      } else {
+        # Mode non-interactif (insensible à la casse)
+        patterns <- lapply(method, function(x) {
+          glue::glue_sql(
+            "LOWER(method) LIKE LOWER({pattern})", 
+            pattern = paste0("%", x, "%"), 
+            .con = private$con
+          )
+        })
+        
+        query_method <- glue::glue_sql(
+          "SELECT id_method, method FROM methodslist WHERE {DBI::SQL(glue::glue_collapse(patterns, sep = ' OR '))}",
+          .con = private$con
+        )
+        
+        methods_found <- func_try_fetch(con = private$con, sql = query_method)
+        
+        if (nrow(methods_found) == 0) {
+          cli::cli_alert_warning("No methods found matching: {paste(method, collapse = ', ')}")
+          cli::cli_alert_info("Tip: Use interactive = TRUE for fuzzy matching")
+          return(self)
+        }
+        
+        cli::cli_alert_info("Using methods: {paste(methods_found$method, collapse = ', ')}")
+        
+        condition <- glue::glue_sql(
+          "id_method IN ({ids*})", 
+          ids = methods_found$id_method, 
+          .con = private$con
+        )
+        private$add_condition(condition)
+      }
+      
+      return(self)
+    },
+    
+    #' @description Filtrer par localité
+    #' @param locality_name Nom(s) de(s) localité(s)
+    filter_locality = function(locality_name) {
+      if (is.null(locality_name)) return(self)
+      
+      # Mode non-interactif uniquement (insensible à la casse)
+      if (length(locality_name) == 1) {
+        condition <- glue::glue_sql(
+          "LOWER(locality_name) LIKE LOWER({pattern})", 
+          pattern = paste0("%", locality_name, "%"), 
+          .con = private$con
+        )
+      } else {
+        # Pour multiples localités, créer condition OR
+        locality_conditions <- lapply(locality_name, function(loc) {
+          glue::glue_sql(
+            "LOWER(locality_name) LIKE LOWER({pattern})", 
+            pattern = paste0("%", loc, "%"), 
+            .con = private$con
+          )
+        })
+        condition <- paste0("(", paste(locality_conditions, collapse = " OR "), ")")
+      }
+      private$add_condition(condition)
+      
+      return(self)
+    },
+    
+    #' @description Construire la requête SQL finale
+    #' @param operator Opérateur de jointure entre conditions ("AND" ou "OR")
+    #' @return SQL query object
+    build = function(operator = "AND") {
+      base_query <- "SELECT * FROM data_liste_plots"
+      
+      if (length(private$conditions) > 0) {
+        # Validation de l'opérateur
+        operator <- match.arg(toupper(operator), c("AND", "OR"))
+        
+        where_clause <- paste(private$conditions, collapse = paste0(" ", operator, " "))
+        full_query <- glue::glue_sql(
+          "{DBI::SQL(base_query)} WHERE {DBI::SQL(where_clause)}", 
+          .con = private$con
+        )
+        
+        if (operator == "OR") {
+          cli::cli_alert_info("Using OR operator between filter conditions")
+        }
+      } else {
+        full_query <- glue::glue_sql("{DBI::SQL(base_query)}", .con = private$con)
+      }
+      
+      return(full_query)
+    },
+    
+    #' @description Construire avec opérateur OR explicite
+    #' @return SQL query object  
+    build_with_or = function() {
+      return(self$build(operator = "OR"))
+    },
+    
+    #' @description Ajouter une condition personnalisée
+    #' @param condition Condition SQL brute
+    #' @param wrap_parentheses Si TRUE, entoure la condition de parenthèses
+    add_custom_condition = function(condition, wrap_parentheses = TRUE) {
+      if (!is.null(condition) && nchar(condition) > 0) {
+        if (wrap_parentheses) {
+          condition <- paste0("(", condition, ")")
+        }
+        private$add_condition(condition)
+      }
+      invisible(self)
+    },
+    
+    #' @description Afficher les conditions actuelles (pour debug)
+    print_conditions = function() {
+      if (length(private$conditions) == 0) {
+        cli::cli_alert_info("No filter conditions set")
+      } else {
+        cli::cli_h3("Current filter conditions:")
+        for (i in seq_along(private$conditions)) {
+          cli::cli_li("{private$conditions[i]}")
+        }
+      }
+      invisible(self)
+    }
+  )
+)
+
+
+#' Fetch plot data
+#' 
+#' @description
+#' Class for extracting metadata from database
+#' 
+#' @export
+PlotFetcher <- R6::R6Class(
+  "PlotFetcher",
+  
+  private = list(
+    con = NULL,
+    
+    # Enrichissement avec tables de métadonnées liées
+    enrich_metadata = function(plots) {
+      metadata_tables <- list(
+        id_country = list(table = "table_countries", keep = c("country")),
+        id_method = list(table = "methodslist", keep = c("method"))
+      )
+      
+      for (id_col in names(metadata_tables)) {
+        if (id_col %in% colnames(plots)) {
+          meta_info <- metadata_tables[[id_col]]
+          
+          meta_tbl <- tryCatch({
+            try_open_postgres_table(meta_info$table, private$con) %>%
+              dplyr::select(dplyr::all_of(c(id_col, meta_info$keep))) %>%
+              dplyr::collect()
+          }, error = function(e) {
+            cli::cli_alert_warning("Could not fetch {meta_info$table}: {e$message}")
+            return(NULL)
+          })
+          
+          if (!is.null(meta_tbl)) {
+            # Éviter les doublons de colonnes
+            keep_cols <- setdiff(meta_info$keep, names(plots))
+            if (length(keep_cols) > 0) {
+              meta_tbl <- dplyr::select(meta_tbl, dplyr::all_of(c(id_col, keep_cols)))
+              plots <- dplyr::left_join(plots, meta_tbl, by = id_col)
+            }
+          }
+        }
+      }
+      
+      return(plots)
+    }
+  ),
+  
+  public = list(
+    #' @description Initialiser le fetcher
+    #' @param connection Connexion DBI
+    initialize = function(connection) {
+      private$con <- connection
+    },
+    
+    #' @description Récupérer plots par IDs
+    #' @param plot_ids Vecteur d'IDs de plots
+    fetch_by_ids = function(plot_ids) {
+      if (is.null(plot_ids) || length(plot_ids) == 0) {
+        return(tibble::tibble())
+      }
+      
+      cli::cli_alert_info("Fetching {length(plot_ids)} plots by ID")
+      
+      sql <- glue::glue_sql(
+        "SELECT * FROM data_liste_plots WHERE id_liste_plots IN ({ids*})",
+        ids = plot_ids,
+        .con = private$con
+      )
+      
+      plots <- func_try_fetch(con = private$con, sql = sql) %>%
+        dplyr::select(-any_of("id_old"))
+      
+      # Enrichissement
+      plots <- private$enrich_metadata(plots)
+      
+      return(plots)
+    },
+    
+    #' @description Récupérer plots avec filtre (requête SQL)
+    #' @param query Requête SQL construite par PlotFilterBuilder
+    fetch_with_filter = function(query) {
+      plots <- func_try_fetch(con = private$con, sql = query) %>%
+        dplyr::select(-any_of("id_old"))
+      
+      if (nrow(plots) == 0) {
+        cli::cli_alert_warning("No plots found matching filter criteria")
+        return(plots)
+      }
+      
+      cli::cli_alert_success("Found {nrow(plots)} plots")
+      
+      # Enrichissement
+      plots <- private$enrich_metadata(plots)
+      
+      return(plots)
+    }
+  )
+)
+
+# .build_plot_query <- function(
+#     con,
+#     country = NULL,
+#     plot_name = NULL,
+#     method = NULL,
+#     locality_name = NULL
+# ) {
+#   
+#   
+#   where_clauses <- c()
+#   
+#   # Filter by country
+#   if (!is.null(country)) {
+#     list_country <- .link_table(
+#       data_stand = tibble::tibble(country = country),
+#       column_searched = "country",
+#       column_name = "country",
+#       id_field = "id_country",
+#       id_table_name = "id_country",
+#       db_connection = con,
+#       table_name = "table_countries"
+#     )
+#     
+#     if (nrow(list_country) > 0) {
+#       clause <- glue::glue_sql("id_country IN ({vals*})", vals = list_country$id_country, .con = con)
+#       where_clauses <- c(where_clauses, clause)
+#     }
+#   }
+#   
+#   # Filter by plot name
+#   if (!is.null(plot_name)) {
+#     if (length(plot_name) == 1) {
+#       clause <- glue::glue_sql("plot_name ILIKE {like}", like = paste0("%", plot_name, "%"), .con = con)
+#     } else {
+#       clause <- glue::glue_sql("plot_name IN ({vals*})", vals = plot_name, .con = con)
+#     }
+#     where_clauses <- c(where_clauses, clause)
+#   }
+#   
+#   # Filter by method
+#   if (!is.null(method)) {
+#     
+#     patterns <- lapply(method, function(x) glue::glue_sql("method ILIKE {pattern}", pattern = paste0("%", x, "%"), .con = con))
+#     query_method <- glue::glue_sql(
+#       "SELECT * FROM methodslist WHERE {DBI::SQL(glue::glue_collapse(patterns, sep = ' OR '))}",
+#       .con = con
+#     )
+# 
+#     res_meth <- func_try_fetch(con = con, sql = query_method)
+#     if (nrow(res_meth) > 0) {
+#       clause <- glue::glue_sql("id_method IN ({vals*})", vals = res_meth$id_method, .con = con)
+#       where_clauses <- c(where_clauses, clause)
+#     } else {
+#       cli::cli_alert_warning("No method found matching: {method}")
+#     }
+#   }
+#   
+#   # Filter by locality name
+#   if (!is.null(locality_name)) {
+#     if (length(locality_name) == 1) {
+#       clause <- glue::glue_sql("locality_name ILIKE {like}", like = paste0("%", locality_name, "%"), .con = con)
+#       where_clauses <- c(where_clauses, clause)
+#     } else {
+#       ids <- lapply(locality_name, function(loc) {
+#         sql <- glue::glue_sql("SELECT id_liste_plots FROM data_liste_plots WHERE locality_name ILIKE {like}",
+#                               like = paste0("%", loc, "%"), .con = con)
+#         func_try_fetch(con = con, sql = sql)$id_liste_plots
+#       }) %>% unlist()
+#       if (length(ids) > 0) {
+#         clause <- glue::glue_sql("id_liste_plots IN ({vals*})", vals = ids, .con = con)
+#         where_clauses <- c(where_clauses, clause)
+#       }
+#     }
+#   }
+#   
+#   # Combine everything
+#   base_query <- "SELECT * FROM data_liste_plots"
+#   if (length(where_clauses) > 0) {
+#     full_query <- glue::glue_sql("{DBI::SQL(base_query)} WHERE {DBI::SQL(paste(where_clauses, collapse = ' AND '))}", .con = con)
+#   } else {
+#     full_query <- glue::glue_sql("{DBI::SQL(base_query)}", .con = con)
+#   }
+#   
+#   
+#   return(full_query)
+# }
 
 
 .extract_by_specimen <- function(id_specimen, con) {
@@ -7766,133 +8216,130 @@ query_taxa <-
 #     if(!is.null(res)) return(res)
 #   }
 
-#' Merge individuals and taxonomic backbone
+#' Merge individuals with taxonomic information
 #'
-#' Merge idividuals and taxonomic backbone
-#'#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @description
+#' A short description...
+#' 
+#' @param id_individual Optional. A numeric vector of individual IDs to filter by.
+#' @param id_plot Optional. A numeric vector of plot IDs to filter by.
+#' @param id_tax Optional. A numeric vector of taxonomic IDs to filter by.
+#' @param clean_columns Logical. Defauts is TRUE
 #'
-#' @param id_individual numeric id of individuals to be extracted if any
-#' @param id_plot numeric id of plots to be extracted if any
+#' @returns 
+#' A data frame containing individual records merged with taxonomic information,
+#' including resolved synonyms and specimen links.
 #'
-#'
-#' @return A src object with merged taxa
 #' @export
 merge_individuals_taxa <- function(id_individual = NULL,
-                                   id_plot = NULL,
-                                   id_tax = NULL) {
+                                      id_plot = NULL,
+                                      id_tax = NULL,
+                                      clean_columns = TRUE) {
   
   mydb_taxa <- call.mydb.taxa()
   mydb <- call.mydb()
-
-  specimens <- try_open_postgres_table(table = "specimens", con = mydb)
-
-  # getting taxo identification from specimens
-  specimens_id_diconame <-
-    specimens %>%
-    dplyr::select(id_specimen,
-                  idtax_n,
-                  id_colnam,
-                  colnbr,
-                  suffix,
-                  id_tropicos,
-                  id_brlu)
-
-  # getting all ids from diconames
-
-  diconames_id <-
-    dplyr::tbl(mydb, "table_idtax") %>%
+  
+  # Table de résolution des synonymes (collectée une seule fois)
+  diconames_id <- dplyr::tbl(mydb, "table_idtax") %>%
     dplyr::select(idtax_n, idtax_good_n) %>%
-    dplyr::mutate(idtax_f = ifelse(is.na(idtax_good_n), idtax_n, idtax_good_n))
-
-
-  # getting correct id_diconame considering synonymies
-  specimens_linked <-
-    specimens_id_diconame %>%
+    dplyr::mutate(idtax_f = ifelse(is.na(idtax_good_n), idtax_n, idtax_good_n)) %>%
+    dplyr::collect()
+  
+  # Récupération et traitement des spécimens
+  specimens <- try_open_postgres_table(table = "specimens", con = mydb)
+  
+  specimens_id_diconame <- specimens %>%
+    dplyr::select(id_specimen, idtax_n, id_colnam, colnbr, suffix, 
+                  id_tropicos, id_brlu) %>%
+    dplyr::collect()
+  
+  # Résolution des synonymes pour les spécimens
+  specimens_linked <- specimens_id_diconame %>%
     dplyr::left_join(diconames_id, by = c("idtax_n" = "idtax_n")) %>%
     dplyr::rename(idtax_specimen_f = idtax_f) %>%
-    dplyr::left_join(tbl(mydb, "table_colnam") %>%
-                       dplyr::select(id_table_colnam, colnam),
-                     by = c("id_colnam" = "id_table_colnam"))
-
+    dplyr::left_join(
+      dplyr::tbl(mydb, "table_colnam") %>%
+        dplyr::select(id_table_colnam, colnam) %>%
+        dplyr::collect(),
+      by = c("id_colnam" = "id_table_colnam")
+    )
+  
+  # Extraction des individus
   if (!is.null(id_individual)) {
-
-    res_individuals_full <-
-      dplyr::tbl(mydb, "data_individuals") %>%
-      dplyr::filter(id_n %in% id_individual)
-
+    res_individuals_full <- dplyr::tbl(mydb, "data_individuals") %>%
+      dplyr::filter(id_n %in% !!id_individual)
   } else {
-
-    res_individuals_full <-
-      dplyr::tbl(mydb, "data_individuals")
-
+    res_individuals_full <- dplyr::tbl(mydb, "data_individuals")
   }
-
-  ### getting links to specimens -
-  ## TO BE e_dED POTENTIALLY IF MORE THAN ONE SPECIMEN IS LINKED TO ONE INDIVIDUAL
-  ## CODE TO EXTRACT THE "BEST" IDENTIFICATION IF DIFFERENT TO BE IMPLEMENETED
-  links_specimens <-
-    try_open_postgres_table(table = "data_link_specimens", con = mydb) %>% 
-    # dplyr::tbl(mydb, "data_link_specimens") %>%
+  
+  # Filtrage par plot si demandé
+  if (!is.null(id_plot)) {
+    res_individuals_full <- res_individuals_full %>%
+      dplyr::filter(id_table_liste_plots_n %in% !!id_plot)
+  }
+  
+  # Liens individus-spécimens (max pour garder le comportement actuel)
+  links_specimens <- try_open_postgres_table(table = "data_link_specimens", con = mydb) %>%
     dplyr::select(id_n, id_specimen) %>%
     dplyr::group_by(id_n) %>%
-    dplyr::summarise(id_specimen = max(id_specimen, na.rm = T))
-
-  res_individuals_full <-
-    res_individuals_full %>%
-    dplyr::select(-id_specimen) %>%
-    dplyr::left_join(links_specimens,
-                     by=c("id_n"="id_n"))
-
-  if (!is.null(id_plot))
-    res_individuals_full <-
-    res_individuals_full %>%
-    dplyr::filter(id_table_liste_plots_n %in% !!id_plot)   #filtering for selected plots
-
-  res_individuals_full <-
-    res_individuals_full %>%
-    dplyr::left_join(diconames_id %>%
-                       dplyr::select(idtax_n, idtax_f),
-                     # dplyr::rename(id_diconame_good_n = idtax_good_n),
-                     by = c("idtax_n" = "idtax_n")) %>%
+    dplyr::summarise(id_specimen = max(id_specimen, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::collect()
+  
+  # Assemblage
+  res_individuals_full <- res_individuals_full %>%
+    dplyr::collect() %>%
+    dplyr::select(-any_of("id_specimen")) %>%
+    dplyr::left_join(links_specimens, by = c("id_n" = "id_n")) %>%
     dplyr::left_join(
-      specimens_linked %>%
-        dplyr::select(
-          id_specimen,
-          idtax_specimen_f,
-          colnam,
-          colnbr,
-          suffix
-        ),
+      diconames_id %>% dplyr::select(idtax_n, idtax_f),
+      by = c("idtax_n" = "idtax_n")
+    ) %>%
+    dplyr::left_join(
+      specimens_linked %>% dplyr::select(id_specimen, idtax_specimen_f, colnam, colnbr, suffix),
       by = c("id_specimen" = "id_specimen")
-    ) %>% # adding id_diconame for specimens
-    dplyr::mutate(idtax_individual_f = ifelse(!is.na(idtax_specimen_f),
-                                              idtax_specimen_f,
-                                              idtax_f))
-
-  taxa_extract <- 
-    add_taxa_table_taxa(ids = res_individuals_full %>% pull(idtax_individual_f))
-  taxa_extract <- taxa_extract %>% collect()
-
-  res_individuals_full <- res_individuals_full %>% collect()
-
-  res_individuals_full <-
-    res_individuals_full %>% #### selecting id_dico_name from specimens if any
+    ) %>%
+    # Logique de résolution finale (IDENTIQUE à l'original)
+    dplyr::mutate(
+      idtax_individual_f = ifelse(!is.na(idtax_specimen_f), idtax_specimen_f, idtax_f),
+      original_tax_name = stringr::str_trim(original_tax_name)
+    )
+  
+  # Nettoyage des colonnes résiduelles/inutiles
+  if (clean_columns) {
+    columns_to_remove <- c(
+      "photo_tranche", "liane", "dbh", "dbh_height", "tree_height",
+      "branch_height", "branchlet_height", "crown_spread", "observations",
+      "observations_census_2", "id_census2", "dbh_census2", "id_specimen_old",
+      "tax_tax", "id_korup_ctfs", "tag_korup_ctfs", "id_table_data_senterre",
+      "id_diconame", "code_individu", "author1", "author2", "author3",
+      "tax_source", "citation", "id_tropicos", "id_brlu", "fktax",
+      "multi_tiges_id", "multi_tiges_id_good", "multi_stem_id_good",
+      "id_table_liste_plots", "strate_cat", "position_transect",
+      "position_x", "position_y", "id_old", "sous_plot_name"
+    )
+    
+    res_individuals_full <- res_individuals_full %>%
+      dplyr::select(-any_of(columns_to_remove))
+  }
+  
+  # Enrichissement avec le backbone taxonomique
+  taxa_extract <- add_taxa_table_taxa(ids = res_individuals_full %>% pull(idtax_individual_f)) %>%
+    collect()
+  
+  res_individuals_full <- res_individuals_full %>%
     dplyr::left_join(
-      taxa_extract %>%
-        dplyr::select(-data_modif_d,-data_modif_m,-data_modif_y),
+      taxa_extract %>% dplyr::select(-any_of(c("data_modif_d", "data_modif_m", "data_modif_y"))),
       by = c("idtax_individual_f" = "idtax_n")
     )
-
-  if (!is.null(id_tax))
-    res_individuals_full <-
-    res_individuals_full %>%
-    filter(idtax_individual_f %in% id_tax)
-
+  
+  # Filtrage final par taxa si demandé
+  if (!is.null(id_tax)) {
+    res_individuals_full <- res_individuals_full %>%
+      filter(idtax_individual_f %in% id_tax)
+  }
+  
   return(res_individuals_full)
-
 }
-
 
 
 #' List, extract taxa
@@ -8724,16 +9171,6 @@ func_try_fetch <-
     tibble::as_tibble(result, .name_repair = "unique")
   }
 
-
-#' Open postgresql database table
-#'
-#' Access to postgresql database table with repeating if no successful
-#'
-#' @param table string
-#' @param con connection to database
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#' @export
 
 #' Try to open PostgreSQL table
 #'

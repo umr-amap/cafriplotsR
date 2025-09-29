@@ -79,9 +79,6 @@ update_plot_data <- function(team_lead = NULL,
       all_new_colnam <- tibble(colnam = new_colnam) %>%
         tidyr::separate_rows(colnam, sep = ",") %>% pull()
 
-      # new_id_colnam <-
-      #   .link_colnam(data_stand = tibble(colnam = all_new_colnam),
-      #                collector_field = 1)
 
       new_id_colnam <-
         .link_table(
@@ -129,7 +126,6 @@ update_plot_data <- function(team_lead = NULL,
 
         if (ask_before_update) {
 
-          # Q <- utils::askYesNo("Confirm adding these modifications?")
           choose_prompt(message =  "Confirm these modifications?")
         } else {
 
@@ -155,16 +151,10 @@ update_plot_data <- function(team_lead = NULL,
 
 
 
-
-
-      # new_id_colnam <-
-      #   new_id_colnam$id_colnam
-
     } else {
 
       if(!is.null(new_method)) {
 
-        # id_new_method <- .link_method(method = new_method)
 
         id_new_method <- .link_table(
           data_stand = tibble(method = new_method),
@@ -182,9 +172,6 @@ update_plot_data <- function(team_lead = NULL,
 
       if(!is.null(new_country)) {
 
-        # new_id_country <-
-        #   .link_country(data_stand = tibble(colnam = new_country),
-        #                 country_field = 1)
         new_id_country <-
           .link_table(
             data_stand = tibble(colnam = new_country),
@@ -207,12 +194,7 @@ update_plot_data <- function(team_lead = NULL,
         dplyr::tibble(
           plot_name = ifelse(!is.null(new_plot_name), new_plot_name, quer_plots$plot_name),
           id_method  = ifelse(!is.null(new_method), id_new_method, quer_plots$id_method),
-          # id_colnam = ifelse(
-          #   !is.null(new_id_colnam),
-          #   new_id_colnam,
-          #   quer_plots$id_colnam
-          # ),
-          id_country = ifelse(
+           id_country = ifelse(
             !is.null(new_id_country),
             new_id_country,
             quer_plots$id_country
@@ -223,8 +205,6 @@ update_plot_data <- function(team_lead = NULL,
                              new_elevation, quer_plots$elevation),
           province = ifelse(!is.null(new_province),
                             new_province, quer_plots$province),
-          # data_provider = ifelse(!is.null(new_data_provider),
-          #                        new_data_provider, quer_plots$data_provider),
           locality_name = ifelse(!is.null(new_locality_name),
                                  new_locality_name, quer_plots$locality_name),
           topo_comment = ifelse(!is.null(new_topo_comment),
@@ -264,20 +244,9 @@ update_plot_data <- function(team_lead = NULL,
 
       if (modif) {
 
-        # col_sel <-
-        #   comp_values %>%
-        #   dplyr::select_if( ~ sum(.) > 0) %>%
-        #   colnames()
-        # cli::cli_h1("Previous values")
-        # print(quer_plots %>%
-        #         dplyr::select(!!col_sel))
-        # cli::cli_h1("New values")
-        # print(new_values %>%
-        #         dplyr::select(!!col_sel))
 
         if (ask_before_update) {
 
-          # Q <- utils::askYesNo("Confirm these modifications?")
           Q <- choose_prompt(message =  "Confirm these modifications?")
 
         } else {
@@ -416,14 +385,6 @@ update_plot_data_batch <- function(new_data,
                  col_old = col_names_select,
                  col_new = col_names_corresp)
 
-  # new_data_renamed <-
-  #   new_data %>%
-  #   dplyr::rename_at(dplyr::vars(col_names_select[-id_col]), ~ col_names_corresp[-id_col])
-
-  # dataset = new_data_renamed
-  # col_new = col_names_corresp
-  # id_col_nbr = id_col
-  # type_data = "individuals"
 
   output_matches <- .find_ids(dataset = new_data_renamed,
                               col_new = col_names_corresp,
@@ -1553,42 +1514,8 @@ update_specimens_batch <- function(new_data,
 
       if(add_backup) {
 
-        # quo_var_id <- rlang::parse_expr(quo_name(rlang::enquo(id_db)))
-        #
-        # all_rows_to_be_updated <-
-        #   dplyr::tbl(mydb, "specimens") %>%
-        #   dplyr::filter(!!quo_var_id %in% all_id_match) %>%
-        #   dplyr::collect()
-        #
-        # colnames_plots <-
-        #   dplyr::tbl(mydb, "followup_specimens")  %>%
-        #   dplyr::select(-date_modified, -modif_type, -id_fol_up_plots) %>%
-        #   dplyr::collect() %>%
-        #   dplyr::top_n(1) %>%
-        #   colnames()
-        #
-        # all_rows_to_be_updated <-
-        #   all_rows_to_be_updated %>%
-        #   dplyr::select(dplyr::one_of(colnames_plots))
-        #
-        # all_rows_to_be_updated <-
-        #   all_rows_to_be_updated %>%
-        #   mutate(date_modified = Sys.Date()) %>%
-        #   mutate(modif_type = field)
-        #
-        # print(all_rows_to_be_updated %>%
-        #         dplyr::select(modif_type, date_modified))
-        #
-        # DBI::dbWriteTable(mydb, "followup_updates_liste_plots",
-        #                   all_rows_to_be_updated,
-        #                   append = TRUE,
-        #                   row.names = FALSE)
       }
 
-      # if(any(names(matches) == "idtax_n_new"))
-      #   matches <-
-      #   matches %>%
-      #   dplyr::mutate(idtax_n_new == as.integer(idtax_n_new))
 
       ## create a temporary table with new data
       DBI::dbWriteTable(mydb, "temp_table", matches,
@@ -2781,7 +2708,6 @@ update_dico_name <- function(genus_searched = NULL,
                 new_id_tax_famclass = new_id_tax_famclass,
                 new_tax_rank = new_tax_rank,
                 new_tax_rank1 = new_tax_rank1,
-                # new_a_habit = new_habit,
                 new_tax_rankesp = new_tax_rankesp)
 
   if (!any(!is.null(new_vals)) &
@@ -2789,12 +2715,6 @@ update_dico_name <- function(genus_searched = NULL,
       !cancel_synonymy)
     stop("\n No new values to be updated.")
 
-  ## if the modif is a change in synonymy, show synonyms
-  # if(cancel_synonymy | !is.null(synonym_of)) {
-  #   show_synonymies <- TRUE
-  # }else{
-  #   show_synonymies <- FALSE
-  # }
 
   ### querying for entries to be modified
   if(is.null(id_searched)) {
@@ -2871,20 +2791,6 @@ update_dico_name <- function(genus_searched = NULL,
       query_tax_n %>%
       dplyr::select(all_of(col_new))
 
-    # new_vals <-
-    #   dplyr::tibble(
-    #     tax_order = ifelse(!is.null(new_tax_order), new_tax_order, query_tax$tax_order),
-    #     tax_fam = ifelse(!is.null(new_tax_fam), as.character(new_tax_fam), query_tax$tax_fam),
-    #     tax_gen = ifelse(!is.null(new_tax_gen), as.character(new_tax_gen), query_tax$tax_gen),
-    #     tax_esp = ifelse(!is.null(new_tax_esp), as.character(new_tax_esp), query_tax$tax_esp),
-    #     tax_rank1 = ifelse(!is.null(new_tax_rank1), new_tax_rank1, query_tax$tax_rank01),
-    #     tax_name1 = ifelse(!is.null(new_tax_name1), new_tax_name1, query_tax$tax_nam01),
-    #     introduced_status = ifelse(!is.null(new_introduced_status), new_introduced_status, query_tax$introduced_status)
-    #                 )
-
-    # query_tax_n <-
-    #   query_tax_n %>%
-    #   replace(., is.na(.), -9999)
 
     query_tax_n <-
       query_tax_n %>%
@@ -2896,10 +2802,6 @@ update_dico_name <- function(genus_searched = NULL,
     sel_query_tax <-
       dplyr::bind_rows(query_tax_n, query_tax %>%
                          dplyr::select(all_of(col_new)))
-
-    # sel_query_tax <-
-    #   sel_query_tax %>%
-    #   replace(., is.na(.), -9999)
 
     sel_query_tax <-
       sel_query_tax %>%
@@ -3046,32 +2948,8 @@ update_dico_name <- function(genus_searched = NULL,
           paste(modif_types, "new_synonymy", sep="__")
 
 
-        # if (is.na(new_syn$a_habit) & !is.na(query_tax$a_habit)) {
-        #   cli::cli_alert_info(
-        #     cli::bg_magenta(
-        #       "habit empty for new good name and not empty for synonym : {query_tax$a_habit}"
-        #     )
-        #   )
-        #
-        #   up_habit <-
-        #     utils::askYesNo(msg = "Update the new correct name with this habit?")
-        #
-        #   if (up_habit) {
-        #     update_dico_name(
-        #       id_searched = new_syn$idtax_n,
-        #       new_habit = query_tax$a_habit,
-        #       ask_before_update = F
-        #     )
-        #
-        #   }
-        #
-        # }
-
-
 
       }
-
-      # }
     }
 
   } else {
@@ -3079,8 +2957,6 @@ update_dico_name <- function(genus_searched = NULL,
     Q.syn <- TRUE
 
   }
-
-  # if(!any(comp_vals)) stop("No update performed because no values are different.")
 
   if(any(comp_vals) & Q.syn & nrow_query) {
 
