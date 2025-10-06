@@ -4,7 +4,7 @@
 \alias{fetch_linked_individuals}
 \title{Fetch linked individual data}
 \usage{
-fetch_linked_individuals(individual_ids, con)
+fetch_linked_individuals(individual_ids, con, chunk_size = 30000)
 }
 \description{
 Fetch linked individual data
