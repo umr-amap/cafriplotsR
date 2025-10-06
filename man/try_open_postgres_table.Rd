@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{try_open_postgres_table}
 \alias{try_open_postgres_table}
-\title{Open postgresql database table}
+\title{Try to open PostgreSQL table}
 \usage{
 try_open_postgres_table(table, con)
 }
@@ -17,9 +17,6 @@ if the connection to the database is lost or if it fails to connect after
 10 attempts.
 }
 \description{
-Access to postgresql database table with repeating if no successful
-}
-\details{
 Access to postgresql database table with repeating if no successful
 }
 \author{

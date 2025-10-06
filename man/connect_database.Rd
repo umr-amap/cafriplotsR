@@ -9,24 +9,26 @@ connect_database(
   pass = NULL,
   user = NULL,
   reset = FALSE,
-  retry = TRUE
+  retry = TRUE,
+  use_env_credentials = FALSE
 )
 }
 \arguments{
 \item{db_type}{One of `"main"` or `"taxa"`.}
 
-\item{pass}{A single string. Optional.}
+\item{pass}{Password. If NULL, will check environment then prompt.}
 
-\item{user}{A single string. Optional.}
+\item{user}{Username. If NULL, will check environment then prompt.}
 
-\item{reset}{A single logical value. Optional.}
+\item{reset}{If TRUE, forces new credential prompt.}
 
-\item{retry}{A single logical value. Optional.}
+\item{retry}{If TRUE, retry on failure.}
+
+\item{use_env_credentials}{If TRUE, tries to use MYDB_USER and MYDB_PASS from .Renviron (default: FALSE)}
 }
 \value{
-A database connection object. The function will error if the connection
-fails after the maximum number of attempts.
+A database connection object.
 }
 \description{
-A short description...
+Generic function to connect to main or taxa database
 }

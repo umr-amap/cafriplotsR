@@ -1628,33 +1628,39 @@ query_plots <- function(plot_name = NULL,
     .link_metadata_tables(res = res, con = mydb)
 
   if (extract_subplot_features & nrow(res) > 0) {
-
-    all_subplots <- query_subplots(ids_plots =  res$id_liste_plots,
-                                   verbose = FALSE)
-
-
-    if (any(!is.na(all_subplots$census_features))) {
-      census_features <- all_subplots$census_features
-
-      census_features <-
-        census_features %>%
-        dplyr::left_join(
-          res %>% dplyr::select(plot_name, id_liste_plots),
+    
+    # Use new function
+    all_subplots <- query_plot_features(
+      plot_ids = res$id_liste_plots,
+      format = "wide",
+      include_subplot_obs_features = TRUE
+    )
+    
+    # Handle census features
+    if (is.data.frame(all_subplots$census_info)) {
+      census_features <- all_subplots$features_raw %>%
+        dplyr::filter(type == "census") %>%
+        left_join(
+          res %>% select(plot_name, id_liste_plots),
           by = c("id_table_liste_plots" = "id_liste_plots")
         ) %>%
-        dplyr::relocate(plot_name, .before = year)
+        relocate(plot_name, .before = year)
     }
-
-    res <- 
-      res %>%
-      dplyr::select(-any_of(c("additional_people", "team_leader", "data_provider")))
-
-    if (any(!is.na(all_subplots$all_subplot_pivot)))
-      res <-
-      res %>%
-      dplyr::left_join(all_subplots$all_subplot_pivot,
-                       by = c("id_liste_plots" = "id_table_liste_plots"))
-
+    
+    # Clean up columns
+    res <- res %>%
+      select(-any_of(c("additional_people", "team_leader", "data_provider")))
+    
+    # Join aggregated features
+    if (is.data.frame(all_subplots$features_aggregated)) {
+      res <- res %>%
+        left_join(
+          all_subplots$features_aggregated,
+          by = c("id_liste_plots" = "id_table_liste_plots")
+        )
+    }
+    
+    # Relocate fields
     relocate_fields <- c(
       "plot_name",
       "data_manager",
@@ -1666,69 +1672,71 @@ query_plots <- function(plot_name = NULL,
     
     res <- res %>%
       relocate(any_of(relocate_fields), .after = "plot_name")
-
+    
+    # Handle coordinates if requested
     if (show_all_coordinates) {
-
-      if (any(!is.na(all_subplots$all_subplots))) {
-        all_ids_subplot_coordinates <-
-          all_subplots$all_subplots %>%
-          filter(grepl("ddlon", type) | grepl("ddlat", type))
+      
+      # Extract coordinate features
+      if (is.data.frame(all_subplots$features_raw)) {
+        
+        all_ids_subplot_coordinates <- all_subplots$features_raw %>%
+          dplyr::filter(grepl("ddlon|ddlat", type))
+        
       } else {
         all_ids_subplot_coordinates <- tibble()
       }
-
+      
       if (nrow(all_ids_subplot_coordinates) > 0) {
-
+        
         cli::cli_alert_info('Extracting coordinates')
-
-        all_coordinates_subplots_rf <-
-          all_ids_subplot_coordinates  %>%
+        
+        all_coordinates_subplots_rf <- all_ids_subplot_coordinates %>%
           mutate(
-            coord2 = unlist(lapply(strsplit(type, "_"), function(x)
-              x[length(x)])),
-            coord1 = unlist(lapply(strsplit(type, "_"), function(x)
-              x[length(x) - 1])),
-            coord3 = unlist(lapply(strsplit(type, "_"), function(x)
-              x[1])),
-            coord4 = unlist(lapply(strsplit(type, "_"), function(x)
-              x[2]))
+            coord2 = map_chr(str_split(type, "_"), ~.x[length(.x)]),
+            coord1 = map_chr(str_split(type, "_"), ~.x[length(.x) - 1]),
+            coord3 = map_chr(str_split(type, "_"), ~.x[1]),
+            coord4 = map_chr(str_split(type, "_"), ~.x[2])
           ) %>%
-          dplyr::select(coord1,
-                        coord2,
-                        coord3,
-                        coord4,
-                        type,
-                        typevalue,
-                        id_sub_plots,
-                        id_table_liste_plots) %>%
+          select(
+            coord1, coord2, coord3, coord4,
+            type, typevalue, id_sub_plots, id_table_liste_plots
+          ) %>%
           arrange(coord2) %>%
-          left_join(res %>% select(id_liste_plots, method),
-                    by = c("id_table_liste_plots" = "id_liste_plots"))
-
-        all_coordinates_subplots_rf <-
-          all_coordinates_subplots_rf %>%
-          filter(coord4 == "plot")
-
+          left_join(
+            res %>% select(id_liste_plots, method),
+            by = c("id_table_liste_plots" = "id_liste_plots")
+          )
+        
+        all_coordinates_subplots_rf <- all_coordinates_subplots_rf %>%
+          dplyr::filter(coord4 == "plot")
+        
         if (nrow(all_coordinates_subplots_rf) > 0) {
           
-          coord_processed <- .process_coordinates(all_coordinates = all_coordinates_subplots_rf, res = res)
-   
-          coordinates_subplots_plot_sf <- 
-            coord_processed$coordinates_sf %>%
-            left_join(res %>% select(id_liste_plots, plot_name), by = "id_liste_plots")
+          coord_processed <- .process_coordinates(
+            all_coordinates = all_coordinates_subplots_rf,
+            res = res
+          )
           
-          coordinates_subplots <- 
-            coord_processed$coordinates_raw %>%
-            left_join(res %>% select(id_liste_plots, plot_name), by = c("id_table_liste_plots" = "id_liste_plots"))
-
+          coordinates_subplots_plot_sf <- coord_processed$coordinates_sf %>%
+            left_join(
+              res %>% select(id_liste_plots, plot_name),
+              by = "id_liste_plots"
+            )
+          
+          coordinates_subplots <- coord_processed$coordinates_raw %>%
+            left_join(
+              res %>% select(id_liste_plots, plot_name),
+              by = c("id_table_liste_plots" = "id_liste_plots")
+            )
         }
-      } else {
         
+      } else {
         show_all_coordinates <- FALSE
         cli::cli_alert_danger("No coordinates for quadrat available")
       }
     }
   }
+  
 
   if (nrow(res) == 0) {
     cli::cli_alert_danger("No plot are found based on inputs")
@@ -1996,47 +2004,78 @@ enrich_individual_traits <- function(individuals, con, show_multiple_census, rem
   return(individuals)
 }
 
-#' Enrich with taxonomic-level traits
+#' Enrich individuals with taxonomic-level traits
+#' 
+#' Adds trait data at the taxonomic level to individual records.
+#' Uses the new query_taxa_traits() architecture.
+#'
+#' @param individuals Data frame with individual data
+#' @param con Database connection
+#' @return Data frame with added taxonomic traits
 #' @keywords internal
 enrich_taxonomic_traits <- function(individuals, con) {
   
   cli::cli_alert_info("Enriching with taxonomic-level traits")
   
   unique_taxa <- unique(individuals$idtax_individual_f)
-  queried_traits_tax <- query_traits_measures(idtax = unique_taxa)
   
-  # Nettoyage des colonnes basisofrecord
-  if (!is.null(nrow(queried_traits_tax$traits_idtax_num))) {
-    queried_traits_tax$traits_idtax_num <- queried_traits_tax$traits_idtax_num %>%
-      select(-starts_with("basisofrecord"))
+  if (length(unique_taxa) == 0 || all(is.na(unique_taxa))) {
+    cli::cli_alert_info("No valid taxa IDs found - skipping taxonomic traits")
+    return(individuals)
   }
   
-  if (!is.null(nrow(queried_traits_tax$traits_idtax_char))) {
-    queried_traits_tax$traits_idtax_char <- queried_traits_tax$traits_idtax_char %>%
-      select(-starts_with("basisofrecord"))
-  }
+  # Remove NAs
+  unique_taxa <- unique_taxa[!is.na(unique_taxa)]
   
-  # Jointure des traits si disponibles
-  if (!is.null(nrow(queried_traits_tax$traits_found))) {
-    
-    if (any(class(queried_traits_tax$traits_idtax_num) == "data.frame")) {
-      individuals <- individuals %>%
-        left_join(
-          queried_traits_tax$traits_idtax_num,
-          by = c("idtax_individual_f" = "idtax")
-        )
-    }
-    
-    if (any(class(queried_traits_tax$traits_idtax_char) == "data.frame")) {
-      individuals <- individuals %>%
-        left_join(
-          queried_traits_tax$traits_idtax_char,
-          by = c("idtax_individual_f" = "idtax")
-        )
-    }
-    
-  } else {
+  # Query traits using new function
+  queried_traits_tax <- query_taxa_traits(
+    idtax = unique_taxa,
+    include_synonyms = FALSE,
+    format = "wide",
+    categorical_mode = "mode"
+  )
+  
+  # Check if traits were found
+  if (is.null(queried_traits_tax$traits_raw) || 
+      nrow(queried_traits_tax$traits_raw) == 0) {
     cli::cli_alert_info("No taxonomic traits found for extracted taxa")
+    return(individuals)
+  }
+  
+  # Join numeric traits if available
+  if (is.data.frame(queried_traits_tax$traits_numeric)) {
+    
+    # Remove basisofrecord columns
+    traits_num_clean <- queried_traits_tax$traits_numeric %>%
+      select(-starts_with("basisofrecord_"))
+    
+    individuals <- individuals %>%
+      left_join(
+        traits_num_clean,
+        by = c("idtax_individual_f" = "idtax")
+      )
+    
+    cli::cli_alert_success(
+      "Added {ncol(traits_num_clean) - 1} numeric taxonomic trait column(s)"
+    )
+  }
+  
+  # Join categorical traits if available
+  if (is.data.frame(queried_traits_tax$traits_categorical)) {
+    
+    # Remove basisofrecord columns
+    traits_cat_clean <- queried_traits_tax$traits_categorical %>%
+      select(-starts_with("basisofrecord_"))
+    
+    individuals <- individuals %>%
+      left_join(
+        traits_cat_clean,
+        by = c("idtax_individual_f" = "idtax")
+      )
+    
+    cli::cli_alert_success(
+      "Added {ncol(traits_cat_clean) - 1} categorical taxonomic trait column(s)"
+    )
   }
   
   return(individuals)
@@ -2144,7 +2183,7 @@ reorganize_individual_columns <- function(individuals) {
     dplyr::relocate(tax_infra_level, .before = 3) %>%
     dplyr::relocate(tax_gen, .before = 3) %>%
     dplyr::relocate(tax_fam, .before = 3) %>%
-    dplyr::relocate(colnam, .before = 3) %>%
+    dplyr::relocate(colnam_specimen, .before = 3) %>%
     dplyr::relocate(colnbr, .before = 3) %>%
     dplyr::relocate(suffix, .before = 3) %>%
     dplyr::relocate(locality_name, .before = 3) %>%
@@ -2265,6 +2304,7 @@ if (!requireNamespace("R6", quietly = TRUE)) {
   stop("Package R6 requested. Install with install.packages('R6')")
 }
 
+
 #' Query builder for plot
 #' 
 #' @description
@@ -2279,6 +2319,65 @@ if (!requireNamespace("R6", quietly = TRUE)) {
 #'   filter_method("transect")$
 #'   build()
 #' }
+#' 
+#' @section Methods:
+#' \describe{
+#'   \item{\code{new(connection)}}{
+#'     Initialize the builder with a database connection.
+#'     \itemize{
+#'       \item \code{connection}: A DBI connection object to the database
+#'     }
+#'   }
+#'   \item{\code{filter_country(country, interactive = FALSE)}}{
+#'     Filter plots by country name(s).
+#'     \itemize{
+#'       \item \code{country}: Character vector of country name(s)
+#'       \item \code{interactive}: Logical. If TRUE, uses .link_table for fuzzy matching
+#'     }
+#'   }
+#'   \item{\code{filter_plot_name(plot_name, interactive = FALSE)}}{
+#'     Filter plots by plot name(s).
+#'     \itemize{
+#'       \item \code{plot_name}: Character vector of plot name(s)
+#'       \item \code{interactive}: Logical. If TRUE, uses .link_table for fuzzy matching
+#'     }
+#'   }
+#'   \item{\code{filter_method(method, interactive = FALSE)}}{
+#'     Filter plots by method(s).
+#'     \itemize{
+#'       \item \code{method}: Character vector of method name(s)
+#'       \item \code{interactive}: Logical. If TRUE, uses .link_table for fuzzy matching
+#'     }
+#'   }
+#'   \item{\code{filter_locality(locality_name)}}{
+#'     Filter plots by locality name(s).
+#'     \itemize{
+#'       \item \code{locality_name}: Character vector of locality name(s)
+#'     }
+#'   }
+#'   \item{\code{build(operator = "AND")}}{
+#'     Build the final SQL query.
+#'     \itemize{
+#'       \item \code{operator}: Character. Join operator between conditions ("AND" or "OR"). Default is "AND"
+#'     }
+#'     Returns a SQL query object
+#'   }
+#'   \item{\code{build_with_or()}}{
+#'     Build the SQL query with OR operator between conditions.
+#'     Returns a SQL query object
+#'   }
+#'   \item{\code{add_custom_condition(condition, wrap_parentheses = TRUE)}}{
+#'     Add a custom SQL condition.
+#'     \itemize{
+#'       \item \code{condition}: Character. Raw SQL condition string
+#'       \item \code{wrap_parentheses}: Logical. If TRUE, wraps condition in parentheses
+#'     }
+#'   }
+#'   \item{\code{print_conditions()}}{
+#'     Display current filter conditions (for debugging).
+#'   }
+#' }
+#' 
 #' @export
 PlotFilterBuilder <- R6::R6Class(
   "PlotFilterBuilder",
@@ -2297,16 +2396,13 @@ PlotFilterBuilder <- R6::R6Class(
   ),
   
   public = list(
-    #' @description Initialiser le builder
-    #' @param connection Connexion DBI à la base de données
+    # Initialize the builder
     initialize = function(connection) {
       stopifnot("Connection must be provided" = !is.null(connection))
       private$con <- connection
     },
     
-    #' @description Filtrer par pays
-    #' @param country Nom(s) du/des pays
-    #' @param interactive Si TRUE, utilise .link_table pour correspondance floue interactive
+    # Filter by country
     filter_country = function(country, interactive = FALSE) {
       if (is.null(country)) return(self)
       
@@ -2356,9 +2452,7 @@ PlotFilterBuilder <- R6::R6Class(
       private$add_condition(condition)
     },
     
-    #' @description Filtrer par nom de plot
-    #' @param plot_name Nom(s) du/des plots
-    #' @param interactive Si TRUE, utilise .link_table pour correspondance floue interactive
+    # Filter by plot name
     filter_plot_name = function(plot_name, interactive = FALSE) {
       if (is.null(plot_name)) return(self)
       
@@ -2416,9 +2510,7 @@ PlotFilterBuilder <- R6::R6Class(
       return(self)
     },
     
-    #' @description Filtrer par méthode
-    #' @param method Nom(s) de(s) méthode(s)
-    #' @param interactive Si TRUE, utilise .link_table pour correspondance floue interactive
+    # Filter by method
     filter_method = function(method, interactive = FALSE) {
       if (is.null(method)) return(self)
       
@@ -2488,8 +2580,7 @@ PlotFilterBuilder <- R6::R6Class(
       return(self)
     },
     
-    #' @description Filtrer par localité
-    #' @param locality_name Nom(s) de(s) localité(s)
+    # Filter by locality
     filter_locality = function(locality_name) {
       if (is.null(locality_name)) return(self)
       
@@ -2516,9 +2607,7 @@ PlotFilterBuilder <- R6::R6Class(
       return(self)
     },
     
-    #' @description Construire la requête SQL finale
-    #' @param operator Opérateur de jointure entre conditions ("AND" ou "OR")
-    #' @return SQL query object
+    # Build the final SQL query
     build = function(operator = "AND") {
       base_query <- "SELECT * FROM data_liste_plots"
       
@@ -2542,15 +2631,12 @@ PlotFilterBuilder <- R6::R6Class(
       return(full_query)
     },
     
-    #' @description Construire avec opérateur OR explicite
-    #' @return SQL query object  
+    # Build with OR operator explicitly
     build_with_or = function() {
       return(self$build(operator = "OR"))
     },
     
-    #' @description Ajouter une condition personnalisée
-    #' @param condition Condition SQL brute
-    #' @param wrap_parentheses Si TRUE, entoure la condition de parenthèses
+    # Add a custom SQL condition
     add_custom_condition = function(condition, wrap_parentheses = TRUE) {
       if (!is.null(condition) && nchar(condition) > 0) {
         if (wrap_parentheses) {
@@ -2561,7 +2647,7 @@ PlotFilterBuilder <- R6::R6Class(
       invisible(self)
     },
     
-    #' @description Afficher les conditions actuelles (pour debug)
+    # Display current filter conditions (for debugging)
     print_conditions = function() {
       if (length(private$conditions) == 0) {
         cli::cli_alert_info("No filter conditions set")
@@ -2575,7 +2661,6 @@ PlotFilterBuilder <- R6::R6Class(
     }
   )
 )
-
 
 #' Fetch plot data
 #' 
@@ -6163,168 +6248,6 @@ replace_NA <- function(df, inv = FALSE) {
     dplyr::mutate(dplyr::across(where(is.character), chr_fun))
 }
 
-#' Internal function
-#'
-#' Compare values between of given columns and identify different values based on id matches
-#'
-#' @return tibble
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#' @param dataset tibble contain values to compare and id for matching
-#' @param col_new string vector containing column names of dataset
-#' @param id_col_nbr string vector
-#' @param type_data string indicate which table of database is targetted. e.g. 'individuals'
-#'
-#' @export
-.find_ids <- function(dataset, col_new, id_col_nbr, type_data) {
-
-  ids_new_data <-
-    dataset %>%
-    dplyr::select(!!col_new[id_col_nbr]) %>%
-    dplyr::pull()
-
-  if(type_data=="taxa")
-    corresponding_data <-
-      dplyr::tbl(mydb_taxa, "table_taxa")
-
-  if(type_data=="individuals")
-    corresponding_data <-
-      dplyr::tbl(mydb, "data_individuals")
-
-  if(type_data == "trait")
-    corresponding_data <-
-      dplyr::tbl(mydb_taxa, "table_traits")
-
-  if(type_data == "sp_trait_measures")
-    corresponding_data <-
-      dplyr::tbl(mydb, "table_traits_measures")
-
-  if(type_data == "plot_data")
-    corresponding_data <-
-      dplyr::tbl(mydb, "data_liste_plots")
-
-  if(type_data == "data_liste_sub_plots")
-    corresponding_data <-
-      dplyr::tbl(mydb, "data_liste_sub_plots")
-
-  if(type_data == "specimens")
-    corresponding_data <-
-      dplyr::tbl(mydb, "specimens")
-  
-  if(type_data == "methodslist")
-    corresponding_data <-
-      dplyr::tbl(mydb, "methodslist")  
-  
-  if(type_data == "data_link_specimens")
-    corresponding_data <-
-      dplyr::tbl(mydb, "data_link_specimens")
-
-  if(type_data == "trait_measures") {
-    # all_data <-
-    #   dplyr::tbl(mydb, "data_traits_measures")
-
-    if(col_new[id_col_nbr] %in% c("id_n", "id_old")) {
-
-      corresponding_data <-
-        .get_trait_individuals_values(traits = col_new[-id_col_nbr])
-
-      corresponding_data <- corresponding_data[[1]]
-    }
-
-    if(col_new[id_col_nbr] %in% c("id_trait_measures")) {
-
-      # new_name <- col_new[-id_col_nbr]
-
-      corresponding_data <-
-        dplyr::tbl(mydb, "data_traits_measures")
-      # %>%
-      #   dplyr::select(id_trait_measures, traitvalue, issue, measurementremarks)
-      # %>%
-        # dplyr::collect() %>%
-        # rename(!!new_name := traitvalue)
-
-    }
-  }
-
-  id <- "id"
-
-  corresponding_data_full <-
-    corresponding_data %>%
-    dplyr::rename_at(dplyr::vars(col_new[id_col_nbr]), ~ id) %>%
-    dplyr::filter(id %in% ids_new_data)
-
-  corresponding_data <-
-    corresponding_data %>%
-    dplyr::select(dplyr::all_of(col_new)) %>%
-    dplyr::rename_at(dplyr::vars(col_new[id_col_nbr]), ~ id) %>%
-    dplyr::filter(id %in% ids_new_data) %>%
-    dplyr::collect()
-
-  all_tb_update <- vector('list', length(col_new[-id_col_nbr]))
-  for (i in 1:length(col_new[-id_col_nbr])) {
-    cat(" ", col_new[-id_col_nbr][i])
-    # var <- enquo(col_names_corresp[-id_col][i])
-
-    var_ <- col_new[-id_col_nbr][i]
-
-    var <- rlang::enquo(var_)
-
-    var_new <- paste0(col_new[-id_col_nbr][i], "_new")
-    var_old <- paste0(col_new[-id_col_nbr][i], "_old")
-    id <- col_new[id_col_nbr]
-    var_id <- rlang::enquo(id)
-
-    quo_var <- rlang::quo_name(rlang::enquo(id))
-
-    select_col_new <-
-      dplyr::select(dataset, !!var_id, !!var) %>%
-      dplyr::rename(!!var_new := !!var)
-
-    id <- "id"
-    select_col_new <-
-      select_col_new %>%
-      dplyr::rename_at(dplyr::vars(col_new[id_col_nbr]), ~ id)
-
-    select_col_old <-
-      dplyr::select(corresponding_data, "id", !!var) %>%
-      dplyr::rename(!!var_old := !!var)
-
-    matches <-
-      dplyr::left_join(select_col_new, select_col_old, by = c("id"="id"))
-
-    matches <- replace_NA(df = matches)
-
-
-    # matches[,2] <-
-    #   replace_NA(vec = matches[,2])
-    # matches[,3] <-
-    #   replace_NA(vec = matches[,3])
-
-    # matches[is.na(matches[,2]), 2] <- -9999
-    # matches[is.na(matches[,3]), 3] <- -9999
-
-    quo_var <- rlang::parse_expr(rlang::quo_name(rlang::enquo(var_new)))
-    quo_var_old <- rlang::parse_expr(rlang::quo_name(rlang::enquo(var_old)))
-
-    matches <-
-      matches %>%
-      dplyr::filter(!!quo_var != !!quo_var_old)
-
-    if (nrow(matches) > 0) {
-
-      matches[, 2] <- replace_NA(df = matches[,2], inv = T)
-      matches[, 3] <- replace_NA(df = matches[,3], inv = T)
-
-    }
-
-    all_tb_update[[i]] <- matches
-    names(all_tb_update)[i] <- col_new[-id_col_nbr][i]
-  }
-
-  return(list(corresponding_data_full, all_tb_update))
-}
-
-
 
 
 
@@ -8262,7 +8185,8 @@ merge_individuals_taxa <- function(id_individual = NULL,
         dplyr::select(id_table_colnam, colnam) %>%
         dplyr::collect(),
       by = c("id_colnam" = "id_table_colnam")
-    )
+    ) %>% 
+    rename(colnam_specimen = colnam)
   
   # Extraction des individus
   if (!is.null(id_individual)) {
@@ -8295,7 +8219,7 @@ merge_individuals_taxa <- function(id_individual = NULL,
       by = c("idtax_n" = "idtax_n")
     ) %>%
     dplyr::left_join(
-      specimens_linked %>% dplyr::select(id_specimen, idtax_specimen_f, colnam, colnbr, suffix),
+      specimens_linked %>% dplyr::select(id_specimen, idtax_specimen_f, colnam_specimen, colnbr, suffix),
       by = c("id_specimen" = "id_specimen")
     ) %>%
     # Logique de résolution finale (IDENTIQUE à l'original)
@@ -10163,137 +10087,6 @@ query_link_individual_specimen <- function(id_ind = NULL,
   return(selected_link %>% as_tibble())
 
 }
-
-
-
-
-
-# divid_plot <- function (coordinates_sf, plot_name = 'plot_name') {
-# 
-#   # Get plot data by name
-#   names <- coordinates_sf[[plot_name]]
-#   n <- 5
-# 
-#   for (i in 1:length(names)){
-# 
-#     plot <- coordinates_sf[i,]
-# 
-#     #####################################################################
-#     ##### STEP 1 : EXTRACT THE 4 CORNERS OF THE PLOT i
-#     #####################################################################
-# 
-#     coord <- plot %>%
-#       st_coordinates() %>%
-#       as.data.frame() %>%
-#       distinct(X, Y, .keep_all = TRUE) %>%
-#       mutate ( corner = case_when(
-#         X == min(X[which(Y %in% sort(Y)[1:2])]) ~ 1, #'bottom left',
-#         X == max(X[which(Y %in% sort(Y)[1:2])]) ~ 4, #'bottom right',
-#         X == min(X[which(Y %in% sort(Y)[3:4])]) ~ 2, #'top left',
-#         X == max(X[which(Y %in% sort(Y)[3:4])]) ~ 3 )) %>% #'top right'
-#       arrange(corner) %>%
-#       select(-c(corner,L1,L2)) %>%
-#       as.matrix()
-# 
-# 
-#     #####################################################################
-#     ##### STEP 2 : CREATE THE 25 SUBPLOT SQUARES
-#     #####################################################################
-# 
-#     y_length <- (coord[2,2]-coord[1,2]) / n
-#     x_length <- (coord[4,1]-coord[1,1]) / n
-#     x_shift <- (coord[2,1]-coord[1,1]) / n
-#     y_shift <- (coord[4,2]-coord[1,2]) / n
-# 
-#     for (y in 1:n){
-# 
-#       for (x in 1:n){
-# 
-#         tmp  <-   sf::st_polygon(
-#           list(
-#             rbind(
-#               c(coord[1,1]+(x-1)*x_length+(y-1)*x_shift,coord[1,2]+(y-1)*y_length+(x-1)*y_shift),
-#               c(coord[1,1]+(x-1)*x_length+(y)*x_shift,coord[1,2]+y*y_length+(x-1)*y_shift),
-#               c(coord[1,1]+x*x_length+(y)*x_shift,coord[1,2]+y*y_length+(x)*y_shift),
-#               c(coord[1,1]+x*x_length+(y-1)*x_shift,coord[1,2]+(y-1)*y_length+(x)*y_shift),
-#               c(coord[1,1]+(x-1)*x_length+(y-1)*x_shift,coord[1,2]+(y-1)*y_length+(x-1)*y_shift)
-#             )
-#           )
-#         )
-# 
-#         assign (paste('smaller_square',x,y, sep = "_"), tmp)
-# 
-#       }
-# 
-#     }
-# 
-#     #####################################################################
-#     #### STEP 3 : ASSIGN plot_name AND subplot_name TO SUBPLOTS
-#     #####################################################################
-# 
-#     nrows <- 25
-# 
-#     sub_plot <- st_sf(crs = st_crs(plot),
-#                       sous_plot_name = 1:nrows,
-#                       geometry = st_sfc(lapply(1:nrows,
-#                                                function(x) st_geometrycollection())
-#                       )
-#     ) # Create a fake multipolygons of 25 object with the good crs
-# 
-#     # Add the right 25 polygon geometry
-#     for (j in 1:25) {sub_plot$geometry[j] <- mget(ls(pattern = "smaller_square"))[[j]]}
-# 
-#     sub_plot <- sub_plot %>% mutate(plot_name = names[i]) # Add the plot name
-# 
-#     sub_plot$sous_plot_name <- as.character(sub_plot$sous_plot_name) # Renamme the subplot id
-# 
-#     sub_plot$sous_plot_name <- fct_recode(sub_plot$sous_plot_name,
-#                                           "0_0" = '1',
-#                                           "0_20" = '2',
-#                                           "0_40" = '3',
-#                                           "0_60" = '4',
-#                                           "0_80" = '5',
-#                                           "20_0" = '6',
-#                                           "20_20" = '7',
-#                                           "20_40" = '8',
-#                                           "20_60" = '9',
-#                                           "20_80" = '10',
-#                                           "40_0" = '11',
-#                                           "40_20" = '12',
-#                                           "40_40" = '13',
-#                                           "40_60" = '14',
-#                                           "40_80" = '15',
-#                                           "60_0" = '16',
-#                                           "60_20" = '17',
-#                                           "60_40" = '18',
-#                                           "60_60" = '19',
-#                                           "60_80" = '20',
-#                                           "80_0" = '21',
-#                                           "80_20" = '22',
-#                                           "80_40" = '23',
-#                                           "80_60" = '24',
-#                                           "80_80" = '25'
-#     )
-# 
-#     sub_plot$sous_plot_name <- factor(sub_plot$sous_plot_name,
-#                                       levels = c("0_0","0_20","0_40","0_60","0_80",
-#                                                  "20_0","20_20","20_40","20_60","20_80",
-#                                                  "40_0","40_20","40_40","40_60","40_80",
-#                                                  "60_0","60_20","60_40","60_60","60_80",
-#                                                  "80_0","80_20","80_40","80_60","80_80"))
-# 
-# 
-# 
-# 
-# 
-#     assign(paste('subplot',names[i],sep = '_'),sub_plot)
-# 
-#   }
-# 
-#   sub_plot <- do.call(rbind,mget(ls(pattern = "subplot"))) # combine all multipolygons in the same sf
-#   print(plot(sub_plot$geometry, col = sub_plot$sous_plot_name))
-#   return (sub_plot)
-# }
 
 
 

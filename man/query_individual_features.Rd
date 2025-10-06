@@ -2,37 +2,39 @@
 % Please edit documentation in R/individual_features_function.R
 \name{query_individual_features}
 \alias{query_individual_features}
-\title{Query for features linked to individual}
+\title{Query individual features with improved architecture}
 \usage{
 query_individual_features(
-  id = NULL,
-  multiple_census = FALSE,
-  id_traits = NULL,
-  pivot_table = TRUE,
-  extract_trait_measures_features = FALSE,
-  extract_linked_individuals = FALSE,
-  remove_obs_with_issue = TRUE
+  individual_ids = NULL,
+  trait_ids = NULL,
+  include_multi_census = FALSE,
+  format = c("wide", "long"),
+  remove_issues = TRUE,
+  include_metadata = FALSE,
+  include_individuals = FALSE,
+  con = NULL
 )
 }
 \arguments{
-\item{id}{numeric vector of id from individuals}
+\item{individual_ids}{Numeric vector of individual IDs}
 
-\item{multiple_census}{boolean whether multiple census should be shown}
+\item{trait_ids}{Numeric vector of trait IDs (optional filter)}
 
-\item{id_traits}{numeric vector of id from traits/features}
+\item{include_multi_census}{Include multiple census data}
 
-\item{pivot_table}{boolean whether results should be pivoted into multiple columns}
+\item{format}{Output format: "wide" (pivot) or "long" (raw)}
 
-\item{extract_trait_measures_features}{boolean whether adding additional features linked to traits/features, only if pivot_table is FALSE}
+\item{remove_issues}{Remove observations flagged with issues}
 
-\item{remove_obs_with_issue}{boolean whether features with issue should be excluded}
+\item{include_metadata}{Include trait measurement features (only available with format="long")}
+
+\item{include_individuals}{Include linked individual data}
+
+\item{con}{Database connection (optional)}
 }
 \value{
-tibble
+Tibble with individual features in requested format
 }
 \description{
-Query for features linked to a given individual in inventories
-}
-\author{
-Gilles Dauby, \email{gilles.dauby@ird.fr}
+Query individual features with improved architecture
 }

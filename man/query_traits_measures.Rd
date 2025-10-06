@@ -2,7 +2,7 @@
 % Please edit documentation in R/taxa_traits_function.R
 \name{query_traits_measures}
 \alias{query_traits_measures}
-\title{Query for taxa level traits}
+\title{Legacy function - wrapper for backward compatibility}
 \usage{
 query_traits_measures(
   idtax = NULL,
@@ -16,31 +16,7 @@ query_traits_measures(
   extract_trait_measures_features = FALSE
 )
 }
-\arguments{
-\item{idtax}{vector of idtax_n}
-
-\item{idtax_good}{vector of idtax_good; NULL if no synonym}
-
-\item{add_taxa_info}{logical}
-
-\item{id_trait}{integer indicating the id of the trait to look for}
-
-\item{trait_cat_mode}{vector string if "most_frequent" then the most frequent value for categorical trait is given, if "all_unique" then all unique value separated by comma}
-
-\item{verbose}{logical}
-
-\item{pivot_table}{logical}
-
-\item{include_remarks}{logical}
-
-\item{extract_trait_measures_features}{logical}
-}
-\value{
-vector
-}
 \description{
-Query for traits for given taxa, include synonyms or not
+Legacy function - wrapper for backward compatibility
 }
-\author{
-Gilles Dauby, \email{gilles.dauby@ird.fr}
-}
+\keyword{internal}

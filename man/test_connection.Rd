@@ -13,5 +13,5 @@ test_connection(con)
 `TRUE` if the connection is valid and a test query succeeds, `FALSE` otherwise.
 }
 \description{
-To test if the database connection if valid
+To test if the database connection is valid
 }

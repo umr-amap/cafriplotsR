@@ -2,7 +2,7 @@
 % Please edit documentation in R/individual_features_function.R
 \name{add_trait}
 \alias{add_trait}
-\title{Add a trait in trait list}
+\title{Add trait}
 \usage{
 add_trait(
   new_trait = NULL,
@@ -36,8 +36,6 @@ add_trait(
 \item{new_comments}{Optional. A single string.}
 }
 \value{
-nothing
-
 The function writes to a database table if confirmed by the user. The function
 will error if `new_trait` or `new_valuetype` are not provided, if `new_valuetype`
 is not one of the allowed values, or if numeric/integer value types don't match
@@ -45,10 +43,4 @@ their corresponding min/max values.
 }
 \description{
 Add trait and associated descriptors in trait list table
-}
-\details{
-Add trait and associated descriptors in trait list table
-}
-\author{
-Gilles Dauby, \email{gilles.dauby@ird.fr}
 }

@@ -2,19 +2,28 @@
 % Please edit documentation in R/individual_features_function.R
 \name{query_traits_measures_features}
 \alias{query_traits_measures_features}
-\title{List, selected trait measures features}
+\title{Query features associated with trait measurements}
 \usage{
-query_traits_measures_features(id_trait_measures = NULL, src = "individuals")
+query_traits_measures_features(
+  id_trait_measures = NULL,
+  src = c("individuals", "taxa"),
+  format = c("wide", "long"),
+  con = NULL
+)
 }
 \arguments{
-\item{id_trait_measures}{integer}
+\item{id_trait_measures}{Integer vector of trait measurement IDs}
+
+\item{src}{Source type: "individuals" or "taxa"}
+
+\item{format}{Output format: "wide" (pivoted) or "long" (raw)}
+
+\item{con}{Database connection (optional)}
 }
 \value{
-A tibble of all subplots
+Tibble with measurement features in requested format
 }
 \description{
-Table of srait measures features
-}
-\author{
-Gilles Dauby, \email{gilles.dauby@ird.fr}
+Retrieves and aggregates features (metadata) linked to specific trait measurements.
+Handles numeric, character, ordinal, and table-referenced value types.
 }

@@ -2,16 +2,10 @@
 % Please edit documentation in R/subsplots_features_function.R
 \name{subplot_list}
 \alias{subplot_list}
-\title{List of subplot features}
+\title{List all available subplot types}
 \usage{
-subplot_list()
-}
-\value{
-A tibble of all subplot features
+subplot_list(con = NULL)
 }
 \description{
-Provide list of subplot features of plot
-}
-\author{
-Gilles Dauby, \email{gilles.dauby@ird.fr}
+List all available subplot types
 }

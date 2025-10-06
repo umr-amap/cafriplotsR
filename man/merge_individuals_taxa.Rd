@@ -2,22 +2,28 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{merge_individuals_taxa}
 \alias{merge_individuals_taxa}
-\title{Merge individuals and taxonomic backbone}
+\title{Merge individuals with taxonomic information}
 \usage{
-merge_individuals_taxa(id_individual = NULL, id_plot = NULL, id_tax = NULL)
+merge_individuals_taxa(
+  id_individual = NULL,
+  id_plot = NULL,
+  id_tax = NULL,
+  clean_columns = TRUE
+)
 }
 \arguments{
-\item{id_individual}{numeric id of individuals to be extracted if any}
+\item{id_individual}{Optional. A numeric vector of individual IDs to filter by.}
 
-\item{id_plot}{numeric id of plots to be extracted if any}
+\item{id_plot}{Optional. A numeric vector of plot IDs to filter by.}
+
+\item{id_tax}{Optional. A numeric vector of taxonomic IDs to filter by.}
+
+\item{clean_columns}{Logical. Defauts is TRUE}
 }
 \value{
-A src object with merged taxa
+A data frame containing individual records merged with taxonomic information,
+including resolved synonyms and specimen links.
 }
 \description{
-Merge idividuals and taxonomic backbone
-#'
-}
-\author{
-Gilles Dauby, \email{gilles.dauby@ird.fr}
+A short description...
 }
