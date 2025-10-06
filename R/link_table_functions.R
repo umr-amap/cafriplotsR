@@ -67,11 +67,6 @@
 
     for (i in 1:nrow(all_names_no_match)) {
 
-      # all_names <-
-      #   try_open_postgres_table(table = table_name, con = db_connection) %>%
-      #   # dplyr::tbl(mydb, "table_countries") %>%
-      #   dplyr::collect()
-
       sorted_matches <-
         .find_cat(
           value_to_search = dplyr::pull(all_names_no_match, name)[i],
@@ -554,58 +549,6 @@
 }
 
 
-# .link_country <- function(data_stand, country_field, country_id_field = "id_country") {
-#
-#   country_name <- "country_name"
-#
-#   data_stand <-
-#     data_stand %>%
-#     dplyr::rename_at(dplyr::vars(all_of(country_field)), ~ country_name)
-#
-#   all_names_country <-
-#     dplyr::distinct(data_stand, country_name)
-#
-#   id_ <-
-#     vector(mode = "integer", nrow(data_stand))
-#
-#   all_names_country <-
-#     all_names_country %>%
-#     filter(!is.na(country_name))
-#
-#
-#   for (i in 1:nrow(all_names_country)) {
-#
-#     all_country <-
-#       dplyr::tbl(mydb, "table_countries") %>%
-#       dplyr::collect()
-#
-#     sorted_matches <-
-#       .find_cat(
-#         value_to_search = dplyr::pull(all_names_country)[i],
-#         compared_table = all_country,
-#         column_name = "country",
-#         prompt_message = "Choose subplot feature (G for pattern searching): "
-#       )
-#
-#     selected_name_id <-
-#       sorted_matches$sorted_matches %>%
-#       slice(sorted_matches$selected_name) %>%
-#       pull(which(grepl("id", names(sorted_matches$sorted_matches))))
-#
-#     id_[data_stand$country_name==dplyr::pull(all_names_country[i,1])] <-
-#       selected_name_id
-#
-#   }
-#
-#   data_stand <-
-#     data_stand %>%
-#     mutate({{country_id_field}} := id_)
-#   # mutate(id_country = id_)
-#
-#   return(data_stand)
-# }
-
-
 
 .link_colnam <- function(data_stand,
                          column_searched,
@@ -697,156 +640,6 @@
 
 
 
-# .link_plot_name <- function(data_stand, plot_name_field) {
-#
-#   plot_name <- "plot_name"
-#
-#   data_stand <-
-#     data_stand %>%
-#     dplyr::rename_at(dplyr::vars(plot_name_field), ~ plot_name)
-#
-#   all_plot_names <-
-#     try_open_postgres_table(table = "data_liste_plots", con = mydb) %>%
-#     dplyr::select(id_liste_plots, plot_name) %>%
-#     dplyr::collect()
-#
-#   all_plot_name_new_dataset <-
-#     dplyr::distinct(data_stand, plot_name)
-#
-#   all_plot_name_new_dataset <-
-#     all_plot_name_new_dataset %>%
-#     dplyr::left_join(all_plot_names)
-#
-#   all_plot_name_new_dataset_no_match <-
-#     all_plot_name_new_dataset %>%
-#     dplyr::filter(is.na(id_liste_plots))
-#
-#   data_stand <-
-#     data_stand %>%
-#     dplyr::left_join(all_plot_name_new_dataset,
-#                      by=c("plot_name"="plot_name"))
-#
-#   id_plotname <-
-#     data_stand$id_liste_plots
-#   if(nrow(all_plot_name_new_dataset_no_match)>0) {
-#     for (i in 1:nrow(all_plot_name_new_dataset_no_match)) {
-#       print(all_plot_name_new_dataset_no_match$plot_name[i])
-#       sorted_matches <-
-#         .find_similar_string(input = all_plot_name_new_dataset_no_match$plot_name[i],
-#                              compared_table = all_plot_names, column_name = "plot_name")
-#
-#       selected_name <- ""
-#       slide <- 0
-#       while(selected_name=="") {
-#         if(slide > 0) print(all_plot_name_new_dataset_no_match$plot_name[i])
-#         slide <- slide + 1
-#         sorted_matches %>%
-#           tibble::add_column(ID=seq(1, nrow(.), 1)) %>%
-#           dplyr::select(-id_liste_plots) %>%
-#           dplyr::select(ID, plot_name) %>%
-#           dplyr::slice((1+(slide-1)*10):((slide)*10)) %>%
-#           print()
-#         selected_name <-
-#           readline(prompt="Choose ID whose plot_name fit (if none enter 0): ")
-#         if(slide*10>nrow(sorted_matches)) slide <- 0
-#       }
-#
-#       selected_name <- as.integer(selected_name)
-#
-#       if(is.na(selected_name)) stop("Provide integer value for standardizing plot name")
-#
-#       if(selected_name==0) {
-#         print(paste(all_plot_name_new_dataset_no_match$plot_name[i]," not found"))
-#       }
-#
-#       if(selected_name>0) {
-#         selected_name_id <-
-#           sorted_matches %>%
-#           slice(selected_name) %>%
-#           dplyr::select(id_liste_plots) %>%
-#           dplyr::pull()
-#
-#         if(!all(is.na(id_plotname[data_stand$plot_name==all_plot_name_new_dataset_no_match$plot_name[i]])))
-#           stop("finding plot name with no na values")
-#
-#         id_plotname[data_stand$plot_name==all_plot_name_new_dataset_no_match$plot_name[i]] <-
-#           selected_name_id
-#       }
-#     }
-#     data_stand <-
-#       data_stand %>%
-#       dplyr::mutate(id_liste_plots=id_plotname)
-#   }
-#
-#   if(data_stand %>%
-#      dplyr::filter(is.na(id_liste_plots), !is.na(plot_name)) %>%
-#      nrow()>0) {
-#     print("Plot name not found !!")
-#
-#   }
-#   return(data_stand)
-# }
-
-
-
-
-
-
-# .link_method <- function(method) {
-#
-#   all_method <-
-#     dplyr::tbl(mydb, "methodslist") %>%
-#     dplyr::collect()
-#
-#   if(any(all_method$method == method)) {
-#
-#     selected_id <- all_method %>%
-#       filter(method == !!method) %>%
-#       pull(id_method)
-#
-#   } else {
-#
-#     sorted_matches <-
-#       .find_similar_string(input = method,
-#                            compared_table = all_method, column_name = "method")
-#     print(method)
-#
-#     selected_name <- ""
-#     slide <- 0
-#     while (selected_name == "") {
-#       slide <- slide + 1
-#       sorted_matches %>%
-#         tibble::add_column(ID = seq(1, nrow(.), 1)) %>%
-#         dplyr::select(ID, method, description_method) %>%
-#         dplyr::slice((1 + (slide - 1) * 10):((slide) * 10)) %>%
-#         print()
-#       selected_name <-
-#         readline(prompt = "Choose ID whose method fit (if none enter 0): ")
-#       if (slide * 10 > nrow(sorted_matches))
-#         slide <- 0
-#     }
-#
-#     selected_name <- as.integer(selected_name)
-#
-#     if(is.na(selected_name))
-#       stop("Provide integer value for standardizing method name")
-#
-#     selected_id <-
-#       sorted_matches %>%
-#       dplyr::slice(selected_name) %>%
-#       dplyr::select(id_method) %>%
-#       dplyr::pull()
-#
-#   }
-#
-#   return(selected_id)
-# }
-
-
-
-
-
-
 
 
 
@@ -890,3 +683,168 @@ join_help_function <- function(df1, df2, col1, col2, keep_columns) {
   return(output_dataframe)
 
 }
+
+
+
+#' Internal function
+#'
+#' Compare values between of given columns and identify different values based on id matches
+#'
+#' @return tibble
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @param dataset tibble contain values to compare and id for matching
+#' @param col_new string vector containing column names of dataset
+#' @param id_col_nbr string vector
+#' @param type_data string indicate which table of database is targetted. e.g. 'individuals'
+#'
+#' @export
+.find_ids <- function(dataset, col_new, id_col_nbr, type_data) {
+  
+  ids_new_data <-
+    dataset %>%
+    dplyr::select(!!col_new[id_col_nbr]) %>%
+    dplyr::pull()
+  
+  if(type_data=="taxa")
+    corresponding_data <-
+      dplyr::tbl(mydb_taxa, "table_taxa")
+  
+  if(type_data=="individuals")
+    corresponding_data <-
+      dplyr::tbl(mydb, "data_individuals")
+  
+  if(type_data == "trait")
+    corresponding_data <-
+      dplyr::tbl(mydb_taxa, "table_traits")
+  
+  if(type_data == "sp_trait_measures")
+    corresponding_data <-
+      dplyr::tbl(mydb, "table_traits_measures")
+  
+  if(type_data == "plot_data")
+    corresponding_data <-
+      dplyr::tbl(mydb, "data_liste_plots")
+  
+  if(type_data == "data_liste_sub_plots")
+    corresponding_data <-
+      dplyr::tbl(mydb, "data_liste_sub_plots")
+  
+  if(type_data == "specimens")
+    corresponding_data <-
+      dplyr::tbl(mydb, "specimens")
+  
+  if(type_data == "methodslist")
+    corresponding_data <-
+      dplyr::tbl(mydb, "methodslist")  
+  
+  if(type_data == "data_link_specimens")
+    corresponding_data <-
+      dplyr::tbl(mydb, "data_link_specimens")
+  
+  if(type_data == "trait_measures") {
+    # all_data <-
+    #   dplyr::tbl(mydb, "data_traits_measures")
+    
+    if(col_new[id_col_nbr] %in% c("id_n", "id_old")) {
+      
+      corresponding_data <-
+        .get_trait_individuals_values(traits = col_new[-id_col_nbr])
+      
+      corresponding_data <- corresponding_data[[1]]
+    }
+    
+    if(col_new[id_col_nbr] %in% c("id_trait_measures")) {
+      
+      # new_name <- col_new[-id_col_nbr]
+      
+      corresponding_data <-
+        dplyr::tbl(mydb, "data_traits_measures")
+      # %>%
+      #   dplyr::select(id_trait_measures, traitvalue, issue, measurementremarks)
+      # %>%
+      # dplyr::collect() %>%
+      # rename(!!new_name := traitvalue)
+      
+    }
+  }
+  
+  id <- "id"
+  
+  corresponding_data_full <-
+    corresponding_data %>%
+    dplyr::rename_at(dplyr::vars(col_new[id_col_nbr]), ~ id) %>%
+    dplyr::filter(id %in% ids_new_data)
+  
+  corresponding_data <-
+    corresponding_data %>%
+    dplyr::select(dplyr::all_of(col_new)) %>%
+    dplyr::rename_at(dplyr::vars(col_new[id_col_nbr]), ~ id) %>%
+    dplyr::filter(id %in% ids_new_data) %>%
+    dplyr::collect()
+  
+  all_tb_update <- vector('list', length(col_new[-id_col_nbr]))
+  for (i in 1:length(col_new[-id_col_nbr])) {
+    cat(" ", col_new[-id_col_nbr][i])
+    # var <- enquo(col_names_corresp[-id_col][i])
+    
+    var_ <- col_new[-id_col_nbr][i]
+    
+    var <- rlang::enquo(var_)
+    
+    var_new <- paste0(col_new[-id_col_nbr][i], "_new")
+    var_old <- paste0(col_new[-id_col_nbr][i], "_old")
+    id <- col_new[id_col_nbr]
+    var_id <- rlang::enquo(id)
+    
+    quo_var <- rlang::quo_name(rlang::enquo(id))
+    
+    select_col_new <-
+      dplyr::select(dataset, !!var_id, !!var) %>%
+      dplyr::rename(!!var_new := !!var)
+    
+    id <- "id"
+    select_col_new <-
+      select_col_new %>%
+      dplyr::rename_at(dplyr::vars(col_new[id_col_nbr]), ~ id)
+    
+    select_col_old <-
+      dplyr::select(corresponding_data, "id", !!var) %>%
+      dplyr::rename(!!var_old := !!var)
+    
+    matches <-
+      dplyr::left_join(select_col_new, select_col_old, by = c("id"="id"))
+    
+    matches <- replace_NA(df = matches)
+    
+    
+    # matches[,2] <-
+    #   replace_NA(vec = matches[,2])
+    # matches[,3] <-
+    #   replace_NA(vec = matches[,3])
+    
+    # matches[is.na(matches[,2]), 2] <- -9999
+    # matches[is.na(matches[,3]), 3] <- -9999
+    
+    quo_var <- rlang::parse_expr(rlang::quo_name(rlang::enquo(var_new)))
+    quo_var_old <- rlang::parse_expr(rlang::quo_name(rlang::enquo(var_old)))
+    
+    matches <-
+      matches %>%
+      dplyr::filter(!!quo_var != !!quo_var_old)
+    
+    if (nrow(matches) > 0) {
+      
+      matches[, 2] <- replace_NA(df = matches[,2], inv = T)
+      matches[, 3] <- replace_NA(df = matches[,3], inv = T)
+      
+    }
+    
+    all_tb_update[[i]] <- matches
+    names(all_tb_update)[i] <- col_new[-id_col_nbr][i]
+  }
+  
+  return(list(corresponding_data_full, all_tb_update))
+}
+
+

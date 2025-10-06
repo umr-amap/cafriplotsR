@@ -2,7 +2,7 @@
 % Please edit documentation in R/subsplots_features_function.R
 \name{query_subplots}
 \alias{query_subplots}
-\title{List, selected subplots}
+\title{Legacy function - wrapper for backward compatibility}
 \usage{
 query_subplots(
   ids_plots = NULL,
@@ -16,31 +16,7 @@ query_subplots(
   extract_subplots_obs_features = FALSE
 )
 }
-\arguments{
-\item{ids_subplots}{integer}
-
-\item{plot_name}{string fuzzy plot name to look for}
-
-\item{country}{string fuzzy country name to look for}
-
-\item{locality_name}{string fuzzy locality_name name to look for}
-
-\item{method}{stringfuzzy method name to look for}
-
-\item{subtype}{string subtype to select}
-
-\item{verbose}{logical}
-
-\item{extract_subplots_obs_features}{logical}
-
-\item{id_plots}{integer}
-}
-\value{
-A tibble of all subplots
-}
 \description{
-Table of subplot for selected plots
+Legacy function - wrapper for backward compatibility
 }
-\author{
-Gilles Dauby, \email{gilles.dauby@ird.fr}
-}
+\keyword{internal}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{query_plots}
 \alias{query_plots}
-\title{List, extract and map selected plots and associated individuals}
+\title{Query plots from database}
 \usage{
 query_plots(
   plot_name = NULL,
@@ -78,8 +78,6 @@ query_plots(
 \item{remove_obs_with_issue}{Logical. Whether to remove observations with issues. Optional.}
 }
 \value{
-A tibble of plots or individuals if extract_individuals is TRUE
-
 A list or data frame containing plot data and associated information. When multiple 
 components are requested, returns a list with elements like `extract`, `census_features`, 
 `coordinates`, and `coordinates_sf`. If only one component is available, returns that 
@@ -89,15 +87,7 @@ component directly. Returns `NA` if no plots are found matching the criteria.
 This function queries a PostgreSQL inventory database to return a list of forest plots or individuals, 
 with options to include associated traits and metadata, and to generate interactive maps.
 }
-\details{
-This function queries a PostgreSQL inventory database to return a list of forest plots or individuals, 
-with options to include associated traits and metadata, and to generate maps.
-}
 \examples{
-\dontrun{
-  get_plot_data(country = "Gabon", extract_individuals = TRUE, map = TRUE)
-}
-
 \dontrun{
   query_plots(country = "Gabon", extract_individuals = FALSE)
   
@@ -107,7 +97,4 @@ with options to include associated traits and metadata, and to generate maps.
 }
 
 
-}
-\author{
-Gilles Dauby, \email{gilles.dauby@ird.fr}
 }

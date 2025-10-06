@@ -6,13 +6,6 @@
 \usage{
 check_taxa_permissions(con)
 }
-\arguments{
-\item{con}{A database connection object.}
-}
-\value{
-Called for side effects. Prints messages about database access permissions
-and warns if write access is detected.
-}
 \description{
-A short description...
+Check taxa database permissions
 }

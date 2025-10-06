@@ -2,7 +2,7 @@
 % Please edit documentation in R/individual_features_function.R
 \name{.get_trait_individuals_values}
 \alias{.get_trait_individuals_values}
-\title{Internal function}
+\title{Legacy function - wrapper for backward compatibility}
 \usage{
 .get_trait_individuals_values(
   traits,
@@ -13,27 +13,7 @@
   remove_obs_with_issue = TRUE
 )
 }
-\arguments{
-\item{traits}{string vector with trait needed}
-
-\item{ids_plot}{numeric vector with id_plots requested}
-
-\item{skip_dates}{logical whether include day, month and year of observations}
-
-\item{remove_obs_with_issue}{logical}
-
-\item{id_individuals}{numeric vector with id_n individuals requested}
-
-\item{show_multiple_measures}{logical whether multiple measures (i.e. census or sometimes more than one value for given measure)}
-
-\item{collapse_multiple_val}{logical whether multiple traits measures should be collapsed (resulting values as character, separated by dash)}
-}
-\value{
-tibble
-}
 \description{
-Get for each trait, a tibble of individuals with measures or observations, deal with several observations
+This maintains the old API while using the new architecture internally.
 }
-\author{
-Gilles Dauby, \email{gilles.dauby@ird.fr}
-}
+\keyword{internal}
