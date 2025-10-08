@@ -1904,7 +1904,7 @@ process_individuals <- function(plots_data, con,
   if (!is.null(tag)) {
     cli::cli_alert_info("Filtering by tag: {paste(tag, collapse = ', ')}")
     individuals <- individuals %>%
-      dplyr::filter(ind_num_sous_plot %in% tag)
+      dplyr::filter(tag %in% tag)
   }
   
   # Exclusion des lianes
@@ -2187,19 +2187,19 @@ reorganize_individual_columns <- function(individuals) {
     dplyr::relocate(colnbr, .before = 3) %>%
     dplyr::relocate(suffix, .before = 3) %>%
     dplyr::relocate(locality_name, .before = 3) %>%
-    dplyr::relocate(ind_num_sous_plot, .before = 3) %>%
+    dplyr::relocate(tag, .before = 3) %>%
     dplyr::relocate(tax_sp_level, .before = 3) %>%
     dplyr::relocate(plot_name, .before = 3)
-  
+
   # Colonnes conditionnelles
   if ("stem_diameter" %in% names(individuals)) {
     individuals <- individuals %>%
-      dplyr::relocate(stem_diameter, .before = ind_num_sous_plot)
+      dplyr::relocate(stem_diameter, .before = tag)
   }
-  
+
   if ("tree_height" %in% names(individuals)) {
     individuals <- individuals %>%
-      dplyr::relocate(tree_height, .before = ind_num_sous_plot)
+      dplyr::relocate(tree_height, .before = tag)
   }
   
   return(individuals)
@@ -4904,8 +4904,8 @@ add_individuals <- function(new_data ,
 
     # if (!any(colnames(new_data_renamed) == "tra"))
     #   stop("sous_plot_name column missing")
-    if (!any(colnames(new_data_renamed) == "ind_num_sous_plot"))
-      stop("ind_num_sous_plot column missing")
+    if (!any(colnames(new_data_renamed) == "tag"))
+      stop("tag column missing")
     
     # type_sousplot <-
     #   new_data_renamed %>%
@@ -4955,14 +4955,14 @@ add_individuals <- function(new_data ,
   }
 
   if (dplyr::pull(method) == "1ha-IRD" | dplyr::pull(method) == " ") {
-    if (!any(colnames(new_data_renamed) == "ind_num_sous_plot"))
-      stop("ind_num_sous_plot column missing - Tag individual")
+    if (!any(colnames(new_data_renamed) == "tag"))
+      stop("tag column missing - Tag individual")
 
 
     ### checking duplicated tags within plots
     duplicated_tags <-
       new_data_renamed %>%
-      group_by(id_table_liste_plots_n, ind_num_sous_plot) %>%
+      group_by(id_table_liste_plots_n, tag) %>%
       count() %>%
       filter(n > 1)
 
@@ -4972,7 +4972,7 @@ add_individuals <- function(new_data ,
         duplicated_tags ,
         by = c(
           "id_table_liste_plots_n" = "id_table_liste_plots_n",
-          "ind_num_sous_plot" = "ind_num_sous_plot"
+          "tag" = "tag"
         )
       ) %>%
       dplyr::filter(!is.na(n)) %>%
@@ -5029,19 +5029,19 @@ add_individuals <- function(new_data ,
 
   }
 
-  ## checking ind_num_sous_plot
+  ## checking tag
 
-  if(!is.numeric(new_data_renamed$ind_num_sous_plot)) {
+  if(!is.numeric(new_data_renamed$tag)) {
 
     new_data_renamed <-
       new_data_renamed %>%
-      dplyr::mutate(ind_num_sous_plot = as.numeric(ind_num_sous_plot))
+      dplyr::mutate(tag = as.numeric(tag))
 
-    if(any(is.na(new_data_renamed$ind_num_sous_plot)))
+    if(any(is.na(new_data_renamed$tag)))
       new_data_renamed %>%
-      filter(is.na(ind_num_sous_plot)) %>%
+      filter(is.na(tag)) %>%
       print()
-      stop("ind_num_sous_plot missing after converting to numeric")
+      stop("tag missing after converting to numeric")
   }
 
   # check herbarium specimen coherence
@@ -5107,7 +5107,7 @@ add_individuals <- function(new_data ,
             id_selected <-
               new_data_renamed %>%
               filter(herbarium_nbe_char == missing_herb_type$herbarium_nbe_char[i]) %>%
-              arrange(ind_num_sous_plot, id_table_liste_plots_n) %>%
+              arrange(tag, id_table_liste_plots_n) %>%
               dplyr::slice(1) %>%
               dplyr::select(id_temp)
 
@@ -6360,9 +6360,9 @@ replace_NA <- function(df, inv = FALSE) {
     dplyr::tbl(mydb, "data_individuals") %>%
     dplyr::filter(herbarium_nbe_char %in% !!herb_specimen_diff_gen$herbarium_nbe_char) %>%
     dplyr::collect() %>%
-    dplyr::select(dbh, code_individu, 
-                  # sous_plot_name, 
-                  ind_num_sous_plot, herbarium_nbe_char,
+    dplyr::select(dbh, code_individu,
+                  # sous_plot_name,
+                  tag, herbarium_nbe_char,
                   herbarium_code_char, herbarium_nbe_type, id_diconame_n) %>%
     dplyr::left_join(dplyr::tbl(mydb, "diconame") %>%
                        dplyr::select(id_n, full_name_no_auth, tax_gen, tax_esp, tax_fam) %>%
@@ -6449,7 +6449,7 @@ replace_NA <- function(df, inv = FALSE) {
                     dplyr::contains(paste0("date_census_", i)),
                     dplyr::contains(paste0("date_census_julian_", i)),
              id_n,
-             ind_num_sous_plot,
+             tag,
              plot_name)
 
     stem_census <- paste0("stem_diameter_census_", i)
@@ -6840,14 +6840,14 @@ growth_computing <- function(dataset,
                   tax_esp,
                   plot_name,
                   # sous_plot_name,
-                  ind_num_sous_plot,
+                  tag,
                   id_table_liste_plots_n
                 ),
               by = c("id_n" = "id_n")
             ) %>%
             dplyr::relocate(plot_name,
                             # sous_plot_name,
-                            ind_num_sous_plot,
+                            tag,
                             tax_sp_level,
                             tax_fam,
                             tax_gen,
@@ -6925,7 +6925,7 @@ growth_computing <- function(dataset,
                 tax_esp,
                 plot_name,
                 # sous_plot_name,
-                ind_num_sous_plot,
+                tag,
                 id_table_liste_plots_n
               ),
             by = c("id_n" = "id_n")
@@ -10099,10 +10099,10 @@ query_link_individual_specimen <- function(id_ind = NULL,
 #'
 #' This function checks the order of subplots in a given data frame against a predefined order.
 #' It also checks if there are any missing or too much subplots. If there is any issue, it plots the mean of
-#' the indicator variable 'ind_num_sous_plot' for each subplot and displays it in a spatial plot to see where the
+#' the indicator variable 'tag' for each subplot and displays it in a spatial plot to see where the
 #' errors from thanks to an indicator 'check.
 #'
-#' @param ind.extract A data frame containing the indicator variable 'ind_num_sous_plot' and the names of the plots and subplots in the columns 'plot_name' and 'sous_plot_name' respectively.
+#' @param ind.extract A data frame containing the indicator variable 'tag' and the names of the plots and subplots in the columns 'plot_name' and 'sous_plot_name' respectively.
 #' @param sub_plot A \code{sf} object containing the names of the plots and subplots in the columns 'plot_name' and 'sous_plot_name' respectively.
 #' @return The function returns a message indicating if the order of subplots in the data frame is correct or if there is a problem with the order. If there is any issue, it plots the errors.
 #'
@@ -10118,7 +10118,7 @@ query_link_individual_specimen <- function(id_ind = NULL,
 #'                                         "80_60","60_60","40_60","20_60","0_60",
 #'                                         "0_80","20_80","40_80","60_80","80_80"),
 #'                                       each = 10),
-#'                  ind_num_sous_plot = c(1:250, 1:50, 76:100, 51:75, 101:250))
+#'                  tag = c(1:250, 1:50, 76:100, 51:75, 101:250))
 #'
 #' # Define the 2 plots geometry
 #' square1 <- st_polygon(list(rbind(c(0,0), c(0,1), c(1,1), c(1,0), c(0,0))))
@@ -10258,7 +10258,7 @@ test.order.subplot <- function(ind.extract, sub_plot){
     tmp <- ind.extract %>%
       filter (plot_name == unique(ind.extract$plot_name)[i]) %>%
       group_by(plot_name, quadrat) %>%
-      summarise(mean_id = mean(ind_num_sous_plot),
+      summarise(mean_id = mean(tag),
                 plot_name = unique(plot_name)) %>%
       ungroup()
 
