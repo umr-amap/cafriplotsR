@@ -636,3 +636,137 @@ define_full_access_policy <- function(con, user, ids, table = "data_liste_plots"
 define_read_write_policy <- function(con, user, ids, table = "data_liste_plots") {
   define_user_policy(con, user, ids, table, operations = c("SELECT", "INSERT", "UPDATE"))
 }
+
+
+
+
+# Database Query Utilities -----------------------------------------------
+
+#' Safely execute a SQL query with automatic retry
+#'
+#' This function attempts to execute a SQL query using \code{DBI::dbSendQuery()} and \code{DBI::dbFetch()},
+#' with automatic retries in case of transient database failures such as connection loss
+#' or query preparation errors.
+#'
+#' @param con A DBI connection object.
+#' @param sql A SQL query string, typically created using \code{glue::glue_sql()}.
+#' @param max_attempts Integer. Maximum number of attempts before giving up. Default is 10.
+#' @param wait_seconds Numeric. Time in seconds to wait between retries. Default is 1.
+#' @param verbose Logical. If \code{TRUE}, displays informative messages. Default is \code{TRUE}.
+#'
+#' @return A tibble containing the query results, with unique column names.
+#'
+#' @details
+#' This function is designed for read queries (e.g., \code{SELECT}) that return results.
+#' For write queries (e.g., \code{UPDATE}, \code{INSERT}, \code{DELETE}), use a variant that uses \code{dbExecute()} or \code{dbSendStatement()}.
+#'
+#' If the database connection is lost, the function stops immediately.
+#' If the query fails to prepare (e.g., due to a lock or temporary issue), the function retries up to \code{max_attempts}.
+#'
+#'
+#' @export
+func_try_fetch <-
+  function(con,
+           sql,
+           max_attempts = 10,
+           wait_seconds = 1,
+           verbose = TRUE) {
+    attempt <- 1
+    success <- FALSE
+    result <- NULL
+    last_error <- NULL
+
+    while (attempt <= max_attempts && !success) {
+      if (verbose)
+        cli::cli_alert_info("Attempt {attempt} of {max_attempts}...")
+
+      try_result <- try({
+        rs <- DBI::dbSendQuery(con, sql)
+        result <- DBI::dbFetch(rs)
+        DBI::dbClearResult(rs)
+      }, silent = TRUE)
+
+      if (inherits(try_result, "try-error")) {
+        error_message <- conditionMessage(attr(try_result, "condition"))
+
+        if (grepl("Lost connection to database",
+                  error_message,
+                  ignore.case = TRUE)) {
+          stop("❌ Lost connection to database. Aborting.")
+        }
+
+        if (grepl("Failed to prepare query", error_message, ignore.case = TRUE)) {
+          cli::cli_alert_warning("Failed to prepare query (attempt {attempt}): {error_message}")
+          last_error <- error_message
+          attempt <- attempt + 1
+          Sys.sleep(wait_seconds)
+        } else {
+          stop(glue::glue("❌ Unhandled error: {error_message}"))
+        }
+
+      } else {
+        success <- TRUE
+      }
+    }
+
+    if (!success) {
+      stop(
+        glue::glue(
+          "❌ Failed to fetch query after {max_attempts} attempts. Last error: {last_error}"
+        )
+      )
+    }
+
+    if (success && verbose) {
+      cli::cli_alert_success("✅ Successfully connected and fetched {nrow(result)} rows.")
+    }
+
+
+    # Return as tibble (with unique column names)
+    tibble::as_tibble(result, .name_repair = "unique")
+  }
+
+
+#' Try to open PostgreSQL table
+#'
+#' @description
+#' Access to postgresql database table with repeating if no successful
+#'
+#' @param table A table name.
+#' @param con A database connection.
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#' @returns
+#' A `tbl` object representing the PostgreSQL table. The function will error
+#' if the connection to the database is lost or if it fails to connect after
+#' 10 attempts.
+#'
+#' @export
+try_open_postgres_table <- function(table, con) {
+
+  mydb <- call.mydb()
+
+  rep <- TRUE
+  rep_try <- 1
+  while(rep) {
+
+    res_q <- try({table_postgre <- dplyr::tbl(con, table)}, silent = TRUE)
+
+    if (any(grepl("Lost connection to database", res_q[1])))
+      stop("Lost connection to database")
+
+    if (any(grepl("Failed to prepare query", res_q[1]))) {
+      rep <- TRUE
+      cli::cli_alert_warning("---")
+      rep_try <- rep_try + 1
+    } else {
+      rep <- FALSE
+    }
+
+    if (rep_try == 10)
+      stop("Failed to connect to database")
+  }
+
+  return(table_postgre)
+}
