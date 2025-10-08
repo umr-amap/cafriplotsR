@@ -16,12 +16,19 @@
 ## Installation
 
 ```r
-# Install from GitHub (requires credentials)
-# devtools::install_github("user/plotsdatabase")
+# Install from GitHub
+install.packages(c("tidyverse", "dbplyr", "devtools"))
+devtools::install_github("gdauby/bdd_plots_central_africa")
 
-# Or install locally
-devtools::install()
 ```
+
+In case of slow internet connection, the installation from github above may fail.
+You may try to first launch this code line in the console, it will increase the time for trying to install :
+
+```r
+options(timeout = max(3000, getOption("timeout")))
+```
+
 
 **Note:** Access to the database is restricted and requires appropriate credentials.
 
