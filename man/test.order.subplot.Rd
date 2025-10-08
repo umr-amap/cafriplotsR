@@ -7,7 +7,7 @@
 test.order.subplot(ind.extract, sub_plot)
 }
 \arguments{
-\item{ind.extract}{A data frame containing the indicator variable 'ind_num_sous_plot' and the names of the plots and subplots in the columns 'plot_name' and 'sous_plot_name' respectively.}
+\item{ind.extract}{A data frame containing the indicator variable 'tag' and the names of the plots and subplots in the columns 'plot_name' and 'sous_plot_name' respectively.}
 
 \item{sub_plot}{A \code{sf} object containing the names of the plots and subplots in the columns 'plot_name' and 'sous_plot_name' respectively.}
 }
@@ -17,7 +17,7 @@ The function returns a message indicating if the order of subplots in the data f
 \description{
 This function checks the order of subplots in a given data frame against a predefined order.
 It also checks if there are any missing or too much subplots. If there is any issue, it plots the mean of
-the indicator variable 'ind_num_sous_plot' for each subplot and displays it in a spatial plot to see where the
+the indicator variable 'tag' for each subplot and displays it in a spatial plot to see where the
 errors from thanks to an indicator 'check.
 }
 \examples{
@@ -30,7 +30,7 @@ df <- data.frame(plot_name = c(rep("plot1", each = 250),rep("plot2", each = 250)
                                         "80_60","60_60","40_60","20_60","0_60",
                                         "0_80","20_80","40_80","60_80","80_80"),
                                       each = 10),
-                 ind_num_sous_plot = c(1:250, 1:50, 76:100, 51:75, 101:250))
+                 tag = c(1:250, 1:50, 76:100, 51:75, 101:250))
 
 # Define the 2 plots geometry
 square1 <- st_polygon(list(rbind(c(0,0), c(0,1), c(1,1), c(1,0), c(0,0))))

@@ -206,7 +206,7 @@ subset <-
   dplyr::select(
     plot_name,
     sous_plot_name,
-    ind_num_sous_plot,
+    tag,
     tax_infra_level,
     tax_fam,
     tax_gen,
@@ -218,7 +218,7 @@ subset <-
     dplyr::contains("stem_diameter"),
     dplyr::contains("observations")
   ) %>%
-  dplyr::arrange(ind_num_sous_plot) %>%
+  dplyr::arrange(tag) %>%
   mutate(tax_infra_level = ifelse(
     is.na(tax_infra_level),
     ifelse(is.na(tax_gen), tax_fam, tax_gen),
@@ -233,7 +233,7 @@ subset_with_id <-
   dplyr::select(
     plot_name,
     sous_plot_name,
-    ind_num_sous_plot,
+    tag,
     tax_infra_level,
     tax_fam,
     tax_gen,
@@ -246,7 +246,7 @@ subset_with_id <-
     dplyr::contains("stem_diameter"),
     dplyr::contains("observations")
   ) %>%
-  dplyr::arrange(ind_num_sous_plot) %>%
+  dplyr::arrange(tag) %>%
   mutate(tax_infra_level = ifelse(
     is.na(tax_infra_level),
     ifelse(is.na(tax_gen), tax_fam, tax_gen),
@@ -463,11 +463,10 @@ subset <-
   subset %>% 
   mutate(original_tax_name = stringr::str_trim(original_tax_name))
 
-subset_reformated <- 
-  subset %>% 
+subset_reformated <-
+  subset %>%
   rename(P = plot_name,
     quad = sous_plot_name,
-         tag = ind_num_sous_plot,
          tax = tax_infra_level, 
          TaxOr = original_tax_name,
          Ht = herbarium_nbe_type,
@@ -505,11 +504,10 @@ subset_with_id <-
   mutate(original_tax_name = stringr::str_trim(original_tax_name))
 
 
-subset_reformated_with_id <- 
-  subset_with_id %>% 
+subset_reformated_with_id <-
+  subset_with_id %>%
   rename(P = plot_name,
     quad = sous_plot_name,
-         tag = ind_num_sous_plot,
          tax = tax_infra_level, 
          TaxOr = original_tax_name,
          Ht = herbarium_nbe_type,

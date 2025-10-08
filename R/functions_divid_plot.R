@@ -653,7 +653,7 @@ approximate_isolated_xy <- function(dataset,
                                     col_plot = "plot_name",
                                     col_pos_x = "position_x_iphone",
                                     col_pos_y = "position_y_iphone",
-                                    tag = "ind_num_sous_plot") {
+                                    tag = "tag") {
   
   col_subplot <- rlang::ensym(col_subplot)
   col_pos_x   <- rlang::ensym(col_pos_x)
