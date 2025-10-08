@@ -12,6 +12,10 @@
 ### New Features
 * Initial release of package structure with comprehensive database query functions
 
+### Documentation
+* Added comprehensive README.md with package overview, quick start guide, and function reference
+* README includes prominent link to NEWS.md for tracking updates
+
 ### Infrastructure
 * Added NEWS.md to track package changes and updates
 * Established git branching workflow for all code modifications
