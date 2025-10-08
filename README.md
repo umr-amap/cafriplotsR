@@ -1,6 +1,6 @@
 # plotsdatabase
 
-> R package for exploring and updating the Central African forest plot database
+> R package for exploring and updating the Central African forest plot database [cafriplot network](https://cafriplot.net/)
 
 ## Overview
 
@@ -45,11 +45,11 @@ The package connects to two PostgreSQL databases:
 library(plotsdatabase)
 
 # Connect to databases
-con_main <- call.mydb()
-con_taxa <- call.mydb.taxa()
+mydb <- call.mydb()
+mydb_taxa <- call.mydb.taxa()
 
 # Visualize database structure
-get_database_fk(con_main)
+get_database_fk(mydb)
 
 # Query plots
 plots <- query_plots(plot_ids = c(1, 2, 3))
@@ -83,20 +83,13 @@ indiv <- query_individual_features(
 - `query_taxa_traits()` - Query species-level traits
 - `query_plot_features()` - Query plot-level features
 
-### Database Updates
-- `add_individuals()` - Add new individual tree records
-- `add_sp_traits_measures()` - Add species trait measurements
-- `add_trait_taxa()` - Add new trait definitions
 
 ### Utilities
 - `get_database_fk()` - Visualize database schema and relationships
-- `resolve_taxon_synonyms()` - Consolidate traits from taxonomic synonyms
-- `.link_table()` - Interactive data matching to lookup tables
 
 ## Documentation
 
 - **Function help**: Use `?function_name` for detailed documentation
-- **Tutorials**: See `.Rmd` files in package root (`tuto_database.Rmd`, `tuto_db.Rmd`)
 - **Changelog**: See [NEWS.md](NEWS.md) for version history and updates
 
 ## Recent Updates
