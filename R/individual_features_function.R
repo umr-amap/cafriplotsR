@@ -1951,47 +1951,47 @@ add_traits_measures <- function(new_data,
       
       ### Linking individuals
       if (!is.null(individual_plot_field)) {
-        
+
         individual_plot <-
-          "ind_num_sous_plot"
-        
+          "tag"
+
         data_trait <-
           data_trait %>%
           dplyr::rename_at(dplyr::vars(all_of(individual_plot_field)), ~ individual_plot)
-        
-        
+
+
         ## not numeric or missing individuals tag
         nbe_not_numeric <-
-          suppressWarnings(which(is.na(as.numeric(data_trait$ind_num_sous_plot))))
-        
+          suppressWarnings(which(is.na(as.numeric(data_trait$tag))))
+
         data_trait <-
           data_trait %>%
-          dplyr::mutate(ind_num_sous_plot = as.numeric(ind_num_sous_plot))
-        
+          dplyr::mutate(tag = as.numeric(tag))
+
         if(length(nbe_not_numeric) > 0) {
           cli::cli_alert_warning(
             "Number of non numeric (or missing) value in column indicating invividual number in plot : {length(nbe_not_numeric)}"
           )
           print(nbe_not_numeric)
-          
+
           data_trait <-
             data_trait %>%
-            filter(!is.na(ind_num_sous_plot))
-          
+            filter(!is.na(tag))
+
           cli::cli_alert_warning("Number of non numeric (or missing) value REMOVED")
         }
-        
+
         ## vector of id of all plots
         ids_plots_represented <-
           data_trait %>%
           dplyr::distinct(id_liste_plots) %>%
           dplyr::filter(!is.na(id_liste_plots)) %>%
           dplyr::pull()
-        
+
         ## query of all individuals of these plots
         all_individual_selected_plot <-
           dplyr::tbl(mydb, "data_individuals") %>%
-          dplyr::select(ind_num_sous_plot, id_table_liste_plots_n,
+          dplyr::select(tag, id_table_liste_plots_n,
                         id_n, id_diconame_n, id_specimen) %>%
           dplyr::filter(id_table_liste_plots_n %in% ids_plots_represented) %>%
           dplyr::collect()
@@ -2017,26 +2017,26 @@ add_traits_measures <- function(new_data,
           linked_individuals <-
             dplyr::left_join(new_data_renamed_subset,
                              all_individual_selected_plot_subset,
-                             by=c("ind_num_sous_plot" = "ind_num_sous_plot"))
-          
+                             by=c("tag" = "tag"))
+
           ## getting individuals that have already observations traits_measures table
           individuals_already_traits <-
             dplyr::tbl(mydb, "data_traits_measures") %>%
             dplyr::filter(id_data_individuals %in% !!linked_individuals$id_n) %>%
             dplyr::collect()
-          
+
           if(nrow(individuals_already_traits) > 0 &
              any(unique(data_trait$id_trait) %in%
                  unique(individuals_already_traits$traitid))) {
-            
+
             cli::cli_alert_warning("Individuals of plot id {ids_plots_represented[j]} already linked to this trait - consistency should be checked")
-            
+
             linked_individuals %>%
               dplyr::select(id_new_data,
                             id_trait,
                             id_table_liste_plots_n,
                             id_sub_plots,
-                            ind_num_sous_plot,
+                            tag,
                             id_n,
                             trait)
             
@@ -2204,7 +2204,7 @@ add_traits_measures <- function(new_data,
           obs_dup <-
             data_trait %>%
             dplyr::filter(id_data_individuals %in% dplyr::pull(ids_dup, id_data_individuals)) %>%
-            dplyr::select(trait, plot_name, ind_num_sous_plot, id_data_individuals, id_new_data)
+            dplyr::select(trait, plot_name, tag, id_data_individuals, id_new_data)
           
           issue_2 <- vector(mode = "character", length = nrow(data_trait))
           for (k in 1:nrow(ids_dup)) {

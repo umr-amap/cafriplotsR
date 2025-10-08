@@ -1,0 +1,196 @@
+# data model segments
+
+- segment: &md Individuals
+- segment: &tran Plots meta-data
+- segment: &people People
+- segment: &trait Traits
+- segment: &specimen Specimens
+- segment: &diconame Taxonomic backbone
+- segment: &followup Archives of modifications
+
+
+# Tables and columns
+
+- table: data_individuals
+  segment: *md
+  display: accent1
+  columns:
+    id_n: {key: yes}
+    sous_plot_name:
+    tag:
+    herbarium_nbe_char:
+    herbarium_code_char:
+    herbarium_nbe_type:
+    original_tax_name:
+    strate_cat:
+    position_transect:
+    id_table_liste_plots_n: {ref: data_liste_plots}
+    id_diconame_n: {ref: diconame}
+
+
+- table: data_liste_plots
+  segment: *tran
+  display: accent2
+  columns:
+    id_liste_plots: {key: yes}
+    plot_name:
+    team_leader:
+    data_provider:
+    co_authorship:
+    additional_people:
+    country:
+    province:
+    locality_name:
+    ddlat:
+    ddlon:
+    elevation:
+    date_y:
+    date_m:
+    date_d:
+    id_method: {ref: methodslist}
+
+
+- table: data_liste_sub_plots
+  segment: *tran
+  display: accent2
+  columns:
+    id_sub_plots: {key: yes}
+    typevalue:
+    typevalue_char:
+    year:
+    month:
+    day:
+    additional_people:
+    id_type_sub_plot: {ref: subplotype_list}
+    id_colnam: {ref: table_colnam}
+
+
+- table: subplotype_list
+  segment: *tran
+  display: accent2
+  columns:
+    id_subplotype: {key: yes}
+    type:
+    valuetype:
+    maxallowedvalue:
+    minallowedvalue:
+    typedescription:
+    factorlevels:
+
+
+- table: methodslist
+  segment: *tran
+  display: accent2
+  columns:
+    id_method: {key: yes}
+    method:
+    description_method:
+
+- table: table_colnam
+  segment: *people
+  display: accent3
+  columns:
+    id_table_colnam: {key: yes}
+    colnam:
+    family_name:
+    surname:
+    nationality:
+
+
+
+
+- table: data_traits_measures
+  segment: *trait
+  display: accent4
+  columns:
+    id_trait_measures: {key: yes}
+    traitvalue:
+    traitvalue_char:
+    basisofrecord:
+    year:
+    month:
+    day:
+    original_tax_name:
+    references:
+    id_data_individuals: {ref: data_individuals}
+    id_table_liste_plots: {ref: data_liste_plots}
+    id_sub_plots: {ref: data_liste_sub_plots}
+    id_specimen: {ref: specimens}
+    id_diconame_n: {ref: diconame}
+    id_colnam: {ref: table_colnam}
+    traitid: {ref: traitlist}
+
+- table: traitlist
+  segment: *trait
+  display: accent4
+  columns:
+    id_trait: {key: yes}
+    trait:
+    valuetype:
+    maxallowedvalue:
+    minallowedvalue:
+    traitdescription:
+    factorlevels:
+    expectedunit:
+
+- table: data_link_specimens
+  segment: *specimen
+  display: accent5
+  columns:
+    id_link_specimens: {key: yes}
+    id_specimen: {ref: specimens}
+    id_n: {ref: data_individuals}
+
+
+- table: specimens
+  segment: *specimen
+  display: accent5
+  columns:
+    id_specimen: {key: yes}
+    coly:
+    colm:
+    cold:
+    country:
+    colnbr:
+    add_col:
+    locality:
+    ddlat:
+    ddlon:
+    detby:
+    detd:
+    detm:
+    dety:
+    original_tax_name:
+    id_diconame_n: {ref: diconame}
+    id_colnam: {ref: table_colnam}
+
+- table: diconame
+  segment: *diconame
+  display: accent6
+  columns:
+    id_n: {key: yes}
+    id_good_n:
+    tax_fam:
+    tax_gen:
+    tax_esp:
+    full_name:
+    full_name_no_auth:
+
+
+- table: followup_updates_specimens
+  segment: *followup
+  display: accent7
+  columns:
+    id_fol_up_specimens: {key: yes}
+    modif_type:
+    id_specimen: {ref: specimens}
+
+- table: followup_updates_individuals
+  segment: *followup
+  display: accent7
+  columns:
+    id_fol_up_ind: {key: yes}
+    modif_type:
+    id_n: {ref: data_individuals}
+
+
