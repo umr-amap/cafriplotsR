@@ -20,5 +20,16 @@
 * Added NEWS.md to track package changes and updates
 * Established git branching workflow for all code modifications
 
+### Code Refactoring
+* **Major refactoring**: Reorganized `R/functions_manip_db.R` (previously 10,528 lines) into modular, domain-specific files
+  - Created `R/growth_census_functions.R` (556 lines) - Growth computation and census analysis functions
+  - Created `R/specimen_linking_functions.R` (406 lines) - Herbarium specimen linking and querying functions
+  - Created `R/taxonomic_query_functions.R` (944 lines) - Taxonomic query functions with synonym resolution
+  - Created `R/taxonomic_update_functions.R` (838 lines) - Taxonomic data update and entry functions
+  - Expanded `R/connections_db.R` with database query utilities (`func_try_fetch`, `try_open_postgres_table`)
+  - Removed ~6,800 lines from `R/functions_manip_db.R` through extraction to specialized modules
+  - All functions verified as moved (not duplicated) to new locations
+  - Improved code maintainability and discoverability
+
 ---
 
