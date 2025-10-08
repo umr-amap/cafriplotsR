@@ -10,7 +10,7 @@ approximate_isolated_xy(
   col_plot = "plot_name",
   col_pos_x = "position_x_iphone",
   col_pos_y = "position_y_iphone",
-  tag = "ind_num_sous_plot"
+  tag = "tag"
 )
 }
 \arguments{
