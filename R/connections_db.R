@@ -156,22 +156,39 @@ get_username_secure <- function(prompt) {
 #' Create local DB config file
 #'
 #' Writes DB connection config to ~/.mydb_config.R
+#' Falls back to in-memory configuration if file creation fails.
 #' @export
 create_db_config <- function(config_path = NULL) {
+
+  # Define default configuration values
+  define_config_vars <- function() {
+    # Assign to global environment so they're accessible
+    assign("db_host", "dg474899-001.dbaas.ovh.net", envir = .GlobalEnv)
+    assign("db_port", 35699, envir = .GlobalEnv)
+    assign("db_name", "plots_transects", envir = .GlobalEnv)
+    assign("db_name_taxa", "rainbio", envir = .GlobalEnv)
+    assign("db_connect_timeout", 10, envir = .GlobalEnv)
+    assign("db_max_retries", 3, envir = .GlobalEnv)
+  }
+
+  # If config_path is NULL, try default location
   if (is.null(config_path)) {
     config_path <- file.path(path.expand("~"), ".mydb_config.R")
   }
-  
+
+  # If config file exists, try to load it
   if (file.exists(config_path)) {
     tryCatch({
       source(config_path, local = FALSE)
       return(invisible(FALSE))
     }, error = function(e) {
       cli::cli_alert_warning("Error loading config file: {e$message}")
-      cli::cli_alert_info("Creating new config file...")
+      cli::cli_alert_info("Using default configuration in memory")
+      define_config_vars()
+      return(invisible(TRUE))
     })
   }
-  
+
   # Template de configuration
   config_content <- '
 # Database Configuration
@@ -180,19 +197,36 @@ db_host <- "dg474899-001.dbaas.ovh.net"
 db_port <- 35699
 db_name <- "plots_transects"
 
-# Taxa database  
+# Taxa database
 db_name_taxa <- "rainbio"
 
 # Connection settings
 db_connect_timeout <- 10
 db_max_retries <- 3
 '
-  
-  cat(config_content, file = config_path)
-  message("Database config file created at: ", config_path)
-  source(config_path, local = FALSE)
-  
-  invisible(TRUE)
+
+  # Try to create the config file
+  result <- tryCatch({
+    # Ensure parent directory exists
+    config_dir <- dirname(config_path)
+    if (!dir.exists(config_dir)) {
+      dir.create(config_dir, recursive = TRUE, showWarnings = FALSE)
+    }
+
+    # Write config file
+    cat(config_content, file = config_path)
+    message("Database config file created at: ", config_path)
+    source(config_path, local = FALSE)
+    TRUE
+  }, error = function(e) {
+    cli::cli_alert_warning("Could not create config file at: {config_path}")
+    cli::cli_alert_info("Reason: {e$message}")
+    cli::cli_alert_info("Using in-memory configuration instead")
+    define_config_vars()
+    FALSE
+  })
+
+  invisible(result)
 }
 
 
