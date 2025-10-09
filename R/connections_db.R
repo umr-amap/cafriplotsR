@@ -206,7 +206,7 @@ db_max_retries <- 3
 '
 
   # Try to create the config file
-  result <- tryCatch({
+  result <- suppressWarnings(tryCatch({
     # Ensure parent directory exists
     config_dir <- dirname(config_path)
     if (!dir.exists(config_dir)) {
@@ -224,7 +224,7 @@ db_max_retries <- 3
     cli::cli_alert_info("Using in-memory configuration instead")
     define_config_vars()
     FALSE
-  })
+  }))
 
   invisible(result)
 }
