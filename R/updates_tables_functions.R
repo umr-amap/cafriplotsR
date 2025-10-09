@@ -932,6 +932,65 @@
 # }
 
 
+#' Get summary of individuals linked to a specimen
+#'
+#' @description
+#' Internal helper function to retrieve and summarize individuals linked to a specimen.
+#' Returns a summary grouped by plot showing number of individuals and their current taxonomy.
+#'
+#' @param id_specimen integer, specimen ID
+#' @param con database connection
+#'
+#' @return A tibble with columns: plot_name, n_individuals, idtax_n, full_name_no_auth
+#' @keywords internal
+.get_linked_individuals_summary <- function(id_specimen, con) {
+
+  # Get linked individuals
+  linked_inds <- query_link_individual_specimen(id_specimen = id_specimen)
+
+  if (is.null(linked_inds) || nrow(linked_inds) == 0) {
+    return(NULL)
+  }
+
+  # Get individual details with plot and taxonomy
+  ind_details <-
+    dplyr::tbl(con, "data_individuals") %>%
+    dplyr::filter(id_n %in% !!linked_inds$id_n) %>%
+    dplyr::select(id_n, id_table_liste_plots_n, idtax_n) %>%
+    dplyr::left_join(
+      dplyr::tbl(con, "data_liste_plots") %>%
+        dplyr::select(id_liste_plots, plot_name),
+      by = c("id_table_liste_plots_n" = "id_liste_plots")
+    ) %>%
+    dplyr::collect()
+
+  # Get taxonomy names
+  if (nrow(ind_details) > 0 && any(!is.na(ind_details$idtax_n))) {
+    taxa_info <-
+      dplyr::tbl(con, "diconame") %>%
+      dplyr::filter(id_n %in% !!unique(ind_details$idtax_n)) %>%
+      dplyr::select(id_n, full_name_no_auth) %>%
+      dplyr::collect()
+
+    ind_details <-
+      ind_details %>%
+      dplyr::left_join(taxa_info, by = c("idtax_n" = "id_n"))
+  } else {
+    ind_details <- ind_details %>% dplyr::mutate(full_name_no_auth = NA_character_)
+  }
+
+  # Summarize by plot
+  summary <-
+    ind_details %>%
+    dplyr::group_by(plot_name, idtax_n, full_name_no_auth) %>%
+    dplyr::summarise(n_individuals = dplyr::n(), .groups = "drop") %>%
+    dplyr::arrange(plot_name)
+
+  return(summary)
+}
+
+
+
 #' Update specimens table
 #'
 #' Update specimens table
@@ -1153,6 +1212,22 @@ update_ident_specimens <- function(colnam = NULL,
 
       modif_types <-
         paste0(colnames(as.matrix(comp_values))[which(as.matrix(comp_values))], sep="__")
+
+      # Show linked individuals summary if there's a new identification
+      if (only_new_ident && any(comp_values %>%
+                                dplyr::select_if(~ sum(.) > 0) %>%
+                                colnames() == "idtax_n")) {
+
+        linked_summary <- .get_linked_individuals_summary(queried_speci$id_specimen, mydb)
+
+        if (!is.null(linked_summary) && nrow(linked_summary) > 0) {
+          cli::cli_alert_info("This specimen has {nrow(linked_summary)} linked individual(s) that will inherit this new identification:")
+          print(linked_summary %>%
+                  dplyr::select(plot_name, n_individuals, taxa_current = full_name_no_auth))
+        } else {
+          cli::cli_alert_info("No linked individuals found for this specimen")
+        }
+      }
 
       if (ask_before_update) {
 
@@ -4534,4 +4609,65 @@ update_records <- function(data,
   invisible(result)
 }
 
+
+
+#' Compare two row-tibbles and generate HTML with differences
+#'
+#' @param vec_1 A tibble with one row
+#' @param vec_2 A tibble with one row
+#' 
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' 
+#' @return A list: (1) tibble of differing columns, (2) HTML table highlighting differences
+#' @export
+.comp_print_vec <- function(vec_1, vec_2) {
+  
+  stopifnot(nrow(vec_1) == 1, nrow(vec_2) == 1)
+  stopifnot(ncol(vec_1) == ncol(vec_2), all(names(vec_1) == names(vec_2)))
+  
+  vec_1 <- replace_NA(vec_1)
+  vec_2 <- replace_NA(vec_2)
+  
+  comp_val <- vec_1 != vec_2
+  comp_val <- as_tibble(comp_val)
+  diff_cols <- comp_val %>% select(where(~ any(.)))
+  
+  if (ncol(diff_cols) == 0) {
+    return(list(comp_tb = FALSE, comp_html = NA))
+  }
+  
+  if ("idtax_n" %in% names(vec_1)) {
+    old_tax <- query_taxa(ids = vec_2$idtax_n, check_synonymy = FALSE,
+                          class = NULL, extract_traits = FALSE)
+    new_tax <- query_taxa(ids = vec_1$idtax_n, check_synonymy = FALSE,
+                          class = NULL, extract_traits = FALSE)
+    
+    vec_1 <- dplyr::left_join(vec_1, new_tax %>% dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp), by = "idtax_n")
+    vec_2 <- dplyr::left_join(vec_2, old_tax %>% dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp), by = "idtax_n")
+  }
+  
+  comp_tb <- 
+    tibble(
+      cols = names(vec_1),
+      current = unlist(replace_NA(vec_1, inv = T), use.names = FALSE),
+      new = unlist(replace_NA(vec_2, inv = T), use.names = FALSE),
+      current_comp = unlist(vec_1, use.names = FALSE),
+      new_comp = unlist(vec_2, use.names = FALSE)
+    )
+  
+  comp_tb_html <- 
+    comp_tb %>%
+    mutate(
+      new = kableExtra::cell_spec(
+        new, "html",
+        color = if_else(tidyr::replace_na(current_comp, "") != tidyr::replace_na(new_comp, ""), 
+                        "red", "blue")
+      )
+    ) %>%
+    select(-new_comp, -current_comp) %>%
+    kableExtra::kable("html", escape = FALSE) %>%
+    kableExtra::kable_styling("striped", full_width = FALSE)
+  
+  return(list(comp_tb = diff_cols, comp_html = comp_tb_html))
+}
 
