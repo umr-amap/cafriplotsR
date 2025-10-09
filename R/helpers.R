@@ -318,3 +318,70 @@ replace_NA <- function(df, inv = FALSE) {
     dplyr::mutate(dplyr::across(where(is.character), chr_fun))
 }
 
+
+
+
+#' Compare two row-tibbles and generate HTML with differences
+#'
+#' @param vec_1 A tibble with one row
+#' @param vec_2 A tibble with one row
+#' 
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' 
+#' @return A list: (1) tibble of differing columns, (2) HTML table highlighting differences
+#' @export
+.comp_print_vec <- function(vec_1, vec_2) {
+  
+  stopifnot(nrow(vec_1) == 1, nrow(vec_2) == 1)
+  stopifnot(ncol(vec_1) == ncol(vec_2), all(names(vec_1) == names(vec_2)))
+  
+  vec_1 <- replace_NA(vec_1)
+  vec_2 <- replace_NA(vec_2)
+  
+  comp_val <- vec_1 != vec_2
+  comp_val <- as_tibble(comp_val)
+  diff_cols <- comp_val %>% select(where(~ any(.)))
+  
+  if (ncol(diff_cols) == 0) {
+    return(list(comp_tb = FALSE, comp_html = NA))
+  }
+  
+  if ("idtax_n" %in% names(vec_1)) {
+    old_tax <- query_taxa(ids = vec_2$idtax_n, check_synonymy = FALSE,
+                          class = NULL, extract_traits = FALSE)
+    new_tax <- query_taxa(ids = vec_1$idtax_n, check_synonymy = FALSE,
+                          class = NULL, extract_traits = FALSE)
+    
+    vec_1 <- dplyr::left_join(vec_1, new_tax %>% dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp), by = "idtax_n")
+    vec_2 <- dplyr::left_join(vec_2, old_tax %>% dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp), by = "idtax_n")
+  }
+  
+  comp_tb <- 
+    tibble(
+      cols = names(vec_1),
+      current = unlist(replace_NA(vec_1, inv = T), use.names = FALSE),
+      new = unlist(replace_NA(vec_2, inv = T), use.names = FALSE),
+      current_comp = unlist(vec_1, use.names = FALSE),
+      new_comp = unlist(vec_2, use.names = FALSE)
+    )
+  
+  comp_tb_html <- 
+    comp_tb %>%
+    mutate(
+      new = kableExtra::cell_spec(
+        new, "html",
+        color = if_else(tidyr::replace_na(current_comp, "") != tidyr::replace_na(new_comp, ""), 
+                        "red", "blue")
+      )
+    ) %>%
+    select(-new_comp, -current_comp) %>%
+    kableExtra::kable("html", escape = FALSE) %>%
+    kableExtra::kable_styling("striped", full_width = FALSE)
+  
+  return(list(comp_tb = diff_cols, comp_html = comp_tb_html))
+}
+
+
+
+
+

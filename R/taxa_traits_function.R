@@ -1773,6 +1773,208 @@ query_traits_measures <- function(
 
 
 
+#' Choose growth forms
+#'
+#' Return a tibble of growth form chosen by hierarchy
+#'
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#'
+#' @return A tibble
+#' @export
+choose_growth_form <- function() {
+  
+  growth_form_cat <- query_trait(pattern = "growth")
+  
+  condition_hierarchical <- sapply(strsplit(growth_form_cat$traitdescription, 'if '), `[`, 2)
+  condition_hierarchical <- sapply(strsplit(unlist(condition_hierarchical), '[.]'), `[`, 1)
+  
+  growth_form_cat <-
+    growth_form_cat %>%
+    mutate(condition_hierarchical = condition_hierarchical)
+  
+  all_growth_form <- vector('list', 10)
+  
+  first_level <- choice_trait_cat(id_trait =  growth_form_cat %>%
+                                    filter(trait == "growth_form_level_1") %>%
+                                    pull(id_trait))
+  
+  if (!any(is.na(first_level))) {
+    
+    all_growth_form[[1]] <- first_level
+    
+    second_level <- choice_trait_cat(id_trait = growth_form_cat %>%
+                                       filter(condition_hierarchical == first_level$value) %>%
+                                       pull(id_trait))
+    
+    if (!all(is.na(second_level))) if(!is.na(second_level$value)) all_growth_form[[2]] <- second_level
+    
+    if (!any(is.na(second_level))) {
+      
+      id_t <- growth_form_cat %>%
+        filter(condition_hierarchical == second_level$value) %>%
+        pull(id_trait)
+      
+      if (length(id_t) > 0) {
+        
+        third_level <- choice_trait_cat(id_trait = id_t)
+        
+      } else {
+        
+        third_level <- NA
+        
+      }
+      
+      
+      if (!any(is.na(third_level))) {
+        
+        all_growth_form[[3]] <- third_level
+        
+        filtered_growth_form <-
+          growth_form_cat %>%
+          filter(condition_hierarchical == third_level$value)
+        
+        if (nrow(filtered_growth_form)  > 0) {
+          
+          fourth_level <- choice_trait_cat(id_trait =  filtered_growth_form %>%
+                                             pull(id_trait))
+          
+          all_growth_form[[4]] <- fourth_level
+          
+        } else {
+          
+          fourth_level <- NA
+          
+        }
+        
+        if (!any(is.na(fourth_level))) {
+          
+          filtered_growth_form <-
+            growth_form_cat %>%
+            filter(condition_hierarchical == fourth_level$value)
+          
+          if (nrow(filtered_growth_form)  > 0) {
+            
+            fith_level <- choice_trait_cat(id_trait =  filtered_growth_form %>%
+                                             pull(id_trait))
+            
+            all_growth_form[[5]] <- fith_level
+            
+          } else {
+            
+            fith_level <- NA
+            
+          }
+        }
+      }
+    }
+  }
+  
+  all_growth_form <-
+    bind_rows(all_growth_form[unlist(lapply(all_growth_form, function(x) !is.null(x)))])
+  
+  return(all_growth_form)
+  
+}
+
+
+
+choice_trait_cat <- function(id_trait) {
+  
+  trait_selected <-
+    query_trait(id_trait = id_trait)
+  
+  print(tibble(description = unlist(stringr::str_split(trait_selected$traitdescription, pattern = "[.]"))) %>%
+          kableExtra::kable(format = "html", escape = F) %>%
+          kableExtra::kable_styling("striped", full_width = F) %>%
+          print())
+  
+  print(trait_selected$list_factors[[1]])
+  
+  cli::cli_alert_info("Choose any {trait_selected$trait}")
+  first_level_choice <-
+    readline(prompt = "")
+  
+  if (first_level_choice != "") {
+    
+    suppressWarnings(if(is.na(as.numeric(first_level_choice)))
+      stop(paste("Choose a number for selecting", trait_selected$trait)))
+    
+    selected_value <-
+      trait_selected$list_factors[[1]] %>%
+      slice(as.numeric(first_level_choice)) %>%
+      mutate(trait = trait_selected$trait)
+    
+  } else {
+    
+    selected_value <- NA
+    
+  }
+  
+  return(selected_value)
+  
+}
+
+
+
+#' Query in taxa trait table
+#'
+#' Query in taxa trait table by id or pattern
+#'
+#' @return tibble with query results
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @param id_trait integer id of trait to select
+#' @param pattern string vector trait to look for in the table
+#'
+#' @export
+query_trait <- function(id_trait = NULL, pattern = NULL) {
+  
+  mydb_taxa <- call.mydb.taxa()
+  
+  if (!is.null(id_trait)) {
+    cli::cli_alert_info("query trait by id")
+    
+    table_traits <- try_open_postgres_table(table = "table_traits", con = mydb_taxa)
+    
+    valuetype <-
+      table_traits %>%
+      dplyr::filter(id_trait == !!id_trait) %>%
+      dplyr::collect()
+  }
+  
+  if (is.null(id_trait) & !is.null(pattern)) {
+    
+    cli::cli_alert_info("query trait by string pattern")
+    
+    sql <- glue::glue_sql(paste0("SELECT * FROM table_traits WHERE trait ILIKE '%", pattern, "%'"))
+    
+    valuetype <- func_try_fetch(con = mydb_taxa, sql = sql)
+    
+    
+  }
+  
+  valuetype <-
+    valuetype %>%
+    dplyr::mutate(list_factors = purrr::pmap(
+      .l = .,
+      .f = function(factorlevels,
+                    ...) {
+        
+        as_tibble(unlist(stringr::str_split(factorlevels, ", ")))
+        
+      }
+    ))
+  
+  return(valuetype)
+  
+}
+
+
+
+
+
 
 
 
