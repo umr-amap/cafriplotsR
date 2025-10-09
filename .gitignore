@@ -3,3 +3,6 @@ inst/doc
 .Rhistory
 .RData
 .Ruserdata
+.sql
+.tex
+Export_OVFI/
