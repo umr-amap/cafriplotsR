@@ -13,13 +13,14 @@ When making any code modifications, follow this workflow:
 
 2. **Make updates** on the feature branch
 
-3. **Update NEWS.md** with changes:
-   - Add entry under the current development version section
+3. **Before committing**, **ASK THE USER** whether they want to update NEWS.md:
+   - If yes, add entry under the current development version section
    - Categorize changes appropriately:
      - **Breaking Changes**: Changes that break backward compatibility
      - **New Features**: New functionality added
      - **Bug Fixes**: Fixes for existing issues
      - **Documentation**: Documentation improvements
+     - **Code Refactoring**: Code organization improvements without functional changes
      - **Infrastructure**: Development/build process changes
    - Use bullet points with clear, concise descriptions
    - Reference issue numbers or PR numbers if applicable
@@ -28,9 +29,10 @@ When making any code modifications, follow this workflow:
 
 5. **Create a pull request** (optional, based on user request) back to master
 
-6. **After merging to master**: Ensure NEWS.md reflects all changes from the merged branch
+6. **After merging to master**: Ensure NEWS.md reflects all changes from the merged branch (if updated)
 
 **Never commit directly to master unless explicitly instructed by the user.**
+**Never automatically update NEWS.md - always ask the user first.**
 
 ### NEWS.md Format
 
@@ -94,7 +96,6 @@ This is `plotsdatabase`, an R package for exploring and updating a PostgreSQL da
 - Excel (`.xlsx`) - Data imports/exports
 - GeoPackage (`.gpkg`) - Spatial/geographic data
 - CSV - Tabular data exchange
-- KML - Geographic visualization
 
 **Architecture Patterns:**
 - Connection pooling for database efficiency
@@ -212,15 +213,44 @@ indiv <- query_individual_features(
 ### Folder Organization
 
 **`R/`** - Source code (all R function definitions)
-- `connections_db.R` - Database connection management, credentials, diagnostics
-- `individual_features_function.R` - Individual tree queries and measurements
+
+*Connection & Database Management:*
+- `connections_db.R` - Database connection management, credentials, diagnostics, retry utilities
+- `database_structure.R` - Database schema visualization with `get_database_fk()`
+
+*Query Functions:*
+- `individual_features_function.R` - Individual tree measurements and traits queries
 - `subsplots_features_function.R` - Plot/subplot features and aggregation
 - `taxa_traits_function.R` - Species-level trait queries from taxa database
-- `query_plots_v2_base.R` - Plot querying with advanced filtering
-- `updates_tables_functions.R` - Database update/insert operations
-- `link_table_functions.R` - Interactive data matching and linking
-- `helpers_traits_common.R` - Generic aggregation functions
-- `functions_manip_db.R` - Data processing helpers (335KB+, extensive utilities)
+
+*Taxonomic Functions:*
+- `taxonomic_query_functions.R` - Taxonomic queries with synonym resolution
+- `taxonomic_update_functions.R` - Taxonomic data updates and entry management
+
+*Update & Delete Functions:*
+- `updates_tables_functions.R` - Database insert/update operations
+- `delete_functions.R` - Database deletion operations with cascade handling
+
+*Linking & Matching:*
+- `link_table_functions.R` - Interactive data matching to lookup tables
+- `specimen_linking_functions.R` - Herbarium specimen linking to individuals
+
+*Data Processing & Analysis:*
+- `growth_census_functions.R` - Growth computation and census analysis
+- `functions_divid_plot.R` - Plot division and spatial operations
+- `functions_manip_db.R` - General data processing utilities
+- `process_trimble_function.R` - GPS Trimble data processing
+
+*Helper Functions:*
+- `helpers_traits_common.R` - Generic trait aggregation functions
+- `helpers.R` - General utility functions (prompts, etc.)
+- `utils-pipe.R` - Pipe operator utilities
+
+*Interactive Applications:*
+- `shiny_app_taxo_match.R` - Shiny app for taxonomic matching
+
+*Package Data:*
+- `datasets.R` - Package dataset documentation
 
 **`man/`** - Documentation files (`.Rd` format)
 - Auto-generated from roxygen2 comments via `devtools::document()`
@@ -230,35 +260,64 @@ indiv <- query_individual_features(
 **Root directory:**
 - `DESCRIPTION` - Package metadata (version, authors, dependencies)
 - `NAMESPACE` - Exported functions list (auto-generated)
-- `.Rproj` - RStudio project configuration
-- `.Rmd` files - Tutorials and usage examples (e.g., `tuto_database.Rmd`, `tuto_db.Rmd`)
+- `README.md` - Package overview and quick start guide
 - `CLAUDE.md` - This file (instructions for Claude Code)
 - `NEWS.md` - Version history and changelog
-- Data files (`.xlsx`, `.gpkg`, `.csv`) - Example/test datasets and analysis outputs
+- `.Rproj` - RStudio project configuration
+- `.gitignore` - Git ignore patterns (should include data files, outputs, cache)
+
+**Note**: The repository may contain working data files (`.xlsx`, `.gpkg`, `.csv`, `.html`, `.pdf`, etc.) that are NOT part of the package and should NOT be committed to version control. These should be in `.gitignore`.
 
 ### Primary Function Categories
 
 **Connection & Utilities**:
 - `R/connections_db.R`: Database connection management, credential handling, diagnostics
-- `R/database_structure.R`: Database schema visualization (`get_database_fk()`)
+  - `call.mydb()`, `call.mydb.taxa()` - Connection functions
+  - `func_try_fetch()`, `try_open_postgres_table()` - Retry utilities
+  - `db_diagnostic()`, `print_connection_status()` - Diagnostics
+- `R/database_structure.R`: Database schema visualization
+  - `get_database_fk()` - Visualize database structure and relationships
 
 **Querying Functions**:
 - `R/individual_features_function.R`: Individual tree measurements and traits
+  - `query_individual_features()` - Main query function
 - `R/subsplots_features_function.R`: Plot-level features and subplot data
+  - `query_plot_features()`, `query_subplot_features()` - Feature queries
 - `R/taxa_traits_function.R`: Species-level trait queries from taxa database
-- `R/query_plots_v2_base.R`: Plot querying with filtering
+  - `query_taxa_traits()` - Main trait query function
 
-**Update Functions** (`R/updates_tables_functions.R`):
-- Adding new data to database tables
-- Functions like `add_sp_traits_measures()`, `add_trait_taxa()`
+**Taxonomic Functions**:
+- `R/taxonomic_query_functions.R`: Taxonomic queries with synonym resolution
+  - `query_taxa()`, `match_tax()` - Taxonomy lookups
+- `R/taxonomic_update_functions.R`: Taxonomic data updates
+  - `add_entry_taxa()`, `update_taxa_link_table()` - Add/update taxa
+  - `merge_individuals_taxa()` - Merge individuals with taxonomy
 
-**Linking & Matching** (`R/link_table_functions.R`):
-- `.link_table()`: Interactive matching of values to lookup tables
-- `.find_cat()`: Fuzzy matching for categorical values
+**Update & Delete Functions**:
+- `R/updates_tables_functions.R`: Database insert/update operations
+  - `add_sp_traits_measures()`, `add_trait_taxa()` - Add measurements/traits
+- `R/delete_functions.R`: Database deletion operations
+  - `.delete_individuals()`, `.delete_entry_trait_measure()` - Safe deletions with cascade handling
 
-**Manipulation & Helpers**:
-- `R/functions_manip_db.R`: Data processing utilities
-- `R/helpers_traits_common.R`: Generic aggregation functions
+**Linking & Specimen Management**:
+- `R/link_table_functions.R`: Interactive data matching
+  - `.link_table()` - Interactive matching of values to lookup tables
+  - `.find_cat()` - Fuzzy matching for categorical values
+- `R/specimen_linking_functions.R`: Herbarium specimen linking
+  - `.add_link_specimens()` - Link individuals to herbarium specimens
+  - `get_ref_specimen_ind()` - Find reference specimens
+
+**Data Processing & Analysis**:
+- `R/growth_census_functions.R`: Growth and census analysis
+  - `growth_computing()` - Compute tree growth between censuses
+- `R/functions_divid_plot.R`: Plot division and spatial operations
+- `R/functions_manip_db.R`: General data processing utilities
+
+**Helper Functions**:
+- `R/helpers_traits_common.R`: Generic trait aggregation
+  - `pivot_numeric_traits_generic()`, `pivot_categorical_traits_generic()`
+- `R/helpers.R`: General utilities
+  - `choose_prompt()` - Interactive user prompts
 
 ### Coding Conventions
 
