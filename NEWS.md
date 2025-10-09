@@ -12,6 +12,13 @@
 ### New Features
 * Initial release of package structure with comprehensive database query functions
 
+### Bug Fixes
+* **Connection error with complex home paths**: Fixed `create_db_config()` function that failed when home directory path contained spaces or special characters (e.g., OneDrive paths like `C:/Users/NOBUS CAPITAL/OneDrive/Documents/`)
+  - Added proper error handling with `tryCatch()` for file creation
+  - Creates parent directories if they don't exist
+  - Falls back to in-memory configuration if file cannot be written
+  - Users now get informative warnings instead of connection failures
+
 ### Documentation
 * Added comprehensive README.md with package overview, quick start guide, and function reference
 * README includes prominent link to NEWS.md for tracking updates
