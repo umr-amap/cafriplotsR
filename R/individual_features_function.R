@@ -2756,3 +2756,43 @@ add_traits_measures <- function(new_data,
 }
 
 
+
+
+#' List of trait and features potentially liked to individual
+#'
+#' Provide list of traits and features available
+#'
+#' @return A tibble of all traits and features that can be linked to individual
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @export
+traits_list <- function(id_trait = NULL) {
+  
+  mydb <- call.mydb()
+  
+  all_colnames_ind <-
+    try_open_postgres_table(table = "traitlist", con = mydb) %>%
+    dplyr::select(trait,
+                  id_trait,
+                  traitdescription,
+                  maxallowedvalue,
+                  minallowedvalue,
+                  expectedunit,
+                  valuetype)
+  
+  if (is.null(id_trait)) {
+    
+    all_colnames_ind <- all_colnames_ind %>%
+      dplyr::collect()
+    
+  } else {
+    
+    all_colnames_ind <- all_colnames_ind %>%
+      filter(id_trait == !!id_trait) %>%
+      dplyr::collect()
+    
+  }
+  
+  return(all_colnames_ind)
+}
+

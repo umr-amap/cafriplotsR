@@ -236,12 +236,6 @@ add_entry_taxa <- function(search_name_tps = NULL,
 
         cli::cli_alert_info("Not found on Tropicos")
 
-
-        # tax_tax <- readline(prompt = "Enter tax_tax  : ")
-        # tax_tax <- stringr::str_squish(tax_tax)
-        # if (tax_tax == '')
-        #   tax_tax <- NULL
-
         tax_gen <- readline(prompt = "Enter tax_gen  : ")
         tax_gen <- stringr::str_squish(tax_gen)
         if (tax_gen == '')
@@ -836,3 +830,90 @@ add_entry_taxa <- function(search_name_tps = NULL,
     cli::cli_alert_warning("NO ADDED ENTRY")
   }
 }
+
+
+
+
+
+
+#' Get backups of modified taxonomic data
+#'
+#' List taxonomic data that has been modified
+#'
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#' @param id look backups for a specific id (of taxonomic table)
+#' @param last_months look backups performed this last month
+#' @param last_10_entry look the last 10 backups performed
+#' @param last look the last backup
+#'
+#' @return A tibble
+#' @export
+get_updates_diconame <- function(id = NULL,
+                                 last_months = NULL,
+                                 last_10_entry = TRUE,
+                                 last = NULL) {
+  
+  
+  mydb <- call.mydb()
+  
+  tb <-
+    dplyr::tbl(mydb, "followup_updates_diconames")
+  
+  if (!is.null(id) & !last_10_entry) {
+    var <- rlang::enquo(id)
+    entry <-
+      tb %>%
+      dplyr::filter(id_n == !!var) %>%
+      dplyr::collect()
+  }
+  
+  if(!is.null(last_months) & !last_10_entry) {
+    
+    one_month_earlier <-
+      lubridate::month(Sys.Date() %m-% months(last_months))
+    if(one_month_earlier < 10) one_month_earlier <- paste0("0", one_month_earlier)
+    one_month_earlier <-
+      paste(lubridate::year(Sys.Date()), one_month_earlier, sep="-")
+    
+    this_month <-
+      lubridate::month(Sys.Date())
+    if(this_month<10) this_month <- paste0("0", this_month)
+    this_month <-
+      paste(lubridate::year(Sys.Date()), this_month, sep="-")
+    
+    query <-
+      paste0("SELECT * FROM followup_updates_diconames WHERE date_modified ILIKE '%",one_month_earlier,"%' OR date_modified ILIKE '%", this_month, "%'")
+    
+    rs <- DBI::dbSendQuery(mydb, query)
+    entry <- DBI::dbFetch(rs)
+    DBI::dbClearResult(rs)
+    entry <- dplyr::as_tibble(entry)
+  }
+  
+  if(last_10_entry) {
+    max_id <-
+      tb %>%
+      dplyr::arrange(dplyr::desc(id_fol_up_diconame)) %>%
+      dplyr::select(id_fol_up_diconame) %>%
+      dplyr::slice_max() %>%
+      dplyr::collect()
+    
+    if(is.null(last)) {
+      last_10 <- (dplyr::pull(max_id)-10)
+    }else{
+      last_10 <- (dplyr::pull(max_id)-last)
+    }
+    
+    entry <-
+      dplyr::tbl %>%
+      dplyr::filter(id_fol_up_diconame > last_10) %>%
+      dplyr::collect()
+    
+  }
+  
+  return(entry)
+}
+
+
