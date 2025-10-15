@@ -11,6 +11,11 @@
 
 ### New Features
 * Initial release of package structure with comprehensive database query functions
+* **Enhanced `update_ident_specimens()`**: Now shows summary of linked individuals before updating specimen identification
+  - Displays which plots and how many individuals will inherit the new identification
+  - Shows current taxonomic identification of linked individuals
+  - Provides better context for informed decision-making before confirmation
+  - New helper function `.get_linked_individuals_summary()` queries and summarizes impact
 
 ### Bug Fixes
 * **Connection error with complex home paths**: Fixed `create_db_config()` function that failed when home directory path contained spaces or special characters (e.g., OneDrive paths like `C:/Users/NOBUS CAPITAL/OneDrive/Documents/`)
