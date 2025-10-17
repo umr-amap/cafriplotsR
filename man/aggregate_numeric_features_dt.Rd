@@ -4,7 +4,13 @@
 \alias{aggregate_numeric_features_dt}
 \title{Aggregate numeric features using data.table}
 \usage{
-aggregate_numeric_features_dt(data, include_census, mode)
+aggregate_numeric_features_dt(
+  data,
+  include_census,
+  mode,
+  include_issue = FALSE,
+  include_measurement_ids = FALSE
+)
 }
 \description{
 Aggregate numeric features using data.table

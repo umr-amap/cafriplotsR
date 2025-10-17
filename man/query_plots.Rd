@@ -27,7 +27,9 @@ query_plots(
   include_liana = FALSE,
   extract_subplot_features = TRUE,
   concatenate_stem = FALSE,
-  remove_obs_with_issue = TRUE
+  remove_obs_with_issue = TRUE,
+  include_issue = FALSE,
+  include_measurement_ids = FALSE
 )
 }
 \arguments{

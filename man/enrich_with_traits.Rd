@@ -12,7 +12,9 @@ enrich_with_traits(
   traits_to_genera = FALSE,
   wd_fam_level = FALSE,
   show_multiple_census = FALSE,
-  remove_obs_with_issue = TRUE
+  remove_obs_with_issue = TRUE,
+  include_issue = FALSE,
+  include_measurement_ids = FALSE
 )
 }
 \arguments{

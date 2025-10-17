@@ -11,6 +11,8 @@ get_individual_aggregated_features(
   include_multi_census = FALSE,
   remove_issues = TRUE,
   aggregation_mode = c("auto", "mean", "last", "mode", "concat"),
+  include_issue = FALSE,
+  include_measurement_ids = FALSE,
   con = NULL
 )
 }
@@ -26,6 +28,10 @@ get_individual_aggregated_features(
 \item{remove_issues}{Remove measurements flagged with issues}
 
 \item{aggregation_mode}{How to aggregate: "mean", "last", "mode", "concat"}
+
+\item{include_issue}{Include aggregated issue column (default FALSE)}
+
+\item{include_measurement_ids}{Include aggregated id_trait_measures column (default FALSE)}
 
 \item{con}{Database connection}
 }

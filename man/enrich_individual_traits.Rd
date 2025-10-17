@@ -8,7 +8,9 @@ enrich_individual_traits(
   individuals,
   con,
   show_multiple_census,
-  remove_obs_with_issue
+  remove_obs_with_issue,
+  include_issue = FALSE,
+  include_measurement_ids = FALSE
 )
 }
 \description{
