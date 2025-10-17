@@ -170,7 +170,9 @@ query_plots <- function(plot_name = NULL,
                         include_liana = FALSE,
                         extract_subplot_features = TRUE,
                         concatenate_stem = FALSE,
-                        remove_obs_with_issue = TRUE) {
+                        remove_obs_with_issue = TRUE,
+                        include_issue = FALSE,
+                        include_measurement_ids = FALSE) {
   
   
   mydb <- call.mydb()
@@ -442,9 +444,16 @@ query_plots <- function(plot_name = NULL,
       include_liana = include_liana
     )
     
-    res <- enrich_with_traits(res, mydb, extract_individual_features, extract_traits, 
-                              traits_to_genera, wd_fam_level, show_multiple_census, 
-                              remove_obs_with_issue)
+    res <- enrich_with_traits(individuals = res, 
+                              con = mydb, 
+                              extract_individual_features = extract_individual_features, 
+                              extract_traits = extract_traits, 
+                              traits_to_genera =  traits_to_genera, 
+                              wd_fam_level = wd_fam_level, 
+                              show_multiple_census = show_multiple_census, 
+                              remove_obs_with_issue = remove_obs_with_issue,
+                              include_issue = include_issue,
+                              include_measurement_ids = include_measurement_ids)
     
     res <- process_stems(res, concatenate_stem)
 
@@ -599,7 +608,9 @@ enrich_with_traits <- function(individuals, con,
                                traits_to_genera = FALSE,
                                wd_fam_level = FALSE,
                                show_multiple_census = FALSE,
-                               remove_obs_with_issue = TRUE) {
+                               remove_obs_with_issue = TRUE,
+                               include_issue = FALSE,
+                               include_measurement_ids = FALSE) {
   
   mydb <- call.mydb()
   
@@ -608,9 +619,12 @@ enrich_with_traits <- function(individuals, con,
   # Traits individuels
   if (extract_individual_features) {
     individuals <- enrich_individual_traits(
-      individuals, con, 
-      show_multiple_census, 
-      remove_obs_with_issue
+      individuals = individuals, 
+      con = con, 
+      show_multiple_census = show_multiple_census, 
+      remove_obs_with_issue = remove_obs_with_issue, 
+      include_issue = include_issue, 
+      include_measurement_ids = include_measurement_ids
     )
   }
   
@@ -629,7 +643,9 @@ enrich_with_traits <- function(individuals, con,
 
 #' Enrich with individual-level traits
 #' @keywords internal
-enrich_individual_traits <- function(individuals, con, show_multiple_census, remove_obs_with_issue) {
+enrich_individual_traits <- function(individuals, con, show_multiple_census, remove_obs_with_issue, 
+                                     include_issue = FALSE, 
+                                     include_measurement_ids = FALSE) {
   
   cli::cli_alert_info("Enriching with individual-level traits")
   
@@ -639,7 +655,9 @@ enrich_individual_traits <- function(individuals, con, show_multiple_census, rem
     trait_ids = all_traits$id_trait,  # Tous les traits
     include_multi_census = show_multiple_census,
     remove_issues = remove_obs_with_issue,
-    con = con
+    con = con, 
+    include_issue = include_issue, 
+    include_measurement_ids = include_measurement_ids
   )
   
   # Vérifier qu'il y a des résultats

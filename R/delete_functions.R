@@ -132,6 +132,40 @@
   # )
 }
 
+
+
+#' Delete an entry in data_liste_sub_plots features
+#'
+#' Delete an entry in data_liste_sub_plots features using id for selection
+#'
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#' @param id integer
+#'
+#' @return No values
+.delete_subplotfeature_feat <- function(id) {
+  
+  if(!exists("mydb")) mydb <- call.mydb()
+  
+  query <- "DELETE FROM data_subplot_feat WHERE MMM"
+  query <-
+    gsub(
+      pattern = "MMM",
+      replacement = paste0("id_subplot_feat IN ('",
+                           paste(unique(id), collapse = "', '"), "')"),
+      x = query
+    )
+  
+  rs <- DBI::dbSendQuery(mydb, query)
+  DBI::dbClearResult(rs)
+  
+  # DBI::dbExecute(mydb,
+  #                "DELETE FROM data_liste_sub_plots WHERE id_sub_plots=$1", params=list(id)
+  # )
+}
+
+
 #' Delete an entry in trait measurement table (individuals features)
 #'
 #' Delete an entry in trait measurement table using id for selection
