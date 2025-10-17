@@ -1,6 +1,6 @@
 
 #' Aggregate individual features to individual level
-#' 
+#'
 #' Takes raw trait measurements and aggregates them by individual, handling
 #' multiple census and multiple values appropriately. Uses data.table for
 #' optimal performance on large datasets.
@@ -11,6 +11,8 @@
 #' @param include_multi_census Include census-specific values
 #' @param remove_issues Remove measurements flagged with issues
 #' @param aggregation_mode How to aggregate: "mean", "last", "mode", "concat"
+#' @param include_issue Include aggregated issue column (default FALSE)
+#' @param include_measurement_ids Include aggregated id_trait_measures column (default FALSE)
 #' @param con Database connection
 #'
 #' @return Tibble with one row per individual and aggregated feature values
@@ -22,6 +24,8 @@ get_individual_aggregated_features <- function(
     include_multi_census = FALSE,
     remove_issues = TRUE,
     aggregation_mode = c("auto", "mean", "last", "mode", "concat"),
+    include_issue = FALSE,
+    include_measurement_ids = FALSE,
     con = NULL
 ) {
   
@@ -88,17 +92,21 @@ get_individual_aggregated_features <- function(
   
   # 2. Separate by value type and aggregate with data.table
   cli::cli_h2("Aggregating features by individual")
-  
+
   numeric_features <- aggregate_numeric_features_dt(
     data = raw_data %>% filter(valuetype == "numeric"),
     include_census = include_multi_census,
-    mode = aggregation_mode
+    mode = aggregation_mode,
+    include_issue = include_issue,
+    include_measurement_ids = include_measurement_ids
   )
-  
+
   character_features <- aggregate_character_features_dt(
     data = raw_data %>% filter(valuetype %in% c("character", "ordinal", "categorical")),
     include_census = include_multi_census,
-    mode = aggregation_mode
+    mode = aggregation_mode,
+    include_issue = include_issue,
+    include_measurement_ids = include_measurement_ids
   )
   
   # 3. Combine results
@@ -122,176 +130,924 @@ get_individual_aggregated_features <- function(
 
 #' Aggregate numeric features using data.table
 #' @keywords internal
-aggregate_numeric_features_dt <- function(data, include_census, mode) {
-  
+aggregate_numeric_features_dt <- function(data, include_census, mode,
+                                          include_issue = FALSE,
+                                          include_measurement_ids = FALSE) {
+
   if (nrow(data) == 0) return(NULL)
-  
+
   cli::cli_alert_info("Aggregating {nrow(data)} numeric measurement(s)")
-  
+
   # Convert to data.table
   if (!data.table::is.data.table(data)) data.table::setDT(data)
-  
+
   # Convert traitvalue to numeric
   data[, traitvalue_num := as.numeric(traitvalue)]
-  
+
   if (include_census && "census_name" %in% names(data) && any(!is.na(data$census_name))) {
-    
-    # With census: keep census as separate columns
-    # Aggregate by (individual, subplot, trait, census)
-    dt_agg <- data[!is.na(census_name), 
-                   .(value = mean(traitvalue_num, na.rm = TRUE)),
-                   by = .(id_data_individuals, id_sub_plots, trait, census_name)]
-    
-    # Further aggregate by (individual, trait, census) - mean across subplots
-    dt_ind <- dt_agg[, .(value = mean(value, na.rm = TRUE)),
-                     by = .(id_data_individuals, trait, census_name)]
-    
-    # Pivot to wide format with trait_census columns
-    result <- data.table::dcast(
-      dt_ind,
-      id_data_individuals ~ trait + census_name,
-      value.var = "value",
-      sep = "_"
-    )
-    
+
+    # Split data into census-linked and non-census features
+    data_census <- data[!is.na(census_name)]
+    data_no_census <- data[is.na(census_name)]
+
+    results_to_merge <- list()
+
+    # Process census-linked features with census columns
+    if (nrow(data_census) > 0) {
+      # Aggregate by (individual, subplot, trait, census)
+      if (include_issue && "issue" %in% names(data_census) &&
+          include_measurement_ids && "id_trait_measures" %in% names(data_census)) {
+        # Include both issue and IDs
+        dt_agg <- data_census[,
+                              .(value = mean(traitvalue_num, na.rm = TRUE),
+                                issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                                ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                              by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+      } else if (include_issue && "issue" %in% names(data_census)) {
+        # Include only issue
+        dt_agg <- data_census[,
+                              .(value = mean(traitvalue_num, na.rm = TRUE),
+                                issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                              by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+      } else if (include_measurement_ids && "id_trait_measures" %in% names(data_census)) {
+        # Include only IDs
+        dt_agg <- data_census[,
+                              .(value = mean(traitvalue_num, na.rm = TRUE),
+                                ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                              by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+      } else {
+        # No additional columns
+        dt_agg <- data_census[,
+                              .(value = mean(traitvalue_num, na.rm = TRUE)),
+                              by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+      }
+
+      # Further aggregate by (individual, trait, census) - mean across subplots
+      if (include_issue && "issue_agg" %in% names(dt_agg) &&
+          include_measurement_ids && "ids_agg" %in% names(dt_agg)) {
+        dt_ind <- dt_agg[,
+                         .(value = mean(value, na.rm = TRUE),
+                           issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | "),
+                           ids_agg = paste(unique(ids_agg), collapse = ",")),
+                         by = .(id_data_individuals, trait, census_name)]
+      } else if (include_issue && "issue_agg" %in% names(dt_agg)) {
+        dt_ind <- dt_agg[,
+                         .(value = mean(value, na.rm = TRUE),
+                           issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | ")),
+                         by = .(id_data_individuals, trait, census_name)]
+      } else if (include_measurement_ids && "ids_agg" %in% names(dt_agg)) {
+        dt_ind <- dt_agg[,
+                         .(value = mean(value, na.rm = TRUE),
+                           ids_agg = paste(unique(ids_agg), collapse = ",")),
+                         by = .(id_data_individuals, trait, census_name)]
+      } else {
+        dt_ind <- dt_agg[,
+                         .(value = mean(value, na.rm = TRUE)),
+                         by = .(id_data_individuals, trait, census_name)]
+      }
+
+      # Pivot to wide format with trait_census columns
+      value_vars <- c("value")
+      if (include_issue && "issue_agg" %in% names(dt_ind)) value_vars <- c(value_vars, "issue_agg")
+      if (include_measurement_ids && "ids_agg" %in% names(dt_ind)) value_vars <- c(value_vars, "ids_agg")
+
+      result_census <- data.table::dcast(
+        dt_ind,
+        id_data_individuals ~ trait + census_name,
+        value.var = value_vars,
+        sep = "_"
+      )
+
+      # Remove "value_" prefix from column names
+      setnames(result_census,
+               names(result_census),
+               gsub("^value_", "", names(result_census)))
+
+      results_to_merge[[1]] <- result_census
+    }
+
+    # Process non-census features without census columns
+    if (nrow(data_no_census) > 0) {
+      if ("id_sub_plots" %in% names(data_no_census)) {
+        # Aggregate by subplot first, then by individual
+        if (include_issue && "issue" %in% names(data_no_census) &&
+            include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+          dt_subplot <- data_no_census[,
+                             .(value = mean(traitvalue_num, na.rm = TRUE),
+                               issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                               ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[,
+                               .(value = mean(value, na.rm = TRUE),
+                                 issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | "),
+                                 ids_agg = paste(unique(ids_agg), collapse = ",")),
+                               by = .(id_data_individuals, trait)]
+        } else if (include_issue && "issue" %in% names(data_no_census)) {
+          dt_subplot <- data_no_census[,
+                             .(value = mean(traitvalue_num, na.rm = TRUE),
+                               issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[,
+                               .(value = mean(value, na.rm = TRUE),
+                                 issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | ")),
+                               by = .(id_data_individuals, trait)]
+        } else if (include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+          dt_subplot <- data_no_census[,
+                             .(value = mean(traitvalue_num, na.rm = TRUE),
+                               ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[,
+                               .(value = mean(value, na.rm = TRUE),
+                                 ids_agg = paste(unique(ids_agg), collapse = ",")),
+                               by = .(id_data_individuals, trait)]
+        } else {
+          dt_subplot <- data_no_census[,
+                             .(value = mean(traitvalue_num, na.rm = TRUE)),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[,
+                               .(value = mean(value, na.rm = TRUE)),
+                               by = .(id_data_individuals, trait)]
+        }
+      } else {
+        # Direct aggregation
+        if (include_issue && "issue" %in% names(data_no_census) &&
+            include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+          dt_ind <- data_no_census[,
+                         .(value = mean(traitvalue_num, na.rm = TRUE),
+                           issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                           ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                         by = .(id_data_individuals, trait)]
+        } else if (include_issue && "issue" %in% names(data_no_census)) {
+          dt_ind <- data_no_census[,
+                         .(value = mean(traitvalue_num, na.rm = TRUE),
+                           issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                         by = .(id_data_individuals, trait)]
+        } else if (include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+          dt_ind <- data_no_census[,
+                         .(value = mean(traitvalue_num, na.rm = TRUE),
+                           ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                         by = .(id_data_individuals, trait)]
+        } else {
+          dt_ind <- data_no_census[,
+                         .(value = mean(traitvalue_num, na.rm = TRUE)),
+                         by = .(id_data_individuals, trait)]
+        }
+      }
+
+      # Pivot to wide format
+      value_vars <- c("value")
+      if (include_issue && "issue_agg" %in% names(dt_ind)) value_vars <- c(value_vars, "issue_agg")
+      if (include_measurement_ids && "ids_agg" %in% names(dt_ind)) value_vars <- c(value_vars, "ids_agg")
+
+      result_no_census <- data.table::dcast(
+        dt_ind,
+        id_data_individuals ~ trait,
+        value.var = value_vars
+      )
+
+      # Remove "value_" prefix from column names
+      setnames(result_no_census,
+               names(result_no_census),
+               gsub("^value_", "", names(result_no_census)))
+
+      results_to_merge[[2]] <- result_no_census
+    }
+
+    # Merge census and non-census results
+    if (length(results_to_merge) == 2) {
+      result <- merge(results_to_merge[[1]], results_to_merge[[2]],
+                      by = "id_data_individuals", all = TRUE)
+    } else if (length(results_to_merge) == 1) {
+      result <- results_to_merge[[1]]
+    } else {
+      return(NULL)
+    }
+
   } else {
-    
+
     # Without census: aggregate by (individual, trait)
     if ("id_sub_plots" %in% names(data)) {
       # Aggregate by subplot first, then by individual
-      dt_subplot <- data[, .(value = mean(traitvalue_num, na.rm = TRUE)),
-                         by = .(id_data_individuals, id_sub_plots, trait)]
-      
-      dt_ind <- dt_subplot[, .(value = mean(value, na.rm = TRUE)),
-                           by = .(id_data_individuals, trait)]
+      if (include_issue && "issue" %in% names(data) &&
+          include_measurement_ids && "id_trait_measures" %in% names(data)) {
+        dt_subplot <- data[,
+                           .(value = mean(traitvalue_num, na.rm = TRUE),
+                             issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                             ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                           by = .(id_data_individuals, id_sub_plots, trait)]
+        dt_ind <- dt_subplot[,
+                             .(value = mean(value, na.rm = TRUE),
+                               issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | "),
+                               ids_agg = paste(unique(ids_agg), collapse = ",")),
+                             by = .(id_data_individuals, trait)]
+      } else if (include_issue && "issue" %in% names(data)) {
+        dt_subplot <- data[,
+                           .(value = mean(traitvalue_num, na.rm = TRUE),
+                             issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                           by = .(id_data_individuals, id_sub_plots, trait)]
+        dt_ind <- dt_subplot[,
+                             .(value = mean(value, na.rm = TRUE),
+                               issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | ")),
+                             by = .(id_data_individuals, trait)]
+      } else if (include_measurement_ids && "id_trait_measures" %in% names(data)) {
+        dt_subplot <- data[,
+                           .(value = mean(traitvalue_num, na.rm = TRUE),
+                             ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                           by = .(id_data_individuals, id_sub_plots, trait)]
+        dt_ind <- dt_subplot[,
+                             .(value = mean(value, na.rm = TRUE),
+                               ids_agg = paste(unique(ids_agg), collapse = ",")),
+                             by = .(id_data_individuals, trait)]
+      } else {
+        dt_subplot <- data[,
+                           .(value = mean(traitvalue_num, na.rm = TRUE)),
+                           by = .(id_data_individuals, id_sub_plots, trait)]
+        dt_ind <- dt_subplot[,
+                             .(value = mean(value, na.rm = TRUE)),
+                             by = .(id_data_individuals, trait)]
+      }
     } else {
       # Direct aggregation
-      dt_ind <- data[, .(value = mean(traitvalue_num, na.rm = TRUE)),
-                     by = .(id_data_individuals, trait)]
+      if (include_issue && "issue" %in% names(data) &&
+          include_measurement_ids && "id_trait_measures" %in% names(data)) {
+        dt_ind <- data[,
+                       .(value = mean(traitvalue_num, na.rm = TRUE),
+                         issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                         ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                       by = .(id_data_individuals, trait)]
+      } else if (include_issue && "issue" %in% names(data)) {
+        dt_ind <- data[,
+                       .(value = mean(traitvalue_num, na.rm = TRUE),
+                         issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                       by = .(id_data_individuals, trait)]
+      } else if (include_measurement_ids && "id_trait_measures" %in% names(data)) {
+        dt_ind <- data[,
+                       .(value = mean(traitvalue_num, na.rm = TRUE),
+                         ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                       by = .(id_data_individuals, trait)]
+      } else {
+        dt_ind <- data[,
+                       .(value = mean(traitvalue_num, na.rm = TRUE)),
+                       by = .(id_data_individuals, trait)]
+      }
     }
-    
+
     # Pivot to wide format
+    value_vars <- c("value")
+    if (include_issue && "issue_agg" %in% names(dt_ind)) value_vars <- c(value_vars, "issue_agg")
+    if (include_measurement_ids && "ids_agg" %in% names(dt_ind)) value_vars <- c(value_vars, "ids_agg")
+
     result <- data.table::dcast(
       dt_ind,
       id_data_individuals ~ trait,
-      value.var = "value"
+      value.var = value_vars
     )
+
+    # Remove "value_" prefix from column names
+    setnames(result,
+             names(result),
+             gsub("^value_", "", names(result)))
   }
-  
+
   return(result)
 }
 
 #' Aggregate character features using data.table
 #' @keywords internal
-aggregate_character_features_dt <- function(data, include_census, mode) {
-  
+aggregate_character_features_dt <- function(data, include_census, mode,
+                                            include_issue = FALSE,
+                                            include_measurement_ids = FALSE) {
+
   if (nrow(data) == 0) return(NULL)
-  
+
   cli::cli_alert_info("Aggregating {nrow(data)} character measurement(s)")
-  
+
   # Convert to data.table
   if (!data.table::is.data.table(data)) data.table::setDT(data)
-  
+
   # Clean text values
   data[, traitvalue_char := str_squish(traitvalue_char)]
-  
+
   if (include_census && "census_name" %in% names(data) && any(!is.na(data$census_name))) {
-    
-    # With census: keep census as separate columns
-    # Aggregate by (individual, subplot, trait, census)
-    if (mode == "mode") {
-      dt_agg <- data[!is.na(traitvalue_char) & !is.na(census_name), 
-                     .(value = get_mode_dt(traitvalue_char)),
-                     by = .(id_data_individuals, id_sub_plots, trait, census_name)]
-    } else if (mode == "last") {
-      dt_agg <- data[!is.na(traitvalue_char) & !is.na(census_name),
-                     .(value = last(traitvalue_char)),
-                     by = .(id_data_individuals, id_sub_plots, trait, census_name)]
-    } else {
-      # concat or auto
-      dt_agg <- data[!is.na(traitvalue_char) & !is.na(census_name),
-                     .(value = paste(unique(traitvalue_char), collapse = ", ")),
-                     by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+
+    # Split data into census-linked and non-census features
+    data_census <- data[!is.na(census_name)]
+    data_no_census <- data[is.na(census_name)]
+
+    results_to_merge <- list()
+
+    # Process census-linked features with census columns
+    if (nrow(data_census) > 0) {
+      # Aggregate by (individual, subplot, trait, census) - mode determines aggregation
+      if (mode == "mode") {
+        if (include_issue && "issue" %in% names(data_census) &&
+            include_measurement_ids && "id_trait_measures" %in% names(data_census)) {
+          dt_agg <- data_census[!is.na(traitvalue_char),
+                                .(value = get_mode_dt(traitvalue_char),
+                                  issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                                  ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                                by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+        } else if (include_issue && "issue" %in% names(data_census)) {
+          dt_agg <- data_census[!is.na(traitvalue_char),
+                                .(value = get_mode_dt(traitvalue_char),
+                                  issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                                by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+        } else if (include_measurement_ids && "id_trait_measures" %in% names(data_census)) {
+          dt_agg <- data_census[!is.na(traitvalue_char),
+                                .(value = get_mode_dt(traitvalue_char),
+                                  ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                                by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+        } else {
+          dt_agg <- data_census[!is.na(traitvalue_char),
+                                .(value = get_mode_dt(traitvalue_char)),
+                                by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+        }
+      } else if (mode == "last") {
+        if (include_issue && "issue" %in% names(data_census) &&
+            include_measurement_ids && "id_trait_measures" %in% names(data_census)) {
+          dt_agg <- data_census[!is.na(traitvalue_char),
+                                .(value = last(traitvalue_char),
+                                  issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                                  ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                                by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+        } else if (include_issue && "issue" %in% names(data_census)) {
+          dt_agg <- data_census[!is.na(traitvalue_char),
+                                .(value = last(traitvalue_char),
+                                  issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                                by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+        } else if (include_measurement_ids && "id_trait_measures" %in% names(data_census)) {
+          dt_agg <- data_census[!is.na(traitvalue_char),
+                                .(value = last(traitvalue_char),
+                                  ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                                by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+        } else {
+          dt_agg <- data_census[!is.na(traitvalue_char),
+                                .(value = last(traitvalue_char)),
+                                by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+        }
+      } else {
+        # concat mode
+        if (include_issue && "issue" %in% names(data_census) &&
+            include_measurement_ids && "id_trait_measures" %in% names(data_census)) {
+          dt_agg <- data_census[!is.na(traitvalue_char),
+                                .(value = paste(unique(traitvalue_char), collapse = ", "),
+                                  issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                                  ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                                by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+        } else if (include_issue && "issue" %in% names(data_census)) {
+          dt_agg <- data_census[!is.na(traitvalue_char),
+                                .(value = paste(unique(traitvalue_char), collapse = ", "),
+                                  issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                                by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+        } else if (include_measurement_ids && "id_trait_measures" %in% names(data_census)) {
+          dt_agg <- data_census[!is.na(traitvalue_char),
+                                .(value = paste(unique(traitvalue_char), collapse = ", "),
+                                  ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                                by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+        } else {
+          dt_agg <- data_census[!is.na(traitvalue_char),
+                                .(value = paste(unique(traitvalue_char), collapse = ", ")),
+                                by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+        }
+      }
+
+      # Further aggregate by (individual, trait, census) across subplots
+      if (mode == "mode") {
+        if (include_issue && "issue_agg" %in% names(dt_agg) &&
+            include_measurement_ids && "ids_agg" %in% names(dt_agg)) {
+          dt_ind <- dt_agg[!is.na(value),
+                           .(value = get_mode_dt(value),
+                             issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | "),
+                             ids_agg = paste(unique(ids_agg), collapse = ",")),
+                           by = .(id_data_individuals, trait, census_name)]
+        } else if (include_issue && "issue_agg" %in% names(dt_agg)) {
+          dt_ind <- dt_agg[!is.na(value),
+                           .(value = get_mode_dt(value),
+                             issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | ")),
+                           by = .(id_data_individuals, trait, census_name)]
+        } else if (include_measurement_ids && "ids_agg" %in% names(dt_agg)) {
+          dt_ind <- dt_agg[!is.na(value),
+                           .(value = get_mode_dt(value),
+                             ids_agg = paste(unique(ids_agg), collapse = ",")),
+                           by = .(id_data_individuals, trait, census_name)]
+        } else {
+          dt_ind <- dt_agg[!is.na(value),
+                           .(value = get_mode_dt(value)),
+                           by = .(id_data_individuals, trait, census_name)]
+        }
+      } else if (mode == "last") {
+        if (include_issue && "issue_agg" %in% names(dt_agg) &&
+            include_measurement_ids && "ids_agg" %in% names(dt_agg)) {
+          dt_ind <- dt_agg[!is.na(value),
+                           .(value = last(value),
+                             issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | "),
+                             ids_agg = paste(unique(ids_agg), collapse = ",")),
+                           by = .(id_data_individuals, trait, census_name)]
+        } else if (include_issue && "issue_agg" %in% names(dt_agg)) {
+          dt_ind <- dt_agg[!is.na(value),
+                           .(value = last(value),
+                             issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | ")),
+                           by = .(id_data_individuals, trait, census_name)]
+        } else if (include_measurement_ids && "ids_agg" %in% names(dt_agg)) {
+          dt_ind <- dt_agg[!is.na(value),
+                           .(value = last(value),
+                             ids_agg = paste(unique(ids_agg), collapse = ",")),
+                           by = .(id_data_individuals, trait, census_name)]
+        } else {
+          dt_ind <- dt_agg[!is.na(value),
+                           .(value = last(value)),
+                           by = .(id_data_individuals, trait, census_name)]
+        }
+      } else {
+        # concat mode
+        if (include_issue && "issue_agg" %in% names(dt_agg) &&
+            include_measurement_ids && "ids_agg" %in% names(dt_agg)) {
+          dt_ind <- dt_agg[!is.na(value),
+                           .(value = paste(unique(value), collapse = ", "),
+                             issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | "),
+                             ids_agg = paste(unique(ids_agg), collapse = ",")),
+                           by = .(id_data_individuals, trait, census_name)]
+        } else if (include_issue && "issue_agg" %in% names(dt_agg)) {
+          dt_ind <- dt_agg[!is.na(value),
+                           .(value = paste(unique(value), collapse = ", "),
+                             issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | ")),
+                           by = .(id_data_individuals, trait, census_name)]
+        } else if (include_measurement_ids && "ids_agg" %in% names(dt_agg)) {
+          dt_ind <- dt_agg[!is.na(value),
+                           .(value = paste(unique(value), collapse = ", "),
+                             ids_agg = paste(unique(ids_agg), collapse = ",")),
+                           by = .(id_data_individuals, trait, census_name)]
+        } else {
+          dt_ind <- dt_agg[!is.na(value),
+                           .(value = paste(unique(value), collapse = ", ")),
+                           by = .(id_data_individuals, trait, census_name)]
+        }
+      }
+
+      # Pivot to wide with trait_census columns
+      value_vars <- c("value")
+      if (include_issue && "issue_agg" %in% names(dt_ind)) value_vars <- c(value_vars, "issue_agg")
+      if (include_measurement_ids && "ids_agg" %in% names(dt_ind)) value_vars <- c(value_vars, "ids_agg")
+
+      result_census <- data.table::dcast(
+        dt_ind,
+        id_data_individuals ~ trait + census_name,
+        value.var = value_vars,
+        sep = "_"
+      )
+
+      # Remove "value_" prefix from column names
+      setnames(result_census,
+               names(result_census),
+               gsub("^value_", "", names(result_census)))
+
+      results_to_merge[[1]] <- result_census
     }
-    
-    # Further aggregate by (individual, trait, census) across subplots
-    if (mode == "mode") {
-      dt_ind <- dt_agg[!is.na(value),
-                       .(value = get_mode_dt(value)),
-                       by = .(id_data_individuals, trait, census_name)]
-    } else if (mode == "last") {
-      dt_ind <- dt_agg[!is.na(value),
-                       .(value = last(value)),
-                       by = .(id_data_individuals, trait, census_name)]
-    } else {
-      dt_ind <- dt_agg[!is.na(value),
-                       .(value = paste(unique(value), collapse = ", ")),
-                       by = .(id_data_individuals, trait, census_name)]
+
+    # Process non-census features without census columns
+    if (nrow(data_no_census) > 0) {
+      # Similar logic as census but without census_name column - uses same 3-mode aggregation
+      if ("id_sub_plots" %in% names(data_no_census)) {
+        # Aggregate by subplot first
+        if (mode == "mode") {
+          if (include_issue && "issue" %in% names(data_no_census) &&
+              include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+            dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                               .(value = get_mode_dt(traitvalue_char),
+                                 issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                                 ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                               by = .(id_data_individuals, id_sub_plots, trait)]
+            dt_ind <- dt_subplot[!is.na(value),
+                                 .(value = get_mode_dt(value),
+                                   issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | "),
+                                   ids_agg = paste(unique(ids_agg), collapse = ",")),
+                                 by = .(id_data_individuals, trait)]
+          } else if (include_issue && "issue" %in% names(data_no_census)) {
+            dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                               .(value = get_mode_dt(traitvalue_char),
+                                 issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                               by = .(id_data_individuals, id_sub_plots, trait)]
+            dt_ind <- dt_subplot[!is.na(value),
+                                 .(value = get_mode_dt(value),
+                                   issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | ")),
+                                 by = .(id_data_individuals, trait)]
+          } else if (include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+            dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                               .(value = get_mode_dt(traitvalue_char),
+                                 ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                               by = .(id_data_individuals, id_sub_plots, trait)]
+            dt_ind <- dt_subplot[!is.na(value),
+                                 .(value = get_mode_dt(value),
+                                   ids_agg = paste(unique(ids_agg), collapse = ",")),
+                                 by = .(id_data_individuals, trait)]
+          } else {
+            dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                               .(value = get_mode_dt(traitvalue_char)),
+                               by = .(id_data_individuals, id_sub_plots, trait)]
+            dt_ind <- dt_subplot[!is.na(value),
+                                 .(value = get_mode_dt(value)),
+                                 by = .(id_data_individuals, trait)]
+          }
+        } else if (mode == "last") {
+          if (include_issue && "issue" %in% names(data_no_census) &&
+              include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+            dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                               .(value = last(traitvalue_char),
+                                 issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                                 ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                               by = .(id_data_individuals, id_sub_plots, trait)]
+            dt_ind <- dt_subplot[!is.na(value),
+                                 .(value = last(value),
+                                   issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | "),
+                                   ids_agg = paste(unique(ids_agg), collapse = ",")),
+                                 by = .(id_data_individuals, trait)]
+          } else if (include_issue && "issue" %in% names(data_no_census)) {
+            dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                               .(value = last(traitvalue_char),
+                                 issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                               by = .(id_data_individuals, id_sub_plots, trait)]
+            dt_ind <- dt_subplot[!is.na(value),
+                                 .(value = last(value),
+                                   issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | ")),
+                                 by = .(id_data_individuals, trait)]
+          } else if (include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+            dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                               .(value = last(traitvalue_char),
+                                 ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                               by = .(id_data_individuals, id_sub_plots, trait)]
+            dt_ind <- dt_subplot[!is.na(value),
+                                 .(value = last(value),
+                                   ids_agg = paste(unique(ids_agg), collapse = ",")),
+                                 by = .(id_data_individuals, trait)]
+          } else {
+            dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                               .(value = last(traitvalue_char)),
+                               by = .(id_data_individuals, id_sub_plots, trait)]
+            dt_ind <- dt_subplot[!is.na(value),
+                                 .(value = last(value)),
+                                 by = .(id_data_individuals, trait)]
+          }
+        } else {
+          # concat mode
+          if (include_issue && "issue" %in% names(data_no_census) &&
+              include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+            dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                               .(value = paste(unique(traitvalue_char), collapse = ", "),
+                                 issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                                 ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                               by = .(id_data_individuals, id_sub_plots, trait)]
+            dt_ind <- dt_subplot[!is.na(value),
+                                 .(value = paste(unique(value), collapse = ", "),
+                                   issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | "),
+                                   ids_agg = paste(unique(ids_agg), collapse = ",")),
+                                 by = .(id_data_individuals, trait)]
+          } else if (include_issue && "issue" %in% names(data_no_census)) {
+            dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                               .(value = paste(unique(traitvalue_char), collapse = ", "),
+                                 issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                               by = .(id_data_individuals, id_sub_plots, trait)]
+            dt_ind <- dt_subplot[!is.na(value),
+                                 .(value = paste(unique(value), collapse = ", "),
+                                   issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | ")),
+                                 by = .(id_data_individuals, trait)]
+          } else if (include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+            dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                               .(value = paste(unique(traitvalue_char), collapse = ", "),
+                                 ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                               by = .(id_data_individuals, id_sub_plots, trait)]
+            dt_ind <- dt_subplot[!is.na(value),
+                                 .(value = paste(unique(value), collapse = ", "),
+                                   ids_agg = paste(unique(ids_agg), collapse = ",")),
+                                 by = .(id_data_individuals, trait)]
+          } else {
+            dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                               .(value = paste(unique(traitvalue_char), collapse = ", ")),
+                               by = .(id_data_individuals, id_sub_plots, trait)]
+            dt_ind <- dt_subplot[!is.na(value),
+                                 .(value = paste(unique(value), collapse = ", ")),
+                                 by = .(id_data_individuals, trait)]
+          }
+        }
+      } else {
+        # Direct aggregation without subplot
+        if (mode == "mode") {
+          if (include_issue && "issue" %in% names(data_no_census) &&
+              include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+            dt_ind <- data_no_census[!is.na(traitvalue_char),
+                           .(value = get_mode_dt(traitvalue_char),
+                             issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                             ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                           by = .(id_data_individuals, trait)]
+          } else if (include_issue && "issue" %in% names(data_no_census)) {
+            dt_ind <- data_no_census[!is.na(traitvalue_char),
+                           .(value = get_mode_dt(traitvalue_char),
+                             issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                           by = .(id_data_individuals, trait)]
+          } else if (include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+            dt_ind <- data_no_census[!is.na(traitvalue_char),
+                           .(value = get_mode_dt(traitvalue_char),
+                             ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                           by = .(id_data_individuals, trait)]
+          } else {
+            dt_ind <- data_no_census[!is.na(traitvalue_char),
+                           .(value = get_mode_dt(traitvalue_char)),
+                           by = .(id_data_individuals, trait)]
+          }
+        } else if (mode == "last") {
+          if (include_issue && "issue" %in% names(data_no_census) &&
+              include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+            dt_ind <- data_no_census[!is.na(traitvalue_char),
+                           .(value = last(traitvalue_char),
+                             issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                             ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                           by = .(id_data_individuals, trait)]
+          } else if (include_issue && "issue" %in% names(data_no_census)) {
+            dt_ind <- data_no_census[!is.na(traitvalue_char),
+                           .(value = last(traitvalue_char),
+                             issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                           by = .(id_data_individuals, trait)]
+          } else if (include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+            dt_ind <- data_no_census[!is.na(traitvalue_char),
+                           .(value = last(traitvalue_char),
+                             ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                           by = .(id_data_individuals, trait)]
+          } else {
+            dt_ind <- data_no_census[!is.na(traitvalue_char),
+                           .(value = last(traitvalue_char)),
+                           by = .(id_data_individuals, trait)]
+          }
+        } else {
+          # concat mode
+          if (include_issue && "issue" %in% names(data_no_census) &&
+              include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+            dt_ind <- data_no_census[!is.na(traitvalue_char),
+                           .(value = paste(unique(traitvalue_char), collapse = ", "),
+                             issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                             ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                           by = .(id_data_individuals, trait)]
+          } else if (include_issue && "issue" %in% names(data_no_census)) {
+            dt_ind <- data_no_census[!is.na(traitvalue_char),
+                           .(value = paste(unique(traitvalue_char), collapse = ", "),
+                             issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                           by = .(id_data_individuals, trait)]
+          } else if (include_measurement_ids && "id_trait_measures" %in% names(data_no_census)) {
+            dt_ind <- data_no_census[!is.na(traitvalue_char),
+                           .(value = paste(unique(traitvalue_char), collapse = ", "),
+                             ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                           by = .(id_data_individuals, trait)]
+          } else {
+            dt_ind <- data_no_census[!is.na(traitvalue_char),
+                           .(value = paste(unique(traitvalue_char), collapse = ", ")),
+                           by = .(id_data_individuals, trait)]
+          }
+        }
+      }
+
+      # Pivot to wide (NO PREFIX)
+      value_vars <- c("value")
+      if (include_issue && "issue_agg" %in% names(dt_ind)) value_vars <- c(value_vars, "issue_agg")
+      if (include_measurement_ids && "ids_agg" %in% names(dt_ind)) value_vars <- c(value_vars, "ids_agg")
+
+      result_no_census <- data.table::dcast(
+        dt_ind,
+        id_data_individuals ~ trait,
+        value.var = value_vars
+      )
+
+      # Remove "value_" prefix from column names
+      setnames(result_no_census,
+               names(result_no_census),
+               gsub("^value_", "", names(result_no_census)))
+
+      results_to_merge[[2]] <- result_no_census
     }
-    
-    # Pivot to wide with trait_census columns
-    result <- data.table::dcast(
-      dt_ind,
-      id_data_individuals ~ trait + census_name,
-      value.var = "value",
-      sep = "_"
-    )
-    
+
+    # Merge census and non-census results
+    if (length(results_to_merge) == 2) {
+      result <- merge(results_to_merge[[1]], results_to_merge[[2]],
+                      by = "id_data_individuals", all = TRUE)
+    } else if (length(results_to_merge) == 1) {
+      result <- results_to_merge[[1]]
+    } else {
+      return(NULL)
+    }
+
   } else {
-    
-    # Without census: aggregate by (individual, trait)
+
+    # Without census: aggregate by (individual, trait) - exactly same logic as non-census above
     if ("id_sub_plots" %in% names(data)) {
       # Aggregate by subplot first
       if (mode == "mode") {
-        dt_subplot <- data[!is.na(traitvalue_char),
-                           .(value = get_mode_dt(traitvalue_char)),
-                           by = .(id_data_individuals, id_sub_plots, trait)]
-        
-        dt_ind <- dt_subplot[!is.na(value),
-                             .(value = get_mode_dt(value)),
-                             by = .(id_data_individuals, trait)]
+        if (include_issue && "issue" %in% names(data) &&
+            include_measurement_ids && "id_trait_measures" %in% names(data)) {
+          dt_subplot <- data[!is.na(traitvalue_char),
+                             .(value = get_mode_dt(traitvalue_char),
+                               issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                               ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = get_mode_dt(value),
+                                 issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | "),
+                                 ids_agg = paste(unique(ids_agg), collapse = ",")),
+                               by = .(id_data_individuals, trait)]
+        } else if (include_issue && "issue" %in% names(data)) {
+          dt_subplot <- data[!is.na(traitvalue_char),
+                             .(value = get_mode_dt(traitvalue_char),
+                               issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = get_mode_dt(value),
+                                 issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | ")),
+                               by = .(id_data_individuals, trait)]
+        } else if (include_measurement_ids && "id_trait_measures" %in% names(data)) {
+          dt_subplot <- data[!is.na(traitvalue_char),
+                             .(value = get_mode_dt(traitvalue_char),
+                               ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = get_mode_dt(value),
+                                 ids_agg = paste(unique(ids_agg), collapse = ",")),
+                               by = .(id_data_individuals, trait)]
+        } else {
+          dt_subplot <- data[!is.na(traitvalue_char),
+                             .(value = get_mode_dt(traitvalue_char)),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = get_mode_dt(value)),
+                               by = .(id_data_individuals, trait)]
+        }
       } else if (mode == "last") {
-        dt_subplot <- data[!is.na(traitvalue_char),
-                           .(value = last(traitvalue_char)),
-                           by = .(id_data_individuals, id_sub_plots, trait)]
-        
-        dt_ind <- dt_subplot[!is.na(value),
-                             .(value = last(value)),
-                             by = .(id_data_individuals, trait)]
+        if (include_issue && "issue" %in% names(data) &&
+            include_measurement_ids && "id_trait_measures" %in% names(data)) {
+          dt_subplot <- data[!is.na(traitvalue_char),
+                             .(value = last(traitvalue_char),
+                               issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                               ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = last(value),
+                                 issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | "),
+                                 ids_agg = paste(unique(ids_agg), collapse = ",")),
+                               by = .(id_data_individuals, trait)]
+        } else if (include_issue && "issue" %in% names(data)) {
+          dt_subplot <- data[!is.na(traitvalue_char),
+                             .(value = last(traitvalue_char),
+                               issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = last(value),
+                                 issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | ")),
+                               by = .(id_data_individuals, trait)]
+        } else if (include_measurement_ids && "id_trait_measures" %in% names(data)) {
+          dt_subplot <- data[!is.na(traitvalue_char),
+                             .(value = last(traitvalue_char),
+                               ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = last(value),
+                                 ids_agg = paste(unique(ids_agg), collapse = ",")),
+                               by = .(id_data_individuals, trait)]
+        } else {
+          dt_subplot <- data[!is.na(traitvalue_char),
+                             .(value = last(traitvalue_char)),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = last(value)),
+                               by = .(id_data_individuals, trait)]
+        }
       } else {
-        dt_subplot <- data[!is.na(traitvalue_char),
-                           .(value = paste(unique(traitvalue_char), collapse = ", ")),
-                           by = .(id_data_individuals, id_sub_plots, trait)]
-        
-        dt_ind <- dt_subplot[!is.na(value),
-                             .(value = paste(unique(value), collapse = ", ")),
-                             by = .(id_data_individuals, trait)]
+        # concat mode
+        if (include_issue && "issue" %in% names(data) &&
+            include_measurement_ids && "id_trait_measures" %in% names(data)) {
+          dt_subplot <- data[!is.na(traitvalue_char),
+                             .(value = paste(unique(traitvalue_char), collapse = ", "),
+                               issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                               ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = paste(unique(value), collapse = ", "),
+                                 issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | "),
+                                 ids_agg = paste(unique(ids_agg), collapse = ",")),
+                               by = .(id_data_individuals, trait)]
+        } else if (include_issue && "issue" %in% names(data)) {
+          dt_subplot <- data[!is.na(traitvalue_char),
+                             .(value = paste(unique(traitvalue_char), collapse = ", "),
+                               issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = paste(unique(value), collapse = ", "),
+                                 issue_agg = paste(unique(issue_agg[issue_agg != ""]), collapse = " | ")),
+                               by = .(id_data_individuals, trait)]
+        } else if (include_measurement_ids && "id_trait_measures" %in% names(data)) {
+          dt_subplot <- data[!is.na(traitvalue_char),
+                             .(value = paste(unique(traitvalue_char), collapse = ", "),
+                               ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = paste(unique(value), collapse = ", "),
+                                 ids_agg = paste(unique(ids_agg), collapse = ",")),
+                               by = .(id_data_individuals, trait)]
+        } else {
+          dt_subplot <- data[!is.na(traitvalue_char),
+                             .(value = paste(unique(traitvalue_char), collapse = ", ")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = paste(unique(value), collapse = ", ")),
+                               by = .(id_data_individuals, trait)]
+        }
       }
     } else {
-      # Direct aggregation
+      # Direct aggregation without subplot
       if (mode == "mode") {
-        dt_ind <- data[!is.na(traitvalue_char),
-                       .(value = get_mode_dt(traitvalue_char)),
-                       by = .(id_data_individuals, trait)]
+        if (include_issue && "issue" %in% names(data) &&
+            include_measurement_ids && "id_trait_measures" %in% names(data)) {
+          dt_ind <- data[!is.na(traitvalue_char),
+                         .(value = get_mode_dt(traitvalue_char),
+                           issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                           ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                         by = .(id_data_individuals, trait)]
+        } else if (include_issue && "issue" %in% names(data)) {
+          dt_ind <- data[!is.na(traitvalue_char),
+                         .(value = get_mode_dt(traitvalue_char),
+                           issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                         by = .(id_data_individuals, trait)]
+        } else if (include_measurement_ids && "id_trait_measures" %in% names(data)) {
+          dt_ind <- data[!is.na(traitvalue_char),
+                         .(value = get_mode_dt(traitvalue_char),
+                           ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                         by = .(id_data_individuals, trait)]
+        } else {
+          dt_ind <- data[!is.na(traitvalue_char),
+                         .(value = get_mode_dt(traitvalue_char)),
+                         by = .(id_data_individuals, trait)]
+        }
       } else if (mode == "last") {
-        dt_ind <- data[!is.na(traitvalue_char),
-                       .(value = last(traitvalue_char)),
-                       by = .(id_data_individuals, trait)]
+        if (include_issue && "issue" %in% names(data) &&
+            include_measurement_ids && "id_trait_measures" %in% names(data)) {
+          dt_ind <- data[!is.na(traitvalue_char),
+                         .(value = last(traitvalue_char),
+                           issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                           ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                         by = .(id_data_individuals, trait)]
+        } else if (include_issue && "issue" %in% names(data)) {
+          dt_ind <- data[!is.na(traitvalue_char),
+                         .(value = last(traitvalue_char),
+                           issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                         by = .(id_data_individuals, trait)]
+        } else if (include_measurement_ids && "id_trait_measures" %in% names(data)) {
+          dt_ind <- data[!is.na(traitvalue_char),
+                         .(value = last(traitvalue_char),
+                           ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                         by = .(id_data_individuals, trait)]
+        } else {
+          dt_ind <- data[!is.na(traitvalue_char),
+                         .(value = last(traitvalue_char)),
+                         by = .(id_data_individuals, trait)]
+        }
       } else {
-        dt_ind <- data[!is.na(traitvalue_char),
-                       .(value = paste(unique(traitvalue_char), collapse = ", ")),
-                       by = .(id_data_individuals, trait)]
+        # concat mode
+        if (include_issue && "issue" %in% names(data) &&
+            include_measurement_ids && "id_trait_measures" %in% names(data)) {
+          dt_ind <- data[!is.na(traitvalue_char),
+                         .(value = paste(unique(traitvalue_char), collapse = ", "),
+                           issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | "),
+                           ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                         by = .(id_data_individuals, trait)]
+        } else if (include_issue && "issue" %in% names(data)) {
+          dt_ind <- data[!is.na(traitvalue_char),
+                         .(value = paste(unique(traitvalue_char), collapse = ", "),
+                           issue_agg = paste(unique(issue[!is.na(issue)]), collapse = " | ")),
+                         by = .(id_data_individuals, trait)]
+        } else if (include_measurement_ids && "id_trait_measures" %in% names(data)) {
+          dt_ind <- data[!is.na(traitvalue_char),
+                         .(value = paste(unique(traitvalue_char), collapse = ", "),
+                           ids_agg = paste(unique(id_trait_measures), collapse = ",")),
+                         by = .(id_data_individuals, trait)]
+        } else {
+          dt_ind <- data[!is.na(traitvalue_char),
+                         .(value = paste(unique(traitvalue_char), collapse = ", ")),
+                         by = .(id_data_individuals, trait)]
+        }
       }
     }
-    
+
     # Pivot to wide (NO PREFIX)
+    value_vars <- c("value")
+    if (include_issue && "issue_agg" %in% names(dt_ind)) value_vars <- c(value_vars, "issue_agg")
+    if (include_measurement_ids && "ids_agg" %in% names(dt_ind)) value_vars <- c(value_vars, "ids_agg")
+
     result <- data.table::dcast(
       dt_ind,
       id_data_individuals ~ trait,
-      value.var = "value"
+      value.var = value_vars
     )
+
+    # Remove "value_" prefix from column names
+    setnames(result,
+             names(result),
+             gsub("^value_", "", names(result)))
   }
-  
+
   # No prefix added - character and numeric traits share the same namespace
   return(result)
 }
@@ -545,12 +1301,12 @@ fetch_with_chunking <- function(ids, query_fun, chunk_size, con, desc = "data") 
   results <- lapply(seq_along(chunks), function(i) {
     setTxtProgressBar(pb, i)
     sql <- query_fun(chunks[[i]], NULL)
-    DBI::dbGetQuery(con, sql)
+    DBI::dbGetQuery(con, sql) %>% as_tibble(.name_repair = "minimal")
   })
   
   close(pb)
   
-  bind_rows(results)
+  suppressMessages(bind_rows(results))
 }
 
 
