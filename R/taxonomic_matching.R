@@ -1,17 +1,16 @@
 # Taxonomic Name Matching and Standardization Functions
 #
 # This file contains functions for intelligent matching of taxonomic names to the backbone.
-# Implements genus-constrained fuzzy matching for improved precision.
+# Implements genus-constrained fuzzy matching using SQL-side SIMILARITY for improved performance.
 #
 # Main functions:
 # - parse_taxonomic_name(): Parse names into components (genus, species, etc.)
 # - match_taxonomic_names(): Intelligently match names with scoring
-# - .match_exact(): Helper for exact matching
-# - .match_genus_constrained(): Helper for genus-constrained matching
-# - .score_matches(): Helper for scoring and ranking matches
+# - .match_exact_sql(): Helper for SQL-side exact matching
+# - .match_genus_constrained_sql(): Helper for SQL-side genus-constrained matching
+# - .match_fuzzy_sql(): Helper for SQL-side fuzzy matching
 #
-# Dependencies: DBI, dplyr, stringr, cli, RecordLinkage
-
+# Dependencies: DBI, dplyr, stringr, cli, glue
 
 #' Parse taxonomic name into components
 #'
@@ -106,19 +105,22 @@ parse_taxonomic_name <- function(name) {
 
 
 
-#' Match taxonomic names to backbone with intelligent strategy
+#' Match taxonomic names to backbone with intelligent SQL-side strategy
 #'
 #' @description
-#' Match taxonomic names using a hierarchical strategy:
-#' 1. Exact match on full name
-#' 2. Genus-constrained fuzzy match (if genus matches, search species within genus)
-#' 3. Full fuzzy match (last resort)
+#' Match taxonomic names using a hierarchical strategy with SQL-side fuzzy matching:
+#' 1. Exact match on full name (SQL)
+#' 2. Genus-constrained fuzzy match (SQL SIMILARITY within matched genera)
+#' 3. Full fuzzy match (SQL SIMILARITY on full database - last resort)
 #' Results are scored and ranked by match quality.
+#'
+#' This approach minimizes data transfer and leverages PostgreSQL's optimized
+#' SIMILARITY function, making it much faster especially with slow connections.
 #'
 #' @param names Character vector of taxonomic names to match
 #' @param method Matching method: "auto" (default), "exact", "genus_constrained", "fuzzy"
 #' @param max_matches Maximum number of suggestions per name (default: 10)
-#' @param min_similarity Minimum Levenshtein similarity score (0-1, default: 0.7)
+#' @param min_similarity Minimum similarity threshold (0-1, default: 0.3 for SQL SIMILARITY)
 #' @param include_synonyms Include synonyms in results (default: TRUE)
 #' @param return_scores Return similarity scores (default: TRUE)
 #' @param include_authors Try matching with author names (default: FALSE)
@@ -135,9 +137,9 @@ parse_taxonomic_name <- function(name) {
 #'   - match_score: Similarity score (if return_scores = TRUE)
 #'   - is_synonym: Whether matched name is a synonym
 #'   - accepted_name: Accepted name (if synonym)
-#'   - genus: Matched genus
-#'   - species: Matched species epithet
-#'   - family: Matched family
+#'   - tax_gen: Matched genus
+#'   - tax_esp: Matched species epithet
+#'   - tax_fam: Matched family
 #'
 #' @author Claude Code Assistant
 #'
@@ -158,7 +160,7 @@ parse_taxonomic_name <- function(name) {
 match_taxonomic_names <- function(names,
                                   method = c("auto", "exact", "genus_constrained", "fuzzy", "hierarchical"),
                                   max_matches = 10,
-                                  min_similarity = 0.7,
+                                  min_similarity = 0.3,
                                   include_synonyms = TRUE,
                                   return_scores = TRUE,
                                   include_authors = FALSE,
@@ -195,39 +197,7 @@ match_taxonomic_names <- function(names,
   if (verbose) cli::cli_alert_info("Parsing taxonomic names...")
   parsed_names <- lapply(valid_names, parse_taxonomic_name)
 
-  # Get full taxonomy table for matching
-  if (verbose) cli::cli_alert_info("Loading taxonomic backbone...")
-
-  backbone <- tbl(con, "table_taxa") %>%
-    select(idtax_n, idtax_good_n, tax_gen, tax_esp, tax_fam,
-           tax_rank01, tax_nam01, tax_rank02, tax_nam02,
-           author1, author2, author3) %>%
-    collect()
-
-  # Build searchable names
-  backbone <- backbone %>%
-    mutate(
-      tax_sp_level = ifelse(!is.na(tax_esp), paste(tax_gen, tax_esp), tax_gen),
-      tax_infra_level = ifelse(!is.na(tax_esp),
-                               paste0(tax_gen, " ", tax_esp,
-                                      ifelse(!is.na(tax_rank01), paste0(" ", tax_rank01), ""),
-                                      ifelse(!is.na(tax_nam01), paste0(" ", tax_nam01), ""),
-                                      ifelse(!is.na(tax_rank02), paste0(" ", tax_rank02), ""),
-                                      ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), "")),
-                               tax_gen),
-      tax_infra_level_auth = ifelse(!is.na(tax_esp),
-                                    paste0(tax_gen, " ", tax_esp,
-                                           ifelse(!is.na(author1), paste0(" ", author1), ""),
-                                           ifelse(!is.na(tax_rank01), paste0(" ", tax_rank01), ""),
-                                           ifelse(!is.na(tax_nam01), paste0(" ", tax_nam01), ""),
-                                           ifelse(!is.na(author2), paste0(" ", author2), ""),
-                                           ifelse(!is.na(tax_rank02), paste0(" ", tax_rank02), ""),
-                                           ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), ""),
-                                           ifelse(!is.na(author3), paste0(" ", author3), "")),
-                                    tax_gen)
-    )
-
-  # Process each name
+  # Process each name using SQL-side matching
   all_matches <- list()
 
   for (i in seq_along(parsed_names)) {
@@ -237,9 +207,9 @@ match_taxonomic_names <- function(names,
       cli::cli_alert_info("Processing ({i}/{length(parsed_names)}): {parsed$input_name}")
     }
 
-    matches <- .match_single_name(
+    matches <- .match_single_name_sql(
       parsed = parsed,
-      backbone = backbone,
+      con = con,
       method = method,
       max_matches = max_matches,
       min_similarity = min_similarity,
@@ -254,8 +224,8 @@ match_taxonomic_names <- function(names,
   result <- bind_rows(all_matches)
 
   # Add synonym information if requested
-  if (include_synonyms && nrow(result) > 0) {
-    result <- .add_synonym_info(result, backbone)
+  if (include_synonyms && nrow(result) > 0 && any(!is.na(result$idtax_n))) {
+    result <- .add_synonym_info_sql(result, con)
   }
 
   # Remove score column if not requested
@@ -263,7 +233,7 @@ match_taxonomic_names <- function(names,
     result <- result %>% select(-match_score)
   }
 
-  if (verbose) {
+  if (verbose && nrow(result) > 0) {
     n_exact <- sum(result$match_method == "exact" & result$match_rank == 1, na.rm = TRUE)
     n_genus <- sum(result$match_method == "genus_constrained" & result$match_rank == 1, na.rm = TRUE)
     n_fuzzy <- sum(result$match_method == "fuzzy" & result$match_rank == 1, na.rm = TRUE)
@@ -283,45 +253,42 @@ match_taxonomic_names <- function(names,
 
 
 
-#' Match a single parsed name (internal helper)
+#' Match a single parsed name using SQL-side queries (internal helper)
 #' @keywords internal
-.match_single_name <- function(parsed, backbone, method, max_matches,
-                               min_similarity, include_authors, verbose) {
+.match_single_name_sql <- function(parsed, con, method, max_matches,
+                                   min_similarity, include_authors, verbose) {
 
   # Try exact match first (unless method restricts it)
   if (method %in% c("auto", "exact", "hierarchical")) {
-    exact_matches <- .match_exact(parsed, backbone, include_authors)
+    exact_matches <- .match_exact_sql(parsed, con, include_authors, max_matches)
 
     if (nrow(exact_matches) > 0) {
       if (verbose) cli::cli_alert_success("Found exact match")
       return(exact_matches %>%
-               slice_head(n = max_matches) %>%
                mutate(match_rank = row_number()))
     }
   }
 
   # If no exact match and method allows, try genus-constrained
   if (method %in% c("auto", "genus_constrained", "hierarchical") && !is.na(parsed$genus)) {
-    genus_matches <- .match_genus_constrained(parsed, backbone, min_similarity, include_authors)
+    genus_matches <- .match_genus_constrained_sql(parsed, con, min_similarity,
+                                                   include_authors, max_matches)
 
     if (nrow(genus_matches) > 0) {
       if (verbose) cli::cli_alert_info("Found genus-constrained matches")
-      scored <- .score_matches(genus_matches, parsed$input_name, "genus_constrained")
-      return(scored %>%
-               slice_head(n = max_matches) %>%
+      return(genus_matches %>%
                mutate(match_rank = row_number()))
     }
   }
 
   # Last resort: full fuzzy match
   if (method %in% c("auto", "fuzzy", "hierarchical")) {
-    fuzzy_matches <- .match_fuzzy(parsed, backbone, min_similarity, include_authors)
+    fuzzy_matches <- .match_fuzzy_sql(parsed, con, min_similarity,
+                                      include_authors, max_matches)
 
     if (nrow(fuzzy_matches) > 0) {
       if (verbose) cli::cli_alert_info("Found fuzzy matches")
-      scored <- .score_matches(fuzzy_matches, parsed$input_name, "fuzzy")
-      return(scored %>%
-               slice_head(n = max_matches) %>%
+      return(fuzzy_matches %>%
                mutate(match_rank = row_number()))
     }
   }
@@ -336,160 +303,254 @@ match_taxonomic_names <- function(names,
     idtax_good_n = NA_integer_,
     match_method = "no_match",
     match_score = NA_real_,
-    genus = NA_character_,
-    species = NA_character_,
-    family = NA_character_
+    tax_gen = NA_character_,
+    tax_esp = NA_character_,
+    tax_fam = NA_character_
   ))
 }
 
 
 
-#' Exact matching helper
+#' Exact matching helper using SQL
 #' @keywords internal
-.match_exact <- function(parsed, backbone, include_authors) {
+.match_exact_sql <- function(parsed, con, include_authors, max_matches) {
 
-  search_field <- if (include_authors) "tax_infra_level_auth" else "tax_infra_level"
-
-  matches <- backbone %>%
-    filter(tolower(!!sym(search_field)) == tolower(parsed$input_name))
-
-  if (nrow(matches) > 0) {
-    matches <- matches %>%
-      transmute(
-        input_name = parsed$input_name,
-        matched_name = !!sym(search_field),
-        idtax_n = idtax_n,
-        idtax_good_n = idtax_good_n,
-        match_method = "exact",
-        match_score = 1.0,
-        genus = tax_gen,
-        species = tax_esp,
-        family = tax_fam
-      )
+  # Build the name field to search (with or without authors)
+  if (include_authors) {
+    name_field <- glue::glue_sql("
+      CASE WHEN tax_esp IS NOT NULL THEN
+        concat(tax_gen, ' ', tax_esp,
+               COALESCE(' ' || author1, ''),
+               COALESCE(' ' || tax_rank01, ''),
+               COALESCE(' ' || tax_nam01, ''),
+               COALESCE(' ' || author2, ''),
+               COALESCE(' ' || tax_rank02, ''),
+               COALESCE(' ' || tax_nam02, ''),
+               COALESCE(' ' || author3, ''))
+      ELSE tax_gen
+      END", .con = con)
+  } else {
+    name_field <- glue::glue_sql("
+      CASE WHEN tax_esp IS NOT NULL THEN
+        concat(tax_gen, ' ', tax_esp,
+               COALESCE(' ' || tax_rank01, ''),
+               COALESCE(' ' || tax_nam01, ''),
+               COALESCE(' ' || tax_rank02, ''),
+               COALESCE(' ' || tax_nam02, ''))
+      ELSE tax_gen
+      END", .con = con)
   }
 
-  return(matches)
+  sql <- glue::glue_sql("
+    SELECT
+      idtax_n,
+      idtax_good_n,
+      tax_gen,
+      tax_esp,
+      tax_fam,
+      tax_rank01,
+      tax_nam01,
+      tax_rank02,
+      tax_nam02,
+      author1,
+      author2,
+      author3,
+      {name_field} AS matched_name,
+      1.0 AS similarity_score
+    FROM table_taxa
+    WHERE lower({name_field}) = lower({search_name})
+    LIMIT {max_matches}
+  ", search_name = parsed$input_name, max_matches = max_matches, .con = con)
+
+  result <- func_try_fetch(con = con, sql = sql)
+
+  if (nrow(result) > 0) {
+    result <- result %>%
+      mutate(
+        input_name = parsed$input_name,
+        match_method = "exact",
+        match_score = 1.0
+      ) %>%
+      select(input_name, matched_name, idtax_n, idtax_good_n,
+             match_method, match_score, tax_gen, tax_esp, tax_fam)
+  }
+
+  return(result)
 }
 
 
 
-#' Genus-constrained fuzzy matching helper
+#' Genus-constrained fuzzy matching helper using SQL SIMILARITY
 #' @keywords internal
-.match_genus_constrained <- function(parsed, backbone, min_similarity, include_authors) {
+.match_genus_constrained_sql <- function(parsed, con, min_similarity,
+                                         include_authors, max_matches) {
 
   if (is.na(parsed$genus)) {
     return(tibble())
   }
 
-  # First, find matching genera (exact or fuzzy)
-  genus_matches <- backbone %>%
-    filter(!is.na(tax_gen)) %>%
-    distinct(tax_gen) %>%
-    pull(tax_gen)
+  # Step 1: Find matching genera using SQL SIMILARITY
+  sql_genus <- glue::glue_sql("
+    SELECT DISTINCT tax_gen,
+           SIMILARITY(lower(tax_gen), lower({genus_search})) AS genus_sim
+    FROM table_taxa
+    WHERE tax_gen IS NOT NULL
+      AND SIMILARITY(lower(tax_gen), lower({genus_search})) >= {min_sim}
+    ORDER BY genus_sim DESC
+    LIMIT 10
+  ", genus_search = parsed$genus, min_sim = min_similarity, .con = con)
 
-  # Calculate similarity to genera
-  genus_sims <- RecordLinkage::levenshteinSim(tolower(parsed$genus), tolower(genus_matches))
+  matching_genera <- func_try_fetch(con = con, sql = sql_genus)
 
-  # Keep genera above threshold
-  matching_genera <- genus_matches[genus_sims >= min_similarity]
-
-  if (length(matching_genera) == 0) {
+  if (nrow(matching_genera) == 0) {
     return(tibble())
   }
 
-  # Now search for species within these genera
-  search_field <- if (include_authors) "tax_infra_level_auth" else "tax_infra_level"
+  # Step 2: Search for species within matched genera using SQL SIMILARITY
+  genera_list <- matching_genera$tax_gen
 
-  constrained_backbone <- backbone %>%
-    filter(tax_gen %in% matching_genera)
+  # Build the name field to search
+  if (include_authors) {
+    name_field <- glue::glue_sql("
+      CASE WHEN tax_esp IS NOT NULL THEN
+        concat(tax_gen, ' ', tax_esp,
+               COALESCE(' ' || author1, ''),
+               COALESCE(' ' || tax_rank01, ''),
+               COALESCE(' ' || tax_nam01, ''),
+               COALESCE(' ' || author2, ''),
+               COALESCE(' ' || tax_rank02, ''),
+               COALESCE(' ' || tax_nam02, ''),
+               COALESCE(' ' || author3, ''))
+      ELSE tax_gen
+      END", .con = con)
+  } else {
+    name_field <- glue::glue_sql("
+      CASE WHEN tax_esp IS NOT NULL THEN
+        concat(tax_gen, ' ', tax_esp,
+               COALESCE(' ' || tax_rank01, ''),
+               COALESCE(' ' || tax_nam01, ''),
+               COALESCE(' ' || tax_rank02, ''),
+               COALESCE(' ' || tax_nam02, ''))
+      ELSE tax_gen
+      END", .con = con)
+  }
 
-  # Calculate similarity scores
-  sims <- RecordLinkage::levenshteinSim(
-    tolower(parsed$input_name),
-    tolower(constrained_backbone[[search_field]])
-  )
+  sql_species <- glue::glue_sql("
+    SELECT
+      idtax_n,
+      idtax_good_n,
+      tax_gen,
+      tax_esp,
+      tax_fam,
+      tax_rank01,
+      tax_nam01,
+      tax_rank02,
+      tax_nam02,
+      author1,
+      author2,
+      author3,
+      {name_field} AS matched_name,
+      SIMILARITY(lower({name_field}), lower({search_name})) AS similarity_score
+    FROM table_taxa
+    WHERE tax_gen IN ({genera_list*})
+      AND SIMILARITY(lower({name_field}), lower({search_name})) >= {min_sim}
+    ORDER BY similarity_score DESC, tax_esp IS NOT NULL DESC
+    LIMIT {max_matches}
+  ", search_name = parsed$input_name, genera_list = genera_list,
+     min_sim = min_similarity, max_matches = max_matches, .con = con)
 
-  # Filter by threshold
-  matches <- constrained_backbone[sims >= min_similarity, ]
+  result <- func_try_fetch(con = con, sql = sql_species)
 
-  if (nrow(matches) > 0) {
-    matches <- matches %>%
-      transmute(
+  if (nrow(result) > 0) {
+    result <- result %>%
+      mutate(
         input_name = parsed$input_name,
-        matched_name = !!sym(search_field),
-        idtax_n = idtax_n,
-        idtax_good_n = idtax_good_n,
         match_method = "genus_constrained",
-        match_score = sims[sims >= min_similarity],
-        genus = tax_gen,
-        species = tax_esp,
-        family = tax_fam
-      )
+        match_score = similarity_score
+      ) %>%
+      select(input_name, matched_name, idtax_n, idtax_good_n,
+             match_method, match_score, tax_gen, tax_esp, tax_fam)
   }
 
-  return(matches)
+  return(result)
 }
 
 
 
-#' Full fuzzy matching helper (last resort)
+#' Full fuzzy matching helper using SQL SIMILARITY (last resort)
 #' @keywords internal
-.match_fuzzy <- function(parsed, backbone, min_similarity, include_authors) {
+.match_fuzzy_sql <- function(parsed, con, min_similarity, include_authors, max_matches) {
 
-  search_field <- if (include_authors) "tax_infra_level_auth" else "tax_infra_level"
+  # Build the name field to search
+  if (include_authors) {
+    name_field <- glue::glue_sql("
+      CASE WHEN tax_esp IS NOT NULL THEN
+        concat(tax_gen, ' ', tax_esp,
+               COALESCE(' ' || author1, ''),
+               COALESCE(' ' || tax_rank01, ''),
+               COALESCE(' ' || tax_nam01, ''),
+               COALESCE(' ' || author2, ''),
+               COALESCE(' ' || tax_rank02, ''),
+               COALESCE(' ' || tax_nam02, ''),
+               COALESCE(' ' || author3, ''))
+      ELSE tax_gen
+      END", .con = con)
+  } else {
+    name_field <- glue::glue_sql("
+      CASE WHEN tax_esp IS NOT NULL THEN
+        concat(tax_gen, ' ', tax_esp,
+               COALESCE(' ' || tax_rank01, ''),
+               COALESCE(' ' || tax_nam01, ''),
+               COALESCE(' ' || tax_rank02, ''),
+               COALESCE(' ' || tax_nam02, ''))
+      ELSE tax_gen
+      END", .con = con)
+  }
 
-  # Calculate similarity scores for entire backbone
-  sims <- RecordLinkage::levenshteinSim(
-    tolower(parsed$input_name),
-    tolower(backbone[[search_field]])
-  )
+  sql <- glue::glue_sql("
+    SELECT
+      idtax_n,
+      idtax_good_n,
+      tax_gen,
+      tax_esp,
+      tax_fam,
+      tax_rank01,
+      tax_nam01,
+      tax_rank02,
+      tax_nam02,
+      author1,
+      author2,
+      author3,
+      {name_field} AS matched_name,
+      SIMILARITY(lower({name_field}), lower({search_name})) AS similarity_score
+    FROM table_taxa
+    WHERE SIMILARITY(lower({name_field}), lower({search_name})) >= {min_sim}
+    ORDER BY similarity_score DESC, tax_esp IS NOT NULL DESC
+    LIMIT {max_matches}
+  ", search_name = parsed$input_name, min_sim = min_similarity,
+     max_matches = max_matches, .con = con)
 
-  # Filter by threshold
-  matches <- backbone[sims >= min_similarity, ]
+  result <- func_try_fetch(con = con, sql = sql)
 
-  if (nrow(matches) > 0) {
-    matches <- matches %>%
-      transmute(
+  if (nrow(result) > 0) {
+    result <- result %>%
+      mutate(
         input_name = parsed$input_name,
-        matched_name = !!sym(search_field),
-        idtax_n = idtax_n,
-        idtax_good_n = idtax_good_n,
         match_method = "fuzzy",
-        match_score = sims[sims >= min_similarity],
-        genus = tax_gen,
-        species = tax_esp,
-        family = tax_fam
-      )
+        match_score = similarity_score
+      ) %>%
+      select(input_name, matched_name, idtax_n, idtax_good_n,
+             match_method, match_score, tax_gen, tax_esp, tax_fam)
   }
 
-  return(matches)
+  return(result)
 }
 
 
 
-#' Score and rank matches
+#' Add synonym information to matches using SQL
 #' @keywords internal
-.score_matches <- function(matches, input_name, method) {
-
-  if (nrow(matches) == 0) return(matches)
-
-  # Sort by score (descending) and taxonomic completeness
-  matches <- matches %>%
-    arrange(
-      desc(match_score),
-      desc(!is.na(species)),  # Prefer species-level matches
-      desc(!is.na(genus)),
-      matched_name
-    )
-
-  return(matches)
-}
-
-
-
-#' Add synonym information to matches
-#' @keywords internal
-.add_synonym_info <- function(matches, backbone) {
+.add_synonym_info_sql <- function(matches, con) {
 
   if (nrow(matches) == 0) return(matches)
 
@@ -503,12 +564,29 @@ match_taxonomic_names <- function(names,
   synonym_ids <- matches %>%
     filter(is_synonym) %>%
     pull(idtax_good_n) %>%
-    unique()
+    unique() %>%
+    na.omit()
 
   if (length(synonym_ids) > 0) {
-    accepted_names <- backbone %>%
-      filter(idtax_n %in% synonym_ids) %>%
-      select(idtax_n, accepted_name = tax_infra_level)
+    # Build name field for accepted names
+    name_field <- glue::glue_sql("
+      CASE WHEN tax_esp IS NOT NULL THEN
+        concat(tax_gen, ' ', tax_esp,
+               COALESCE(' ' || tax_rank01, ''),
+               COALESCE(' ' || tax_nam01, ''),
+               COALESCE(' ' || tax_rank02, ''),
+               COALESCE(' ' || tax_nam02, ''))
+      ELSE tax_gen
+      END", .con = con)
+
+    sql <- glue::glue_sql("
+      SELECT idtax_n,
+             {name_field} AS accepted_name
+      FROM table_taxa
+      WHERE idtax_n IN ({synonym_ids*})
+    ", synonym_ids = synonym_ids, .con = con)
+
+    accepted_names <- func_try_fetch(con = con, sql = sql)
 
     matches <- matches %>%
       left_join(accepted_names, by = c("idtax_good_n" = "idtax_n"))
@@ -529,10 +607,12 @@ match_taxonomic_names <- function(names,
 #' This is a batch wrapper around `match_taxonomic_names()` that returns
 #' the original data with added columns for the best match.
 #'
+#' Uses SQL-side fuzzy matching for optimal performance with slow connections.
+#'
 #' @param data A data frame or tibble containing taxonomic names
 #' @param name_column Name of column containing taxonomic names (quoted or unquoted)
 #' @param method Matching method: "auto" (default), "exact", "genus_constrained", "fuzzy"
-#' @param min_similarity Minimum similarity score (0-1, default: 0.7)
+#' @param min_similarity Minimum similarity score (0-1, default: 0.3)
 #' @param include_synonyms Include synonym information (default: TRUE)
 #' @param include_authors Try matching with author names (default: FALSE)
 #' @param con Database connection (if NULL, will call call.mydb.taxa())
@@ -578,7 +658,7 @@ match_taxonomic_names <- function(names,
 standardize_taxonomic_batch <- function(data,
                                        name_column,
                                        method = c("auto", "exact", "genus_constrained", "fuzzy"),
-                                       min_similarity = 0.7,
+                                       min_similarity = 0.3,
                                        include_synonyms = TRUE,
                                        include_authors = FALSE,
                                        con = NULL,
@@ -626,13 +706,15 @@ standardize_taxonomic_batch <- function(data,
   }
 
   # Rename columns to avoid conflicts
-  matches <- matches %>%
-    dplyr::rename(
-      !!name_col_str := input_name,
-      match_genus = genus,
-      match_species = species,
-      match_family = family
-    )
+  if (nrow(matches) > 0) {
+    matches <- matches %>%
+      dplyr::rename(
+        !!name_col_str := input_name,
+        match_genus = tax_gen,
+        match_species = tax_esp,
+        match_family = tax_fam
+      )
+  }
 
   # Join back to original data
   result <- data %>%
