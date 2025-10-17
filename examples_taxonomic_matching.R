@@ -1,5 +1,8 @@
 # Interactive examples for taxonomic name matching
 # These require database connection - run manually in RStudio
+#
+# NOTE: These functions use SQL-side fuzzy matching for optimal performance
+# with slow connections. All SIMILARITY computations happen on PostgreSQL server.
 
 library(plotsdatabase)
 library(dplyr)
@@ -38,16 +41,16 @@ cat("\n=== Example 3: Fuzzy Matching ===\n")
 
 # Names with intentional typos
 typo_names <- c(
-  "Periopsis elata",      # Missing 'c' in Pericopsis
+  "Carapa procira",      # Missing 'c' in Pericopsis
   "Garcinea kola",        # Extra 'e' in Garcinia
   "Gilbertiodendron dewevrei"  # Correct (should still match)
 )
 
 fuzzy_matches <- match_taxonomic_names(
-  typo_names,
-  method = "fuzzy",
-  max_matches = 3,
-  min_similarity = 0.7
+  names = typo_names,
+  method = "auto",
+  max_matches = 10,
+  min_similarity = 0.3  # SQL SIMILARITY uses lower threshold (0-1 scale)
 )
 
 print(fuzzy_matches)
@@ -69,7 +72,7 @@ genus_matches <- match_taxonomic_names(
   genus_test,
   method = "genus_constrained",
   max_matches = 5,
-  min_similarity = 0.7
+  min_similarity = 0.3  # SQL SIMILARITY threshold
 )
 
 print(genus_matches)
@@ -91,9 +94,9 @@ mixed_names <- c(
 
 auto_matches <- match_taxonomic_names(
   mixed_names,
-  method = "auto",  # Will try exact → genus_constrained → fuzzy
+  method = "auto",  # Will try exact → genus_constrained → fuzzy (all SQL-side)
   max_matches = 3,
-  min_similarity = 0.6
+  min_similarity = 0.3  # SQL SIMILARITY threshold
 )
 
 print(auto_matches)
@@ -139,11 +142,12 @@ sample_data <- tibble(
 )
 
 # Use batch function - adds columns with best match for each name
+# SQL-side matching ensures fast performance even with slow connections
 matched_data <- standardize_taxonomic_batch(
   data = sample_data,
   name_column = "species_name",
   method = "auto",
-  min_similarity = 0.7
+  min_similarity = 0.3  # SQL SIMILARITY threshold
 )
 
 print(matched_data)
@@ -163,7 +167,7 @@ all_matches_data <- standardize_taxonomic_batch(
   data = sample_data,
   name_column = "species_name",
   method = "auto",
-  min_similarity = 0.6,
+  min_similarity = 0.3,  # SQL SIMILARITY threshold
   keep_all_matches = TRUE
 )
 
