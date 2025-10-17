@@ -4,7 +4,13 @@
 \alias{aggregate_character_features_dt}
 \title{Aggregate character features using data.table}
 \usage{
-aggregate_character_features_dt(data, include_census, mode)
+aggregate_character_features_dt(
+  data,
+  include_census,
+  mode,
+  include_issue = FALSE,
+  include_measurement_ids = FALSE
+)
 }
 \description{
 Aggregate character features using data.table
