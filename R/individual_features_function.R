@@ -123,45 +123,90 @@ get_individual_aggregated_features <- function(
 #' Aggregate numeric features using data.table
 #' @keywords internal
 aggregate_numeric_features_dt <- function(data, include_census, mode) {
-  
+
   if (nrow(data) == 0) return(NULL)
-  
+
   cli::cli_alert_info("Aggregating {nrow(data)} numeric measurement(s)")
-  
+
   # Convert to data.table
   if (!data.table::is.data.table(data)) data.table::setDT(data)
-  
+
   # Convert traitvalue to numeric
   data[, traitvalue_num := as.numeric(traitvalue)]
-  
+
   if (include_census && "census_name" %in% names(data) && any(!is.na(data$census_name))) {
-    
-    # With census: keep census as separate columns
-    # Aggregate by (individual, subplot, trait, census)
-    dt_agg <- data[!is.na(census_name), 
-                   .(value = mean(traitvalue_num, na.rm = TRUE)),
-                   by = .(id_data_individuals, id_sub_plots, trait, census_name)]
-    
-    # Further aggregate by (individual, trait, census) - mean across subplots
-    dt_ind <- dt_agg[, .(value = mean(value, na.rm = TRUE)),
-                     by = .(id_data_individuals, trait, census_name)]
-    
-    # Pivot to wide format with trait_census columns
-    result <- data.table::dcast(
-      dt_ind,
-      id_data_individuals ~ trait + census_name,
-      value.var = "value",
-      sep = "_"
-    )
-    
+
+    # Split data into census-linked and non-census features
+    data_census <- data[!is.na(census_name)]
+    data_no_census <- data[is.na(census_name)]
+
+    results_to_merge <- list()
+
+    # Process census-linked features with census columns
+    if (nrow(data_census) > 0) {
+      # Aggregate by (individual, subplot, trait, census)
+      dt_agg <- data_census[,
+                     .(value = mean(traitvalue_num, na.rm = TRUE)),
+                     by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+
+      # Further aggregate by (individual, trait, census) - mean across subplots
+      dt_ind <- dt_agg[, .(value = mean(value, na.rm = TRUE)),
+                       by = .(id_data_individuals, trait, census_name)]
+
+      # Pivot to wide format with trait_census columns
+      result_census <- data.table::dcast(
+        dt_ind,
+        id_data_individuals ~ trait + census_name,
+        value.var = "value",
+        sep = "_"
+      )
+
+      results_to_merge[[1]] <- result_census
+    }
+
+    # Process non-census features without census columns
+    if (nrow(data_no_census) > 0) {
+      if ("id_sub_plots" %in% names(data_no_census)) {
+        # Aggregate by subplot first, then by individual
+        dt_subplot <- data_no_census[, .(value = mean(traitvalue_num, na.rm = TRUE)),
+                           by = .(id_data_individuals, id_sub_plots, trait)]
+
+        dt_ind <- dt_subplot[, .(value = mean(value, na.rm = TRUE)),
+                             by = .(id_data_individuals, trait)]
+      } else {
+        # Direct aggregation
+        dt_ind <- data_no_census[, .(value = mean(traitvalue_num, na.rm = TRUE)),
+                       by = .(id_data_individuals, trait)]
+      }
+
+      # Pivot to wide format
+      result_no_census <- data.table::dcast(
+        dt_ind,
+        id_data_individuals ~ trait,
+        value.var = "value"
+      )
+
+      results_to_merge[[2]] <- result_no_census
+    }
+
+    # Merge census and non-census results
+    if (length(results_to_merge) == 2) {
+      result <- merge(results_to_merge[[1]], results_to_merge[[2]],
+                      by = "id_data_individuals", all = TRUE)
+    } else if (length(results_to_merge) == 1) {
+      result <- results_to_merge[[1]]
+    } else {
+      return(NULL)
+    }
+
   } else {
-    
+
     # Without census: aggregate by (individual, trait)
     if ("id_sub_plots" %in% names(data)) {
       # Aggregate by subplot first, then by individual
       dt_subplot <- data[, .(value = mean(traitvalue_num, na.rm = TRUE)),
                          by = .(id_data_individuals, id_sub_plots, trait)]
-      
+
       dt_ind <- dt_subplot[, .(value = mean(value, na.rm = TRUE)),
                            by = .(id_data_individuals, trait)]
     } else {
@@ -169,7 +214,7 @@ aggregate_numeric_features_dt <- function(data, include_census, mode) {
       dt_ind <- data[, .(value = mean(traitvalue_num, na.rm = TRUE)),
                      by = .(id_data_individuals, trait)]
     }
-    
+
     # Pivot to wide format
     result <- data.table::dcast(
       dt_ind,
@@ -177,68 +222,144 @@ aggregate_numeric_features_dt <- function(data, include_census, mode) {
       value.var = "value"
     )
   }
-  
+
   return(result)
 }
 
 #' Aggregate character features using data.table
 #' @keywords internal
 aggregate_character_features_dt <- function(data, include_census, mode) {
-  
+
   if (nrow(data) == 0) return(NULL)
-  
+
   cli::cli_alert_info("Aggregating {nrow(data)} character measurement(s)")
-  
+
   # Convert to data.table
   if (!data.table::is.data.table(data)) data.table::setDT(data)
-  
+
   # Clean text values
   data[, traitvalue_char := str_squish(traitvalue_char)]
-  
+
   if (include_census && "census_name" %in% names(data) && any(!is.na(data$census_name))) {
-    
-    # With census: keep census as separate columns
-    # Aggregate by (individual, subplot, trait, census)
-    if (mode == "mode") {
-      dt_agg <- data[!is.na(traitvalue_char) & !is.na(census_name), 
-                     .(value = get_mode_dt(traitvalue_char)),
-                     by = .(id_data_individuals, id_sub_plots, trait, census_name)]
-    } else if (mode == "last") {
-      dt_agg <- data[!is.na(traitvalue_char) & !is.na(census_name),
-                     .(value = last(traitvalue_char)),
-                     by = .(id_data_individuals, id_sub_plots, trait, census_name)]
-    } else {
-      # concat or auto
-      dt_agg <- data[!is.na(traitvalue_char) & !is.na(census_name),
-                     .(value = paste(unique(traitvalue_char), collapse = ", ")),
-                     by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+
+    # Split data into census-linked and non-census features
+    data_census <- data[!is.na(census_name)]
+    data_no_census <- data[is.na(census_name)]
+
+    results_to_merge <- list()
+
+    # Process census-linked features with census columns
+    if (nrow(data_census) > 0) {
+      # Aggregate by (individual, subplot, trait, census)
+      if (mode == "mode") {
+        dt_agg <- data_census[!is.na(traitvalue_char),
+                       .(value = get_mode_dt(traitvalue_char)),
+                       by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+      } else if (mode == "last") {
+        dt_agg <- data_census[!is.na(traitvalue_char),
+                       .(value = last(traitvalue_char)),
+                       by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+      } else {
+        # concat or auto
+        dt_agg <- data_census[!is.na(traitvalue_char),
+                       .(value = paste(unique(traitvalue_char), collapse = ", ")),
+                       by = .(id_data_individuals, id_sub_plots, trait, census_name)]
+      }
+
+      # Further aggregate by (individual, trait, census) across subplots
+      if (mode == "mode") {
+        dt_ind <- dt_agg[!is.na(value),
+                         .(value = get_mode_dt(value)),
+                         by = .(id_data_individuals, trait, census_name)]
+      } else if (mode == "last") {
+        dt_ind <- dt_agg[!is.na(value),
+                         .(value = last(value)),
+                         by = .(id_data_individuals, trait, census_name)]
+      } else {
+        dt_ind <- dt_agg[!is.na(value),
+                         .(value = paste(unique(value), collapse = ", ")),
+                         by = .(id_data_individuals, trait, census_name)]
+      }
+
+      # Pivot to wide with trait_census columns
+      result_census <- data.table::dcast(
+        dt_ind,
+        id_data_individuals ~ trait + census_name,
+        value.var = "value",
+        sep = "_"
+      )
+
+      results_to_merge[[1]] <- result_census
     }
-    
-    # Further aggregate by (individual, trait, census) across subplots
-    if (mode == "mode") {
-      dt_ind <- dt_agg[!is.na(value),
-                       .(value = get_mode_dt(value)),
-                       by = .(id_data_individuals, trait, census_name)]
-    } else if (mode == "last") {
-      dt_ind <- dt_agg[!is.na(value),
-                       .(value = last(value)),
-                       by = .(id_data_individuals, trait, census_name)]
-    } else {
-      dt_ind <- dt_agg[!is.na(value),
-                       .(value = paste(unique(value), collapse = ", ")),
-                       by = .(id_data_individuals, trait, census_name)]
+
+    # Process non-census features without census columns
+    if (nrow(data_no_census) > 0) {
+      if ("id_sub_plots" %in% names(data_no_census)) {
+        # Aggregate by subplot first
+        if (mode == "mode") {
+          dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                             .(value = get_mode_dt(traitvalue_char)),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = get_mode_dt(value)),
+                               by = .(id_data_individuals, trait)]
+        } else if (mode == "last") {
+          dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                             .(value = last(traitvalue_char)),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = last(value)),
+                               by = .(id_data_individuals, trait)]
+        } else {
+          dt_subplot <- data_no_census[!is.na(traitvalue_char),
+                             .(value = paste(unique(traitvalue_char), collapse = ", ")),
+                             by = .(id_data_individuals, id_sub_plots, trait)]
+
+          dt_ind <- dt_subplot[!is.na(value),
+                               .(value = paste(unique(value), collapse = ", ")),
+                               by = .(id_data_individuals, trait)]
+        }
+      } else {
+        # Direct aggregation
+        if (mode == "mode") {
+          dt_ind <- data_no_census[!is.na(traitvalue_char),
+                         .(value = get_mode_dt(traitvalue_char)),
+                         by = .(id_data_individuals, trait)]
+        } else if (mode == "last") {
+          dt_ind <- data_no_census[!is.na(traitvalue_char),
+                         .(value = last(traitvalue_char)),
+                         by = .(id_data_individuals, trait)]
+        } else {
+          dt_ind <- data_no_census[!is.na(traitvalue_char),
+                         .(value = paste(unique(traitvalue_char), collapse = ", ")),
+                         by = .(id_data_individuals, trait)]
+        }
+      }
+
+      # Pivot to wide (NO PREFIX)
+      result_no_census <- data.table::dcast(
+        dt_ind,
+        id_data_individuals ~ trait,
+        value.var = "value"
+      )
+
+      results_to_merge[[2]] <- result_no_census
     }
-    
-    # Pivot to wide with trait_census columns
-    result <- data.table::dcast(
-      dt_ind,
-      id_data_individuals ~ trait + census_name,
-      value.var = "value",
-      sep = "_"
-    )
-    
+
+    # Merge census and non-census results
+    if (length(results_to_merge) == 2) {
+      result <- merge(results_to_merge[[1]], results_to_merge[[2]],
+                      by = "id_data_individuals", all = TRUE)
+    } else if (length(results_to_merge) == 1) {
+      result <- results_to_merge[[1]]
+    } else {
+      return(NULL)
+    }
+
   } else {
-    
+
     # Without census: aggregate by (individual, trait)
     if ("id_sub_plots" %in% names(data)) {
       # Aggregate by subplot first
@@ -246,7 +367,7 @@ aggregate_character_features_dt <- function(data, include_census, mode) {
         dt_subplot <- data[!is.na(traitvalue_char),
                            .(value = get_mode_dt(traitvalue_char)),
                            by = .(id_data_individuals, id_sub_plots, trait)]
-        
+
         dt_ind <- dt_subplot[!is.na(value),
                              .(value = get_mode_dt(value)),
                              by = .(id_data_individuals, trait)]
@@ -254,7 +375,7 @@ aggregate_character_features_dt <- function(data, include_census, mode) {
         dt_subplot <- data[!is.na(traitvalue_char),
                            .(value = last(traitvalue_char)),
                            by = .(id_data_individuals, id_sub_plots, trait)]
-        
+
         dt_ind <- dt_subplot[!is.na(value),
                              .(value = last(value)),
                              by = .(id_data_individuals, trait)]
@@ -262,7 +383,7 @@ aggregate_character_features_dt <- function(data, include_census, mode) {
         dt_subplot <- data[!is.na(traitvalue_char),
                            .(value = paste(unique(traitvalue_char), collapse = ", ")),
                            by = .(id_data_individuals, id_sub_plots, trait)]
-        
+
         dt_ind <- dt_subplot[!is.na(value),
                              .(value = paste(unique(value), collapse = ", ")),
                              by = .(id_data_individuals, trait)]
@@ -283,7 +404,7 @@ aggregate_character_features_dt <- function(data, include_census, mode) {
                        by = .(id_data_individuals, trait)]
       }
     }
-    
+
     # Pivot to wide (NO PREFIX)
     result <- data.table::dcast(
       dt_ind,
@@ -291,7 +412,7 @@ aggregate_character_features_dt <- function(data, include_census, mode) {
       value.var = "value"
     )
   }
-  
+
   # No prefix added - character and numeric traits share the same namespace
   return(result)
 }
