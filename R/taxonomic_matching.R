@@ -305,7 +305,8 @@ match_taxonomic_names <- function(names,
     match_score = NA_real_,
     tax_gen = NA_character_,
     tax_esp = NA_character_,
-    tax_fam = NA_character_
+    tax_fam = NA_character_,
+    tax_level = NA_character_
   ))
 }
 
@@ -348,6 +349,7 @@ match_taxonomic_names <- function(names,
       tax_gen,
       tax_esp,
       tax_fam,
+      tax_level,
       tax_rank01,
       tax_nam01,
       tax_rank02,
@@ -372,7 +374,7 @@ match_taxonomic_names <- function(names,
         match_score = 1.0
       ) %>%
       select(input_name, matched_name, idtax_n, idtax_good_n,
-             match_method, match_score, tax_gen, tax_esp, tax_fam)
+             match_method, match_score, tax_gen, tax_esp, tax_fam, tax_level)
   }
 
   return(result)
@@ -442,6 +444,7 @@ match_taxonomic_names <- function(names,
       tax_gen,
       tax_esp,
       tax_fam,
+      tax_level,
       tax_rank01,
       tax_nam01,
       tax_rank02,
@@ -469,7 +472,7 @@ match_taxonomic_names <- function(names,
         match_score = similarity_score
       ) %>%
       select(input_name, matched_name, idtax_n, idtax_good_n,
-             match_method, match_score, tax_gen, tax_esp, tax_fam)
+             match_method, match_score, tax_gen, tax_esp, tax_fam, tax_level)
   }
 
   return(result)
@@ -514,6 +517,7 @@ match_taxonomic_names <- function(names,
       tax_gen,
       tax_esp,
       tax_fam,
+      tax_level,
       tax_rank01,
       tax_nam01,
       tax_rank02,
@@ -540,7 +544,7 @@ match_taxonomic_names <- function(names,
         match_score = similarity_score
       ) %>%
       select(input_name, matched_name, idtax_n, idtax_good_n,
-             match_method, match_score, tax_gen, tax_esp, tax_fam)
+             match_method, match_score, tax_gen, tax_esp, tax_fam, tax_level)
   }
 
   return(result)
