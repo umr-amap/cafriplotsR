@@ -60,6 +60,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
     unmatched_names <- shiny::reactiveVal(NULL)
     review_decisions <- shiny::reactiveVal(list())
     updated_data <- shiny::reactiveVal(NULL)
+    custom_search_matches <- shiny::reactiveVal(NULL)
 
     # Get translations
     t <- shiny::reactive({
@@ -192,21 +193,30 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       ns <- session$ns
 
       shiny::div(
-        shiny::h5(t()$review_custom_name),
+        shiny::h5(
+          shiny::icon("search"),
+          "Search Taxonomic Backbone",
+          style = "color: #495057;"
+        ),
+        shiny::p(
+          "Enter a taxonomic name to search the backbone database. Select a taxonomic level to narrow results.",
+          class = "text-muted",
+          style = "font-size: 0.9em;"
+        ),
         shiny::fluidRow(
           shiny::column(
             width = 5,
             shiny::textInput(
               inputId = ns("custom_name"),
-              label = NULL,
-              placeholder = "Enter taxonomic name..."
+              label = "Name to search:",
+              placeholder = "e.g., Fabaceae, Brachystegia..."
             )
           ),
           shiny::column(
             width = 3,
             shiny::selectInput(
               inputId = ns("custom_level"),
-              label = NULL,
+              label = "Taxonomic level:",
               choices = c(
                 "All levels" = "all",
                 "Species" = "species",
@@ -222,12 +232,13 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
             width = 4,
             shiny::br(),
             shiny::actionButton(
-              inputId = ns("accept_custom"),
-              label = "Accept Custom",
-              class = "btn-warning btn-block"
+              inputId = ns("search_custom"),
+              label = paste(shiny::icon("search"), "Search"),
+              class = "btn-info btn-block"
             )
           )
         ),
+        shiny::uiOutput(ns("custom_search_results")),
         shiny::hr(),
         shiny::actionButton(
           inputId = ns("mark_unresolved"),
@@ -328,21 +339,19 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       }
     })
 
-    # Handle custom name
-    shiny::observeEvent(input$accept_custom, {
+    # Handle custom name search
+    shiny::observeEvent(input$search_custom, {
       req(input$custom_name)
-      req(current_name())
 
       custom <- input$custom_name
-      name <- current_name()
       level_filter <- input$custom_level %||% "all"
 
-      # Try to match custom name (using fuzzy for better results)
+      # Search the backbone
       matches <- match_taxonomic_names(
         names = custom,
         method = "hierarchical",
-        max_matches = 10,  # Get multiple to filter by level
-        min_similarity = 0.7,
+        max_matches = 20,  # Get more results for user to choose from
+        min_similarity = 0.5,
         include_synonyms = TRUE,
         return_scores = TRUE,
         con = NULL,
@@ -354,13 +363,128 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
         matches <- matches %>% dplyr::filter(tax_level == level_filter)
       }
 
-      # Take best match after filtering
-      if (nrow(matches) > 0 && !is.na(matches$idtax_n[1])) {
-        matched_row <- matches[1, ]
+      # Store results
+      custom_search_matches(matches)
+
+      if (nrow(matches) == 0 || all(is.na(matches$idtax_n))) {
+        shiny::showNotification(
+          if (level_filter != "all") {
+            paste0("No matches found for '", custom, "' at '", level_filter, "' level. Try 'All levels' or a different level.")
+          } else {
+            paste0("No matches found for '", custom, "' in the backbone database.")
+          },
+          type = "warning",
+          duration = 5
+        )
+      }
+    })
+
+    # Display custom search results
+    output$custom_search_results <- shiny::renderUI({
+      matches <- custom_search_matches()
+
+      if (is.null(matches) || nrow(matches) == 0 || all(is.na(matches$idtax_n))) {
+        return(NULL)
+      }
+
+      # Filter out NA matches
+      matches <- matches %>% dplyr::filter(!is.na(idtax_n))
+
+      if (nrow(matches) == 0) {
+        return(NULL)
+      }
+
+      ns <- session$ns
+
+      shiny::div(
+        style = "margin-top: 15px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;",
+        shiny::h6(
+          paste0("Search Results (", nrow(matches), " found)"),
+          style = "margin-top: 0; color: #495057;"
+        ),
+        shiny::div(
+          style = "max-height: 300px; overflow-y: auto;",
+          lapply(1:nrow(matches), function(i) {
+            row <- matches[i, ]
+
+            score_pct <- round(row$match_score * 100)
+            color_class <- if (score_pct >= 90) {
+              "success"
+            } else if (score_pct >= 70) {
+              "info"
+            } else {
+              "secondary"
+            }
+
+            shiny::div(
+              class = "card mb-2",
+              style = "border-left: 3px solid #17a2b8;",
+
+              shiny::div(
+                class = "card-body p-2",
+
+                shiny::fluidRow(
+                  shiny::column(
+                    width = 9,
+                    shiny::strong(row$matched_name),
+                    shiny::tags$small(
+                      class = paste0("badge badge-", color_class, " ml-2"),
+                      paste0(score_pct, "%")
+                    ),
+                    shiny::br(),
+                    shiny::tags$small(
+                      class = "text-muted",
+                      paste0(
+                        if (!is.na(row$tax_level)) paste("Level:", row$tax_level, " | ") else "",
+                        if (!is.na(row$tax_fam)) paste("Family:", row$tax_fam, " | ") else "",
+                        if (!is.na(row$tax_gen)) paste("Genus:", row$tax_gen) else ""
+                      )
+                    ),
+                    if (row$is_synonym && !is.na(row$accepted_name)) {
+                      shiny::tagList(
+                        shiny::br(),
+                        shiny::tags$small(
+                          class = "text-warning",
+                          shiny::icon("info-circle"),
+                          paste("Synonym →", row$accepted_name)
+                        )
+                      )
+                    }
+                  ),
+                  shiny::column(
+                    width = 3,
+                    class = "text-right",
+                    shiny::actionButton(
+                      inputId = ns(paste0("select_custom_", i)),
+                      label = "Select",
+                      class = "btn-sm btn-info",
+                      onclick = paste0("Shiny.setInputValue('", ns("custom_selected_row"), "', ", i, ");")
+                    )
+                  )
+                )
+              )
+            )
+          })
+        )
+      )
+    })
+
+    # Handle custom search selection
+    shiny::observeEvent(input$custom_selected_row, {
+      req(custom_search_matches())
+      req(input$custom_selected_row)
+      req(current_name())
+
+      matches <- custom_search_matches()
+      selected_idx <- input$custom_selected_row
+      name <- current_name()
+
+      if (selected_idx > 0 && selected_idx <= nrow(matches)) {
+        matched_row <- matches[selected_idx, ]
 
         decisions <- review_decisions()
         decisions[[name]] <- list(
-          type = "custom",
+          type = "custom_search",
           idtax_n = matched_row$idtax_n,
           idtax_good_n = matched_row$idtax_good_n,
           matched_name = matched_row$matched_name,
@@ -375,28 +499,19 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
         review_decisions(decisions)
 
         .update_data_with_decision(name, decisions[[name]])
-        .move_next()
 
-        # Clear input
+        # Clear search
+        custom_search_matches(NULL)
         shiny::updateTextInput(session, "custom_name", value = "")
 
-        # Show success notification with matched name
+        # Show success and move to next
         shiny::showNotification(
-          paste0("Matched to: ", matched_row$matched_name,
-                if (level_filter != "all") paste0(" (", level_filter, " level)") else ""),
+          paste0("Matched to: ", matched_row$matched_name),
           type = "message",
           duration = 3
         )
-      } else {
-        shiny::showNotification(
-          if (level_filter != "all") {
-            paste0("Custom name not found at '", level_filter, "' level. Try 'All levels' or a different level.")
-          } else {
-            "Custom name not found in database. Please try again."
-          },
-          type = "warning",
-          duration = 5
-        )
+
+        .move_next()
       }
     })
 
