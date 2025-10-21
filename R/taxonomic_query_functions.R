@@ -12,30 +12,36 @@
 
 #' List, extract taxa
 #'
-#' Provide list of selected taxa
+#' Query taxa from the taxonomic backbone database using hierarchical matching.
+#' For species queries, if exact matching fails, the function automatically falls
+#' back to intelligent fuzzy matching. For higher taxonomic ranks (family, genus, order),
+#' exact matching is used by default.
 #'
 #' @return A tibble of all taxa
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #'
 #' @param class character string of class
-#' @param family string
-#' @param genus string
-#' @param order string
-#' @param species string genus followed by species name separated by one space
-#' @param tax_nam01 string
-#' @param tax_nam02 string
-#' @param only_genus logical
-#' @param only_family logical
-#' @param only_class logical
-#' @param ids integer id of searched taxa
-#' @param verbose logical
-#' @param exact_match logical
-#' @param check_synonymy logical
-#' @param extract_traits logical
+#' @param family string or character vector of family names
+#' @param genus string or character vector of genus names
+#' @param order string or character vector of order names
+#' @param species string or character vector of full species names (genus + species)
+#' @param tax_nam01 string (currently not used in matching)
+#' @param tax_nam02 string (currently not used in matching)
+#' @param only_genus logical whether to return only genus-level taxa
+#' @param only_family logical whether to return only family-level taxa
+#' @param only_class logical whether to return only class-level taxa
+#' @param ids integer vector of idtax_n to retrieve directly
+#' @param verbose logical whether to show progress messages
+#' @param exact_match logical if TRUE (default), only exact matches returned. If FALSE, uses
+#'   intelligent fuzzy matching. Note: fuzzy matching is generally only useful for species names;
+#'   for family/genus/order queries, exact matching is recommended.
+#' @param check_synonymy logical whether to resolve synonyms and include them
+#' @param extract_traits logical whether to add trait information
+#' @param min_similarity numeric (0-1) minimum similarity score for fuzzy matching (default: 0.3)
 #'
 #'
-#' @return A tibble of plots or individuals if extract_individuals is TRUE
+#' @return A tibble of taxa with taxonomic hierarchy and optionally traits
 #' @export
 query_taxa <-
   function(
@@ -49,504 +55,548 @@ query_taxa <-
     only_class = FALSE,
     ids = NULL,
     verbose = TRUE,
-    exact_match = FALSE,
-    check_synonymy =TRUE,
-    extract_traits = TRUE
+    exact_match = TRUE,
+    check_synonymy = TRUE,
+    extract_traits = TRUE,
+    min_similarity = 0.3
   ) {
-
-    # if(!exists("mydb")) call.mydb()
 
     mydb_taxa <- call.mydb.taxa()
 
-    if(!is.null(class)) {
+    # If IDs are provided directly, retrieve them
+    if (!is.null(ids)) {
+      return(.query_taxa_by_ids(
+        ids = ids,
+        class = class,
+        mydb_taxa = mydb_taxa,
+        only_genus = only_genus,
+        only_family = only_family,
+        only_class = only_class,
+        check_synonymy = check_synonymy,
+        extract_traits = extract_traits,
+        verbose = verbose
+      ))
+    }
 
-      res_q <- query_exact_match(
-        tbl = "table_tax_famclass",
-        field = "tax_famclass",
-        values_q = class,
-        con = mydb_taxa
+    # Handle class filtering
+    res_class <- NULL
+    if (!is.null(class)) {
+      res_class <- .match_class(class, mydb_taxa)
+    }
+
+    # Match taxonomic names using new intelligent matching
+    matched_ids <- NULL
+
+    if (!is.null(order)) {
+      matched_ids <- .match_taxonomic_level(
+        names = order,
+        level = "order",
+        field = "tax_order",
+        exact_match = exact_match,
+        min_similarity = min_similarity,
+        mydb_taxa = mydb_taxa,
+        verbose = verbose
+      )
+    }
+
+    if (!is.null(family)) {
+      matched_ids <- .match_taxonomic_level(
+        names = family,
+        level = "family",
+        field = "tax_fam",
+        exact_match = exact_match,
+        min_similarity = min_similarity,
+        mydb_taxa = mydb_taxa,
+        verbose = verbose
+      )
+    }
+
+    if (!is.null(genus)) {
+      matched_ids <- .match_taxonomic_level(
+        names = genus,
+        level = "genus",
+        field = "tax_gen",
+        exact_match = exact_match,
+        min_similarity = min_similarity,
+        mydb_taxa = mydb_taxa,
+        verbose = verbose
+      )
+    }
+
+    if (!is.null(species)) {
+      # Use full intelligent matching for species names
+      matches <- match_taxonomic_names(
+        names = species,
+        method = if (exact_match) "exact" else "hierarchical",
+        max_matches = 1,
+        min_similarity = min_similarity,
+        include_synonyms = FALSE,
+        return_scores = FALSE,
+        con = mydb_taxa,
+        verbose = verbose
       )
 
-      res_class <-
-        tbl(mydb_taxa, "table_taxa") %>%
-        filter(id_tax_famclass %in% !!res_q$res_q$id_tax_famclass) %>%
-        dplyr::select(idtax_n, idtax_good_n) %>%
-        collect()
-
-    }
-
-    if(is.null(ids)) {
-
-      if(!is.null(order)) {
-
-        q_res <- query_exact_match(
-          tbl = "table_taxa",
-          field = "tax_order",
-          values_q = order,
-          con = mydb_taxa
-        )
-
-        if (!exact_match & any(is.na(q_res$query_tb$id))) {
-
-          if (verbose) cli::cli_alert_info("Fuzzy search for order for {sum(is.na(q_res$query_tb$id))} name(s)")
-
-          query_tb_miss <-
-            q_res$query_tb %>%
-            filter(is.na(id))
-
-          fuz_list <- vector('list', nrow(query_tb_miss))
-          for (i in 1:nrow(query_tb_miss)) {
-
-            fuz_list[[i]] <- query_fuzzy_match(
-              tbl = "table_taxa",
-              field = "tax_order",
-              values_q = query_tb_miss$tax_order[i],
-              con = mydb_taxa
-            )
-
-          }
-
-          fuz_res <- bind_rows(fuz_list) %>% distinct()
-
-        }
-
-        if (!exact_match & any(is.na(q_res$query_tb$id))) {
-          res_order <- bind_rows(fuz_res, q_res$res_q)
-        } else {
-          res_order <- q_res$res_q
-        }
-
-      }
-
-      if(!is.null(family)) {
-
-        q_res <- query_exact_match(
-          tbl = "table_taxa",
-          field = "tax_fam",
-          values_q = family,
-          con = mydb_taxa
-        )
-
-        if (!exact_match & any(is.na(q_res$query_tb$id))) {
-
-          if (verbose) cli::cli_alert_info("Fuzzy search for family for {sum(is.na(q_res$query_tb$id))} name(s)")
-
-          query_tb_miss <-
-            q_res$query_tb %>%
-            filter(is.na(id))
-
-          fuz_list <- vector('list', nrow(query_tb_miss))
-          for (i in 1:nrow(query_tb_miss)) {
-
-            fuz_list[[i]] <- query_fuzzy_match(
-              tbl = "table_taxa",
-              field = "tax_fam",
-              values_q = query_tb_miss$tax_fam[i],
-              con = mydb_taxa
-            )
-
-          }
-
-          fuz_res <- bind_rows(fuz_list) %>% distinct()
-
-        }
-
-        if (!exact_match & any(is.na(q_res$query_tb$id))) {
-          res_family <- bind_rows(fuz_res, q_res$res_q)
-        } else {
-          res_family <- q_res$res_q
-        }
-
-      }
-
-      if(!is.null(genus)) {
-
-        q_res <- query_exact_match(
-          tbl = "table_taxa",
-          field = "tax_gen",
-          values_q = genus,
-          con = mydb_taxa
-        )
-
-        if (!exact_match & any(is.na(q_res$query_tb$id))) {
-
-          if (verbose) cli::cli_alert_info("Fuzzy search for genus for {sum(is.na(q_res$query_tb$id))} name(s)")
-
-          query_tb_miss <-
-            q_res$query_tb %>%
-            filter(is.na(id))
-
-          fuz_list <- vector('list', nrow(query_tb_miss))
-          for (i in 1:nrow(query_tb_miss)) {
-
-            fuz_list[[i]] <- query_fuzzy_match(
-              tbl = "table_taxa",
-              field = "tax_gen",
-              values_q = query_tb_miss$tax_gen[i],
-              con = mydb_taxa
-            )
-
-          }
-
-          fuz_res <- bind_rows(fuz_list) %>% distinct()
-
-        }
-
-        if (!exact_match & any(is.na(q_res$query_tb$id))) {
-          res_genus <- bind_rows(fuz_res, q_res$res_q)
-        } else {
-          res_genus <- q_res$res_q
-        }
-
-      }
-
-      if(!is.null(species)) {
-
-        q_res <- query_exact_match(
-          tbl = "table_taxa",
-          field = c("tax_gen", "tax_esp"),
-          values_q = species,
-          con = mydb_taxa
-        )
-
-        if (!exact_match & any(is.na(q_res$query_tb$id))) {
-
-          if (verbose) cli::cli_alert_info("Fuzzy search for species for {sum(is.na(q_res$query_tb$id))} name(s)")
-
-          query_tb_miss <-
-            q_res$query_tb %>%
-            filter(is.na(id))
-
-          fuz_list <- vector('list', nrow(query_tb_miss))
-          for (i in 1:nrow(query_tb_miss)) {
-
-            fuz_list[[i]] <- query_fuzzy_match(
-              tbl = "table_taxa",
-              field = c("tax_gen", "tax_esp"),
-              values_q = query_tb_miss$species[i],
-              con = mydb_taxa
-            )
-
-          }
-
-          fuz_res <- bind_rows(fuz_list) %>% distinct()
-
-        }
-
-        if (!exact_match & any(is.na(q_res$query_tb$id))) {
-          res_species <- bind_rows(fuz_res, q_res$res_q)
-        } else {
-          res_species <- q_res$res_q
-        }
-
-      }
-
-      no_match <- FALSE
-      res <-
-        tbl(mydb_taxa, "table_taxa")
-
-      if(!is.null(class))
-        res <- res %>%
-        filter(idtax_n %in% !!res_class$idtax_n)
-
-      if (!is.null(order))
-        if (nrow(res_order) > 0) {
-          res <-
-            res %>%
-            filter(idtax_n %in% !!res_order$idtax_n)
-
-        } else {
-
-          if (verbose) cli::cli_alert_danger("no match for order")
-          no_match <- TRUE
-        }
-
-      if(!is.null(family))
-        if(nrow(res_family)>0) {
-          res <-
-            res %>%
-            filter(idtax_n %in% !!res_family$idtax_n)
-        }else{
-          if (verbose) cli::cli_alert_danger("no match for family")
-          no_match <- TRUE
-        }
-
-      if(!is.null(genus))
-        if(nrow(res_genus)>0) {
-          res <-
-            res %>%
-            filter(idtax_n %in% !!res_genus$idtax_n)
-        }else{
-          if (verbose) cli::cli_alert_danger("no match for genus")
-          no_match <- TRUE
-        }
-
-      if (!is.null(species))
-        if (nrow(res_species) > 0) {
-          res <-
-            res %>%
-            filter(idtax_n %in% !!res_species$idtax_n)
-        } else{
-          if (verbose) cli::cli_alert_danger("no match for species")
-          no_match <- TRUE
-        }
-
-      if(!no_match) {
-        res <- res %>% collect()
+      if (nrow(matches) > 0 && any(!is.na(matches$idtax_n))) {
+        matched_ids <- matches %>%
+          filter(!is.na(idtax_n)) %>%
+          pull(idtax_n) %>%
+          unique()
       } else {
-        res <- NULL
-        if (verbose) cli::cli_alert_danger("no matching names")
-      }
-
-    } else {
-
-      if(!is.null(class)) {
-
-        ids <-
-          ids[ids %in% res_class$idtax_n]
-
-        if (length(ids) == 0) {
-
-          stop("id provided not found in the class queried")
-
-        }
-
-      }
-
-      tbl <- "table_taxa"
-      sql <-glue::glue_sql("SELECT * FROM {`tbl`} WHERE idtax_n IN ({vals*})",
-                           vals = ids, .con = mydb_taxa)
-
-      res <- func_try_fetch(con = mydb_taxa, sql = sql)
-
-      # rs <- DBI::dbSendQuery(mydb_taxa, sql)
-      # res <- DBI::dbFetch(rs)
-      # DBI::dbClearResult(rs)
-      # res <- dplyr::as_tibble(res)
-
-    }
-
-    if (only_genus)
-      res <-
-        res %>%
-        dplyr::filter(is.na(tax_esp))
-
-    if (only_family)
-      res <-
-        res %>%
-        dplyr::filter(is.na(tax_esp),
-                      is.na(tax_gen))
-
-    if (only_class)
-      res <-
-        res %>%
-        dplyr::filter(is.na(tax_esp),
-                      is.na(tax_gen),
-                      is.na(tax_order),
-                      is.na(tax_fam))
-
-    ## checking synonymies
-    if(!is.null(res) & check_synonymy) {
-
-      ## if selected taxa are synonyms
-      if(any(!is.na(res$idtax_good_n))) {
-
-        if (any(res$idtax_good_n > 1)) {
-
+        # If exact match failed and we were using exact matching, try fuzzy matching
+        if (exact_match) {
           if (verbose) {
-
-            cli::cli_alert_info("{sum(res$idtax_good_n > 1, na.rm = TRUE)} taxa selected is/are synonym(s)")
-            cli::cli_alert_info("{nrow(res)} taxa selected before checking synonymies")
-
+            cli::cli_alert_warning("No exact match found for species")
+            cli::cli_alert_info("Attempting fuzzy matching...")
           }
 
-          ## retrieving good idtax_n if selected ones are considered synonyms
-          idtax_accepted <-
-            res %>%
-            dplyr::select(idtax_n, idtax_good_n) %>%
-            dplyr::mutate(idtax_f = ifelse(!is.na(idtax_good_n),
-                                           idtax_good_n, idtax_n)) %>%
-            dplyr::distinct(idtax_f) %>%
-            dplyr::rename(idtax_n = idtax_f)
+          matches <- match_taxonomic_names(
+            names = species,
+            method = "hierarchical",
+            max_matches = 1,
+            min_similarity = min_similarity,
+            include_synonyms = FALSE,
+            return_scores = TRUE,
+            con = mydb_taxa,
+            verbose = verbose
+          )
 
-          idtax_already_extracted <-
-            res %>%
-            filter(idtax_n %in% idtax_accepted$idtax_n)
+          if (nrow(matches) > 0 && any(!is.na(matches$idtax_n))) {
+            matched_ids <- matches %>%
+              filter(!is.na(idtax_n)) %>%
+              pull(idtax_n) %>%
+              unique()
 
-          idtax_missing <- idtax_accepted %>%
-            filter(!idtax_n %in% idtax_already_extracted$idtax_n)
-
-          res <-
-            tbl(mydb_taxa, "table_taxa") %>%
-            dplyr::filter(idtax_n %in% !!idtax_missing$idtax_n) %>%
-            collect() %>%
-            bind_rows(idtax_already_extracted)
-
-          if (verbose) cli::cli_alert_info("{nrow(res)} selected taxa after checking synonymies")
-
+            if (verbose) {
+              best_score <- matches %>%
+                filter(!is.na(idtax_n)) %>%
+                slice(1) %>%
+                pull(match_score)
+              cli::cli_alert_success("Found fuzzy match (score: {round(best_score, 2)})")
+            }
+          } else {
+            if (verbose) cli::cli_alert_danger("No match found for species (exact or fuzzy)")
+            return(NULL)
+          }
+        } else {
+          # Already tried fuzzy matching, no results
+          if (verbose) cli::cli_alert_danger("No match for species")
+          return(NULL)
         }
       }
+    }
 
-      ## retrieving all synonyms from selected taxa
-      id_synonyms <-
-        tbl(mydb_taxa, "table_taxa") %>%
-        filter(idtax_good_n %in% !!res$idtax_n) %>% ## all taxa synonyms of selected taxa
-        # filter(idtax_n %in% !!res$idtax_n) %>% ## excluding taxa already in extract
-        dplyr::select(idtax_n, idtax_good_n) %>%
+    # If no matching criteria provided
+    if (is.null(matched_ids)) {
+      if (verbose) cli::cli_alert_danger("No matching names found")
+      return(NULL)
+    }
+
+    # Build final query
+    res <- tbl(mydb_taxa, "table_taxa")
+
+    # Apply class filter if specified
+    if (!is.null(class) && !is.null(res_class)) {
+      res <- res %>% filter(idtax_n %in% !!res_class$idtax_n)
+    }
+
+    # Apply matched IDs filter
+    res <- res %>% filter(idtax_n %in% !!matched_ids)
+
+    # Collect results
+    res <- res %>% collect()
+
+    if (is.null(res) || nrow(res) == 0) {
+      if (verbose) cli::cli_alert_danger("No matching taxa after filtering")
+      return(NULL)
+    }
+
+    # Apply hierarchical filters using tax_level field
+    if (only_genus) {
+      res <- res %>% dplyr::filter(tax_level == "genus")
+    }
+
+    if (only_family) {
+      res <- res %>% dplyr::filter(tax_level == "family")
+    }
+
+    if (only_class) {
+      res <- res %>% dplyr::filter(tax_level == "higher")
+    }
+
+    # Handle synonymy resolution
+    if (check_synonymy) {
+      res <- .resolve_synonyms(res, mydb_taxa, verbose)
+    }
+
+    # Format taxonomic names
+    res <- .format_taxa_names(res, mydb_taxa)
+
+    # Add trait information if requested
+    if (extract_traits && nrow(res) > 0) {
+      res <- .add_traits_to_taxa(res)
+    }
+
+    # Clean up unwanted columns
+    res <- .clean_taxa_columns(res)
+
+    # Print results if verbose
+    if (verbose && nrow(res) > 0) {
+      .print_taxa_results(res)
+    }
+
+    return(res)
+  }
+
+
+
+# Internal helper functions for query_taxa() -----------------------------------
+
+#' Query taxa by IDs (internal helper)
+#' @keywords internal
+.query_taxa_by_ids <- function(ids, class, mydb_taxa, only_genus, only_family,
+                                only_class, check_synonymy, extract_traits, verbose) {
+
+  # Filter by class if specified
+  if (!is.null(class)) {
+    res_class <- .match_class(class, mydb_taxa)
+    ids <- ids[ids %in% res_class$idtax_n]
+
+    if (length(ids) == 0) {
+      stop("IDs provided not found in the class queried")
+    }
+  }
+
+  # Fetch taxa by IDs
+  tbl <- "table_taxa"
+  sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE idtax_n IN ({vals*})",
+                        vals = ids, .con = mydb_taxa)
+  res <- func_try_fetch(con = mydb_taxa, sql = sql)
+
+  if (is.null(res) || nrow(res) == 0) {
+    return(NULL)
+  }
+
+  # Apply hierarchical filters
+  if (only_genus) {
+    res <- res %>% dplyr::filter(is.na(tax_esp))
+  }
+  if (only_family) {
+    res <- res %>% dplyr::filter(is.na(tax_esp), is.na(tax_gen))
+  }
+  if (only_class) {
+    res <- res %>%
+      dplyr::filter(is.na(tax_esp), is.na(tax_gen),
+                    is.na(tax_order), is.na(tax_fam))
+  }
+
+  # Handle synonymy
+  if (check_synonymy) {
+    res <- .resolve_synonyms(res, mydb_taxa, verbose)
+  }
+
+  # Format and add traits
+  res <- .format_taxa_names(res, mydb_taxa)
+
+  if (extract_traits && nrow(res) > 0) {
+    res <- .add_traits_to_taxa(res)
+  }
+
+  res <- .clean_taxa_columns(res)
+
+  if (verbose && nrow(res) > 0) {
+    .print_taxa_results(res)
+  }
+
+  return(res)
+}
+
+
+#' Match class (internal helper)
+#' @keywords internal
+.match_class <- function(class, mydb_taxa) {
+  # Use exact match for class (kept from original for compatibility)
+  sql <- glue::glue_sql(
+    "SELECT * FROM table_tax_famclass WHERE lower(tax_famclass) IN ({vals*})",
+    vals = tolower(class), .con = mydb_taxa
+  )
+  res_class_tbl <- func_try_fetch(con = mydb_taxa, sql = sql)
+
+  if (nrow(res_class_tbl) == 0) {
+    cli::cli_alert_warning("No match for class: {class}")
+    return(NULL)
+  }
+
+  res_class <- tbl(mydb_taxa, "table_taxa") %>%
+    filter(id_tax_famclass %in% !!res_class_tbl$id_tax_famclass) %>%
+    dplyr::select(idtax_n, idtax_good_n) %>%
+    collect()
+
+  return(res_class)
+}
+
+
+#' Match taxonomic level (order/family/genus) using new matching functions
+#' @keywords internal
+.match_taxonomic_level <- function(names, level, field, exact_match,
+                                   min_similarity, mydb_taxa, verbose) {
+
+  if (exact_match) {
+    # Use direct SQL for exact matching (faster)
+    # Note: We don't filter by tax_level here to allow matching at any level
+    # The only_genus/only_family filters are applied later
+    sql <- glue::glue_sql(
+      "SELECT DISTINCT idtax_n FROM table_taxa WHERE lower({`field`}) IN ({vals*})",
+      vals = tolower(names), .con = mydb_taxa
+    )
+    res <- func_try_fetch(con = mydb_taxa, sql = sql)
+
+    if (nrow(res) == 0) {
+      if (verbose) cli::cli_alert_danger("No exact match for {level}")
+      return(NULL)
+    }
+
+    return(res$idtax_n)
+
+  } else {
+    # Use SQL-side fuzzy matching
+    # Note: We match by the field value, not necessarily at the specific tax_level
+    # This allows finding all taxa in that family/genus/order
+    if (verbose) cli::cli_alert_info("Matching {length(names)} {level} name(s)...")
+
+    matched_ids <- c()
+
+    for (name in names) {
+      sql <- glue::glue_sql("
+        SELECT idtax_n,
+               SIMILARITY(lower({`field`}), lower({search_name})) AS sim_score
+        FROM table_taxa
+        WHERE {`field`} IS NOT NULL
+          AND SIMILARITY(lower({`field`}), lower({search_name})) >= {min_sim}
+        ORDER BY sim_score DESC
+        LIMIT 5
+      ", search_name = name, min_sim = min_similarity, .con = mydb_taxa)
+
+      matches <- func_try_fetch(con = mydb_taxa, sql = sql)
+
+      if (nrow(matches) > 0) {
+        matched_ids <- c(matched_ids, matches$idtax_n)
+        if (verbose && matches$sim_score[1] < 1.0) {
+          cli::cli_alert_info("Fuzzy match for '{name}' (score: {round(matches$sim_score[1], 2)})")
+        }
+      } else {
+        if (verbose) cli::cli_alert_warning("No match for {level}: {name}")
+      }
+    }
+
+    if (length(matched_ids) == 0) {
+      if (verbose) cli::cli_alert_danger("No matches found for {level}")
+      return(NULL)
+    }
+
+    return(unique(matched_ids))
+  }
+}
+
+
+#' Resolve synonyms (internal helper)
+#' @keywords internal
+.resolve_synonyms <- function(res, mydb_taxa, verbose) {
+
+  if (is.null(res) || nrow(res) == 0) return(res)
+
+  # If selected taxa are synonyms, get their accepted names
+  if (any(!is.na(res$idtax_good_n) & res$idtax_good_n > 1)) {
+
+    if (verbose) {
+      n_syn <- sum(!is.na(res$idtax_good_n) & res$idtax_good_n > 1)
+      cli::cli_alert_info("{n_syn} taxa selected is/are synonym(s)")
+      cli::cli_alert_info("{nrow(res)} taxa before resolving synonyms")
+    }
+
+    # Get accepted IDs
+    idtax_accepted <- res %>%
+      dplyr::select(idtax_n, idtax_good_n) %>%
+      dplyr::mutate(idtax_f = ifelse(!is.na(idtax_good_n) & idtax_good_n > 1,
+                                     idtax_good_n, idtax_n)) %>%
+      dplyr::distinct(idtax_f) %>%
+      dplyr::rename(idtax_n = idtax_f)
+
+    # Get accepted taxa not already in results
+    idtax_already_extracted <- res %>%
+      filter(idtax_n %in% idtax_accepted$idtax_n)
+
+    idtax_missing <- idtax_accepted %>%
+      filter(!idtax_n %in% idtax_already_extracted$idtax_n)
+
+    if (nrow(idtax_missing) > 0) {
+      missing_taxa <- tbl(mydb_taxa, "table_taxa") %>%
+        dplyr::filter(idtax_n %in% !!idtax_missing$idtax_n) %>%
         collect()
 
-      if(nrow(id_synonyms) > 0) {
-
-        if(verbose) {
-          cli::cli_alert_info("{sum(id_synonyms$idtax_good_n > 0, na.rm = TRUE)} taxa selected have synonym(s)")
-          cli::cli_alert_info("{nrow(res)} taxa selected before checking synonymies")
-        }
-
-        synonyms <- query_taxa(ids = id_synonyms$idtax_n,
-                               check_synonymy = FALSE,
-                               verbose = FALSE,
-                               class = NULL,
-                               extract_traits = FALSE)
-
-        res <-
-          res %>%
-          bind_rows(synonyms)
-
-      }
+      res <- bind_rows(res, missing_taxa)
     }
 
-    if (!is.null(res)) {
-
-      if (nrow(res) > 0) {
-
-        res <-
-          res %>%
-          mutate(tax_sp_level = ifelse(!is.na(tax_esp), paste(tax_gen, tax_esp), NA)) %>%
-          mutate(tax_infra_level = ifelse(!is.na(tax_esp),
-                                          paste0(tax_gen,
-                                                 " ",
-                                                 tax_esp,
-                                                 ifelse(!is.na(tax_rank01), paste0(" ", tax_rank01), ""),
-                                                 ifelse(!is.na(tax_nam01), paste0(" ", tax_nam01), ""),
-                                                 ifelse(!is.na(tax_rank02), paste0(" ", tax_rank02), ""),
-                                                 ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), "")),
-                                          NA)) %>%
-          mutate(tax_infra_level_auth = ifelse(!is.na(tax_esp),
-                                               paste0(tax_gen,
-                                                      " ",
-                                                      tax_esp,
-                                                      ifelse(!is.na(author1), paste0(" ", author1), ""),
-                                                      ifelse(!is.na(tax_rank01), paste0(" ", tax_rank01), ""),
-                                                      ifelse(!is.na(tax_nam01), paste0(" ", tax_nam01), ""),
-                                                      ifelse(!is.na(author2), paste0(" ", author2), ""),
-                                                      ifelse(!is.na(tax_rank02), paste0(" ", tax_rank02), ""),
-                                                      ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), ""),
-                                                      ifelse(!is.na(author3), paste0(" ", author3), "")),
-                                               NA)) %>%
-          dplyr::mutate(introduced_status = stringr::str_trim(introduced_status)) %>%
-          dplyr::mutate(tax_sp_level = as.character(tax_sp_level),
-                        tax_infra_level = as.character(tax_infra_level),
-                        tax_infra_level_auth = as.character(tax_infra_level_auth)) %>%
-          dplyr::select(-tax_famclass) %>%
-          left_join(dplyr::tbl(mydb_taxa, "table_tax_famclass") %>%
-                      dplyr::collect(),
-                    by = c("id_tax_famclass" = "id_tax_famclass")) %>%
-          dplyr::relocate(tax_famclass, .after = tax_order) %>%
-          dplyr::relocate(year_description, .after = citation) %>%
-          dplyr::relocate(data_modif_d, .after = morpho_species) %>%
-          dplyr::relocate(data_modif_m, .after = morpho_species) %>%
-          dplyr::relocate(data_modif_y, .after = morpho_species) %>%
-          dplyr::relocate(tax_sp_level, .before = idtax_n) %>%
-          dplyr::relocate(id_tax_famclass, .after = morpho_species)
-
-        if (extract_traits) {
-
-          traitsqueried <-
-            query_traits_measures(idtax = res$idtax_n, idtax_good = res$idtax_good_n)
-
-          if (length(traitsqueried$traits_idtax_num) > 1)
-            res <-
-              res %>%
-              left_join(traitsqueried$traits_idtax_num,
-                        by = c("idtax_n" = "idtax"))
-
-          if (length(traitsqueried$traits_idtax_char) > 1)
-            res <-
-              res %>%
-              left_join(traitsqueried$traits_idtax_char,
-                        by = c("idtax_n" = "idtax"))
-
-          # if (any(class(traitsqueried$traits_idtax_num) == "data.frame"))
-          #   res <-
-          #     res %>%
-          #     left_join(traitsqueried$traits_idtax_num,
-          #               by = c("idtax_n" = "idtax"))
-          #
-          # if (any(class(traitsqueried$traits_idtax_char) == "data.frame"))
-          #   res <-
-          #     res %>%
-          #     left_join(traitsqueried$traits_idtax_char,
-          #               by = c("idtax_n" = "idtax"))
-
-        }
-
-        if (any(names(res) == "a_habit"))
-          res <-
-            res %>%
-            dplyr::select(-a_habit,-a_habit_secondary)
-
-        if (any(names(res) == "fktax"))
-          res <-
-            res %>%
-            dplyr::select(-fktax)
-
-        if (any(names(res) == "id_good"))
-          res <-
-            res %>%
-            dplyr::select(-id_good)
-
-        if (any(names(res) == "tax_tax"))
-          res <-
-            res %>%
-            dplyr::select(-tax_tax)
-      }
-
-
-
-
-    }
-
-    if(!is.null(res)) {
-      if (verbose & nrow(res) < 50 & nrow(res) > 0) {
-
-        res_print <-
-          res %>%
-          dplyr::relocate(tax_infra_level_auth, .before = tax_order) %>%
-          dplyr::relocate(idtax_n, .before = tax_order) %>%
-          dplyr::relocate(idtax_good_n, .before = tax_order)
-
-        print_table(res_print)
-
-        # res_print <-
-        #   res_print %>%
-        #   mutate(across(where(is.character), ~ tidyr::replace_na(., "")))
-        #
-        # res_print <- suppressMessages(as_tibble(cbind(columns = names(res_print), record = t(res_print)),
-        #                                         .name_repair = "universal"))
-        #
-        # res_print %>%
-        #   kableExtra::kable(format = "html", escape = F) %>%
-        #   kableExtra::kable_styling("striped", full_width = F) %>%
-        #   print()
-
-      }
-
-      if(verbose & nrow(res) >= 50)
-        cli::cli_alert_info("Not showing html table because too many taxa")
-    }
-
-    if(!is.null(res)) return(res)
+    if (verbose) cli::cli_alert_info("{nrow(res)} taxa after resolving synonyms")
   }
+
+  # Get all synonyms of selected taxa
+  id_synonyms <- tbl(mydb_taxa, "table_taxa") %>%
+    filter(idtax_good_n %in% !!res$idtax_n) %>%
+    dplyr::select(idtax_n, idtax_good_n) %>%
+    collect()
+
+  if (nrow(id_synonyms) > 0) {
+    if (verbose) {
+      cli::cli_alert_info("{nrow(id_synonyms)} synonym(s) found for selected taxa")
+    }
+
+    # Recursively fetch synonyms (without checking synonymy again)
+    synonyms <- query_taxa(
+      ids = id_synonyms$idtax_n,
+      check_synonymy = FALSE,
+      verbose = FALSE,
+      class = NULL,
+      extract_traits = FALSE
+    )
+
+    if (!is.null(synonyms)) {
+      res <- bind_rows(res, synonyms)
+    }
+  }
+
+  return(res %>% distinct())
+}
+
+
+#' Format taxonomic names (internal helper)
+#' @keywords internal
+.format_taxa_names <- function(res, mydb_taxa) {
+
+  if (is.null(res) || nrow(res) == 0) return(res)
+
+  res <- res %>%
+    mutate(
+      tax_sp_level = ifelse(!is.na(tax_esp), paste(tax_gen, tax_esp), NA),
+      tax_infra_level = ifelse(
+        !is.na(tax_esp),
+        paste0(
+          tax_gen, " ", tax_esp,
+          ifelse(!is.na(tax_rank01), paste0(" ", tax_rank01), ""),
+          ifelse(!is.na(tax_nam01), paste0(" ", tax_nam01), ""),
+          ifelse(!is.na(tax_rank02), paste0(" ", tax_rank02), ""),
+          ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), "")
+        ),
+        NA
+      ),
+      tax_infra_level_auth = ifelse(
+        !is.na(tax_esp),
+        paste0(
+          tax_gen, " ", tax_esp,
+          ifelse(!is.na(author1), paste0(" ", author1), ""),
+          ifelse(!is.na(tax_rank01), paste0(" ", tax_rank01), ""),
+          ifelse(!is.na(tax_nam01), paste0(" ", tax_nam01), ""),
+          ifelse(!is.na(author2), paste0(" ", author2), ""),
+          ifelse(!is.na(tax_rank02), paste0(" ", tax_rank02), ""),
+          ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), ""),
+          ifelse(!is.na(author3), paste0(" ", author3), "")
+        ),
+        NA
+      )
+    ) %>%
+    dplyr::mutate(
+      introduced_status = stringr::str_trim(introduced_status),
+      tax_sp_level = as.character(tax_sp_level),
+      tax_infra_level = as.character(tax_infra_level),
+      tax_infra_level_auth = as.character(tax_infra_level_auth)
+    )
+
+  # Add family class information
+  if ("tax_famclass" %in% names(res)) {
+    res <- res %>% dplyr::select(-tax_famclass)
+  }
+
+  res <- res %>%
+    left_join(
+      dplyr::tbl(mydb_taxa, "table_tax_famclass") %>% dplyr::collect(),
+      by = c("id_tax_famclass" = "id_tax_famclass")
+    ) %>%
+    dplyr::relocate(tax_famclass, .after = tax_order) %>%
+    dplyr::relocate(year_description, .after = citation) %>%
+    dplyr::relocate(data_modif_d, .after = morpho_species) %>%
+    dplyr::relocate(data_modif_m, .after = morpho_species) %>%
+    dplyr::relocate(data_modif_y, .after = morpho_species) %>%
+    dplyr::relocate(tax_sp_level, .before = idtax_n) %>%
+    dplyr::relocate(id_tax_famclass, .after = morpho_species)
+
+  return(res)
+}
+
+
+#' Add traits to taxa (internal helper)
+#' @keywords internal
+.add_traits_to_taxa <- function(res) {
+
+  if (is.null(res) || nrow(res) == 0) return(res)
+
+  traitsqueried <- query_traits_measures(
+    idtax = res$idtax_n,
+    idtax_good = res$idtax_good_n
+  )
+
+  if (length(traitsqueried$traits_idtax_num) > 1) {
+    res <- res %>%
+      left_join(traitsqueried$traits_idtax_num,
+                by = c("idtax_n" = "idtax"))
+  }
+
+  if (length(traitsqueried$traits_idtax_char) > 1) {
+    res <- res %>%
+      left_join(traitsqueried$traits_idtax_char,
+                by = c("idtax_n" = "idtax"))
+  }
+
+  return(res)
+}
+
+
+#' Clean unwanted columns (internal helper)
+#' @keywords internal
+.clean_taxa_columns <- function(res) {
+
+  if (is.null(res) || nrow(res) == 0) return(res)
+
+  # Remove legacy/unwanted columns if they exist
+  cols_to_remove <- c("a_habit", "a_habit_secondary", "fktax", "id_good", "tax_tax")
+
+  for (col in cols_to_remove) {
+    if (col %in% names(res)) {
+      res <- res %>% dplyr::select(-!!col)
+    }
+  }
+
+  return(res)
+}
+
+
+#' Print taxa results (internal helper)
+#' @keywords internal
+.print_taxa_results <- function(res) {
+
+  if (is.null(res) || nrow(res) == 0) return(invisible(NULL))
+
+  if (nrow(res) < 50) {
+    res_print <- res %>%
+      dplyr::relocate(tax_infra_level_auth, .before = tax_order) %>%
+      dplyr::relocate(idtax_n, .before = tax_order) %>%
+      dplyr::relocate(idtax_good_n, .before = tax_order)
+
+    print_table(res_print)
+  } else {
+    cli::cli_alert_info("Not showing table because too many taxa ({nrow(res)} rows)")
+  }
+
+  invisible(NULL)
+}
 
 
 

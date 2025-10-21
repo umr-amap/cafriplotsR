@@ -140,8 +140,14 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
 
 #' Query fuzzy match
 #'
-#' Extract from a sql database an exact match on a given field
+#' @description
+#' `r lifecycle::badge("superseded")`
 #'
+#' This function has been superseded by the intelligent matching functions in
+#' `taxonomic_matching.R`. For better quality matches with genus-constrained
+#' fuzzy search, use [match_taxonomic_names()] instead.
+#'
+#' Extract from a sql database a fuzzy match on a given field using PostgreSQL SIMILARITY.
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #'
@@ -151,9 +157,16 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
 #' @param con PqConnection connection to RPostgres database
 #'
 #'
-#' @return A list of two elements, one with the extract if any, two with the names with id not NA when matched
+#' @return A tibble with matched records from the database
 #' @export
 query_fuzzy_match <- function(tbl, field, values_q, con) {
+
+  lifecycle::deprecate_soft(
+    "1.4.0",
+    "query_fuzzy_match()",
+    "match_taxonomic_names()",
+    details = "The new function provides genus-constrained fuzzy matching for higher quality results."
+  )
   
   # if (length(field) == 0) sql <-glue::glue_sql("SELECT * FROM {`tbl`} WHERE SIMILARITY (lower({`field`}), {values_q}) > {sim_thres} ;",
   #                      .con = con)
@@ -188,8 +201,14 @@ query_fuzzy_match <- function(tbl, field, values_q, con) {
 
 #' Query exact match
 #'
-#' Extract from a sql database an exact match on a given field
+#' @description
+#' `r lifecycle::badge("superseded")`
 #'
+#' This function has been superseded by the intelligent matching functions in
+#' `taxonomic_matching.R`. For better quality matches that handle infraspecific
+#' ranks properly, use [match_taxonomic_names()] with `method = "exact"`.
+#'
+#' Extract from a sql database an exact match on a given field.
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #'
@@ -199,9 +218,16 @@ query_fuzzy_match <- function(tbl, field, values_q, con) {
 #' @param con PqConnection connection to RPostgres database
 #'
 #'
-#' @return A list of two elements, one with the extract if any, two with the names with id not NA when matched
+#' @return A list of two elements: (1) res_q with matched records, (2) query_tb with match status
 #' @export
 query_exact_match <- function(tbl, field, values_q, con) {
+
+  lifecycle::deprecate_soft(
+    "1.4.0",
+    "query_exact_match()",
+    "match_taxonomic_names()",
+    details = "The new function provides better handling of infraspecific ranks and authors."
+  )
   
   if (length(field) == 1) {
     

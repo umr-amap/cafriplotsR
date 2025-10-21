@@ -16,10 +16,16 @@ query_exact_match(tbl, field, values_q, con)
 \item{con}{PqConnection connection to RPostgres database}
 }
 \value{
-A list of two elements, one with the extract if any, two with the names with id not NA when matched
+A list of two elements: (1) res_q with matched records, (2) query_tb with match status
 }
 \description{
-Extract from a sql database an exact match on a given field
+`r lifecycle::badge("superseded")`
+
+This function has been superseded by the intelligent matching functions in
+`taxonomic_matching.R`. For better quality matches that handle infraspecific
+ranks properly, use [match_taxonomic_names()] with `method = "exact"`.
+
+Extract from a sql database an exact match on a given field.
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}
