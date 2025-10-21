@@ -16,10 +16,16 @@ query_fuzzy_match(tbl, field, values_q, con)
 \item{con}{PqConnection connection to RPostgres database}
 }
 \value{
-A list of two elements, one with the extract if any, two with the names with id not NA when matched
+A tibble with matched records from the database
 }
 \description{
-Extract from a sql database an exact match on a given field
+`r lifecycle::badge("superseded")`
+
+This function has been superseded by the intelligent matching functions in
+`taxonomic_matching.R`. For better quality matches with genus-constrained
+fuzzy search, use [match_taxonomic_names()] instead.
+
+Extract from a sql database a fuzzy match on a given field using PostgreSQL SIMILARITY.
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}

@@ -15,49 +15,57 @@ query_taxa(
   only_class = FALSE,
   ids = NULL,
   verbose = TRUE,
-  exact_match = FALSE,
+  exact_match = TRUE,
   check_synonymy = TRUE,
-  extract_traits = TRUE
+  extract_traits = TRUE,
+  min_similarity = 0.3
 )
 }
 \arguments{
 \item{class}{character string of class}
 
-\item{family}{string}
+\item{family}{string or character vector of family names}
 
-\item{genus}{string}
+\item{genus}{string or character vector of genus names}
 
-\item{order}{string}
+\item{order}{string or character vector of order names}
 
-\item{species}{string genus followed by species name separated by one space}
+\item{species}{string or character vector of full species names (genus + species)}
 
-\item{only_genus}{logical}
+\item{only_genus}{logical whether to return only genus-level taxa}
 
-\item{only_family}{logical}
+\item{only_family}{logical whether to return only family-level taxa}
 
-\item{only_class}{logical}
+\item{only_class}{logical whether to return only class-level taxa}
 
-\item{ids}{integer id of searched taxa}
+\item{ids}{integer vector of idtax_n to retrieve directly}
 
-\item{verbose}{logical}
+\item{verbose}{logical whether to show progress messages}
 
-\item{exact_match}{logical}
+\item{exact_match}{logical if TRUE (default), only exact matches returned. If FALSE, uses
+intelligent fuzzy matching. Note: fuzzy matching is generally only useful for species names;
+for family/genus/order queries, exact matching is recommended.}
 
-\item{check_synonymy}{logical}
+\item{check_synonymy}{logical whether to resolve synonyms and include them}
 
-\item{extract_traits}{logical}
+\item{extract_traits}{logical whether to add trait information}
 
-\item{tax_nam01}{string}
+\item{min_similarity}{numeric (0-1) minimum similarity score for fuzzy matching (default: 0.3)}
 
-\item{tax_nam02}{string}
+\item{tax_nam01}{string (currently not used in matching)}
+
+\item{tax_nam02}{string (currently not used in matching)}
 }
 \value{
 A tibble of all taxa
 
-A tibble of plots or individuals if extract_individuals is TRUE
+A tibble of taxa with taxonomic hierarchy and optionally traits
 }
 \description{
-Provide list of selected taxa
+Query taxa from the taxonomic backbone database using hierarchical matching.
+For species queries, if exact matching fails, the function automatically falls
+back to intelligent fuzzy matching. For higher taxonomic ranks (family, genus, order),
+exact matching is used by default.
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}
