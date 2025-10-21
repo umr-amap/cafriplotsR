@@ -1596,13 +1596,24 @@ query_taxa_traits <- function(
     traits_numeric <- if (any(traits_raw$valuetype == "numeric")) {
       cli::cli_alert_info("Aggregating numeric traits")
       
-      pivot_numeric_traits_generic(
+      
+      
+      tmp <- pivot_numeric_traits_generic(
         data = traits_raw %>% filter(valuetype == "numeric"),
         id_col = "idtax",
         include_stats = TRUE,
         include_id_measures = TRUE,
         name_prefix = "taxa_"
       )
+      
+      # 5. Optional: Add taxonomic information
+      if (add_taxa_info) {
+        cli::cli_alert_info("Adding taxonomic information")
+        tmp <- enrich_with_taxa_info(tmp, con_taxa) %>% as_tibble()
+      }
+      tmp
+      
+      
     } else {
       NA
     }

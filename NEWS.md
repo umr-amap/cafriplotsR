@@ -1,5 +1,71 @@
 # plotsdatabase NEWS
 
+## plotsdatabase 1.4 (Development)
+
+### Breaking Changes
+
+* **`query_taxa()` default behavior changed**: `exact_match` parameter now defaults to `TRUE` (was `FALSE`)
+  - Exact matching is now the default for family/genus/order queries to prevent unexpected fuzzy matching results
+  - For species queries, if exact match fails, the function automatically falls back to intelligent fuzzy matching
+  - **Action required**: Code relying on fuzzy matching by default should explicitly set `exact_match = FALSE`
+  - Rationale: Higher taxonomic ranks are standardized names where fuzzy matching rarely helps and can introduce errors
+
+### New Features
+
+* **Intelligent taxonomic name matching** with genus-constrained fuzzy search
+  - New `match_taxonomic_names()` function implements hierarchical matching strategy:
+    1. Exact matching (fastest)
+    2. Genus-constrained fuzzy matching (searches species only within matched genus)
+    3. Full fuzzy matching (last resort)
+  - Dramatically improves match quality by restricting fuzzy search space
+  - Includes synonym detection and resolution
+  - Supports scoring and ranking of multiple matches
+  - New helper functions: `parse_taxonomic_name()`, `.match_exact_sql()`, `.match_genus_constrained_sql()`, `.match_fuzzy_sql()`
+
+* **Auto fuzzy fallback for species queries**
+  - `query_taxa()` automatically retries with fuzzy matching when exact species match fails
+  - Transparent user feedback shows match quality (similarity score)
+  - Handles typos and spelling variations automatically
+  - Only applies to species queries; family/genus/order use exact matching only
+
+* **Database enhancement: `tax_level` field added to `table_taxa`**
+  - New column explicitly indicates taxonomic level: "species", "genus", "family", "order", "infraspecific", "higher"
+  - Indexed for query performance
+  - Eliminates ambiguity between missing data and genus/family-level taxa
+  - Script provided: `add_tax_level_field.R` for database migration
+  - All query functions updated to use new field for cleaner, more reliable filtering
+
+### Code Refactoring
+
+* **Complete rewrite of `query_taxa()`** to use new intelligent matching functions
+  - Eliminated redundancy with `helpers.R` functions
+  - 8 new modular helper functions replace complex inline logic
+  - Cleaner separation of concerns: matching, filtering, synonym resolution, formatting, trait addition
+  - ~160 lines of code removed through better abstraction
+  - Better maintainability and extensibility
+  - Deprecated `query_fuzzy_match()` and `query_exact_match()` in favor of `match_taxonomic_names()`
+
+* **Simplified taxonomic level filtering** using `tax_level` field
+  - Replaced complex multi-column checks (e.g., `is.na(tax_esp) & is.na(tax_gen)`) with simple `tax_level == "family"`
+  - Applied in `query_taxa()` for clearer intent and better performance via index usage
+
+### Bug Fixes
+
+* **Fixed `query_taxa()` empty results with `only_family = TRUE`**
+  - Previously, fuzzy matching by default caused empty results when filtering for family-level taxa
+  - Now uses exact matching by default for higher taxonomic ranks
+
+### Dependencies
+
+* Added new package dependencies to DESCRIPTION:
+  - `cli` - User-friendly command line interfaces (moved from Suggests to Imports)
+  - `lifecycle` - Manage function lifecycle (deprecation warnings)
+  - `data.table` - High-performance data manipulation
+  - `glue` - String interpolation for SQL queries
+  - `RecordLinkage` - String similarity calculations
+
+---
+
 ## plotsdatabase 1.0 (Development)
 
 ### Breaking Changes
