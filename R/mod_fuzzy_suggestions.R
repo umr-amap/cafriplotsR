@@ -92,7 +92,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
 
       shiny::fluidRow(
         shiny::column(
-          width = 6,
+          width = 4,
           shiny::numericInput(
             inputId = ns("num_suggestions"),
             label = t()$review_num_suggestions,
@@ -103,7 +103,23 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
           )
         ),
         shiny::column(
-          width = 6,
+          width = 4,
+          shiny::selectInput(
+            inputId = ns("filter_level"),
+            label = "Filter by level",
+            choices = c(
+              "All levels" = "all",
+              "Species" = "species",
+              "Genus" = "genus",
+              "Family" = "family",
+              "Order" = "order",
+              "Infraspecific" = "infraspecific"
+            ),
+            selected = "all"
+          )
+        ),
+        shiny::column(
+          width = 4,
           shiny::radioButtons(
             inputId = ns("sort_by"),
             label = t()$review_sort,
@@ -139,6 +155,25 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
 
       # Filter out NA matches
       sug <- sug %>% dplyr::filter(!is.na(idtax_n))
+
+      # Apply taxonomic level filter if specified
+      if (!is.null(input$filter_level) && input$filter_level != "all") {
+        sug <- sug %>% dplyr::filter(tax_level == input$filter_level)
+      }
+
+      # Check if any results remain after filtering
+      if (nrow(sug) == 0) {
+        return(
+          shiny::div(
+            style = "padding: 20px; background-color: #fff3cd; border-radius: 5px;",
+            shiny::p(
+              shiny::icon("info-circle"),
+              paste0("No matches found at the '", input$filter_level, "' level. Try selecting 'All levels' or a different taxonomic level."),
+              style = "color: #856404; margin: 0;"
+            )
+          )
+        )
+      }
 
       # Sort suggestions
       if (!is.null(input$sort_by) && input$sort_by == "alphabetical") {
@@ -233,14 +268,20 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
 
       sug <- suggestions()
 
+      # Filter out NA matches
+      sug <- sug %>% dplyr::filter(!is.na(idtax_n))
+
+      # Apply taxonomic level filter (same as display logic)
+      if (!is.null(input$filter_level) && input$filter_level != "all") {
+        sug <- sug %>% dplyr::filter(tax_level == input$filter_level)
+      }
+
       # Sort same way as display
       if (!is.null(input$sort_by) && input$sort_by == "alphabetical") {
         sug <- sug %>% dplyr::arrange(matched_name)
       } else {
         sug <- sug %>% dplyr::arrange(desc(match_score))
       }
-
-      sug <- sug %>% dplyr::filter(!is.na(idtax_n))
 
       selected_row_idx <- input$selected_row
 

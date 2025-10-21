@@ -195,11 +195,27 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
         shiny::h5(t()$review_custom_name),
         shiny::fluidRow(
           shiny::column(
-            width = 8,
+            width = 5,
             shiny::textInput(
               inputId = ns("custom_name"),
               label = NULL,
               placeholder = "Enter taxonomic name..."
+            )
+          ),
+          shiny::column(
+            width = 3,
+            shiny::selectInput(
+              inputId = ns("custom_level"),
+              label = NULL,
+              choices = c(
+                "All levels" = "all",
+                "Species" = "species",
+                "Genus" = "genus",
+                "Family" = "family",
+                "Order" = "order",
+                "Infraspecific" = "infraspecific"
+              ),
+              selected = "all"
             )
           ),
           shiny::column(
@@ -319,18 +335,26 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
 
       custom <- input$custom_name
       name <- current_name()
+      level_filter <- input$custom_level %||% "all"
 
-      # Try to match custom name
+      # Try to match custom name (using fuzzy for better results)
       matches <- match_taxonomic_names(
         names = custom,
-        method = "exact",
-        max_matches = 1,
+        method = "hierarchical",
+        max_matches = 10,  # Get multiple to filter by level
+        min_similarity = 0.7,
         include_synonyms = TRUE,
         return_scores = TRUE,
         con = NULL,
         verbose = FALSE
       )
 
+      # Apply taxonomic level filter if specified
+      if (nrow(matches) > 0 && level_filter != "all") {
+        matches <- matches %>% dplyr::filter(tax_level == level_filter)
+      }
+
+      # Take best match after filtering
       if (nrow(matches) > 0 && !is.na(matches$idtax_n[1])) {
         matched_row <- matches[1, ]
 
@@ -346,7 +370,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
             matched_row$matched_name
           },
           match_method = "manual",
-          match_score = 1.0
+          match_score = matched_row$match_score
         )
         review_decisions(decisions)
 
@@ -355,10 +379,23 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
 
         # Clear input
         shiny::updateTextInput(session, "custom_name", value = "")
+
+        # Show success notification with matched name
+        shiny::showNotification(
+          paste0("Matched to: ", matched_row$matched_name,
+                if (level_filter != "all") paste0(" (", level_filter, " level)") else ""),
+          type = "message",
+          duration = 3
+        )
       } else {
         shiny::showNotification(
-          "Custom name not found in database. Please try again.",
-          type = "warning"
+          if (level_filter != "all") {
+            paste0("Custom name not found at '", level_filter, "' level. Try 'All levels' or a different level.")
+          } else {
+            "Custom name not found in database. Please try again."
+          },
+          type = "warning",
+          duration = 5
         )
       }
     })
