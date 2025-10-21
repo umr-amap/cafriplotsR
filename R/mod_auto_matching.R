@@ -67,6 +67,16 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
     match_stats <- shiny::reactiveVal(NULL)
     matching_in_progress <- shiny::reactiveVal(FALSE)
 
+    # Reset results when data changes
+    shiny::observe({
+      data()  # Trigger on data change
+
+      # Reset all reactive values
+      matched_data(NULL)
+      match_stats(NULL)
+      matching_in_progress(FALSE)
+    })
+
     # Get translations
     t <- shiny::reactive({
       get_translations(language())
@@ -145,6 +155,15 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         # STEP 1: Download entire taxonomic backbone once
         mydb_taxa <- call.mydb.taxa()
 
+        # Show message about downloading backbone (can be slow)
+        shiny::showNotification(
+          "Downloading taxonomic backbone from database... This may take a moment, especially with slow internet connection.",
+          duration = NULL,  # Stays until dismissed
+          closeButton = FALSE,
+          id = "download_backbone",
+          type = "message"
+        )
+
         backbone <- dplyr::tbl(mydb_taxa, "table_taxa") %>%
           dplyr::select(
             idtax_n,
@@ -155,9 +174,13 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             tax_rank01,
             tax_nam01,
             tax_rank02,
-            tax_nam02
+            tax_nam02,
+            tax_level
           ) %>%
           dplyr::collect()
+
+        # Remove the download notification
+        shiny::removeNotification("download_backbone")
 
         # Create formatted name columns for matching
         backbone <- backbone %>%
@@ -292,19 +315,52 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
           dplyr::pull(input_name)
 
         if (length(still_unmatched) > 0) {
-          # Now use the intelligent fuzzy matching for remaining names
-          fuzzy_matches <- match_taxonomic_names(
-            names = still_unmatched,
-            method = "hierarchical",
-            max_matches = 1,
-            min_similarity = min_sim,
-            include_synonyms = TRUE,
-            return_scores = TRUE,
-            include_authors = incl_authors,
-            con = NULL,  # Will call call.mydb.taxa() internally
-            verbose = FALSE
-          ) %>%
+          # Show notification about fuzzy matching
+          shiny::showNotification(
+            paste0("Starting fuzzy matching for ", length(still_unmatched), " unmatched name(s)... This may take some time."),
+            duration = NULL,
+            closeButton = FALSE,
+            id = "fuzzy_matching",
+            type = "message"
+          )
+
+          # Process names one by one to show progress
+          fuzzy_results <- list()
+
+          for (i in seq_along(still_unmatched)) {
+            name <- still_unmatched[i]
+
+            # Update progress notification
+            shiny::showNotification(
+              paste0("Fuzzy matching: ", i, " of ", length(still_unmatched), " (", name, ")"),
+              duration = 2,
+              id = "fuzzy_progress",
+              type = "message"
+            )
+
+            # Match this name
+            match_result <- match_taxonomic_names(
+              names = name,
+              method = "hierarchical",
+              max_matches = 1,
+              min_similarity = min_sim,
+              include_synonyms = TRUE,
+              return_scores = TRUE,
+              include_authors = incl_authors,
+              con = NULL,
+              verbose = FALSE
+            )
+
+            fuzzy_results[[i]] <- match_result
+          }
+
+          # Combine all fuzzy results
+          fuzzy_matches <- dplyr::bind_rows(fuzzy_results) %>%
             dplyr::filter(match_rank == 1)
+
+          # Remove fuzzy matching notification
+          shiny::removeNotification("fuzzy_matching")
+          shiny::removeNotification("fuzzy_progress")
 
           # Update best_matches with fuzzy results
           if (nrow(fuzzy_matches) > 0) {
