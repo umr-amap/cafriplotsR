@@ -137,6 +137,15 @@ app_taxonomic_match <- function(
               icon = shiny::icon("download"),
               shiny::br(),
               mod_results_export_ui("export")
+            ),
+
+            # Traits Enrichment Tab
+            shiny::tabPanel(
+              title = shiny::textOutput("tab_traits", inline = TRUE),
+              value = "traits",
+              icon = shiny::icon("database"),
+              shiny::br(),
+              mod_traits_enrichment_ui("traits")
             )
           )
         )
@@ -194,6 +203,10 @@ app_taxonomic_match <- function(
       t()$tab_export
     })
 
+    output$tab_traits <- shiny::renderText({
+      "Enrich with Traits"
+    })
+
     # Data input module
     user_data <- mod_data_input_server(
       "data_input",
@@ -241,6 +254,13 @@ app_taxonomic_match <- function(
       "export",
       results = reviewed_results,
       original_data = user_data,
+      language = current_language
+    )
+
+    # Traits enrichment module
+    mod_traits_enrichment_server(
+      "traits",
+      results = reviewed_results,
       language = current_language
     )
   }
