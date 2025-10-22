@@ -283,11 +283,12 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
         enriched_result <- taxa_info
 
         # Join numeric traits if available
+        # Note: query_taxa_traits returns column named "idtax", not "idtax_n"
         if (has_numeric && nrow(traits_result$traits_numeric) > 0) {
           enriched_result <- enriched_result %>%
             dplyr::left_join(
               traits_result$traits_numeric,
-              by = "idtax_n"
+              by = c("idtax_n" = "idtax")
             )
         }
 
@@ -296,7 +297,7 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
           enriched_result <- enriched_result %>%
             dplyr::left_join(
               traits_result$traits_categorical,
-              by = "idtax_n"
+              by = c("idtax_n" = "idtax")
             )
         }
 
