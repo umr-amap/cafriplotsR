@@ -555,11 +555,12 @@ query_taxa <-
                      !inherits(traits_result$traits_categorical, "logical")
 
   # Join numeric traits if available
+  # Note: query_taxa_traits returns column named "idtax", not "idtax_n"
   if (has_numeric && nrow(traits_result$traits_numeric) > 0) {
     res <- res %>%
       dplyr::left_join(
         traits_result$traits_numeric,
-        by = "idtax_n"
+        by = c("idtax_n" = "idtax")
       )
   }
 
@@ -568,7 +569,7 @@ query_taxa <-
     res <- res %>%
       dplyr::left_join(
         traits_result$traits_categorical,
-        by = "idtax_n"
+        by = c("idtax_n" = "idtax")
       )
   }
 
