@@ -42,6 +42,7 @@
   - Significantly reduces number of names sent to slower fuzzy matching
   - Cleaning happens once at beginning, benefiting all matching steps (species, genus, family)
   - Both original and cleaned names preserved in matching pipeline
+  - Added underscore replacement in `clean_taxonomic_name()` (e.g., "Coula_edulis" → "Coula edulis")
 
 ### Breaking Changes
 
