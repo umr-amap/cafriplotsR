@@ -2,6 +2,40 @@
 
 ## plotsdatabase 1.4 (Development)
 
+### New Features
+
+* **Traits enrichment module in taxonomic matching Shiny app**
+  - New tab "Enrich with Traits" allows enriching matched taxonomic names with trait data from the taxa database
+  - Aggregates multiple input names that match to the same taxon into a single row
+  - Concatenates all input names (e.g., "cola edulis | coula edrulis" → "Coula edulis")
+  - Configurable options for categorical trait aggregation (mode vs concatenation)
+  - User can select which columns to include (original names, corrected names, IDs, metadata)
+  - Downloads enriched data as Excel file
+  - Filters out `id_trait_measures` columns for cleaner output
+  - Module: `mod_traits_enrichment_ui()` and `mod_traits_enrichment_server()`
+
+### Bug Fixes
+
+* **Fixed NA input names appearing in trait enrichment**
+  - Enrichment module now filters out rows where the input taxonomic name is NA or empty
+  - Prevents invalid NA entries from being matched to taxa or included in enriched output
+  - Applied in both trait fetching and result aggregation steps
+
+* **Fixed incorrect input names in enrichment output**
+  - Enrichment now correctly uses the user-selected taxonomic name column (not first column of dataset)
+  - `column_name` parameter now passed from main app to enrichment module
+  - Ensures `input_names` column shows actual taxonomic names from the selected column
+
+### Code Refactoring
+
+* **Optimized taxonomic name cleaning for faster matching**
+  - Name cleaning (removing "sp.", "cf.", "aff.", etc.) now happens **before** batch exact matching
+  - Previously, cleaning only occurred during slow fuzzy matching phase
+  - Names like "Coula edulis sp." now match exactly to "Coula edulis" in fast batch step
+  - Significantly reduces number of names sent to slower fuzzy matching
+  - Cleaning happens once at beginning, benefiting all matching steps (species, genus, family)
+  - Both original and cleaned names preserved in matching pipeline
+
 ### Breaking Changes
 
 * **`query_taxa()` default behavior changed**: `exact_match` parameter now defaults to `TRUE` (was `FALSE`)
