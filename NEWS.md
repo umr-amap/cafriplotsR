@@ -14,6 +14,13 @@
   - Filters out `id_trait_measures` columns for cleaner output
   - Module: `mod_traits_enrichment_ui()` and `mod_traits_enrichment_server()`
 
+* **Enhanced file upload in taxonomic matching Shiny app**
+  - CSV file support added (in addition to Excel .xlsx and .xls)
+  - Excel sheet selector allows choosing which sheet to import from multi-sheet workbooks
+  - Sheet selector appears dynamically after Excel file upload
+  - Default sheet selection is the first sheet
+  - CSV files are loaded directly without sheet selection
+
 ### Bug Fixes
 
 * **Fixed NA input names appearing in trait enrichment**
