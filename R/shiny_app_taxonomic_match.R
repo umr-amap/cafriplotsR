@@ -261,6 +261,7 @@ app_taxonomic_match <- function(
     mod_traits_enrichment_server(
       "traits",
       results = reviewed_results,
+      column_name = shiny::reactive(column_info()$column),
       language = current_language
     )
   }

@@ -51,12 +51,13 @@ mod_traits_enrichment_ui <- function(id) {
 #'
 #' @param id Character, module ID
 #' @param results Reactive list from review module (contains final matched data)
+#' @param column_name Reactive returning the selected column name containing taxa
 #' @param language Reactive returning current language ("en" or "fr")
 #'
 #' @return NULL
 #'
 #' @keywords internal
-mod_traits_enrichment_server <- function(id, results, language = shiny::reactive("en")) {
+mod_traits_enrichment_server <- function(id, results, column_name, language = shiny::reactive("en")) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Reactive values
@@ -111,23 +112,10 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
       }
     })
 
-    # Format selection
-    output$format_selection <- shiny::renderUI({
-      ns <- session$ns
-
-      shiny::tagList(
-        shiny::h5("Output Format"),
-        shiny::radioButtons(
-          inputId = ns("output_format"),
-          label = NULL,
-          choices = c(
-            "Wide (traits as columns)" = "wide",
-            "Long (trait_name, trait_value)" = "long"
-          ),
-          selected = "wide"
-        )
-      )
-    })
+    # Format selection (removed - always use wide format)
+    # output$format_selection <- shiny::renderUI({
+    #   # Always use wide format
+    # })
 
     # Categorical mode selection
     output$categorical_mode <- shiny::renderUI({
@@ -202,9 +190,16 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
       tryCatch({
         data <- results()$data
 
-        # Get unique matched taxa (exclude NA)
+        # Get the selected column name to filter out NA input names
+        selected_col_name <- column_name()
+
+        # Get unique matched taxa (exclude NA taxa AND NA input names)
         matched_taxa <- data %>%
-          dplyr::filter(!is.na(idtax_n)) %>%
+          dplyr::filter(
+            !is.na(idtax_n),  # Exclude unmatched taxa
+            !is.na(.data[[selected_col_name]]),  # Exclude NA input names
+            .data[[selected_col_name]] != ""  # Exclude empty strings
+          ) %>%
           dplyr::distinct(idtax_n, idtax_good_n, matched_name, corrected_name)
 
         if (nrow(matched_taxa) == 0) {
@@ -254,49 +249,75 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
         }
 
         # Build enriched dataset
-        # Start with original data
+        # One row per unique taxon, with concatenated input names
         enriched <- data
 
         # Determine which columns to include from original name
         include_opts <- input$include_cols %||% c("original", "corrected", "ids")
 
-        # Create a taxa info table
-        taxa_info <- enriched %>%
-          dplyr::select(
-            dplyr::any_of(c(names(enriched)[1])),  # Original column name
+        # Get the selected column name (the one containing taxonomic names)
+        selected_col_name <- column_name()
+
+        # Filter out unmatched names (NA taxa) AND rows with NA input names
+        enriched_filtered <- enriched %>%
+          dplyr::filter(
+            !is.na(idtax_n),  # Exclude unmatched taxa
+            !is.na(.data[[selected_col_name]]),  # Exclude NA input names
+            .data[[selected_col_name]] != ""  # Exclude empty strings
+          )
+
+        if (nrow(enriched_filtered) == 0) {
+          shiny::showNotification(
+            "No matched taxa to enrich. All input names are unmatched or invalid.",
+            type = "warning",
+            duration = 5
+          )
+          enrichment_in_progress(FALSE)
+          shinybusy::hide_spinner()
+          return(NULL)
+        }
+
+        # Create base table: one row per unique taxon with concatenated input names
+        enriched_result <- enriched_filtered %>%
+          dplyr::group_by(
             idtax_n,
             idtax_good_n,
             matched_name,
             corrected_name,
-            match_method,
-            match_score,
             is_synonym,
             accepted_name
           ) %>%
-          dplyr::distinct()
-
-        # Get the original column name
-        original_col_name <- names(enriched)[1]
-
-        # Join traits with taxa info
-        # Start with taxa info
-        enriched_result <- taxa_info
+          dplyr::summarise(
+            input_names = paste(unique(.data[[selected_col_name]]), collapse = " | "),
+            match_methods = paste(unique(match_method), collapse = " | "),
+            match_scores = paste(unique(round(match_score, 3)), collapse = " | "),
+            .groups = "drop"
+          ) %>%
+          dplyr::ungroup()
 
         # Join numeric traits if available
         # Note: query_taxa_traits returns column named "idtax", not "idtax_n"
         if (has_numeric && nrow(traits_result$traits_numeric) > 0) {
+          # Remove id_trait_measures columns before joining
+          numeric_traits <- traits_result$traits_numeric %>%
+            dplyr::select(-dplyr::starts_with("id_trait_measures"))
+
           enriched_result <- enriched_result %>%
             dplyr::left_join(
-              traits_result$traits_numeric,
+              numeric_traits,
               by = c("idtax_n" = "idtax")
             )
         }
 
         # Join categorical traits if available
         if (has_categorical && nrow(traits_result$traits_categorical) > 0) {
+          # Remove id_trait_measures columns before joining
+          categorical_traits <- traits_result$traits_categorical %>%
+            dplyr::select(-dplyr::starts_with("id_trait_measures"))
+
           enriched_result <- enriched_result %>%
             dplyr::left_join(
-              traits_result$traits_categorical,
+              categorical_traits,
               by = c("idtax_n" = "idtax")
             )
         }
@@ -305,7 +326,7 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
         cols_to_keep <- c()
 
         if ("original" %in% include_opts) {
-          cols_to_keep <- c(cols_to_keep, original_col_name)
+          cols_to_keep <- c(cols_to_keep, "input_names")
         }
 
         if ("corrected" %in% include_opts) {
@@ -317,12 +338,16 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
         }
 
         if ("metadata" %in% include_opts) {
-          cols_to_keep <- c(cols_to_keep, "match_method", "match_score",
+          cols_to_keep <- c(cols_to_keep, "match_methods", "match_scores",
                            "is_synonym", "accepted_name")
         }
 
         # Keep selected columns plus all trait columns
-        trait_cols <- setdiff(names(enriched_result), names(taxa_info))
+        # Trait columns are everything except the taxonomic metadata columns
+        metadata_cols <- c("input_names", "idtax_n", "idtax_good_n",
+                          "matched_name", "corrected_name", "match_methods",
+                          "match_scores", "is_synonym", "accepted_name")
+        trait_cols <- setdiff(names(enriched_result), metadata_cols)
         cols_to_keep <- c(cols_to_keep, trait_cols)
 
         enriched_result <- enriched_result %>%
@@ -332,7 +357,7 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
         enriched_data(enriched_result)
 
         shiny::showNotification(
-          paste0("Successfully enriched ", nrow(enriched_result), " taxa with trait data"),
+          paste0("Successfully enriched ", nrow(enriched_result), " unique taxa with trait data"),
           type = "message",
           duration = 5
         )
@@ -388,7 +413,7 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
       n_cols <- ncol(data)
 
       shiny::div(
-        shiny::h4(paste0("Enriched Data Preview (", n_rows, " taxa, ", n_cols, " columns)")),
+        shiny::h4(paste0("Enriched Data Preview (", n_rows, " unique taxa, ", n_cols, " columns)")),
         DT::renderDataTable({
           DT::datatable(
             data,
