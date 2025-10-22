@@ -1460,63 +1460,72 @@ PlotFetcher <- R6::R6Class(
     filter(tax_gen %in% unique(list_genus$tax_gen),
            !is.na(tax_infra_level))
   
-  all_val_sp <- query_traits_measures(idtax = all_sp_genera %>%
+  all_val_sp <- query_taxa_traits(idtax = all_sp_genera %>%
                                         filter(!is.na(tax_esp)) %>%
-                                        pull(idtax_n),
-                                      idtax_good = all_sp_genera %>%
-                                        filter(!is.na(tax_esp)) %>%
-                                        pull(idtax_good_n),
+                                        pull(idtax_n), format = "long",
+                                  include_synonyms = T, 
                                       add_taxa_info = T)
   
-  if (any(class(all_val_sp$traits_idtax_char) == "data.frame")) {
+  
+  if (any(class(all_val_sp$traits_categorical) == "data.frame")) {
     
-    traits_idtax_char <-
-      all_val_sp$traits_found %>%
-      dplyr::filter(valuetype == "categorical") %>%
-      dplyr::select(idtax,
-                    trait,
-                    traitvalue_char,
-                    basisofrecord,
-                    id_trait_measures) %>%
-      dplyr::mutate(rn = data.table::rowid(trait)) %>%
-      tidyr::pivot_wider(
-        names_from = trait,
-        values_from = c(traitvalue_char, basisofrecord, id_trait_measures), 
-        names_prefix = "taxa_level_"
-      ) %>%
-      dplyr::select(-rn) %>%
-      left_join(all_val_sp$traits_idtax_char %>%
-                  dplyr::select(idtax, tax_gen),
-                by = c("idtax" = "idtax"))
+    traits_idtax_char <- 
+      pivot_categorical_traits_generic(
+      data = all_val_sp$traits_raw %>%
+        dplyr::filter(valuetype == "categorical") %>% 
+        filter(!is.na(tax_gen)),
+      id_col = "tax_gen",
+      include_id_measures = TRUE,
+      name_prefix = "taxa_"
+    )
     
-    names(traits_idtax_char) <- gsub("traitvalue_char_", "", names(traits_idtax_char))
+    # traits_idtax_char <-
+    #   all_val_sp$traits_found %>%
+    #   dplyr::filter(valuetype == "categorical") %>%
+    #   dplyr::select(idtax,
+    #                 trait,
+    #                 traitvalue_char,
+    #                 basisofrecord,
+    #                 id_trait_measures) %>%
+    #   dplyr::mutate(rn = data.table::rowid(trait)) %>%
+    #   tidyr::pivot_wider(
+    #     names_from = trait,
+    #     values_from = c(traitvalue_char, basisofrecord, id_trait_measures), 
+    #     names_prefix = "taxa_level_"
+    #   ) %>%
+    #   dplyr::select(-rn) %>%
+    #   left_join(all_val_sp$traits_idtax_char %>%
+    #               dplyr::select(idtax, tax_gen),
+    #             by = c("idtax" = "idtax"))
     
-    traits_idtax_concat <-
-      traits_idtax_char %>%
-      dplyr::select(tax_gen, starts_with("id_trait_")) %>%
-      dplyr::mutate(across(starts_with("id_trait_"), as.character)) %>%
-      dplyr::group_by(tax_gen) %>%
-      dplyr::mutate(dplyr::across(where(is.character),
-                                  ~ stringr::str_c(.[!is.na(.)],
-                                                   collapse = ", "))) %>%
-      dplyr::ungroup() %>%
-      dplyr::distinct()
+    # names(traits_idtax_char) <- gsub("traitvalue_char_", "", names(traits_idtax_char))
     
-    cli::cli_alert_info("Extracting most frequent value for categorical traits at genus level")
-    
-    traits_idtax_char <-
-      traits_idtax_char %>%
-      dplyr::select(-starts_with("id_trait_")) %>%
-      group_by(tax_gen, across(where(is.character))) %>%
-      count() %>%
-      arrange(tax_gen, desc(n)) %>%
-      ungroup() %>%
-      group_by(tax_gen) %>%
-      dplyr::summarise_if(is.character, ~ first(.x[!is.na(.x)]))
-    
-    traits_idtax_char <-
-      left_join(traits_idtax_char,
-                traits_idtax_concat, by = c("tax_gen" = "tax_gen"))
+    # traits_idtax_concat <-
+    #   traits_idtax_char %>%
+    #   dplyr::select(tax_gen, starts_with("id_trait_")) %>%
+    #   dplyr::mutate(across(starts_with("id_trait_"), as.character)) %>%
+    #   dplyr::group_by(tax_gen) %>%
+    #   dplyr::mutate(dplyr::across(where(is.character),
+    #                               ~ stringr::str_c(.[!is.na(.)],
+    #                                                collapse = ", "))) %>%
+    #   dplyr::ungroup() %>%
+    #   dplyr::distinct()
+    # 
+    # cli::cli_alert_info("Extracting most frequent value for categorical traits at genus level")
+    # 
+    # traits_idtax_char <-
+    #   traits_idtax_char %>%
+    #   dplyr::select(-starts_with("id_trait_")) %>%
+    #   group_by(tax_gen, across(where(is.character))) %>%
+    #   count() %>%
+    #   arrange(tax_gen, desc(n)) %>%
+    #   ungroup() %>%
+    #   group_by(tax_gen) %>%
+    #   dplyr::summarise_if(is.character, ~ first(.x[!is.na(.x)]))
+    # 
+    # traits_idtax_char <-
+    #   left_join(traits_idtax_char,
+    #             traits_idtax_concat, by = c("tax_gen" = "tax_gen"))
     
     colnames_traits <- names(traits_idtax_char %>%
                                dplyr::select(
@@ -1535,7 +1544,7 @@ PlotFetcher <- R6::R6Class(
     
     dataset_pivot <- 
       dataset_subset %>% 
-      pivot_longer(cols = starts_with("taxa_level"),
+      pivot_longer(cols = colnames_traits[which(colnames_traits %in% colnames_data)],
                    names_to = "trait") %>% 
       arrange(tax_gen, trait)
     
@@ -1543,7 +1552,7 @@ PlotFetcher <- R6::R6Class(
       traits_idtax_char %>% 
       select(tax_gen,
              all_of(colnames_traits)) %>% 
-      pivot_longer(cols = starts_with("taxa_level"),
+      pivot_longer(cols = colnames_traits[which(colnames_traits %in% colnames_data)],
                    names_to = "trait") %>% 
       arrange(tax_gen, trait)
     
@@ -1590,49 +1599,62 @@ PlotFetcher <- R6::R6Class(
     dataset_pivot_wider_char <- NA
   }
   
-  if (any(class(all_val_sp$traits_idtax_num) == "data.frame")) {
+  if (any(class(all_val_sp$traits_numeric) == "data.frame")) {
     
-    traits_idtax_num <-
-      all_val_sp$traits_found %>%
-      dplyr::filter(valuetype == "numeric") %>%
-      dplyr::select(idtax,
-                    trait,
-                    traitvalue,
-                    basisofrecord,
-                    id_trait_measures) %>%
-      dplyr::mutate(rn = data.table::rowid(trait)) %>%
-      tidyr::pivot_wider(
-        names_from = trait,
-        values_from = c(traitvalue, basisofrecord, id_trait_measures), 
-        names_prefix = "taxa_level_"
-      ) %>%
-      dplyr::select(-rn) %>%
-      dplyr::left_join(all_val_sp$traits_idtax_num %>%
-                         dplyr::select(idtax, tax_gen),
-                       by = c("idtax" = "idtax"))
+    traits_idtax_num <- 
+      pivot_numeric_traits_generic(
+      data = all_val_sp$traits_numeric %>%
+        dplyr::filter(valuetype == "numeric") %>% 
+        filter(!is.na(tax_gen)),
+      id_col = "tax_gen",
+      include_stats = TRUE,
+      include_id_measures = TRUE,
+      name_prefix = "taxa_"
+    )
     
-    names(traits_idtax_num) <- gsub("traitvalue_", "", names(traits_idtax_num))
+    colnames_data <- names(dataset)
     
-    traits_idtax_concat <-
-      traits_idtax_num %>%
-      dplyr::select(tax_gen, starts_with("id_trait_")) %>%
-      dplyr::mutate(across(starts_with("id_trait_"), as.character)) %>%
-      dplyr::group_by(tax_gen) %>%
-      dplyr::mutate(dplyr::across(where(is.character),
-                                  ~ stringr::str_c(.[!is.na(.)],
-                                                   collapse = ", "))) %>%
-      dplyr::ungroup() %>%
-      dplyr::distinct()
+    # traits_idtax_num <-
+    #   all_val_sp$traits_found %>%
+    #   dplyr::filter(valuetype == "numeric") %>%
+    #   dplyr::select(idtax,
+    #                 trait,
+    #                 traitvalue,
+    #                 basisofrecord,
+    #                 id_trait_measures) %>%
+    #   dplyr::mutate(rn = data.table::rowid(trait)) %>%
+    #   tidyr::pivot_wider(
+    #     names_from = trait,
+    #     values_from = c(traitvalue, basisofrecord, id_trait_measures), 
+    #     names_prefix = "taxa_level_"
+    #   ) %>%
+    #   dplyr::select(-rn) %>%
+    #   dplyr::left_join(all_val_sp$traits_idtax_num %>%
+    #                      dplyr::select(idtax, tax_gen),
+    #                    by = c("idtax" = "idtax"))
     
-    traits_idtax_num <-
-      traits_idtax_num %>%
-      dplyr::select(-starts_with("id_trait_"), -idtax) %>%
-      dplyr::group_by(tax_gen) %>%
-      dplyr::summarise(dplyr::across(where(is.numeric),
-                                     .fns= list(mean = ~mean(., na.rm= TRUE),
-                                                sd = ~sd(., na.rm= TRUE),
-                                                n = ~sum(!is.na(.))),
-                                     .names = "{.col}_{.fn}"))
+    # names(traits_idtax_num) <- gsub("traitvalue_", "", names(traits_idtax_num))
+    
+    # traits_idtax_concat <-
+    #   traits_idtax_num %>%
+    #   dplyr::select(tax_gen, starts_with("id_trait_")) %>%
+    #   dplyr::mutate(across(starts_with("id_trait_"), as.character)) %>%
+    #   dplyr::group_by(tax_gen) %>%
+    #   dplyr::mutate(dplyr::across(where(is.character),
+    #                               ~ stringr::str_c(.[!is.na(.)],
+    #                                                collapse = ", "))) %>%
+    #   dplyr::ungroup() %>%
+    #   dplyr::distinct()
+    # 
+    # traits_idtax_num <-
+    #   traits_idtax_num %>%
+    #   dplyr::select(-starts_with("id_trait_")) %>%
+    #   dplyr::group_by(tax_gen) %>%
+    #   dplyr::summarise(dplyr::across(where(is.numeric),
+    #                                  .fns= list(mean = ~mean(., na.rm= TRUE),
+    #                                             sd = ~sd(., na.rm= TRUE),
+    #                                             n = ~sum(!is.na(.))),
+    #                                  .names = "{.col}_{.fn}"))
     
     
     colnames_traits <- names(traits_idtax_num %>%
@@ -1652,7 +1674,7 @@ PlotFetcher <- R6::R6Class(
     
     dataset_pivot <- 
       dataset_subset %>% 
-      pivot_longer(cols = starts_with("taxa_level"),
+      pivot_longer(cols = starts_with("taxa_"),
                    names_to = "trait") %>% 
       arrange(tax_fam, tax_gen, trait)
     
@@ -1660,7 +1682,7 @@ PlotFetcher <- R6::R6Class(
       traits_idtax_num %>% 
       select(tax_gen,
              all_of(colnames_traits)) %>% 
-      pivot_longer(cols = starts_with("taxa_level"),
+      pivot_longer(cols = starts_with("taxa_"),
                    names_to = "trait") %>% 
       arrange(tax_gen, trait) %>% 
       filter(!is.na(value))
@@ -1718,9 +1740,9 @@ PlotFetcher <- R6::R6Class(
       gsub("value_", "", names(dataset_pivot_wider_num))
     
     
-    if (any(colnames_traits == "taxa_level_wood_density_mean")) {
+    if (any(colnames_traits == "taxa_mean_wood_density")) {
       
-      if (any(names(dataset_pivot_wider_num) == "taxa_level_wood_density_sd")) {
+      if (any(names(dataset_pivot_wider_num) == "taxa_sd_wood_density")) {
         cli::cli_alert_info("Setting wood density SD to averaged species and genus level according to BIOMASS dataset")
         
         sd_10 <- BIOMASS::sd_10
@@ -1729,19 +1751,19 @@ PlotFetcher <- R6::R6Class(
         ### replacing wd sd to species and genus level sd from biomass
         dataset_pivot_wider_num <-
           dataset_pivot_wider_num %>%
-          mutate(taxa_level_wood_density_sd = replace(taxa_level_wood_density_sd,
-                                                      source_taxa_level_wood_density_mean == "species",
+          mutate(taxa_sd_wood_density = replace(taxa_sd_wood_density,
+                                                source_taxa_mean_wood_density == "species",
                                                       sd_10$sd[1])) %>%
-          mutate(taxa_level_wood_density_sd = replace(taxa_level_wood_density_sd,
-                                                      source_taxa_level_wood_density_mean == "genus",
+          mutate(taxa_sd_wood_density = replace(taxa_sd_wood_density,
+                                                      source_taxa_mean_wood_density == "genus",
                                                       sd_10$sd[2]))
         
         if (wd_fam_level_add) {
           
           dataset_pivot_wider_num <-
             dataset_pivot_wider_num %>%
-            mutate(taxa_level_wood_density_sd = replace(
-              taxa_level_wood_density_sd,
+            mutate(taxa_sd_wood_density = replace(
+              taxa_sd_wood_density,
               is.na(tax_gen) & !is.na(tax_fam),
               sd_10$sd[3]
             ))
@@ -1749,38 +1771,36 @@ PlotFetcher <- R6::R6Class(
         }
       }
       
-      
-      
     }
     
     ### averaged wd for plots
     wd_plot_level <- 
       dataset_pivot_wider_num %>%
       dplyr::group_by(plot_name) %>%
-      dplyr::summarise(taxa_level_wood_density_mean_plot_level = mean(taxa_level_wood_density_mean, na.rm = T),
-                       taxa_level_wood_density_sd_plot_level = mean(taxa_level_wood_density_sd, na.rm = T))
+      dplyr::summarise(taxa_mean_wood_density_plot_level = mean(taxa_mean_wood_density, na.rm = T),
+                       taxa_sd_wood_density_plot_level = mean(taxa_sd_wood_density, na.rm = T))
     
     dataset_pivot_wider_num <- 
       dataset_pivot_wider_num %>%
       dplyr::left_join(wd_plot_level,
                        by = c("plot_name" = "plot_name")) %>%
-      dplyr::mutate(taxa_level_wood_density_mean = 
-                      ifelse(is.na(taxa_level_wood_density_mean),
-                             taxa_level_wood_density_mean_plot_level,
-                             taxa_level_wood_density_mean),
-                    taxa_level_wood_density_sd = 
-                      ifelse(is.na(taxa_level_wood_density_sd),
-                             taxa_level_wood_density_sd_plot_level,
-                             taxa_level_wood_density_sd),
-                    source_taxa_level_wood_density_sd = 
-                      ifelse(is.na(source_taxa_level_wood_density_sd),
+      dplyr::mutate(taxa_mean_wood_density = 
+                      ifelse(is.na(taxa_mean_wood_density),
+                             taxa_mean_wood_density_plot_level,
+                             taxa_mean_wood_density),
+                    taxa_sd_wood_density = 
+                      ifelse(is.na(taxa_sd_wood_density),
+                             taxa_sd_wood_density_plot_level,
+                             taxa_sd_wood_density),
+                    source_taxa_sd_wood_density = 
+                      ifelse(is.na(source_taxa_sd_wood_density),
                              "plot_mean",
-                             source_taxa_level_wood_density_sd),
-                    source_taxa_level_wood_density_mean = 
-                      ifelse(is.na(source_taxa_level_wood_density_mean),
+                             source_taxa_sd_wood_density),
+                    source_taxa_mean_wood_density = 
+                      ifelse(is.na(source_taxa_mean_wood_density),
                              "plot_mean",
-                             source_taxa_level_wood_density_mean)) %>%
-      dplyr::select(-taxa_level_wood_density_mean_plot_level, taxa_level_wood_density_sd)
+                             source_taxa_mean_wood_density)) %>%
+      dplyr::select(-taxa_mean_wood_density_plot_level, taxa_sd_wood_density)
     
     
   } else {
