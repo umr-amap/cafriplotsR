@@ -548,10 +548,14 @@ query_taxa <-
     con_taxa = NULL
   )
 
+  # Check what we got back
+  has_numeric <- !is.null(traits_result$traits_numeric) &&
+                 !inherits(traits_result$traits_numeric, "logical")
+  has_categorical <- !is.null(traits_result$traits_categorical) &&
+                     !inherits(traits_result$traits_categorical, "logical")
+
   # Join numeric traits if available
-  if (!is.na(traits_result$traits_numeric) &&
-      !is.null(traits_result$traits_numeric) &&
-      nrow(traits_result$traits_numeric) > 0) {
+  if (has_numeric && nrow(traits_result$traits_numeric) > 0) {
     res <- res %>%
       dplyr::left_join(
         traits_result$traits_numeric,
@@ -560,9 +564,7 @@ query_taxa <-
   }
 
   # Join categorical traits if available
-  if (!is.na(traits_result$traits_categorical) &&
-      !is.null(traits_result$traits_categorical) &&
-      nrow(traits_result$traits_categorical) > 0) {
+  if (has_categorical && nrow(traits_result$traits_categorical) > 0) {
     res <- res %>%
       dplyr::left_join(
         traits_result$traits_categorical,
