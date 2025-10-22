@@ -237,8 +237,12 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
         shiny::removeNotification("fetch_traits")
 
         # Check if we got results
-        if (is.null(traits_result) ||
-            (is.na(traits_result$traits_numeric) && is.na(traits_result$traits_categorical))) {
+        has_numeric <- !is.null(traits_result$traits_numeric) &&
+                       !inherits(traits_result$traits_numeric, "logical")
+        has_categorical <- !is.null(traits_result$traits_categorical) &&
+                          !inherits(traits_result$traits_categorical, "logical")
+
+        if (is.null(traits_result) || (!has_numeric && !has_categorical)) {
           shiny::showNotification(
             "No trait data found for these taxa",
             type = "warning",
@@ -279,9 +283,7 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
         enriched_result <- taxa_info
 
         # Join numeric traits if available
-        if (!is.na(traits_result$traits_numeric) &&
-            !is.null(traits_result$traits_numeric) &&
-            nrow(traits_result$traits_numeric) > 0) {
+        if (has_numeric && nrow(traits_result$traits_numeric) > 0) {
           enriched_result <- enriched_result %>%
             dplyr::left_join(
               traits_result$traits_numeric,
@@ -290,9 +292,7 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
         }
 
         # Join categorical traits if available
-        if (!is.na(traits_result$traits_categorical) &&
-            !is.null(traits_result$traits_categorical) &&
-            nrow(traits_result$traits_categorical) > 0) {
+        if (has_categorical && nrow(traits_result$traits_categorical) > 0) {
           enriched_result <- enriched_result %>%
             dplyr::left_join(
               traits_result$traits_categorical,
