@@ -233,7 +233,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
             shiny::br(),
             shiny::actionButton(
               inputId = ns("search_custom"),
-              label = paste(shiny::icon("search"), "Search"),
+              label = shiny::tagList(shiny::icon("search"), "Search"),
               class = "btn-info btn-block"
             )
           )
@@ -262,7 +262,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
             width = 4,
             shiny::actionButton(
               inputId = ns("btn_previous"),
-              label = paste(shiny::icon("arrow-left"), t()$review_prev),
+              label = shiny::tagList(shiny::icon("arrow-left"), t()$review_prev),
               class = "btn-secondary btn-block",
               disabled = if (curr_idx == 1) "disabled" else NULL
             )
@@ -279,7 +279,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
             width = 4,
             shiny::actionButton(
               inputId = ns("btn_next"),
-              label = paste(t()$review_next, shiny::icon("arrow-right")),
+              label = shiny::tagList(t()$review_next, shiny::icon("arrow-right")),
               class = "btn-primary btn-block",
               disabled = if (curr_idx >= length(unmatched)) "disabled" else NULL
             )

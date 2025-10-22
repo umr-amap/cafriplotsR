@@ -561,10 +561,15 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         req(matched_data())
         req(match_stats())
 
-        # Get unmatched names
+        # Get unmatched names (including no_match results)
+        # Exclude actual NA values from the dataset
         col_name <- column_name()
         unmatched <- matched_data() %>%
-          dplyr::filter(is.na(idtax_n)) %>%
+          dplyr::filter(
+            is.na(idtax_n),  # No match found
+            !is.na(!!rlang::sym(col_name)),  # But name itself is not NA
+            !!rlang::sym(col_name) != ""  # And not empty string
+          ) %>%
           dplyr::distinct(!!rlang::sym(col_name)) %>%
           dplyr::pull(!!rlang::sym(col_name))
 
