@@ -57,6 +57,9 @@ clean_taxonomic_name <- function(name) {
 
   # Clean up multiple spaces
   name <- stringr::str_replace_all(name, "\\s+", " ")
+  
+  # replace underscore by space
+  name <- stringr::str_replace_all(name, "_", " ")
 
   # Final trim
   name <- stringr::str_trim(name)
