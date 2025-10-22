@@ -74,7 +74,8 @@ clean_taxonomic_name <- function(name) {
 #' @param name Character string of taxonomic name
 #'
 #' @return A list with components:
-#'   - genus: Genus name (first word)
+#'   - rank: Detected rank ("family", "order", "genus", "species", or "unknown")
+#'   - genus: Genus name (first word, or NA if family/order detected)
 #'   - species: Species epithet (second word if present)
 #'   - infraspecific: Full infraspecific part (everything after species)
 #'   - full_name_no_auth: Genus + species + infraspecific without authors
@@ -96,6 +97,7 @@ parse_taxonomic_name <- function(name) {
 
   if (is.na(name) || name == "") {
     return(list(
+      rank = "unknown",
       genus = NA_character_,
       species = NA_character_,
       infraspecific = NA_character_,
@@ -109,6 +111,7 @@ parse_taxonomic_name <- function(name) {
 
   if (length(parts) == 0) {
     return(list(
+      rank = "unknown",
       genus = NA_character_,
       species = NA_character_,
       infraspecific = NA_character_,
@@ -117,9 +120,38 @@ parse_taxonomic_name <- function(name) {
     ))
   }
 
-  # Extract genus (first part, capitalize first letter)
-  genus <- parts[1]
-  genus <- stringr::str_to_title(genus)
+  # Detect rank based on botanical nomenclature patterns
+  first_word <- stringr::str_to_title(parts[1])
+  rank <- "genus"  # Default assumption
+
+  # Check if it's a family (ends in -aceae)
+  if (stringr::str_detect(first_word, "aceae$")) {
+    rank <- "family"
+  }
+  # Check if it's an order (ends in -ales)
+  else if (stringr::str_detect(first_word, "ales$")) {
+    rank <- "order"
+  }
+  # If single word, keep as genus
+  # If multiple words with lowercase second word, it's species or infraspecific
+  else if (length(parts) >= 2 && stringr::str_detect(parts[2], "^[a-z]")) {
+    rank <- "species"
+  }
+
+  # For family/order, return simplified structure
+  if (rank %in% c("family", "order")) {
+    return(list(
+      rank = rank,
+      genus = NA_character_,
+      species = NA_character_,
+      infraspecific = NA_character_,
+      full_name_no_auth = first_word,
+      input_name = name
+    ))
+  }
+
+  # For genus/species, parse normally
+  genus <- first_word
 
   # Extract species if present (second part, must be lowercase to be species epithet)
   species <- NA_character_
@@ -148,6 +180,7 @@ parse_taxonomic_name <- function(name) {
   full_name_no_auth <- paste(full_parts, collapse = " ")
 
   return(list(
+    rank = rank,
     genus = genus,
     species = species,
     infraspecific = infraspecific,
@@ -378,6 +411,78 @@ match_taxonomic_names <- function(names,
 #' @keywords internal
 .match_exact_sql <- function(parsed, con, include_authors, max_matches) {
 
+  # Handle family/order searches differently
+  if (parsed$rank == "family") {
+    # Search in tax_fam column
+    sql <- glue::glue_sql("
+      SELECT
+        idtax_n,
+        idtax_good_n,
+        tax_gen,
+        tax_esp,
+        tax_fam,
+        tax_level,
+        tax_fam AS matched_name,
+        1.0 AS similarity_score
+      FROM table_taxa
+      WHERE lower(tax_fam) = lower({search_name})
+        AND tax_level = 'family'
+      LIMIT {max_matches}
+    ", search_name = parsed$full_name_no_auth, max_matches = max_matches, .con = con)
+
+    result <- func_try_fetch(con = con, sql = sql)
+
+    if (nrow(result) > 0) {
+      result <- result %>%
+        mutate(
+          input_name = parsed$original_input %||% parsed$input_name,
+          match_method = "exact",
+          match_score = 1.0
+        ) %>%
+        select(input_name, matched_name, idtax_n, idtax_good_n,
+               match_method, match_score, tax_gen, tax_esp, tax_fam, tax_level) %>%
+        slice(1)  # Only return one representative match for family
+    }
+
+    return(result)
+  }
+
+  if (parsed$rank == "order") {
+    # Search in tax_order column
+    sql <- glue::glue_sql("
+      SELECT
+        idtax_n,
+        idtax_good_n,
+        tax_gen,
+        tax_esp,
+        tax_fam,
+        tax_level,
+        tax_order AS matched_name,
+        1.0 AS similarity_score
+      FROM table_taxa
+      WHERE lower(tax_order) = lower({search_name})
+        AND tax_level = 'order'
+      LIMIT {max_matches}
+    ", search_name = parsed$full_name_no_auth, max_matches = max_matches, .con = con)
+
+    result <- func_try_fetch(con = con, sql = sql)
+
+    if (nrow(result) > 0) {
+      result <- result %>%
+        mutate(
+          input_name = parsed$original_input %||% parsed$input_name,
+          match_method = "exact",
+          match_score = 1.0
+        ) %>%
+        select(input_name, matched_name, idtax_n, idtax_good_n,
+               match_method, match_score, tax_gen, tax_esp, tax_fam, tax_level) %>%
+        slice(1)  # Only return one representative match for order
+    }
+
+    return(result)
+  }
+
+  # For genus/species, use normal matching
   # Build the name field to search (with or without authors)
   if (include_authors) {
     name_field <- glue::glue_sql("
@@ -546,6 +651,84 @@ match_taxonomic_names <- function(names,
 #' @keywords internal
 .match_fuzzy_sql <- function(parsed, con, min_similarity, include_authors, max_matches) {
 
+  # Handle family/order searches with fuzzy matching on appropriate column
+  if (parsed$rank == "family") {
+    sql <- glue::glue_sql("
+      SELECT DISTINCT ON (tax_fam)
+        idtax_n,
+        idtax_good_n,
+        tax_gen,
+        tax_esp,
+        tax_fam,
+        tax_level,
+        tax_fam AS matched_name,
+        SIMILARITY(lower(tax_fam), lower({search_name})) AS similarity_score
+      FROM table_taxa
+      WHERE tax_fam IS NOT NULL
+        AND SIMILARITY(lower(tax_fam), lower({search_name})) >= {min_sim}
+      ORDER BY tax_fam, similarity_score DESC
+      LIMIT {max_matches}
+    ", search_name = parsed$full_name_no_auth, min_sim = min_similarity,
+       max_matches = max_matches, .con = con)
+
+    result <- func_try_fetch(con = con, sql = sql)
+
+    if (nrow(result) > 0) {
+      result <- result %>%
+        mutate(
+          input_name = parsed$original_input %||% parsed$input_name,
+          match_method = "fuzzy",
+          match_score = similarity_score
+        ) %>%
+        select(input_name, matched_name, idtax_n, idtax_good_n,
+               match_method, match_score, tax_gen, tax_esp, tax_fam, tax_level)
+    }
+
+    return(result)
+  }
+
+  if (parsed$rank == "order") {
+    # Try fuzzy match on tax_order if column exists
+    sql <- glue::glue_sql("
+      SELECT DISTINCT ON (tax_order)
+        idtax_n,
+        idtax_good_n,
+        tax_gen,
+        tax_esp,
+        tax_fam,
+        tax_level,
+        tax_order AS matched_name,
+        SIMILARITY(lower(tax_order), lower({search_name})) AS similarity_score
+      FROM table_taxa
+      WHERE tax_order IS NOT NULL
+        AND SIMILARITY(lower(tax_order), lower({search_name})) >= {min_sim}
+      ORDER BY tax_order, similarity_score DESC
+      LIMIT {max_matches}
+    ", search_name = parsed$full_name_no_auth, min_sim = min_similarity,
+       max_matches = max_matches, .con = con)
+
+    result <- tryCatch({
+      func_try_fetch(con = con, sql = sql)
+    }, error = function(e) {
+      # If tax_order column doesn't exist, return empty tibble
+      tibble()
+    })
+
+    if (nrow(result) > 0) {
+      result <- result %>%
+        mutate(
+          input_name = parsed$original_input %||% parsed$input_name,
+          match_method = "fuzzy",
+          match_score = similarity_score
+        ) %>%
+        select(input_name, matched_name, idtax_n, idtax_good_n,
+               match_method, match_score, tax_gen, tax_esp, tax_fam, tax_level)
+    }
+
+    return(result)
+  }
+
+  # For genus/species, use normal fuzzy matching
   # Build the name field to search
   if (include_authors) {
     name_field <- glue::glue_sql("
