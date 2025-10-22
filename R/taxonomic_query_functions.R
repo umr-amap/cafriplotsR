@@ -539,21 +539,34 @@ query_taxa <-
   if (is.null(res) || nrow(res) == 0) return(res)
 
   # Use query_taxa_traits (new function) instead of deprecated query_traits_measures
-  traits_wide <- query_taxa_traits(
+  traits_result <- query_taxa_traits(
     idtax = res$idtax_n,
     format = "wide",
     add_taxa_info = FALSE,
-    resolve_synonyms = TRUE,
-    categorical_format = "mode",
-    con = NULL
+    include_synonyms = TRUE,
+    categorical_mode = "mode",
+    con_taxa = NULL
   )
 
-  # Join traits with taxa results
-  if (!is.null(traits_wide) && nrow(traits_wide) > 0) {
+  # Join numeric traits if available
+  if (!is.na(traits_result$traits_numeric) &&
+      !is.null(traits_result$traits_numeric) &&
+      nrow(traits_result$traits_numeric) > 0) {
     res <- res %>%
       dplyr::left_join(
-        traits_wide,
-        by = c("idtax_n" = "idtax_n")
+        traits_result$traits_numeric,
+        by = "idtax_n"
+      )
+  }
+
+  # Join categorical traits if available
+  if (!is.na(traits_result$traits_categorical) &&
+      !is.null(traits_result$traits_categorical) &&
+      nrow(traits_result$traits_categorical) > 0) {
+    res <- res %>%
+      dplyr::left_join(
+        traits_result$traits_categorical,
+        by = "idtax_n"
       )
   }
 
