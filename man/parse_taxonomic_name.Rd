@@ -11,7 +11,8 @@ parse_taxonomic_name(name)
 }
 \value{
 A list with components:
-  - genus: Genus name (first word)
+  - rank: Detected rank ("family", "order", "genus", "species", or "unknown")
+  - genus: Genus name (first word, or NA if family/order detected)
   - species: Species epithet (second word if present)
   - infraspecific: Full infraspecific part (everything after species)
   - full_name_no_auth: Genus + species + infraspecific without authors
