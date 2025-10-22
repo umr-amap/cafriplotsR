@@ -538,21 +538,23 @@ query_taxa <-
 
   if (is.null(res) || nrow(res) == 0) return(res)
 
-  traitsqueried <- query_traits_measures(
+  # Use query_taxa_traits (new function) instead of deprecated query_traits_measures
+  traits_wide <- query_taxa_traits(
     idtax = res$idtax_n,
-    idtax_good = res$idtax_good_n
+    format = "wide",
+    add_taxa_info = FALSE,
+    resolve_synonyms = TRUE,
+    categorical_format = "mode",
+    con = NULL
   )
 
-  if (length(traitsqueried$traits_idtax_num) > 1) {
+  # Join traits with taxa results
+  if (!is.null(traits_wide) && nrow(traits_wide) > 0) {
     res <- res %>%
-      left_join(traitsqueried$traits_idtax_num,
-                by = c("idtax_n" = "idtax"))
-  }
-
-  if (length(traitsqueried$traits_idtax_char) > 1) {
-    res <- res %>%
-      left_join(traitsqueried$traits_idtax_char,
-                by = c("idtax_n" = "idtax"))
+      dplyr::left_join(
+        traits_wide,
+        by = c("idtax_n" = "idtax_n")
+      )
   }
 
   return(res)
