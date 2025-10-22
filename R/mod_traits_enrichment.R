@@ -225,18 +225,20 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
           type = "message"
         )
 
-        traits_data <- query_taxa_traits(
+        traits_result <- query_taxa_traits(
           idtax = matched_taxa$idtax_n,
           format = input$output_format %||% "wide",
           add_taxa_info = FALSE,  # We already have taxa info
-          resolve_synonyms = TRUE,
-          categorical_format = input$categorical_format %||% "mode",
-          con = NULL
+          include_synonyms = TRUE,
+          categorical_mode = input$categorical_format %||% "mode",
+          con_taxa = NULL
         )
 
         shiny::removeNotification("fetch_traits")
 
-        if (is.null(traits_data) || nrow(traits_data) == 0) {
+        # Check if we got results
+        if (is.null(traits_result) ||
+            (is.na(traits_result$traits_numeric) && is.na(traits_result$traits_categorical))) {
           shiny::showNotification(
             "No trait data found for these taxa",
             type = "warning",
@@ -273,11 +275,30 @@ mod_traits_enrichment_server <- function(id, results, language = shiny::reactive
         original_col_name <- names(enriched)[1]
 
         # Join traits with taxa info
-        enriched_result <- taxa_info %>%
-          dplyr::left_join(
-            traits_data,
-            by = "idtax_n"
-          )
+        # Start with taxa info
+        enriched_result <- taxa_info
+
+        # Join numeric traits if available
+        if (!is.na(traits_result$traits_numeric) &&
+            !is.null(traits_result$traits_numeric) &&
+            nrow(traits_result$traits_numeric) > 0) {
+          enriched_result <- enriched_result %>%
+            dplyr::left_join(
+              traits_result$traits_numeric,
+              by = "idtax_n"
+            )
+        }
+
+        # Join categorical traits if available
+        if (!is.na(traits_result$traits_categorical) &&
+            !is.null(traits_result$traits_categorical) &&
+            nrow(traits_result$traits_categorical) > 0) {
+          enriched_result <- enriched_result %>%
+            dplyr::left_join(
+              traits_result$traits_categorical,
+              by = "idtax_n"
+            )
+        }
 
         # Filter columns based on user selection
         cols_to_keep <- c()
