@@ -4,6 +4,7 @@
 # Implements genus-constrained fuzzy matching using SQL-side SIMILARITY for improved performance.
 #
 # Main functions:
+# - clean_taxonomic_name(): Clean and normalize taxonomic names
 # - parse_taxonomic_name(): Parse names into components (genus, species, etc.)
 # - match_taxonomic_names(): Intelligently match names with scoring
 # - .match_exact_sql(): Helper for SQL-side exact matching
@@ -11,6 +12,58 @@
 # - .match_fuzzy_sql(): Helper for SQL-side fuzzy matching
 #
 # Dependencies: DBI, dplyr, stringr, cli, glue
+
+#' Clean and normalize taxonomic name
+#'
+#' @description
+#' Clean taxonomic names by removing common botanical annotation patterns
+#' that interfere with matching:
+#' - "sp.", "sp", "spp.", "spp" after genus (e.g., "Garcinia sp." → "Garcinia")
+#' - "cf.", "cf", "aff.", "?" between genus and species (e.g., "Garcinia cf. kola" → "Garcinia kola")
+#' - Extra whitespace and punctuation
+#'
+#' @param name Character string of taxonomic name
+#'
+#' @return Cleaned taxonomic name (character string)
+#'
+#' @author Claude Code Assistant
+#'
+#' @examples
+#' clean_taxonomic_name("Fabaceae sp.")        # → "Fabaceae"
+#' clean_taxonomic_name("Garcinia cf. kola")   # → "Garcinia kola"
+#' clean_taxonomic_name("Brachystegia spp")    # → "Brachystegia"
+#' clean_taxonomic_name("Gilbertiodendron  ?  dewevrei")  # → "Gilbertiodendron dewevrei"
+#'
+#' @keywords internal
+#' @export
+clean_taxonomic_name <- function(name) {
+
+  if (is.na(name) || name == "") {
+    return(name)
+  }
+
+  # Trim whitespace
+  name <- stringr::str_trim(name)
+
+  # Remove "sp.", "sp", "spp.", "spp" when it's the last word (genus sp. pattern)
+  # Match: word + whitespace + sp/spp with optional period + optional whitespace + end
+  name <- stringr::str_replace(name, "\\s+spp?\\.?\\s*$", "")
+
+  # Remove uncertainty markers between genus and species: "cf.", "cf", "aff.", "aff", "?"
+  # These typically appear between first and second word
+  # Pattern: whitespace + (cf|aff) with optional period or ? + whitespace
+  name <- stringr::str_replace_all(name, "\\s+(cf|aff)\\.?\\s+", " ")
+  name <- stringr::str_replace_all(name, "\\s+\\?\\s+", " ")
+
+  # Clean up multiple spaces
+  name <- stringr::str_replace_all(name, "\\s+", " ")
+
+  # Final trim
+  name <- stringr::str_trim(name)
+
+  return(name)
+}
+
 
 #' Parse taxonomic name into components
 #'
@@ -193,9 +246,18 @@ match_taxonomic_names <- function(names,
     cli::cli_h2("Matching {length(valid_names)} taxonomic name(s)")
   }
 
+  # Clean names first (remove sp., cf., etc.)
+  if (verbose) cli::cli_alert_info("Cleaning taxonomic names...")
+  cleaned_names <- sapply(valid_names, clean_taxonomic_name)
+
   # Parse all names
   if (verbose) cli::cli_alert_info("Parsing taxonomic names...")
-  parsed_names <- lapply(valid_names, parse_taxonomic_name)
+  parsed_names <- lapply(cleaned_names, parse_taxonomic_name)
+
+  # Store original input name in parsed results
+  for (i in seq_along(parsed_names)) {
+    parsed_names[[i]]$original_input <- valid_names[i]
+  }
 
   # Process each name using SQL-side matching
   all_matches <- list()
@@ -296,7 +358,7 @@ match_taxonomic_names <- function(names,
   # No matches found
   if (verbose) cli::cli_alert_warning("No matches found")
   return(tibble(
-    input_name = parsed$input_name,
+    input_name = parsed$original_input %||% parsed$input_name,
     match_rank = 1,
     matched_name = NA_character_,
     idtax_n = NA_integer_,
@@ -369,7 +431,7 @@ match_taxonomic_names <- function(names,
   if (nrow(result) > 0) {
     result <- result %>%
       mutate(
-        input_name = parsed$input_name,
+        input_name = parsed$original_input %||% parsed$input_name,
         match_method = "exact",
         match_score = 1.0
       ) %>%
@@ -467,7 +529,7 @@ match_taxonomic_names <- function(names,
   if (nrow(result) > 0) {
     result <- result %>%
       mutate(
-        input_name = parsed$input_name,
+        input_name = parsed$original_input %||% parsed$input_name,
         match_method = "genus_constrained",
         match_score = similarity_score
       ) %>%
@@ -539,7 +601,7 @@ match_taxonomic_names <- function(names,
   if (nrow(result) > 0) {
     result <- result %>%
       mutate(
-        input_name = parsed$input_name,
+        input_name = parsed$original_input %||% parsed$input_name,
         match_method = "fuzzy",
         match_score = similarity_score
       ) %>%
