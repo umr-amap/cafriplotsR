@@ -189,13 +189,19 @@ mod_results_export_server <- function(id, results, original_data, language = shi
       req(results())
 
       data <- results()$data
+      n_rows <- nrow(data)
 
       shiny::div(
-        shiny::h4("Data Preview (first 10 rows)"),
+        shiny::h4(paste0("Data Preview (", n_rows, " row", if(n_rows != 1) "s" else "", ")")),
         DT::renderDataTable({
           DT::datatable(
-            head(data, 10),
-            options = list(scrollX = TRUE, pageLength = 10)
+            data,  # Show ALL rows, not just head(data, 10)
+            options = list(
+              scrollX = TRUE,
+              pageLength = 25,  # Show 25 rows per page by default
+              lengthMenu = c(10, 25, 50, 100, -1),  # Allow user to choose
+              lengthChange = TRUE
+            )
           )
         })
       )
