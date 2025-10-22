@@ -35,6 +35,8 @@ mod_data_input_server <- function(id, provided_data = NULL, language = shiny::re
     # Reactive values
     user_data <- shiny::reactiveVal(NULL)
     file_name <- shiny::reactiveVal(NULL)
+    excel_sheets <- shiny::reactiveVal(NULL)
+    uploaded_file_path <- shiny::reactiveVal(NULL)
 
     # Get translations
     t <- shiny::reactive({
@@ -66,33 +68,119 @@ mod_data_input_server <- function(id, provided_data = NULL, language = shiny::re
           )
         } else {
           # Show file upload
-          shiny::fileInput(
-            inputId = ns("file_upload"),
-            label = t()$data_upload_file,
-            accept = c(".xlsx", ".xls"),
-            placeholder = t()$data_choose_file
+          shiny::tagList(
+            shiny::fileInput(
+              inputId = ns("file_upload"),
+              label = t()$data_upload_file,
+              accept = c(".xlsx", ".xls", ".csv"),
+              placeholder = t()$data_choose_file
+            ),
+            shiny::uiOutput(ns("sheet_selector"))
           )
         }
       } else {
         # Show file upload
-        shiny::fileInput(
-          inputId = ns("file_upload"),
-          label = t()$data_upload_file,
-          accept = c(".xlsx", ".xls"),
-          placeholder = t()$data_choose_file
+        shiny::tagList(
+          shiny::fileInput(
+            inputId = ns("file_upload"),
+            label = t()$data_upload_file,
+            accept = c(".xlsx", ".xls", ".csv"),
+            placeholder = t()$data_choose_file
+          ),
+          shiny::uiOutput(ns("sheet_selector"))
         )
       }
     })
 
-    # Handle file upload
+    # Sheet selector UI (only for Excel files)
+    output$sheet_selector <- shiny::renderUI({
+      req(excel_sheets())
+
+      ns <- session$ns
+
+      shiny::div(
+        style = "margin-top: -10px; margin-bottom: 10px;",
+        shiny::selectInput(
+          inputId = ns("excel_sheet"),
+          label = "Select sheet:",
+          choices = excel_sheets(),
+          selected = excel_sheets()[1]
+        )
+      )
+    })
+
+    # Handle file upload - detect file type
     shiny::observeEvent(input$file_upload, {
       req(input$file_upload)
+
+      file_path <- input$file_upload$datapath
+      file_ext <- tools::file_ext(input$file_upload$name)
+
+      uploaded_file_path(file_path)
+      file_name(input$file_upload$name)
+
+      tryCatch({
+        # Check if Excel file
+        if (file_ext %in% c("xlsx", "xls")) {
+          # Get sheet names
+          sheets <- readxl::excel_sheets(file_path)
+          excel_sheets(sheets)
+
+          # Don't load data yet - wait for sheet selection
+          # Reset user_data to trigger sheet selector
+          user_data(NULL)
+
+        } else if (file_ext == "csv") {
+          # Read CSV file directly
+          shinybusy::show_spinner()
+
+          data <- readr::read_csv(file_path, show_col_types = FALSE)
+
+          # Add id_data column if not present
+          if (!"id_data" %in% colnames(data)) {
+            data <- data %>%
+              dplyr::mutate(id_data = seq(1, nrow(.), 1))
+          }
+
+          user_data(data)
+          excel_sheets(NULL)  # No sheet selector for CSV
+
+          shinybusy::hide_spinner()
+
+          shiny::showNotification(
+            t()$msg_file_uploaded,
+            type = "message",
+            duration = 3
+          )
+        } else {
+          shiny::showNotification(
+            "Unsupported file format. Please upload .xlsx, .xls, or .csv file.",
+            type = "error",
+            duration = 5
+          )
+        }
+
+      }, error = function(e) {
+        shinybusy::hide_spinner()
+
+        shiny::showNotification(
+          paste(t()$msg_error, e$message),
+          type = "error",
+          duration = 10
+        )
+      })
+    })
+
+    # Handle sheet selection for Excel files
+    shiny::observeEvent(input$excel_sheet, {
+      req(uploaded_file_path())
+      req(input$excel_sheet)
 
       shinybusy::show_spinner()
 
       tryCatch({
-        # Read Excel file
-        data <- readxl::read_xlsx(input$file_upload$datapath, sheet = 1)
+        # Read selected sheet from Excel file
+        data <- readxl::read_xlsx(uploaded_file_path(), sheet = input$excel_sheet)
 
         # Add id_data column if not present
         if (!"id_data" %in% colnames(data)) {
@@ -100,14 +188,12 @@ mod_data_input_server <- function(id, provided_data = NULL, language = shiny::re
             dplyr::mutate(id_data = seq(1, nrow(.), 1))
         }
 
-        # Store data
         user_data(data)
-        file_name(input$file_upload$name)
 
         shinybusy::hide_spinner()
 
         shiny::showNotification(
-          t()$msg_file_uploaded,
+          paste0(t()$msg_file_uploaded, " (Sheet: ", input$excel_sheet, ")"),
           type = "message",
           duration = 3
         )
