@@ -87,10 +87,9 @@ mod_results_export_server <- function(id, results, original_data, language = shi
           label = NULL,
           choices = c(
             "Original data" = "original",
-            "Matched IDs" = "ids",
+            "Matched IDs (idtax_n, idtax_good_n)" = "ids",
             "Corrected names" = "corrected",
-            "Match metadata" = "metadata",
-            "Taxonomic hierarchy" = "hierarchy"
+            "Match metadata (method, score, synonyms)" = "metadata"
           ),
           selected = c("original", "ids", "corrected", "metadata")
         )
@@ -169,9 +168,6 @@ mod_results_export_server <- function(id, results, original_data, language = shi
             dplyr::select(-dplyr::any_of(c("match_method", "match_score",
                                           "is_synonym", "accepted_name")))
         }
-
-        # Add hierarchy (would need to join with taxa table - skip for now)
-        # This can be enhanced later
 
         # Export based on format
         if (input$export_format == "xlsx") {
