@@ -4,12 +4,19 @@
 \alias{mod_traits_enrichment_server}
 \title{Traits Enrichment Module - Server}
 \usage{
-mod_traits_enrichment_server(id, results, language = shiny::reactive("en"))
+mod_traits_enrichment_server(
+  id,
+  results,
+  column_name,
+  language = shiny::reactive("en")
+)
 }
 \arguments{
 \item{id}{Character, module ID}
 
 \item{results}{Reactive list from review module (contains final matched data)}
+
+\item{column_name}{Reactive returning the selected column name containing taxa}
 
 \item{language}{Reactive returning current language ("en" or "fr")}
 }
