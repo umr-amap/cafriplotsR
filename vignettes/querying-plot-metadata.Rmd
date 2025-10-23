@@ -1,0 +1,314 @@
+---
+title: "Querying Plot Metadata with query_plots()"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Querying Plot Metadata with query_plots()}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup-connections, include=FALSE, eval=TRUE}
+# Hidden chunk that establishes database connections
+# This allows all code chunks to run when knitting the vignette
+library(plotsdatabase)
+
+# Connect to databases using credentials
+mydb <- call.mydb(using_credentials = TRUE)
+mydb.taxa <- call.mydb.taxa(using_credentials = TRUE)
+```
+
+```{r setup, message=FALSE, warning=FALSE}
+library(plotsdatabase)
+```
+
+## Introduction
+
+The `query_plots()` function is the main entry point for retrieving plot data from the Central African forest plot database. This vignette demonstrates how to use `query_plots()` to extract plot metadata without individual tree data.
+
+## Database Connection
+
+Before querying, you need to establish connections to both databases. The package will prompt you for credentials interactively:
+
+```{r connection, message=FALSE, warning=FALSE, eval=FALSE}
+# Connect to the main database
+mydb <- call.mydb()
+
+# Connect to the taxa database
+mydb.taxa <- call.mydb.taxa()
+```
+
+**Important**: The connection functions will prompt for credentials interactively. Never hard-code credentials in your scripts or vignettes.
+
+## Basic Metadata Query
+
+To extract only plot metadata (without individual tree measurements), use `extract_individuals = FALSE`:
+
+```{r basic-query, message=FALSE, warning=FALSE}
+# Query plot metadata by plot name
+plots_meta <- query_plots(
+  plot_name = "Yoko",
+  extract_individuals = FALSE
+)
+
+# View the structure
+str(plots_meta)
+```
+
+This returns a data frame containing plot-level information such as:
+
+- Plot identification (name, ID)
+- Geographic coordinates
+- Country and locality
+- Census dates
+- Plot dimensions
+- Sampling method
+
+## Filtering Plots
+
+### By Plot Name
+
+You can query specific plots by name:
+
+```{r filter-name, message=FALSE, warning=FALSE}
+# Single plot
+plot_yoko <- query_plots(
+  plot_name = "Yoko",
+  extract_individuals = FALSE
+)
+
+# Multiple plots (if using vector)
+# Note: Check function documentation for vector support
+```
+
+### By Country
+
+Filter plots by country:
+
+```{r filter-country, message=FALSE, warning=FALSE}
+# All plots from Cameroon
+cameroon_plots <- query_plots(
+  country = "Cameroon",
+  extract_individuals = FALSE
+)
+
+# View unique plot names
+unique(cameroon_plots$plot_name)
+```
+
+### By Locality
+
+Query plots from a specific locality:
+
+```{r filter-locality, message=FALSE, warning=FALSE}
+locality_plots <- query_plots(
+  locality_name = "Dja",
+  extract_individuals = FALSE
+)
+```
+
+### By Sampling Method
+
+Filter by census or sampling method:
+
+```{r filter-method, message=FALSE, warning=FALSE}
+# Get plots using a specific method
+transect_plots <- query_plots(
+  method = "transect",
+  extract_individuals = FALSE
+)
+```
+
+### By Plot ID
+
+If you know the internal plot ID:
+
+```{r filter-id, message=FALSE, warning=FALSE}
+plot_by_id <- query_plots(
+  id_plot = 1,
+  extract_individuals = FALSE
+)
+```
+
+## Understanding the Output
+
+When `extract_individuals = FALSE`, the function returns a data frame with one row per plot (or per census if `show_multiple_census = TRUE`).
+
+### Key Columns
+
+The output typically includes:
+
+- **plot_name**: Name of the plot
+- **country**: Country where plot is located
+- **locality_name**: Specific locality
+- **method**: Sampling method used
+- **latitude / longitude**: Geographic coordinates
+- **census_date**: Date(s) of census
+- **plot_area**: Size of the plot (if available)
+- **n_individuals**: Number of individuals recorded (if calculated)
+
+```{r explore-output, message=FALSE, warning=FALSE}
+# Check column names
+names(plots_meta)
+
+# Summary statistics
+summary(plots_meta)
+
+# Preview data
+head(plots_meta)
+```
+
+## Handling Multiple Censuses
+
+By default, `query_plots()` returns only the most recent census data. To see all census dates:
+
+```{r multiple-census, message=FALSE, warning=FALSE}
+plots_all_census <- query_plots(
+  plot_name = "Yoko",
+  extract_individuals = FALSE,
+  show_multiple_census = TRUE
+)
+
+# Each census will be a separate row
+print(plots_all_census[, c("plot_name", "census_date")])
+```
+
+## Working with Coordinates
+
+### Default Behavior
+
+By default, the function returns a single coordinate pair per plot (typically the plot center or a representative point).
+
+```{r default-coords, message=FALSE, warning=FALSE}
+plots_coords <- query_plots(
+  country = "Gabon",
+  extract_individuals = FALSE
+)
+
+# View coordinates
+plots_coords[, c("plot_name", "latitude", "longitude")]
+```
+
+### Showing All Coordinates
+
+Some plots have multiple coordinate points (corners, subplot centers, etc.). To retrieve all:
+
+```{r all-coords, message=FALSE, warning=FALSE}
+plots_all_coords <- query_plots(
+  plot_name = "Yoko",
+  extract_individuals = FALSE,
+  show_all_coordinates = TRUE
+)
+
+# This may return multiple rows per plot
+nrow(plots_all_coords)
+```
+
+## Removing Internal IDs
+
+By default, internal database IDs are removed from the output (`remove_ids = TRUE`). To include them:
+
+```{r keep-ids, message=FALSE, warning=FALSE}
+plots_with_ids <- query_plots(
+  plot_name = "Yoko",
+  extract_individuals = FALSE,
+  remove_ids = FALSE
+)
+
+# Now you'll see columns like id_plot, id_census, etc.
+names(plots_with_ids)
+```
+
+This is useful when you need to reference specific database records or perform updates.
+
+## Visualizing Plot Locations
+
+You can create a quick map visualization with `map = TRUE`:
+
+```{r map, message=FALSE, warning=FALSE, eval=FALSE}
+# Display plots on an interactive map
+query_plots(
+  country = "Cameroon",
+  extract_individuals = FALSE,
+  map = TRUE
+)
+```
+
+This uses the `mapview` package to create an interactive map showing plot locations.
+
+## Combining Filters
+
+You can combine multiple filters to narrow down your query:
+
+```{r combined-filters, message=FALSE, warning=FALSE}
+specific_plots <- query_plots(
+  country = "Cameroon",
+  locality_name = "Dja",
+  method = "permanent plot",
+  extract_individuals = FALSE,
+  show_multiple_census = TRUE
+)
+
+# Check how many plots match
+nrow(specific_plots)
+```
+
+## Next Steps
+
+Once you've identified plots of interest using metadata queries, you can:
+
+1. **Extract individual tree data**: Set `extract_individuals = TRUE` (covered in a separate vignette)
+2. **Query subplot features**: Use `query_subplot_features()` for subplot-level data
+3. **Access taxonomic traits**: Use `query_taxa_traits()` for species-level traits
+
+## Tips
+
+- Always start with `extract_individuals = FALSE` when exploring the database - it's much faster
+- Use `show_multiple_census = TRUE` to see temporal coverage
+- The `remove_ids = FALSE` option is useful when you need to update records or link to other queries
+- Use filtering parameters to reduce the amount of data returned
+
+## Troubleshooting
+
+### Connection Issues
+
+If you encounter connection errors:
+
+```{r troubleshoot-connection, message=FALSE, warning=FALSE, eval=FALSE}
+# Check connection status
+print_connection_status()
+
+# Run full diagnostic
+db_diagnostic()
+
+# Close and reconnect
+cleanup_connections()
+mydb <- call.mydb()
+mydb.taxa <- call.mydb.taxa()
+```
+
+### Empty Results
+
+If your query returns no results:
+
+- Check that the plot name, country, or locality is spelled correctly
+- Verify that the plot exists in the database
+- Try broadening your filters (e.g., remove method or locality restrictions)
+
+```{r check-available, message=FALSE, warning=FALSE}
+# List all available countries
+# Note: This requires querying the database directly
+# DBI::dbGetQuery(mydb, "SELECT DISTINCT country FROM data_liste_plots")
+```
+
+## Session Info
+
+```{r session-info, message=FALSE, warning=FALSE}
+sessionInfo()
+```
