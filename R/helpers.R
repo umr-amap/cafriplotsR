@@ -159,42 +159,42 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
 #'
 #' @return A tibble with matched records from the database
 #' @export
-query_fuzzy_match <- function(tbl, field, values_q, con) {
-
-  lifecycle::deprecate_soft(
-    "1.4.0",
-    "query_fuzzy_match()",
-    "match_taxonomic_names()",
-    details = "The new function provides genus-constrained fuzzy matching for higher quality results."
-  )
-  
-  # if (length(field) == 0) sql <-glue::glue_sql("SELECT * FROM {`tbl`} WHERE SIMILARITY (lower({`field`}), {values_q}) > {sim_thres} ;",
-  #                      .con = con)
-  
-  if (length(field) == 1) sql <- glue::glue_sql("SELECT * FROM {`tbl`} ORDER BY SIMILARITY (lower({`field`}), {values_q}) DESC LIMIT 1;",
-                                                .con = con)
-  
-  # if (length(field) > 0) sql <-glue::glue_sql("SELECT * FROM {`tbl`} WHERE SIMILARITY (lower(concat({`field[1]`},' ',{`field[2]`})), {values_q}) > {sim_thres} ;",
-  #                                              .con = con)
-  
-  if (length(field) > 1)  sql <- glue::glue_sql("SELECT * FROM {`tbl`} ORDER BY SIMILARITY (lower(concat({`field[1]`},' ',{`field[2]`})), {values_q}) DESC LIMIT 5;",
-                                                .con = con)
-  
-  res_q <- func_try_fetch(con = con, sql = sql)
-  
-  # rs <- DBI::dbSendQuery(con, sql)
-  # res_q <-DBI::dbFetch(rs) %>% as_tibble
-  # DBI::dbClearResult(rs)
-  
-  if (nrow(res_q) == 0) {
-    
-    cli::cli_alert_warning("Failed fuzzy match for {values_q[i]} in {field} field in {tbl}")
-    
-  }
-  
-  return(res_q)
-  
-}
+# query_fuzzy_match <- function(tbl, field, values_q, con) {
+# 
+#   lifecycle::deprecate_soft(
+#     "1.4.0",
+#     "query_fuzzy_match()",
+#     "match_taxonomic_names()",
+#     details = "The new function provides genus-constrained fuzzy matching for higher quality results."
+#   )
+#   
+#   # if (length(field) == 0) sql <-glue::glue_sql("SELECT * FROM {`tbl`} WHERE SIMILARITY (lower({`field`}), {values_q}) > {sim_thres} ;",
+#   #                      .con = con)
+#   
+#   if (length(field) == 1) sql <- glue::glue_sql("SELECT * FROM {`tbl`} ORDER BY SIMILARITY (lower({`field`}), {values_q}) DESC LIMIT 1;",
+#                                                 .con = con)
+#   
+#   # if (length(field) > 0) sql <-glue::glue_sql("SELECT * FROM {`tbl`} WHERE SIMILARITY (lower(concat({`field[1]`},' ',{`field[2]`})), {values_q}) > {sim_thres} ;",
+#   #                                              .con = con)
+#   
+#   if (length(field) > 1)  sql <- glue::glue_sql("SELECT * FROM {`tbl`} ORDER BY SIMILARITY (lower(concat({`field[1]`},' ',{`field[2]`})), {values_q}) DESC LIMIT 5;",
+#                                                 .con = con)
+#   
+#   res_q <- func_try_fetch(con = con, sql = sql)
+#   
+#   # rs <- DBI::dbSendQuery(con, sql)
+#   # res_q <-DBI::dbFetch(rs) %>% as_tibble
+#   # DBI::dbClearResult(rs)
+#   
+#   if (nrow(res_q) == 0) {
+#     
+#     cli::cli_alert_warning("Failed fuzzy match for {values_q[i]} in {field} field in {tbl}")
+#     
+#   }
+#   
+#   return(res_q)
+#   
+# }
 
 
 
@@ -220,49 +220,49 @@ query_fuzzy_match <- function(tbl, field, values_q, con) {
 #'
 #' @return A list of two elements: (1) res_q with matched records, (2) query_tb with match status
 #' @export
-query_exact_match <- function(tbl, field, values_q, con) {
-
-  lifecycle::deprecate_soft(
-    "1.4.0",
-    "query_exact_match()",
-    "match_taxonomic_names()",
-    details = "The new function provides better handling of infraspecific ranks and authors."
-  )
-  
-  if (length(field) == 1) {
-    
-    field_col <- dplyr::sym(field)
-    
-    query_tb <- tibble(!!field_col := tolower(values_q))
-    
-  } else {
-    
-    query_tb <- tibble(species := tolower(values_q))
-    
-  }
-  
-  if (length(field) == 1) sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE lower({`field`}) IN ({vals*})",
-                                                vals = tolower(values_q), .con = con)
-  if (length(field) > 1) sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE lower(concat({`field[1]`},' ',{`field[2]`})) IN ({vals*})",
-                                               vals = tolower(values_q), .con = con)
-  
-  res_q <- func_try_fetch(con = con, sql = sql)
-  
-  if (length(field) == 1) query_tb <- query_tb %>%
-    left_join(res_q %>% dplyr::select(!!field_col) %>% mutate(!!field_col := tolower(!!field_col)) %>% distinct() %>%
-                mutate(id = seq_len(nrow(.))))
-  
-  if (length(field) > 1) query_tb <- query_tb %>%
-    left_join(res_q %>% dplyr::select(dplyr::all_of(field)) %>%
-                mutate(species = paste(!!dplyr::sym(field[1]), !!dplyr::sym(field[2]), sep = " ")) %>%
-                mutate(species = tolower(species)) %>%
-                distinct() %>%
-                mutate(id = seq_len(nrow(.))))
-  
-  return(list(res_q = res_q,
-              query_tb = query_tb))
-  
-}
+# query_exact_match <- function(tbl, field, values_q, con) {
+# 
+#   lifecycle::deprecate_soft(
+#     "1.4.0",
+#     "query_exact_match()",
+#     "match_taxonomic_names()",
+#     details = "The new function provides better handling of infraspecific ranks and authors."
+#   )
+#   
+#   if (length(field) == 1) {
+#     
+#     field_col <- dplyr::sym(field)
+#     
+#     query_tb <- tibble(!!field_col := tolower(values_q))
+#     
+#   } else {
+#     
+#     query_tb <- tibble(species := tolower(values_q))
+#     
+#   }
+#   
+#   if (length(field) == 1) sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE lower({`field`}) IN ({vals*})",
+#                                                 vals = tolower(values_q), .con = con)
+#   if (length(field) > 1) sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE lower(concat({`field[1]`},' ',{`field[2]`})) IN ({vals*})",
+#                                                vals = tolower(values_q), .con = con)
+#   
+#   res_q <- func_try_fetch(con = con, sql = sql)
+#   
+#   if (length(field) == 1) query_tb <- query_tb %>%
+#     left_join(res_q %>% dplyr::select(!!field_col) %>% mutate(!!field_col := tolower(!!field_col)) %>% distinct() %>%
+#                 mutate(id = seq_len(nrow(.))))
+#   
+#   if (length(field) > 1) query_tb <- query_tb %>%
+#     left_join(res_q %>% dplyr::select(dplyr::all_of(field)) %>%
+#                 mutate(species = paste(!!dplyr::sym(field[1]), !!dplyr::sym(field[2]), sep = " ")) %>%
+#                 mutate(species = tolower(species)) %>%
+#                 distinct() %>%
+#                 mutate(id = seq_len(nrow(.))))
+#   
+#   return(list(res_q = res_q,
+#               query_tb = query_tb))
+#   
+# }
 
 
 
@@ -276,14 +276,14 @@ query_exact_match <- function(tbl, field, values_q, con) {
 #' @param dataset string tibble to add dates fields
 #'
 #' @export
-.add_modif_field <- function(dataset) {
-  dataset <-
-    dataset %>%
-    tibble::add_column(date_modif_d = lubridate::day(Sys.Date()),
-                       date_modif_m = lubridate::month(Sys.Date()),
-                       date_modif_y = lubridate::year(Sys.Date()))
-  return(dataset)
-}
+# .add_modif_field <- function(dataset) {
+#   dataset <-
+#     dataset %>%
+#     tibble::add_column(date_modif_d = lubridate::day(Sys.Date()),
+#                        date_modif_m = lubridate::month(Sys.Date()),
+#                        date_modif_y = lubridate::year(Sys.Date()))
+#   return(dataset)
+# }
 
 
 
@@ -300,25 +300,25 @@ query_exact_match <- function(tbl, field, values_q, con) {
 #' @param col_new string vector
 #'
 #' @export
-.rename_data <- function(dataset, col_old, col_new) {
-  
-  if (length(col_old) != length(col_new))
-    stop("number of new columns names different of number of selected column names")
-  
-  for (i in 1:length(col_old)) {
-    if (any(colnames(dataset) == col_old[i])) {
-      dataset <-
-        dataset %>%
-        dplyr::rename_at(dplyr::vars(col_old[i]), ~ col_new[i])
-    } else{
-      stop(paste(
-        "Column name provided not found in provided new dataset",
-        col_old[i]
-      ))
-    }
-  }
-  return(dataset)
-}
+# .rename_data <- function(dataset, col_old, col_new) {
+#   
+#   if (length(col_old) != length(col_new))
+#     stop("number of new columns names different of number of selected column names")
+#   
+#   for (i in 1:length(col_old)) {
+#     if (any(colnames(dataset) == col_old[i])) {
+#       dataset <-
+#         dataset %>%
+#         dplyr::rename_at(dplyr::vars(col_old[i]), ~ col_new[i])
+#     } else{
+#       stop(paste(
+#         "Column name provided not found in provided new dataset",
+#         col_old[i]
+#       ))
+#     }
+#   }
+#   return(dataset)
+# }
 
 
 
@@ -356,56 +356,56 @@ replace_NA <- function(df, inv = FALSE) {
 #' 
 #' @return A list: (1) tibble of differing columns, (2) HTML table highlighting differences
 #' @export
-.comp_print_vec <- function(vec_1, vec_2) {
-  
-  stopifnot(nrow(vec_1) == 1, nrow(vec_2) == 1)
-  stopifnot(ncol(vec_1) == ncol(vec_2), all(names(vec_1) == names(vec_2)))
-  
-  vec_1 <- replace_NA(vec_1)
-  vec_2 <- replace_NA(vec_2)
-  
-  comp_val <- vec_1 != vec_2
-  comp_val <- as_tibble(comp_val)
-  diff_cols <- comp_val %>% select(where(~ any(.)))
-  
-  if (ncol(diff_cols) == 0) {
-    return(list(comp_tb = FALSE, comp_html = NA))
-  }
-  
-  if ("idtax_n" %in% names(vec_1)) {
-    old_tax <- query_taxa(ids = vec_2$idtax_n, check_synonymy = FALSE,
-                          class = NULL, extract_traits = FALSE)
-    new_tax <- query_taxa(ids = vec_1$idtax_n, check_synonymy = FALSE,
-                          class = NULL, extract_traits = FALSE)
-    
-    vec_1 <- dplyr::left_join(vec_1, new_tax %>% dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp), by = "idtax_n")
-    vec_2 <- dplyr::left_join(vec_2, old_tax %>% dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp), by = "idtax_n")
-  }
-  
-  comp_tb <- 
-    tibble(
-      cols = names(vec_1),
-      current = unlist(replace_NA(vec_1, inv = T), use.names = FALSE),
-      new = unlist(replace_NA(vec_2, inv = T), use.names = FALSE),
-      current_comp = unlist(vec_1, use.names = FALSE),
-      new_comp = unlist(vec_2, use.names = FALSE)
-    )
-  
-  comp_tb_html <- 
-    comp_tb %>%
-    mutate(
-      new = kableExtra::cell_spec(
-        new, "html",
-        color = if_else(tidyr::replace_na(current_comp, "") != tidyr::replace_na(new_comp, ""), 
-                        "red", "blue")
-      )
-    ) %>%
-    select(-new_comp, -current_comp) %>%
-    kableExtra::kable("html", escape = FALSE) %>%
-    kableExtra::kable_styling("striped", full_width = FALSE)
-  
-  return(list(comp_tb = diff_cols, comp_html = comp_tb_html))
-}
+# .comp_print_vec <- function(vec_1, vec_2) {
+#   
+#   stopifnot(nrow(vec_1) == 1, nrow(vec_2) == 1)
+#   stopifnot(ncol(vec_1) == ncol(vec_2), all(names(vec_1) == names(vec_2)))
+#   
+#   vec_1 <- replace_NA(vec_1)
+#   vec_2 <- replace_NA(vec_2)
+#   
+#   comp_val <- vec_1 != vec_2
+#   comp_val <- as_tibble(comp_val)
+#   diff_cols <- comp_val %>% select(where(~ any(.)))
+#   
+#   if (ncol(diff_cols) == 0) {
+#     return(list(comp_tb = FALSE, comp_html = NA))
+#   }
+#   
+#   if ("idtax_n" %in% names(vec_1)) {
+#     old_tax <- query_taxa(ids = vec_2$idtax_n, check_synonymy = FALSE,
+#                           class = NULL, extract_traits = FALSE)
+#     new_tax <- query_taxa(ids = vec_1$idtax_n, check_synonymy = FALSE,
+#                           class = NULL, extract_traits = FALSE)
+#     
+#     vec_1 <- dplyr::left_join(vec_1, new_tax %>% dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp), by = "idtax_n")
+#     vec_2 <- dplyr::left_join(vec_2, old_tax %>% dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp), by = "idtax_n")
+#   }
+#   
+#   comp_tb <- 
+#     tibble(
+#       cols = names(vec_1),
+#       current = unlist(replace_NA(vec_1, inv = T), use.names = FALSE),
+#       new = unlist(replace_NA(vec_2, inv = T), use.names = FALSE),
+#       current_comp = unlist(vec_1, use.names = FALSE),
+#       new_comp = unlist(vec_2, use.names = FALSE)
+#     )
+#   
+#   comp_tb_html <- 
+#     comp_tb %>%
+#     mutate(
+#       new = kableExtra::cell_spec(
+#         new, "html",
+#         color = if_else(tidyr::replace_na(current_comp, "") != tidyr::replace_na(new_comp, ""), 
+#                         "red", "blue")
+#       )
+#     ) %>%
+#     select(-new_comp, -current_comp) %>%
+#     kableExtra::kable("html", escape = FALSE) %>%
+#     kableExtra::kable_styling("striped", full_width = FALSE)
+#   
+#   return(list(comp_tb = diff_cols, comp_html = comp_tb_html))
+# }
 
 
 
