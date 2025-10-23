@@ -176,6 +176,7 @@ query_plots <- function(plot_name = NULL,
   
   
   mydb <- call.mydb()
+  mydb.taxa <- call.mydb.taxa()
   
   if (show_multiple_census && remove_obs_with_issue)
     cli::cli_alert_info("Disabling `remove_obs_with_issue` because multiple censuses are shown")
@@ -437,7 +438,8 @@ query_plots <- function(plot_name = NULL,
     
     res <- process_individuals(
       plots_data = res,
-      con = mydb,
+      con = mydb, 
+      con_taxa = mydb.taxa,
       id_individual = id_individual,
       id_tax = id_tax,
       tag = tag,
@@ -529,10 +531,13 @@ query_plots <- function(plot_name = NULL,
 #' @param id_tax Vector of taxonomic IDs (optional)
 #' @param tag Vector of tags (optional)
 #' @param include_liana Include lianas (logical)
+#' @param con_taxa Database connection
 #' 
 #' @return Data frame of processed individuals
 #' @export
-process_individuals <- function(plots_data, con, 
+process_individuals <- function(plots_data, 
+                                con, 
+                                con_taxa,
                                 id_individual = NULL, 
                                 id_tax = NULL,
                                 tag = NULL, 
@@ -555,7 +560,9 @@ process_individuals <- function(plots_data, con,
     id_individual = id_individual,
     id_plot = plot_metadata$id_liste_plots,
     id_tax = id_tax,
-    clean_columns = TRUE
+    clean_columns = TRUE,
+    con_taxa = con_taxa, 
+    con = con
   )
   
   # Filtrage par tag

@@ -24,24 +24,32 @@
 #' @param id_plot vector of plot IDs to filter
 #' @param id_tax vector of taxa IDs to filter final results
 #' @param clean_columns logical, whether to remove redundant columns
+#' @param con_taxa connexion
+#' @param con connexion
 #'
 #' @export
 merge_individuals_taxa <- function(id_individual = NULL,
                                     id_plot = NULL,
                                     id_tax = NULL,
-                                    clean_columns = TRUE) {
+                                    clean_columns = TRUE,
+                                   con_taxa = NULL,
+                                   con = NULL) {
 
-  mydb_taxa <- call.mydb.taxa()
+  if (is.null(con_taxa)) con_taxa <- call.mydb.taxa()
+  if (is.null(con)) con <- call.mydb()
+  
+  
+  mydb.taxa <- call.mydb.taxa()
   mydb <- call.mydb()
 
   # Table de résolution des synonymes (collectée une seule fois)
-  diconames_id <- dplyr::tbl(mydb, "table_idtax") %>%
+  diconames_id <- try_open_postgres_table(table = "table_idtax", con = con) %>%
     dplyr::select(idtax_n, idtax_good_n) %>%
     dplyr::mutate(idtax_f = ifelse(is.na(idtax_good_n), idtax_n, idtax_good_n)) %>%
     dplyr::collect()
 
   # Récupération et traitement des spécimens
-  specimens <- try_open_postgres_table(table = "specimens", con = mydb)
+  specimens <- try_open_postgres_table(table = "specimens", con = con)
 
   specimens_id_diconame <- specimens %>%
     dplyr::select(id_specimen, idtax_n, id_colnam, colnbr, suffix,
@@ -53,7 +61,7 @@ merge_individuals_taxa <- function(id_individual = NULL,
     dplyr::left_join(diconames_id, by = c("idtax_n" = "idtax_n")) %>%
     dplyr::rename(idtax_specimen_f = idtax_f) %>%
     dplyr::left_join(
-      dplyr::tbl(mydb, "table_colnam") %>%
+      dplyr::tbl(con, "table_colnam") %>%
         dplyr::select(id_table_colnam, colnam) %>%
         dplyr::collect(),
       by = c("id_colnam" = "id_table_colnam")
@@ -62,10 +70,10 @@ merge_individuals_taxa <- function(id_individual = NULL,
 
   # Extraction des individus
   if (!is.null(id_individual)) {
-    res_individuals_full <- dplyr::tbl(mydb, "data_individuals") %>%
+    res_individuals_full <- dplyr::tbl(con, "data_individuals") %>%
       dplyr::filter(id_n %in% !!id_individual)
   } else {
-    res_individuals_full <- dplyr::tbl(mydb, "data_individuals")
+    res_individuals_full <- dplyr::tbl(con, "data_individuals")
   }
 
   # Filtrage par plot si demandé
@@ -75,7 +83,7 @@ merge_individuals_taxa <- function(id_individual = NULL,
   }
 
   # Liens individus-spécimens (max pour garder le comportement actuel)
-  links_specimens <- try_open_postgres_table(table = "data_link_specimens", con = mydb) %>%
+  links_specimens <- try_open_postgres_table(table = "data_link_specimens", con = con) %>%
     dplyr::select(id_n, id_specimen) %>%
     dplyr::group_by(id_n) %>%
     dplyr::summarise(id_specimen = max(id_specimen, na.rm = TRUE), .groups = "drop") %>%
