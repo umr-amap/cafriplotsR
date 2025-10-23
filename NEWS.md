@@ -1,6 +1,4 @@
-# plotsdatabase NEWS
-
-## plotsdatabase 1.4 (Development)
+# plotsdatabase 1.4 (development version)
 
 ### New Features
 
@@ -106,9 +104,7 @@
   - `glue` - String interpolation for SQL queries
   - `RecordLinkage` - String similarity calculations
 
----
-
-## plotsdatabase 1.0 (Development)
+# plotsdatabase 1.0
 
 ### Breaking Changes
 * **Database schema change**: Renamed column `ind_num_sous_plot` to `tag` in `data_individuals` and `followup_updates_individuals` tables

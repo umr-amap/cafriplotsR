@@ -54,3 +54,4 @@ VignetteBuilder: knitr
 Depends: 
     R (>= 4.0)
 Config/testthat/edition: 3
+URL: https://gdauby.github.io/bdd_plots_central_africa/
