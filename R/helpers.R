@@ -158,7 +158,7 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
 #'
 #'
 #' @return A tibble with matched records from the database
-#' @export
+# @export
 # query_fuzzy_match <- function(tbl, field, values_q, con) {
 # 
 #   lifecycle::deprecate_soft(
@@ -219,7 +219,7 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
 #'
 #'
 #' @return A list of two elements: (1) res_q with matched records, (2) query_tb with match status
-#' @export
+# @export
 # query_exact_match <- function(tbl, field, values_q, con) {
 # 
 #   lifecycle::deprecate_soft(
@@ -275,7 +275,7 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #' @param dataset string tibble to add dates fields
 #'
-#' @export
+# @export
 # .add_modif_field <- function(dataset) {
 #   dataset <-
 #     dataset %>%
@@ -299,7 +299,7 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
 #' @param col_old string vector
 #' @param col_new string vector
 #'
-#' @export
+# @export
 # .rename_data <- function(dataset, col_old, col_new) {
 #   
 #   if (length(col_old) != length(col_new))

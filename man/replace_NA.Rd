@@ -23,12 +23,21 @@ replace_NA(df, inv = FALSE)
 
 \item{col_old}{string vector}
 
-\item{col_new}{string vector}
+\item{col_new}{string vector
+
+Replace or restore missing values in a data frame
+
+Replaces NA values with -9999 for numeric columns and "-9999" for character columns,
+or inversely restores NAs from those values if `inv = TRUE`.}
 }
 \value{
 A tibble with matched records from the database
+Query exact match
 
 A list of two elements: (1) res_q with matched records, (2) query_tb with match status
+Internal function
+
+Add modification day month and year column before adding/updating
 
 vector
 
