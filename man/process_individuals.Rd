@@ -7,6 +7,7 @@
 process_individuals(
   plots_data,
   con,
+  con_taxa,
   id_individual = NULL,
   id_tax = NULL,
   tag = NULL,
@@ -17,6 +18,8 @@ process_individuals(
 \item{plots_data}{Data frame of plots}
 
 \item{con}{Database connection}
+
+\item{con_taxa}{Database connection}
 
 \item{id_individual}{Vector of individual IDs (optional)}
 

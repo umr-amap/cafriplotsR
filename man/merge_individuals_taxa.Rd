@@ -8,7 +8,9 @@ merge_individuals_taxa(
   id_individual = NULL,
   id_plot = NULL,
   id_tax = NULL,
-  clean_columns = TRUE
+  clean_columns = TRUE,
+  con_taxa = NULL,
+  con = NULL
 )
 }
 \arguments{
@@ -19,6 +21,10 @@ merge_individuals_taxa(
 \item{id_tax}{vector of taxa IDs to filter final results}
 
 \item{clean_columns}{logical, whether to remove redundant columns}
+
+\item{con_taxa}{connexion}
+
+\item{con}{connexion}
 }
 \value{
 A tibble with individuals and resolved taxonomy
