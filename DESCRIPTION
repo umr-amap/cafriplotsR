@@ -40,7 +40,8 @@ Imports:
     dm,
     cli,
     lifecycle,
-    data.table
+    data.table,
+    zoo
 Suggests:
     ggrepel,
     measurements,
