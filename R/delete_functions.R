@@ -361,7 +361,7 @@
   # )
   
   
-  ind_feat <- query_individual_features(id = id, pivot_table = F, remove_obs_with_issue = F)
+  ind_feat <- query_individual_features(individual_ids = id, format = "long", remove_issues = FALSE)
   
   link_specimens <- 
     try_open_postgres_table(table = "data_link_specimens", con = mydb) %>% 
