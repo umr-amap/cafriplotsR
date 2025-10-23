@@ -31,7 +31,211 @@
 
     </div>
 
-  </main></div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.4" id="plotsdatabase-14-development-version">plotsdatabase 1.4 (development version)<a class="anchor" aria-label="anchor" href="#plotsdatabase-14-development-version"></a></h2>
+<div class="section level4">
+<h4 id="new-features-1-4">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-4"></a></h4>
+<ul><li>
+<strong>Traits enrichment module in taxonomic matching Shiny app</strong>
+<ul><li>New tab “Enrich with Traits” allows enriching matched taxonomic names with trait data from the taxa database</li>
+<li>Aggregates multiple input names that match to the same taxon into a single row</li>
+<li>Concatenates all input names (e.g., “cola edulis | coula edrulis” → “Coula edulis”)</li>
+<li>Configurable options for categorical trait aggregation (mode vs concatenation)</li>
+<li>User can select which columns to include (original names, corrected names, IDs, metadata)</li>
+<li>Downloads enriched data as Excel file</li>
+<li>Filters out <code>id_trait_measures</code> columns for cleaner output</li>
+<li>Module: <code><a href="../reference/mod_traits_enrichment_ui.html">mod_traits_enrichment_ui()</a></code> and <code><a href="../reference/mod_traits_enrichment_server.html">mod_traits_enrichment_server()</a></code>
+</li>
+</ul></li>
+<li>
+<strong>Enhanced file upload in taxonomic matching Shiny app</strong>
+<ul><li>CSV file support added (in addition to Excel .xlsx and .xls)</li>
+<li>Excel sheet selector allows choosing which sheet to import from multi-sheet workbooks</li>
+<li>Sheet selector appears dynamically after Excel file upload</li>
+<li>Default sheet selection is the first sheet</li>
+<li>CSV files are loaded directly without sheet selection</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-4">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-4"></a></h4>
+<ul><li>
+<strong>Fixed NA input names appearing in trait enrichment</strong>
+<ul><li>Enrichment module now filters out rows where the input taxonomic name is NA or empty</li>
+<li>Prevents invalid NA entries from being matched to taxa or included in enriched output</li>
+<li>Applied in both trait fetching and result aggregation steps</li>
+</ul></li>
+<li>
+<strong>Fixed incorrect input names in enrichment output</strong>
+<ul><li>Enrichment now correctly uses the user-selected taxonomic name column (not first column of dataset)</li>
+<li>
+<code>column_name</code> parameter now passed from main app to enrichment module</li>
+<li>Ensures <code>input_names</code> column shows actual taxonomic names from the selected column</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="code-refactoring-1-4">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-4"></a></h4>
+<ul><li>
+<strong>Optimized taxonomic name cleaning for faster matching</strong>
+<ul><li>Name cleaning (removing “sp.”, “cf.”, “aff.”, etc.) now happens <strong>before</strong> batch exact matching</li>
+<li>Previously, cleaning only occurred during slow fuzzy matching phase</li>
+<li>Names like “Coula edulis sp.” now match exactly to “Coula edulis” in fast batch step</li>
+<li>Significantly reduces number of names sent to slower fuzzy matching</li>
+<li>Cleaning happens once at beginning, benefiting all matching steps (species, genus, family)</li>
+<li>Both original and cleaned names preserved in matching pipeline</li>
+<li>Added underscore replacement in <code><a href="../reference/clean_taxonomic_name.html">clean_taxonomic_name()</a></code> (e.g., “Coula_edulis” → “Coula edulis”)</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="breaking-changes-1-4">Breaking Changes<a class="anchor" aria-label="anchor" href="#breaking-changes-1-4"></a></h4>
+<ul><li>
+<strong><code><a href="../reference/query_taxa.html">query_taxa()</a></code> default behavior changed</strong>: <code>exact_match</code> parameter now defaults to <code>TRUE</code> (was <code>FALSE</code>)
+<ul><li>Exact matching is now the default for family/genus/order queries to prevent unexpected fuzzy matching results</li>
+<li>For species queries, if exact match fails, the function automatically falls back to intelligent fuzzy matching</li>
+<li>
+<strong>Action required</strong>: Code relying on fuzzy matching by default should explicitly set <code>exact_match = FALSE</code>
+</li>
+<li>Rationale: Higher taxonomic ranks are standardized names where fuzzy matching rarely helps and can introduce errors</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="new-features-1-4-1">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-4-1"></a></h4>
+<ul><li>
+<strong>Intelligent taxonomic name matching</strong> with genus-constrained fuzzy search
+<ul><li>New <code><a href="../reference/match_taxonomic_names.html">match_taxonomic_names()</a></code> function implements hierarchical matching strategy:
+<ol style="list-style-type: decimal"><li>Exact matching (fastest)</li>
+<li>Genus-constrained fuzzy matching (searches species only within matched genus)</li>
+<li>Full fuzzy matching (last resort)</li>
+</ol></li>
+<li>Dramatically improves match quality by restricting fuzzy search space</li>
+<li>Includes synonym detection and resolution</li>
+<li>Supports scoring and ranking of multiple matches</li>
+<li>New helper functions: <code><a href="../reference/parse_taxonomic_name.html">parse_taxonomic_name()</a></code>, <code><a href="../reference/dot-match_exact_sql.html">.match_exact_sql()</a></code>, <code><a href="../reference/dot-match_genus_constrained_sql.html">.match_genus_constrained_sql()</a></code>, <code><a href="../reference/dot-match_fuzzy_sql.html">.match_fuzzy_sql()</a></code>
+</li>
+</ul></li>
+<li>
+<strong>Auto fuzzy fallback for species queries</strong>
+<ul><li>
+<code><a href="../reference/query_taxa.html">query_taxa()</a></code> automatically retries with fuzzy matching when exact species match fails</li>
+<li>Transparent user feedback shows match quality (similarity score)</li>
+<li>Handles typos and spelling variations automatically</li>
+<li>Only applies to species queries; family/genus/order use exact matching only</li>
+</ul></li>
+<li>
+<strong>Database enhancement: <code>tax_level</code> field added to <code>table_taxa</code></strong>
+<ul><li>New column explicitly indicates taxonomic level: “species”, “genus”, “family”, “order”, “infraspecific”, “higher”</li>
+<li>Indexed for query performance</li>
+<li>Eliminates ambiguity between missing data and genus/family-level taxa</li>
+<li>Script provided: <code>add_tax_level_field.R</code> for database migration</li>
+<li>All query functions updated to use new field for cleaner, more reliable filtering</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="code-refactoring-1-4-1">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-4-1"></a></h4>
+<ul><li>
+<strong>Complete rewrite of <code><a href="../reference/query_taxa.html">query_taxa()</a></code></strong> to use new intelligent matching functions
+<ul><li>Eliminated redundancy with <code>helpers.R</code> functions</li>
+<li>8 new modular helper functions replace complex inline logic</li>
+<li>Cleaner separation of concerns: matching, filtering, synonym resolution, formatting, trait addition</li>
+<li>~160 lines of code removed through better abstraction</li>
+<li>Better maintainability and extensibility</li>
+<li>Deprecated <code><a href="../reference/query_fuzzy_match.html">query_fuzzy_match()</a></code> and <code><a href="../reference/query_exact_match.html">query_exact_match()</a></code> in favor of <code><a href="../reference/match_taxonomic_names.html">match_taxonomic_names()</a></code>
+</li>
+</ul></li>
+<li>
+<strong>Simplified taxonomic level filtering</strong> using <code>tax_level</code> field
+<ul><li>Replaced complex multi-column checks (e.g., <code>is.na(tax_esp) &amp; is.na(tax_gen)</code>) with simple <code>tax_level == "family"</code>
+</li>
+<li>Applied in <code><a href="../reference/query_taxa.html">query_taxa()</a></code> for clearer intent and better performance via index usage</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-4-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-4-1"></a></h4>
+<ul><li>
+<strong>Fixed <code><a href="../reference/query_taxa.html">query_taxa()</a></code> empty results with <code>only_family = TRUE</code></strong>
+<ul><li>Previously, fuzzy matching by default caused empty results when filtering for family-level taxa</li>
+<li>Now uses exact matching by default for higher taxonomic ranks</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="dependencies-1-4">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies-1-4"></a></h4>
+<ul><li>Added new package dependencies to DESCRIPTION:
+<ul><li>
+<code>cli</code> - User-friendly command line interfaces (moved from Suggests to Imports)</li>
+<li>
+<code>lifecycle</code> - Manage function lifecycle (deprecation warnings)</li>
+<li>
+<code>data.table</code> - High-performance data manipulation</li>
+<li>
+<code>glue</code> - String interpolation for SQL queries</li>
+<li>
+<code>RecordLinkage</code> - String similarity calculations</li>
+</ul></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.0" id="plotsdatabase-10">plotsdatabase 1.0<a class="anchor" aria-label="anchor" href="#plotsdatabase-10"></a></h2>
+<div class="section level4">
+<h4 id="breaking-changes-1-0">Breaking Changes<a class="anchor" aria-label="anchor" href="#breaking-changes-1-0"></a></h4>
+<ul><li>
+<strong>Database schema change</strong>: Renamed column <code>ind_num_sous_plot</code> to <code>tag</code> in <code>data_individuals</code> and <code>followup_updates_individuals</code> tables
+<ul><li>All R package functions updated to use new column name</li>
+<li>
+<strong>Action required</strong>: External scripts accessing <code>ind_num_sous_plot</code> must be updated to use <code>tag</code>
+</li>
+<li>Updated files: <code>R/functions_manip_db.R</code>, <code>R/individual_features_function.R</code>, <code>R/functions_divid_plot.R</code>, <code>R/generate_plot_summary.Rmd</code>, <code>structure.yml</code>
+</li>
+<li>Default parameter in <code><a href="../reference/approximate_isolated_xy.html">approximate_isolated_xy()</a></code> changed from <code>tag = "ind_num_sous_plot"</code> to <code>tag = "tag"</code>
+</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="new-features-1-0">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-0"></a></h4>
+<ul><li>Initial release of package structure with comprehensive database query functions</li>
+<li>
+<strong>Enhanced <code><a href="../reference/update_ident_specimens.html">update_ident_specimens()</a></code></strong>: Now shows summary of linked individuals before updating specimen identification
+<ul><li>Displays which plots and how many individuals will inherit the new identification</li>
+<li>Shows current taxonomic identification of linked individuals</li>
+<li>Provides better context for informed decision-making before confirmation</li>
+<li>New helper function <code><a href="../reference/dot-get_linked_individuals_summary.html">.get_linked_individuals_summary()</a></code> queries and summarizes impact</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-0">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-0"></a></h4>
+<ul><li>
+<strong>Connection error with complex home paths</strong>: Fixed <code><a href="../reference/create_db_config.html">create_db_config()</a></code> function that failed when home directory path contained spaces or special characters (e.g., OneDrive paths like <code>C:/Users/NOBUS CAPITAL/OneDrive/Documents/</code>)
+<ul><li>Added proper error handling with <code><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch()</a></code> for file creation</li>
+<li>Creates parent directories if they don’t exist</li>
+<li>Falls back to in-memory configuration if file cannot be written</li>
+<li>Users now get informative warnings instead of connection failures</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="documentation-1-0">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-0"></a></h4>
+<ul><li>Added comprehensive README.md with package overview, quick start guide, and function reference</li>
+<li>README includes prominent link to NEWS.md for tracking updates</li>
+</ul></div>
+<div class="section level4">
+<h4 id="infrastructure-1-0">Infrastructure<a class="anchor" aria-label="anchor" href="#infrastructure-1-0"></a></h4>
+<ul><li>Added NEWS.md to track package changes and updates</li>
+<li>Established git branching workflow for all code modifications</li>
+</ul></div>
+<div class="section level4">
+<h4 id="code-refactoring-1-0">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-0"></a></h4>
+<ul><li>
+<strong>Major refactoring</strong>: Reorganized <code>R/functions_manip_db.R</code> (previously 10,528 lines) into modular, domain-specific files
+<ul><li>Created <code>R/growth_census_functions.R</code> (556 lines) - Growth computation and census analysis functions</li>
+<li>Created <code>R/specimen_linking_functions.R</code> (406 lines) - Herbarium specimen linking and querying functions</li>
+<li>Created <code>R/taxonomic_query_functions.R</code> (944 lines) - Taxonomic query functions with synonym resolution</li>
+<li>Created <code>R/taxonomic_update_functions.R</code> (838 lines) - Taxonomic data update and entry functions</li>
+<li>Expanded <code>R/connections_db.R</code> with database query utilities (<code>func_try_fetch</code>, <code>try_open_postgres_table</code>)</li>
+<li>Removed ~6,800 lines from <code>R/functions_manip_db.R</code> through extraction to specialized modules</li>
+<li>All functions verified as moved (not duplicated) to new locations</li>
+<li>Improved code maintainability and discoverability</li>
+</ul></li>
+</ul><hr></div>
+</div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
