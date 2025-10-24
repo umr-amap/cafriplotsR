@@ -131,7 +131,7 @@
 
   if (length(keep_cols) == 0) {
     # Fallback to essential columns
-    keep_cols <- c("plot_name", "country", "latitude", "longitude")
+    keep_cols <- c("plot_name", "country", "ddlat", "ddlon")
     keep_cols <- intersect(keep_cols, available_cols)
   }
 
@@ -182,7 +182,7 @@
   }
 
   # Make sure we have at least basic columns
-  essential <- c("id_n", "plot_name", "tag", "family", "genus", "species", "dbh")
+  essential <- c("id_n", "plot_name", "tag", "tax_fam", "tax_gen", "tax_sp_level", "stem_diameter")
   essential <- intersect(essential, available_cols)
   keep_cols <- unique(c(essential, keep_cols))
 

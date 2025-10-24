@@ -400,6 +400,8 @@ query_plots <- function(plot_name = NULL,
   }
 
   res <- res %>% dplyr::arrange(plot_name)
+  
+  res_meta_data <- res
 
   if (map) {
 
@@ -521,7 +523,7 @@ query_plots <- function(plot_name = NULL,
 
   # Apply output style
   if (output_style == "auto") {
-    detected_style <- .detect_style_from_method(res)
+    detected_style <- .detect_style_from_method(data = res_meta_data)
     cli::cli_alert_info("Auto-detected output style: '{detected_style}' based on method field")
     output_style <- detected_style
   }

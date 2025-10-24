@@ -43,13 +43,12 @@
   permanent_plot = list(
     description = "Organized output for permanent plot monitoring with multiple censuses",
     metadata_columns = c(
-      "plot_name", "country", "locality_name", "method",
-      "latitude", "longitude", "elevation", "plot_area", "plot_shape",
-      "n_individuals", "n_species", "n_families"
+      "id_liste_plots", "plot_name", "country", "locality_name", "method",
+      "ddlat", "ddlon", "elevation"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "quadrat", "subplot_name",
-      "family", "genus", "species",
+      "tax_fam", "tax_gen", "tax_sp_level",
       "dbh", "height", "pom", "census_date", "status", "recruit"
     ),
     remove_patterns = c("^id_(?!n)", "^date_modif"),
@@ -63,11 +62,11 @@
       "plot_name", "country", "locality_name", "method",
       "latitude", "longitude", "elevation",
       "transect_length", "transect_width",
-      "census_date", "n_individuals", "n_species"
+      "census_date"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "distance_along_transect",
-      "family", "genus", "species", "dbh"
+      "tax_fam", "tax_gen", "tax_sp_level", "dbh"
     ),
     remove_patterns = c("^id_(?!n)", "height", "pom", "growth", "mortality", "^date_modif"),
     additional_tables = c()
@@ -89,15 +88,13 @@
 #' @keywords internal
 #' @noRd
 .method_to_style_map <- c(
-  "permanent plot" = "permanent_plot",
-  "1ha plot" = "permanent_plot",
+  "Savana plot 40x40m" = "permanent_plot",
+  "1 ha plot" = "permanent_plot",
   "1ha-IRD" = "permanent_plot",
-  "monitoring plot" = "permanent_plot",
-  "transect" = "transect",
+  "Long Transect" = "transect",
   "line transect" = "transect",
-  "walk" = "transect",
-  "botanical survey" = "transect",
-  "inventory" = "standard"
+  "Transect MBG style Large" = "transect",
+  "0.4-ha-IRD" = "transect"
 )
 
 #' Detect output style from method field
