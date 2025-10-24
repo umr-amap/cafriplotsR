@@ -52,7 +52,7 @@
     description = "Organized output for permanent plot monitoring (single or most recent census)",
     metadata_columns = c(
       "id_liste_plots", "plot_name", "country", "locality_name", "method",
-      "ddlat", "ddlon", "elevation"
+      "ddlat", "ddlon", "elevation", "data_provider", "plot_area"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "quadrat",
