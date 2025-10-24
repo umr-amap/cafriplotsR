@@ -12,32 +12,40 @@
     description = "Essential plot metadata only",
     metadata_columns = c(
       "plot_name", "country", "locality_name", "method",
-      "latitude", "longitude", "elevation", "plot_area",
+      "ddlat", "ddlon", "elevation", "plot_area",
       "census_date", "n_individuals", "n_species"
     ),
     individuals_columns = c(
-      "id_n", "plot_name", "tag", "family", "genus", "species",
+      "id_n", "plot_name", "tag", "tax_fam", "tax_gen", "tax_sp_level",
       "dbh", "census_date"
     ),
     remove_patterns = c("^id_(?!n)", "^feat_", "^trait_", "^date_modif"),
-    additional_tables = c()
+    additional_tables = c(),
+    rename_columns = list(
+      metadata = c("ddlat" = "latitude", "ddlon" = "longitude"),
+      individuals = c("tax_fam" = "family", "tax_gen" = "genus", "tax_sp_level" = "species")
+    )
   ),
 
   standard = list(
     description = "Standard output for general analysis",
     metadata_columns = c(
       "plot_name", "country", "locality_name", "method",
-      "latitude", "longitude", "elevation", "plot_area",
+      "ddlat", "ddlon", "elevation", "plot_area",
       "census_date", "census_number", "n_individuals", "n_species", "n_families"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "quadrat", "subplot_name",
-      "family", "genus", "species",
+      "tax_fam", "tax_gen", "tax_sp_level",
       "dbh", "height", "census_date"
     ),
     keep_common_features = TRUE,  # Keep features present in >10% of plots
     remove_patterns = c("^id_(?!n)", "^date_modif"),
-    additional_tables = c()
+    additional_tables = c(),
+    rename_columns = list(
+      metadata = c("ddlat" = "latitude", "ddlon" = "longitude"),
+      individuals = c("tax_fam" = "family", "tax_gen" = "genus", "tax_sp_level" = "species")
+    )
   ),
 
   permanent_plot = list(
@@ -53,14 +61,18 @@
     ),
     remove_patterns = c("^id_(?!n)", "^date_modif"),
     additional_tables = c("censuses", "height_diameter"),
-    keep_all_features = FALSE  # Features go to census table
+    keep_all_features = FALSE,  # Features go to census table
+    rename_columns = list(
+      metadata = c("ddlat" = "latitude", "ddlon" = "longitude", "id_liste_plots" = "plot_id"),
+      individuals = c("tax_fam" = "family", "tax_gen" = "genus", "tax_sp_level" = "species")
+    )
   ),
 
   transect = list(
     description = "Simplified output for transect/walk surveys",
     metadata_columns = c(
       "plot_name", "country", "locality_name", "method",
-      "latitude", "longitude", "elevation",
+      "ddlat", "ddlon", "elevation",
       "transect_length", "transect_width",
       "census_date"
     ),
@@ -69,7 +81,11 @@
       "tax_fam", "tax_gen", "tax_sp_level", "dbh"
     ),
     remove_patterns = c("^id_(?!n)", "height", "pom", "growth", "mortality", "^date_modif"),
-    additional_tables = c()
+    additional_tables = c(),
+    rename_columns = list(
+      metadata = c("ddlat" = "latitude", "ddlon" = "longitude"),
+      individuals = c("tax_fam" = "family", "tax_gen" = "genus", "tax_sp_level" = "species")
+    )
   ),
 
   full = list(
