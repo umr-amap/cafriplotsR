@@ -1,0 +1,134 @@
+#' Output style configurations for query_plots()
+#'
+#' @description
+#' Defines how query_plots() results should be structured and which columns
+#' to include based on the output style selected.
+#'
+#' @keywords internal
+#' @noRd
+.plot_output_styles <- list(
+
+  minimal = list(
+    description = "Essential plot metadata only",
+    metadata_columns = c(
+      "plot_name", "country", "locality_name", "method",
+      "latitude", "longitude", "elevation", "plot_area",
+      "census_date", "n_individuals", "n_species"
+    ),
+    individuals_columns = c(
+      "id_n", "plot_name", "tag", "family", "genus", "species",
+      "dbh", "census_date"
+    ),
+    remove_patterns = c("^id_(?!n)", "^feat_", "^trait_", "^date_modif"),
+    additional_tables = c()
+  ),
+
+  standard = list(
+    description = "Standard output for general analysis",
+    metadata_columns = c(
+      "plot_name", "country", "locality_name", "method",
+      "latitude", "longitude", "elevation", "plot_area",
+      "census_date", "census_number", "n_individuals", "n_species", "n_families"
+    ),
+    individuals_columns = c(
+      "id_n", "plot_name", "tag", "quadrat", "subplot_name",
+      "family", "genus", "species",
+      "dbh", "height", "census_date"
+    ),
+    keep_common_features = TRUE,  # Keep features present in >10% of plots
+    remove_patterns = c("^id_(?!n)", "^date_modif"),
+    additional_tables = c()
+  ),
+
+  permanent_plot = list(
+    description = "Organized output for permanent plot monitoring with multiple censuses",
+    metadata_columns = c(
+      "plot_name", "country", "locality_name", "method",
+      "latitude", "longitude", "elevation", "plot_area", "plot_shape",
+      "n_individuals", "n_species", "n_families"
+    ),
+    individuals_columns = c(
+      "id_n", "plot_name", "tag", "quadrat", "subplot_name",
+      "family", "genus", "species",
+      "dbh", "height", "pom", "census_date", "status", "recruit"
+    ),
+    remove_patterns = c("^id_(?!n)", "^date_modif"),
+    additional_tables = c("censuses", "height_diameter"),
+    keep_all_features = FALSE  # Features go to census table
+  ),
+
+  transect = list(
+    description = "Simplified output for transect/walk surveys",
+    metadata_columns = c(
+      "plot_name", "country", "locality_name", "method",
+      "latitude", "longitude", "elevation",
+      "transect_length", "transect_width",
+      "census_date", "n_individuals", "n_species"
+    ),
+    individuals_columns = c(
+      "id_n", "plot_name", "tag", "distance_along_transect",
+      "family", "genus", "species", "dbh"
+    ),
+    remove_patterns = c("^id_(?!n)", "height", "pom", "growth", "mortality", "^date_modif"),
+    additional_tables = c()
+  ),
+
+  full = list(
+    description = "Complete export with all columns",
+    metadata_columns = "all",
+    individuals_columns = "all",
+    remove_patterns = c(),
+    additional_tables = c()
+  )
+)
+
+#' Method to style mapping
+#'
+#' Maps plot method names to appropriate output styles
+#'
+#' @keywords internal
+#' @noRd
+.method_to_style_map <- c(
+  "permanent plot" = "permanent_plot",
+  "1ha plot" = "permanent_plot",
+  "1ha-IRD" = "permanent_plot",
+  "monitoring plot" = "permanent_plot",
+  "transect" = "transect",
+  "line transect" = "transect",
+  "walk" = "transect",
+  "botanical survey" = "transect",
+  "inventory" = "standard"
+)
+
+#' Detect output style from method field
+#'
+#' @param data Data frame with method column
+#' @return Character string with detected style
+#'
+#' @keywords internal
+#' @noRd
+.detect_style_from_method <- function(data) {
+
+  if (!"method" %in% names(data)) {
+    return("standard")
+  }
+
+  # Get unique methods from data
+  methods <- unique(data$method)
+  methods <- methods[!is.na(methods)]
+
+  if (length(methods) == 0) {
+    return("standard")
+  }
+
+  # Find matching style
+  for (method in methods) {
+    if (method %in% names(.method_to_style_map)) {
+      detected <- .method_to_style_map[[method]]
+      return(detected)
+    }
+  }
+
+  # Default if no match
+  return("standard")
+}
