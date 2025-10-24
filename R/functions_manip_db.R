@@ -494,12 +494,14 @@ query_plots <- function(plot_name = NULL,
   res_list <-
     list(
       extract = NA,
+      meta_data = NA,
       census_features = NA,
       coordinates = NA,
       coordinates_sf = NA
     )
 
   res_list$extract <- res
+  res_list$meta_data <- res_meta_data
 
   if (nrow(res) < 100)
     print_table(res_print = res)
