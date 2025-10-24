@@ -160,6 +160,11 @@
   if (length(methods) == 0) {
     return("standard")
   }
+  
+  
+  if (length(methods) > 1) {
+    return("standard")
+  }
 
   # Find matching style
   for (method in methods) {
