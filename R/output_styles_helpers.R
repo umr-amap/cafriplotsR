@@ -15,6 +15,12 @@
 #' @noRd
 .apply_output_style <- function(data, style, extract_individuals, show_multiple_census = FALSE) {
 
+  # Adjust style based on show_multiple_census for permanent plots
+  if (style == "permanent_plot" && show_multiple_census) {
+    style <- "permanent_plot_multi_census"
+    cli::cli_alert_info("Using 'permanent_plot_multi_census' style for multiple census data")
+  }
+
   # Get style configuration
   style_config <- .plot_output_styles[[style]]
 
@@ -179,15 +185,20 @@
   specified_cols <- setdiff(indiv_cols, "id_n")
   keep_cols <- c(keep_cols, intersect(specified_cols, available_cols))
 
-  # If multiple censuses, keep census-related columns
-  if (show_multiple_census) {
-    census_cols <- grep("census", available_cols, value = TRUE, ignore.case = TRUE)
+  # Handle census columns based on style configuration
+  if (show_multiple_census && !is.null(style_config$keep_census_columns) && style_config$keep_census_columns) {
+    # Keep all census-suffixed columns (e.g., stem_diameter_census_1, stem_diameter_census_2)
+    census_cols <- grep("_census_\\d+$", available_cols, value = TRUE)
     keep_cols <- unique(c(keep_cols, census_cols))
   }
 
-  # Remove patterns
+  # Remove patterns (unless explicitly keeping census columns)
   if (!is.null(style_config$remove_patterns) && length(style_config$remove_patterns) > 0) {
     for (pattern in style_config$remove_patterns) {
+      # Skip pattern if it's for census columns and we're keeping them
+      if (pattern == "_census_\\d+$" && !is.null(style_config$keep_census_columns) && style_config$keep_census_columns) {
+        next
+      }
       keep_cols <- grep(pattern, keep_cols, value = TRUE, invert = TRUE, perl = TRUE)
     }
   }
@@ -211,6 +222,33 @@
     if (length(renames) > 0) {
       indiv_data <- indiv_data %>%
         dplyr::rename(!!!renames)
+    }
+  }
+
+  # Apply census column renaming if specified (e.g., stem_diameter_census_1 -> dbh_census_1)
+  if (!is.null(style_config$census_column_renames) && show_multiple_census) {
+    census_renames <- style_config$census_column_renames
+    current_names <- names(indiv_data)
+
+    # Build rename vector for all census columns
+    rename_vector <- c()
+    for (old_prefix in names(census_renames)) {
+      new_prefix <- census_renames[[old_prefix]]
+      # Find all columns matching pattern: old_prefix_census_N
+      pattern <- paste0("^", old_prefix, "_census_\\d+$")
+      matching_cols <- grep(pattern, current_names, value = TRUE)
+
+      for (old_col in matching_cols) {
+        # Extract census number and build new name
+        census_num <- sub(paste0("^", old_prefix, "_census_(\\d+)$"), "\\1", old_col)
+        new_col <- paste0(new_prefix, "_census_", census_num)
+        rename_vector[old_col] <- new_col
+      }
+    }
+
+    if (length(rename_vector) > 0) {
+      indiv_data <- indiv_data %>%
+        dplyr::rename(!!!rename_vector)
     }
   }
 
