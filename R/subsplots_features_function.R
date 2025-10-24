@@ -533,7 +533,6 @@ subplot_list <- function(con = NULL) {
 #' @return A tibble of all subplot features
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#' @export
 #' subplot_list <- function() {
 #'   
 #'   mydb <- call.mydb()  
