@@ -173,7 +173,7 @@ query_plots <- function(plot_name = NULL,
                         remove_obs_with_issue = TRUE,
                         include_issue = FALSE,
                         include_measurement_ids = FALSE,
-                        output_style = c("auto", "minimal", "standard", "permanent_plot", "transect", "full")) {
+                        output_style = c("auto", "minimal", "standard", "permanent_plot", "permanent_plot_multi_census", "transect", "full")) {
 
   # Match output style argument
   output_style <- match.arg(output_style)

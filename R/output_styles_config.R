@@ -12,12 +12,12 @@
     description = "Essential plot metadata only",
     metadata_columns = c(
       "plot_name", "country", "locality_name", "method",
-      "ddlat", "ddlon", "elevation", "plot_area",
-      "census_date", "n_individuals", "n_species"
+      "ddlat", "ddlon", "elevation",
+      "census_date", "principal_investigator"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "tax_fam", "tax_gen", "tax_sp_level",
-      "dbh", "census_date"
+      "stem_diameter", "census_date"
     ),
     remove_patterns = c("^id_(?!n)", "^feat_", "^trait_", "^date_modif"),
     additional_tables = c(),
@@ -49,22 +49,49 @@
   ),
 
   permanent_plot = list(
-    description = "Organized output for permanent plot monitoring with multiple censuses",
+    description = "Organized output for permanent plot monitoring (single or most recent census)",
     metadata_columns = c(
       "id_liste_plots", "plot_name", "country", "locality_name", "method",
       "ddlat", "ddlon", "elevation"
     ),
     individuals_columns = c(
-      "id_n", "plot_name", "tag", "quadrat", "subplot_name",
+      "id_n", "plot_name", "tag", "quadrat",
       "tax_fam", "tax_gen", "tax_sp_level",
-      "dbh", "height", "pom", "census_date", "status", "recruit"
+      "stem_diameter", "tree_height", "pom", "census_date", "status", "recruit"
     ),
-    remove_patterns = c("^id_(?!n)", "^date_modif"),
+    remove_patterns = c("^id_(?!n)", "^date_modif", "_census_\\d+$"),  # Remove census suffix columns
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,  # Features go to census table
     rename_columns = list(
       metadata = c("ddlat" = "latitude", "ddlon" = "longitude", "id_liste_plots" = "plot_id"),
+      individuals = c("tax_fam" = "family", "tax_gen" = "genus", "tax_sp_level" = "species",
+                      "stem_diameter" = "dbh", "tree_height" = "height")
+    )
+  ),
+
+  permanent_plot_multi_census = list(
+    description = "Organized output for permanent plots with multiple censuses shown (show_multiple_census = TRUE)",
+    metadata_columns = c(
+      "id_liste_plots", "plot_name", "country", "locality_name", "method",
+      "ddlat", "ddlon", "elevation"
+    ),
+    individuals_columns = c(
+      "id_n", "plot_name", "tag", "quadrat",
+      "tax_fam", "tax_gen", "tax_sp_level"
+      # Census-specific columns added dynamically (stem_diameter_census_1, etc.)
+    ),
+    keep_census_columns = TRUE,  # Keep all _census_N columns
+    remove_patterns = c("^id_(?!n)", "^date_modif"),
+    additional_tables = c("censuses", "height_diameter"),
+    keep_all_features = FALSE,
+    rename_columns = list(
+      metadata = c("ddlat" = "latitude", "ddlon" = "longitude", "id_liste_plots" = "plot_id"),
       individuals = c("tax_fam" = "family", "tax_gen" = "genus", "tax_sp_level" = "species")
+      # Census columns renamed dynamically: stem_diameter_census_1 -> dbh_census_1, etc.
+    ),
+    census_column_renames = c(
+      "stem_diameter" = "dbh",
+      "tree_height" = "height"
     )
   ),
 
