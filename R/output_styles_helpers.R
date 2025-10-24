@@ -34,12 +34,14 @@
   if (is.list(data) && !is.data.frame(data)) {
     # Already a list (has $extract, $census_features, etc.)
     main_data <- data$extract
+    meta_data <- data$meta_data
     census_features <- data$census_features
     coordinates <- data$coordinates
     coordinates_sf <- data$coordinates_sf
   } else {
     # Simple data frame
     main_data <- data
+    meta_data <- NULL
     census_features <- NULL
     coordinates <- NULL
     coordinates_sf <- NULL
@@ -49,11 +51,16 @@
   result <- list()
 
   # 1. Extract metadata table
-  result$metadata <- .extract_metadata_table(main_data, style_config, extract_individuals)
+  result$metadata <- .extract_metadata_table(
+    data = main_data,
+    meta_data = meta_data,
+    style_config = style_config,
+    extract_individuals = extract_individuals
+  )
 
   # 2. Extract individuals table (if individuals were extracted)
   if (extract_individuals) {
-    result$individuals <- .extract_individuals_table(main_data, style_config, show_multiple_census)
+    result$individuals <- .extract_individuals_table(data = main_data, style_config, show_multiple_census)
   }
 
   # 3. Extract additional tables based on style
@@ -62,7 +69,7 @@
   }
 
   if ("height_diameter" %in% style_config$additional_tables && extract_individuals) {
-    hd_pairs <- .extract_height_diameter_pairs(main_data, show_multiple_census)
+    hd_pairs <- .extract_height_diameter_pairs(data = main_data, show_multiple_census)
     if (!is.null(hd_pairs) && nrow(hd_pairs) > 0) {
       result$height_diameter <- hd_pairs
     }
@@ -90,27 +97,36 @@
 #'
 #' @keywords internal
 #' @noRd
-.extract_metadata_table <- function(data, style_config, extract_individuals) {
+.extract_metadata_table <- function(data, meta_data = NULL, style_config, extract_individuals) {
+
+  # If meta_data table is provided (from res_list$meta_data), use it as the source
+  # This table was created before individual extraction and has all plot-level columns
+  source_data <- if (!is.null(meta_data) && is.data.frame(meta_data)) {
+    meta_data
+  } else {
+    data
+  }
 
   # Get columns to keep
   meta_cols <- style_config$metadata_columns
 
   # Handle "all" case
   if (length(meta_cols) == 1 && meta_cols == "all") {
-    if (extract_individuals) {
-      # Keep only plot-level columns (no individual measurements)
-      # Get unique by plot_name
-      meta_data <- data %>%
+    if (extract_individuals && is.null(meta_data)) {
+      # Only need to filter out individual columns if using data (not meta_data)
+      result_meta <- source_data %>%
         dplyr::select(-matches("^(dbh|height|pom|tag|id_n)")) %>%
         dplyr::distinct(plot_name, .keep_all = TRUE)
     } else {
-      meta_data <- data
+      # meta_data already has only plot-level columns
+      result_meta <- source_data %>%
+        dplyr::distinct(plot_name, .keep_all = TRUE)
     }
-    return(meta_data)
+    return(result_meta)
   }
 
-  # Get available columns
-  available_cols <- names(data)
+  # Get available columns from source data
+  available_cols <- names(source_data)
 
   # Keep specified columns that exist
   keep_cols <- intersect(meta_cols, available_cols)
@@ -120,7 +136,7 @@
     feat_cols <- grep("^feat_", available_cols, value = TRUE)
     # Keep features present in >10% of rows (not all NA)
     if (length(feat_cols) > 0) {
-      common_feats <- feat_cols[sapply(data[feat_cols], function(x) mean(!is.na(x)) > 0.1)]
+      common_feats <- feat_cols[sapply(source_data[feat_cols], function(x) mean(!is.na(x)) > 0.1)]
       keep_cols <- c(keep_cols, common_feats)
     }
   }
@@ -142,7 +158,7 @@
   }
 
   # Get unique by plot
-  meta_data <- data %>%
+  result_meta <- source_data %>%
     dplyr::select(all_of(keep_cols)) %>%
     dplyr::distinct(plot_name, .keep_all = TRUE)
 
@@ -150,14 +166,15 @@
   if (!is.null(style_config$rename_columns) && !is.null(style_config$rename_columns$metadata)) {
     renames <- style_config$rename_columns$metadata
     # Only rename columns that exist
-    renames <- renames[names(renames) %in% names(meta_data)]
+    renames <- renames[names(renames) %in% names(result_meta)]
     if (length(renames) > 0) {
-      meta_data <- meta_data %>%
-        dplyr::rename(!!!renames)
+      result_meta <-
+        result_meta %>%
+        dplyr::rename(!!!rlang::set_names(names(renames), renames))
     }
   }
 
-  return(meta_data)
+  return(result_meta)
 }
 
 
@@ -221,7 +238,7 @@
     renames <- renames[names(renames) %in% names(indiv_data)]
     if (length(renames) > 0) {
       indiv_data <- indiv_data %>%
-        dplyr::rename(!!!renames)
+        dplyr::rename(!!!rlang::set_names(names(renames), renames))
     }
   }
 
@@ -248,7 +265,9 @@
 
     if (length(rename_vector) > 0) {
       indiv_data <- indiv_data %>%
-        dplyr::rename(!!!rename_vector)
+        dplyr::rename(!!!rlang::set_names(names(renames), rename_vector))
+      # %>%
+      #   dplyr::rename(!!!rename_vector)
     }
   }
 
@@ -343,8 +362,14 @@
 
   # Check if height data exists
   height_cols <- grep("tree_height", names(data), value = TRUE, ignore.case = TRUE)
-
+ 
   if (length(height_cols) == 0) {
+    return(NULL)
+  }
+  
+  dbh_cols <- any(names(data) == "stem_diameter")
+  
+  if (sum(dbh_cols) == 0) {
     return(NULL)
   }
 
@@ -416,9 +441,9 @@
     result <- data %>%
       dplyr::select(
         id_n, plot_name, tag,
-        D = dbh,
-        H = height,
-        POM = pom
+        D = stem_diameter,
+        H = tree_height,
+        POM = height_of_stem_diameter
       ) %>%
       dplyr::filter(!is.na(D), !is.na(H))
   }
