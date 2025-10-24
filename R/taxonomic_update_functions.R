@@ -39,8 +39,8 @@ merge_individuals_taxa <- function(id_individual = NULL,
   if (is.null(con)) con <- call.mydb()
   
   
-  mydb.taxa <- call.mydb.taxa()
-  mydb <- call.mydb()
+  # mydb.taxa <- call.mydb.taxa()
+  # mydb <- call.mydb()
 
   # Table de résolution des synonymes (collectée une seule fois)
   diconames_id <- try_open_postgres_table(table = "table_idtax", con = con) %>%

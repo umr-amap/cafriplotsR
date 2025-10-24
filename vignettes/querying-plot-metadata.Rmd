@@ -20,8 +20,8 @@ knitr::opts_chunk$set(
 library(plotsdatabase)
 
 # Connect to databases using credentials
-mydb <- call.mydb(using_credentials = TRUE)
-mydb.taxa <- call.mydb.taxa(using_credentials = TRUE)
+mydb <- call.mydb(use_env_credentials = TRUE)
+mydb.taxa <- call.mydb.taxa(use_env_credentials = TRUE)
 ```
 
 ```{r setup, message=FALSE, warning=FALSE}
