@@ -158,7 +158,7 @@
   }
 
   # Get unique by plot
-  result_meta <- source_data %>%
+  meta_data <- source_data %>%
     dplyr::select(all_of(keep_cols)) %>%
     dplyr::distinct(plot_name, .keep_all = TRUE)
 
@@ -166,15 +166,15 @@
   if (!is.null(style_config$rename_columns) && !is.null(style_config$rename_columns$metadata)) {
     renames <- style_config$rename_columns$metadata
     # Only rename columns that exist
-    renames <- renames[names(renames) %in% names(result_meta)]
+    renames <- renames[names(renames) %in% names(meta_data)]
     if (length(renames) > 0) {
-      result_meta <-
-        result_meta %>%
+      meta_data <- 
+        meta_data %>%
         dplyr::rename(!!!rlang::set_names(names(renames), renames))
     }
   }
 
-  return(result_meta)
+  return(meta_data)
 }
 
 
@@ -265,7 +265,7 @@
 
     if (length(rename_vector) > 0) {
       indiv_data <- indiv_data %>%
-        dplyr::rename(!!!rlang::set_names(names(renames), rename_vector))
+        dplyr::rename(!!!rlang::set_names(names(rename_vector), rename_vector))
       # %>%
       #   dplyr::rename(!!!rename_vector)
     }
