@@ -172,9 +172,12 @@ query_plots <- function(plot_name = NULL,
                         concatenate_stem = FALSE,
                         remove_obs_with_issue = TRUE,
                         include_issue = FALSE,
-                        include_measurement_ids = FALSE) {
-  
-  
+                        include_measurement_ids = FALSE,
+                        output_style = c("auto", "minimal", "standard", "permanent_plot", "transect", "full")) {
+
+  # Match output style argument
+  output_style <- match.arg(output_style)
+
   mydb <- call.mydb()
   mydb.taxa <- call.mydb.taxa()
   
@@ -290,7 +293,8 @@ query_plots <- function(plot_name = NULL,
     
     # Handle census features
     if (is.data.frame(all_subplots$census_info)) {
-      census_features <- all_subplots$features_raw %>%
+      census_features <- 
+        all_subplots$features_raw %>%
         dplyr::filter(type == "census") %>%
         left_join(
           res %>% select(plot_name, id_liste_plots),
@@ -514,6 +518,30 @@ query_plots <- function(plot_name = NULL,
 
   if (length(res_list) == 1)
     res_list <- res_list[[1]]
+
+  # Apply output style
+  if (output_style == "auto") {
+    detected_style <- .detect_style_from_method(res)
+    cli::cli_alert_info("Auto-detected output style: '{detected_style}' based on method field")
+    output_style <- detected_style
+  }
+
+  # Apply style restructuring (unless "full")
+  if (output_style != "full") {
+    res_list <- .apply_output_style(
+      data = res_list,
+      style = output_style,
+      extract_individuals = extract_individuals,
+      show_multiple_census = show_multiple_census
+    )
+
+    # Inform user about restructuring
+    if (inherits(res_list, "plot_query_list")) {
+      cli::cli_alert_success(
+        "Output restructured using '{output_style}' style. Use names() to see available tables."
+      )
+    }
+  }
 
   return(res_list)
 
