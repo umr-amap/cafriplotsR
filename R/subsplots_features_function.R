@@ -13,6 +13,8 @@
 #' @param format Output format: "wide" (pivoted) or "long" (raw)
 #' @param include_subplot_obs_features Include subplot observation features
 #' @param con Database connection (optional)
+#' 
+#' @importFrom tidyr pivot_wider separate_rows
 #'
 #' @return List with components:
 #'   - features_raw: Raw subplot features
@@ -169,7 +171,7 @@ enrich_subplot_obs_features <- function(data, con) {
       },
       .groups = "drop"
     ) %>%
-    pivot_wider(
+    tidyr::pivot_wider(
       names_from = type,
       values_from = value,
       names_prefix = "obs_"
@@ -421,7 +423,7 @@ extract_census_dates <- function(census_data) {
   dates_wide <- dates_processed %>%
     group_by(id_table_liste_plots, census_number) %>%
     summarise(date = first(date), .groups = "drop") %>%
-    pivot_wider(
+    tidyr::pivot_wider(
       names_from = census_number,
       values_from = date,
       names_prefix = "date_census_"
@@ -432,7 +434,7 @@ extract_census_dates <- function(census_data) {
     mutate(date_julian = as.numeric(date - as.Date("1800-01-01"))) %>%
     group_by(id_table_liste_plots, census_number) %>%
     summarise(date_julian = first(date_julian), .groups = "drop") %>%
-    pivot_wider(
+    tidyr::pivot_wider(
       names_from = census_number,
       values_from = date_julian,
       names_prefix = "date_census_julian_"
