@@ -140,6 +140,17 @@
     dplyr::select(all_of(keep_cols)) %>%
     dplyr::distinct(plot_name, .keep_all = TRUE)
 
+  # Apply column renaming if specified
+  if (!is.null(style_config$rename_columns) && !is.null(style_config$rename_columns$metadata)) {
+    renames <- style_config$rename_columns$metadata
+    # Only rename columns that exist
+    renames <- renames[names(renames) %in% names(meta_data)]
+    if (length(renames) > 0) {
+      meta_data <- meta_data %>%
+        dplyr::rename(!!!renames)
+    }
+  }
+
   return(meta_data)
 }
 
@@ -191,6 +202,17 @@
 
   indiv_data <- data %>%
     dplyr::select(all_of(keep_cols))
+
+  # Apply column renaming if specified
+  if (!is.null(style_config$rename_columns) && !is.null(style_config$rename_columns$individuals)) {
+    renames <- style_config$rename_columns$individuals
+    # Only rename columns that exist
+    renames <- renames[names(renames) %in% names(indiv_data)]
+    if (length(renames) > 0) {
+      indiv_data <- indiv_data %>%
+        dplyr::rename(!!!renames)
+    }
+  }
 
   return(indiv_data)
 }
