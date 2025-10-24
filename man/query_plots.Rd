@@ -29,7 +29,8 @@ query_plots(
   concatenate_stem = FALSE,
   remove_obs_with_issue = TRUE,
   include_issue = FALSE,
-  include_measurement_ids = FALSE
+  include_measurement_ids = FALSE,
+  output_style = c("auto", "minimal", "standard", "permanent_plot", "transect", "full")
 )
 }
 \arguments{
