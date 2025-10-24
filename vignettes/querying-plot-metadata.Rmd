@@ -20,8 +20,8 @@ knitr::opts_chunk$set(
 library(plotsdatabase)
 
 # Connect to databases using credentials
-mydb <- call.mydb(using_credentials = TRUE)
-mydb.taxa <- call.mydb.taxa(using_credentials = TRUE)
+mydb <- call.mydb(use_env_credentials =  TRUE)
+mydb.taxa <- call.mydb.taxa(use_env_credentials = TRUE)
 ```
 
 ```{r setup, message=FALSE, warning=FALSE}
@@ -44,7 +44,17 @@ mydb <- call.mydb()
 mydb.taxa <- call.mydb.taxa()
 ```
 
-**Important**: The connection functions will prompt for credentials interactively. Never hard-code credentials in your scripts or vignettes.
+**Important**: The connection functions will prompt for credentials interactively. 
+
+If you want you can hard-code your user and password programmatically :
+
+```{r connection, message=FALSE, warning=FALSE, eval=FALSE}
+# Connect to the main database
+mydb <- call.mydb(pass = "ddd", user = "eeee")
+
+# Connect to the taxa database
+mydb.taxa <- call.mydb.taxa(pass = "ddd", user = "eeee")
+```
 
 ## Basic Metadata Query
 
@@ -53,7 +63,7 @@ To extract only plot metadata (without individual tree measurements), use `extra
 ```{r basic-query, message=FALSE, warning=FALSE}
 # Query plot metadata by plot name
 plots_meta <- query_plots(
-  plot_name = "Yoko",
+  plot_name = "mbalmayo001",
   extract_individuals = FALSE
 )
 
@@ -61,14 +71,14 @@ plots_meta <- query_plots(
 str(plots_meta)
 ```
 
-This returns a data frame containing plot-level information such as:
+This returns a data frame (tibble) containing plot-level information such as:
 
 - Plot identification (name, ID)
 - Geographic coordinates
 - Country and locality
 - Census dates
-- Plot dimensions
-- Sampling method
+- People involved
+- The data provider network if any
 
 ## Filtering Plots
 
