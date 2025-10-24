@@ -32,6 +32,30 @@ options(timeout = max(3000, getOption("timeout")))
 
 **Note:** Access to the database is restricted and requires appropriate credentials.
 
+## Package Logic & Access Control
+
+The `plotsdatabase` package offers tools to **manipulate, export, visualize, standardize, and enrich** forest inventory data with species-level traits.
+
+### Access Model
+
+The package implements a **two-tier access system**:
+
+1. **Plot inventories** (row-level security):
+   - Each user has access to **their own plots only**, controlled by database row-level security policies
+   - Policies define which specific plots each user can query and update
+   - Ensures data providers maintain control over their contributed inventories
+
+2. **Species-level traits** (universal access):
+   - **All users** have read access to the taxa database
+   - Shared trait repository includes wood density, leaf traits, growth forms, ecological guilds, etc.
+   - Users can graft these traits onto their own inventory data
+
+### Future Development
+
+- **Species occurrence data**: Universal access to occurrence records across Central Africa (not yet implemented)
+
+This design ensures data sovereignty for plot owners while enabling the research community to benefit from shared taxonomic and trait knowledge.
+
 ## Database Architecture
 
 The package connects to two PostgreSQL databases:
