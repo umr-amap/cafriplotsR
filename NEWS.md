@@ -1,3 +1,58 @@
+# plotsdatabase 1.5
+
+### Breaking Changes
+
+* **`query_plots()` now returns a list by default instead of a flat data frame**
+  - Output is automatically structured based on inventory method using the new output styles system
+  - Different styles organize data into separate tables: metadata, individuals, censuses, height-diameter, etc.
+  - **Action required**: To preserve old behavior (flat data frame), use `output_style = "full"`
+  - Rationale: Structured output makes it easier to work with complex plot data without overwhelming column counts
+  - See documentation for `?query_plots` for details on available output styles
+
+### New Features
+
+* **Configurable output styles system for `query_plots()`**
+  - 6 predefined output styles: `minimal`, `standard`, `permanent_plot`, `permanent_plot_multi_census`, `transect`, `full`
+  - Auto-detection of appropriate style based on `method` field (e.g., "1 ha plot" → `permanent_plot`)
+  - Manual style selection via `output_style` parameter
+  - Each style returns a structured list with relevant tables (e.g., `$metadata`, `$individuals`, `$censuses`)
+  - Column renaming from database names to user-friendly names (e.g., `ddlat` → `latitude`, `tax_sp_level` → `species`)
+  - New configuration files: `R/output_styles_config.R`, `R/output_styles_helpers.R`
+
+* **Specialized output tables for permanent plots**
+  - `$censuses` table: plot_name, census_number, census_date, team_leader, principal_investigator
+  - `$height_diameter` table: Paired height-diameter measurements (id_n, D, H, POM) with issue filtering
+  - Handles multiple censuses with automatic pivoting from wide to long format
+  - Census-specific column renaming (e.g., `stem_diameter_census_1` → `dbh_census_1`)
+
+* **Custom print method for query results**
+  - New S3 class `plot_query_list` with informative print method
+  - Shows table dimensions, column names, and geometry type for sf objects
+  - Makes it easy to understand query result structure
+
+* **Preservation of spatial data**
+  - `coordinates_sf` table automatically included when `show_all_coordinates = TRUE`
+  - Print method detects and displays sf geometry information
+
+### Code Refactoring
+
+* **Modular output style configuration**
+  - Centralized style definitions in `.plot_output_styles` list
+  - Method-to-style mapping in `.method_to_style_map`
+  - Style auto-detection function `.detect_style_from_method()`
+  - Easy to add new output styles by extending configuration
+
+* **Improved metadata extraction**
+  - Uses `res_meta_data` table (created before individual extraction) for metadata source
+  - Ensures all plot-level columns available even when `extract_individuals = TRUE`
+  - Consistent variable naming and error handling
+
+### Bug Fixes
+
+* **Fixed commented `@export` tag causing roxygen2 errors**
+  - Removed `@export` from commented-out `subplot_list()` function in `R/subsplots_features_function.R`
+  - Prevents documentation build failures
+
 # plotsdatabase 1.4 (development version)
 
 ### New Features
