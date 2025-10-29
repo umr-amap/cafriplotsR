@@ -1,17 +1,24 @@
 # plotsdatabase
 
-> R package for exploring and updating the Central African forest plot database [cafriplot network](https://cafriplot.net/)
+> R package for managing and exploring the Central African forest plot database [cafriplot network](https://cafriplot.net/)
 
 ## Overview
 
-`plotsdatabase` provides tools for querying, analyzing, and updating a PostgreSQL database containing forest plot and transect data from Central Africa. The package offers comprehensive functions for working with individual tree measurements, taxonomic traits, and ecological features across multiple research plots.
+`plotsdatabase` provides tools for querying a PostgreSQL database containing forest inventories 
+data from Tropical Africa.
+The package offers comprehensive functions for working with individual tree measurements on 
+which either taxa or stem level traits _sensus largo_ measurements (or observations) can be 
+aggregated.   
+The great advantage of this package is allow managing inventories, traits and observations under 
+the same taxonomic backbone, facilitating data integration, reproductibility in data analysis and
+manipulation, data reusability.
+
 
 **Key features:**
 - Query plot data, individual tree measurements, and ecological features
-- Access and aggregate species-level taxonomic traits
 - Update database tables with new measurements and observations
-- Resolve taxonomic synonyms and link trait data across hierarchy levels
-- Visualize database structure and relationships
+- Resolve taxonomic synonyms
+- Access and aggregate species-level taxonomic traits
 
 ## Installation
 
@@ -34,34 +41,36 @@ options(timeout = max(3000, getOption("timeout")))
 
 ## Package Logic & Access Control
 
-The `plotsdatabase` package offers tools to **manipulate, export, visualize, standardize, and enrich** forest inventory data with species-level traits.
+The `plotsdatabase` package offers tools to **manipulate, export, visualize, standardize, and enrich** forest inventory data.
 
 ### Access Model
 
 The package implements a **two-tier access system**:
 
 1. **Plot inventories** (row-level security):
-   - Each user has access to **their own plots only**, controlled by database row-level security policies
+   - Each user has access to **their own plots**, controlled by database row-level 
+   security policies
    - Policies define which specific plots each user can query and update
    - Ensures data providers maintain control over their contributed inventories
 
-2. **Species-level traits** (universal access):
+2. **Species-level traits** (access across all users):
    - **All users** have read access to the taxa database
-   - Shared trait repository includes wood density, leaf traits, growth forms, ecological guilds, etc.
-   - Users can graft these traits onto their own inventory data
+   - These data are grafted and aggregated to inventories
 
 ### Future Development
 
-- **Species occurrence data**: Universal access to occurrence records across Central Africa (not yet implemented)
+- **Species occurrence data**: Open access to occurrence records across Central Africa 
+(not yet implemented)
 
-This design ensures data sovereignty for plot owners while enabling the research community to benefit from shared taxonomic and trait knowledge.
+This design ensures data sovereignty for plot owners while enabling the research community 
+to benefit from shared taxonomic and trait knowledge.
 
 ## Database Architecture
 
 The package connects to two PostgreSQL databases:
 
 1. **Main database** (`plots_transects`): Plot, subplot, and individual tree data
-2. **Taxa database** (`rainbio`): Taxonomic information and species-level traits (READ-ONLY)
+2. **Taxa database** (`rainbio`): Taxonomic information and species-level traits
 
 ### Quick Start
 
@@ -72,25 +81,16 @@ library(plotsdatabase)
 mydb <- call.mydb()
 mydb_taxa <- call.mydb.taxa()
 
-# Visualize database structure
-get_database_fk(mydb)
-
 # Query plots
 plots <- query_plots(plot_ids = c(1, 2, 3))
 
-# Query taxa-level traits
-traits <- query_taxa_traits(
-  idtax = c(12345, 67890),
-  format = "wide",
-  add_taxa_info = TRUE
-)
+# Query plots
+plots <- query_plots(country = "GABON")
 
-# Query individual tree features
-indiv <- query_individual_features(
-  plot_ids = 1,
-  trait_ids = c(1, 2),
-  format = "wide"
-)
+# Visualize database structure
+get_database_fk(mydb)
+
+
 ```
 
 ## Core Functions
@@ -103,9 +103,6 @@ indiv <- query_individual_features(
 
 ### Data Querying
 - `query_plots()` - Query plot metadata
-- `query_individual_features()` - Query individual tree measurements
-- `query_taxa_traits()` - Query species-level traits
-- `query_plot_features()` - Query plot-level features
 
 
 ### Utilities
@@ -125,7 +122,6 @@ See [NEWS.md](NEWS.md) for the latest changes, including:
 
 ## Package Metadata
 
-- **Version:** 1.0
 - **Authors:** Gilles Dauby, Hugo Leblanc
 - **Maintainer:** Gilles Dauby (gilles.dauby@ird.fr)
 - **License:** GPL-2
@@ -138,7 +134,6 @@ This package follows a git branching workflow:
 - Changes are documented in NEWS.md
 - Pull requests are reviewed before merging to master
 
-See `CLAUDE.md` for development workflow details.
 
 ## Support
 
