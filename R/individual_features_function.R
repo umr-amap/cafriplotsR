@@ -26,10 +26,12 @@ get_individual_aggregated_features <- function(
     aggregation_mode = c("auto", "mean", "last", "mode", "concat"),
     include_issue = FALSE,
     include_measurement_ids = FALSE,
+    census_strategy = c("last", "first", "mean"),
     con = NULL
 ) {
-  
+
   aggregation_mode <- match.arg(aggregation_mode)
+  census_strategy <- match.arg(census_strategy)
   if (is.null(con)) con <- call.mydb()
   
   # If plot_ids provided, get individual_ids from plots
@@ -82,14 +84,15 @@ get_individual_aggregated_features <- function(
     include_multi_census = include_multi_census,
     format = "long",
     remove_issues = remove_issues,
+    census_strategy = census_strategy,
     con = con
   )
-  
+
   if (nrow(raw_data) == 0) {
     cli::cli_alert_warning("No features found")
     return(tibble(id_data_individuals = integer()))
   }
-  
+
   # 2. Separate by value type and aggregate with data.table
   cli::cli_h2("Aggregating features by individual")
 
@@ -98,7 +101,8 @@ get_individual_aggregated_features <- function(
     include_census = include_multi_census,
     mode = aggregation_mode,
     include_issue = include_issue,
-    include_measurement_ids = include_measurement_ids
+    include_measurement_ids = include_measurement_ids,
+    census_strategy = census_strategy
   )
 
   character_features <- aggregate_character_features_dt(
@@ -106,7 +110,8 @@ get_individual_aggregated_features <- function(
     include_census = include_multi_census,
     mode = aggregation_mode,
     include_issue = include_issue,
-    include_measurement_ids = include_measurement_ids
+    include_measurement_ids = include_measurement_ids,
+    census_strategy = census_strategy
   )
   
   # 3. Combine results
@@ -132,8 +137,10 @@ get_individual_aggregated_features <- function(
 #' @keywords internal
 aggregate_numeric_features_dt <- function(data, include_census, mode,
                                           include_issue = FALSE,
-                                          include_measurement_ids = FALSE) {
+                                          include_measurement_ids = FALSE,
+                                          census_strategy = c("last", "first", "mean")) {
 
+  census_strategy <- match.arg(census_strategy)
   if (nrow(data) == 0) return(NULL)
 
   cli::cli_alert_info("Aggregating {nrow(data)} numeric measurement(s)")
@@ -181,6 +188,8 @@ aggregate_numeric_features_dt <- function(data, include_census, mode,
                               .(value = mean(traitvalue_num, na.rm = TRUE)),
                               by = .(id_data_individuals, id_sub_plots, trait, census_name)]
       }
+      
+
 
       # Further aggregate by (individual, trait, census) - mean across subplots
       if (include_issue && "issue_agg" %in% names(dt_agg) &&
@@ -205,6 +214,9 @@ aggregate_numeric_features_dt <- function(data, include_census, mode,
                          .(value = mean(value, na.rm = TRUE)),
                          by = .(id_data_individuals, trait, census_name)]
       }
+      
+      dt_ind <- 
+        dt_ind %>% mutate(value = round(value, 2))
 
       # Pivot to wide format with trait_census columns
       value_vars <- c("value")
@@ -416,8 +428,10 @@ aggregate_numeric_features_dt <- function(data, include_census, mode,
 #' @keywords internal
 aggregate_character_features_dt <- function(data, include_census, mode,
                                             include_issue = FALSE,
-                                            include_measurement_ids = FALSE) {
+                                            include_measurement_ids = FALSE,
+                                            census_strategy = c("last", "first", "mean")) {
 
+  census_strategy <- match.arg(census_strategy)
   if (nrow(data) == 0) return(NULL)
 
   cli::cli_alert_info("Aggregating {nrow(data)} character measurement(s)")
@@ -1145,10 +1159,12 @@ query_individual_features <- function(
     remove_issues = TRUE,
     include_metadata = FALSE,
     include_individuals = FALSE,
+    census_strategy = c("last", "first", "mean"),
     con = NULL
 ) {
-  
+
   format <- match.arg(format)
+  census_strategy <- match.arg(census_strategy)
   if (is.null(con)) con <- call.mydb()
   
   # Check incompatible parameter combination
@@ -1185,12 +1201,23 @@ query_individual_features <- function(
     }
   }
   
-  # 3. Optional: Add census information
+  # 3. Handle census information and filtering
   if (include_multi_census) {
     cli::cli_alert_info("Enriching with census information")
     raw_data <- enrich_census_info(raw_data, con)
+  } else if (census_strategy != "mean") {
+    # Census selection: need census info even when not showing multiple censuses
+    cli::cli_alert_info("Enriching with census information for {census_strategy} census selection")
+    raw_data <- enrich_census_info(raw_data, con)
+
+    # Filter to first or last census
+    if ("census_name" %in% names(raw_data) && any(!is.na(raw_data$census_name))) {
+      raw_data <- filter_to_census(data = raw_data, strategy = census_strategy, con = con)
+    } else {
+      cli::cli_alert_warning("No census information available; using all measurements")
+    }
   }
-  
+
   # 4. Optional: Add measurement metadata (only for long format)
   if (include_metadata) {
     cli::cli_alert_info("Enriching with measurement metadata")
@@ -1320,10 +1347,11 @@ enrich_census_info <- function(data, con) {
   if (length(subplot_ids) == 0) return(data)
   
   census_info <- DBI::dbGetQuery(con, glue::glue_sql("
-    SELECT 
+    SELECT
       sp.id_sub_plots,
       sp.id_table_liste_plots,
       sp.typevalue,
+      sp.day,
       sp.month,
       sp.year,
       spt.type,
@@ -1332,12 +1360,85 @@ enrich_census_info <- function(data, con) {
     LEFT JOIN subplotype_list spt ON sp.id_type_sub_plot = spt.id_subplotype
     WHERE sp.id_sub_plots IN ({subplot_ids*})
   ", subplot_ids = subplot_ids, .con = con))
-  
+
   data %>%
     left_join(
-      census_info %>% select(id_sub_plots, census_name),
+      census_info %>%
+        select(
+          id_sub_plots,
+          census_name,
+          census_typevalue = typevalue,
+          census_day = day,
+          census_month = month,
+          census_year = year
+        ),
       by = "id_sub_plots"
     )
+}
+
+#' Filter data to first or last census
+#' @keywords internal
+filter_to_census <- function(data, strategy = c("first", "last"), con) {
+
+  strategy <- match.arg(strategy)
+
+  # Need census_name from enrich_census_info
+  if (!"census_name" %in% names(data)) {
+    cli::cli_alert_warning("No census information in data")
+    return(data)
+  }
+
+  # Split data: census-linked vs non-census features
+  data_with_census <- data %>% filter(!is.na(census_name), grepl("^census_", census_name))
+  data_no_census <- data %>% filter(is.na(census_name) | !grepl("^census_", census_name))
+
+  if (nrow(data_with_census) == 0) {
+    cli::cli_alert_info("No census-linked measurements to filter")
+    return(data)
+  }
+
+  # Determine first/last census per plot using proper date computation
+  census_selection <- data_with_census %>%
+    mutate(
+      day_clean = coalesce(census_day, 1),
+      month_clean = coalesce(census_month, 1),
+      year_clean = coalesce(census_year, NA_integer_),
+      census_date = suppressWarnings(lubridate::dmy(paste(day_clean, month_clean, year_clean, sep = "-"))),
+      typevalue_num = as.numeric(census_typevalue)
+    ) %>%
+    # Use typevalue as fallback if date is missing
+    mutate(
+      sort_key = if_else(is.na(census_date), as.Date(paste0(typevalue_num, "-01-01")), census_date)
+    ) %>%
+    group_by(id_table_liste_plots) %>%
+    {
+      if (strategy == "first") {
+        slice_min(., sort_key, n = 1, with_ties = TRUE) %>%
+          slice_min(typevalue_num, n = 1, with_ties = FALSE)
+      } else {
+        slice_max(., sort_key, n = 1, with_ties = TRUE) %>%
+          slice_max(typevalue_num, n = 1, with_ties = FALSE)
+      }
+    } %>%
+    ungroup() %>%
+    distinct(id_table_liste_plots, census_name_selected = census_name)
+
+  # Filter to selected census
+  data_filtered <- data_with_census %>%
+    left_join(census_selection, by = "id_table_liste_plots") %>%
+    filter(census_name == census_name_selected) %>%
+    select(-census_name_selected)
+
+  n_removed <- nrow(data_with_census) - nrow(data_filtered)
+  n_plots <- length(unique(census_selection$id_table_liste_plots))
+
+  cli::cli_alert_success("Selected {strategy} census for {n_plots} plot(s)")
+  if (n_removed > 0) {
+    cli::cli_alert_info("Filtered out {n_removed} measurement(s) from other censuses")
+  }
+
+  # Combine filtered census data with non-census data
+  bind_rows(data_filtered, data_no_census)
 }
 
 #' Enrich data with measurement-level features/metadata

@@ -11,7 +11,9 @@ process_individuals(
   id_individual = NULL,
   id_tax = NULL,
   tag = NULL,
-  include_liana = FALSE
+  include_liana = FALSE,
+  census_strategy = c("last", "first", "mean"),
+  show_multiple_census = FALSE
 )
 }
 \arguments{
