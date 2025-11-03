@@ -164,7 +164,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
           type = "message"
         )
 
-        backbone <- try_open_postgres_table(table = "table_taxa", con = mydb.taxa) %>%
+        backbone <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa) %>%
           dplyr::select(
             idtax_n,
             idtax_good_n,

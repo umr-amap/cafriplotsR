@@ -33,6 +33,7 @@
 #'
 #' @examples
 #' data(phylo_tree)
+"phylo_tree"
 
 
 
