@@ -13,6 +13,7 @@ get_individual_aggregated_features(
   aggregation_mode = c("auto", "mean", "last", "mode", "concat"),
   include_issue = FALSE,
   include_measurement_ids = FALSE,
+  census_strategy = c("last", "first", "mean"),
   con = NULL
 )
 }
