@@ -1,0 +1,451 @@
+---
+title: "Using query_plots() to Access Plot Data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using query_plots() to Access Plot Data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE  # Set to FALSE to prevent execution during pkgdown build
+)
+```
+
+```{r setup}
+library(plotsdatabase)
+```
+
+## Introduction
+
+The `query_plots()` function is the primary entry point for accessing forest plot data from the Central African plot database. This vignette demonstrates how to use the function's various features, including the new **output styles system** introduced in version 1.5.
+
+## Database Connection
+
+Before querying data, establish connections to both databases:
+
+```{r connection}
+# Connect to the main database
+mydb <- call.mydb()
+
+# Connect to the taxa database
+mydb_taxa <- call.mydb.taxa()
+```
+
+The package will prompt for credentials interactively, or you can use environment variables via `use_env_credentials = TRUE`.
+
+## Basic Usage
+
+### Query Plot Metadata Only
+
+To retrieve only plot-level information without individual tree data:
+
+```{r basic-metadata}
+# Query by plot name
+plots <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = FALSE
+)
+
+# View the structure
+str(plots)
+```
+
+### Query Plots with Individual Trees
+
+To include individual tree measurements:
+
+```{r with-individuals}
+plots_with_trees <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE
+)
+
+# The result is a structured list
+names(plots_with_trees)
+```
+
+## Output Styles System (v1.5+)
+
+Starting in version 1.5, `query_plots()` returns **structured lists** instead of flat data frames. The structure adapts automatically based on the inventory method.
+
+### Available Output Styles
+
+- **`minimal`**: Essential plot metadata only, no features or traits
+- **`standard`**: Standard analysis output with common features (default for unknown methods)
+- **`permanent_plot`**: Organized tables for permanent plot monitoring (single census)
+- **`permanent_plot_multi_census`**: Multi-census data with _census_N columns
+- **`transect`**: Simplified output for transect/walk surveys
+- **`full`**: Complete export with all columns (preserves v1.4 behavior)
+
+### Auto-Detection Based on Method
+
+The output style is automatically detected from the plot's `method` field:
+
+```{r auto-detection}
+# For a permanent plot (method = "1 ha plot")
+perm_plot <- query_plots(
+  plot_name = "yoko",
+  extract_individuals = TRUE
+)
+
+# Automatically uses 'permanent_plot' style
+# Returns: $metadata, $individuals, $censuses, $height_diameter
+names(perm_plot)
+```
+
+### Manual Style Selection
+
+Override automatic detection by specifying `output_style`:
+
+```{r manual-style}
+# Force minimal output
+minimal_output <- query_plots(
+  plot_name = "yoko",
+  extract_individuals = TRUE,
+  output_style = "minimal"
+)
+
+# Force full output (v1.4 behavior - flat data frame)
+full_output <- query_plots(
+  plot_name = "yoko",
+  extract_individuals = TRUE,
+  output_style = "full"
+)
+```
+
+### Understanding the Structured Output
+
+For permanent plots with `extract_individuals = TRUE`:
+
+```{r structured-output}
+result <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE
+)
+
+# Metadata table: plot-level information
+result$metadata
+#   plot_id | plot_name | country | latitude | longitude | elevation | ...
+
+# Individuals table: tree measurements
+result$individuals
+#   id_n | plot_name | tag | family | genus | species | dbh | height | ...
+
+# Censuses table: census information
+result$censuses
+#   plot_name | census_number | census_date | team_leader | ...
+
+# Height-diameter pairs: for allometric analysis
+result$height_diameter
+#   id_n | plot_name | tag | D | H | POM | census
+
+# Spatial data (if show_all_coordinates = TRUE)
+result$coordinates_sf
+```
+
+## Filtering Options
+
+### By Location
+
+```{r filter-location}
+# By country
+cameroon_plots <- query_plots(
+  country = "Cameroon",
+  extract_individuals = FALSE
+)
+
+# By locality
+dja_plots <- query_plots(
+  locality_name = "Dja",
+  extract_individuals = FALSE
+)
+
+# By coordinates (bounding box)
+# plots_in_bbox <- query_plots(
+#   lat_min = -2, lat_max = 2,
+#   lon_min = 10, lon_max = 15,
+#   extract_individuals = FALSE
+# )
+```
+
+### By Method
+
+```{r filter-method}
+# Get all permanent plots
+permanent_plots <- query_plots(
+  method = "1 ha plot",
+  extract_individuals = FALSE
+)
+
+# Get all transects
+transects <- query_plots(
+  method = "Long Transect",
+  extract_individuals = FALSE
+)
+```
+
+### By Plot ID
+
+```{r filter-id}
+# Query specific plot IDs
+plots_by_id <- query_plots(
+  id_plot = c(1, 2, 3),
+  extract_individuals = TRUE
+)
+```
+
+## Working with Individual Tree Data
+
+### Basic Tree Extraction
+
+```{r individuals-basic}
+trees <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE
+)
+
+# Access individual tree data
+trees$individuals
+```
+
+### Including Traits
+
+Enrich tree data with species-level traits from the taxa database:
+
+```{r with-traits}
+trees_with_traits <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  extract_traits = TRUE
+)
+
+# Individuals now include trait columns
+names(trees_with_traits$individuals)
+```
+
+### Including Individual Features
+
+Add tree-level measurements (e.g., leaf samples, wood density):
+
+```{r with-features}
+trees_with_features <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  extract_individual_features = TRUE
+)
+```
+
+## Handling Multiple Censuses
+
+### Show Multiple Census Data
+
+By default, only the most recent census is returned. To see all censuses:
+
+```{r multiple-census}
+multi_census <- query_plots(
+  plot_name = "yoko",
+  extract_individuals = TRUE,
+  show_multiple_census = TRUE
+)
+
+# Automatically uses 'permanent_plot_multi_census' style
+# Census-specific columns: dbh_census_1, dbh_census_2, height_census_1, ...
+head(multi_census$individuals)
+
+# Censuses table shows all census dates
+multi_census$censuses
+
+# Height-diameter table has one row per measurement
+multi_census$height_diameter
+```
+
+## Column Renaming
+
+The output styles automatically rename database columns to user-friendly names:
+
+```{r column-names}
+result <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE
+)
+
+# Database names → User-friendly names
+# ddlat → latitude
+# ddlon → longitude
+# tax_fam → family
+# tax_gen → genus
+# tax_sp_level → species
+# stem_diameter → dbh
+# tree_height → height
+
+names(result$metadata)
+names(result$individuals)
+```
+
+## Spatial Data
+
+### Plot Coordinates
+
+By default, returns one coordinate per plot:
+
+```{r default-coords}
+plots <- query_plots(
+  country = "Gabon",
+  extract_individuals = FALSE
+)
+
+plots$metadata[, c("plot_name", "latitude", "longitude")]
+```
+
+### All Coordinates
+
+Some plots have multiple coordinate points (corners, subplot centers):
+
+```{r all-coords}
+plots_all_coords <- query_plots(
+  plot_name = "yoko",
+  extract_individuals = FALSE,
+  show_all_coordinates = TRUE
+)
+
+# Returns sf object with all coordinate points
+plots_all_coords$coordinates_sf
+```
+
+### Interactive Map
+
+Visualize plot locations:
+
+```{r map}
+query_plots(
+  country = "Cameroon",
+  extract_individuals = FALSE,
+  map = TRUE
+)
+```
+
+## Advanced Options
+
+### Keeping Database IDs
+
+By default, internal IDs are removed. To keep them:
+
+```{r keep-ids}
+with_ids <- query_plots(
+  plot_name = "yoko",
+  extract_individuals = TRUE,
+  remove_ids = FALSE
+)
+
+# Now includes id_liste_plots, id_census, etc.
+names(with_ids$metadata)
+```
+
+### Filtering by Individual ID
+
+Extract specific individuals:
+
+```{r filter-individual}
+specific_trees <- query_plots(
+  id_individual = c(1001, 1002, 1003),
+  extract_individuals = TRUE
+)
+```
+
+### Filtering by Taxon
+
+Extract individuals of specific taxa:
+
+```{r filter-taxon}
+species_trees <- query_plots(
+  plot_name = "mbalmayo001",
+  id_tax = c(12345, 67890),  # Taxon IDs
+  extract_individuals = TRUE
+)
+```
+
+## Custom Output Styles
+
+The `keep_patterns` and `remove_patterns` options in style configurations allow customization:
+
+```{r custom-patterns}
+# In your custom style configuration:
+# keep_patterns = c("^feat_wood", "^trait_leaf")
+# This keeps wood features and leaf traits while removing others
+```
+
+## Combining Options
+
+Complex queries combining multiple filters:
+
+```{r complex-query}
+complex_result <- query_plots(
+  country = "Cameroon",
+  locality_name = "Dja",
+  method = "1 ha plot",
+  extract_individuals = TRUE,
+  extract_traits = TRUE,
+  extract_individual_features = TRUE,
+  show_multiple_census = TRUE,
+  show_all_coordinates = TRUE,
+  remove_ids = FALSE,
+  output_style = "permanent_plot_multi_census"
+)
+
+# Returns comprehensive structured output
+names(complex_result)
+```
+
+## Performance Tips
+
+1. **Start with metadata only**: Use `extract_individuals = FALSE` when exploring
+2. **Use specific filters**: Reduce query time by filtering by plot_name or id_plot
+3. **Limit traits**: Only use `extract_traits = TRUE` when needed
+4. **Choose appropriate style**: Use `minimal` or `standard` for quick analyses
+
+## Troubleshooting
+
+### Empty Results
+
+If your query returns no data:
+
+```{r troubleshoot}
+# Check connection status
+print_connection_status()
+
+# Run diagnostic
+db_diagnostic()
+
+# Verify plot access (row-level security)
+# You can only access plots you have permission for
+```
+
+### Switching Back to v1.4 Behavior
+
+If you need the old flat data frame output:
+
+```{r legacy-behavior}
+flat_output <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  output_style = "full"
+)
+
+# Returns a single data frame instead of structured list
+```
+
+## Next Steps
+
+- **Taxonomic queries**: See `?query_taxa` for taxonomic matching and synonym resolution
+- **Trait queries**: See `?query_taxa_traits` for species-level trait data
+- **Updates**: See `?add_sp_traits_measures` for adding new measurements
+
+## Session Info
+
+```{r session}
+sessionInfo()
+```
