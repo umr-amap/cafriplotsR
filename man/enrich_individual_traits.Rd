@@ -10,7 +10,8 @@ enrich_individual_traits(
   show_multiple_census,
   remove_obs_with_issue,
   include_issue = FALSE,
-  include_measurement_ids = FALSE
+  include_measurement_ids = FALSE,
+  census_strategy = c("last", "first", "mean")
 )
 }
 \description{

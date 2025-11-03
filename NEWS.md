@@ -11,6 +11,19 @@
 
 ### New Features
 
+* **Census selection strategy for multi-census plots**
+  - New `census_strategy` parameter in `query_plots()` with three options:
+    - `"last"` (default): Extract data from most recent census only
+    - `"first"`: Extract data from earliest census only
+    - `"mean"`: Average across all censuses (previous default behavior)
+  - When using "first" or "last" strategy:
+    - Individuals recruited after first census show NA values (biologically correct)
+    - Individuals dead before last census show NA values (biologically correct)
+    - Single `census_date` column shows the date of the selected census (instead of `date_census_1`, `date_census_2`, etc.)
+  - Census selection based on actual census dates using proper date computation
+  - Applies to individual-level features (stem diameter, tree height, etc.)
+  - When `show_multiple_census = TRUE`, all census data shown regardless of strategy
+
 * **Configurable output styles system for `query_plots()`**
   - 6 predefined output styles: `minimal`, `standard`, `permanent_plot`, `permanent_plot_multi_census`, `transect`, `full`
   - Auto-detection of appropriate style based on `method` field (e.g., "1 ha plot" → `permanent_plot`)
