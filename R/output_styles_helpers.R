@@ -141,6 +141,14 @@
     }
   }
 
+  # Apply keep patterns - add columns matching specified patterns
+  if (!is.null(style_config$keep_patterns) && length(style_config$keep_patterns) > 0) {
+    for (pattern in style_config$keep_patterns) {
+      pattern_cols <- grep(pattern, available_cols, value = TRUE, perl = TRUE)
+      keep_cols <- unique(c(keep_cols, pattern_cols))
+    }
+  }
+
   # Remove patterns
   if (!is.null(style_config$remove_patterns) && length(style_config$remove_patterns) > 0) {
     for (pattern in style_config$remove_patterns) {
@@ -207,6 +215,14 @@
     # Keep all census-suffixed columns (e.g., stem_diameter_census_1, stem_diameter_census_2)
     census_cols <- grep("_census_\\d+$", available_cols, value = TRUE)
     keep_cols <- unique(c(keep_cols, census_cols))
+  }
+
+  # Apply keep patterns - add columns matching specified patterns
+  if (!is.null(style_config$keep_patterns) && length(style_config$keep_patterns) > 0) {
+    for (pattern in style_config$keep_patterns) {
+      pattern_cols <- grep(pattern, available_cols, value = TRUE, perl = TRUE)
+      keep_cols <- unique(c(keep_cols, pattern_cols))
+    }
   }
 
   # Remove patterns (unless explicitly keeping census columns)

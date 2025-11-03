@@ -19,6 +19,7 @@
       "id_n", "plot_name", "tag", "tax_fam", "tax_gen", "tax_sp_level",
       "stem_diameter", "census_date"
     ),
+    keep_patterns = c(),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n)", "^feat_", "^trait_", "^date_modif"),
     additional_tables = c(),
     rename_columns = list(
@@ -40,6 +41,7 @@
       "dbh", "height", "census_date"
     ),
     keep_common_features = TRUE,  # Keep features present in >10% of plots
+    keep_patterns = c(),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n)", "^date_modif"),
     additional_tables = c(),
     rename_columns = list(
@@ -59,6 +61,7 @@
       "tax_fam", "tax_gen", "tax_sp_level",
       "stem_diameter", "tree_height", "pom", "census_date", "status", "recruit"
     ),
+    keep_patterns = c("wood_density"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n)", "^date_modif", "_census_\\d+$"),  # Remove census suffix columns
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,  # Features go to census table
@@ -81,6 +84,7 @@
       # Census-specific columns added dynamically (stem_diameter_census_1, etc.)
     ),
     keep_census_columns = TRUE,  # Keep all _census_N columns
+    keep_patterns = c(),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n)", "^date_modif"),
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,
@@ -107,6 +111,7 @@
       "id_n", "plot_name", "tag", "distance_along_transect",
       "tax_fam", "tax_gen", "tax_sp_level", "dbh"
     ),
+    keep_patterns = c(),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n)", "height", "pom", "growth", "mortality", "^date_modif"),
     additional_tables = c(),
     rename_columns = list(
@@ -119,6 +124,7 @@
     description = "Complete export with all columns",
     metadata_columns = "all",
     individuals_columns = "all",
+    keep_patterns = c(),  # No patterns applied in full mode
     remove_patterns = c(),
     additional_tables = c()
   )
