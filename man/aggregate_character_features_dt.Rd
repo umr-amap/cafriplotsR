@@ -9,7 +9,8 @@ aggregate_character_features_dt(
   include_census,
   mode,
   include_issue = FALSE,
-  include_measurement_ids = FALSE
+  include_measurement_ids = FALSE,
+  census_strategy = c("last", "first", "mean")
 )
 }
 \description{
