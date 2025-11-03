@@ -2,7 +2,7 @@
 % Please edit documentation in R/subsplots_features_function.R
 \name{add_subplot_features}
 \alias{add_subplot_features}
-\title{List of subplot features}
+\title{Add an observation in subplot_features table}
 \usage{
 add_subplot_features(
   new_data,
@@ -19,11 +19,32 @@ add_subplot_features(
   check_existing_data = TRUE
 )
 }
+\arguments{
+\item{new_data}{tibble}
+
+\item{col_names_select}{string vector}
+
+\item{col_names_corresp}{string vector}
+
+\item{plot_name_field}{string column name which contain the plot_name for linking}
+
+\item{id_plot_name}{string id of plot_name}
+
+\item{subplottype_field}{string vector listing trait columns names in new_data}
+
+\item{add_data}{logical whether or not data should be added - by default FALSE}
+
+\item{ask_before_update}{logical ask before adding}
+
+\item{verbose}{logical}
+
+\item{check_existing_data}{logical if it should be checked if imported data already exist in the database}
+}
 \value{
-A tibble of all subplot features
+list of tibbles that should be/have been added
 }
 \description{
-Provide list of subplot features of plot
+Add a trait measure in subplot_features table
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}

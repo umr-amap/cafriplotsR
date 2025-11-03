@@ -1,7 +1,7 @@
 Package: plotsdatabase
 Type: Package
 Title: Exploring and updating the Central Africa plot database
-Version: 1.5
+Version: 1.6
 Author: Gilles Dauby, Hugo Leblanc
 Maintainer: Gilles Dauby <gilles.dauby@ird.fr>
 Description: Exploring and updating the database containing plot data from Central Africa. This package contains several function for manipulating tree inventories data from Central Africa. Access is restricted.
@@ -52,7 +52,7 @@ Suggests:
     DiagrammeRsvg
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 VignetteBuilder: knitr
 Depends: 
     R (>= 4.0)
