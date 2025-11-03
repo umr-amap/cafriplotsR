@@ -3,26 +3,17 @@
 \docType{data}
 \name{model_wd_2}
 \alias{model_wd_2}
-\title{phylo_tree}
+\title{model_wd_2}
 \format{
-An object of class phylo
-
 An object of class lm
 }
 \usage{
-data(phylo_tree)
-
 data(model_wd_2)
 }
 \description{
-Phylogeny from Janssens et al 2020
+Linear model to predict whole-tree wood density from Global Wood Density database
 }
 \examples{
-data(phylo_tree)
-model_wd_2
-
-Linear model to predict whole-tree wood density from Global Wood Density database
-
 data(model_wd_2)
 }
 \references{
