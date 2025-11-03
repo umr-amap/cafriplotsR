@@ -30,6 +30,7 @@ query_plots(
   remove_obs_with_issue = TRUE,
   include_issue = FALSE,
   include_measurement_ids = FALSE,
+  census_strategy = c("last", "first", "mean"),
   output_style = c("auto", "minimal", "standard", "permanent_plot",
     "permanent_plot_multi_census", "transect", "full")
 )
@@ -80,6 +81,18 @@ query_plots(
 \item{concatenate_stem}{Logical. Whether to concatenate multiple stems. Optional.}
 
 \item{remove_obs_with_issue}{Logical. Whether to remove observations with issues. Optional.}
+
+\item{include_issue}{Logical. Whether to include issue flags in aggregated output. Optional.}
+
+\item{include_measurement_ids}{Logical. Whether to include measurement IDs in aggregated output. Optional.}
+
+\item{census_strategy}{Character. Strategy for selecting census when `show_multiple_census = FALSE`.
+Options: "last" (default, most recent census), "first" (earliest census), or "mean" (average across all censuses).
+When "first" or "last" is selected, individuals recruited after the first census or dead before the last census
+will have NA values, reflecting biological reality.}
+
+\item{output_style}{Character. Output formatting style. Options: "auto", "minimal", "standard",
+"permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.}
 }
 \value{
 A list or data frame containing plot data and associated information. When multiple 

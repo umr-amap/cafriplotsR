@@ -12,6 +12,7 @@ query_individual_features(
   remove_issues = TRUE,
   include_metadata = FALSE,
   include_individuals = FALSE,
+  census_strategy = c("last", "first", "mean"),
   con = NULL
 )
 }
