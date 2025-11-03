@@ -122,6 +122,14 @@ add_method <- function(new_method = NULL,
 #' @param extract_subplot_features Logical. Whether to extract subplot features. Optional.
 #' @param concatenate_stem Logical. Whether to concatenate multiple stems. Optional.
 #' @param remove_obs_with_issue Logical. Whether to remove observations with issues. Optional.
+#' @param census_strategy Character. Strategy for selecting census when `show_multiple_census = FALSE`.
+#'   Options: "last" (default, most recent census), "first" (earliest census), or "mean" (average across all censuses).
+#'   When "first" or "last" is selected, individuals recruited after the first census or dead before the last census
+#'   will have NA values, reflecting biological reality.
+#' @param include_issue Logical. Whether to include issue flags in aggregated output. Optional.
+#' @param include_measurement_ids Logical. Whether to include measurement IDs in aggregated output. Optional.
+#' @param output_style Character. Output formatting style. Options: "auto", "minimal", "standard",
+#'   "permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.
 #'
 #' @returns 
 #' A list or data frame containing plot data and associated information. When multiple 
@@ -173,9 +181,12 @@ query_plots <- function(plot_name = NULL,
                         remove_obs_with_issue = TRUE,
                         include_issue = FALSE,
                         include_measurement_ids = FALSE,
-                        output_style = c("auto", "minimal", "standard", "permanent_plot", "permanent_plot_multi_census", "transect", "full")) {
+                        census_strategy = c("last", "first", "mean"),
+                        output_style = c("auto", "minimal", "standard",
+                                         "permanent_plot", "permanent_plot_multi_census", "transect", "full")) {
 
-  # Match output style argument
+  # Match arguments
+  census_strategy <- match.arg(census_strategy)
   output_style <- match.arg(output_style)
 
   mydb <- call.mydb()
@@ -444,24 +455,27 @@ query_plots <- function(plot_name = NULL,
     
     res <- process_individuals(
       plots_data = res,
-      con = mydb, 
+      con = mydb,
       con_taxa = mydb.taxa,
       id_individual = id_individual,
       id_tax = id_tax,
       tag = tag,
-      include_liana = include_liana
+      include_liana = include_liana,
+      census_strategy = census_strategy,
+      show_multiple_census = show_multiple_census
     )
     
-    res <- enrich_with_traits(individuals = res, 
-                              con = mydb, 
-                              extract_individual_features = extract_individual_features, 
-                              extract_traits = extract_traits, 
-                              traits_to_genera =  traits_to_genera, 
-                              wd_fam_level = wd_fam_level, 
-                              show_multiple_census = show_multiple_census, 
+    res <- enrich_with_traits(individuals = res,
+                              con = mydb,
+                              extract_individual_features = extract_individual_features,
+                              extract_traits = extract_traits,
+                              traits_to_genera =  traits_to_genera,
+                              wd_fam_level = wd_fam_level,
+                              show_multiple_census = show_multiple_census,
                               remove_obs_with_issue = remove_obs_with_issue,
                               include_issue = include_issue,
-                              include_measurement_ids = include_measurement_ids)
+                              include_measurement_ids = include_measurement_ids,
+                              census_strategy = census_strategy)
     
     res <- process_stems(res, concatenate_stem)
 
@@ -567,16 +581,19 @@ query_plots <- function(plot_name = NULL,
 #' 
 #' @return Data frame of processed individuals
 #' @export
-process_individuals <- function(plots_data, 
-                                con, 
+process_individuals <- function(plots_data,
+                                con,
                                 con_taxa,
-                                id_individual = NULL, 
+                                id_individual = NULL,
                                 id_tax = NULL,
-                                tag = NULL, 
-                                include_liana = FALSE) {
-  
+                                tag = NULL,
+                                include_liana = FALSE,
+                                census_strategy = c("last", "first", "mean"),
+                                show_multiple_census = FALSE) {
+
+  census_strategy <- match.arg(census_strategy)
   cli::cli_rule(left = "Processing individuals")
-  
+
   # Extraction des métadonnées de plots
   plot_metadata <- plots_data %>%
     select(
@@ -584,6 +601,31 @@ process_individuals <- function(plots_data,
       contains("date_census"), contains("team_leader"),
       contains("principal_investigator"), ddlat, ddlon
     )
+
+  # Handle census date selection when not showing multiple censuses
+  if (!show_multiple_census && census_strategy %in% c("first", "last")) {
+    census_cols <- names(plot_metadata)[grepl("^date_census_\\d+$", names(plot_metadata))]
+
+    if (length(census_cols) > 0) {
+      # Extract census numbers and find first/last
+      census_numbers <- as.numeric(gsub("date_census_", "", census_cols))
+
+      if (census_strategy == "first") {
+        selected_col <- paste0("date_census_", min(census_numbers, na.rm = TRUE))
+      } else {
+        selected_col <- paste0("date_census_", max(census_numbers, na.rm = TRUE))
+      }
+
+      if (selected_col %in% names(plot_metadata)) {
+        # Keep only the selected census date and rename it
+        plot_metadata <- plot_metadata %>%
+          mutate(census_date = !!sym(selected_col)) %>%
+          select(-all_of(census_cols))
+
+        cli::cli_alert_info("Selected {census_strategy} census date column: {selected_col}")
+      }
+    }
+  }
   
   # Extraction via merge_individuals_taxa_v2
   cli::cli_alert_info("Fetching individuals")
@@ -649,21 +691,24 @@ enrich_with_traits <- function(individuals, con,
                                show_multiple_census = FALSE,
                                remove_obs_with_issue = TRUE,
                                include_issue = FALSE,
-                               include_measurement_ids = FALSE) {
-  
+                               include_measurement_ids = FALSE,
+                               census_strategy = c("last", "first", "mean")) {
+
+  census_strategy <- match.arg(census_strategy)
   mydb <- call.mydb()
-  
+
   cli::cli_rule(left = "Processing traits")
-  
+
   # Traits individuels
   if (extract_individual_features) {
     individuals <- enrich_individual_traits(
-      individuals = individuals, 
-      con = con, 
-      show_multiple_census = show_multiple_census, 
-      remove_obs_with_issue = remove_obs_with_issue, 
-      include_issue = include_issue, 
-      include_measurement_ids = include_measurement_ids
+      individuals = individuals,
+      con = con,
+      show_multiple_census = show_multiple_census,
+      remove_obs_with_issue = remove_obs_with_issue,
+      include_issue = include_issue,
+      include_measurement_ids = include_measurement_ids,
+      census_strategy = census_strategy
     )
   }
   
@@ -682,21 +727,24 @@ enrich_with_traits <- function(individuals, con,
 
 #' Enrich with individual-level traits
 #' @keywords internal
-enrich_individual_traits <- function(individuals, con, show_multiple_census, remove_obs_with_issue, 
-                                     include_issue = FALSE, 
-                                     include_measurement_ids = FALSE) {
-  
+enrich_individual_traits <- function(individuals, con, show_multiple_census, remove_obs_with_issue,
+                                     include_issue = FALSE,
+                                     include_measurement_ids = FALSE,
+                                     census_strategy = c("last", "first", "mean")) {
+
+  census_strategy <- match.arg(census_strategy)
   cli::cli_alert_info("Enriching with individual-level traits")
-  
+
   all_traits <- traits_list()
   traits_aggregated <- get_individual_aggregated_features(
     individual_ids = individuals$id_n,
     trait_ids = all_traits$id_trait,  # Tous les traits
     include_multi_census = show_multiple_census,
     remove_issues = remove_obs_with_issue,
-    con = con, 
-    include_issue = include_issue, 
-    include_measurement_ids = include_measurement_ids
+    con = con,
+    include_issue = include_issue,
+    include_measurement_ids = include_measurement_ids,
+    census_strategy = census_strategy
   )
   
   # Vérifier qu'il y a des résultats
