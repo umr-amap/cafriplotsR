@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">plotsdatabase</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -16,6 +16,10 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
+  </ul></li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json"></form></li>
@@ -161,7 +165,7 @@
 <h3 id="database-connection-testing">Database Connection Testing<a class="anchor" aria-label="anchor" href="#database-connection-testing"></a></h3>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Test connections</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">plotsdatabase</span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://gdauby.github.io/bdd_plots_central_africa/">plotsdatabase</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/db_diagnostic.html">db_diagnostic</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># Full diagnostic</span></span>
 <span><span class="fu"><a href="reference/print_connection_status.html">print_connection_status</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># Quick status check</span></span>
 <span></span>
@@ -223,7 +227,7 @@
 </div>
 <div class="section level3">
 <h3 id="coding-conventions">Coding Conventions<a class="anchor" aria-label="anchor" href="#coding-conventions"></a></h3>
-<p><strong>Helper Functions Pattern:</strong> - Internal helpers use <code>.</code> prefix (e.g., <code><a href="reference/dot-link_table.html">.link_table()</a></code>, <code><a href="reference/dot-add_modif_field.html">.add_modif_field()</a></code>, <code><a href="reference/dot-rename_data.html">.rename_data()</a></code>) - These are exported but intended for internal use or advanced users - Public-facing functions have descriptive names without prefix</p>
+<p><strong>Helper Functions Pattern:</strong> - Internal helpers use <code>.</code> prefix (e.g., <code><a href="reference/dot-link_table.html">.link_table()</a></code>, <code>.add_modif_field()</code>, <code>.rename_data()</code>) - These are exported but intended for internal use or advanced users - Public-facing functions have descriptive names without prefix</p>
 <p><strong>Generic Aggregation Functions:</strong> The package has refactored generic aggregation helpers in <code>R/helpers_traits_common.R</code>: - <code><a href="reference/pivot_numeric_traits_generic.html">pivot_numeric_traits_generic()</a></code>: Aggregate numeric traits with mean/sd/n - <code><a href="reference/pivot_categorical_traits_generic.html">pivot_categorical_traits_generic()</a></code>: Aggregate categorical traits (mode or concat) - <code><a href="reference/aggregate_plot_features.html">aggregate_plot_features()</a></code>: Aggregate multiple feature types for plots</p>
 <p><strong>Standard R Package Structure:</strong> - Documentation lives in <code>man/</code> (generated, not manually edited) - Source code lives in <code>R/</code> - No <code>tests/</code> directory present (consider adding for production robustness) - No <code>vignettes/</code> directory (tutorials are in root as <code>.Rmd</code> files)</p>
 </div>

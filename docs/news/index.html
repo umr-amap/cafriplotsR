@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">plotsdatabase</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -16,6 +16,10 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
+  </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -31,6 +35,105 @@
 
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.5" id="plotsdatabase-15">plotsdatabase 1.5<a class="anchor" aria-label="anchor" href="#plotsdatabase-15"></a></h2>
+<div class="section level4">
+<h4 id="breaking-changes-1-5">Breaking Changes<a class="anchor" aria-label="anchor" href="#breaking-changes-1-5"></a></h4>
+<ul><li>
+<strong><code><a href="../reference/query_plots.html">query_plots()</a></code> now returns a list by default instead of a flat data frame</strong>
+<ul><li>Output is automatically structured based on inventory method using the new output styles system</li>
+<li>Different styles organize data into separate tables: metadata, individuals, censuses, height-diameter, etc.</li>
+<li>
+<strong>Action required</strong>: To preserve old behavior (flat data frame), use <code>output_style = "full"</code>
+</li>
+<li>Rationale: Structured output makes it easier to work with complex plot data without overwhelming column counts</li>
+<li>See documentation for <code><a href="../reference/query_plots.html">?query_plots</a></code> for details on available output styles</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="new-features-1-5">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-5"></a></h4>
+<ul><li>
+<strong>Census selection strategy for multi-census plots</strong>
+<ul><li>New <code>census_strategy</code> parameter in <code><a href="../reference/query_plots.html">query_plots()</a></code> with three options:
+<ul><li>
+<code>"last"</code> (default): Extract data from most recent census only</li>
+<li>
+<code>"first"</code>: Extract data from earliest census only</li>
+<li>
+<code>"mean"</code>: Average across all censuses (previous default behavior)</li>
+</ul></li>
+<li>When using “first” or “last” strategy:
+<ul><li>Individuals recruited after first census show NA values (biologically correct)</li>
+<li>Individuals dead before last census show NA values (biologically correct)</li>
+<li>Single <code>census_date</code> column shows the date of the selected census (instead of <code>date_census_1</code>, <code>date_census_2</code>, etc.)</li>
+</ul></li>
+<li>Census selection based on actual census dates using proper date computation</li>
+<li>Applies to individual-level features (stem diameter, tree height, etc.)</li>
+<li>When <code>show_multiple_census = TRUE</code>, all census data shown regardless of strategy</li>
+</ul></li>
+<li>
+<strong>Configurable output styles system for <code><a href="../reference/query_plots.html">query_plots()</a></code></strong>
+<ul><li>6 predefined output styles: <code>minimal</code>, <code>standard</code>, <code>permanent_plot</code>, <code>permanent_plot_multi_census</code>, <code>transect</code>, <code>full</code>
+</li>
+<li>Auto-detection of appropriate style based on <code>method</code> field (e.g., “1 ha plot” → <code>permanent_plot</code>)</li>
+<li>Manual style selection via <code>output_style</code> parameter</li>
+<li>Each style returns a structured list with relevant tables (e.g., <code>$metadata</code>, <code>$individuals</code>, <code>$censuses</code>)</li>
+<li>Column renaming from database names to user-friendly names (e.g., <code>ddlat</code> → <code>latitude</code>, <code>tax_sp_level</code> → <code>species</code>)</li>
+<li>New configuration files: <code>R/output_styles_config.R</code>, <code>R/output_styles_helpers.R</code>
+</li>
+</ul></li>
+<li>
+<strong>Specialized output tables for permanent plots</strong>
+<ul><li>
+<code>$censuses</code> table: plot_name, census_number, census_date, team_leader, principal_investigator</li>
+<li>
+<code>$height_diameter</code> table: Paired height-diameter measurements (id_n, D, H, POM) with issue filtering</li>
+<li>Handles multiple censuses with automatic pivoting from wide to long format</li>
+<li>Census-specific column renaming (e.g., <code>stem_diameter_census_1</code> → <code>dbh_census_1</code>)</li>
+</ul></li>
+<li>
+<strong>Custom print method for query results</strong>
+<ul><li>New S3 class <code>plot_query_list</code> with informative print method</li>
+<li>Shows table dimensions, column names, and geometry type for sf objects</li>
+<li>Makes it easy to understand query result structure</li>
+</ul></li>
+<li>
+<strong>Preservation of spatial data</strong>
+<ul><li>
+<code>coordinates_sf</code> table automatically included when <code>show_all_coordinates = TRUE</code>
+</li>
+<li>Print method detects and displays sf geometry information</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="code-refactoring-1-5">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-5"></a></h4>
+<ul><li>
+<strong>Modular output style configuration</strong>
+<ul><li>Centralized style definitions in <code>.plot_output_styles</code> list</li>
+<li>Method-to-style mapping in <code>.method_to_style_map</code>
+</li>
+<li>Style auto-detection function <code>.detect_style_from_method()</code>
+</li>
+<li>Easy to add new output styles by extending configuration</li>
+</ul></li>
+<li>
+<strong>Improved metadata extraction</strong>
+<ul><li>Uses <code>res_meta_data</code> table (created before individual extraction) for metadata source</li>
+<li>Ensures all plot-level columns available even when <code>extract_individuals = TRUE</code>
+</li>
+<li>Consistent variable naming and error handling</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5"></a></h4>
+<ul><li>
+<strong>Fixed commented <code>@export</code> tag causing roxygen2 errors</strong>
+<ul><li>Removed <code>@export</code> from commented-out <code><a href="../reference/subplot_list.html">subplot_list()</a></code> function in <code>R/subsplots_features_function.R</code>
+</li>
+<li>Prevents documentation build failures</li>
+</ul></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.4" id="plotsdatabase-14-development-version">plotsdatabase 1.4 (development version)<a class="anchor" aria-label="anchor" href="#plotsdatabase-14-development-version"></a></h2>
 <div class="section level4">
@@ -138,7 +241,7 @@
 <li>Cleaner separation of concerns: matching, filtering, synonym resolution, formatting, trait addition</li>
 <li>~160 lines of code removed through better abstraction</li>
 <li>Better maintainability and extensibility</li>
-<li>Deprecated <code><a href="../reference/query_fuzzy_match.html">query_fuzzy_match()</a></code> and <code><a href="../reference/query_exact_match.html">query_exact_match()</a></code> in favor of <code><a href="../reference/match_taxonomic_names.html">match_taxonomic_names()</a></code>
+<li>Deprecated <code>query_fuzzy_match()</code> and <code>query_exact_match()</code> in favor of <code><a href="../reference/match_taxonomic_names.html">match_taxonomic_names()</a></code>
 </li>
 </ul></li>
 <li>
