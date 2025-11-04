@@ -11,11 +11,14 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE  # Set to FALSE to prevent execution during pkgdown build
+  eval = FALSE,  # Set to FALSE to prevent execution during pkgdown build
+  message = FALSE,
+  warning = FALSE
 )
 ```
 
 ```{r setup}
+library(tidyverse)
 library(plotsdatabase)
 ```
 
@@ -26,6 +29,18 @@ The `query_plots()` function is the primary entry point for accessing forest plo
 ## Database Connection
 
 Before querying data, establish connections to both databases:
+
+
+```{r connection-t, eval=T, echo=F, warning=FALSE, message=FALSE}
+library(tidyverse)
+devtools::load_all()
+# Connect to the main database
+mydb <- call.mydb(use_env_credentials = T)
+
+# Connect to the taxa database
+mydb_taxa <- call.mydb.taxa(use_env_credentials = T)
+
+```
 
 ```{r connection}
 # Connect to the main database
@@ -43,29 +58,39 @@ The package will prompt for credentials interactively, or you can use environmen
 
 To retrieve only plot-level information without individual tree data:
 
-```{r basic-metadata}
+```{r basic-metadata, eval=TRUE, results='hide'}
 # Query by plot name
 plots <- query_plots(
   plot_name = "mbalmayo001",
   extract_individuals = FALSE
 )
 
-# View the structure
-str(plots)
 ```
+
+```{r, eval=TRUE, message=TRUE}
+# View the structure
+plots
+```
+
+
 
 ### Query Plots with Individual Trees
 
-To include individual tree measurements:
+To include individual tree/stem measurements:
 
-```{r with-individuals}
+```{r with-individuals, eval=TRUE, results='hide'}
 plots_with_trees <- query_plots(
   plot_name = "mbalmayo001",
   extract_individuals = TRUE
 )
 
+
+```
+
+
+```{r, eval=TRUE, message=TRUE}
 # The result is a structured list
-names(plots_with_trees)
+plots_with_trees
 ```
 
 ## Output Styles System (v1.5+)
@@ -88,7 +113,7 @@ The output style is automatically detected from the plot's `method` field:
 ```{r auto-detection}
 # For a permanent plot (method = "1 ha plot")
 perm_plot <- query_plots(
-  plot_name = "yoko",
+  plot_name = "mbalmayo",
   extract_individuals = TRUE
 )
 
@@ -104,14 +129,14 @@ Override automatic detection by specifying `output_style`:
 ```{r manual-style}
 # Force minimal output
 minimal_output <- query_plots(
-  plot_name = "yoko",
+  plot_name = "mbalmayo",
   extract_individuals = TRUE,
   output_style = "minimal"
 )
 
 # Force full output (v1.4 behavior - flat data frame)
 full_output <- query_plots(
-  plot_name = "yoko",
+  plot_name = "mbalmayo",
   extract_individuals = TRUE,
   output_style = "full"
 )
@@ -164,12 +189,6 @@ dja_plots <- query_plots(
   extract_individuals = FALSE
 )
 
-# By coordinates (bounding box)
-# plots_in_bbox <- query_plots(
-#   lat_min = -2, lat_max = 2,
-#   lon_min = 10, lon_max = 15,
-#   extract_individuals = FALSE
-# )
 ```
 
 ### By Method
@@ -212,32 +231,6 @@ trees <- query_plots(
 trees$individuals
 ```
 
-### Including Traits
-
-Enrich tree data with species-level traits from the taxa database:
-
-```{r with-traits}
-trees_with_traits <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = TRUE,
-  extract_traits = TRUE
-)
-
-# Individuals now include trait columns
-names(trees_with_traits$individuals)
-```
-
-### Including Individual Features
-
-Add tree-level measurements (e.g., leaf samples, wood density):
-
-```{r with-features}
-trees_with_features <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = TRUE,
-  extract_individual_features = TRUE
-)
-```
 
 ## Handling Multiple Censuses
 
@@ -247,7 +240,7 @@ By default, only the most recent census is returned. To see all censuses:
 
 ```{r multiple-census}
 multi_census <- query_plots(
-  plot_name = "yoko",
+  plot_name = "mbalmayo",
   extract_individuals = TRUE,
   show_multiple_census = TRUE
 )
@@ -307,7 +300,7 @@ Some plots have multiple coordinate points (corners, subplot centers):
 
 ```{r all-coords}
 plots_all_coords <- query_plots(
-  plot_name = "yoko",
+  plot_name = "mbalmayo",
   extract_individuals = FALSE,
   show_all_coordinates = TRUE
 )
@@ -336,13 +329,13 @@ By default, internal IDs are removed. To keep them:
 
 ```{r keep-ids}
 with_ids <- query_plots(
-  plot_name = "yoko",
+  plot_name = "mbalmayo001",
   extract_individuals = TRUE,
-  remove_ids = FALSE
+  remove_ids = FALSE, output_style = "full"
 )
 
 # Now includes id_liste_plots, id_census, etc.
-names(with_ids$metadata)
+names(with_ids$extract)
 ```
 
 ### Filtering by Individual ID
@@ -363,14 +356,14 @@ Extract individuals of specific taxa:
 ```{r filter-taxon}
 species_trees <- query_plots(
   plot_name = "mbalmayo001",
-  id_tax = c(12345, 67890),  # Taxon IDs
+  id_tax = c(115),  # Taxon IDs
   extract_individuals = TRUE
 )
 ```
 
 ## Custom Output Styles
 
-The `keep_patterns` and `remove_patterns` options in style configurations allow customization:
+The `keep_patterns` and `remove_patterns` options in style configurations allow customization (NOY YET IMPLEMENTED):
 
 ```{r custom-patterns}
 # In your custom style configuration:
@@ -399,6 +392,11 @@ complex_result <- query_plots(
 # Returns comprehensive structured output
 names(complex_result)
 ```
+
+
+
+
+
 
 ## Performance Tips
 
@@ -438,14 +436,3 @@ flat_output <- query_plots(
 # Returns a single data frame instead of structured list
 ```
 
-## Next Steps
-
-- **Taxonomic queries**: See `?query_taxa` for taxonomic matching and synonym resolution
-- **Trait queries**: See `?query_taxa_traits` for species-level trait data
-- **Updates**: See `?add_sp_traits_measures` for adding new measurements
-
-## Session Info
-
-```{r session}
-sessionInfo()
-```
