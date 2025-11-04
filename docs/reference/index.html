@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">plotsdatabase</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -16,6 +16,10 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
+  </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -94,13 +98,13 @@
           <code><a href="add_subplot_features.html">add_subplot_features()</a></code>
 
         </dt>
-        <dd>List of subplot features</dd>
+        <dd>Add an observation in subplot_features table</dd>
       </dl><dl><dt>
 
           <code><a href="add_subplot_observations_feat.html">add_subplot_observations_feat()</a></code>
 
         </dt>
-        <dd>#' Add a type in subplot table #' #' Add feature and associated descriptors in subplot list table #' #' @return nothing #' #' @author Gilles Dauby, <a href="mailto:gilles.dauby@ird.fr">gilles.dauby@ird.fr</a> #' @param new_type string value with new type descritors - try to avoid space #' @param new_valuetype string one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character' #' @param new_maxallowedvalue numeric if valuetype is numeric, indicate the maximum allowed value #' @param new_minallowedvalue numeric if valuetype is numeric, indicate the minimum allowed value #' @param new_typedescription string full description of trait #' @param new_factorlevels string a vector of all possible value if valuetype is categorical or ordinal #' @param new_expectedunit string expected unit (unitless if none) #' @param new_comments string any comments #' #' @export add_subplottype &lt;- function(new_type = NULL, new_valuetype = NULL, new_maxallowedvalue = NULL, new_minallowedvalue = NULL, new_typedescription = NULL, new_factorlevels = NULL, new_expectedunit = NULL, new_comments = NULL) if(is.null(new_type)) stop("define new type") if(try_open_postgres_table(table = "subplotype_list", con = mydb) <!-- %&gt;% --> dplyr::distinct(type) <!-- %&gt;% --> dplyr::filter(type == !!new_type) <!-- %&gt;% --> dplyr::collect() <!-- %&gt;% --> nrow()&gt;0) stop("new type already in table") if (is.null(new_valuetype)) stop("define new_valuetype") if (!any(new_valuetype==c('numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character', 'table_colnam'))) stop("valuetype should one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character' or 'table_colnam'") if (new_valuetype=="numeric" | new_valuetype=="integer") if (!is.numeric(new_maxallowedvalue) &amp; !is.integer(new_maxallowedvalue)) stop("valuetype numeric of integer and max value not of this type") if (new_valuetype=="numeric" | new_valuetype=="integer") if (!is.numeric(new_minallowedvalue) &amp; !is.integer(new_minallowedvalue)) stop("valuetype numeric of integer and min value not of this type") mydb &lt;- call.mydb() new_data_renamed &lt;- tibble(type = new_type, valuetype = new_valuetype, maxallowedvalue = ifelse(is.null(new_maxallowedvalue), NA, new_maxallowedvalue), minallowedvalue = ifelse(is.null(new_minallowedvalue), NA, new_minallowedvalue), typedescription = ifelse(is.null(new_typedescription), NA, new_typedescription), factorlevels = ifelse(is.null(new_factorlevels), NA, new_factorlevels), expectedunit = ifelse(is.null(new_expectedunit), NA, new_expectedunit), comments = ifelse(is.null(new_comments), NA, new_comments)) print(new_data_renamed) Q &lt;- choose_prompt(message = "confirm adding this type?") if(Q) DBI::dbWriteTable(mydb, "subplotype_list", new_data_renamed, append = TRUE, row.names = FALSE)</dd>
+        <dd>Add subplot observations features</dd>
       </dl><dl><dt>
 
           <code><a href="add_taxa_table_taxa.html">add_taxa_table_taxa()</a></code>
@@ -221,12 +225,6 @@
 
         </dt>
         <dd>Add link between specimen and individual</dd>
-      </dl><dl><dt>
-
-          <code><a href="dot-add_modif_field.html">.add_modif_field()</a></code>
-
-        </dt>
-        <dd>Internal function</dd>
       </dl><dl><dt>
 
           <code><a href="dot-comp_print_vec.html">.comp_print_vec()</a></code>
@@ -373,12 +371,6 @@
         <dd>Internal function</dd>
       </dl><dl><dt>
 
-          <code><a href="dot-rename_data.html">.rename_data()</a></code>
-
-        </dt>
-        <dd>Internal function</dd>
-      </dl><dl><dt>
-
           <code><a href="dot-split_censuses.html">.split_censuses()</a></code>
 
         </dt>
@@ -469,12 +461,6 @@
         <dd>Get UTM from geographical coordinates</dd>
       </dl><dl><dt>
 
-          <code><a href="launch_stand_tax_app.html">launch_stand_tax_app()</a></code>
-
-        </dt>
-        <dd>Launch shiny app for taxonomic standardization</dd>
-      </dl><dl><dt>
-
           <code><a href="launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>
 
         </dt>
@@ -523,7 +509,13 @@
         <dd>model_wd_1</dd>
       </dl><dl><dt>
 
-          <code><a href="model_wd_2.html">phylo_tree</a></code> <code><a href="model_wd_2.html">model_wd_2</a></code>
+          <code><a href="model_wd_2.html">model_wd_2</a></code>
+
+        </dt>
+        <dd>model_wd_2</dd>
+      </dl><dl><dt>
+
+          <code><a href="phylo_tree.html">phylo_tree</a></code>
 
         </dt>
         <dd>phylo_tree</dd>
@@ -539,6 +531,12 @@
 
         </dt>
         <dd>Query builder for plot</dd>
+      </dl><dl><dt>
+
+          <code><a href="print.plot_query_list.html">print(<i>&lt;plot_query_list&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print method for plot_query_list</dd>
       </dl><dl><dt>
 
           <code><a href="print_connection_status.html">print_connection_status()</a></code>
@@ -581,18 +579,6 @@
 
         </dt>
         <dd>Query in colnam table</dd>
-      </dl><dl><dt>
-
-          <code><a href="query_exact_match.html">query_exact_match()</a></code>
-
-        </dt>
-        <dd>Query exact match</dd>
-      </dl><dl><dt>
-
-          <code><a href="query_fuzzy_match.html">query_fuzzy_match()</a></code>
-
-        </dt>
-        <dd>Query fuzzy match</dd>
       </dl><dl><dt>
 
           <code><a href="query_individual_features.html">query_individual_features()</a></code>
@@ -658,7 +644,7 @@
           <code><a href="replace_NA.html">replace_NA()</a></code>
 
         </dt>
-        <dd>Replace or restore missing values in a data frame</dd>
+        <dd>Query fuzzy match</dd>
       </dl><dl><dt>
 
           <code><a href="setup_db_credentials.html">setup_db_credentials()</a></code>

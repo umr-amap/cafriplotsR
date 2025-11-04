@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">plotsdatabase</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,6 +32,12 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
+  </ul>
+</li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
@@ -49,13 +55,14 @@
 <div class="page-header"><h1 id="plotsdatabase">plotsdatabase<a class="anchor" aria-label="anchor" href="#plotsdatabase"></a>
 </h1></div>
 <blockquote>
-<p>R package for exploring and updating the Central African forest plot database <a href="https://cafriplot.net/" class="external-link">cafriplot network</a></p>
+<p>R package for managing and exploring the Central African forest plot database <a href="https://cafriplot.net/" class="external-link">cafriplot network</a></p>
 </blockquote>
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p><code>plotsdatabase</code> provides tools for querying, analyzing, and updating a PostgreSQL database containing forest plot and transect data from Central Africa. The package offers comprehensive functions for working with individual tree measurements, taxonomic traits, and ecological features across multiple research plots.</p>
-<p><strong>Key features:</strong> - Query plot data, individual tree measurements, and ecological features - Access and aggregate species-level taxonomic traits - Update database tables with new measurements and observations - Resolve taxonomic synonyms and link trait data across hierarchy levels - Visualize database structure and relationships</p>
+<p><code>plotsdatabase</code> provides tools for querying a PostgreSQL database containing forest inventories data from Tropical Africa. The package offers comprehensive functions for working with individual tree measurements on which either taxa or stem level traits <em>sensus largo</em> measurements (or observations) can be aggregated.<br>
+The great advantage of this package is allow managing inventories, traits and observations under the same taxonomic backbone, facilitating data integration, reproductibility in data analysis and manipulation, data reusability.</p>
+<p><strong>Key features:</strong> - Query plot data, individual tree measurements, and ecological features - Update database tables with new measurements and observations - Resolve taxonomic synonyms - Access and aggregate species-level taxonomic traits</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -70,6 +77,43 @@
 <p><strong>Note:</strong> Access to the database is restricted and requires appropriate credentials.</p>
 </div>
 <div class="section level2">
+<h2 id="package-logic--access-control">Package Logic &amp; Access Control<a class="anchor" aria-label="anchor" href="#package-logic--access-control"></a>
+</h2>
+<p>The <code>plotsdatabase</code> package offers tools to <strong>manipulate, export, visualize, standardize, and enrich</strong> forest inventory data.</p>
+<div class="section level3">
+<h3 id="access-model">Access Model<a class="anchor" aria-label="anchor" href="#access-model"></a>
+</h3>
+<p>The package implements a <strong>two-tier access system</strong>:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Plot inventories</strong> (row-level security):
+<ul>
+<li>Each user has access to <strong>their own plots</strong>, controlled by database row-level security policies</li>
+<li>Policies define which specific plots each user can query and update</li>
+<li>Ensures data providers maintain control over their contributed inventories</li>
+</ul>
+</li>
+<li>
+<strong>Species-level traits</strong> (access across all users):
+<ul>
+<li>
+<strong>All users</strong> have read access to the taxa database</li>
+<li>These data are grafted and aggregated to inventories</li>
+</ul>
+</li>
+</ol>
+</div>
+<div class="section level3">
+<h3 id="future-development">Future Development<a class="anchor" aria-label="anchor" href="#future-development"></a>
+</h3>
+<ul>
+<li>
+<strong>Species occurrence data</strong>: Open access to occurrence records across Central Africa (not yet implemented)</li>
+</ul>
+<p>This design ensures data sovereignty for plot owners while enabling the research community to benefit from shared taxonomic and trait knowledge.</p>
+</div>
+</div>
+<div class="section level2">
 <h2 id="database-architecture">Database Architecture<a class="anchor" aria-label="anchor" href="#database-architecture"></a>
 </h2>
 <p>The package connects to two PostgreSQL databases:</p>
@@ -77,37 +121,26 @@
 <li>
 <strong>Main database</strong> (<code>plots_transects</code>): Plot, subplot, and individual tree data</li>
 <li>
-<strong>Taxa database</strong> (<code>rainbio</code>): Taxonomic information and species-level traits (READ-ONLY)</li>
+<strong>Taxa database</strong> (<code>rainbio</code>): Taxonomic information and species-level traits</li>
 </ol>
 <div class="section level3">
 <h3 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h3>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va">plotsdatabase</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://gdauby.github.io/bdd_plots_central_africa/">plotsdatabase</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Connect to databases</span></span>
 <span><span class="va">mydb</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">mydb_taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Visualize database structure</span></span>
-<span><span class="fu"><a href="reference/get_database_fk.html">get_database_fk</a></span><span class="op">(</span><span class="va">mydb</span><span class="op">)</span></span>
-<span></span>
 <span><span class="co"># Query plots</span></span>
 <span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/query_plots.html">query_plots</a></span><span class="op">(</span>plot_ids <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Query taxa-level traits</span></span>
-<span><span class="va">traits</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/query_taxa_traits.html">query_taxa_traits</a></span><span class="op">(</span></span>
-<span>  idtax <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">12345</span>, <span class="fl">67890</span><span class="op">)</span>,</span>
-<span>  format <span class="op">=</span> <span class="st">"wide"</span>,</span>
-<span>  add_taxa_info <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
+<span><span class="co"># Query plots</span></span>
+<span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"GABON"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Query individual tree features</span></span>
-<span><span class="va">indiv</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/query_individual_features.html">query_individual_features</a></span><span class="op">(</span></span>
-<span>  plot_ids <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  trait_ids <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span>,</span>
-<span>  format <span class="op">=</span> <span class="st">"wide"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<span><span class="co"># Visualize database structure</span></span>
+<span><span class="fu"><a href="reference/get_database_fk.html">get_database_fk</a></span><span class="op">(</span><span class="va">mydb</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -133,12 +166,6 @@
 <ul>
 <li>
 <code><a href="reference/query_plots.html">query_plots()</a></code> - Query plot metadata</li>
-<li>
-<code><a href="reference/query_individual_features.html">query_individual_features()</a></code> - Query individual tree measurements</li>
-<li>
-<code><a href="reference/query_taxa_traits.html">query_taxa_traits()</a></code> - Query species-level traits</li>
-<li>
-<code><a href="reference/query_plot_features.html">query_plot_features()</a></code> - Query plot-level features</li>
 </ul>
 </div>
 <div class="section level3">
@@ -170,8 +197,6 @@
 </h2>
 <ul>
 <li>
-<strong>Version:</strong> 1.0</li>
-<li>
 <strong>Authors:</strong> Gilles Dauby, Hugo Leblanc</li>
 <li>
 <strong>Maintainer:</strong> Gilles Dauby (<a href="mailto:gilles.dauby@ird.fr" class="email">gilles.dauby@ird.fr</a>)</li>
@@ -185,7 +210,6 @@
 <h2 id="contributing">Contributing<a class="anchor" aria-label="anchor" href="#contributing"></a>
 </h2>
 <p>This package follows a git branching workflow: - All code changes are made on feature branches - Changes are documented in NEWS.md - Pull requests are reviewed before merging to master</p>
-<p>See <code>CLAUDE.md</code> for development workflow details.</p>
 </div>
 <div class="section level2">
 <h2 id="support">Support<a class="anchor" aria-label="anchor" href="#support"></a>
