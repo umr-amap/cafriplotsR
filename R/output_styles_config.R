@@ -59,16 +59,23 @@
     individuals_columns = c(
       "id_n", "plot_name", "tag", "quadrat",
       "tax_fam", "tax_gen", "tax_sp_level",
-      "stem_diameter", "tree_height", "pom", "census_date", "status", "recruit"
+      "stem_diameter", "tree_height", "census_date"
     ),
-    keep_patterns = c("wood_density"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
+    keep_patterns = c("wood_density",
+                      "stem_diameter"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n)", "^date_modif", "_census_\\d+$"),  # Remove census suffix columns
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,  # Features go to census table
     rename_columns = list(
-      metadata = c("ddlat" = "latitude", "ddlon" = "longitude", "id_liste_plots" = "plot_id"),
-      individuals = c("tax_fam" = "family", "tax_gen" = "genus", "tax_sp_level" = "species",
-                      "stem_diameter" = "dbh", "tree_height" = "height")
+      metadata = c("ddlat" = "latitude", 
+                   "ddlon" = "longitude", 
+                   "id_liste_plots" = "plot_id"),
+      individuals = c("tax_fam" = "family", 
+                      "tax_gen" = "genus", 
+                      "tax_sp_level" = "species",
+                      "stem_diameter" = "dbh", 
+                      "tree_height" = "height",
+                      "height_of_stem_diameter" = "pom")
     )
   ),
 
