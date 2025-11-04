@@ -975,7 +975,7 @@ reorganize_individual_columns <- function(individuals) {
         id_sub_plots = stringr::str_c(id_sub_plots, collapse = ", "),
         .groups = "drop"
       ) %>%
-      pivot_wider(names_from = coord3, values_from = c(typevalue, id_sub_plots)) %>%
+      tidyr::pivot_wider(names_from = coord3, values_from = c(typevalue, id_sub_plots)) %>%
       mutate(
         coord1 = as.numeric(coord1),
         coord2 = as.numeric(coord2),
@@ -1631,7 +1631,7 @@ PlotFetcher <- R6::R6Class(
     
     dataset_pivot <- 
       dataset_subset %>% 
-      pivot_longer(cols = colnames_traits[which(colnames_traits %in% colnames_data)],
+      tidyr::pivot_longer(cols = colnames_traits[which(colnames_traits %in% colnames_data)],
                    names_to = "trait") %>% 
       arrange(tax_gen, trait)
     
@@ -1639,7 +1639,7 @@ PlotFetcher <- R6::R6Class(
       traits_idtax_char %>% 
       select(tax_gen,
              all_of(colnames_traits)) %>% 
-      pivot_longer(cols = colnames_traits[which(colnames_traits %in% colnames_data)],
+      tidyr::pivot_longer(cols = colnames_traits[which(colnames_traits %in% colnames_data)],
                    names_to = "trait") %>% 
       arrange(tax_gen, trait)
     
@@ -1675,7 +1675,7 @@ PlotFetcher <- R6::R6Class(
     
     dataset_pivot_wider_char <- 
       bind_rows(dataset_sp_level, dataset_genus_level_filled, dataset_genus_level_unfilled) %>% 
-      pivot_wider(names_from = trait, 
+      tidyr::pivot_wider(names_from = trait, 
                   values_from = c(value, source))
     
     names(dataset_pivot_wider_char) <- 
@@ -1761,7 +1761,7 @@ PlotFetcher <- R6::R6Class(
     
     dataset_pivot <- 
       dataset_subset %>% 
-      pivot_longer(cols = starts_with("taxa_"),
+      tidyr::pivot_longer(cols = starts_with("taxa_"),
                    names_to = "trait") %>% 
       arrange(tax_fam, tax_gen, trait)
     
@@ -1769,7 +1769,7 @@ PlotFetcher <- R6::R6Class(
       traits_idtax_num %>% 
       select(tax_gen,
              all_of(colnames_traits)) %>% 
-      pivot_longer(cols = starts_with("taxa_"),
+      tidyr::pivot_longer(cols = starts_with("taxa_"),
                    names_to = "trait") %>% 
       arrange(tax_gen, trait) %>% 
       filter(!is.na(value))
@@ -1820,7 +1820,7 @@ PlotFetcher <- R6::R6Class(
     
     dataset_pivot_wider_num <- 
       bind_rows(dataset_sp_level, dataset_genus_level_filled, dataset_genus_level_unfilled) %>% 
-      pivot_wider(names_from = trait, 
+      tidyr::pivot_wider(names_from = trait, 
                   values_from = c(value, source))
     
     names(dataset_pivot_wider_num) <- 
