@@ -6,4 +6,4 @@ inst/doc
 .sql
 .tex
 Export_OVFI/
-docs
+# docs  # Uncomment to ignore built pkgdown site

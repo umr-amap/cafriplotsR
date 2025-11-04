@@ -15,7 +15,7 @@ that interfere with matching:
 
     <a class="navbar-brand me-2" href="../index.html">plotsdatabase</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -24,6 +24,10 @@ that interfere with matching:
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
+  </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -73,13 +77,13 @@ that interfere with matching:
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">clean_taxonomic_name</span><span class="op">(</span><span class="st">"Fabaceae sp."</span><span class="op">)</span>        <span class="co"># → "Fabaceae"</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in clean_taxonomic_name("Fabaceae sp."):</span> could not find function "clean_taxonomic_name"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Fabaceae"</span>
 <span class="r-in"><span><span class="fu">clean_taxonomic_name</span><span class="op">(</span><span class="st">"Garcinia cf. kola"</span><span class="op">)</span>   <span class="co"># → "Garcinia kola"</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in clean_taxonomic_name("Garcinia cf. kola"):</span> could not find function "clean_taxonomic_name"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Garcinia kola"</span>
 <span class="r-in"><span><span class="fu">clean_taxonomic_name</span><span class="op">(</span><span class="st">"Brachystegia spp"</span><span class="op">)</span>    <span class="co"># → "Brachystegia"</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in clean_taxonomic_name("Brachystegia spp"):</span> could not find function "clean_taxonomic_name"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Brachystegia"</span>
 <span class="r-in"><span><span class="fu">clean_taxonomic_name</span><span class="op">(</span><span class="st">"Gilbertiodendron  ?  dewevrei"</span><span class="op">)</span>  <span class="co"># → "Gilbertiodendron dewevrei"</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in clean_taxonomic_name("Gilbertiodendron  ?  dewevrei"):</span> could not find function "clean_taxonomic_name"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "Gilbertiodendron dewevrei"</span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>
