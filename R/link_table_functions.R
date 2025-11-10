@@ -26,12 +26,17 @@
                         column_name,
                         id_field,
                         id_table_name,
-                        db_connection = mydb,
+                        db_connection = NULL,
                         table_name,
                         keep_columns = NULL,
                         keep_original_value = FALSE) {
-  
-  mydb <- call.mydb()
+
+  # Use provided connection or create new one
+  if (is.null(db_connection)) {
+    mydb <- call.mydb()
+  } else {
+    mydb <- db_connection
+  }
 
   var <- rlang::enquo(column_searched)
   var_new <- "name"
@@ -170,26 +175,6 @@
                              compared_table = all_traits,
                              column_name = "trait")
 
-  # sorted_matches <-
-  #   .find_similar_string(input = trait,
-  #                        compared_table = all_traits,
-  #                        column_name = column_name)
-  # print(trait)
-  #
-  # selected_name <- ""
-  # slide <- 0
-  # while (selected_name == "") {
-  #   slide <- slide + 1
-  #   sorted_matches %>%
-  #     tibble::add_column(ID = seq(1, nrow(.), 1)) %>%
-  #     dplyr::select(ID, trait, traitdescription) %>%
-  #     dplyr::slice((1 + (slide - 1) * 10):((slide) * 10)) %>%
-  #     print()
-  #   selected_name <-
-  #     readline(prompt = "Choose ID whose trait fit (if none enter 0): ")
-  #   if (slide * 10 > nrow(sorted_matches))
-  #     slide <- 0
-  # }
 
   selected_name <- selected_name_res$selected_name
 
@@ -555,10 +540,15 @@
                          column_name = "colnam",
                          id_field = "id_colnam",
                          id_table_name = "id_table_colnam",
-                         db_connection = mydb,
+                         db_connection = NULL,
                          table_name = "table_colnam") {
 
-  mydb <- call.mydb()
+  # Use provided connection or create new one
+  if (is.null(db_connection)) {
+    mydb <- call.mydb()
+  } else {
+    mydb <- db_connection
+  }
   
   data_stand <-
     .link_table(
