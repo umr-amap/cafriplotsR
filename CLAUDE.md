@@ -110,7 +110,7 @@ This is `plotsdatabase`, an R package for exploring and updating a PostgreSQL da
 The package manages connections to **two separate PostgreSQL databases**:
 
 1. **Main database** (`plots_transects`): Contains plot, subplot, and individual tree data
-2. **Taxa database** (`rainbio`): Contains taxonomic information and species-level traits (READ-ONLY for most users)
+2. **Taxa database** (`rainbio`): Contains taxonomic information and species-level traits
 
 **Connection management** (`R/connections_db.R`):
 - Connections are stored in internal environment `.db_env`
@@ -123,6 +123,11 @@ The package manages connections to **two separate PostgreSQL databases**:
 1. Interactive prompts (default)
 2. Store in `~/.Renviron` via `setup_db_credentials()` (WARNING: plaintext storage)
 3. Pass directly to connection functions
+
+### Admin Credentials for testing
+only use read-only operations (queries) - no modifications to the database
+`call.mydb(pass = "AmapENS2024", user = "dauby")`
+`call.mydb.taxa(pass = "AmapENS2024", user = "dauby")`
 
 ### Data Query Architecture
 
@@ -138,8 +143,8 @@ The package follows a **layered query architecture**:
 
 **Plot hierarchy**:
 - `data_liste_plots` → `data_liste_sub_plots` → `data_ind_measures` (individual trees)
-- Plots contain subplots (census points, soil samples, etc.)
-- Subplots contain observations with features
+- Plots contain subplots features (census points, soil samples, people involved etc.)
+- Subplots contain observations with features that can describe these subplots features (for a census, people involved)
 
 **Traits hierarchy**:
 - Taxa-level: `table_traits_measures` (species traits in taxa DB)
@@ -155,6 +160,9 @@ The package follows a **layered query architecture**:
 - Generates diagram showing primary keys, foreign keys, and relationships between main tables
 - Covers key tables: plots, subplots, individuals, traits, and lookup tables
 - Requires `dm` package for relationship discovery and visualization
+
+
+![mydb databse structure](./vignettes/images/mydb_structure.png)
 
 ## Development Commands
 

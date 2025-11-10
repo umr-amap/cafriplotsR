@@ -954,35 +954,20 @@
 
   # Get individual details with plot and taxonomy
   ind_details <-
-    dplyr::tbl(con, "data_individuals") %>%
-    dplyr::filter(id_n %in% !!linked_inds$id_n) %>%
-    dplyr::select(id_n, id_table_liste_plots_n, idtax_n) %>%
-    dplyr::left_join(
-      dplyr::tbl(con, "data_liste_plots") %>%
-        dplyr::select(id_liste_plots, plot_name),
+    merge_individuals_taxa(id_individual = linked_inds$id_n)
+  
+  ind_details <- ind_details %>%
+    left_join(
+      try_open_postgres_table("data_liste_plots", con) %>%
+        select(plot_name, id_liste_plots) %>% 
+        collect(),
       by = c("id_table_liste_plots_n" = "id_liste_plots")
-    ) %>%
-    dplyr::collect()
-
-  # Get taxonomy names
-  if (nrow(ind_details) > 0 && any(!is.na(ind_details$idtax_n))) {
-    taxa_info <-
-      dplyr::tbl(con, "diconame") %>%
-      dplyr::filter(id_n %in% !!unique(ind_details$idtax_n)) %>%
-      dplyr::select(id_n, full_name_no_auth) %>%
-      dplyr::collect()
-
-    ind_details <-
-      ind_details %>%
-      dplyr::left_join(taxa_info, by = c("idtax_n" = "id_n"))
-  } else {
-    ind_details <- ind_details %>% dplyr::mutate(full_name_no_auth = NA_character_)
-  }
-
+    )
+  
   # Summarize by plot
   summary <-
     ind_details %>%
-    dplyr::group_by(plot_name, idtax_n, full_name_no_auth) %>%
+    dplyr::group_by(plot_name, idtax_n, tax_sp_level, tax_gen, tax_fam) %>%
     dplyr::summarise(n_individuals = dplyr::n(), .groups = "drop") %>%
     dplyr::arrange(plot_name)
 
@@ -1218,12 +1203,12 @@ update_ident_specimens <- function(colnam = NULL,
                                 dplyr::select_if(~ sum(.) > 0) %>%
                                 colnames() == "idtax_n")) {
 
-        linked_summary <- .get_linked_individuals_summary(queried_speci$id_specimen, mydb)
+        linked_summary <- .get_linked_individuals_summary(id_specimen = queried_speci$id_specimen, con = mydb)
 
         if (!is.null(linked_summary) && nrow(linked_summary) > 0) {
           cli::cli_alert_info("This specimen has {nrow(linked_summary)} linked individual(s) that will inherit this new identification:")
           print(linked_summary %>%
-                  dplyr::select(plot_name, n_individuals, taxa_current = full_name_no_auth))
+                  dplyr::select(plot_name, n_individuals, taxa_current = tax_sp_level))
         } else {
           cli::cli_alert_info("No linked individuals found for this specimen")
         }
