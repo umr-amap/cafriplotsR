@@ -6,6 +6,8 @@
 #' 
 #' @param choices_vec Optional. A character vector of choices.
 #' @param message Optional. A single string for the prompt message.
+#' 
+#' @importFrom cli cli_h1 cli_ul cli_alert_danger cli_alert_success
 #'
 #' @returns 
 #' A logical value: `TRUE` for the first choice, `FALSE` for the second choice,
@@ -16,8 +18,8 @@
 choose_prompt <- function(choices_vec = c("Yes", "No", "Cancel"),
                           message ="") {
   
-  cli_h1(message)
-  cli_ul(choices_vec)
+  cli::cli_h1(message)
+  cli::cli_ul(choices_vec)
   
   # Prompt
   selection <- readline(prompt = "Choose from 1 (above) to x (below)")
@@ -30,9 +32,9 @@ choose_prompt <- function(choices_vec = c("Yes", "No", "Cancel"),
   # Validate and respond
   selection <- as.integer(selection)
   if (!is.na(selection) && selection >= 1 && selection <= length(choices_vec)) {
-    cli_alert_success("You selected {.strong {choices_vec[selection]}}.")
+    cli::cli_alert_success("You selected {.strong {choices_vec[selection]}}.")
   } else {
-    cli_alert_danger("Invalid selection.")
+    cli::cli_alert_danger("Invalid selection.")
   }
   
   if (selection == 1) 
@@ -270,20 +272,22 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
 #'
 #' Add modification day month and year column before adding/updating
 #'
-#' @return vector
+#' Add modification date fields to dataset
+#'
+#' @return tibble
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#' @param dataset string tibble to add dates fields
+#' @param dataset tibble to add dates fields
 #'
-# @export
-# .add_modif_field <- function(dataset) {
-#   dataset <-
-#     dataset %>%
-#     tibble::add_column(date_modif_d = lubridate::day(Sys.Date()),
-#                        date_modif_m = lubridate::month(Sys.Date()),
-#                        date_modif_y = lubridate::year(Sys.Date()))
-#   return(dataset)
-# }
+#' @export
+.add_modif_field <- function(dataset) {
+  dataset <-
+    dataset %>%
+    tibble::add_column(date_modif_d = lubridate::day(Sys.Date()),
+                       date_modif_m = lubridate::month(Sys.Date()),
+                       date_modif_y = lubridate::year(Sys.Date()))
+  return(dataset)
+}
 
 
 
@@ -295,30 +299,32 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
 #' @return tibble
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' Rename columns in a dataset
+#'
 #' @param dataset tibble
 #' @param col_old string vector
 #' @param col_new string vector
 #'
-# @export
-# .rename_data <- function(dataset, col_old, col_new) {
-#   
-#   if (length(col_old) != length(col_new))
-#     stop("number of new columns names different of number of selected column names")
-#   
-#   for (i in 1:length(col_old)) {
-#     if (any(colnames(dataset) == col_old[i])) {
-#       dataset <-
-#         dataset %>%
-#         dplyr::rename_at(dplyr::vars(col_old[i]), ~ col_new[i])
-#     } else{
-#       stop(paste(
-#         "Column name provided not found in provided new dataset",
-#         col_old[i]
-#       ))
-#     }
-#   }
-#   return(dataset)
-# }
+#' @export
+.rename_data <- function(dataset, col_old, col_new) {
+
+  if (length(col_old) != length(col_new))
+    stop("number of new columns names different of number of selected column names")
+
+  for (i in 1:length(col_old)) {
+    if (any(colnames(dataset) == col_old[i])) {
+      dataset <-
+        dataset %>%
+        dplyr::rename_at(dplyr::vars(col_old[i]), ~ col_new[i])
+    } else{
+      stop(paste(
+        "Column name provided not found in provided new dataset",
+        col_old[i]
+      ))
+    }
+  }
+  return(dataset)
+}
 
 
 

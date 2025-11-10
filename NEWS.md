@@ -1,5 +1,62 @@
 # plotsdatabase 1.5
 
+### New Features
+
+* **Interactive validation with fuzzy matching for plot metadata import**
+  - `validate_plot_metadata()` now has `interactive = TRUE` and `fix_on_fly = TRUE` parameters (both default to TRUE)
+  - Integrates with existing `resolve_multiple_values()` for on-the-fly fixing of lookup mismatches (Country, Method)
+  - Returns enhanced structure with three data versions:
+    - `original_data`: Unchanged user input
+    - `cleaned_data`: Data with interactive fixes applied
+    - `changes_made`: Complete audit trail of all corrections (column, row, original, corrected, method)
+  - Eliminates tedious manual Excel editing - users interactively match mismatches (e.g., "Cameroun" → "CAMEROON") with fuzzy suggestions
+  - Pattern search ("G" option) available for large lookup tables
+  - Non-breaking: Old code works but gets enhanced behavior automatically
+
+* **Complete subplot features import system**
+  - Plot import now handles ALL subplot feature types, not just people features
+  - New `.extract_and_process_subplot_features()` dynamically queries `subplot_list()` to identify all subplot features
+  - Automatically separates into two categories:
+    - People features (`valuetype == "table_colnam"`): Linked to `table_colnam` via `.link_colnam()`
+    - Other features (numeric, character, etc.): Direct value insertion
+  - No hardcoded feature lists - fully dynamic based on database schema
+  - Identifies subplot features by excluding flat table columns (plot_name, ddlat, ddlon, elevation, etc.)
+  - Both types inserted as subplot features in Step 6 of import workflow
+
+* **Row-Level Security (RLS) safe plot import for non-admin users**
+  - Uses PostgreSQL `INSERT ... RETURNING` clause to retrieve plot IDs during insertion
+  - Bypasses RLS SELECT restrictions that would prevent non-admin users from reading their own inserted plots
+  - Enables subplot features to be linked even when user doesn't have SELECT permission yet
+  - More secure than alternative approaches (no exposure of other users' plot IDs)
+  - Critical fix: Previously, non-admin imports would fail at Step 6 (subplot features) with empty plot_id_data
+
+### Bug Fixes
+
+* **Restored missing helper functions** accidentally commented out
+  - `.rename_data()` (R/helpers.R:307) - Renames columns in datasets
+  - `.add_modif_field()` (R/helpers.R:283) - Adds modification date fields (date_modif_d/m/y)
+  - Both functions now properly exported and available
+  - Fixes errors: "impossible de trouver la fonction .rename_data" and ".add_modif_field"
+
+* **Fixed transaction connection management throughout import workflow**
+  - `try_open_postgres_table()` now properly handles errors and maintains connection scope
+  - `.link_table()` now uses passed `db_connection` parameter instead of creating new connection
+  - `.link_colnam()` now uses passed `db_connection` parameter instead of creating new connection
+  - `add_subplot_features()` added `con` parameter to accept transaction connection
+  - All functions now respect transaction boundaries (no more "Invalid connection" errors)
+  - Prevents connection invalidation during multi-step import process
+
+* **Fixed invalid cli package parameter**
+  - Removed unsupported `line = 2` parameter from `cli::cli_rule()` calls in import success messages
+  - Fixes error: "argument inutilisé (line = 2)"
+
+### Code Refactoring
+
+* **Renamed and expanded subplot features processing**
+  - `.extract_and_link_people()` → `.extract_and_process_subplot_features()`
+  - Function now handles all subplot feature types, not just people features
+  - Enhanced documentation reflects expanded scope and hierarchical processing logic
+
 ### Breaking Changes
 
 * **`query_plots()` now returns a list by default instead of a flat data frame**

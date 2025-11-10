@@ -781,25 +781,36 @@ try_open_postgres_table <- function(table, con) {
 
   mydb <- call.mydb()
 
+  table_postgre <- NULL
   rep <- TRUE
   rep_try <- 1
   while(rep) {
 
-    res_q <- try({table_postgre <- dplyr::tbl(con, table)}, silent = TRUE)
+    res_q <- try({dplyr::tbl(con, table)}, silent = TRUE)
 
-    if (any(grepl("Lost connection to database", res_q[1])))
-      stop("Lost connection to database")
+    # Check if result is an error
+    if (inherits(res_q, "try-error")) {
+      error_msg <- as.character(res_q)
 
-    if (any(grepl("Failed to prepare query", res_q[1]))) {
-      rep <- TRUE
-      cli::cli_alert_warning("---")
-      rep_try <- rep_try + 1
+      if (any(grepl("Lost connection to database", error_msg)))
+        stop("Lost connection to database")
+
+      if (any(grepl("Failed to prepare query", error_msg))) {
+        rep <- TRUE
+        cli::cli_alert_warning("---")
+        rep_try <- rep_try + 1
+      } else {
+        # Different error - stop with the error message
+        stop(error_msg)
+      }
     } else {
+      # Success - assign the result and exit loop
+      table_postgre <- res_q
       rep <- FALSE
     }
 
     if (rep_try == 10)
-      stop("Failed to connect to database")
+      stop("Failed to connect to database after 10 attempts")
   }
 
   return(table_postgre)

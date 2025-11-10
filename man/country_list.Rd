@@ -7,10 +7,10 @@
 country_list()
 }
 \value{
-A tibble of all countries
+A tibble of all countries from table_countries
 }
 \description{
-Provide list of countries where plots occur
+Provide list of valid countries from lookup table
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}
