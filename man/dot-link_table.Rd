@@ -10,7 +10,7 @@
   column_name,
   id_field,
   id_table_name,
-  db_connection = mydb,
+  db_connection = NULL,
   table_name,
   keep_columns = NULL,
   keep_original_value = FALSE
