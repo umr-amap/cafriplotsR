@@ -437,7 +437,12 @@ query_plots <- function(plot_name = NULL,
                               include_issue = include_issue,
                               include_measurement_ids = include_measurement_ids,
                               census_strategy = census_strategy)
-    
+
+    # Ensure concatenate_stem is logical
+    if (!is.logical(concatenate_stem)) {
+      concatenate_stem <- isTRUE(concatenate_stem)
+    }
+
     res <- process_stems(res, concatenate_stem)
 
   }
@@ -854,7 +859,12 @@ aggregate_traits_to_genus <- function(individuals, wd_fam_level) {
 #' @return Data frame with processed stems
 #' @export
 process_stems <- function(individuals, concatenate = FALSE) {
-  
+
+  # Ensure concatenate is logical
+  if (!is.logical(concatenate) || length(concatenate) != 1) {
+    stop("concatenate must be a single logical value (TRUE or FALSE)")
+  }
+
   if (!concatenate) {
     # Ajouter la colonne number_of_stem à NA
     individuals <- individuals %>%
