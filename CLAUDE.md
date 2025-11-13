@@ -124,10 +124,7 @@ The package manages connections to **two separate PostgreSQL databases**:
 2. Store in `~/.Renviron` via `setup_db_credentials()` (WARNING: plaintext storage)
 3. Pass directly to connection functions
 
-### Admin Credentials for testing
-only use read-only operations (queries) - no modifications to the database
-`call.mydb(pass = "AmapENS2024", user = "dauby")`
-`call.mydb.taxa(pass = "AmapENS2024", user = "dauby")`
+
 
 ### Data Query Architecture
 
