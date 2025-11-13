@@ -1519,12 +1519,13 @@ PlotFetcher <- R6::R6Class(
   
   if (any(class(all_val_sp$traits_categorical) == "data.frame")) {
     
-    traits_idtax_char <- 
+    traits_idtax_char <-
       pivot_categorical_traits_generic(
       data = all_val_sp$traits_raw %>%
-        dplyr::filter(valuetype == "categorical") %>% 
+        dplyr::filter(valuetype == "categorical") %>%
         filter(!is.na(tax_gen)),
       id_col = "tax_gen",
+      aggregation_mode = "mode",
       include_id_measures = TRUE,
       name_prefix = "taxa_"
     )
