@@ -487,7 +487,8 @@ DBI::dbDisconnect(con)
     id_field = "id_method",
     id_table_name = "id_method",
     db_connection = con,
-    table_name = "methodslist"
+    table_name = "methodslist",
+    field_label = "Method"
   )
 
   if (progress) cli::cli_alert_success("Methods linked")
@@ -526,7 +527,8 @@ DBI::dbDisconnect(con)
     id_field = "id_country",
     id_table_name = "id_country",
     db_connection = con,
-    table_name = "table_countries"
+    table_name = "table_countries",
+    field_label = "Country"
   )
 
   if (progress) cli::cli_alert_success("Countries linked")

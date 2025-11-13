@@ -5,7 +5,8 @@
 \title{Map Individual Data Columns}
 \usage{
 map_individual_columns(
-  individuals_data,
+  data = NULL,
+  individuals_data = NULL,
   features_data = NULL,
   method = NULL,
   similarity_threshold = 0.6,
@@ -14,25 +15,32 @@ map_individual_columns(
 )
 }
 \arguments{
-\item{individuals_data}{Data frame from individuals sheet (required).
-Must have columns that map to: plot_name, tag, idtax_n, original_tax_name}
+\item{data}{Data frame with all columns in a single flat table (RECOMMENDED).
+The simplest approach - provide your complete dataset and the function
+will interactively guide you through column classification and mapping.}
 
-\item{features_data}{Data frame from features sheet (optional).
-Should have linking columns (plot_name, tag) plus trait measurements.}
+\item{individuals_data}{Data frame from individuals sheet (OLD APPROACH).
+Must have columns that map to: plot_name, tag, idtax_n, original_tax_name.
+For backward compatibility - use `data` parameter instead for easier workflow.}
+
+\item{features_data}{Data frame from features sheet (OLD APPROACH).
+Should have linking columns (plot_name, tag) plus trait measurements.
+For backward compatibility - use `data` parameter instead for easier workflow.}
 
 \item{method}{Method type (e.g., "1ha-IRD", "Large"). Used for validation.}
 
 \item{similarity_threshold}{Numeric: minimum similarity for fuzzy matching (0-1).
 Default: 0.6}
 
-\item{interactive}{Logical: allow user to review mappings? Default: TRUE}
+\item{interactive}{Logical: enable interactive column classification and mapping.
+Default: TRUE (highly recommended for new single-table workflow)}
 
 \item{con}{Database connection. If NULL, creates temporary connection.}
 }
 \value{
 List with mapped data:
-  - individuals: Data frame with standardized column names
-  - features: Data frame with standardized column names (if provided)
+  - individuals: Data frame with standardized individual column names
+  - features: Data frame with standardized trait/feature column names (if any features found)
   - mapping_info: Details about how columns were mapped
 }
 \description{
@@ -46,34 +54,56 @@ Uses multiple strategies:
 2. Synonym dictionary (including domain-specific like dbh = stem_diameter)
 3. Fuzzy string matching
 }
-\section{Workflow}{
+\section{Two Workflows}{
+
+**NEW RECOMMENDED WORKFLOW (single flat table):**
+
+Simply provide all your data in one table. The function will interactively
+guide you to classify each column as either an individual column (plot_name,
+tag, idtax_n, etc.) or a feature/trait measurement (stem_diameter, height, etc.).
+
+**OLD WORKFLOW (two separate tables):**
+
+Manually separate data into individuals and features tables before calling.
+Still supported for backward compatibility.
+}
+
+\section{Typical Usage}{
 
 This function is typically called after:
-1. Taxonomy standardization (separate step!)
-2. Template generation and filling
+1. Taxonomy standardization (separate step using taxonomic matching tools!)
+2. Data collection/template filling
 
 And before:
 1. Data validation (validate_individual_data())
-2. Import (import_individual_data())
+2. Database import (import_individual_data())
 }
 
 \examples{
 \dontrun{
-# Read Excel template filled by user
-individuals <- readxl::read_excel("my_trees.xlsx", sheet = "individuals")
-features <- readxl::read_excel("my_trees.xlsx", sheet = "features")
+# NEW RECOMMENDED APPROACH: Single flat table
+my_trees <- readxl::read_excel("field_data.xlsx")
+# Columns: Plot, TreeID, Species, idtax, DBH, Height, WoodDensity, etc.
 
-# Map columns
+mapped <- map_individual_columns(data = my_trees, interactive = TRUE)
+# Interactive prompts guide you through:
+# - Automatic matching where possible
+# - For unmapped columns: "Is this a feature?" (yes/no/skip)
+# - If NO: Select from list of individual columns
+# - If YES: Select from list of available traits
+
+# OLD APPROACH: Two separate tables (still works)
+individuals <- readxl::read_excel("file.xlsx", sheet = "individuals")
+features <- readxl::read_excel("file.xlsx", sheet = "features")
 mapped <- map_individual_columns(
   individuals_data = individuals,
-  features_data = features,
-  method = "1ha-IRD"
+  features_data = features
 )
 
-# Access mapped data
+# Access results
 mapped$individuals  # Standardized individual data
-mapped$features     # Standardized feature data
-mapped$mapping_info # Mapping details
+mapped$features     # Standardized trait data (if any)
+mapped$mapping_info # Details about mappings
 }
 
 }

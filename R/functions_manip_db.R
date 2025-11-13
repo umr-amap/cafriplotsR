@@ -141,6 +141,7 @@ query_plots <- function(plot_name = NULL,
                         remove_obs_with_issue = TRUE,
                         include_issue = FALSE,
                         include_measurement_ids = FALSE,
+                        exact_match = FALSE,
                         census_strategy = c("last", "first", "mean"),
                         output_style = c("auto", "minimal", "standard",
                                          "permanent_plot", "permanent_plot_multi_census", "transect", "full")) {
@@ -225,11 +226,11 @@ query_plots <- function(plot_name = NULL,
     }
     
     if (!is.null(plot_name)) {
-      query_builder <- query_builder$filter_plot_name(plot_name)
+      query_builder <- query_builder$filter_plot_name(plot_name, exact_match = exact_match)
     }
     
     if (!is.null(method)) {
-      query_builder <- query_builder$filter_method(method)
+      query_builder <- query_builder$filter_method(method, interactive = interactive)
     }
     
     if (!is.null(locality_name)) {
@@ -1167,13 +1168,13 @@ PlotFilterBuilder <- R6::R6Class(
     },
     
     # Filter by plot name
-    filter_plot_name = function(plot_name, interactive = FALSE) {
+    filter_plot_name = function(plot_name, interactive = FALSE, exact_match = FALSE) {
       if (is.null(plot_name)) return(self)
-      
+
       if (interactive) {
         # Mode interactif avec .link_table
         data_with_plots <- tibble::tibble(plot_name = plot_name)
-        
+
         linked_data <- .link_table(
           data_stand = data_with_plots,
           column_searched = "plot_name",
@@ -1183,44 +1184,46 @@ PlotFilterBuilder <- R6::R6Class(
           db_connection = private$con,
           table_name = "data_liste_plots"
         )
-        
+
         plot_ids <- linked_data %>%
           filter(!is.na(id_liste_plots), id_liste_plots != 0) %>%
           pull(id_liste_plots)
-        
+
         if (length(plot_ids) == 0) {
           cli::cli_alert_warning("No valid plots selected")
           return(self)
         }
-        
+
         # Utiliser filter_by_ids pour ces plots
         condition <- glue::glue_sql(
-          "id_liste_plots IN ({ids*})", 
-          ids = plot_ids, 
+          "id_liste_plots IN ({ids*})",
+          ids = plot_ids,
           .con = private$con
         )
         private$add_condition(condition)
-        
+
       } else {
         # Mode non-interactif
-        if (length(plot_name) == 1) {
-          # Recherche avec pattern matching (insensible à la casse)
+        if (exact_match || length(plot_name) > 1) {
+          # Recherche exacte (insensible à la casse)
+          # Utilisé quand: exact_match=TRUE OU multiples noms
           condition <- glue::glue_sql(
-            "LOWER(plot_name) LIKE LOWER({pattern})", 
-            pattern = paste0("%", plot_name, "%"), 
+            "LOWER(plot_name) IN ({names*})",
+            names = tolower(plot_name),
             .con = private$con
           )
         } else {
-          # Recherche exacte pour multiples noms (insensible à la casse)
+          # Recherche avec pattern matching (insensible à la casse)
+          # Uniquement si: exact_match=FALSE ET un seul nom
           condition <- glue::glue_sql(
-            "LOWER(plot_name) IN ({names*})", 
-            names = tolower(plot_name), 
+            "LOWER(plot_name) LIKE LOWER({pattern})",
+            pattern = paste0("%", plot_name, "%"),
             .con = private$con
           )
         }
         private$add_condition(condition)
       }
-      
+
       return(self)
     },
     

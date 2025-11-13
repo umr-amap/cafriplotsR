@@ -115,7 +115,11 @@ query <- PlotFilterBuilder$new(con)$
 \if{latex}{\out{\hypertarget{method-PlotFilterBuilder-filter_plot_name}{}}}
 \subsection{Method \code{filter_plot_name()}}{
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{PlotFilterBuilder$filter_plot_name(plot_name, interactive = FALSE)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{PlotFilterBuilder$filter_plot_name(
+  plot_name,
+  interactive = FALSE,
+  exact_match = FALSE
+)}\if{html}{\out{</div>}}
 }
 
 }

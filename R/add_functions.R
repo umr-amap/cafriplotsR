@@ -521,29 +521,6 @@ add_subplot_features <- function(new_data,
     new_data_renamed %>%
     mutate(id_new_data = 1:nrow(.))
   
-  ## Linking collectors names
-  # if(!is.null(collector_field)) {
-  #   if(!any(colnames(new_data_renamed) == collector_field))
-  #     stop("no collector_field found in new dataset")
-  #   # new_data_renamed <-
-  #   #   .link_colnam(data_stand = new_data_renamed, collector_field = collector_field)
-  #
-  #   new_data_renamed <- .link_colnam(
-  #     data_stand = new_data_renamed,
-  #     column_searched = collector_field,
-  #     column_name = "colnam",
-  #     id_field = "id_colnam",
-  #     id_table_name = "id_table_colnam",
-  #     db_connection = mydb,
-  #     table_name = "table_colnam"
-  #   )
-  #
-  # }else{
-  #   if (verbose)  cli::cli_alert_warning("no information on collector provided")
-  #   new_data_renamed <-
-  #     new_data_renamed %>%
-  #     tibble::add_column(id_colnam = NA)
-  # }
   
   ## Linking plot names
   if (!is.null(plot_name_field)) {
@@ -587,7 +564,7 @@ add_subplot_features <- function(new_data,
         )
     
     
-    if(id_plot_name_corresp == "id_old")
+    if (id_plot_name_corresp == "id_old")
       link_plot <-
         new_data_renamed %>%
         dplyr::left_join(dplyr::tbl(mydb, "data_liste_plots") %>%
@@ -609,7 +586,7 @@ add_subplot_features <- function(new_data,
       new_data_renamed <-
         new_data_renamed %>%
         left_join(tbl(mydb, "data_liste_plots") %>%
-                    dplyr::select(id_old, id_liste_plots) %>%
+                    dplyr::select(all_of(c(id_old, id_liste_plots))) %>%
                     collect(),
                   c("id_old"="id_old"))
     
@@ -2302,54 +2279,6 @@ add_traits_measures <- function(new_data,
             linked_individuals_likely_dup[[j]] <-
               linked_individuals_already_db
             
-            # linked_problems_individuals_list[[j]] <-
-            #   individuals_already_traits
-            
-            # if(any(colnames(new_data_renamed)=="id_diconame_n") &
-            #    any(traits_field=="id_diconame_n"))
-            
-            ### Which individuals show different information between what is provided and what is in the db
-            # problems_individuals <-
-            #   linked_individuals %>%
-            #   dplyr::filter(id_diconame!=id_diconame_n | dbh.x!=dbh.y)
-            #
-            # if(nrow(problems_individuals)>0) {
-            #   cat(paste(nrow(problems_individuals), "individuals with problematic matches\n",
-            #             nrow(linked_individuals), "individuals in total"))
-            #
-            #   selected_tax <-
-            #     dplyr::tbl(mydb,"diconame") %>%
-            #     dplyr::filter(id_n %in% problems_individuals$id_diconame_n) %>%
-            #     dplyr::collect()
-            #
-            #   problems_individuals <-
-            #     problems_individuals %>%
-            #     dplyr::left_join(selected_tax %>%
-            #                        dplyr::select(id_n, full_name_no_auth),
-            #                      by=c("id_diconame_n"="id_n"))
-            #
-            #   for (j in 1:nrow(problems_individuals)) {
-            #     problems_individuals_selected <-
-            #       problems_individuals %>%
-            #       dplyr::slice(j)
-            #
-            #     print(problems_individuals_selected %>%
-            #             dplyr::select(plot_name,
-            #                           ind_num_sous_plot, dbh.x, dbh.y,
-            #                           corrected.name, full_name_no_auth))
-            #     response <-
-            #       askYesNo("Do you want to still link these individuals?")
-            #
-            #     if(!response) {
-            #       linked_individuals <-
-            #         linked_individuals %>%
-            #         dplyr::filter(!id_new_data %in% problems_individuals_selected$id_new_data)
-            #
-            #
-            
-            #     }
-            #   }
-            # }
           }
           
           linked_individuals_list[[j]] <-
@@ -2378,9 +2307,6 @@ add_traits_measures <- function(new_data,
         }
         
         
-        
-        # linked_problems_individuals_list <-
-        #   dplyr::bind_rows(linked_problems_individuals_list)
         
         ## Adding link to individuals in plots
         data_trait <-

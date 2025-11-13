@@ -1,0 +1,640 @@
+---
+title: "Importing Plot Data into the Database"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Importing Plot Data into the Database}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  echo = TRUE
+)
+```
+
+## Overview
+
+This vignette demonstrates the complete workflow for importing new plot data into the database. The process involves two main steps:
+
+1. **Import plot metadata** - Add plot information (location, size, census dates, etc.)
+2. **Import individual tree data** - Add tree measurements and traits for individuals within those plots
+
+Both workflows use **transaction-based imports** with automatic rollback on errors, ensuring data integrity.
+
+## Prerequisites
+
+Before importing data, ensure you have:
+
+1. **Database credentials** configured with write permissions
+2. **Taxonomic names standardized** using `launch_taxonomic_match_app()` (see taxonomic-app vignette)
+3. **Plot coordinates and metadata** ready
+4. **Individual tree data** in Excel or CSV format
+
+```{r}
+library(plotsdatabase)
+library(dplyr)
+
+# Connect to database
+con <- call.mydb()
+```
+
+---
+
+## Step 1: Import Plot Metadata
+
+Before importing individual trees, you must first create the plots in the database.
+
+### 1.1 Prepare Plot Data
+
+Plot data should include essential metadata:
+
+```{r}
+# Example: Prepare plot metadata
+plot_metadata <- data.frame(
+  plot_name = c("Plot-A", "Plot-B", "Plot-C"),
+  country = c("Gabon", "Gabon", "Cameroon"),
+  locality_name = c("Lopé NP", "Lopé NP", "Dja Reserve"),
+  ddlat = c(-0.5, -0.52, 3.2),
+  ddlon = c(11.5, 11.48, 13.5),
+  plot_area = c(1, 1, 0.5),  # hectares
+  date_census_1 = as.Date(c("2020-01-15", "2020-02-10", "2019-11-20")),
+  team_leader_1 = c("John Doe", "Jane Smith", "Bob Wilson"),
+  principal_investigator_1 = c("Dr. Smith", "Dr. Smith", "Dr. Jones"),
+  method = c("1ha-IRD", "1ha-IRD", "0.5ha-custom"),
+  subplot_shape = c("square", "square", "rectangle"),
+  stringsAsFactors = FALSE
+)
+```
+
+### 1.2 Import Plots Using Template
+
+The package provides functions for importing plot metadata with validation:
+
+```{r}
+# Import plot metadata
+# (Note: exact function depends on existing plot import infrastructure)
+# Use the appropriate function from the package to import plots
+
+# Example workflow:
+# 1. Prepare data in Excel template format
+# 2. Use plot import function (check package documentation)
+# 3. Verify plots were created
+
+# Verify plots exist
+imported_plots <- query_plots(
+  plot_name = c("Plot-A", "Plot-B", "Plot-C"),
+  exact_match = TRUE,
+  con = con
+)
+
+print(imported_plots)
+```
+
+**Important**: Ensure all plots are successfully imported before proceeding to individual data import.
+
+---
+
+## Step 2: Import Individual Tree Data
+
+Once plots exist in the database, you can import individual tree measurements and traits.
+
+### 2.1 Understanding the Data Structure
+
+Individual data can be organized in two ways:
+
+#### Option A: Flat Table (All Data in One Sheet)
+
+```
+plot_name | tag | species      | idtax | dbh  | height | wood_density
+----------|-----|--------------|-------|------|--------|-------------
+Plot-A    | 1   | Sp1          | 123   | 35.2 | 18.5   | 0.65
+Plot-A    | 2   | Sp2          | 456   | 42.1 | 22.0   | 0.58
+```
+
+#### Option B: Two-Table Structure (Individuals + Features)
+
+**Individuals Sheet** (core tree identification):
+```
+plot_name | tag | species | idtax | herbarium_code
+----------|-----|---------|-------|---------------
+Plot-A    | 1   | Sp1     | 123   | IRD001
+Plot-A    | 2   | Sp2     | 456   | IRD002
+```
+
+**Features Sheet** (measurements and traits):
+```
+plot_name | tag | dbh  | height | wood_density | census_date
+----------|-----|------|--------|--------------|------------
+Plot-A    | 1   | 35.2 | 18.5   | 0.65         | 2020-01-15
+Plot-A    | 2   | 42.1 | 22.0   | 0.58         | 2020-01-15
+```
+
+### 2.2 Generate Import Template
+
+Start by generating a template to understand required columns:
+
+```{r}
+# Generate template with guidance
+get_individual_template(output_file = "my_individual_template.xlsx")
+
+# This creates an Excel file with:
+# - Individuals sheet with required columns
+# - Features sheet for trait measurements
+# - Notes sheet with detailed guidance
+
+# View template info
+print_individual_template_info()
+```
+
+**Template Structure**:
+
+- **Required columns**: `plot_name`, `idtax_n` (taxonomy ID)
+- **Recommended columns**: `tag` (tree identifier), `original_tax_name`
+- **Optional columns**: `herbarium_nbe_type`, `herbarium_nbe_char`, `multi_tiges_id`
+- **Features**: Any trait from `traits_list()` (e.g., `stem_diameter`, `tree_height`, `wood_density`)
+
+### 2.3 Prepare Your Data
+
+Load your tree inventory data:
+
+```{r}
+# Option 1: Load from Excel (flat table)
+my_data <- readxl::read_excel("my_tree_inventory.xlsx")
+
+# Option 2: Load from Excel (two-table structure)
+individuals_raw <- readxl::read_excel("my_tree_inventory.xlsx", sheet = "Individuals")
+features_raw <- readxl::read_excel("my_tree_inventory.xlsx", sheet = "Features")
+
+# Option 3: Load from CSV
+my_data <- read.csv("my_tree_inventory.csv")
+```
+
+### 2.4 Column Mapping
+
+Map your data columns to database schema using the interactive mapper:
+
+```{r}
+# INTERACTIVE MODE (recommended for first-time users)
+mapped <- map_individual_columns(
+  data = my_data,
+  interactive = TRUE,
+  con = con
+)
+
+# NON-INTERACTIVE MODE (with synonyms for faster mapping)
+mapped <- map_individual_columns(
+  data = my_data,
+  interactive = FALSE,
+  use_synonyms = TRUE,
+  con = con
+)
+
+# For two-table structure
+mapped <- map_individual_columns(
+  individuals = individuals_raw,
+  features = features_raw,
+  interactive = TRUE,
+  con = con
+)
+```
+
+**Column Mapping Process**:
+
+1. **Automatic matching**: The function fuzzy-matches your column names to database columns
+2. **Feature classification**: You'll be asked to classify unmapped columns:
+   - **YES** - It's a trait/feature (e.g., DBH, height, leaf area)
+   - **NO** - It's identification data (e.g., plot name, tree tag, species)
+   - **SKIP** - Ignore this column
+3. **Manual selection**: Choose from suggested matches or skip columns
+4. **Summary**: Review the mapping before proceeding
+
+**Example Interactive Session**:
+```
+Column: 'TreeID'
+Is this a feature/trait measurement? (YES/NO/SKIP): NO
+Select the best match for 'TreeID':
+  1. tag (Individual tree identifier)
+  2. id_n (Database ID)
+  3. herbarium_nbe_char (Herbarium code)
+  [0 to skip]
+Your choice: 1
+✓ Mapped TreeID → tag
+```
+
+**Result**:
+```{r}
+# Mapped data structure
+str(mapped)
+# $individuals - Core tree data with standardized column names
+# $features - Trait measurements (if features were present)
+# $mapping - Record of column name mappings
+```
+
+### 2.5 Validation
+
+Validate your data before importing to catch errors early:
+
+```{r}
+# Validate mapped data
+validation <- validate_individual_data(
+  individuals_data = mapped$individuals,
+  features_data = mapped$features,
+  method = "1ha-IRD",  # Your plot method
+  con = con
+)
+
+# View validation results
+print_individual_validation_results(validation)
+```
+
+**Validation Checks**:
+
+1. ✓ **Required columns present** (`plot_name`, `idtax_n`)
+2. ✓ **Plot existence** - All plots exist in database
+3. ✓ **Taxonomy validation** - All `idtax_n` values are valid
+4. ✓ **Tag uniqueness** - No duplicate tags within plots
+5. ✓ **Tag conflicts** - No conflicts with existing database tags
+6. ✓ **Trait value validity** - Numeric traits are numeric, categorical values are valid
+7. ✓ **Feature linkage** - Features link correctly to individuals
+
+**Validation Output**:
+```
+═══ VALIDATION SUMMARY ═══
+Status: ✓ VALID (Ready to import)
+
+Data Summary:
+  • 11,158 individuals across 32 plots
+  • 4,523 feature records
+  • 0 critical errors
+  • 2 warnings
+
+Warnings:
+  ⚠ Missing optional column: herbarium_nbe_char
+  ⚠ 15 individuals missing tree_height measurements
+```
+
+**If validation fails**:
+```{r}
+if (!validation$valid) {
+  # View detailed errors
+  print_individual_validation_results(validation)
+
+  # Fix issues in your source data and re-map
+  # Common issues:
+  # - Plot names not matching database (use exact_match in query_plots)
+  # - Invalid taxonomy IDs (re-run taxonomic matching)
+  # - Duplicate tags (check your source data)
+
+  stop("Fix validation errors before importing")
+}
+```
+
+### 2.6 Dry Run (Preview Import)
+
+Always preview the import before committing to the database:
+
+```{r}
+# DRY RUN - Preview without committing
+preview <- import_individual_data(
+  individuals_data = validation$cleaned_data$individuals,
+  features_data = validation$cleaned_data$features,
+  validation = validation,
+  method = "1ha-IRD",
+  dry_run = TRUE,
+  con = con
+)
+
+# Review what would be imported
+print(preview)
+```
+
+**Dry Run Output**:
+```
+═══ Dry Run: Preview Import (No Changes Will Be Made) ═══
+ℹ Individuals to import: 11,158
+ℹ Feature records to import: 4,523
+ℹ Importing as user: your_username
+
+─── Step 1: Linking individuals to plots ───
+✓ Linked 11,158 individuals to 32 plots
+
+─── Step 2: Preparing individual data ───
+✓ Prepared 11,158 individual records
+ℹ Columns: id_table_liste_plots_n, tag, idtax_n, original_tax_name
+
+─── Step 3: Preview - Would Insert Into data_individuals ───
+Data preview (first 3 rows):
+  id_table_liste_plots_n tag idtax_n original_tax_name
+1                    145   1    1234      Sp1
+2                    145   2    5678      Sp2
+3                    145   3    9012      Sp3
+
+─── Step 4: Preview individual features ───
+ℹ Would insert 4,523 feature records
+Features preview (first 3 rows):
+  id_data_individuals traitid traitvalue
+1                   1       5       35.2
+2                   1       8       18.5
+3                   2       5       42.1
+
+✓ Dry run completed - no changes made
+ℹ Run with dry_run = FALSE to actually import
+```
+
+### 2.7 Actual Import
+
+If the dry run looks good, proceed with the actual import:
+
+```{r}
+# ACTUAL IMPORT with transaction support
+result <- import_individual_data(
+  individuals_data = validation$cleaned_data$individuals,
+  features_data = validation$cleaned_data$features,
+  validation = validation,
+  method = "1ha-IRD",
+  dry_run = FALSE,
+  ask_confirmation = TRUE,  # Prompt for confirmation
+  con = con
+)
+
+# Check result
+if (result$success) {
+  cat("✓ Successfully imported:\n")
+  cat("  -", result$n_individuals, "individuals\n")
+  cat("  -", result$n_features, "feature records\n")
+  cat("  - Affected plots:", paste(result$plot_names, collapse = ", "), "\n")
+} else {
+  cat("✗ Import failed:", result$message, "\n")
+}
+```
+
+**Import Process**:
+
+1. **User confirmation** - You'll be asked to confirm before proceeding
+2. **Transaction started** - All-or-nothing import begins
+3. **Link to plots** - Individuals are linked to plot IDs
+4. **Insert individuals** - Core data inserted into `data_individuals`
+5. **Insert features** - Traits inserted into `data_traits_measures`
+6. **Transaction committed** - Changes are saved
+7. **Automatic rollback** - If any error occurs, all changes are reverted
+
+**Import Output**:
+```
+═══ Importing Individual Data ═══
+ℹ Individuals to import: 11,158
+ℹ Feature records to import: 4,523
+ℹ Importing as user: your_username
+
+Proceed with import? (yes/no): yes
+
+ℹ Transaction started
+✓ Linked 11,158 individuals to 32 plots
+✓ Prepared 11,158 individual records
+✓ 11,158 individuals inserted
+✓ 4,523 feature records inserted
+✓ Transaction committed successfully
+
+═══════════════════════════════════════
+✓ Import completed successfully!
+
+ℹ Imported 11,158 individuals
+ℹ Imported 4,523 feature records
+ℹ Affected plots: Plot-A, Plot-B, Plot-C, ...
+═══════════════════════════════════════
+```
+
+### 2.8 Verify Import
+
+After importing, verify the data was correctly added:
+
+```{r}
+# Query the imported data
+imported_data <- query_plots(
+  plot_name = c("Plot-A", "Plot-B", "Plot-C"),
+  exact_match = TRUE,
+  extract_individuals = TRUE,
+  output_style = "permanent_plot",
+  con = con
+)
+
+# Check individuals
+head(imported_data$individuals)
+
+# Check metadata
+imported_data$metadata
+
+# Verify counts
+cat("Imported individuals per plot:\n")
+table(imported_data$individuals$plot_name)
+```
+
+---
+
+## Complete Example Workflow
+
+Here's a complete end-to-end example:
+
+```{r}
+library(plotsdatabase)
+
+# 1. Connect
+con <- call.mydb()
+
+# 2. Load raw data
+raw_data <- readxl::read_excel("my_field_data.xlsx")
+
+# 3. Ensure plots exist (import plot metadata first if needed)
+existing_plots <- query_plots(
+  plot_name = unique(raw_data$PlotName),
+  exact_match = TRUE,
+  con = con
+)
+
+if (nrow(existing_plots) == 0) {
+  stop("Plots not found! Import plot metadata first.")
+}
+
+# 4. Map columns
+mapped <- map_individual_columns(
+  data = raw_data,
+  interactive = TRUE,
+  con = con
+)
+
+# 5. Validate
+validation <- validate_individual_data(
+  individuals_data = mapped$individuals,
+  features_data = mapped$features,
+  method = "1ha-IRD",
+  con = con
+)
+
+# 6. Check validation
+if (!validation$valid) {
+  print_individual_validation_results(validation)
+  stop("Fix validation errors first!")
+}
+
+# 7. Dry run
+preview <- import_individual_data(
+  individuals_data = validation$cleaned_data$individuals,
+  features_data = validation$cleaned_data$features,
+  validation = validation,
+  dry_run = TRUE,
+  con = con
+)
+
+# 8. Actual import
+result <- import_individual_data(
+  individuals_data = validation$cleaned_data$individuals,
+  features_data = validation$cleaned_data$features,
+  validation = validation,
+  dry_run = FALSE,
+  con = con
+)
+
+# 9. Verify
+if (result$success) {
+  cat("✓ Import successful!\n")
+
+  # Query imported data
+  verification <- query_plots(
+    plot_name = result$plot_names,
+    exact_match = TRUE,
+    extract_individuals = TRUE,
+    con = con
+  )
+
+  cat("Verified:", nrow(verification$individuals), "individuals imported\n")
+} else {
+  cat("✗ Import failed:", result$message, "\n")
+}
+
+# 10. Cleanup
+DBI::dbDisconnect(con)
+```
+
+---
+
+## Common Issues and Solutions
+
+### Issue: "Plot not found in database"
+
+**Solution**: Import plot metadata first before importing individuals.
+
+```{r}
+# Check if plots exist
+query_plots(plot_name = "Plot-A", exact_match = TRUE, con = con)
+
+# If not found, import plot metadata first
+```
+
+### Issue: "Invalid taxonomy ID"
+
+**Solution**: Standardize taxonomic names using the taxonomic matching app.
+
+```{r}
+# Launch taxonomic matching app
+launch_taxonomic_match_app(data = my_data, name_column = "species")
+
+# Or use programmatic matching
+matched <- match_taxonomic_names(my_data, name_column = "species", con_taxa = con_taxa)
+```
+
+### Issue: "Duplicate tags within plot"
+
+**Solution**: Ensure tags are unique within each plot, or let the function auto-generate tags.
+
+```{r}
+# Remove tag column to auto-generate sequential tags
+my_data$tag <- NULL
+
+# Or manually fix duplicates
+my_data <- my_data %>%
+  group_by(plot_name) %>%
+  mutate(tag = row_number()) %>%
+  ungroup()
+```
+
+### Issue: "Column mapping unclear"
+
+**Solution**: Use interactive mode and carefully read the prompts. When classifying columns:
+- **Features** = measurements/traits (DBH, height, density)
+- **Individuals** = identification (plot, tag, species)
+
+### Issue: "Transaction rollback on error"
+
+**Solution**: Check the error message carefully. Common causes:
+- Missing required columns
+- Invalid foreign key references
+- Data type mismatches
+
+All changes are automatically rolled back on error, so your database remains consistent.
+
+---
+
+## Best Practices
+
+1. **Always validate first** - Use `validate_individual_data()` before importing
+2. **Use dry run** - Preview with `dry_run = TRUE` before actual import
+3. **Standardize taxonomy** - Match taxonomic names before importing individuals
+4. **Import plots first** - Ensure plot metadata exists before adding individuals
+5. **Use transactions** - The import functions use transactions for safety
+6. **Keep backups** - Maintain backups of your database
+7. **Document changes** - Keep track of what data was imported and when
+8. **Check permissions** - Ensure you have write permissions to the database
+
+---
+
+## Advanced: Programmatic Column Mapping
+
+For repeated imports with consistent data formats, you can use synonyms to automate mapping:
+
+```{r}
+# Define custom synonyms
+custom_synonyms <- list(
+  tag = c("TreeID", "Tree_Number", "Individual_ID"),
+  stem_diameter = c("DBH", "Diameter", "dbh_cm"),
+  tree_height = c("Height", "H", "height_m")
+)
+
+# Map with custom synonyms
+mapped <- map_individual_columns(
+  data = my_data,
+  interactive = FALSE,
+  use_synonyms = TRUE,
+  custom_synonyms = custom_synonyms,
+  con = con
+)
+```
+
+---
+
+## Additional Resources
+
+- **Taxonomic matching**: See `vignette("taxonomic-app")`
+- **Querying data**: See `vignette("using-query-plots")`
+- **Template functions**: `?get_individual_template`, `?print_individual_template_info`
+- **Validation functions**: `?validate_individual_data`, `?print_individual_validation_results`
+- **Import functions**: `?import_individual_data`
+- **Column mapping**: `?map_individual_columns`
+
+---
+
+## Summary
+
+The complete workflow for importing plot data:
+
+1. ✅ **Import plot metadata** (location, census dates, etc.)
+2. ✅ **Standardize taxonomy** using `launch_taxonomic_match_app()`
+3. ✅ **Map columns** using `map_individual_columns()`
+4. ✅ **Validate data** using `validate_individual_data()`
+5. ✅ **Preview import** with `dry_run = TRUE`
+6. ✅ **Import data** with `dry_run = FALSE`
+7. ✅ **Verify import** using `query_plots()`
+
+All imports use **transaction-based safety** with automatic rollback on errors, ensuring your database remains consistent even if something goes wrong.
