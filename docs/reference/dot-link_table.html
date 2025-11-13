@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">plotsdatabase</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -18,7 +18,8 @@
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
+    <li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -49,10 +50,11 @@
 <span>  <span class="va">column_name</span>,</span>
 <span>  <span class="va">id_field</span>,</span>
 <span>  <span class="va">id_table_name</span>,</span>
-<span>  db_connection <span class="op">=</span> <span class="va">mydb</span>,</span>
+<span>  db_connection <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">table_name</span>,</span>
 <span>  keep_columns <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  keep_original_value <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  keep_original_value <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  field_label <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 

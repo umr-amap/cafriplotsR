@@ -9,7 +9,7 @@ with options to include associated traits and metadata, and to generate interact
 
     <a class="navbar-brand me-2" href="../index.html">plotsdatabase</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -20,7 +20,8 @@ with options to include associated traits and metadata, and to generate interact
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
+    <li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -58,6 +59,7 @@ with options to include associated traits and metadata, and to generate interact
 <span>  id_plot <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  id_tax <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  id_specimen <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  interactive <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  show_multiple_census <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  show_all_coordinates <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  remove_ids <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -72,6 +74,7 @@ with options to include associated traits and metadata, and to generate interact
 <span>  remove_obs_with_issue <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  include_issue <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  include_measurement_ids <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  exact_match <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  census_strategy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"last"</span>, <span class="st">"first"</span>, <span class="st">"mean"</span><span class="op">)</span>,</span>
 <span>  output_style <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"minimal"</span>, <span class="st">"standard"</span>, <span class="st">"permanent_plot"</span>,</span>
 <span>    <span class="st">"permanent_plot_multi_census"</span>, <span class="st">"transect"</span>, <span class="st">"full"</span><span class="op">)</span></span>
@@ -124,6 +127,10 @@ with options to include associated traits and metadata, and to generate interact
 
 <dt id="arg-id-specimen">id_specimen<a class="anchor" aria-label="anchor" href="#arg-id-specimen"></a></dt>
 <dd><p>Optional. Specimen identifiers.</p></dd>
+
+
+<dt id="arg-interactive">interactive<a class="anchor" aria-label="anchor" href="#arg-interactive"></a></dt>
+<dd><p>Logical. Whether the query should be interactive. TRUE by default.</p></dd>
 
 
 <dt id="arg-show-multiple-census">show_multiple_census<a class="anchor" aria-label="anchor" href="#arg-show-multiple-census"></a></dt>
