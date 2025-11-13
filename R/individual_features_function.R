@@ -1827,7 +1827,8 @@ pivot_traits_to_wide <- function(data, include_census = FALSE) {
     join_cols <- c(join_cols, "id_sub_plots")
   }
   
-  combined <- reduce(results, full_join, by = join_cols)
+  combined <- 
+    reduce(results[which(unlist(lapply(results, nrow)) > 0)], full_join, by = join_cols)
   
   return(combined)
 }
