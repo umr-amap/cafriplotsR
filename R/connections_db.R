@@ -348,14 +348,36 @@ connect_database <- function(db_type = c("main", "taxa"),
 }
 
 #' Get primary database connection (wrapper)
+#'
+#' @description
+#' Returns a database connection. In Shiny apps with connection pools,
+#' this function automatically uses the pool if available in .db_env.
+#'
 #' @export
 call.mydb <- function(pass = NULL, user = NULL, reset = FALSE, retry = TRUE, use_env_credentials = FALSE) {
+  # Check if a pool is available in the environment (set by Shiny apps)
+  if (!is.null(.db_env$pool_main)) {
+    return(.db_env$pool_main)
+  }
+
+  # Otherwise use regular connection
   connect_database("main", pass, user, reset, retry, use_env_credentials)
 }
 
 #' Get taxa database connection (wrapper)
+#'
+#' @description
+#' Returns a database connection. In Shiny apps with connection pools,
+#' this function automatically uses the pool if available in .db_env.
+#'
 #' @export
 call.mydb.taxa <- function(pass = NULL, user = NULL, reset = FALSE, retry = TRUE, use_env_credentials = FALSE) {
+  # Check if a pool is available in the environment (set by Shiny apps)
+  if (!is.null(.db_env$pool_taxa)) {
+    return(.db_env$pool_taxa)
+  }
+
+  # Otherwise use regular connection
   if (reset) {
     cli::cli_alert_info("Taxa database: Remember that write operations are restricted")
   }
@@ -710,14 +732,23 @@ func_try_fetch <-
     result <- NULL
     last_error <- NULL
 
+    # Check if connection is a pool object
+    is_pool <- inherits(con, "Pool")
+
     while (attempt <= max_attempts && !success) {
       if (verbose)
         cli::cli_alert_info("Attempt {attempt} of {max_attempts}...")
 
       try_result <- try({
-        rs <- DBI::dbSendQuery(con, sql)
-        result <- DBI::dbFetch(rs)
-        DBI::dbClearResult(rs)
+        if (is_pool) {
+          # Pool objects require dbGetQuery() directly
+          result <- DBI::dbGetQuery(con, sql)
+        } else {
+          # Regular connections use dbSendQuery/dbFetch/dbClearResult
+          rs <- DBI::dbSendQuery(con, sql)
+          result <- DBI::dbFetch(rs)
+          DBI::dbClearResult(rs)
+        }
       }, silent = TRUE)
 
       if (inherits(try_result, "try-error")) {
@@ -814,4 +845,153 @@ try_open_postgres_table <- function(table, con) {
   }
 
   return(table_postgre)
+}
+
+
+#' Create a connection pool for Shiny apps (main database)
+#'
+#' @description
+#' Creates a connection pool using the pool package. This is the recommended
+#' approach for Shiny applications as it automatically manages connections,
+#' preventing connection leaks and exhaustion.
+#'
+#' @param pass Character, database password (optional)
+#' @param user Character, database username (optional)
+#' @param minSize Integer, minimum number of connections in pool (default: 1)
+#' @param maxSize Integer, maximum number of connections in pool (default: 5)
+#' @param use_env_credentials Logical, use credentials from .Renviron
+#'
+#' @return A pool object
+#'
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # In your Shiny app server function:
+#' pool_main <- create_pool_main()
+#' onStop(function() {
+#'   pool::poolClose(pool_main)
+#' })
+#'
+#' # Use the pool in queries:
+#' data <- pool::poolWithTransaction(pool_main, function(conn) {
+#'   DBI::dbGetQuery(conn, "SELECT * FROM table_name")
+#' })
+#' }
+create_pool_main <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5, use_env_credentials = FALSE) {
+  create_db_config()
+
+  # Get credentials
+  if (use_env_credentials && is.null(user) && is.null(pass)) {
+    env_user <- Sys.getenv("MYDB_USER")
+    env_pass <- Sys.getenv("MYDB_PASS")
+
+    if (env_user != "" && env_pass != "") {
+      user <- env_user
+      pass <- env_pass
+      cli::cli_alert_info("Using stored credentials from environment")
+    }
+  }
+
+  if (is.null(pass)) {
+    if (!exists("password", envir = credentials)) {
+      credentials$password <- get_password_secure("Enter database password: ")
+    }
+    pass <- credentials$password
+  }
+
+  if (is.null(user)) {
+    if (!exists("user_db", envir = credentials)) {
+      credentials$user_db <- get_username_secure("Enter database username: ")
+    }
+    user <- credentials$user_db
+  }
+
+  # Create pool
+  pool <- pool::dbPool(
+    drv = RPostgres::Postgres(),
+    dbname = db_name,
+    host = db_host,
+    port = db_port,
+    user = user,
+    password = pass,
+    minSize = minSize,
+    maxSize = maxSize
+  )
+
+  cli::cli_alert_success("Created connection pool for main database (size: {minSize}-{maxSize})")
+
+  return(pool)
+}
+
+
+#' Create a connection pool for Shiny apps (taxa database)
+#'
+#' @description
+#' Creates a connection pool for the taxa database. This is the recommended
+#' approach for Shiny applications.
+#'
+#' @param pass Character, database password (optional)
+#' @param user Character, database username (optional)
+#' @param minSize Integer, minimum number of connections in pool (default: 1)
+#' @param maxSize Integer, maximum number of connections in pool (default: 5)
+#' @param use_env_credentials Logical, use credentials from .Renviron
+#'
+#' @return A pool object
+#'
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # In your Shiny app server function:
+#' pool_taxa <- create_pool_taxa()
+#' onStop(function() {
+#'   pool::poolClose(pool_taxa)
+#' })
+#' }
+create_pool_taxa <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5, use_env_credentials = FALSE) {
+  create_db_config()
+
+  # Get credentials
+  if (use_env_credentials && is.null(user) && is.null(pass)) {
+    env_user <- Sys.getenv("MYDB_USER")
+    env_pass <- Sys.getenv("MYDB_PASS")
+
+    if (env_user != "" && env_pass != "") {
+      user <- env_user
+      pass <- env_pass
+      cli::cli_alert_info("Using stored credentials from environment")
+    }
+  }
+
+  if (is.null(pass)) {
+    if (!exists("password", envir = credentials)) {
+      credentials$password <- get_password_secure("Enter database password: ")
+    }
+    pass <- credentials$password
+  }
+
+  if (is.null(user)) {
+    if (!exists("user_db", envir = credentials)) {
+      credentials$user_db <- get_username_secure("Enter database username: ")
+    }
+    user <- credentials$user_db
+  }
+
+  # Create pool
+  pool <- pool::dbPool(
+    drv = RPostgres::Postgres(),
+    dbname = db_name_taxa,
+    host = db_host,
+    port = db_port,
+    user = user,
+    password = pass,
+    minSize = minSize,
+    maxSize = maxSize
+  )
+
+  cli::cli_alert_success("Created connection pool for taxa database (size: {minSize}-{maxSize})")
+  cli::cli_alert_info("Taxa database: Remember that write operations are restricted")
+
+  return(pool)
 }

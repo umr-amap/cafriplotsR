@@ -153,19 +153,34 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       curr_idx <- current_index()
       current_name <- unmatched[curr_idx]
 
+      # Check if current name is NA
+      is_na_value <- is.na(current_name)
+      display_name <- if (is_na_value) {
+        shiny::tagList(
+          shiny::tags$span("Missing Taxonomic Name", style = "color: #856404;"),
+          shiny::tags$small(
+            class = "text-muted ml-3",
+            "(Original value: NA)"
+          )
+        )
+      } else {
+        current_name
+      }
+
       shiny::div(
-        style = "padding: 20px; background-color: #f8f9fa; border-radius: 5px; border: 2px solid #007bff;",
+        style = paste0("padding: 20px; background-color: #f8f9fa; border-radius: 5px; border: 2px solid ",
+                      if (is_na_value) "#ffc107" else "#007bff", ";"),
         shiny::h4(
           t()$review_input_name,
           style = "margin-top: 0; color: #495057;"
         ),
         shiny::h3(
-          current_name,
+          display_name,
           shiny::tags$small(
             class = "text-muted ml-3",
             paste0("(", curr_idx, " ", t()$unit_of, " ", length(unmatched), ")")
           ),
-          style = "margin-bottom: 0; color: #007bff;"
+          style = paste0("margin-bottom: 0; color: ", if (is_na_value) "#856404" else "#007bff", ";")
         )
       )
     })
@@ -178,10 +193,17 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       unmatched_names()[current_index()]
     })
 
-    # Fuzzy suggestions module
+    # Get current name for fuzzy matching (NULL if NA, to skip fuzzy suggestions)
+    current_name_for_fuzzy <- shiny::reactive({
+      name <- current_name()
+      if (is.na(name)) return(NULL)
+      return(name)
+    })
+
+    # Fuzzy suggestions module (will be empty/hidden for NA values)
     selected_suggestion <- mod_fuzzy_suggestions_server(
       "suggestions",
-      input_name = current_name,
+      input_name = current_name_for_fuzzy,
       max_suggestions = shiny::reactive(max_suggestions),
       min_similarity = shiny::reactive(min_similarity),
       include_authors = shiny::reactive(FALSE),
@@ -192,14 +214,33 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
     output$manual_input <- shiny::renderUI({
       ns <- session$ns
 
+      # Check if current name is NA
+      is_na_value <- is.na(current_name())
+
       shiny::div(
+        # Show special message for NA values
+        if (is_na_value) {
+          shiny::div(
+            style = "padding: 10px; background-color: #fff3cd; border-radius: 5px; margin-bottom: 15px;",
+            shiny::p(
+              shiny::icon("info-circle"),
+              shiny::strong("Missing Taxonomic Name:"),
+              "This row has no taxonomic name (NA value). Use the search below to find and assign a taxonomic ID.",
+              style = "margin: 0; color: #856404;"
+            )
+          )
+        },
         shiny::h5(
           shiny::icon("search"),
           "Search Taxonomic Backbone",
           style = "color: #495057;"
         ),
         shiny::p(
-          "Enter a taxonomic name to search the backbone database. Select a taxonomic level to narrow results.",
+          if (is_na_value) {
+            "Search for the correct taxonomic name and select it to assign to this row."
+          } else {
+            "Enter a taxonomic name to search the backbone database. Select a taxonomic level to narrow results."
+          },
           class = "text-muted",
           style = "font-size: 0.9em;"
         ),
@@ -223,7 +264,8 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
                 "Genus" = "genus",
                 "Family" = "family",
                 "Order" = "order",
-                "Infraspecific" = "infraspecific"
+                "Infraspecific" = "infraspecific",
+                "Higher" = "higher"
               ),
               selected = "all"
             )
@@ -296,24 +338,53 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       idtax <- selected_suggestion()
       name <- current_name()
 
-      # Look up the matched name details
-      matches <- match_taxonomic_names(
-        names = name,
-        method = "hierarchical",
-        max_matches = 1,
-        min_similarity = min_similarity,
-        include_synonyms = TRUE,
-        return_scores = TRUE,
-        include_authors = FALSE,
-        con = NULL,
-        verbose = FALSE
-      )
+      # Look up the taxon details directly by idtax_n
+      mydb_taxa <- call.mydb.taxa()
 
-      matched_row <- matches %>%
-        dplyr::filter(idtax_n == idtax) %>%
-        dplyr::slice(1)
+      sql <- glue::glue_sql("
+        SELECT
+          t.idtax_n,
+          t.idtax_good_n,
+          t.tax_gen,
+          t.tax_esp,
+          t.tax_fam,
+          t.tax_famclass,
+          t.tax_level,
+          CASE
+            WHEN t.tax_level = 'species' THEN CONCAT_WS(' ', t.tax_gen, t.tax_esp)
+            WHEN t.tax_level = 'genus' THEN t.tax_gen
+            WHEN t.tax_level = 'family' THEN t.tax_fam
+            WHEN t.tax_level = 'higher' THEN t.tax_famclass
+            WHEN t.tax_level = 'infraspecific' THEN CONCAT_WS(' ', t.tax_gen, t.tax_esp, t.tax_rank01, t.tax_nam01)
+            ELSE COALESCE(t.tax_gen, t.tax_fam, t.tax_famclass)
+          END AS matched_name,
+          a.tax_gen AS accepted_gen,
+          a.tax_esp AS accepted_esp,
+          a.tax_fam AS accepted_fam,
+          a.tax_famclass AS accepted_famclass,
+          a.tax_level AS accepted_level,
+          CASE
+            WHEN a.tax_level = 'species' THEN CONCAT_WS(' ', a.tax_gen, a.tax_esp)
+            WHEN a.tax_level = 'genus' THEN a.tax_gen
+            WHEN a.tax_level = 'family' THEN a.tax_fam
+            WHEN a.tax_level = 'higher' THEN a.tax_famclass
+            WHEN a.tax_level = 'infraspecific' THEN CONCAT_WS(' ', a.tax_gen, a.tax_esp, a.tax_rank01, a.tax_nam01)
+            ELSE COALESCE(a.tax_gen, a.tax_fam, a.tax_famclass)
+          END AS accepted_name
+        FROM table_taxa t
+        LEFT JOIN table_taxa a ON t.idtax_good_n = a.idtax_n
+        WHERE t.idtax_n = {idtax}
+      ", idtax = idtax, .con = mydb_taxa)
+
+      matched_row <- tryCatch({
+        func_try_fetch(con = mydb_taxa, sql = sql)
+      }, error = function(e) {
+        tibble()
+      })
 
       if (nrow(matched_row) > 0) {
+        is_synonym <- matched_row$idtax_n != matched_row$idtax_good_n
+
         # Record decision
         decisions <- review_decisions()
         decisions[[name]] <- list(
@@ -321,18 +392,25 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
           idtax_n = matched_row$idtax_n,
           idtax_good_n = matched_row$idtax_good_n,
           matched_name = matched_row$matched_name,
-          corrected_name = if (matched_row$is_synonym && !is.na(matched_row$accepted_name)) {
+          corrected_name = if (is_synonym && !is.na(matched_row$accepted_name)) {
             matched_row$accepted_name
           } else {
             matched_row$matched_name
           },
-          match_method = matched_row$match_method,
-          match_score = matched_row$match_score
+          match_method = "fuzzy",
+          match_score = 1.0  # User selected this, so it's a confirmed match
         )
         review_decisions(decisions)
 
         # Update data
         .update_data_with_decision(name, decisions[[name]])
+
+        # Show success notification
+        shiny::showNotification(
+          paste0("Matched to: ", matched_row$matched_name),
+          type = "message",
+          duration = 3
+        )
 
         # Move to next
         .move_next()
@@ -346,21 +424,84 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       custom <- input$custom_name
       level_filter <- input$custom_level %||% "all"
 
-      # Search the backbone
-      matches <- match_taxonomic_names(
-        names = custom,
-        method = "hierarchical",
-        max_matches = 20,  # Get more results for user to choose from
-        min_similarity = 0.5,
-        include_synonyms = TRUE,
-        return_scores = TRUE,
-        con = NULL,
-        verbose = FALSE
-      )
+      # If user specified "higher" level, do direct database search for class names
+      if (level_filter == "higher") {
+        mydb_taxa <- call.mydb.taxa()
 
-      # Apply taxonomic level filter if specified
-      if (nrow(matches) > 0 && level_filter != "all") {
-        matches <- matches %>% dplyr::filter(tax_level == level_filter)
+        # Direct fuzzy search on tax_famclass column
+        sql <- glue::glue_sql("
+          SELECT DISTINCT ON (tax_famclass)
+            idtax_n,
+            idtax_good_n,
+            tax_gen,
+            tax_esp,
+            tax_fam,
+            tax_level,
+            tax_famclass AS matched_name,
+            SIMILARITY(lower(tax_famclass), lower({search_name})) AS match_score
+          FROM table_taxa
+          WHERE tax_famclass IS NOT NULL
+            AND tax_level = 'higher'
+            AND SIMILARITY(lower(tax_famclass), lower({search_name})) >= 0.3
+          ORDER BY tax_famclass, match_score DESC
+          LIMIT 50
+        ", search_name = custom, .con = mydb_taxa)
+
+        all_matches <- tryCatch({
+          result <- func_try_fetch(con = mydb_taxa, sql = sql)
+          if (nrow(result) > 0) {
+            result %>%
+              dplyr::mutate(
+                input_name = custom,
+                match_method = "fuzzy",
+                match_rank = 1,
+                is_synonym = FALSE,
+                accepted_name = NA_character_
+              )
+          } else {
+            tibble()
+          }
+        }, error = function(e) {
+          tibble()
+        })
+      } else {
+        # Use standard hierarchical matching
+        all_matches <- match_taxonomic_names(
+          names = custom,
+          method = "hierarchical",  # Tries exact first, then fuzzy
+          max_matches = 50,  # Get many matches for filtering
+          min_similarity = 0.3,  # Low threshold to allow fuzzy matching
+          include_synonyms = TRUE,
+          return_scores = TRUE,
+          con = NULL,
+          verbose = FALSE
+        )
+
+        # Apply taxonomic level filter if specified
+        if (nrow(all_matches) > 0 && level_filter != "all") {
+          all_matches <- all_matches %>% dplyr::filter(tax_level == level_filter)
+        }
+      }
+
+      # Separate exact matches from fuzzy matches
+      exact_matches <- all_matches %>%
+        dplyr::filter(!is.na(idtax_n), match_score >= 0.99) %>%
+        dplyr::arrange(dplyr::desc(match_score))
+
+      fuzzy_matches <- all_matches %>%
+        dplyr::filter(!is.na(idtax_n), match_score < 0.99) %>%
+        dplyr::arrange(dplyr::desc(match_score))
+
+      # Prefer exact matches, but show fuzzy if no exact found
+      if (nrow(exact_matches) > 0) {
+        matches <- exact_matches %>% dplyr::slice(1:min(4, dplyr::n()))
+        match_type <- "exact"
+      } else if (nrow(fuzzy_matches) > 0) {
+        matches <- fuzzy_matches %>% dplyr::slice(1:min(4, dplyr::n()))
+        match_type <- "fuzzy"
+      } else {
+        matches <- all_matches[0, ]  # Empty with structure
+        match_type <- NULL
       }
 
       # Store results
@@ -375,6 +516,13 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
           },
           type = "warning",
           duration = 5
+        )
+      } else {
+        # Inform user whether exact or fuzzy matches were found
+        shiny::showNotification(
+          paste0("Found ", nrow(matches), " ", match_type, " match", if(nrow(matches) > 1) "es" else "", "."),
+          type = "message",
+          duration = 3
         )
       }
     })
@@ -458,7 +606,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
                       inputId = ns(paste0("select_custom_", i)),
                       label = "Select",
                       class = "btn-sm btn-info",
-                      onclick = paste0("Shiny.setInputValue('", ns("custom_selected_row"), "', ", i, ");")
+                      onclick = paste0("Shiny.setInputValue('", ns("custom_selected_row"), "', ", i, ", {priority: 'event'});")
                     )
                   )
                 )
@@ -470,11 +618,12 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
     })
 
     # Handle custom search selection
-    shiny::observeEvent(input$custom_selected_row, {
+    # Use ignoreInit = FALSE and ignoreNULL = FALSE to catch all clicks
+    shiny::observeEvent(input$custom_selected_row, ignoreInit = FALSE, ignoreNULL = FALSE, {
       req(custom_search_matches())
       req(input$custom_selected_row)
-      req(current_name())
 
+      # Don't require current_name() as it might be NA
       matches <- custom_search_matches()
       selected_idx <- input$custom_selected_row
       name <- current_name()
@@ -574,27 +723,67 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
 
       # Find column name (from match_results)
       results <- match_results()
-      col_name <- names(results$data)[which(sapply(results$data, function(col) {
-        any(col == name, na.rm = TRUE)
-      }))[1]]
+
+      # Find the column containing the name (handle NA specially)
+      if (is.na(name)) {
+        col_name <- names(results$data)[which(sapply(results$data, function(col) {
+          any(is.na(col))
+        }))[1]]
+      } else {
+        col_name <- names(results$data)[which(sapply(results$data, function(col) {
+          any(col == name, na.rm = TRUE)
+        }))[1]]
+      }
 
       if (!is.null(col_name)) {
-        # Update rows with this name
-        data <- data %>%
-          dplyr::mutate(
-            idtax_n = ifelse(!!rlang::sym(col_name) == name & is.na(idtax_n),
-                            decision$idtax_n, idtax_n),
-            idtax_good_n = ifelse(!!rlang::sym(col_name) == name & is.na(idtax_good_n),
-                                 decision$idtax_good_n, idtax_good_n),
-            matched_name = ifelse(!!rlang::sym(col_name) == name & is.na(matched_name),
-                                 decision$matched_name, matched_name),
-            corrected_name = ifelse(!!rlang::sym(col_name) == name & is.na(corrected_name),
-                                   decision$corrected_name, corrected_name),
-            match_method = ifelse(!!rlang::sym(col_name) == name & is.na(match_method),
-                                 decision$match_method, match_method),
-            match_score = ifelse(!!rlang::sym(col_name) == name & is.na(match_score),
-                                decision$match_score, match_score)
-          )
+        # Create a row mask for matching (handle NA specially)
+        if (is.na(name)) {
+          # For NA values, match rows where column is NA and idtax_n is also NA
+          data <- data %>%
+            dplyr::mutate(
+              idtax_n = ifelse(is.na(!!rlang::sym(col_name)) & is.na(idtax_n),
+                              decision$idtax_n, idtax_n),
+              idtax_good_n = ifelse(is.na(!!rlang::sym(col_name)) & is.na(idtax_good_n),
+                                   decision$idtax_good_n, idtax_good_n),
+              matched_name = ifelse(is.na(!!rlang::sym(col_name)) & is.na(matched_name),
+                                   decision$matched_name, matched_name),
+              corrected_name = ifelse(is.na(!!rlang::sym(col_name)) & is.na(corrected_name),
+                                     decision$corrected_name, corrected_name),
+              match_method = ifelse(is.na(!!rlang::sym(col_name)) & is.na(match_method),
+                                   decision$match_method, match_method),
+              match_score = ifelse(is.na(!!rlang::sym(col_name)) & is.na(match_score),
+                                  decision$match_score, match_score)
+            )
+        } else {
+          # For non-NA values, use normal equality check
+          data <- data %>%
+            dplyr::mutate(
+              idtax_n = ifelse(!is.na(!!rlang::sym(col_name)) &
+                              !!rlang::sym(col_name) == name &
+                              is.na(idtax_n),
+                              decision$idtax_n, idtax_n),
+              idtax_good_n = ifelse(!is.na(!!rlang::sym(col_name)) &
+                                   !!rlang::sym(col_name) == name &
+                                   is.na(idtax_good_n),
+                                   decision$idtax_good_n, idtax_good_n),
+              matched_name = ifelse(!is.na(!!rlang::sym(col_name)) &
+                                   !!rlang::sym(col_name) == name &
+                                   is.na(matched_name),
+                                   decision$matched_name, matched_name),
+              corrected_name = ifelse(!is.na(!!rlang::sym(col_name)) &
+                                     !!rlang::sym(col_name) == name &
+                                     is.na(corrected_name),
+                                     decision$corrected_name, corrected_name),
+              match_method = ifelse(!is.na(!!rlang::sym(col_name)) &
+                                   !!rlang::sym(col_name) == name &
+                                   is.na(match_method),
+                                   decision$match_method, match_method),
+              match_score = ifelse(!is.na(!!rlang::sym(col_name)) &
+                                  !!rlang::sym(col_name) == name &
+                                  is.na(match_score),
+                                  decision$match_score, match_score)
+            )
+        }
 
         updated_data(data)
       }

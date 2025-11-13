@@ -21,7 +21,7 @@ mod_auto_matching_ui <- function(id) {
         shiny::numericInput(
           inputId = ns("min_similarity"),
           label = shiny::textOutput(ns("min_sim_label")),
-          value = 0.3,
+          value = 0.6,
           min = 0,
           max = 1,
           step = 0.05
@@ -135,14 +135,20 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         min_sim <- input$min_similarity %||% min_similarity
 
         # Extract unique names from selected column
+        # Convert actual NA values to string "NA" so they can be reviewed and assigned taxonomy
         unique_names <- user_df %>%
           dplyr::pull(!!rlang::sym(col_name)) %>%
           unique() %>%
-          .[!is.na(.)]
+          # Convert actual NA to character "NA" so they can be matched/reviewed
+          {ifelse(is.na(.), "NA", .)}
+
+        # All names (including "NA") should be matched
+        unique_names_to_match <- unique_names
 
         total_names <- length(unique_names)
+        total_names_to_match <- length(unique_names_to_match)
 
-        if (total_names == 0) {
+        if (total_names_to_match == 0) {
           shiny::showNotification(
             t()$msg_no_data,
             type = "warning"
@@ -169,15 +175,18 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             idtax_n,
             idtax_good_n,
             tax_fam,
+            tax_famclass,  # Added for class level matching
             tax_gen,
             tax_esp,
             tax_rank01,
             tax_nam01,
             tax_rank02,
             tax_nam02,
-            tax_level
+            tax_level,
+            author1
           ) %>%
-          dplyr::collect()
+          dplyr::collect() %>% 
+          dplyr::filter(author1 != "ZZ auct.")
 
         # Remove the download notification
         shiny::removeNotification("download_backbone")
@@ -194,16 +203,19 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             # Genus-level name (just genus)
             tax_gen_level = tax_gen,
             # Family-level name (just family)
-            tax_fam_level = tax_fam
+            tax_fam_level = tax_fam,
+            # Class-level name (just class)
+            tax_class_level = tax_famclass
           )
 
         # STEP 2: Clean input names before matching (remove sp., cf., etc.)
         # Store both original and cleaned names for mapping back later
-        cleaned_names <- sapply(unique_names, clean_taxonomic_name)
+        # Only clean names that are not NA
+        cleaned_names <- sapply(unique_names_to_match, clean_taxonomic_name)
 
         input_df <- data.frame(
-          input_name = unique_names,        # Original input name
-          cleaned_name = cleaned_names,     # Cleaned name for matching
+          input_name = unique_names_to_match,        # Original input name (excluding NAs)
+          cleaned_name = cleaned_names,              # Cleaned name for matching
           stringsAsFactors = FALSE
         )
 
@@ -294,6 +306,39 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             by = c("cleaned_name" = "tax_fam_level")
           )
 
+        # STEP 5.5: Batch exact matching on class level (where unique, for unmatched)
+        unmatched_after_family <- matches_family %>%
+          dplyr::filter(is.na(idtax_n)) %>%
+          dplyr::select(input_name, cleaned_name)
+
+        unique_classes <- backbone %>%
+          dplyr::filter(tax_level == "higher", !is.na(tax_class_level)) %>%  # Class-level taxa
+          dplyr::group_by(tax_class_level) %>%
+          dplyr::filter(dplyr::n() == 1) %>%  # Only unique matches
+          dplyr::ungroup() %>%
+          dplyr::select(
+            tax_class_level,
+            idtax_n,
+            idtax_good_n
+          ) %>%
+          dplyr::mutate(
+            matched_name = tax_class_level,
+            match_method = "exact",
+            match_score = 1.0,
+            # Add missing columns to match structure of other levels
+            tax_fam = NA_character_,
+            tax_gen = NA_character_,
+            tax_esp = NA_character_,
+            tax_rank01 = NA_character_,
+            tax_nam01 = NA_character_
+          )
+
+        matches_class <- unmatched_after_family %>%
+          dplyr::left_join(
+            unique_classes,
+            by = c("cleaned_name" = "tax_class_level")
+          )
+
         # STEP 6: Combine all batch exact matches
         # Update matches_species with genus matches
         matches_species <- matches_species %>%
@@ -311,11 +356,20 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             unmatched = "ignore"
           )
 
+        # Update with class matches
+        matches_species <- matches_species %>%
+          dplyr::rows_update(
+            matches_class %>% dplyr::filter(!is.na(idtax_n)),
+            by = "input_name",
+            unmatched = "ignore"
+          )
+
         best_matches <- matches_species
 
         # STEP 7: Fuzzy matching for remaining unmatched names
+        # Now includes "NA" strings since we convert actual NA to "NA"
         still_unmatched <- best_matches %>%
-          dplyr::filter(is.na(idtax_n)) %>%
+          dplyr::filter(is.na(idtax_n)) %>%  # No match found yet
           dplyr::pull(input_name)
 
         if (length(still_unmatched) > 0) {
@@ -360,7 +414,8 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
 
           # Combine all fuzzy results
           fuzzy_matches <- dplyr::bind_rows(fuzzy_results) %>%
-            dplyr::filter(match_rank == 1)
+            dplyr::filter(match_rank == 1) %>%
+            dplyr::distinct(input_name, .keep_all = TRUE)  # Ensure unique input_name for join
 
           # Remove fuzzy matching notification
           shiny::removeNotification("fuzzy_matching")
@@ -413,7 +468,8 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
                 TRUE ~ tax_fam
               )
             ) %>%
-            dplyr::select(idtax_n, accepted_name)
+            dplyr::select(idtax_n, accepted_name) %>%
+            dplyr::distinct(idtax_n, .keep_all = TRUE)  # Ensure unique keys for join
 
           best_matches <- best_matches %>%
             dplyr::left_join(
@@ -453,6 +509,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             is_synonym,
             accepted_name
           ) %>%
+          dplyr::distinct(input_name, .keep_all = TRUE) %>%  # Ensure unique keys for join
           dplyr::rename(
             !!col_name := input_name
           )
@@ -565,14 +622,13 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         req(matched_data())
         req(match_stats())
 
-        # Get unmatched names (including no_match results)
-        # Exclude actual NA values from the dataset
+        # Get unmatched names (including no_match results AND NA values)
+        # Include NA values so they can be reviewed and assigned an idtax_n
         col_name <- column_name()
         unmatched <- matched_data() %>%
           dplyr::filter(
             is.na(idtax_n),  # No match found
-            !is.na(!!rlang::sym(col_name)),  # But name itself is not NA
-            !!rlang::sym(col_name) != ""  # And not empty string
+            !!rlang::sym(col_name) != ""  # But not empty string
           ) %>%
           dplyr::distinct(!!rlang::sym(col_name)) %>%
           dplyr::pull(!!rlang::sym(col_name))

@@ -48,27 +48,139 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       get_translations(language())
     })
 
-    # Fetch suggestions when input name changes
+    # Fetch suggestions when input name OR filters change
+    # Make reactive to: input_name, num_suggestions, min_similarity_slider, filter_level
     shiny::observe({
       req(input_name())
 
       name <- input_name()
-      max_sug <- if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions
-      min_sim <- if (shiny::is.reactive(min_similarity)) min_similarity() else min_similarity
+
+      # Use slider value if available, otherwise use parameter default
+      min_sim <- input$min_similarity_slider %||% (if (shiny::is.reactive(min_similarity)) min_similarity() else min_similarity)
+
+      # Use input value if available, otherwise use parameter default
+      max_sug <- input$num_suggestions %||% (if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions)
+
       incl_auth <- if (shiny::is.reactive(include_authors)) include_authors() else include_authors
 
-      # Get suggestions using match_taxonomic_names
-      matches <- match_taxonomic_names(
-        names = name,
-        method = "hierarchical",
-        max_matches = max_sug,
-        min_similarity = min_sim,
-        include_synonyms = TRUE,
-        return_scores = TRUE,
-        include_authors = incl_auth,
-        con = NULL,
-        verbose = FALSE
-      )
+      # Get the selected level filter
+      level_filter <- input$filter_level %||% "all"
+
+      # Based on level filter, do targeted searches or use hierarchical matching
+      if (level_filter == "all") {
+        # Use standard hierarchical matching for "all levels"
+        matches <- match_taxonomic_names(
+          names = name,
+          method = "hierarchical",
+          max_matches = 50,
+          min_similarity = min_sim,
+          include_synonyms = TRUE,
+          return_scores = TRUE,
+          include_authors = incl_auth,
+          con = NULL,
+          verbose = FALSE
+        )
+      } else {
+        # For specific level, do direct database fuzzy search
+        mydb_taxa <- call.mydb.taxa()
+
+        if (level_filter == "family") {
+          # Search in tax_fam column for family-level taxa
+          sql <- glue::glue_sql("
+            SELECT DISTINCT ON (tax_fam)
+              idtax_n, idtax_good_n, tax_gen, tax_esp, tax_fam, tax_level,
+              tax_fam AS matched_name,
+              SIMILARITY(lower(tax_fam), lower({search_name})) AS match_score
+            FROM table_taxa
+            WHERE tax_fam IS NOT NULL
+              AND tax_level = 'family'
+              AND SIMILARITY(lower(tax_fam), lower({search_name})) >= {min_sim}
+            ORDER BY tax_fam, match_score DESC
+            LIMIT 50
+          ", search_name = name, min_sim = min_sim, .con = mydb_taxa)
+
+        } else if (level_filter == "genus") {
+          # Search in tax_gen column for genus-level taxa
+          sql <- glue::glue_sql("
+            SELECT DISTINCT ON (tax_gen)
+              idtax_n, idtax_good_n, tax_gen, tax_esp, tax_fam, tax_level,
+              tax_gen AS matched_name,
+              SIMILARITY(lower(tax_gen), lower({search_name})) AS match_score
+            FROM table_taxa
+            WHERE tax_gen IS NOT NULL
+              AND tax_level = 'genus'
+              AND SIMILARITY(lower(tax_gen), lower({search_name})) >= {min_sim}
+            ORDER BY tax_gen, match_score DESC
+            LIMIT 50
+          ", search_name = name, min_sim = min_sim, .con = mydb_taxa)
+
+        } else if (level_filter == "higher") {
+          # Search in tax_famclass column for class-level taxa
+          sql <- glue::glue_sql("
+            SELECT DISTINCT ON (tax_famclass)
+              idtax_n, idtax_good_n, tax_gen, tax_esp, tax_fam, tax_level,
+              tax_famclass AS matched_name,
+              SIMILARITY(lower(tax_famclass), lower({search_name})) AS match_score
+            FROM table_taxa
+            WHERE tax_famclass IS NOT NULL
+              AND tax_level = 'higher'
+              AND SIMILARITY(lower(tax_famclass), lower({search_name})) >= {min_sim}
+            ORDER BY tax_famclass, match_score DESC
+            LIMIT 50
+          ", search_name = name, min_sim = min_sim, .con = mydb_taxa)
+
+        } else if (level_filter == "order") {
+          # Search in tax_order column for order-level taxa (if column exists)
+          sql <- glue::glue_sql("
+            SELECT DISTINCT ON (tax_order)
+              idtax_n, idtax_good_n, tax_gen, tax_esp, tax_fam, tax_level,
+              tax_order AS matched_name,
+              SIMILARITY(lower(tax_order), lower({search_name})) AS match_score
+            FROM table_taxa
+            WHERE tax_order IS NOT NULL
+              AND SIMILARITY(lower(tax_order), lower({search_name})) >= {min_sim}
+            ORDER BY tax_order, match_score DESC
+            LIMIT 50
+          ", search_name = name, min_sim = min_sim, .con = mydb_taxa)
+
+        } else {
+          # For species/infraspecific, use hierarchical matching and filter
+          matches <- match_taxonomic_names(
+            names = name,
+            method = "hierarchical",
+            max_matches = 50,
+            min_similarity = min_sim,
+            include_synonyms = TRUE,
+            return_scores = TRUE,
+            include_authors = incl_auth,
+            con = NULL,
+            verbose = FALSE
+          ) %>%
+            dplyr::filter(tax_level == level_filter)
+
+          suggestions(matches)
+          return()
+        }
+
+        # Execute the SQL query for family/genus/higher/order
+        matches <- tryCatch({
+          result <- func_try_fetch(con = mydb_taxa, sql = sql)
+          if (nrow(result) > 0) {
+            result %>%
+              dplyr::mutate(
+                input_name = name,
+                match_method = "fuzzy",
+                match_rank = 1,
+                is_synonym = idtax_n != idtax_good_n,
+                accepted_name = NA_character_
+              )
+          } else {
+            tibble()
+          }
+        }, error = function(e) {
+          tibble()
+        })
+      }
 
       suggestions(matches)
     })
@@ -90,45 +202,59 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
     output$suggestions_controls <- shiny::renderUI({
       ns <- session$ns
 
-      shiny::fluidRow(
-        shiny::column(
-          width = 4,
-          shiny::numericInput(
-            inputId = ns("num_suggestions"),
-            label = t()$review_num_suggestions,
-            value = if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions,
-            min = 5,
-            max = 30,
-            step = 5
-          )
-        ),
-        shiny::column(
-          width = 4,
-          shiny::selectInput(
-            inputId = ns("filter_level"),
-            label = "Filter by level",
-            choices = c(
-              "All levels" = "all",
-              "Species" = "species",
-              "Genus" = "genus",
-              "Family" = "family",
-              "Order" = "order",
-              "Infraspecific" = "infraspecific"
-            ),
-            selected = "all"
-          )
-        ),
-        shiny::column(
-          width = 4,
-          shiny::radioButtons(
-            inputId = ns("sort_by"),
-            label = t()$review_sort,
-            choices = c(
-              "Similarity" = "similarity",
-              "Alphabetical" = "alphabetical"
-            ),
-            selected = "similarity",
-            inline = TRUE
+      shiny::tagList(
+        shiny::fluidRow(
+          shiny::column(
+            width = 3,
+            shiny::numericInput(
+              inputId = ns("num_suggestions"),
+              label = t()$review_num_suggestions,
+              value = if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions,
+              min = 5,
+              max = 30,
+              step = 5
+            )
+          ),
+          shiny::column(
+            width = 3,
+            shiny::sliderInput(
+              inputId = ns("min_similarity_slider"),
+              label = "Min. similarity",
+              value = if (shiny::is.reactive(min_similarity)) min_similarity() else min_similarity,
+              min = 0.3,
+              max = 1.0,
+              step = 0.05
+            )
+          ),
+          shiny::column(
+            width = 3,
+            shiny::selectInput(
+              inputId = ns("filter_level"),
+              label = "Filter by level",
+              choices = c(
+                "All levels" = "all",
+                "Species" = "species",
+                "Genus" = "genus",
+                "Family" = "family",
+                "Order" = "order",
+                "Class (Higher)" = "higher",
+                "Infraspecific" = "infraspecific"
+              ),
+              selected = "all"
+            )
+          ),
+          shiny::column(
+            width = 3,
+            shiny::radioButtons(
+              inputId = ns("sort_by"),
+              label = t()$review_sort,
+              choices = c(
+                "Similarity" = "similarity",
+                "Alphabetical" = "alphabetical"
+              ),
+              selected = "similarity",
+              inline = TRUE
+            )
           )
         )
       )
@@ -156,10 +282,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       # Filter out NA matches
       sug <- sug %>% dplyr::filter(!is.na(idtax_n))
 
-      # Apply taxonomic level filter if specified
-      if (!is.null(input$filter_level) && input$filter_level != "all") {
-        sug <- sug %>% dplyr::filter(tax_level == input$filter_level)
-      }
+      # No need for post-fetch filtering - level filtering is now done at query time
 
       # Check if any results remain after filtering
       if (nrow(sug) == 0) {
@@ -225,6 +348,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
                   class = "text-muted mb-1",
                   style = "font-size: 0.9em;",
                   paste0(
+                    if (!is.na(row$tax_level)) paste("Level:", row$tax_level, " | ") else "",
                     if (!is.na(row$tax_fam)) paste(t()$review_family, row$tax_fam, " | ") else "",
                     if (!is.na(row$tax_gen)) paste(t()$review_genus, row$tax_gen) else ""
                   )
@@ -250,7 +374,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
                   inputId = ns(paste0("select_", i)),
                   label = t()$review_select_match,
                   class = "btn-sm btn-primary",
-                  onclick = paste0("Shiny.setInputValue('", ns("selected_row"), "', ", i, ");")
+                  onclick = paste0("Shiny.setInputValue('", ns("selected_row"), "', ", i, ", {priority: 'event'});")
                 )
               )
             )
@@ -262,7 +386,8 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
     })
 
     # Handle selection
-    shiny::observeEvent(input$selected_row, {
+    # Use ignoreInit = FALSE and ignoreNULL = FALSE to catch all clicks
+    shiny::observeEvent(input$selected_row, ignoreInit = FALSE, ignoreNULL = FALSE, {
       req(suggestions())
       req(input$selected_row)
 
@@ -271,10 +396,8 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       # Filter out NA matches
       sug <- sug %>% dplyr::filter(!is.na(idtax_n))
 
-      # Apply taxonomic level filter (same as display logic)
-      if (!is.null(input$filter_level) && input$filter_level != "all") {
-        sug <- sug %>% dplyr::filter(tax_level == input$filter_level)
-      }
+      # No need for level filtering here anymore - already done at query time
+      # Just apply the same sorting as display
 
       # Sort same way as display
       if (!is.null(input$sort_by) && input$sort_by == "alphabetical") {
@@ -282,6 +405,10 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       } else {
         sug <- sug %>% dplyr::arrange(desc(match_score))
       }
+
+      # Limit to num_suggestions (same as display)
+      num_show <- input$num_suggestions %||% (if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions)
+      sug <- head(sug, num_show)
 
       selected_row_idx <- input$selected_row
 
