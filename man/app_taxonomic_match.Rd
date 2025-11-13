@@ -8,7 +8,7 @@ app_taxonomic_match(
   data = NULL,
   name_column = NULL,
   language = "en",
-  min_similarity = 0.3,
+  min_similarity = 0.6,
   max_suggestions = 10,
   mode = "interactive"
 )
