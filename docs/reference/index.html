@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">plotsdatabase</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -18,7 +18,8 @@
       <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
+    <li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -192,6 +193,18 @@
         <dd>Create local DB config file</dd>
       </dl><dl><dt>
 
+          <code><a href="create_pool_main.html">create_pool_main()</a></code>
+
+        </dt>
+        <dd>Create a connection pool for Shiny apps (main database)</dd>
+      </dl><dl><dt>
+
+          <code><a href="create_pool_taxa.html">create_pool_taxa()</a></code>
+
+        </dt>
+        <dd>Create a connection pool for Shiny apps (taxa database)</dd>
+      </dl><dl><dt>
+
           <code><a href="db_diagnostic.html">db_diagnostic()</a></code>
 
         </dt>
@@ -226,6 +239,12 @@
 
         </dt>
         <dd>Add link between specimen and individual</dd>
+      </dl><dl><dt>
+
+          <code><a href="dot-add_modif_field.html">.add_modif_field()</a></code>
+
+        </dt>
+        <dd>Query fuzzy match</dd>
       </dl><dl><dt>
 
           <code><a href="dot-comp_print_vec.html">.comp_print_vec()</a></code>
@@ -372,6 +391,12 @@
         <dd>Internal function</dd>
       </dl><dl><dt>
 
+          <code><a href="dot-rename_data.html">.rename_data()</a></code>
+
+        </dt>
+        <dd>Internal function</dd>
+      </dl><dl><dt>
+
           <code><a href="dot-split_censuses.html">.split_censuses()</a></code>
 
         </dt>
@@ -402,6 +427,12 @@
         <dd>Explore allometric relation</dd>
       </dl><dl><dt>
 
+          <code><a href="export_plot_template.html">export_plot_template()</a></code>
+
+        </dt>
+        <dd>Export Plot Metadata Template to Excel</dd>
+      </dl><dl><dt>
+
           <code><a href="extract_corners.html">extract_corners()</a></code>
 
         </dt>
@@ -426,10 +457,28 @@
         <dd>Get database foreign keys</dd>
       </dl><dl><dt>
 
+          <code><a href="get_import_column_routing.html">get_import_column_routing()</a></code>
+
+        </dt>
+        <dd>Get Import Column Routing Configuration</dd>
+      </dl><dl><dt>
+
           <code><a href="get_individual_aggregated_features.html">get_individual_aggregated_features()</a></code>
 
         </dt>
         <dd>Aggregate individual features to individual level</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_individual_template.html">get_individual_template()</a></code>
+
+        </dt>
+        <dd>Generate Individual Data Import Template</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_plot_metadata_template.html">get_plot_metadata_template()</a></code>
+
+        </dt>
+        <dd>Get Plot Metadata Template</dd>
       </dl><dl><dt>
 
           <code><a href="get_plot_rel_xy.html">get_plot_rel_xy()</a></code>
@@ -456,6 +505,18 @@
         <dd>Growth computing for multiple census</dd>
       </dl><dl><dt>
 
+          <code><a href="import_individual_data.html">import_individual_data()</a></code>
+
+        </dt>
+        <dd>Import Individual Data with Transaction Support</dd>
+      </dl><dl><dt>
+
+          <code><a href="import_plot_metadata.html">import_plot_metadata()</a></code>
+
+        </dt>
+        <dd>Import Plot Metadata with Transaction Support</dd>
+      </dl><dl><dt>
+
           <code><a href="latlong2UTM.html">latlong2UTM()</a></code>
 
         </dt>
@@ -478,6 +539,18 @@
 
         </dt>
         <dd>List user policies</dd>
+      </dl><dl><dt>
+
+          <code><a href="map_individual_columns.html">map_individual_columns()</a></code>
+
+        </dt>
+        <dd>Map Individual Data Columns</dd>
+      </dl><dl><dt>
+
+          <code><a href="map_user_columns.html">map_user_columns()</a></code>
+
+        </dt>
+        <dd>Map User Columns to Database Schema</dd>
       </dl><dl><dt>
 
           <code><a href="match_tax.html">match_tax()</a></code>
@@ -540,16 +613,58 @@
         <dd>Print method for plot_query_list</dd>
       </dl><dl><dt>
 
+          <code><a href="print.plot_validation_result.html">print(<i>&lt;plot_validation_result&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print method for validation results</dd>
+      </dl><dl><dt>
+
           <code><a href="print_connection_status.html">print_connection_status()</a></code>
 
         </dt>
         <dd>Print connection status</dd>
       </dl><dl><dt>
 
+          <code><a href="print_import_result.html">print_import_result()</a></code>
+
+        </dt>
+        <dd>Print Import Result</dd>
+      </dl><dl><dt>
+
+          <code><a href="print_individual_template_info.html">print_individual_template_info()</a></code>
+
+        </dt>
+        <dd>Export Individual Template Info</dd>
+      </dl><dl><dt>
+
+          <code><a href="print_individual_validation_results.html">print_individual_validation_results()</a></code>
+
+        </dt>
+        <dd>Print Individual Validation Results</dd>
+      </dl><dl><dt>
+
+          <code><a href="print_mapping_summary.html">print_mapping_summary()</a></code>
+
+        </dt>
+        <dd>Print Mapping Summary</dd>
+      </dl><dl><dt>
+
           <code><a href="print_table.html">print_table()</a></code>
 
         </dt>
         <dd>print table as html in viewer</dd>
+      </dl><dl><dt>
+
+          <code><a href="print_template_info.html">print_template_info()</a></code>
+
+        </dt>
+        <dd>Print Template Column Information</dd>
+      </dl><dl><dt>
+
+          <code><a href="print_validation_results.html">print_validation_results()</a></code>
+
+        </dt>
+        <dd>Print Validation Results</dd>
       </dl><dl><dt>
 
           <code><a href="process_individuals.html">process_individuals()</a></code>
@@ -645,7 +760,7 @@
           <code><a href="replace_NA.html">replace_NA()</a></code>
 
         </dt>
-        <dd>Query fuzzy match</dd>
+        <dd>Replace or restore missing values in a data frame</dd>
       </dl><dl><dt>
 
           <code><a href="setup_db_credentials.html">setup_db_credentials()</a></code>
@@ -754,6 +869,18 @@
 
         </dt>
         <dd>Update local taxonomy link table</dd>
+      </dl><dl><dt>
+
+          <code><a href="validate_individual_data.html">validate_individual_data()</a></code>
+
+        </dt>
+        <dd>Validate Individual Data Before Import</dd>
+      </dl><dl><dt>
+
+          <code><a href="validate_plot_metadata.html">validate_plot_metadata()</a></code>
+
+        </dt>
+        <dd>Validate Plot Metadata Before Import</dd>
       </dl></div>
   </main></div>
 
