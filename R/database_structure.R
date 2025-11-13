@@ -7,20 +7,25 @@
 #'
 #' @description
 #' Get a figure showing main tables and primary and foreign keys
-#' 
+#'
 #' @param con A database connection. Optional; if `NULL`, will call `call.mydb()`.
 #'
-#' @returns 
+#' @returns
 #' A database structure diagram showing foreign key relationships between
 #' the specified tables.
-#' 
-#' @importFrom dm dm_from_con dm_draw
 #'
 #' @export
 get_database_fk <- function(con) {
-  
+
+  # Check if dm package is available
+  if (!requireNamespace("dm", quietly = TRUE)) {
+    stop("Package 'dm' is required for database structure visualization.\n",
+         "Install it with: install.packages('dm')",
+         call. = FALSE)
+  }
+
   if (is.null(con)) con <- call.mydb()
-  
+
   dm_subset <-
     dm::dm_from_con(
       con,
@@ -38,10 +43,10 @@ get_database_fk <- function(con) {
       ),
       learn_keys = T
     )
-  
-  fig_struc <- 
+
+  fig_struc <-
     dm_subset %>% dm::dm_draw()
-  
+
   return(fig_struc)
 }
 

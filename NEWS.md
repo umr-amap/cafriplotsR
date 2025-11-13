@@ -1,3 +1,105 @@
+# plotsdatabase 1.7 (2025-01-13)
+
+### New Features
+
+* **Complete individual tree data import workflow**
+  - New `import_individual_data()` function with transaction-based imports and automatic rollback on errors
+  - Interactive column mapping with `map_individual_columns()` - automatically matches user columns to database schema
+  - Comprehensive validation with `validate_individual_data()` - checks plots, taxonomy, tags, traits before import
+  - Template generation with `get_individual_template()` - creates Excel templates with guidance
+  - Dry-run mode to preview imports without committing changes
+  - Support for both flat table and two-table (individuals + features) data structures
+  - Auto-generates sequential tags when missing
+  - Imports into `data_individuals` and `data_traits_measures` tables
+  - See new vignette "Importing Plot Data into the Database" for complete workflow
+
+* **Intelligent column mapping system**
+  - Fuzzy matching of user column names to database columns and traits
+  - Interactive classification: feature/trait vs individual identification columns
+  - Manual selection with ranked suggestions based on similarity scores
+  - Synonym support for common column name variations
+  - Automatic detection of linking columns (plot_name, tag)
+  - Mapping audit trail preserved for reproducibility
+
+* **Comprehensive data validation before import**
+  - Required columns validation (plot_name, idtax_n)
+  - Plot existence verification with exact name matching
+  - Taxonomy ID validation against database
+  - Tag uniqueness within plots
+  - Tag conflict detection with existing database records
+  - Trait value validation (numeric vs categorical)
+  - Feature-to-individual linkage verification
+  - Method-specific requirements validation
+  - Detailed error reporting with actionable messages
+
+* **`query_plots()` exact name matching**
+  - New `exact_match` parameter (default FALSE) for precise plot name filtering
+  - Prevents unintended pattern matching (e.g., "41" matching "Plot-41", "4100")
+  - Uses SQL IN clause for exact matching vs LIKE for pattern matching
+  - Applied throughout PlotFilterBuilder pipeline
+
+* **Taxonomic matching app: Class-level taxonomic support**
+  - Now recognizes and matches class-level taxa (e.g., names ending in -opsida, -psida)
+  - Searches in `tax_famclass` column for class names
+  - Both exact and fuzzy matching supported for classes
+  - Expands hierarchical matching beyond family/order/genus/species
+
+* **Taxonomic matching app: Improved large dataset handling**
+  - Excel file reading now uses `guess_max = 30000` for better column type detection
+  - Prevents type mismatches when taxonomic names appear late in large datasets
+  - Ensures consistent data type inference across entire dataset
+
+### Documentation
+
+* **New vignette: "Importing Plot Data into the Database"**
+  - Complete workflow from plot metadata to individual tree data
+  - Step-by-step examples with expected output
+  - Interactive and programmatic workflows
+  - Common issues and troubleshooting guide
+  - Best practices for data import
+  - Advanced topics: custom column synonyms
+
+### Bug Fixes
+
+* **Fixed `query_plots()` with `output_style` throwing errors on missing columns**
+  - Changed column selection from `all_of()` to `any_of()` in output style transformations
+  - Functions now gracefully handle missing columns instead of throwing errors
+  - Applies to `.extract_metadata_table()`, `.extract_individuals_table()`, and `.extract_height_diameter_pairs()`
+  - Dynamic column selection for `height_of_stem_diameter` (POM) when creating height-diameter pairs
+  - Output styles (`permanent_plot`, `standard`, etc.) now work reliably with varying data structures
+
+* **Fixed `.find_cat()` return value handling in column mapping**
+  - Interactive column selection was returning wrong columns due to table reordering
+  - Now correctly extracts selected value from `result$sorted_matches` instead of original table
+  - Applies to both individual column and trait column selection
+
+* **Fixed traits_list() column name**
+  - Changed `description` to `traitdescription` to match actual column name
+  - Prevents errors during trait column display
+
+* **Fixed tag propagation from individuals to features**
+  - Auto-generated tags now correctly synced to features sheet during validation
+  - Ensures features can link to individuals via tag column
+
+### Infrastructure
+
+* **Improved package dependency management**
+  - Moved `getPass` and `dm` from Imports to Suggests
+  - Reduces installation requirements - only needed for specific optional features
+  - `getPass`: Used only for secure password prompts (has fallbacks to rstudioapi and readline)
+  - `dm`: Used only for database structure visualization with `get_database_fk()`
+  - Both packages now checked with `requireNamespace()` before use with helpful error messages
+  - Fixes installation errors for users without these packages: "ERROR: dependencies 'getPass', 'dm' are not available"
+
+### Breaking Changes
+
+* **Taxonomic matching app: Stricter default similarity threshold**
+  - Default `min_similarity` increased from 0.3 to 0.7 in `launch_taxonomic_match_app()`
+  - Reduces false positive matches by requiring higher similarity scores
+  - Previous behavior available by setting `min_similarity = 0.3` explicitly
+  - **Action required**: Users relying on low-quality fuzzy matches may need to adjust threshold or improve input data quality
+  - Rationale: Quality over quantity - fewer but more reliable matches improve data integrity
+
 # plotsdatabase 1.5
 
 ### New Features

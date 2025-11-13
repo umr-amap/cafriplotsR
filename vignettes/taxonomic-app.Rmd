@@ -31,7 +31,7 @@ Before launching the app, ensure you have:
 1. **Database credentials** configured (see `setup_db_credentials()`)
 2. **Data to standardize** in one of these formats:
    - Excel file (.xlsx)
-3. A column containing **taxonomic names** (genus + species)
+3. A column containing **taxonomic names** For example : (genus + species) or (genus) or (family)
 
 ## Quick Start
 

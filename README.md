@@ -25,7 +25,7 @@ manipulation, data reusability.
 ```r
 # Install from GitHub
 install.packages(c("tidyverse", "dbplyr", "devtools"))
-devtools::install_github("gdauby/bdd_plots_central_africa")
+devtools::install_github("gdauby/bdd_plots_central_africa", upgrade = "never")
 
 ```
 
@@ -82,7 +82,7 @@ mydb <- call.mydb()
 mydb_taxa <- call.mydb.taxa()
 
 # Query plots
-plots <- query_plots(plot_ids = c(1, 2, 3))
+plots <- query_plots(id_plot = c(1, 2, 3))
 
 # Query plots
 plots <- query_plots(country = "GABON")

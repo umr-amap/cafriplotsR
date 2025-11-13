@@ -54,7 +54,8 @@
     description = "Organized output for permanent plot monitoring (single or most recent census)",
     metadata_columns = c(
       "id_liste_plots", "plot_name", "country", "locality_name", "method",
-      "ddlat", "ddlon", "elevation", "data_provider", "plot_area"
+      "ddlat", "ddlon", "elevation", "data_provider", "plot_area",
+      "forest_description"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "quadrat",
@@ -62,7 +63,9 @@
       "stem_diameter", "tree_height", "census_date"
     ),
     keep_patterns = c("wood_density",
-                      "stem_diameter"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
+                      "stem_diameter",
+                      "observations",
+                      "light"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n)", "^date_modif", "_census_\\d+$"),  # Remove census suffix columns
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,  # Features go to census table

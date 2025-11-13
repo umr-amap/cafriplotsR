@@ -180,7 +180,7 @@ mod_data_input_server <- function(id, provided_data = NULL, language = shiny::re
 
       tryCatch({
         # Read selected sheet from Excel file
-        data <- readxl::read_xlsx(uploaded_file_path(), sheet = input$excel_sheet)
+        data <- readxl::read_xlsx(uploaded_file_path(), sheet = input$excel_sheet, guess_max = 30000)
 
         # Add id_data column if not present
         if (!"id_data" %in% colnames(data)) {
