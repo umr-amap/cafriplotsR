@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">plotsdatabase</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -18,7 +18,8 @@
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
+    <li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
   </ul></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -37,7 +38,216 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.7" id="plotsdatabase-17-2025-01-13">plotsdatabase 1.7 (2025-01-13)<a class="anchor" aria-label="anchor" href="#plotsdatabase-17-2025-01-13"></a></h2>
+<div class="section level4">
+<h4 id="new-features-1-7">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-7"></a></h4>
+<ul><li>
+<strong>Complete individual tree data import workflow</strong>
+<ul><li>New <code><a href="../reference/import_individual_data.html">import_individual_data()</a></code> function with transaction-based imports and automatic rollback on errors</li>
+<li>Interactive column mapping with <code><a href="../reference/map_individual_columns.html">map_individual_columns()</a></code> - automatically matches user columns to database schema</li>
+<li>Comprehensive validation with <code><a href="../reference/validate_individual_data.html">validate_individual_data()</a></code> - checks plots, taxonomy, tags, traits before import</li>
+<li>Template generation with <code><a href="../reference/get_individual_template.html">get_individual_template()</a></code> - creates Excel templates with guidance</li>
+<li>Dry-run mode to preview imports without committing changes</li>
+<li>Support for both flat table and two-table (individuals + features) data structures</li>
+<li>Auto-generates sequential tags when missing</li>
+<li>Imports into <code>data_individuals</code> and <code>data_traits_measures</code> tables</li>
+<li>See new vignette “Importing Plot Data into the Database” for complete workflow</li>
+</ul></li>
+<li>
+<strong>Intelligent column mapping system</strong>
+<ul><li>Fuzzy matching of user column names to database columns and traits</li>
+<li>Interactive classification: feature/trait vs individual identification columns</li>
+<li>Manual selection with ranked suggestions based on similarity scores</li>
+<li>Synonym support for common column name variations</li>
+<li>Automatic detection of linking columns (plot_name, tag)</li>
+<li>Mapping audit trail preserved for reproducibility</li>
+</ul></li>
+<li>
+<strong>Comprehensive data validation before import</strong>
+<ul><li>Required columns validation (plot_name, idtax_n)</li>
+<li>Plot existence verification with exact name matching</li>
+<li>Taxonomy ID validation against database</li>
+<li>Tag uniqueness within plots</li>
+<li>Tag conflict detection with existing database records</li>
+<li>Trait value validation (numeric vs categorical)</li>
+<li>Feature-to-individual linkage verification</li>
+<li>Method-specific requirements validation</li>
+<li>Detailed error reporting with actionable messages</li>
+</ul></li>
+<li>
+<strong><code><a href="../reference/query_plots.html">query_plots()</a></code> exact name matching</strong>
+<ul><li>New <code>exact_match</code> parameter (default FALSE) for precise plot name filtering</li>
+<li>Prevents unintended pattern matching (e.g., “41” matching “Plot-41”, “4100”)</li>
+<li>Uses SQL IN clause for exact matching vs LIKE for pattern matching</li>
+<li>Applied throughout PlotFilterBuilder pipeline</li>
+</ul></li>
+<li>
+<strong>Taxonomic matching app: Class-level taxonomic support</strong>
+<ul><li>Now recognizes and matches class-level taxa (e.g., names ending in -opsida, -psida)</li>
+<li>Searches in <code>tax_famclass</code> column for class names</li>
+<li>Both exact and fuzzy matching supported for classes</li>
+<li>Expands hierarchical matching beyond family/order/genus/species</li>
+</ul></li>
+<li>
+<strong>Taxonomic matching app: Improved large dataset handling</strong>
+<ul><li>Excel file reading now uses <code>guess_max = 30000</code> for better column type detection</li>
+<li>Prevents type mismatches when taxonomic names appear late in large datasets</li>
+<li>Ensures consistent data type inference across entire dataset</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="documentation-1-7">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-7"></a></h4>
+<ul><li>
+<strong>New vignette: “Importing Plot Data into the Database”</strong>
+<ul><li>Complete workflow from plot metadata to individual tree data</li>
+<li>Step-by-step examples with expected output</li>
+<li>Interactive and programmatic workflows</li>
+<li>Common issues and troubleshooting guide</li>
+<li>Best practices for data import</li>
+<li>Advanced topics: custom column synonyms</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-7">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-7"></a></h4>
+<ul><li>
+<strong>Fixed <code><a href="../reference/query_plots.html">query_plots()</a></code> with <code>output_style</code> throwing errors on missing columns</strong>
+<ul><li>Changed column selection from <code><a href="https://tidyselect.r-lib.org/reference/all_of.html" class="external-link">all_of()</a></code> to <code><a href="https://tidyselect.r-lib.org/reference/all_of.html" class="external-link">any_of()</a></code> in output style transformations</li>
+<li>Functions now gracefully handle missing columns instead of throwing errors</li>
+<li>Applies to <code>.extract_metadata_table()</code>, <code>.extract_individuals_table()</code>, and <code>.extract_height_diameter_pairs()</code>
+</li>
+<li>Dynamic column selection for <code>height_of_stem_diameter</code> (POM) when creating height-diameter pairs</li>
+<li>Output styles (<code>permanent_plot</code>, <code>standard</code>, etc.) now work reliably with varying data structures</li>
+</ul></li>
+<li>
+<strong>Fixed <code><a href="../reference/dot-find_cat.html">.find_cat()</a></code> return value handling in column mapping</strong>
+<ul><li>Interactive column selection was returning wrong columns due to table reordering</li>
+<li>Now correctly extracts selected value from <code>result$sorted_matches</code> instead of original table</li>
+<li>Applies to both individual column and trait column selection</li>
+</ul></li>
+<li>
+<strong>Fixed traits_list() column name</strong>
+<ul><li>Changed <code>description</code> to <code>traitdescription</code> to match actual column name</li>
+<li>Prevents errors during trait column display</li>
+</ul></li>
+<li>
+<strong>Fixed tag propagation from individuals to features</strong>
+<ul><li>Auto-generated tags now correctly synced to features sheet during validation</li>
+<li>Ensures features can link to individuals via tag column</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="infrastructure-1-7">Infrastructure<a class="anchor" aria-label="anchor" href="#infrastructure-1-7"></a></h4>
+<ul><li>
+<strong>Improved package dependency management</strong>
+<ul><li>Moved <code>getPass</code> and <code>dm</code> from Imports to Suggests</li>
+<li>Reduces installation requirements - only needed for specific optional features</li>
+<li>
+<code>getPass</code>: Used only for secure password prompts (has fallbacks to rstudioapi and readline)</li>
+<li>
+<code>dm</code>: Used only for database structure visualization with <code><a href="../reference/get_database_fk.html">get_database_fk()</a></code>
+</li>
+<li>Both packages now checked with <code><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace()</a></code> before use with helpful error messages</li>
+<li>Fixes installation errors for users without these packages: “ERROR: dependencies ‘getPass’, ‘dm’ are not available”</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="breaking-changes-1-7">Breaking Changes<a class="anchor" aria-label="anchor" href="#breaking-changes-1-7"></a></h4>
+<ul><li>
+<strong>Taxonomic matching app: Stricter default similarity threshold</strong>
+<ul><li>Default <code>min_similarity</code> increased from 0.3 to 0.7 in <code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>
+</li>
+<li>Reduces false positive matches by requiring higher similarity scores</li>
+<li>Previous behavior available by setting <code>min_similarity = 0.3</code> explicitly</li>
+<li>
+<strong>Action required</strong>: Users relying on low-quality fuzzy matches may need to adjust threshold or improve input data quality</li>
+<li>Rationale: Quality over quantity - fewer but more reliable matches improve data integrity</li>
+</ul></li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.5" id="plotsdatabase-15">plotsdatabase 1.5<a class="anchor" aria-label="anchor" href="#plotsdatabase-15"></a></h2>
+<div class="section level4">
+<h4 id="new-features-1-5">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-5"></a></h4>
+<ul><li>
+<strong>Interactive validation with fuzzy matching for plot metadata import</strong>
+<ul><li>
+<code><a href="../reference/validate_plot_metadata.html">validate_plot_metadata()</a></code> now has <code>interactive = TRUE</code> and <code>fix_on_fly = TRUE</code> parameters (both default to TRUE)</li>
+<li>Integrates with existing <code>resolve_multiple_values()</code> for on-the-fly fixing of lookup mismatches (Country, Method)</li>
+<li>Returns enhanced structure with three data versions:
+<ul><li>
+<code>original_data</code>: Unchanged user input</li>
+<li>
+<code>cleaned_data</code>: Data with interactive fixes applied</li>
+<li>
+<code>changes_made</code>: Complete audit trail of all corrections (column, row, original, corrected, method)</li>
+</ul></li>
+<li>Eliminates tedious manual Excel editing - users interactively match mismatches (e.g., “Cameroun” → “CAMEROON”) with fuzzy suggestions</li>
+<li>Pattern search (“G” option) available for large lookup tables</li>
+<li>Non-breaking: Old code works but gets enhanced behavior automatically</li>
+</ul></li>
+<li>
+<strong>Complete subplot features import system</strong>
+<ul><li>Plot import now handles ALL subplot feature types, not just people features</li>
+<li>New <code><a href="../reference/dot-extract_and_process_subplot_features.html">.extract_and_process_subplot_features()</a></code> dynamically queries <code><a href="../reference/subplot_list.html">subplot_list()</a></code> to identify all subplot features</li>
+<li>Automatically separates into two categories:
+<ul><li>People features (<code>valuetype == "table_colnam"</code>): Linked to <code>table_colnam</code> via <code>.link_colnam()</code>
+</li>
+<li>Other features (numeric, character, etc.): Direct value insertion</li>
+</ul></li>
+<li>No hardcoded feature lists - fully dynamic based on database schema</li>
+<li>Identifies subplot features by excluding flat table columns (plot_name, ddlat, ddlon, elevation, etc.)</li>
+<li>Both types inserted as subplot features in Step 6 of import workflow</li>
+</ul></li>
+<li>
+<strong>Row-Level Security (RLS) safe plot import for non-admin users</strong>
+<ul><li>Uses PostgreSQL <code>INSERT ... RETURNING</code> clause to retrieve plot IDs during insertion</li>
+<li>Bypasses RLS SELECT restrictions that would prevent non-admin users from reading their own inserted plots</li>
+<li>Enables subplot features to be linked even when user doesn’t have SELECT permission yet</li>
+<li>More secure than alternative approaches (no exposure of other users’ plot IDs)</li>
+<li>Critical fix: Previously, non-admin imports would fail at Step 6 (subplot features) with empty plot_id_data</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5"></a></h4>
+<ul><li>
+<strong>Restored missing helper functions</strong> accidentally commented out
+<ul><li>
+<code><a href="../reference/dot-rename_data.html">.rename_data()</a></code> (R/helpers.R:307) - Renames columns in datasets</li>
+<li>
+<code><a href="../reference/dot-add_modif_field.html">.add_modif_field()</a></code> (R/helpers.R:283) - Adds modification date fields (date_modif_d/m/y)</li>
+<li>Both functions now properly exported and available</li>
+<li>Fixes errors: “impossible de trouver la fonction .rename_data” and “.add_modif_field”</li>
+</ul></li>
+<li>
+<strong>Fixed transaction connection management throughout import workflow</strong>
+<ul><li>
+<code><a href="../reference/try_open_postgres_table.html">try_open_postgres_table()</a></code> now properly handles errors and maintains connection scope</li>
+<li>
+<code><a href="../reference/dot-link_table.html">.link_table()</a></code> now uses passed <code>db_connection</code> parameter instead of creating new connection</li>
+<li>
+<code>.link_colnam()</code> now uses passed <code>db_connection</code> parameter instead of creating new connection</li>
+<li>
+<code><a href="../reference/add_subplot_features.html">add_subplot_features()</a></code> added <code>con</code> parameter to accept transaction connection</li>
+<li>All functions now respect transaction boundaries (no more “Invalid connection” errors)</li>
+<li>Prevents connection invalidation during multi-step import process</li>
+</ul></li>
+<li>
+<strong>Fixed invalid cli package parameter</strong>
+<ul><li>Removed unsupported <code>line = 2</code> parameter from <code><a href="https://cli.r-lib.org/reference/cli_rule.html" class="external-link">cli::cli_rule()</a></code> calls in import success messages</li>
+<li>Fixes error: “argument inutilisé (line = 2)”</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="code-refactoring-1-5">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-5"></a></h4>
+<ul><li>
+<strong>Renamed and expanded subplot features processing</strong>
+<ul><li>
+<code>.extract_and_link_people()</code> → <code><a href="../reference/dot-extract_and_process_subplot_features.html">.extract_and_process_subplot_features()</a></code>
+</li>
+<li>Function now handles all subplot feature types, not just people features</li>
+<li>Enhanced documentation reflects expanded scope and hierarchical processing logic</li>
+</ul></li>
+</ul></div>
 <div class="section level4">
 <h4 id="breaking-changes-1-5">Breaking Changes<a class="anchor" aria-label="anchor" href="#breaking-changes-1-5"></a></h4>
 <ul><li>
@@ -52,7 +262,7 @@
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="new-features-1-5">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-5"></a></h4>
+<h4 id="new-features-1-5-1">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-5-1"></a></h4>
 <ul><li>
 <strong>Census selection strategy for multi-census plots</strong>
 <ul><li>New <code>census_strategy</code> parameter in <code><a href="../reference/query_plots.html">query_plots()</a></code> with three options:
@@ -107,7 +317,7 @@
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="code-refactoring-1-5">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-5"></a></h4>
+<h4 id="code-refactoring-1-5-1">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-5-1"></a></h4>
 <ul><li>
 <strong>Modular output style configuration</strong>
 <ul><li>Centralized style definitions in <code>.plot_output_styles</code> list</li>
@@ -126,7 +336,7 @@
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="bug-fixes-1-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5"></a></h4>
+<h4 id="bug-fixes-1-5-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-1"></a></h4>
 <ul><li>
 <strong>Fixed commented <code>@export</code> tag causing roxygen2 errors</strong>
 <ul><li>Removed <code>@export</code> from commented-out <code><a href="../reference/subplot_list.html">subplot_list()</a></code> function in <code>R/subsplots_features_function.R</code>
