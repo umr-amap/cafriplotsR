@@ -1,0 +1,536 @@
+---
+title: "Above-Ground Biomass Estimation with BIOMASS Package"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Above-Ground Biomass Estimation with BIOMASS Package}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  echo = TRUE,
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+## Overview
+
+This vignette demonstrates how to use `plotsdatabase` with the **BIOMASS** package to estimate above-ground biomass (AGB) for permanent forest plots. The `query_plots()` function with `output_style = "permanent_plot"` provides data structures optimized for allometric analyses.
+
+**Key advantages of the integrated workflow:**
+
+1. **Automatic trait enrichment** - Wood density and other traits are pre-integrated
+2. **Ready-made height-diameter table** - `$height_diameter` table provided by default
+3. **Structured output** - Separate tables for metadata, individuals, and measurements
+4. **Taxonomic hierarchies** - Trait inheritance from species → genus → family
+
+## Prerequisites
+
+```{r setup}
+library(plotsdatabase)
+library(BIOMASS)
+library(dplyr)
+library(ggplot2)
+
+# Connect to database
+con <- call.mydb()
+con_taxa <- call.mydb.taxa()
+```
+
+---
+
+## Step 1: Extract Plot Data
+
+Use `output_style = "permanent_plot"` to get structured output optimized for biomass analysis:
+
+```{r extract-data}
+# Query permanent plots with individual data
+plot_data <- query_plots(
+  locality_name = c("Lopé", "Ivindo"),  # Example localities
+  extract_individuals = TRUE,
+  output_style = "permanent_plot",
+  con = con
+)
+
+# Check structure
+names(plot_data)
+# $metadata - Plot-level information
+# $individuals - Individual tree data with traits
+# $height_diameter - Height-diameter pairs (ready for modeling)
+# $censuses - Census information
+```
+
+The `permanent_plot` output style provides:
+
+- **`$metadata`**: Plot coordinates, area, census dates, investigators
+- **`$individuals`**: Complete tree inventory with taxonomic traits
+- **`$height_diameter`**: Pre-filtered height-diameter pairs for allometric modeling
+- **`$censuses`**: Census metadata with team leaders and dates
+
+---
+
+## Step 2: Explore the Data
+
+### Plot Metadata
+
+```{r explore-metadata}
+# View plot information
+plot_data$metadata %>%
+  select(plot_name, locality, latitude, longitude,
+         plot_area_ha, census_date) %>%
+  head()
+```
+
+### Individual Tree Data
+
+The individuals table includes **automatically enriched traits**:
+
+```{r explore-individuals}
+# Check what data we have
+str(plot_data$individuals)
+
+# Key columns for biomass:
+# - dbh (stem_diameter): Diameter at breast height (cm)
+# - species (tax_sp_level): Species name
+# - wood_density_mean (taxa_mean_wood_density): Mean wood density (g/cm³)
+# - wood_density_sd (taxa_sd_wood_density): SD for error propagation
+
+# Summary of wood density availability
+plot_data$individuals %>%
+  summarise(
+    n_total = n(),
+    n_with_wd = sum(!is.na(wood_density_mean)),
+    pct_with_wd = round(100 * n_with_wd / n_total, 1),
+    mean_wd = mean(wood_density_mean, na.rm = TRUE),
+    sd_wd = sd(wood_density_mean, na.rm = TRUE)
+  )
+```
+
+**Note**: Wood density traits are automatically:
+- Retrieved from the taxa database
+- Inherited from species → genus → family when species-level data unavailable
+- Averaged at plot level when no taxonomic match found (if `traits_to_genera = TRUE`)
+
+### Height-Diameter Data
+
+The `$height_diameter` table is **pre-filtered and ready** for modeling:
+
+```{r explore-hd}
+# Height-diameter pairs (automatically filtered)
+head(plot_data$height_diameter)
+
+# This table includes:
+# - id_n: Individual ID
+# - plot_name: Plot identifier
+# - tag: Tree tag
+# - D: Diameter (dbh in cm)
+# - H: Height (tree height in m)
+# - POM: Point of measurement (if available)
+
+# Summary
+plot_data$height_diameter %>%
+  group_by(plot_name) %>%
+  summarise(
+    n_pairs = n(),
+    mean_dbh = round(mean(D), 1),
+    mean_height = round(mean(H), 1),
+    dbh_range = paste(round(min(D), 1), "-", round(max(D), 1)),
+    height_range = paste(round(min(H), 1), "-", round(max(H), 1))
+  )
+```
+
+---
+
+## Step 3: Build Height-Diameter Models
+
+Use the pre-filtered `$height_diameter` table directly with BIOMASS:
+
+### Option A: Single Model (All Plots)
+
+```{r hd-model-global}
+# Fit global height-diameter model
+hd_model_global <- BIOMASS::modelHD(
+  D = plot_data$height_diameter$D,
+  H = plot_data$height_diameter$H,
+  method = "weibull",
+  useWeight = TRUE
+)
+
+# Check model fit
+summary(hd_model_global)
+
+# Residual Standard Error for uncertainty propagation
+RSE_global <- hd_model_global$RSE
+print(paste("RSE:", round(RSE_global, 3)))
+```
+
+### Option B: Plot-Specific Models
+
+For plots with sufficient height measurements (>15 pairs recommended):
+
+```{r hd-model-by-plot}
+# Build separate models per plot
+hd_models_by_plot <- plot_data$height_diameter %>%
+  group_by(plot_name) %>%
+  filter(n() >= 15) %>%  # Require at least 15 H-D pairs
+  group_split() %>%
+  lapply(function(plot_df) {
+    tryCatch({
+      model <- BIOMASS::modelHD(
+        D = plot_df$D,
+        H = plot_df$H,
+        method = "weibull",
+        useWeight = TRUE
+      )
+      list(
+        plot_name = unique(plot_df$plot_name),
+        model = model,
+        RSE = model$RSE,
+        n = nrow(plot_df)
+      )
+    }, error = function(e) {
+      NULL  # Return NULL if model fails
+    })
+  }) %>%
+  Filter(Negate(is.null), .)  # Remove failed models
+
+# Summary
+cat(sprintf("Built %d plot-specific models\n", length(hd_models_by_plot)))
+```
+
+### Visualize H-D Relationships
+
+```{r plot-hd-models, fig.width=8, fig.height=6}
+# Plot height-diameter data with fitted curve
+ggplot(plot_data$height_diameter, aes(x = D, y = H)) +
+  geom_point(aes(color = plot_name), alpha = 0.6, size = 2) +
+  geom_smooth(method = "nls",
+              formula = y ~ a * (1 - exp(-b * x^c)),
+              method.args = list(start = list(a = 40, b = 0.05, c = 1)),
+              se = TRUE, color = "black", linewidth = 1.5) +
+  labs(
+    title = "Height-Diameter Relationship",
+    x = "Diameter at breast height (cm)",
+    y = "Tree height (m)",
+    color = "Plot"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+---
+
+## Step 4: Predict Missing Heights
+
+Most trees don't have height measurements. Use the H-D model to predict them:
+
+```{r predict-heights}
+# Prepare data for AGB estimation
+agb_data <- plot_data$individuals %>%
+  filter(!is.na(dbh)) %>%  # Must have diameter
+  mutate(
+    # Predict height using global model (or plot-specific if available)
+    H_predicted = BIOMASS::retrieveH(
+      D = dbh,
+      model = hd_model_global
+    )$H,
+    # Use measured height if available, otherwise predicted
+    H_final = ifelse(!is.na(tree_height), tree_height, H_predicted),
+    # Assign RSE for uncertainty
+    H_RSE = RSE_global
+  )
+
+# Check prediction success
+agb_data %>%
+  summarise(
+    n_total = n(),
+    n_measured = sum(!is.na(tree_height)),
+    n_predicted = sum(is.na(tree_height)),
+    pct_predicted = round(100 * n_predicted / n_total, 1)
+  )
+```
+
+**Using plot-specific models** (if available):
+
+```{r predict-heights-plot-specific, eval=FALSE}
+# Create lookup for plot-specific RSE
+plot_rse <- data.frame(
+  plot_name = sapply(hd_models_by_plot, function(x) x$plot_name),
+  RSE_plot = sapply(hd_models_by_plot, function(x) x$RSE)
+)
+
+# Predict with plot-specific models where available
+agb_data <- plot_data$individuals %>%
+  filter(!is.na(dbh)) %>%
+  left_join(plot_rse, by = "plot_name") %>%
+  mutate(
+    # Use plot-specific RSE if available, otherwise global
+    H_RSE = ifelse(!is.na(RSE_plot), RSE_plot, RSE_global),
+    # Predict heights (would need to loop through plot-specific models)
+    H_final = ifelse(!is.na(tree_height), tree_height, H_predicted)
+  )
+```
+
+---
+
+## Step 5: Estimate Above-Ground Biomass
+
+Now we have all required inputs for BIOMASS:
+
+- **D**: Diameter (dbh)
+- **WD**: Wood density (automatically from database!)
+- **H**: Height (measured or predicted)
+- **Errors**: SD for wood density, RSE for height
+
+### Check Data Completeness
+
+```{r check-completeness}
+# Summary of required variables
+summary(agb_data[, c("dbh", "wood_density_mean", "H_final", "H_RSE")])
+
+# Check for missing data
+agb_data %>%
+  summarise(
+    missing_dbh = sum(is.na(dbh)),
+    missing_wd = sum(is.na(wood_density_mean)),
+    missing_height = sum(is.na(H_final)),
+    complete_cases = sum(!is.na(dbh) & !is.na(wood_density_mean) & !is.na(H_final))
+  )
+```
+
+### Single AGB Estimate (No Error Propagation)
+
+Quick estimate without uncertainty:
+
+```{r agb-simple}
+# Simple AGB calculation using Chave et al. 2014 equation
+agb_data <- agb_data %>%
+  filter(!is.na(dbh) & !is.na(wood_density_mean) & !is.na(H_final)) %>%
+  mutate(
+    AGB_kg = BIOMASS::computeAGB(
+      D = dbh,
+      WD = wood_density_mean,
+      H = H_final
+    )
+  )
+
+# Plot-level AGB
+agb_by_plot <- agb_data %>%
+  group_by(plot_name) %>%
+  summarise(
+    n_trees = n(),
+    total_AGB_Mg = sum(AGB_kg) / 1000,  # Convert kg to Mg
+    AGB_per_ha = total_AGB_Mg / first(plot_area_ha)  # Standardize by area
+  )
+
+print(agb_by_plot)
+```
+
+### Monte Carlo Simulation with Error Propagation
+
+**Recommended approach** - propagates uncertainties from all sources:
+
+```{r agb-monte-carlo}
+# Run Monte Carlo simulation (1000 iterations) per plot
+agb_mc_results <- agb_data %>%
+  group_by(plot_name) %>%
+  group_split() %>%
+  lapply(function(plot_df) {
+
+    # Run Monte Carlo for this plot
+    mc_result <- BIOMASS::AGBmonteCarlo(
+      D = plot_df$dbh,
+      WD = plot_df$wood_density_mean,
+      errWD = plot_df$wood_density_sd,  # Wood density uncertainty
+      H = plot_df$H_final,
+      errH = plot_df$H_RSE,  # Height prediction uncertainty
+      Dpropag = "chave2004",  # Diameter measurement error model
+      n = 1000  # Number of Monte Carlo iterations
+    )
+
+    # Get plot area for standardization
+    plot_area <- unique(plot_df$plot_area_ha)
+
+    # Extract results
+    list(
+      plot_name = unique(plot_df$plot_name),
+      n_trees = nrow(plot_df),
+      # AGB statistics (Mg/ha)
+      AGB_mean = sum(mc_result$AGB_simu[, 1]) / 1000 / plot_area,
+      AGB_sd = sd(colSums(mc_result$AGB_simu)) / 1000 / plot_area,
+      AGB_q025 = quantile(colSums(mc_result$AGB_simu), 0.025) / 1000 / plot_area,
+      AGB_q975 = quantile(colSums(mc_result$AGB_simu), 0.975) / 1000 / plot_area,
+      # Individual tree contributions
+      tree_contributions = mc_result$AGB_simu[, 1] / 1000
+    )
+  })
+
+# Convert to data frame
+agb_summary <- data.frame(
+  plot_name = sapply(agb_mc_results, function(x) x$plot_name),
+  n_trees = sapply(agb_mc_results, function(x) x$n_trees),
+  AGB_Mg_ha = sapply(agb_mc_results, function(x) x$AGB_mean),
+  AGB_sd = sapply(agb_mc_results, function(x) x$AGB_sd),
+  AGB_q025 = sapply(agb_mc_results, function(x) x$AGB_q025),
+  AGB_q975 = sapply(agb_mc_results, function(x) x$AGB_q975)
+)
+
+print(agb_summary)
+```
+
+### Visualize Results
+
+```{r plot-agb-results, fig.width=8, fig.height=6}
+# AGB estimates with 95% confidence intervals
+ggplot(agb_summary, aes(x = reorder(plot_name, AGB_Mg_ha), y = AGB_Mg_ha)) +
+  geom_point(size = 4, color = "darkgreen") +
+  geom_errorbar(aes(ymin = AGB_q025, ymax = AGB_q975),
+                width = 0.3, linewidth = 1, color = "darkgreen") +
+  labs(
+    title = "Above-Ground Biomass by Plot",
+    subtitle = "Error bars show 95% confidence intervals from Monte Carlo simulation",
+    x = "Plot",
+    y = "AGB (Mg/ha)"
+  ) +
+  coord_flip() +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 11),
+    axis.title = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 14, face = "bold")
+  )
+```
+
+---
+
+## Step 6: Uncertainty Breakdown
+
+Understand sources of uncertainty in AGB estimates:
+
+```{r uncertainty-breakdown}
+# Compare uncertainty sources (illustrative example)
+# This requires running AGBmonteCarlo multiple times with different error sources
+
+# Example: Compare with and without height uncertainty
+agb_no_h_error <- agb_data %>%
+  slice(1:10) %>%  # Small subset for illustration
+  summarise(
+    mean_AGB = mean(BIOMASS::AGBmonteCarlo(
+      D = dbh,
+      WD = wood_density_mean,
+      errWD = wood_density_sd,
+      H = H_final,
+      errH = 0,  # No height error
+      Dpropag = "chave2004",
+      n = 100
+    )$AGB)
+  )
+
+cat("Uncertainty sources in AGB estimation:\n")
+cat("1. Diameter measurement error (~5%)\n")
+cat("2. Wood density variability (SD in database)\n")
+cat("3. Height prediction error (RSE from H-D model)\n")
+cat("4. Allometric equation error (Chave et al. 2014)\n")
+```
+
+---
+
+## Advanced: Plot-Level Analysis
+
+### Combine with Plot Characteristics
+
+```{r plot-characteristics}
+# Join AGB with plot metadata
+plot_analysis <- plot_data$metadata %>%
+  left_join(agb_summary, by = "plot_name") %>%
+  select(
+    plot_name, locality, latitude, longitude,
+    plot_area_ha, n_trees, AGB_Mg_ha, AGB_sd
+  )
+
+# Explore relationships
+ggplot(plot_analysis, aes(x = n_trees, y = AGB_Mg_ha)) +
+  geom_point(aes(color = locality), size = 4) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  labs(
+    title = "Tree Density vs. Above-Ground Biomass",
+    x = "Number of trees",
+    y = "AGB (Mg/ha)",
+    color = "Locality"
+  ) +
+  theme_minimal()
+```
+
+### Size Class Distribution
+
+```{r size-class-agb}
+# AGB contribution by size class
+size_class_agb <- agb_data %>%
+  mutate(
+    size_class = cut(dbh,
+                     breaks = c(0, 10, 20, 30, 40, 50, 100, Inf),
+                     labels = c("0-10", "10-20", "20-30", "30-40",
+                               "40-50", "50-100", ">100"))
+  ) %>%
+  group_by(plot_name, size_class) %>%
+  summarise(
+    n_trees = n(),
+    total_AGB = sum(AGB_kg) / 1000,
+    .groups = "drop"
+  )
+
+# Stacked bar plot
+ggplot(size_class_agb, aes(x = plot_name, y = total_AGB, fill = size_class)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "AGB Distribution by Size Class",
+    x = "Plot",
+    y = "AGB (Mg)",
+    fill = "DBH class (cm)"
+  ) +
+  scale_fill_viridis_d() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+---
+
+## Summary
+
+This vignette demonstrated the complete workflow for AGB estimation using `plotsdatabase` and `BIOMASS`:
+
+1. ✅ **Extract structured data** with `output_style = "permanent_plot"`
+2. ✅ **Use pre-filtered H-D data** from `$height_diameter` table
+3. ✅ **Build allometric models** with BIOMASS::modelHD()
+4. ✅ **Leverage integrated traits** - wood density automatically included
+5. ✅ **Estimate AGB with uncertainty** using Monte Carlo simulation
+6. ✅ **Visualize and analyze** results at plot and individual level
+
+**Key advantages:**
+
+- **No manual trait matching** - wood density pre-integrated from taxa database
+- **Ready-made H-D table** - filtered and formatted for BIOMASS
+- **Hierarchical trait inheritance** - genus/family fallback when species unavailable
+- **Error propagation** - uncertainties from all sources properly accounted for
+
+---
+
+## Additional Resources
+
+- **BIOMASS package**: Réjou-Méchain et al. (2017) <https://CRAN.R-project.org/package=BIOMASS>
+- **Allometric equations**: Chave et al. (2014) <https://doi.org/10.1111/gcb.12629>
+- **plotsdatabase queries**: See `vignette("using-query-plots")`
+- **Taxonomic matching**: See `vignette("taxonomic-app")`
+
+---
+
+## References
+
+Chave, J., et al. (2014). Improved allometric models to estimate the aboveground biomass of tropical trees. *Global Change Biology*, 20(10), 3177-3190.
+
+Réjou-Méchain, M., et al. (2017). biomass: an R package for estimating above-ground biomass and its uncertainty in tropical forests. *Methods in Ecology and Evolution*, 8(9), 1163-1167.
