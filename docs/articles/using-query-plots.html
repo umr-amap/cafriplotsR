@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">plotsdatabase</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,7 +33,8 @@
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
+<li><a class="dropdown-item" href="../articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
+    <li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
   </ul>
 </li>
@@ -114,9 +115,9 @@ data:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">$metadata</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; 1 rows × 8 columns</span></span>
+<span><span class="co">#&gt; 1 rows × 9 columns</span></span>
 <span><span class="co">#&gt; Columns: plot_name, country, locality_name, method, latitude, longitude,</span></span>
-<span><span class="co">#&gt; elevation, data_provider</span></span>
+<span><span class="co">#&gt; elevation, data_provider, ...</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="font-style: italic;">Access tables with: $metadata, $individuals, etc.</span></span></span>
 <span><span class="co">#&gt; <span style="font-style: italic;">Use names(result) to see all available tables</span></span></span></code></pre></div>
@@ -140,13 +141,13 @@ data:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">$metadata</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; 1 rows × 8 columns</span></span>
+<span><span class="co">#&gt; 1 rows × 9 columns</span></span>
 <span><span class="co">#&gt; Columns: plot_name, country, locality_name, method, latitude, longitude,</span></span>
-<span><span class="co">#&gt; elevation, data_provider</span></span>
+<span><span class="co">#&gt; elevation, data_provider, ...</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">$individuals</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; 456 rows × 14 columns</span></span>
+<span><span class="co">#&gt; 456 rows × 16 columns</span></span>
 <span><span class="co">#&gt; Columns: id_n, plot_name, tag, family, genus, species, dbh, quadrat, ...</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="font-style: italic;">Access tables with: $metadata, $individuals, etc.</span></span></span>

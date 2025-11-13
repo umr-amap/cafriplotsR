@@ -2,9 +2,10 @@ pandoc: '3.4'
 pkgdown: 2.1.3
 pkgdown_sha: ~
 articles:
+  importing-plot-data: importing-plot-data.html
   taxonomic-app: taxonomic-app.html
   using-query-plots: using-query-plots.html
-last_built: 2025-11-05T09:53Z
+last_built: 2025-11-13T15:16Z
 urls:
   reference: https://gdauby.github.io/bdd_plots_central_africa/reference
   article: https://gdauby.github.io/bdd_plots_central_africa/articles
