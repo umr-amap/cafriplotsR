@@ -23,7 +23,7 @@ app_taxonomic_match <- function(
   data = NULL,
   name_column = NULL,
   language = "en",
-  min_similarity = 0.3,
+  min_similarity = 0.6,
   max_suggestions = 10,
   mode = "interactive"
 ) {
@@ -168,8 +168,22 @@ app_taxonomic_match <- function(
   # Server
   server <- function(input, output, session) {
 
+    # Create connection pools (prevents connection exhaustion)
+    cli::cli_alert_info("Creating database connection pools...")
+    pool_main <- create_pool_main(minSize = 1, maxSize = 3)
+    pool_taxa <- create_pool_taxa(minSize = 1, maxSize = 3)
+
+    # Store pools in environment so call.mydb() functions can use them
+    .db_env$pool_main <- pool_main
+    .db_env$pool_taxa <- pool_taxa
+
     # Stop the server when session ends
     session$onSessionEnded(function() {
+      cli::cli_alert_info("Closing connection pools...")
+      pool::poolClose(pool_main)
+      pool::poolClose(pool_taxa)
+      .db_env$pool_main <- NULL
+      .db_env$pool_taxa <- NULL
       shiny::stopApp()
     })
 
@@ -223,9 +237,10 @@ app_taxonomic_match <- function(
     )
 
     # Auto matching module
+    # Use data from column_info (may be modified with combined column)
     match_results <- mod_auto_matching_server(
       "auto_match",
-      data = user_data,
+      data = shiny::reactive(column_info()$data),
       column_name = shiny::reactive(column_info()$column),
       include_authors = shiny::reactive(column_info()$include_authors),
       min_similarity = min_similarity,

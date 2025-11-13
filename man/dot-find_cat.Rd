@@ -4,12 +4,7 @@
 \alias{.find_cat}
 \title{Internal function}
 \usage{
-.find_cat(
-  value_to_search,
-  compared_table,
-  column_name,
-  prompt_message = "Choose"
-)
+.find_cat(value_to_search, compared_table, column_name, field_label = NULL)
 }
 \arguments{
 \item{value_to_search}{string vector of one element}

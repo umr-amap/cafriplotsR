@@ -16,6 +16,7 @@ query_plots(
   id_plot = NULL,
   id_tax = NULL,
   id_specimen = NULL,
+  interactive = TRUE,
   show_multiple_census = FALSE,
   show_all_coordinates = FALSE,
   remove_ids = TRUE,
@@ -57,6 +58,8 @@ query_plots(
 \item{id_tax}{Optional. Taxonomic identifiers.}
 
 \item{id_specimen}{Optional. Specimen identifiers.}
+
+\item{interactive}{Logical. Whether the query should be interactive. TRUE by default.}
 
 \item{show_multiple_census}{Logical. Whether to show multiple census data. Optional.}
 

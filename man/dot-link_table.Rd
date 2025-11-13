@@ -13,7 +13,8 @@
   db_connection = NULL,
   table_name,
   keep_columns = NULL,
-  keep_original_value = FALSE
+  keep_original_value = FALSE,
+  field_label = NULL
 )
 }
 \arguments{

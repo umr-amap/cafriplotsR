@@ -41,7 +41,8 @@ Imports:
     cli,
     lifecycle,
     data.table,
-    zoo
+    zoo,
+    pool
 Suggests:
     ggrepel,
     measurements,
