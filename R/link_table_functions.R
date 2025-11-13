@@ -29,13 +29,19 @@
                         db_connection = NULL,
                         table_name,
                         keep_columns = NULL,
-                        keep_original_value = FALSE) {
+                        keep_original_value = FALSE,
+                        field_label = NULL) {
 
   # Use provided connection or create new one
   if (is.null(db_connection)) {
     mydb <- call.mydb()
   } else {
     mydb <- db_connection
+  }
+
+  # Default field label to column name if not provided
+  if (is.null(field_label)) {
+    field_label <- column_name
   }
 
   var <- rlang::enquo(column_searched)
@@ -77,7 +83,7 @@
           value_to_search = dplyr::pull(all_names_no_match, name)[i],
           compared_table = all_names,
           column_name = column_name,
-          prompt_message = "Choose feature (type 'G' for pattern searching, 0 is no match), 'enter' for scrolling the list: "
+          field_label = field_label
         )
 
       if (sorted_matches$selected_name != 0) {
@@ -289,15 +295,8 @@
   sorted_matches <- .find_cat(value_to_search = subplotype,
                                  compared_table = all_subplotype,
                                  column_name = "type",
-                                 prompt_message = "Choose subplot feature (G for pattern searching): ")
+                              field_label = "Choose subplot feature (G for pattern searching): ")
   
-  # sorted_matches <-
-  #   .find_cat(
-  #     value_to_search = subplotype,
-  #     compared_table = all_subplotype,
-  #     column_name = "type",
-  #     prompt_message = "Choose subplot feature (G for pattern searching): "
-  #   )
 
   selected_name <- as.integer(sorted_matches$selected_name)
 
@@ -438,9 +437,12 @@
 #' @param column_name string name of the column of compared_table
 #'
 #' @export
-.find_cat <- function(value_to_search, compared_table, column_name, prompt_message = "Choose") {
+.find_cat <- function(value_to_search, compared_table, column_name, field_label = NULL) {
 
-  print(value_to_search)
+  # Default field label to column name if not provided
+  if (is.null(field_label)) {
+    field_label <- column_name
+  }
 
   compared_table <- .rename_data(dataset = compared_table,
                                  col_old = column_name,
@@ -458,7 +460,19 @@
 
     selected_name <- which(compared_table$perfect_match)
 
+    # Confirmation for exact match
+    cli::cli_alert_success("Exact match found: {cli::col_green(value_to_search)}")
+
   } else {
+
+    # Show header with context
+    cat("\n")
+    cli::cli_rule(left = paste("Matching:", field_label))
+    cat("\n")
+    cli::cli_alert_info("Your value: {cli::col_yellow(value_to_search)}")
+    cat("\n")
+    cli::cli_alert_warning("No exact match found. Here are similar suggestions:")
+    cat("\n")
 
     selected_name <- "S"
     slide <- 0
@@ -477,14 +491,30 @@
 
       if (any(selected_name == c("G"))) {
 
-        # var <- rlang::parse_expr(rlang::quo_name(rlang::enquo(column_name)))
+        cat("\n")
+        cli::cli_rule("Pattern Search")
+        cat("\n")
+        cli::cli_alert_info("Enter text to search for (e.g., {cli::col_cyan('\"camer\"')} finds all with 'camer')")
+        cat("\n")
 
         slide = 1
         grep_name <-
-          readline(prompt = "Which string to look for:")
+          readline(prompt = "Search pattern: ")
         sorted_matches <-
           compared_table %>%
-          filter(grepl(grep_name, comp_value))
+          filter(grepl(grep_name, comp_value, ignore.case = TRUE))
+
+        if (nrow(sorted_matches) == 0) {
+          cat("\n")
+          cli::cli_alert_danger("No matches found for pattern: {grep_name}")
+          cat("\n")
+          selected_name <- "S"  # Go back to similarity search
+          next
+        } else {
+          cat("\n")
+          cli::cli_alert_success("Found {nrow(sorted_matches)} match(es)")
+          cat("\n")
+        }
 
       }
 
@@ -513,16 +543,36 @@
 
       print(sel_loc_html)
 
-      print(value_to_search)
+      cat("\n")
+      cli::cli_text(cli::col_silver("Options:"))
+      cli::cli_ul(c(
+        "Type a number (1-10) to select a match",
+        "Press {cli::col_cyan('ENTER')} to see next 10 matches",
+        "Type {cli::col_cyan('G')} to search by pattern",
+        "Type {cli::col_cyan('0')} to skip (no match)"
+      ))
+      cat("\n")
 
       selected_name <-
-        readline(prompt = prompt_message)
+        readline(prompt = "Your choice: ")
 
       if (slide * 10 > nrow(sorted_matches))
         slide <- 0
     }
 
     selected_name <- as.integer(selected_name)
+
+    # Confirmation feedback
+    if (!is.na(selected_name) && selected_name > 0 && selected_name <= nrow(sorted_matches)) {
+      matched_value <- sorted_matches$comp_value[selected_name]
+      cat("\n")
+      cli::cli_alert_success("Matched {cli::col_yellow(value_to_search)} → {cli::col_green(matched_value)}")
+      cat("\n")
+    } else if (selected_name == 0) {
+      cat("\n")
+      cli::cli_alert_warning("Skipped: {value_to_search} (no match selected)")
+      cat("\n")
+    }
 
   }
 
@@ -541,7 +591,8 @@
                          id_field = "id_colnam",
                          id_table_name = "id_table_colnam",
                          db_connection = NULL,
-                         table_name = "table_colnam") {
+                         table_name = "table_colnam",
+                         field_label = NULL) {
 
   # Use provided connection or create new one
   if (is.null(db_connection)) {
@@ -549,7 +600,13 @@
   } else {
     mydb <- db_connection
   }
-  
+
+  # Default field label to "Person name" or convert column_searched to title case
+  if (is.null(field_label)) {
+    # Convert underscores to spaces and title case (e.g., "team_leader" → "Team Leader")
+    field_label <- tools::toTitleCase(gsub("_", " ", column_searched))
+  }
+
   data_stand <-
     .link_table(
       data_stand = data_stand,
@@ -559,7 +616,8 @@
       id_table_name = id_table_name,
       db_connection = db_connection,
       table_name = table_name,
-      keep_original_value = TRUE
+      keep_original_value = TRUE,
+      field_label = field_label
     )
 
   original_ <- paste0("original_", column_name)

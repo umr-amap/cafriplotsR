@@ -206,6 +206,34 @@ validate_individual_data <- function(individuals_data,
       ))
       cli::cli_alert_success("Generated tags for {na_count} individuals with missing values")
     }
+
+    # IMPORTANT: If features exist and tags were generated, update features with new tags
+    if (!is.null(features_data)) {
+      if (!"tag" %in% names(features_data) || any(is.na(features_data$tag))) {
+        cli::cli_alert_info("Syncing auto-generated tags to features sheet...")
+
+        # Create linking key from validated_individuals
+        indiv_links <- validated_individuals[, c("plot_name", "tag"), drop = FALSE]
+
+        # If features doesn't have tag column, add it
+        if (!"tag" %in% names(features_data)) {
+          features_data$tag <- NA
+        }
+
+        # Match features to individuals by plot_name (and tag if it exists)
+        # Assuming same row order between individuals and features (common case)
+        if (nrow(features_data) == nrow(validated_individuals)) {
+          features_data$tag <- validated_individuals$tag
+          cli::cli_alert_success("Tags synced to features sheet")
+        } else {
+          # Different row counts - need to match by plot_name
+          cli::cli_alert_warning("Cannot auto-sync tags: row count mismatch between individuals and features")
+        }
+
+        validated_features <- features_data
+      }
+    }
+
     cat("\n")
   } else {
     cli::cli_alert_success("All individuals have tag values")
@@ -266,7 +294,7 @@ validate_individual_data <- function(individuals_data,
 
     # 1. Linking columns present
     cli::cli_alert_info("Checking linking columns...")
-    linking_check <- .validate_feature_linking_columns(validated_features)
+    linking_check <- .validate_feature_linking_columns(features_data = validated_features)
     if (length(linking_check) > 0) {
       errors <- c(errors, linking_check)
     }
@@ -482,23 +510,25 @@ validate_individual_data <- function(individuals_data,
 
   unique_plots <- unique(data$plot_name)
 
-  # Query user's accessible plots
+  # Query ONLY the plots specified in data using EXACT matching
+  # exact_match = TRUE forces exact name matching (no LIKE pattern matching)
+  # This prevents '41' from matching 'Plot-41', '4100', etc.
   user_plots <- tryCatch({
-    query_plots(con = con)
+    query_plots(plot_name = unique_plots, exact_match = TRUE, con = con, output_style = "full")
   }, error = function(e) {
     return(NULL)
   })
 
   if (is.null(user_plots)) {
     warnings <- c(warnings, list(
-      "Could not retrieve user's accessible plots - skipping access check"
+      "Could not retrieve plots - skipping access check"
     ))
     return(list(errors = errors, warnings = warnings))
   }
 
-  accessible_plot_names <- user_plots$plot_name
+  accessible_plot_names <- user_plots$extract$plot_name
 
-  # Check each plot
+  # Check each plot - find which ones were NOT returned (don't exist or no access)
   for (plot in unique_plots) {
     if (!plot %in% accessible_plot_names) {
       errors <- c(errors, list(sprintf(

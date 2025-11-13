@@ -21,7 +21,7 @@ mod_column_select_server(
 \item{language}{Reactive returning current language ("en" or "fr")}
 }
 \value{
-Reactive list with $column (selected column name) and $include_authors (logical)
+Reactive list with $column (selected column name), $include_authors (logical), and $data (potentially modified data)
 }
 \description{
 Column Select Module - Server

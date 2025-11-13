@@ -127,8 +127,12 @@ parse_taxonomic_name <- function(name) {
   first_word <- stringr::str_to_title(parts[1])
   rank <- "genus"  # Default assumption
 
+  # Check if it's a class (ends in -opsida or -psida)
+  if (stringr::str_detect(first_word, "(o|p)psida$")) {
+    rank <- "class"
+  }
   # Check if it's a family (ends in -aceae)
-  if (stringr::str_detect(first_word, "aceae$")) {
+  else if (stringr::str_detect(first_word, "aceae$")) {
     rank <- "family"
   }
   # Check if it's an order (ends in -ales)
@@ -141,8 +145,8 @@ parse_taxonomic_name <- function(name) {
     rank <- "species"
   }
 
-  # For family/order, return simplified structure
-  if (rank %in% c("family", "order")) {
+  # For class/family/order, return simplified structure
+  if (rank %in% c("class", "family", "order")) {
     return(list(
       rank = rank,
       genus = NA_character_,
@@ -414,6 +418,42 @@ match_taxonomic_names <- function(names,
 #' @keywords internal
 .match_exact_sql <- function(parsed, con, include_authors, max_matches) {
 
+  # Handle class level searches
+  if (parsed$rank == "class") {
+    # Search in tax_famclass column
+    sql <- glue::glue_sql("
+      SELECT
+        idtax_n,
+        idtax_good_n,
+        tax_gen,
+        tax_esp,
+        tax_fam,
+        tax_level,
+        tax_famclass AS matched_name,
+        1.0 AS similarity_score
+      FROM table_taxa
+      WHERE lower(tax_famclass) = lower({search_name})
+        AND tax_level = 'higher'
+      LIMIT {max_matches}
+    ", search_name = parsed$full_name_no_auth, max_matches = max_matches, .con = con)
+
+    result <- func_try_fetch(con = con, sql = sql)
+
+    if (nrow(result) > 0) {
+      result <- result %>%
+        mutate(
+          input_name = parsed$original_input %||% parsed$input_name,
+          match_method = "exact",
+          match_score = 1.0
+        ) %>%
+        select(input_name, matched_name, idtax_n, idtax_good_n,
+               match_method, match_score, tax_gen, tax_esp, tax_fam, tax_level) %>%
+        slice(1)  # Only return one representative match for class
+    }
+
+    return(result)
+  }
+
   # Handle family/order searches differently
   if (parsed$rank == "family") {
     # Search in tax_fam column
@@ -653,6 +693,43 @@ match_taxonomic_names <- function(names,
 #' Full fuzzy matching helper using SQL SIMILARITY (last resort)
 #' @keywords internal
 .match_fuzzy_sql <- function(parsed, con, min_similarity, include_authors, max_matches) {
+
+  # Handle class level fuzzy matching
+  if (parsed$rank == "class") {
+    sql <- glue::glue_sql("
+      SELECT DISTINCT ON (tax_famclass)
+        idtax_n,
+        idtax_good_n,
+        tax_gen,
+        tax_esp,
+        tax_fam,
+        tax_level,
+        tax_famclass AS matched_name,
+        SIMILARITY(lower(tax_famclass), lower({search_name})) AS similarity_score
+      FROM table_taxa
+      WHERE tax_famclass IS NOT NULL
+        AND tax_level = 'higher'
+        AND SIMILARITY(lower(tax_famclass), lower({search_name})) >= {min_sim}
+      ORDER BY tax_famclass, similarity_score DESC
+      LIMIT {max_matches}
+    ", search_name = parsed$full_name_no_auth, min_sim = min_similarity,
+       max_matches = max_matches, .con = con)
+
+    result <- func_try_fetch(con = con, sql = sql)
+
+    if (nrow(result) > 0) {
+      result <- result %>%
+        mutate(
+          input_name = parsed$original_input %||% parsed$input_name,
+          match_method = "fuzzy",
+          match_score = similarity_score
+        ) %>%
+        select(input_name, matched_name, idtax_n, idtax_good_n,
+               match_method, match_score, tax_gen, tax_esp, tax_fam, tax_level)
+    }
+
+    return(result)
+  }
 
   # Handle family/order searches with fuzzy matching on appropriate column
   if (parsed$rank == "family") {

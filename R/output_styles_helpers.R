@@ -167,7 +167,7 @@
 
   # Get unique by plot
   meta_data <- source_data %>%
-    dplyr::select(all_of(keep_cols)) %>%
+    dplyr::select(any_of(keep_cols)) %>%
     dplyr::distinct(plot_name, .keep_all = TRUE)
 
   # Apply column renaming if specified
@@ -245,7 +245,7 @@
   keep_cols <- intersect(keep_cols, available_cols)
 
   indiv_data <- data %>%
-    dplyr::select(all_of(keep_cols))
+    dplyr::select(any_of(keep_cols))
 
   # Apply column renaming if specified
   if (!is.null(style_config$rename_columns) && !is.null(style_config$rename_columns$individuals)) {
@@ -414,13 +414,13 @@
     hd_cols <- intersect(hd_cols, names(data))
 
     hd_data <- data %>%
-      dplyr::select(all_of(hd_cols))
+      dplyr::select(any_of(hd_cols))
 
     # Remove rows without any height data
     height_check_cols <- grep("tree_height_census", names(hd_data), value = TRUE)
     if (length(height_check_cols) > 0) {
       hd_data <- hd_data %>%
-        dplyr::filter(if_any(all_of(height_check_cols), ~ !is.na(.)))
+        dplyr::filter(if_any(any_of(height_check_cols), ~ !is.na(.)))
     }
 
     # Pivot longer for census columns
@@ -443,24 +443,42 @@
       dplyr::filter(!is.na(tree_height))
 
     # Rename columns to final format
+    # Build select dynamically to handle missing columns
+    select_cols <- list(
+      id_n = rlang::sym("id_n"),
+      plot_name = rlang::sym("plot_name"),
+      tag = rlang::sym("tag"),
+      D = rlang::sym("stem_diameter"),
+      H = rlang::sym("tree_height")
+    )
+
+    # Add POM only if it exists
+    if ("height_of_stem_diameter" %in% names(hd_long)) {
+      select_cols$POM <- rlang::sym("height_of_stem_diameter")
+    }
+
     result <- hd_long %>%
-      dplyr::select(
-        id_n, plot_name, tag,
-        D = stem_diameter,
-        H = tree_height,
-        POM = height_of_stem_diameter
-      ) %>%
+      dplyr::select(!!!select_cols) %>%
       dplyr::filter(!is.na(D), !is.na(H))
 
   } else {
     # Single census - simpler extraction
+    # Build select dynamically to handle missing columns
+    select_cols <- list(
+      id_n = rlang::sym("id_n"),
+      plot_name = rlang::sym("plot_name"),
+      tag = rlang::sym("tag"),
+      D = rlang::sym("stem_diameter"),
+      H = rlang::sym("tree_height")
+    )
+
+    # Add POM only if it exists
+    if ("height_of_stem_diameter" %in% names(data)) {
+      select_cols$POM <- rlang::sym("height_of_stem_diameter")
+    }
+
     result <- data %>%
-      dplyr::select(
-        id_n, plot_name, tag,
-        D = stem_diameter,
-        H = tree_height,
-        POM = height_of_stem_diameter
-      ) %>%
+      dplyr::select(!!!select_cols) %>%
       dplyr::filter(!is.na(D), !is.na(H))
   }
 

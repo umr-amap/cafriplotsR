@@ -94,7 +94,7 @@ launch_taxonomic_match_app <- function(
   data = NULL,
   name_column = NULL,
   language = c("en", "fr"),
-  min_similarity = 0.3,
+  min_similarity = 0.7,
   max_suggestions = 10,
   mode = c("interactive", "batch"),
   launch.browser = TRUE
