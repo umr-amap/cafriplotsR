@@ -1,10 +1,10 @@
-# plotsdatabase
+# CafriplotsR
 
 > R package for managing and exploring the Central African forest plot database [cafriplot network](https://cafriplot.net/)
 
 ## Overview
 
-`plotsdatabase` provides tools for querying a PostgreSQL database containing forest inventories 
+`CafriplotsR` provides tools for querying a PostgreSQL database containing forest inventories 
 data from Tropical Africa.
 The package offers comprehensive functions for working with individual tree measurements on 
 which either taxa or stem level traits _sensus largo_ measurements (or observations) can be 
@@ -25,7 +25,7 @@ manipulation, data reusability.
 ```r
 # Install from GitHub
 install.packages(c("tidyverse", "dbplyr", "devtools"))
-devtools::install_github("gdauby/bdd_plots_central_africa", upgrade = "never")
+devtools::install_github("umr-amap/cafriplotsR", upgrade = "never")
 
 ```
 
@@ -41,7 +41,7 @@ options(timeout = max(3000, getOption("timeout")))
 
 ## Package Logic & Access Control
 
-The `plotsdatabase` package offers tools to **manipulate, export, visualize, standardize, and enrich** forest inventory data.
+The `CafriplotsR` package offers tools to **manipulate, export, visualize, standardize, and enrich** forest inventory data.
 
 ### Access Model
 
@@ -75,7 +75,7 @@ The package connects to two PostgreSQL databases:
 ### Quick Start
 
 ```r
-library(plotsdatabase)
+library(CafriplotsR)
 
 # Connect to databases
 mydb <- call.mydb()

@@ -35,7 +35,7 @@ Before importing data, ensure you have:
 4. **Individual tree data** in Excel or CSV format
 
 ```{r}
-library(plotsdatabase)
+library(CafriplotsR)
 library(dplyr)
 
 # Connect to database
@@ -439,7 +439,7 @@ table(imported_data$individuals$plot_name)
 Here's a complete end-to-end example:
 
 ```{r}
-library(plotsdatabase)
+library(CafriplotsR)
 
 # 1. Connect
 con <- call.mydb()

@@ -39,9 +39,9 @@ When making any code modifications, follow this workflow:
 The NEWS.md file follows standard R package changelog format:
 
 ```markdown
-# plotsdatabase NEWS
+# CafriplotsR NEWS
 
-## plotsdatabase X.Y (Development/Release Date)
+## CafriplotsR X.Y (Development/Release Date)
 
 ### Breaking Changes
 * Description of breaking change
@@ -61,7 +61,7 @@ The NEWS.md file follows standard R package changelog format:
 
 ## Repository Overview
 
-This is `plotsdatabase`, an R package for exploring and updating a PostgreSQL database containing Central African forest plot and transect data. The package provides functions for querying plot data, individual tree measurements, taxonomic traits, and various ecological features.
+This is `CafriplotsR`, an R package for exploring and updating a PostgreSQL database containing Central African forest plot and transect data. The package provides functions for querying plot data, individual tree measurements, taxonomic traits, and various ecological features.
 
 **What this project does:**
 - Query and analyze forest plot data from Central Africa
@@ -181,7 +181,7 @@ devtools::install()
 ### Database Connection Testing
 ```r
 # Test connections
-library(plotsdatabase)
+library(CafriplotsR)
 db_diagnostic()  # Full diagnostic
 print_connection_status()  # Quick status check
 

@@ -411,7 +411,7 @@ import_plot_metadata <- function(data,
 # 3. Adjust operations if needed (SELECT, UPDATE, INSERT, DELETE, or ALL)
 # ══════════════════════════════════════════════════════════════════════
 
-library(plotsdatabase)
+library(CafriplotsR)
 
 # Connect as admin
 con <- call.mydb()  # Use admin credentials
