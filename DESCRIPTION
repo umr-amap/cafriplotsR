@@ -1,4 +1,4 @@
-Package: plotsdatabase
+Package: CafriplotsR
 Type: Package
 Title: Exploring and updating the Central Africa plot database
 Version: 1.7
@@ -58,4 +58,4 @@ VignetteBuilder: knitr
 Depends: 
     R (>= 4.0)
 Config/testthat/edition: 3
-URL: https://gdauby.github.io/bdd_plots_central_africa/
+URL: https://umr-amap.github.io/cafriplotsR/

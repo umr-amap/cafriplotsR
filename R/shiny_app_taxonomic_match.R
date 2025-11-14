@@ -159,7 +159,7 @@ app_taxonomic_match <- function(
       shiny::p(
         shiny::icon("leaf"),
         "Taxonomic Name Standardization Tool |",
-        "Powered by plotsdatabase package",
+        "Powered by CafriplotsR package",
         style = "font-size: 14px;"
       )
     )

@@ -120,7 +120,7 @@ test.order.subplot(df, sub_plot)
 
 ## Test 2
 
-library(plotsdatabase)
+library(CafriplotsR)
 
 # Extract datas
 x <- query_plots(locality_name = "Mbalmayo", extract_individuals = TRUE, show_all_coordinates = TRUE)
