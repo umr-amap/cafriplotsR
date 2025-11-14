@@ -321,7 +321,9 @@
 
   # Create census_date
   if ("year" %in% names(census_info) && "month" %in% names(census_info)) {
-    census_info <- census_info %>%
+    census_info <- 
+      census_info %>%
+      filter(!is.na(year), !is.na(month)) %>% 
       dplyr::mutate(
         census_date = as.Date(paste(year, month, "01", sep = "-")),
         census_date = format(census_date, "%Y-%m")
@@ -376,16 +378,17 @@
 #' @noRd
 .extract_height_diameter_pairs <- function(data, show_multiple_census) {
 
-  # Check if height data exists
-  height_cols <- grep("tree_height", names(data), value = TRUE, ignore.case = TRUE)
- 
-  if (length(height_cols) == 0) {
+  # Check if height data exists (could be tree_height, height, or H depending on renaming)
+  has_height <- any(names(data) %in% c("tree_height", "height", "H"))
+
+  if (!has_height) {
     return(NULL)
   }
   
-  dbh_cols <- any(names(data) == "stem_diameter")
-  
-  if (sum(dbh_cols) == 0) {
+  # Check for diameter column (could be stem_diameter, dbh, or D depending on renaming)
+  has_dbh <- any(names(data) %in% c("stem_diameter", "dbh", "D"))
+
+  if (!has_dbh) {
     return(NULL)
   }
 
@@ -463,18 +466,43 @@
 
   } else {
     # Single census - simpler extraction
+    # Detect actual column names (they may have been renamed)
+    dbh_col <- if ("stem_diameter" %in% names(data)) {
+      "stem_diameter"
+    } else if ("dbh" %in% names(data)) {
+      "dbh"
+    } else {
+      "D"
+    }
+
+    height_col <- if ("tree_height" %in% names(data)) {
+      "tree_height"
+    } else if ("height" %in% names(data)) {
+      "height"
+    } else {
+      "H"
+    }
+
     # Build select dynamically to handle missing columns
     select_cols <- list(
       id_n = rlang::sym("id_n"),
       plot_name = rlang::sym("plot_name"),
       tag = rlang::sym("tag"),
-      D = rlang::sym("stem_diameter"),
-      H = rlang::sym("tree_height")
+      D = rlang::sym(dbh_col),
+      H = rlang::sym(height_col)
     )
 
     # Add POM only if it exists
-    if ("height_of_stem_diameter" %in% names(data)) {
-      select_cols$POM <- rlang::sym("height_of_stem_diameter")
+    pom_col <- if ("height_of_stem_diameter" %in% names(data)) {
+      "height_of_stem_diameter"
+    } else if ("pom" %in% names(data)) {
+      "pom"
+    } else {
+      NULL
+    }
+
+    if (!is.null(pom_col)) {
+      select_cols$POM <- rlang::sym(pom_col)
     }
 
     result <- data %>%
