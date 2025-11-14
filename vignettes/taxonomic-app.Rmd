@@ -38,7 +38,7 @@ Before launching the app, ensure you have:
 Launch the app with a single command:
 
 ```{r}
-library(plotsdatabase)
+library(CafriplotsR)
 launch_taxonomic_match_app()
 ```
 

@@ -18,7 +18,8 @@
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/biomass-agb-estimation.html">Above-Ground Biomass Estimation with BIOMASS Package</a></li>
+    <li><a class="dropdown-item" href="articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
     <li><a class="dropdown-item" href="articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
   </ul></li>
@@ -122,10 +123,6 @@
 <strong>Taxa database</strong> (<code>rainbio</code>): Contains taxonomic information and species-level traits</li>
 </ol><p><strong>Connection management</strong> (<code>R/connections_db.R</code>): - Connections are stored in internal environment <code>.db_env</code> - Use <code><a href="reference/call.mydb.html">call.mydb()</a></code> for main database, <code><a href="reference/call.mydb.taxa.html">call.mydb.taxa()</a></code> for taxa database - Credentials cached in <code>credentials</code> environment during session - Connection pooling: functions check for existing valid connections before creating new ones - Use <code><a href="reference/cleanup_connections.html">cleanup_connections()</a></code> to close all connections and clear credentials</p>
 <p><strong>Credential setup options</strong>: 1. Interactive prompts (default) 2. Store in <code>~/.Renviron</code> via <code><a href="reference/setup_db_credentials.html">setup_db_credentials()</a></code> (WARNING: plaintext storage) 3. Pass directly to connection functions</p>
-</div>
-<div class="section level3">
-<h3 id="admin-credentials-for-testing">Admin Credentials for testing<a class="anchor" aria-label="anchor" href="#admin-credentials-for-testing"></a></h3>
-<p>only use read-only operations (queries) - no modifications to the database <code>call.mydb(pass = "AmapENS2024", user = "dauby")</code> <code>call.mydb.taxa(pass = "AmapENS2024", user = "dauby")</code></p>
 </div>
 <div class="section level3">
 <h3 id="data-query-architecture">Data Query Architecture<a class="anchor" aria-label="anchor" href="#data-query-architecture"></a></h3>

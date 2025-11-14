@@ -1,4 +1,4 @@
-# plotsdatabase 1.7 (2025-01-13)
+# CafriplotsR 1.7 (2025-01-13)
 
 ### New Features
 
@@ -100,7 +100,7 @@
   - **Action required**: Users relying on low-quality fuzzy matches may need to adjust threshold or improve input data quality
   - Rationale: Quality over quantity - fewer but more reliable matches improve data integrity
 
-# plotsdatabase 1.5
+# CafriplotsR 1.5
 
 ### New Features
 
@@ -225,7 +225,7 @@
   - Removed `@export` from commented-out `subplot_list()` function in `R/subsplots_features_function.R`
   - Prevents documentation build failures
 
-# plotsdatabase 1.4 (development version)
+# CafriplotsR 1.4 (development version)
 
 ### New Features
 
@@ -331,7 +331,7 @@
   - `glue` - String interpolation for SQL queries
   - `RecordLinkage` - String similarity calculations
 
-# plotsdatabase 1.0
+# CafriplotsR 1.0
 
 ### Breaking Changes
 * **Database schema change**: Renamed column `ind_num_sous_plot` to `tag` in `data_individuals` and `followup_updates_individuals` tables
