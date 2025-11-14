@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Above-Ground Biomass Estimation with BIOMASS Package • plotsdatabase</title>
+<title>Above-Ground Biomass Estimation with BIOMASS Package • CafriplotsR</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
@@ -18,7 +18,7 @@
 
     <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
 
-    <a class="navbar-brand me-2" href="../index.html">plotsdatabase</a>
+    <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
     <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
 
@@ -70,7 +70,7 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>This vignette demonstrates how to use <code>plotsdatabase</code> with
+<p>This vignette demonstrates how to use <code>CafriplotsR</code> with
 the <strong>BIOMASS</strong> package to estimate above-ground biomass
 (AGB) for permanent forest plots. The <code><a href="../reference/query_plots.html">query_plots()</a></code>
 function with <code>output_style = "permanent_plot"</code> provides data
@@ -95,7 +95,7 @@ species → genus → family</li>
 <h2 id="prerequisites">Prerequisites<a class="anchor" aria-label="anchor" href="#prerequisites"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://gdauby.github.io/bdd_plots_central_africa/">plotsdatabase</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/BIOMASS/" class="external-link">BIOMASS</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
@@ -541,7 +541,7 @@ database!)</li>
 <h2 id="summary">Summary<a class="anchor" aria-label="anchor" href="#summary"></a>
 </h2>
 <p>This vignette demonstrated the complete workflow for AGB estimation
-using <code>plotsdatabase</code> and <code>BIOMASS</code>:</p>
+using <code>CafriplotsR</code> and <code>BIOMASS</code>:</p>
 <ol style="list-style-type: decimal">
 <li>✅ <strong>Extract structured data</strong> with
 <code>output_style = "permanent_plot"</code>
@@ -575,7 +575,7 @@ BIOMASS</li>
 <strong>Allometric equations</strong>: Chave et al. (2014) <a href="https://doi.org/10.1111/gcb.12629" class="external-link uri">https://doi.org/10.1111/gcb.12629</a>
 </li>
 <li>
-<strong>plotsdatabase queries</strong>: See
+<strong>CafriplotsR queries</strong>: See
 <code><a href="../articles/using-query-plots.html">vignette("using-query-plots")</a></code>
 </li>
 <li>

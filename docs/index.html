@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Exploring and updating the Central Africa plot database • plotsdatabase</title>
+<title>Exploring and updating the Central Africa plot database • CafriplotsR</title>
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
@@ -20,7 +20,7 @@
 
     <nav class="navbar navbar-expand-lg fixed-top bg-light" data-bs-theme="light" aria-label="Site navigation"><div class="container">
 
-    <a class="navbar-brand me-2" href="index.html">plotsdatabase</a>
+    <a class="navbar-brand me-2" href="index.html">CafriplotsR</a>
 
     <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
 
@@ -55,7 +55,7 @@
 </nav><div class="container template-home">
 <div class="row">
   <main id="main" class="col-md-9"><div class="section level1">
-<div class="page-header"><h1 id="plotsdatabase">plotsdatabase<a class="anchor" aria-label="anchor" href="#plotsdatabase"></a>
+<div class="page-header"><h1 id="cafriplotsr">CafriplotsR<a class="anchor" aria-label="anchor" href="#cafriplotsr"></a>
 </h1></div>
 <blockquote>
 <p>R package for managing and exploring the Central African forest plot database <a href="https://cafriplot.net/" class="external-link">cafriplot network</a></p>
@@ -63,7 +63,7 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p><code>plotsdatabase</code> provides tools for querying a PostgreSQL database containing forest inventories data from Tropical Africa. The package offers comprehensive functions for working with individual tree measurements on which either taxa or stem level traits <em>sensus largo</em> measurements (or observations) can be aggregated.<br>
+<p><code>CafriplotsR</code> provides tools for querying a PostgreSQL database containing forest inventories data from Tropical Africa. The package offers comprehensive functions for working with individual tree measurements on which either taxa or stem level traits <em>sensus largo</em> measurements (or observations) can be aggregated.<br>
 The great advantage of this package is allow managing inventories, traits and observations under the same taxonomic backbone, facilitating data integration, reproductibility in data analysis and manipulation, data reusability.</p>
 <p><strong>Key features:</strong> - Query plot data, individual tree measurements, and ecological features - Update database tables with new measurements and observations - Resolve taxonomic synonyms - Access and aggregate species-level taxonomic traits</p>
 </div>
@@ -73,7 +73,7 @@ The great advantage of this package is allow managing inventories, traits and ob
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Install from GitHub</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"tidyverse"</span>, <span class="st">"dbplyr"</span>, <span class="st">"devtools"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"gdauby/bdd_plots_central_africa"</span>, upgrade <span class="op">=</span> <span class="st">"never"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"umr-amap/cafriplotsR"</span>, upgrade <span class="op">=</span> <span class="st">"never"</span><span class="op">)</span></span></code></pre></div>
 <p>In case of slow internet connection, the installation from github above may fail. You may try to first launch this code line in the console, it will increase the time for trying to install :</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>timeout <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fl">3000</span>, <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"timeout"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
@@ -82,7 +82,7 @@ The great advantage of this package is allow managing inventories, traits and ob
 <div class="section level2">
 <h2 id="package-logic--access-control">Package Logic &amp; Access Control<a class="anchor" aria-label="anchor" href="#package-logic--access-control"></a>
 </h2>
-<p>The <code>plotsdatabase</code> package offers tools to <strong>manipulate, export, visualize, standardize, and enrich</strong> forest inventory data.</p>
+<p>The <code>CafriplotsR</code> package offers tools to <strong>manipulate, export, visualize, standardize, and enrich</strong> forest inventory data.</p>
 <div class="section level3">
 <h3 id="access-model">Access Model<a class="anchor" aria-label="anchor" href="#access-model"></a>
 </h3>
@@ -130,7 +130,7 @@ The great advantage of this package is allow managing inventories, traits and ob
 <h3 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h3>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://gdauby.github.io/bdd_plots_central_africa/">plotsdatabase</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Connect to databases</span></span>
 <span><span class="va">mydb</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
@@ -231,7 +231,7 @@ The great advantage of this package is allow managing inventories, traits and ob
 <div class="citation">
 <h2 data-toc-skip>Citation</h2>
 <ul class="list-unstyled">
-<li><a href="authors.html#citation">Citing plotsdatabase</a></li>
+<li><a href="authors.html#citation">Citing CafriplotsR</a></li>
 </ul>
 </div>
 
