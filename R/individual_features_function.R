@@ -1208,7 +1208,7 @@ query_individual_features <- function(
   } else if (census_strategy != "mean") {
     # Census selection: need census info even when not showing multiple censuses
     cli::cli_alert_info("Enriching with census information for {census_strategy} census selection")
-    raw_data <- enrich_census_info(raw_data, con)
+    raw_data <- enrich_census_info(data = raw_data, con)
 
     # Filter to first or last census
     if ("census_name" %in% names(raw_data) && any(!is.na(raw_data$census_name))) {
