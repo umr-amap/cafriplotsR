@@ -2,6 +2,20 @@
 
 ### New Features
 
+* **Interactive Shiny app for plot querying and data extraction**
+  - New `launch_query_plots_app()` function provides user-friendly interface for `query_plots()`
+  - Two-stage workflow: (1) filter and discover plots, (2) select and extract individual data
+  - Filter interface: query by country, plot name, locality, method, tags, and IDs (including comma-separated values)
+  - Interactive leaflet map with multiple basemaps showing plot locations
+  - Metadata table viewer with sortable/searchable columns
+  - Plot selection: all plots selected by default, users can deselect specific plots
+  - Configurable extraction options: output styles, census strategies, data organization, trait extraction
+  - Results viewer with dynamic tabs for each data table
+  - Multi-format download: Excel (.xlsx), CSV (zipped), R object (.rds), and shapefile (.zip) formats
+  - Row-level security aware: filter options respect user's database access permissions
+  - Modular architecture with dedicated UI/server modules for extensibility
+  - Database login integration with support for saved credentials from .Renviron
+
 * **Complete individual tree data import workflow**
   - New `import_individual_data()` function with transaction-based imports and automatic rollback on errors
   - Interactive column mapping with `map_individual_columns()` - automatically matches user columns to database schema
@@ -82,6 +96,12 @@
   - Ensures features can link to individuals via tag column
 
 ### Infrastructure
+
+* **`query_plots()` improvements for Shiny integration**
+  - New `con` parameter accepts optional database connection (defaults to `call.mydb()` if NULL)
+  - Enables Shiny apps to pass reactive connection pools without triggering reactive context errors
+  - Consistent `metadata` naming in return list regardless of `output_style` (previously `meta_data` for "full" style, `metadata` for others)
+  - Ensures predictable list structure for programmatic access
 
 * **Improved package dependency management**
   - Moved `getPass` and `dm` from Imports to Suggests
