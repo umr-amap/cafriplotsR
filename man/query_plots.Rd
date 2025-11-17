@@ -20,7 +20,6 @@ query_plots(
   show_multiple_census = FALSE,
   show_all_coordinates = FALSE,
   remove_ids = TRUE,
-  collapse_multiple_val = FALSE,
   extract_traits = TRUE,
   extract_individual_features = TRUE,
   traits_to_genera = FALSE,
@@ -68,8 +67,6 @@ query_plots(
 \item{show_all_coordinates}{Logical. Whether to show all coordinates. Optional.}
 
 \item{remove_ids}{Logical. Whether to remove ID columns from output. Optional.}
-
-\item{collapse_multiple_val}{Logical. Whether to collapse multiple values. Optional.}
 
 \item{extract_traits}{Logical. Whether to extract taxonomic traits. Optional.}
 

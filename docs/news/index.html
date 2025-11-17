@@ -43,6 +43,22 @@
 <div class="section level4">
 <h4 id="new-features-1-7">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-7"></a></h4>
 <ul><li>
+<strong>Interactive Shiny app for plot querying and data extraction</strong>
+<ul><li>New <code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code> function provides user-friendly interface for <code><a href="../reference/query_plots.html">query_plots()</a></code>
+</li>
+<li>Two-stage workflow: (1) filter and discover plots, (2) select and extract individual data</li>
+<li>Filter interface: query by country, plot name, locality, method, tags, and IDs (including comma-separated values)</li>
+<li>Interactive leaflet map with multiple basemaps showing plot locations</li>
+<li>Metadata table viewer with sortable/searchable columns</li>
+<li>Plot selection: all plots selected by default, users can deselect specific plots</li>
+<li>Configurable extraction options: output styles, census strategies, data organization, trait extraction</li>
+<li>Results viewer with dynamic tabs for each data table</li>
+<li>Multi-format download: Excel (.xlsx), CSV (zipped), R object (.rds), and shapefile (.zip) formats</li>
+<li>Row-level security aware: filter options respect user’s database access permissions</li>
+<li>Modular architecture with dedicated UI/server modules for extensibility</li>
+<li>Database login integration with support for saved credentials from .Renviron</li>
+</ul></li>
+<li>
 <strong>Complete individual tree data import workflow</strong>
 <ul><li>New <code><a href="../reference/import_individual_data.html">import_individual_data()</a></code> function with transaction-based imports and automatic rollback on errors</li>
 <li>Interactive column mapping with <code><a href="../reference/map_individual_columns.html">map_individual_columns()</a></code> - automatically matches user columns to database schema</li>
@@ -139,6 +155,13 @@
 <div class="section level4">
 <h4 id="infrastructure-1-7">Infrastructure<a class="anchor" aria-label="anchor" href="#infrastructure-1-7"></a></h4>
 <ul><li>
+<strong><code><a href="../reference/query_plots.html">query_plots()</a></code> improvements for Shiny integration</strong>
+<ul><li>New <code>con</code> parameter accepts optional database connection (defaults to <code><a href="../reference/call.mydb.html">call.mydb()</a></code> if NULL)</li>
+<li>Enables Shiny apps to pass reactive connection pools without triggering reactive context errors</li>
+<li>Consistent <code>metadata</code> naming in return list regardless of <code>output_style</code> (previously <code>meta_data</code> for “full” style, <code>metadata</code> for others)</li>
+<li>Ensures predictable list structure for programmatic access</li>
+</ul></li>
+<li>
 <strong>Improved package dependency management</strong>
 <ul><li>Moved <code>getPass</code> and <code>dm</code> from Imports to Suggests</li>
 <li>Reduces installation requirements - only needed for specific optional features</li>
