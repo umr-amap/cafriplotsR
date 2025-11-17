@@ -72,7 +72,6 @@ method_list <- function() {
 #' @param show_multiple_census Logical. Whether to show multiple census data. Optional.
 #' @param show_all_coordinates Logical. Whether to show all coordinates. Optional.
 #' @param remove_ids Logical. Whether to remove ID columns from output. Optional.
-#' @param collapse_multiple_val Logical. Whether to collapse multiple values. Optional.
 #' @param extract_traits Logical. Whether to extract taxonomic traits. Optional.
 #' @param extract_individual_features Logical. Whether to extract individual-level features. Optional.
 #' @param traits_to_genera Logical. Whether to aggregate traits to genus level. Optional.
@@ -89,6 +88,7 @@ method_list <- function() {
 #' @param include_measurement_ids Logical. Whether to include measurement IDs in aggregated output. Optional.
 #' @param output_style Character. Output formatting style. Options: "auto", "minimal", "standard",
 #'   "permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.
+#' @param con Optional database connection. If NULL, will call call.mydb() to establish connection.
 #'
 #' @returns 
 #' A list or data frame containing plot data and associated information. When multiple 
@@ -130,7 +130,6 @@ query_plots <- function(plot_name = NULL,
                         show_multiple_census = FALSE,
                         show_all_coordinates = FALSE,
                         remove_ids = TRUE,
-                        collapse_multiple_val = FALSE,
                         extract_traits = TRUE,
                         extract_individual_features = TRUE,
                         traits_to_genera = FALSE,
@@ -144,13 +143,15 @@ query_plots <- function(plot_name = NULL,
                         exact_match = FALSE,
                         census_strategy = c("last", "first", "mean"),
                         output_style = c("auto", "minimal", "standard",
-                                         "permanent_plot", "permanent_plot_multi_census", "transect", "full")) {
+                                         "permanent_plot", "permanent_plot_multi_census", "transect", "full"),
+                        con = NULL) {
 
   # Match arguments
   census_strategy <- match.arg(census_strategy)
   output_style <- match.arg(output_style)
 
-  mydb <- call.mydb()
+  # Use provided connection or create new one
+  mydb <- if (!is.null(con)) con else call.mydb()
   mydb.taxa <- call.mydb.taxa()
   
   if (show_multiple_census && remove_obs_with_issue)
@@ -524,6 +525,11 @@ query_plots <- function(plot_name = NULL,
       cli::cli_alert_success(
         "Output restructured using '{output_style}' style. Use names() to see available tables."
       )
+    }
+  } else {
+    # For "full" style, rename meta_data to metadata for consistency
+    if (is.list(res_list) && "meta_data" %in% names(res_list)) {
+      names(res_list)[names(res_list) == "meta_data"] <- "metadata"
     }
   }
 

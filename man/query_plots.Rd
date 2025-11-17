@@ -34,7 +34,8 @@ query_plots(
   exact_match = FALSE,
   census_strategy = c("last", "first", "mean"),
   output_style = c("auto", "minimal", "standard", "permanent_plot",
-    "permanent_plot_multi_census", "transect", "full")
+    "permanent_plot_multi_census", "transect", "full"),
+  con = NULL
 )
 }
 \arguments{
@@ -97,6 +98,8 @@ will have NA values, reflecting biological reality.}
 
 \item{output_style}{Character. Output formatting style. Options: "auto", "minimal", "standard",
 "permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.}
+
+\item{con}{Optional database connection. If NULL, will call call.mydb() to establish connection.}
 }
 \value{
 A list or data frame containing plot data and associated information. When multiple 
