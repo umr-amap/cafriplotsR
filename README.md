@@ -6,19 +6,18 @@
 
 `CafriplotsR` provides tools for querying a PostgreSQL database containing forest inventories 
 data from Tropical Africa.
-The package offers comprehensive functions for working with individual tree measurements on 
+The package offers functions and shiny apps for (1) managing individual tree measurements on 
 which either taxa or stem level traits _sensus largo_ measurements (or observations) can be 
-aggregated.   
-The great advantage of this package is allow managing inventories, traits and observations under 
+aggregated, (2) standardizing taxonomic information en enrich with taxa level traits.   
+The advantage of this package is allow managing inventories, traits and observations under 
 the same taxonomic backbone, facilitating data integration, reproductibility in data analysis and
 manipulation, data reusability.
 
 
 **Key features:**
 - Query plot data, individual tree measurements, and ecological features
-- Update database tables with new measurements and observations
-- Resolve taxonomic synonyms
-- Access and aggregate species-level taxonomic traits
+- Access and aggregate species-level traits _sensus largo_
+- Shiny app for standardize and correct your own list of taxonomic names
 
 ## Installation
 
@@ -41,7 +40,7 @@ options(timeout = max(3000, getOption("timeout")))
 
 ## Package Logic & Access Control
 
-The `CafriplotsR` package offers tools to **manipulate, export, visualize, standardize, and enrich** forest inventory data.
+The `CafriplotsR` package offers tools to **manipulate, export, visualize, standardize, and enrich** plant inventory data from Central Africa.
 
 ### Access Model
 
@@ -52,18 +51,21 @@ The package implements a **two-tier access system**:
    security policies
    - Policies define which specific plots each user can query and update
    - Ensures data providers maintain control over their contributed inventories
+   - Some inventories are accessible to all users
 
 2. **Species-level traits** (access across all users):
    - **All users** have read access to the taxa database
    - These data are grafted and aggregated to inventories
+   
+
+This design ensures data sovereignty for plot owners while enabling the research community 
+to benefit from shared taxonomic and trait knowledge.
+
 
 ### Future Development
 
 - **Species occurrence data**: Open access to occurrence records across Central Africa 
-(not yet implemented)
-
-This design ensures data sovereignty for plot owners while enabling the research community 
-to benefit from shared taxonomic and trait knowledge.
+(not yet implemented). The RAINBIO database (only for shrub and trees) will be accessible and interoperable with inventories.
 
 ## Database Architecture
 
@@ -102,11 +104,8 @@ get_database_fk(mydb)
 - `db_diagnostic()` - Database connection diagnostics
 
 ### Data Querying
-- `query_plots()` - Query plot metadata
+- `query_plots()` - Query plot metadata or individuals
 
-
-### Utilities
-- `get_database_fk()` - Visualize database schema and relationships
 
 ## Documentation
 
