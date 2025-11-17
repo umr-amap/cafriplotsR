@@ -725,13 +725,24 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       results <- match_results()
 
       # Find the column containing the name (handle NA specially)
+      # Only check character or factor columns to avoid date/time comparison errors
       if (is.na(name)) {
         col_name <- names(results$data)[which(sapply(results$data, function(col) {
-          any(is.na(col))
+          # Only check character or factor columns
+          if (is.character(col) || is.factor(col)) {
+            any(is.na(col))
+          } else {
+            FALSE
+          }
         }))[1]]
       } else {
         col_name <- names(results$data)[which(sapply(results$data, function(col) {
-          any(col == name, na.rm = TRUE)
+          # Only check character or factor columns to avoid POSIXt comparison errors
+          if (is.character(col) || is.factor(col)) {
+            any(col == name, na.rm = TRUE)
+          } else {
+            FALSE
+          }
         }))[1]]
       }
 

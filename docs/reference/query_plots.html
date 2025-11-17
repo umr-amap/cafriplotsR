@@ -64,7 +64,6 @@ with options to include associated traits and metadata, and to generate interact
 <span>  show_multiple_census <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  show_all_coordinates <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  remove_ids <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  collapse_multiple_val <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  extract_traits <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  extract_individual_features <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  traits_to_genera <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -78,7 +77,8 @@ with options to include associated traits and metadata, and to generate interact
 <span>  exact_match <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  census_strategy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"last"</span>, <span class="st">"first"</span>, <span class="st">"mean"</span><span class="op">)</span>,</span>
 <span>  output_style <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"minimal"</span>, <span class="st">"standard"</span>, <span class="st">"permanent_plot"</span>,</span>
-<span>    <span class="st">"permanent_plot_multi_census"</span>, <span class="st">"transect"</span>, <span class="st">"full"</span><span class="op">)</span></span>
+<span>    <span class="st">"permanent_plot_multi_census"</span>, <span class="st">"transect"</span>, <span class="st">"full"</span><span class="op">)</span>,</span>
+<span>  con <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -146,10 +146,6 @@ with options to include associated traits and metadata, and to generate interact
 <dd><p>Logical. Whether to remove ID columns from output. Optional.</p></dd>
 
 
-<dt id="arg-collapse-multiple-val">collapse_multiple_val<a class="anchor" aria-label="anchor" href="#arg-collapse-multiple-val"></a></dt>
-<dd><p>Logical. Whether to collapse multiple values. Optional.</p></dd>
-
-
 <dt id="arg-extract-traits">extract_traits<a class="anchor" aria-label="anchor" href="#arg-extract-traits"></a></dt>
 <dd><p>Logical. Whether to extract taxonomic traits. Optional.</p></dd>
 
@@ -200,6 +196,10 @@ will have NA values, reflecting biological reality.</p></dd>
 <dt id="arg-output-style">output_style<a class="anchor" aria-label="anchor" href="#arg-output-style"></a></dt>
 <dd><p>Character. Output formatting style. Options: "auto", "minimal", "standard",
 "permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.</p></dd>
+
+
+<dt id="arg-con">con<a class="anchor" aria-label="anchor" href="#arg-con"></a></dt>
+<dd><p>Optional database connection. If NULL, will call call.mydb() to establish connection.</p></dd>
 
 </dl></div>
     <div class="section level2">

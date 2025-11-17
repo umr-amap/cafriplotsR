@@ -63,9 +63,9 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p><code>CafriplotsR</code> provides tools for querying a PostgreSQL database containing forest inventories data from Tropical Africa. The package offers comprehensive functions for working with individual tree measurements on which either taxa or stem level traits <em>sensus largo</em> measurements (or observations) can be aggregated.<br>
-The great advantage of this package is allow managing inventories, traits and observations under the same taxonomic backbone, facilitating data integration, reproductibility in data analysis and manipulation, data reusability.</p>
-<p><strong>Key features:</strong> - Query plot data, individual tree measurements, and ecological features - Update database tables with new measurements and observations - Resolve taxonomic synonyms - Access and aggregate species-level taxonomic traits</p>
+<p><code>CafriplotsR</code> provides tools for querying a PostgreSQL database containing forest inventories data from Tropical Africa. The package offers functions and shiny apps for (1) managing individual tree measurements on which either taxa or stem level traits <em>sensus largo</em> measurements (or observations) can be aggregated, (2) standardizing taxonomic information en enrich with taxa level traits.<br>
+The advantage of this package is allow managing inventories, traits and observations under the same taxonomic backbone, facilitating data integration, reproductibility in data analysis and manipulation, data reusability.</p>
+<p><strong>Key features:</strong> - Query plot data, individual tree measurements, and ecological features - Access and aggregate species-level traits <em>sensus largo</em> - Shiny app for standardize and correct your own list of taxonomic names</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -82,7 +82,7 @@ The great advantage of this package is allow managing inventories, traits and ob
 <div class="section level2">
 <h2 id="package-logic--access-control">Package Logic &amp; Access Control<a class="anchor" aria-label="anchor" href="#package-logic--access-control"></a>
 </h2>
-<p>The <code>CafriplotsR</code> package offers tools to <strong>manipulate, export, visualize, standardize, and enrich</strong> forest inventory data.</p>
+<p>The <code>CafriplotsR</code> package offers tools to <strong>manipulate, export, visualize, standardize, and enrich</strong> plant inventory data from Central Africa.</p>
 <div class="section level3">
 <h3 id="access-model">Access Model<a class="anchor" aria-label="anchor" href="#access-model"></a>
 </h3>
@@ -94,6 +94,7 @@ The great advantage of this package is allow managing inventories, traits and ob
 <li>Each user has access to <strong>their own plots</strong>, controlled by database row-level security policies</li>
 <li>Policies define which specific plots each user can query and update</li>
 <li>Ensures data providers maintain control over their contributed inventories</li>
+<li>Some inventories are accessible to all users</li>
 </ul>
 </li>
 <li>
@@ -105,15 +106,15 @@ The great advantage of this package is allow managing inventories, traits and ob
 </ul>
 </li>
 </ol>
+<p>This design ensures data sovereignty for plot owners while enabling the research community to benefit from shared taxonomic and trait knowledge.</p>
 </div>
 <div class="section level3">
 <h3 id="future-development">Future Development<a class="anchor" aria-label="anchor" href="#future-development"></a>
 </h3>
 <ul>
 <li>
-<strong>Species occurrence data</strong>: Open access to occurrence records across Central Africa (not yet implemented)</li>
+<strong>Species occurrence data</strong>: Open access to occurrence records across Central Africa (not yet implemented). The RAINBIO database (only for shrub and trees) will be accessible and interoperable with inventories.</li>
 </ul>
-<p>This design ensures data sovereignty for plot owners while enabling the research community to benefit from shared taxonomic and trait knowledge.</p>
 </div>
 </div>
 <div class="section level2">
@@ -168,15 +169,7 @@ The great advantage of this package is allow managing inventories, traits and ob
 </h3>
 <ul>
 <li>
-<code><a href="reference/query_plots.html">query_plots()</a></code> - Query plot metadata</li>
-</ul>
-</div>
-<div class="section level3">
-<h3 id="utilities">Utilities<a class="anchor" aria-label="anchor" href="#utilities"></a>
-</h3>
-<ul>
-<li>
-<code><a href="reference/get_database_fk.html">get_database_fk()</a></code> - Visualize database schema and relationships</li>
+<code><a href="reference/query_plots.html">query_plots()</a></code> - Query plot metadata or individuals</li>
 </ul>
 </div>
 </div>
