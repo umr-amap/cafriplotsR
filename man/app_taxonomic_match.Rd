@@ -10,7 +10,8 @@ app_taxonomic_match(
   language = "en",
   min_similarity = 0.6,
   max_suggestions = 10,
-  mode = "interactive"
+  mode = "interactive",
+  pool_taxa = NULL
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ app_taxonomic_match(
 \item{max_suggestions}{Integer, maximum suggestions per name, default: 10}
 
 \item{mode}{Character, review mode ("interactive" or "batch"), default: "interactive"}
+
+\item{pool_taxa}{Optional connection pool for taxa database (will prompt for login if NULL)}
 }
 \value{
 Shiny app object

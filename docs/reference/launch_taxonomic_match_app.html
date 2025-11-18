@@ -13,7 +13,7 @@ and export functionality."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,6 +26,7 @@ and export functionality."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/biomass-agb-estimation.html">Above-Ground Biomass Estimation with BIOMASS Package</a></li>
     <li><a class="dropdown-item" href="../articles/database-connections.html">Database Connections Guide</a></li>
+    <li><a class="dropdown-item" href="../articles/growth-mortality-analysis.html">Growth and Mortality Analysis</a></li>
     <li><a class="dropdown-item" href="../articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
     <li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
@@ -114,14 +115,15 @@ Default: TRUE</p></dd>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>## Workflow</p>
-<p>1. **Data Input**: Upload Excel file or provide R data.frame
-2. **Column Selection**: Choose column containing taxonomic names
-3. **Auto Matching**: Automatic matching using hierarchical strategy:
+<p>1. **Database Connection**: Login with database credentials (within the app)
+2. **Data Input**: Upload Excel file or provide R data.frame
+3. **Column Selection**: Choose column containing taxonomic names
+4. **Auto Matching**: Automatic matching using hierarchical strategy:
    - Exact match on full name
    - Genus-constrained fuzzy match (searches species within matched genera)
    - Full database fuzzy match (last resort)
-4. **Review** (Phase 3): Manually review unmatched names with suggestions
-5. **Export**: Download results in Excel, CSV, or RDS format</p>
+5. **Review** (Phase 4): Manually review unmatched names with suggestions
+6. **Export**: Download results in Excel, CSV, or RDS format</p>
 <p>## Match Quality</p>
 <p>The app uses the new `match_taxonomic_names()` function which provides:
 - Intelligent genus-constrained fuzzy matching

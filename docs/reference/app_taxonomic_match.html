@@ -11,7 +11,7 @@ intelligent fuzzy matching and manual review capabilities."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -24,6 +24,7 @@ intelligent fuzzy matching and manual review capabilities."></head><body>
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/biomass-agb-estimation.html">Above-Ground Biomass Estimation with BIOMASS Package</a></li>
     <li><a class="dropdown-item" href="../articles/database-connections.html">Database Connections Guide</a></li>
+    <li><a class="dropdown-item" href="../articles/growth-mortality-analysis.html">Growth and Mortality Analysis</a></li>
     <li><a class="dropdown-item" href="../articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
     <li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
@@ -58,7 +59,8 @@ intelligent fuzzy matching and manual review capabilities.</p>
 <span>  language <span class="op">=</span> <span class="st">"en"</span>,</span>
 <span>  min_similarity <span class="op">=</span> <span class="fl">0.6</span>,</span>
 <span>  max_suggestions <span class="op">=</span> <span class="fl">10</span>,</span>
-<span>  mode <span class="op">=</span> <span class="st">"interactive"</span></span>
+<span>  mode <span class="op">=</span> <span class="st">"interactive"</span>,</span>
+<span>  pool_taxa <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -88,6 +90,10 @@ intelligent fuzzy matching and manual review capabilities.</p>
 
 <dt id="arg-mode">mode<a class="anchor" aria-label="anchor" href="#arg-mode"></a></dt>
 <dd><p>Character, review mode ("interactive" or "batch"), default: "interactive"</p></dd>
+
+
+<dt id="arg-pool-taxa">pool_taxa<a class="anchor" aria-label="anchor" href="#arg-pool-taxa"></a></dt>
+<dd><p>Optional connection pool for taxa database (will prompt for login if NULL)</p></dd>
 
 </dl></div>
     <div class="section level2">

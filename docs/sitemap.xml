@@ -2,6 +2,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/404.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/biomass-agb-estimation.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/database-connections.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/articles/growth-mortality-analysis.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/importing-plot-data.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/index.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/taxonomic-app.html</loc></url>
@@ -49,6 +50,8 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/choose_prompt.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/cleanup_connections.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/clean_taxonomic_name.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/compute_growth.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/compute_mortality.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/connect_database.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/country_list.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/count_measurement_features.html</loc></url>
@@ -195,6 +198,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_translations.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_updates_diconame.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_username_secure.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_user_accessible_plots.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/grapes-or-or-grapes.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/growth_computing.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/import_individual_data.html</loc></url>
@@ -204,6 +208,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/launch_query_plots_app.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/launch_stand_tax_app.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/list_database_users.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/list_individual_features.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/list_user_policies.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/map_individual_columns.html</loc></url>
@@ -264,6 +269,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/print_mapping_summary.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/print_table.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/print_template_info.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/print_user_access_summary.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/print_validation_results.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/process_individuals.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/process_stems.html</loc></url>
