@@ -5,552 +5,547 @@
 # census periods, outlier detection, and mortality/recruitment calculations.
 #
 # Main functions:
-# - .split_censuses(): Split plot data into individual census periods
-# - .time_diff(): Calculate time intervals between census pairs
-# - .trim.growth(): Identify and flag problematic growth measurements
-# - growth_computing(): Main function for computing growth rates across multiple censuses
+# - compute_growth(): Calculate growth rates between censuses
+# - compute_mortality(): Calculate mortality and recruitment rates
 #
-# Dependencies: dplyr, rlang, stringr, date, cli
+# Dependencies: dplyr, cli, date
 # Adapted from CTFS R Package: http://ctfs.si.edu/Public/CTFSRPackage/
-#' Split plot data into census
+
+#' Compute growth rates for permanent plots
 #'
-#' split plot data into a list where each element is a census
+#' @description
+#' Calculates tree growth rates between successive censuses for plots with
+#' multiple census records. The function automatically fetches data from the
+#' database and computes growth metrics.
 #'
+#' @param plot_ids Integer vector. Plot IDs to analyze.
+#' @param plot_names Character vector. Plot names to analyze.
+#' @param mindbh Numeric. Minimum diameter (mm) for including measurements. Default 100.
+#' @param err.limit Numeric. Error limit for negative growth detection. Default 4.
+#' @param maxgrow Numeric. Maximum valid growth rate (mm/year). Default 75.
+#' @param method Character. Growth calculation method: "I" for incremental or "E" for exponential.
+#' @param return_individual Logical. Whether to return individual-level growth data.
+#' @param con Database connection. If NULL, connects automatically.
 #'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @returns A list with:
+#'   - `summary`: Data frame with growth summary per plot and census interval
+#'   - `individuals`: Data frame with individual growth rates (if return_individual = TRUE)
 #'
-#' @param meta tibble output of query_plot with no export individuals
-#' @param dataset tibble output of query_plot with export individuals
+#' @examples
+#' \dontrun{
+#' # Compute growth for specific plots by ID
+#' growth <- compute_growth(plot_ids = c(1, 2, 3))
 #'
-#' @importFrom rlang parse_expr
+#' # Compute growth for plots by name
+#' growth <- compute_growth(plot_names = c("plot001", "plot002"))
 #'
-#' @return A list with as many tibble as census
+#' # Get only summary statistics
+#' growth <- compute_growth(plot_ids = 1, return_individual = FALSE)
+#' }
+#'
 #' @export
-.split_censuses <- function(meta, dataset) {
+compute_growth <- function(plot_ids = NULL,
+                           plot_names = NULL,
+                           mindbh = 100,
+                           err.limit = 4,
+                           maxgrow = 75,
+                           method = c("I", "E"),
+                           return_individual = TRUE,
+                           con = NULL) {
 
-  split_census <- list()
-  for (i in 1:nrow(meta)) {
-    select_census <-
-      dataset %>%
-      dplyr::select(dplyr::contains(paste0("census_", i)),
-                    dplyr::contains(paste0("date_census_", i)),
-                    dplyr::contains(paste0("date_census_julian_", i)),
-             id_n,
-             tag,
-             plot_name)
+  method <- match.arg(method)
 
-    stem_census <- paste0("stem_diameter_census_", i)
-    stem_census_enquo <-
-      rlang::parse_expr(rlang::quo_name(rlang::enquo(stem_census)))
-
-    select_census <-
-      select_census %>%
-      dplyr::filter(!is.na(!!stem_census_enquo),
-             !!stem_census_enquo>0)
-
-    split_census[[i]] <- select_census
-    names(split_census)[[i]] <- paste0("census_", meta$typevalue[i])
+  # Check inputs
+  if (is.null(plot_ids) && is.null(plot_names)) {
+    stop("Either plot_ids or plot_names must be provided")
   }
 
-  return(split_census)
+  # Check date package
+  if (!requireNamespace("date", quietly = TRUE)) {
+    stop("Package 'date' is required. Please install it with: install.packages('date')")
+  }
 
+  # Connect to database
+  if (is.null(con)) {
+    con <- call.mydb()
+  }
+
+  cli::cli_h2("Computing growth rates")
+
+  # Fetch data using query_plots
+  cli::cli_alert_info("Fetching census data...")
+
+  query_result <- query_plots(
+    plot_name = plot_names,
+    id_plot = plot_ids,
+    extract_individuals = TRUE,
+    show_multiple_census = TRUE,
+    remove_ids = FALSE,
+    extract_traits = FALSE,
+    extract_individual_features = TRUE,
+    extract_subplot_features = TRUE,
+    interactive = FALSE,
+    output_style = "full",
+    con = con
+  )
+
+  # Extract data components
+  if (!any(names(query_result) == "census_features")) {
+    stop("No census data found. Make sure plots have multiple censuses recorded.")
+  }
+
+  dataset <- query_result$extract
+  census_info <- query_result$census_features
+
+  if (is.null(dataset) || nrow(dataset) == 0) {
+    stop("No individual data found for the specified plots")
+  }
+
+  # Identify plots with multiple censuses
+  census_cols <- grep("^stem_diameter_census_\\d+$", names(dataset), value = TRUE)
+  n_censuses <- length(census_cols)
+
+  if (n_censuses < 2) {
+    stop("Need at least 2 censuses. Found only ", n_censuses)
+  }
+
+  cli::cli_alert_success("Found {n_censuses} censuses")
+
+  # Get unique plots
+  plot_col <- "id_table_liste_plots_n"
+
+  unique_plots <- unique(dataset[[plot_col]])
+  cli::cli_alert_info("Processing {length(unique_plots)} plot(s)")
+
+  # Initialize results
+  all_summaries <- list()
+  all_individuals <- list()
+
+  # Process each plot
+  for (plot_id in unique_plots) {
+
+    plot_data <- dataset[dataset[[plot_col]] == plot_id, ]
+    plot_name_val <- unique(plot_data$plot_name)[1]
+
+    cli::cli_alert_info("Processing: {plot_name_val}")
+
+    # Process each consecutive census pair
+    for (i in 1:(n_censuses - 1)) {
+
+      # Get column names for this census pair
+      dbh_col_1 <- paste0("stem_diameter_census_", i)
+      dbh_col_2 <- paste0("stem_diameter_census_", i + 1)
+      date_col_1 <- paste0("date_census_julian_", i)
+      date_col_2 <- paste0("date_census_julian_", i + 1)
+
+      # Check if columns exist
+      if (!dbh_col_1 %in% names(plot_data) || !dbh_col_2 %in% names(plot_data)) {
+        next
+      }
+
+      # Extract census pair data
+      cols_to_keep <- c("id_n", "tag", "plot_name", dbh_col_1, dbh_col_2)
+      if (date_col_1 %in% names(plot_data)) cols_to_keep <- c(cols_to_keep, date_col_1)
+      if (date_col_2 %in% names(plot_data)) cols_to_keep <- c(cols_to_keep, date_col_2)
+
+      census_pair <- plot_data[, cols_to_keep, drop = FALSE]
+
+      # Standardize column names
+      names(census_pair)[names(census_pair) == dbh_col_1] <- "dbh_1"
+      names(census_pair)[names(census_pair) == dbh_col_2] <- "dbh_2"
+      if (date_col_1 %in% names(census_pair)) {
+        names(census_pair)[names(census_pair) == date_col_1] <- "date_julian_1"
+      }
+      if (date_col_2 %in% names(census_pair)) {
+        names(census_pair)[names(census_pair) == date_col_2] <- "date_julian_2"
+      }
+
+      # Filter valid measurements (both censuses present)
+      valid_data <- census_pair[!is.na(census_pair$dbh_1) &
+                                  !is.na(census_pair$dbh_2) &
+                                  census_pair$dbh_1 > 0 &
+                                  census_pair$dbh_2 > 0, ]
+
+      if (nrow(valid_data) == 0) {
+        cli::cli_alert_warning("No valid measurements for census pair {i}-{i+1}")
+        next
+      }
+
+      # Calculate time difference
+      if ("date_julian_1" %in% names(valid_data) && "date_julian_2" %in% names(valid_data)) {
+        valid_data$time_diff <- (valid_data$date_julian_2 - valid_data$date_julian_1) / 365.25
+      } else {
+        cli::cli_alert_warning("No date information for census pair {i}-{i+1}")
+        next
+      }
+
+      # Convert to mm for calculations
+      valid_data$dbh_mm_1 <- valid_data$dbh_1 * 10
+      valid_data$dbh_mm_2 <- valid_data$dbh_2 * 10
+
+      # Apply growth trimming
+      valid_data <- .trim.growth_internal(
+        valid_data,
+        err.limit = err.limit,
+        maxgrow = maxgrow,
+        mindbh = mindbh
+      )
+
+      # Calculate growth rate
+      if (method == "I") {
+        valid_data$growthrate <- (valid_data$dbh_mm_2 - valid_data$dbh_mm_1) / valid_data$time_diff
+      } else {
+        valid_data$growthrate <- (log(valid_data$dbh_mm_2) - log(valid_data$dbh_mm_1)) / valid_data$time_diff
+      }
+
+      # Set NA for excluded measurements
+      valid_data$growthrate[!valid_data$accepted_growth] <- NA
+
+      # Create summary
+      summary_row <- data.frame(
+        plot_name = plot_name_val,
+        census_pair = paste0(i, "-", i + 1),
+        n_individuals = nrow(valid_data),
+        n_valid = sum(valid_data$accepted_growth, na.rm = TRUE),
+        n_excluded = sum(!valid_data$accepted_growth, na.rm = TRUE),
+        mean_growth_mm_yr = mean(valid_data$growthrate, na.rm = TRUE),
+        sd_growth_mm_yr = sd(valid_data$growthrate, na.rm = TRUE),
+        median_growth_mm_yr = stats::median(valid_data$growthrate, na.rm = TRUE),
+        mean_dbh_1_mm = mean(valid_data$dbh_mm_1[valid_data$accepted_growth], na.rm = TRUE),
+        mean_dbh_2_mm = mean(valid_data$dbh_mm_2[valid_data$accepted_growth], na.rm = TRUE),
+        mean_interval_years = mean(valid_data$time_diff[valid_data$accepted_growth], na.rm = TRUE),
+        stringsAsFactors = FALSE
+      )
+
+      all_summaries[[length(all_summaries) + 1]] <- summary_row
+
+      # Store individual results
+      if (return_individual) {
+        valid_data$census_pair <- paste0(i, "-", i + 1)
+
+        # Add taxonomic info if available
+        tax_cols <- intersect(c("tax_fam", "tax_gen", "tax_sp_level", "idtax_n"),
+                              names(plot_data))
+        if (length(tax_cols) > 0) {
+          valid_data <- merge(valid_data,
+                              unique(plot_data[, c("id_n", tax_cols), drop = FALSE]),
+                              by = "id_n", all.x = TRUE)
+        }
+
+        all_individuals[[length(all_individuals) + 1]] <- valid_data
+      }
+    }
+  }
+
+  # Combine results
+  if (length(all_summaries) == 0) {
+    cli::cli_alert_warning("No growth data could be computed")
+    return(NULL)
+  }
+
+  summary_df <- do.call(rbind, all_summaries)
+
+  result <- list(
+    summary = tibble::as_tibble(summary_df)
+  )
+
+  if (return_individual && length(all_individuals) > 0) {
+    result$individuals <- tibble::as_tibble(do.call(rbind, all_individuals))
+  }
+
+  cli::cli_alert_success("Growth computation complete for {nrow(summary_df)} census intervals")
+
+  return(result)
 }
 
 
-
-#' Add time difference in number of days for two census
+#' Compute mortality and recruitment rates
 #'
-#' Add
+#' @description
+#' Calculates mortality and recruitment rates between successive censuses
+#' for plots with multiple census records.
 #'
+#' @param plot_ids Integer vector. Plot IDs to analyze.
+#' @param plot_names Character vector. Plot names to analyze.
+#' @param mindbh Numeric. Minimum diameter (mm) for including measurements. Default 100.
+#' @param con Database connection. If NULL, connects automatically.
 #'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @returns A list with:
+#'   - `summary`: Data frame with mortality/recruitment summary per plot and census interval
+#'   - `dead_individuals`: Data frame with individuals that died
+#'   - `recruits`: Data frame with newly recruited individuals
 #'
-#' @param census1 tibble with first census
-#' @param census2 tibble with second census
+#' @examples
+#' \dontrun{
+#' # Compute mortality for specific plots
+#' mort <- compute_mortality(plot_ids = c(1, 2, 3))
 #'
-#' @return tibble joining both census and with a added column indicating time intervall
+#' # View summary
+#' mort$summary
+#'
+#' # View dead individuals
+#' mort$dead_individuals
+#' }
+#'
 #' @export
-.time_diff <- function(census1, census2) {
+compute_mortality <- function(plot_ids = NULL,
+                              plot_names = NULL,
+                              mindbh = 100,
+                              con = NULL) {
 
-  ## renaming first and second census to 1 and 2
-  select_census_1 <-
-    census1 %>%
-    dplyr::select(dplyr::contains("date_census_julian")) %>%
-    colnames() %>%
-    strsplit(split = "_") %>%
-    unlist()
-  select_census_1 <- select_census_1[length(select_census_1)]
+  # Check inputs
+  if (is.null(plot_ids) && is.null(plot_names)) {
+    stop("Either plot_ids or plot_names must be provided")
+  }
 
-  census1 <-
-    census1 %>%
-    dplyr::rename_at(dplyr::vars(dplyr::ends_with(paste0("_", select_census_1))),
-                          funs(stringr::str_replace(., paste0("_", select_census_1), "_1")))
+  # Check date package
+  if (!requireNamespace("date", quietly = TRUE)) {
+    stop("Package 'date' is required. Please install it with: install.packages('date')")
+  }
 
-  select_census_2 <-
-    census2 %>%
-    dplyr::select(dplyr::contains("date_census_julian")) %>%
-    colnames() %>%
-    strsplit(split = "_") %>%
-    unlist()
-  select_census_2 <- select_census_2[length(select_census_2)]
+  # Connect to database
+  if (is.null(con)) {
+    con <- call.mydb()
+  }
 
-  census2 <-
-    census2 %>%
-    dplyr::rename_at(dplyr::vars(dplyr::ends_with(paste0("_", select_census_2))),
-                          funs(stringr::str_replace(., paste0("_", select_census_2), "_2")))
+  cli::cli_h2("Computing mortality and recruitment rates")
 
-  ## excluding NA stem diameter (new recruits and dead stems)
-  joined_census <-
-    dplyr::left_join(census1, census2, by=c("id_n"="id_n")) %>%
-    dplyr::filter(!is.na(stem_diameter_census_1), !is.na(stem_diameter_census_2))
+  # Fetch data
+  cli::cli_alert_info("Fetching census data...")
 
-  joined_census <-
-    joined_census %>%
-    dplyr::mutate(time_diff =  (date_census_julian_2 - date_census_julian_1 )/365.25)
+  query_result <- query_plots(
+    plot_name = plot_names,
+    id_plot = plot_ids,
+    extract_individuals = TRUE,
+    show_multiple_census = TRUE,
+    remove_ids = FALSE,
+    extract_traits = FALSE,
+    extract_individual_features = TRUE,
+    extract_subplot_features = TRUE,
+    interactive = FALSE,
+    output_style = "full",
+    con = con
+  )
 
-  joined_census
+  # Extract data
+  if (!any(names(query_result) == "census_features")) {
+    stop("No census data found. Make sure plots have multiple censuses recorded.")
+  }
+
+  dataset <- query_result$extract
+
+  if (is.null(dataset) || nrow(dataset) == 0) {
+    stop("No individual data found for the specified plots")
+  }
+
+  # Identify censuses
+  census_cols <- grep("^stem_diameter_census_\\d+$", names(dataset), value = TRUE)
+  n_censuses <- length(census_cols)
+
+  if (n_censuses < 2) {
+    stop("Need at least 2 censuses. Found only ", n_censuses)
+  }
+
+  # Get plot column
+  plot_col <- "id_table_liste_plots_n"
+  # if ("id_table_liste_plots_n" %in% names(dataset)) {
+  #   "id_table_liste_plots_n"
+  # } else if ("id_liste_plots" %in% names(dataset)) {
+  #   "id_liste_plots"
+  # } else {
+  #   stop("Cannot find plot ID column")
+  # }
+
+  unique_plots <- unique(dataset[[plot_col]])
+  cli::cli_alert_info("Processing {length(unique_plots)} plot(s)")
+
+  # Initialize results
+  all_summaries <- list()
+  all_dead <- list()
+  all_recruits <- list()
+
+  # Process each plot
+  for (plot_id in unique_plots) {
+
+    plot_data <- dataset[dataset[[plot_col]] == plot_id, ]
+    plot_name_val <- unique(plot_data$plot_name)[1]
+
+    cli::cli_alert_info("Processing: {plot_name_val}")
+
+    # Process each census pair
+    for (i in 1:(n_censuses - 1)) {
+
+      dbh_col_1 <- paste0("stem_diameter_census_", i)
+      dbh_col_2 <- paste0("stem_diameter_census_", i + 1)
+      date_col_1 <- paste0("date_census_julian_", i)
+      date_col_2 <- paste0("date_census_julian_", i + 1)
+
+      if (!dbh_col_1 %in% names(plot_data) || !dbh_col_2 %in% names(plot_data)) {
+        next
+      }
+
+      # Get dbh values
+      dbh_1 <- plot_data[[dbh_col_1]]
+      dbh_2 <- plot_data[[dbh_col_2]]
+
+      # Get dates if available
+      if (date_col_1 %in% names(plot_data) && date_col_2 %in% names(plot_data)) {
+        date_1 <- plot_data[[date_col_1]]
+        date_2 <- plot_data[[date_col_2]]
+
+        valid_dates <- !is.na(date_1) & !is.na(date_2)
+        if (sum(valid_dates) > 0) {
+          mean_interval <- mean((date_2[valid_dates] - date_1[valid_dates]) / 365.25)
+        } else {
+          mean_interval <- NA
+        }
+      } else {
+        mean_interval <- NA
+      }
+
+      # Identify individuals alive in census 1 (above mindbh)
+      alive_census_1 <- !is.na(dbh_1) & dbh_1 > 0 & (dbh_1 * 10) >= mindbh
+
+      # Identify dead: alive in census 1, dead/missing in census 2
+      is_dead <- alive_census_1 & (is.na(dbh_2) | dbh_2 == 0)
+
+      # Identify recruits: not in census 1, present in census 2
+      is_recruit <- (is.na(dbh_1) | dbh_1 == 0) & !is.na(dbh_2) & dbh_2 > 0
+
+      # Calculate rates
+      N_outset <- sum(alive_census_1)
+      N_dead <- sum(is_dead)
+      N_survivor <- N_outset - N_dead
+      N_recruits <- sum(is_recruit)
+
+      # Mortality rate (exponential)
+      if (N_outset > 0 && N_survivor > 0 && !is.na(mean_interval) && mean_interval > 0) {
+        mortality_rate <- (log(N_outset) - log(N_survivor)) / mean_interval
+        recruitment_rate <- (log(N_survivor + N_recruits) - log(N_survivor)) / mean_interval
+      } else {
+        mortality_rate <- NA
+        recruitment_rate <- NA
+      }
+
+      # Summary
+      summary_row <- data.frame(
+        plot_name = plot_name_val,
+        census_pair = paste0(i, "-", i + 1),
+        N_outset = N_outset,
+        N_dead = N_dead,
+        N_survivor = N_survivor,
+        N_recruits = N_recruits,
+        mortality_rate = mortality_rate,
+        mortality_percent_yr = (1 - exp(-mortality_rate)) * 100,
+        recruitment_rate = recruitment_rate,
+        recruitment_percent_yr = (exp(recruitment_rate) - 1) * 100,
+        mean_interval_years = mean_interval,
+        mean_dbh_dead_cm = ifelse(N_dead > 0, mean(dbh_1[is_dead], na.rm = TRUE), NA),
+        mean_dbh_recruit_cm = ifelse(N_recruits > 0, mean(dbh_2[is_recruit], na.rm = TRUE), NA),
+        stringsAsFactors = FALSE
+      )
+
+      all_summaries[[length(all_summaries) + 1]] <- summary_row
+
+      # Store dead individuals
+      if (sum(is_dead) > 0) {
+        dead_df <- plot_data[is_dead, c("id_n", "tag", "plot_name", dbh_col_1), drop = FALSE]
+        dead_df$census_pair <- paste0(i, "-", i + 1)
+        names(dead_df)[names(dead_df) == dbh_col_1] <- "dbh_at_death_cm"
+
+        # Add taxonomy
+        tax_cols <- intersect(c("tax_fam", "tax_gen", "tax_sp_level"), names(plot_data))
+        if (length(tax_cols) > 0) {
+          dead_df <- cbind(dead_df, plot_data[is_dead, tax_cols, drop = FALSE])
+        }
+
+        all_dead[[length(all_dead) + 1]] <- dead_df
+      }
+
+      # Store recruits
+      if (sum(is_recruit) > 0) {
+        recruit_df <- plot_data[is_recruit, c("id_n", "tag", "plot_name", dbh_col_2), drop = FALSE]
+        recruit_df$census_pair <- paste0(i, "-", i + 1)
+        names(recruit_df)[names(recruit_df) == dbh_col_2] <- "dbh_at_recruitment_cm"
+
+        tax_cols <- intersect(c("tax_fam", "tax_gen", "tax_sp_level"), names(plot_data))
+        if (length(tax_cols) > 0) {
+          recruit_df <- cbind(recruit_df, plot_data[is_recruit, tax_cols, drop = FALSE])
+        }
+
+        all_recruits[[length(all_recruits) + 1]] <- recruit_df
+      }
+    }
+  }
+
+  # Combine results
+  if (length(all_summaries) == 0) {
+    cli::cli_alert_warning("No mortality data could be computed")
+    return(NULL)
+  }
+
+  result <- list(
+    summary = tibble::as_tibble(do.call(rbind, all_summaries))
+  )
+
+  if (length(all_dead) > 0) {
+    result$dead_individuals <- tibble::as_tibble(do.call(rbind, all_dead))
+  }
+
+  if (length(all_recruits) > 0) {
+    result$recruits <- tibble::as_tibble(do.call(rbind, all_recruits))
+  }
+
+  cli::cli_alert_success("Mortality computation complete for {nrow(result$summary)} census intervals")
+
+  return(result)
 }
 
 
+# Internal helper functions -----------------------------------------------
 
-#' Identify potential errors for estimating growth
+#' Internal growth trimming function
 #'
-#' Add a column of individuals to be excluded because of potential errors
-#' Adapted from http://ctfs.si.edu/Public/CTFSRPackage/
+#' Identifies and flags problematic growth measurements based on
+#' statistical criteria adapted from CTFS R Package.
 #'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @param data Data frame with dbh_mm_1, dbh_mm_2, and time_diff columns
+#' @param slope Slope parameter for error model. Default 0.006214.
+#' @param intercept Intercept parameter for error model. Default 0.9036.
+#' @param err.limit Number of standard deviations for negative growth threshold. Default 4.
+#' @param maxgrow Maximum valid growth rate in mm/year. Default 75.
+#' @param mindbh Minimum diameter in mm for inclusion. Default 100.
 #'
-#' @param censuses tibble with first census
-#' @param slope numeric see http://ctfs.si.edu/Public/CTFSRPackage/index.php/web/topics/growth~slash~growth.r/trim.growth
-#' @param intercept numeric see http://ctfs.si.edu/Public/CTFSRPackage/index.php/web/topics/growth~slash~growth.r/trim.growth
-#' @param err.limit integer any measure of second diameter higher than err.limit standard deviation below the first measure will be excluded
-#' @param maxgrow numeric any growth in mm/year higher than maxgrow will be excluded
-#' @param mindbh numeric minimum diameter in mm for excluding measures
+#' @returns Data frame with added accepted_growth column
 #'
-#' @return tibble joining both census and with a added column indicating logical whether inidividual should be excluded
-#' @export
-.trim.growth <- function(censuses,
-                         slope = 0.006214,
-                         intercept = 0.9036,
-                         err.limit = 4,
-                         maxgrow = 75,
-                         # pomcut = 0.05,
-                         mindbh = 100
-                         # dbhunit = "cm",
-) {
+#' @keywords internal
+#' @noRd
+.trim.growth_internal <- function(data,
+                                   slope = 0.006214,
+                                   intercept = 0.9036,
+                                   err.limit = 4,
+                                   maxgrow = 75,
+                                   mindbh = 100) {
 
-  # if(dbhunit=='cm') intercept=intercept/10
+  # Standard deviation based on DBH
+  stdev.dbh1 <- slope * data$dbh_mm_1 + intercept
 
-  censuses <-
-    censuses %>%
-    dplyr::mutate(dbh_mm_census1 = stem_diameter_census_1*10) %>%
-    dplyr::mutate(dbh_mm_census2 = stem_diameter_census_2*10)
+  # Growth rate
+  growth <- (data$dbh_mm_2 - data$dbh_mm_1) / data$time_diff
 
+  # Identify problematic measurements
+  bad.neggrow <- data$dbh_mm_2 <= (data$dbh_mm_1 - err.limit * stdev.dbh1)
+  bad.posgrow <- growth > maxgrow
 
-  ## get the standard deviation of linear model
-  stdev.dbh1 <- slope * censuses$dbh_mm_census1 + intercept
-  growth <- (censuses$dbh_mm_census2- censuses$dbh_mm_census1) / censuses$time_diff
-  bad.neggrow <- which(censuses$dbh_mm_census2 <= (censuses$dbh_mm_census1 - err.limit *
-                                                     stdev.dbh1))
-
-  bad.posgrow <- which(growth > maxgrow)
-  # homdiff <- abs(as.numeric(cens2$hom) - as.numeric(cens1$hom)) / as.numeric(cens1$hom)
-
-  accept <- rep(TRUE, nrow(censuses))
-  # accept[homdiff > pomcut] <- FALSE
+  # Acceptance criteria
+  accept <- rep(TRUE, nrow(data))
   accept[bad.neggrow] <- FALSE
   accept[bad.posgrow] <- FALSE
   accept[is.na(growth)] <- FALSE
-  # if (exclude.stem.change) {
-  #   accept[cens1$stemID != cens2$stemID] <- FALSE
-  # }
-  accept[censuses$dbh_mm_census1 < mindbh] <- FALSE
+  accept[data$dbh_mm_1 < mindbh] <- FALSE
+  accept[is.na(data$dbh_mm_1) | is.na(data$dbh_mm_2) | data$dbh_mm_2 <= 0] <- FALSE
 
-  accept[is.na(censuses$dbh_mm_census1) | is.na(censuses$dbh_mm_census2) | censuses$dbh_mm_census2 <= 0] <- FALSE
+  data$accepted_growth <- accept
 
-  censuses <-
-    censuses %>%
-    mutate(accepted_growth = accept)
-  return(censuses)
-}
-
-
-
-#' Growth computing for multiple census
-#'
-#' Growth computing for multiple census
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param dataset tibble, ouput of query_plots
-#' @param metadata tibble, ouput of query_plots
-#' @param mindbh numeric see http://ctfs.si.edu/Public/CTFSRPackage/index.php/web/topics/growth~slash~growth.r/trim.growth
-#' @param err.limit integer any measure of second diameter higher than err.limit standard deviation below the first measure will be excluded
-#' @param maxgrow numeric any growth in mm/year higher than maxgrow will be excluded
-#' @param method string either 'I' or 'E'
-#' @param export_ind_growth whether growth per individuals should be exported
-#'
-#' @importFrom date as.date date.ddmmmyy
-#'
-#' @return tibble
-#'
-#' @details
-#' growthrate is in
-#'
-#'
-#' @export
-growth_computing <- function(dataset,
-                             metadata,
-                             mindbh = NULL,
-                             err.limit = 4, # any measure of second diameter higher than err.limit standard deviation below the first measure will be excluded
-                             maxgrow = 75, # any growth (mm/year) higher than maxgrow will be excluded
-                             method = "I",
-                             export_ind_growth = TRUE) {
-
-  if (!any(rownames(utils::installed.packages()) == "date")) {
-    stop("date package needed, please install it")
-  }
-
-
-  if (!is.list(metadata)) {
-    stop("metadata should be a list obtained with the function query_plot with show_multiple_census = T")
-  }
-  
-  if (!is.list(dataset)) {
-    stop("dataset should be a list obtained with the function query_plot with show_multiple_census = T and extract_individuals = T")
-  }
-  
-
-  if (!any(metadata[[2]]$typevalue > 1))
-    stop("Only one census recorded for all selected plots")
-
-  if (!any(names(dataset$extract) == "id_table_liste_plots_n"))
-    stop("id_table_liste_plots_n column missing in dataset, make sure you obtain dataset with remove_ids = F")
-
-  all_ids_plot <-
-    metadata[[2]] %>%
-    dplyr::filter(typevalue >1) %>%
-    dplyr::distinct(id_table_liste_plots) %>%
-    dplyr::pull()
-
-  plot_names <-
-    metadata[[2]] %>%
-    dplyr::filter(typevalue >1) %>%
-    dplyr::distinct(id_table_liste_plots, plot_name) %>%
-    dplyr::pull(plot_name)
-
-  cli::cli_alert_info(paste("Multiple census recorded for", length(all_ids_plot), "plots"))
-
-  full_results <-
-    full_results_ind <-
-    full_results_mortality <-
-    vector('list', length = length(all_ids_plot)*10)
-
-  for (plot in 1:length(all_ids_plot)) {
-
-    cli::cli_alert_info(plot_names[plot])
-
-    selected_dataset <-
-      dataset$extract %>%
-      dplyr::filter(id_table_liste_plots_n == all_ids_plot[plot])
-
-    selected_metadata_census <-
-      metadata[[2]] %>%
-      dplyr::filter(id_table_liste_plots == all_ids_plot[plot])
-
-    skipped_census_missing_dates <-
-      selected_metadata_census %>%
-      dplyr::filter(is.na(year) | is.na(month))
-
-    not_run <- FALSE
-    if (nrow(skipped_census_missing_dates) > 0) {
-      message(paste("Census excluded because missing year and/or month"))
-      print(skipped_census_missing_dates)
-      not_run <- TRUE
-
-    }
-
-    if (length(unique(selected_metadata_census$year)) == 1 &
-        length(unique(selected_metadata_census$month)) == 1 &
-        length(unique(selected_metadata_census$day)) == 1) {
-
-      cli::cli_alert_danger("Dates do not differ between censuses")
-      not_run <- TRUE
-
-    }
-
-    selected_metadata_census <-
-      selected_metadata_census %>%
-      dplyr::arrange(typevalue) %>%
-      dplyr::mutate(date =
-                      paste(ifelse(!is.na(month),
-                                   month, 1), # if day is missing, by default 1
-                            ifelse(!is.na(day),
-                                   day, 1), # if month is missing, by default 1
-                            ifelse(!is.na(year),
-                                   year, ""),
-                            sep = "/")) %>%
-      dplyr::mutate(date_julian = date::as.date(date))
-
-    arranged_sub_plots <-
-      selected_metadata_census %>%
-      dplyr::arrange(typevalue) %>%
-      dplyr::select(date_julian, id_sub_plots) %>%
-      dplyr::arrange(date_julian) %>%
-      dplyr::pull(id_sub_plots)
-
-    if (!paste(arranged_sub_plots, collapse = "_") ==
-        paste(selected_metadata_census$id_sub_plots, collapse = "_")) {
-      message(paste("Dates are not in chronological order"))
-      not_run <- TRUE
-    }
-
-    selected_metadata_census <-
-      selected_metadata_census %>%
-      dplyr::filter(!is.na(year) & !is.na(month))
-
-    if (!not_run) {
-      for (i in 1:(nrow(selected_metadata_census) - 1)) {
-
-        splitted_census <-
-          .split_censuses(meta = selected_metadata_census,
-                          dataset = selected_dataset)
-
-
-        ## renaming first and second census to 1 and 2
-        select_census_1 <-
-          splitted_census[[i]] %>%
-          dplyr::select(dplyr::contains('stem_diameter_census')) %>%
-          colnames() %>%
-          strsplit(split = "_") %>%
-          unlist()
-
-        select_census_1 <-
-          select_census_1[length(select_census_1)]
-
-        # splitted_census[[i]] <-
-        #   splitted_census[[i]] %>%
-        #   dplyr::rename_at(dplyr::vars(dplyr::ends_with(paste0("_", select_census_1))),
-        #                    funs(stringr::str_replace(., paste0("_", select_census_1), "_1")))
-
-        splitted_census[[i]] <-
-          splitted_census[[i]] %>%
-          dplyr::rename_at(dplyr::vars(dplyr::ends_with(paste0("_", select_census_1))),
-                           list(~ stringr::str_replace(., paste0("_", select_census_1), "_1")))
-
-
-        select_census_2 <-
-          splitted_census[[i+1]] %>%
-          dplyr::select(dplyr::contains('stem_diameter_census')) %>%
-          colnames() %>%
-          strsplit(split = "_") %>%
-          unlist()
-
-        select_census_2 <- select_census_2[length(select_census_2)]
-
-        # splitted_census[[i+1]] <-
-        #   splitted_census[[i+1]] %>%
-        #   dplyr::rename_at(dplyr::vars(dplyr::ends_with(paste0("_", select_census_2))),
-        #                    funs(stringr::str_replace(., paste0("_", select_census_2), "_2")))
-
-        splitted_census[[i+1]] <-
-          splitted_census[[i+1]] %>%
-          dplyr::rename_at(dplyr::vars(dplyr::ends_with(paste0("_", select_census_2))),
-                           list(~ stringr::str_replace(., paste0("_", select_census_2), "_2")))
-
-
-        ### detecting dead stems by filtering either 0 stem diameter or NA
-        deads <-
-          splitted_census[[i]] %>%
-          dplyr::select(id_n, stem_diameter_census_1) %>%
-          dplyr::left_join(
-            splitted_census[[i + 1]] %>%
-              dplyr::select(id_n, stem_diameter_census_2),
-            by = c("id_n" = "id_n")
-          ) %>%
-          dplyr::filter(is.na(stem_diameter_census_2) |
-                          stem_diameter_census_2 == 0)
-
-        recruits <-
-          splitted_census[[i + 1]] %>%
-          dplyr::select(id_n, stem_diameter_census_2) %>%
-          dplyr::left_join(
-            splitted_census[[i]] %>%
-              dplyr::select(id_n, stem_diameter_census_1),
-            by = c("id_n" = "id_n")
-          ) %>%
-          dplyr::filter(is.na(stem_diameter_census_1) |
-                          stem_diameter_census_1 == 0)
-
-        censuses <- .time_diff(census1 = splitted_census[[i]], census2 = splitted_census[[i+1]])
-
-        censuses <-
-          .trim.growth(
-            censuses = censuses,
-            err.limit = err.limit,
-            maxgrow = maxgrow,
-            mindbh = mindbh
-          )
-
-        size1 <- censuses$dbh_mm_census1
-        size2 <- censuses$dbh_mm_census2
-
-        if (method == "I") {
-
-          growthrate <- (size2 - size1) / censuses$time_diff
-
-        } else if (method == "E") {
-
-          growthrate <- (log(size2) - log(size1)) / censuses$time_diff
-
-        }
-
-        # setting NA to values considered to be problematic
-        growthrate[!censuses$accepted_growth] <- NA
-
-        censuses <-
-          censuses %>%
-          mutate(growthrate = growthrate)
-
-        if (export_ind_growth) {
-
-          ind_growth <-
-            censuses %>%
-            left_join(
-              selected_dataset %>%
-                dplyr::select(
-                  id_n,
-                  idtax_individual_f,
-                  tax_sp_level,
-                  tax_fam,
-                  tax_gen,
-                  tax_esp,
-                  plot_name,
-                  # sous_plot_name,
-                  tag,
-                  id_table_liste_plots_n
-                ),
-              by = c("id_n" = "id_n")
-            ) %>%
-            dplyr::relocate(plot_name,
-                            # sous_plot_name,
-                            tag,
-                            tax_sp_level,
-                            tax_fam,
-                            tax_gen,
-                            tax_esp,
-                            .before = date_census_1)
-
-          full_results_ind[[length(full_results_ind[unlist(lapply(full_results_ind, function(x) !is.null(x)))]) + 1]] <-
-            ind_growth
-
-        }
-
-
-        ### growth computation
-
-        ## number of stems at the outset (first census) excluding "exclude" stems
-        N_outset <-
-          splitted_census[[i]] %>%
-          dplyr::left_join(censuses %>%
-                      dplyr::select(id_n, growthrate) %>%
-                      dplyr::filter(is.na(growthrate)) %>%
-                      dplyr::mutate(growthrate = stringr::str_replace_na(growthrate, "no")) %>%
-                      dplyr::rename(exclude = growthrate) %>%
-                        distinct(),
-                    by = c("id_n" = "id_n")) %>%
-          dplyr::filter(is.na(exclude)) %>%
-          nrow()
-
-        N_survivor <-
-          N_outset - nrow(deads)
-
-        averaged_time_diff <-
-          mean(censuses$time_diff)
-
-        mortality_rate <-
-          (log(N_outset)-log(N_survivor))/averaged_time_diff
-
-
-
-        result <-
-          list(
-          plot_name = selected_metadata_census$plot_name[1],
-          censuses = paste(names(splitted_census[i]), names(splitted_census[i+1]), collapse = "_", sep = "_"),
-          growthrate = mean(growthrate, na.rm = TRUE),
-          nbe_dead = nrow(deads),
-          dbhmean_deads = ifelse(nrow(deads)>0, mean(deads$stem_diameter_census_1), NA),
-          mortality_rate = mortality_rate,
-          nbe_recruits = nrow(recruits),
-          dbhmean_recruits = ifelse(nrow(recruits) > 0, mean(recruits$stem_diameter_census_2), NA),
-          dbhmax_recruits = ifelse(nrow(recruits) > 0, max(recruits$stem_diameter_census_2), NA),
-          N_survivor = N_survivor,
-          N_outset = N_outset,
-          N_excluded = length(growthrate[is.na(growthrate)]),
-          sd_growthrate = sd(growthrate, na.rm = TRUE),
-          dbhmean1 = mean(censuses$dbh_mm_census1[censuses$accepted_growth], na.rm = TRUE),
-          dbhmean2 = mean(censuses$dbh_mm_census2[censuses$accepted_growth], na.rm = TRUE),
-          nbe_days_intervall = mean(censuses$time_diff[censuses$accepted_growth], na.rm = TRUE)*365.25,
-          date1 = date::date.ddmmmyy(mean(censuses$date_census_julian_1[censuses$accepted_growth],
-                                          na.rm = TRUE)),
-          date2 = date::date.ddmmmyy(mean(censuses$date_census_julian_2[censuses$accepted_growth],
-                                          na.rm = TRUE))
-        )
-
-        full_results[[length(full_results[unlist(lapply(full_results, function(x) !is.null(x)))]) + 1]] <-
-          result
-
-        deads <-  deads %>%
-          left_join(
-            selected_dataset %>%
-              dplyr::select(
-                id_n,
-                idtax_individual_f,
-                tax_sp_level,
-                tax_fam,
-                tax_gen,
-                tax_esp,
-                plot_name,
-                # sous_plot_name,
-                tag,
-                id_table_liste_plots_n
-              ),
-            by = c("id_n" = "id_n")
-          )
-
-
-        full_results_mortality[[length(full_results_mortality[unlist(lapply(full_results_mortality, function(x) !is.null(x)))]) + 1]] <-
-          deads
-
-      }
-    }else{
-
-      cli::cli_alert_warning(paste(
-        "No growth analysis for",
-        selected_metadata_census$plot_name[1],
-        "because dates are not conform"
-      ))
-    }
-  }
-
-  full_results <-
-    full_results[unlist(lapply(full_results, function(x) !is.null(x)))]
-
-  full_results_ind <-
-    full_results_ind[unlist(lapply(full_results_ind, function(x) !is.null(x)))]
-
-  full_results_mortality <-
-    full_results_mortality[unlist(lapply(full_results_mortality, function(x) !is.null(x)))]
-
-  if(!export_ind_growth)
-    return(plot_results = bind_rows(lapply(full_results,
-                                           FUN = function(x) bind_rows(x))),
-           mortality = full_results_mortality)
-
-  if(export_ind_growth)
-    return(list(plot_results = bind_rows(lapply(full_results,
-                                                FUN = function(x) bind_rows(x))),
-                ind_results = full_results_ind,
-                mortality = full_results_mortality))
-
+  return(data)
 }
