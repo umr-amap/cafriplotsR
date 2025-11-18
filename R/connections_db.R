@@ -753,16 +753,26 @@ get_user_accessible_plots <- function(con, user, table = "data_liste_plots") {
     # Plot IDs are typically > 0
     ids <- ids[ids > 0]
 
-    list(
+    data.frame(
       user = user,
       policyname = policies$policyname[i],
       cmd = cmd,
-      plot_ids = list(sort(unique(ids)))
+      stringsAsFactors = FALSE
     )
   })
 
   # Combine results
-  result_df <- do.call(rbind, lapply(results, as.data.frame))
+  result_df <- do.call(rbind, results)
+
+  # Add plot_ids as a list column separately
+  all_ids <- lapply(seq_len(nrow(policies)), function(i) {
+    qual <- policies$qual[i]
+    ids <- as.integer(unlist(regmatches(qual, gregexpr("\\d+", qual))))
+    ids <- ids[ids > 0]
+    sort(unique(ids))
+  })
+
+  result_df$plot_ids <- all_ids
 
   cli::cli_alert_success("Found {length(unique(unlist(result_df$plot_ids)))} unique plot IDs for user '{user}'")
 
@@ -785,7 +795,238 @@ define_read_write_policy <- function(con, user, ids, table = "data_liste_plots")
   define_user_policy(con, user, ids, table, operations = c("SELECT", "INSERT", "UPDATE"))
 }
 
+#' List all database users and their permissions
+#'
+#' @description
+#' Retrieves comprehensive information about all users in both databases,
+#' including their roles, privileges, and row-level security policies.
+#'
+#' @param con_main Connection to main database (optional). If NULL, will connect automatically.
+#' @param con_taxa Connection to taxa database (optional). If NULL, will connect automatically.
+#' @param include_system_users Logical. Include system users like postgres? Default FALSE.
+#'
+#' @returns A list with components:
+#'   - `users`: Data frame of all users with their role attributes
+#'   - `table_privileges`: Data frame of table-level privileges per user
+#'   - `policies`: Data frame of row-level security policies (main db only)
+#'   - `accessible_plots`: Data frame summarizing plot access per user
+#'
+#' @examples
+#' \dontrun{
+#' # Get all user information
+#' user_info <- list_database_users()
+#'
+#' # View users
+#' user_info$users
+#'
+#' # View who can access which plots
+#' user_info$accessible_plots
+#'
+#' # View detailed table privileges
+#' user_info$table_privileges
+#' }
+#'
+#' @export
+list_database_users <- function(con_main = NULL, con_taxa = NULL, include_system_users = FALSE) {
 
+
+  # Connect if needed
+
+  if (is.null(con_main)) {
+    con_main <- call.mydb()
+  }
+  if (is.null(con_taxa)) {
+    con_taxa <- call.mydb.taxa()
+  }
+
+  # System users to exclude
+
+  system_users <- c("postgres", "pg_monitor", "pg_read_all_settings",
+                    "pg_read_all_stats", "pg_stat_scan_tables",
+                    "pg_read_server_files", "pg_write_server_files",
+                    "pg_execute_server_program", "pg_signal_backend",
+                    "pg_checkpoint", "pg_database_owner", "pg_read_all_data",
+                    "pg_write_all_data", "pg_create_subscription")
+
+  # Query users from main database
+cli::cli_h2("Fetching user information")
+
+  # Get all roles/users
+  users_query <- "
+    SELECT
+      rolname as username,
+      rolsuper as is_superuser,
+      rolinherit as inherits_privileges,
+      rolcreaterole as can_create_roles,
+      rolcreatedb as can_create_db,
+      rolcanlogin as can_login,
+      rolreplication as can_replicate,
+      rolconnlimit as connection_limit,
+      rolvaliduntil as valid_until
+    FROM pg_roles
+    ORDER BY rolname
+  "
+
+  users_main <- DBI::dbGetQuery(con_main, users_query)
+  users_main$database <- "main"
+
+  users_taxa <- DBI::dbGetQuery(con_taxa, users_query)
+  users_taxa$database <- "taxa"
+
+  # Combine and filter
+  all_users <- rbind(users_main, users_taxa)
+
+  if (!include_system_users) {
+    all_users <- all_users[!all_users$username %in% system_users, ]
+  }
+
+  # Get unique users (they should be same in both DBs)
+  unique_users <- unique(all_users[all_users$can_login == TRUE, c("username", "is_superuser",
+                                                                   "can_create_roles", "can_create_db",
+                                                                   "connection_limit", "valid_until")])
+
+  cli::cli_alert_success("Found {nrow(unique_users)} users with login capability")
+
+  # Get table privileges for main database
+  cli::cli_alert_info("Fetching table privileges...")
+
+  privileges_query <- "
+    SELECT
+      grantee as username,
+      table_schema,
+      table_name,
+      privilege_type,
+      is_grantable
+    FROM information_schema.table_privileges
+    WHERE table_schema = 'public'
+    ORDER BY grantee, table_name, privilege_type
+  "
+
+  privileges_main <- DBI::dbGetQuery(con_main, privileges_query)
+  privileges_main$database <- "main"
+
+  privileges_taxa <- DBI::dbGetQuery(con_taxa, privileges_query)
+  privileges_taxa$database <- "taxa"
+
+  all_privileges <- rbind(privileges_main, privileges_taxa)
+
+  if (!include_system_users) {
+    all_privileges <- all_privileges[!all_privileges$username %in% system_users, ]
+  }
+
+  # Get RLS policies from main database
+  cli::cli_alert_info("Fetching row-level security policies...")
+
+  policies <- list_user_policies(con_main, user = NULL, table = NULL)
+
+  # Build summary of accessible plots per user
+  cli::cli_alert_info("Building plot access summary...")
+
+  # Get all users who have policies
+  policy_users <- unique(unlist(lapply(policies$roles, function(x) {
+    # roles is stored as PostgreSQL array string like {user1,user2}
+    gsub("[{}]", "", x)
+  })))
+
+  accessible_plots_list <- lapply(policy_users, function(user) {
+    tryCatch({
+      result <- get_user_accessible_plots(con_main, user)
+      if (!is.null(result) && nrow(result) > 0) {
+        data.frame(
+          username = user,
+          n_plots = length(unique(unlist(result$plot_ids))),
+          operations = paste(unique(result$cmd), collapse = ", "),
+          plot_ids = paste(sort(unique(unlist(result$plot_ids))), collapse = ", "),
+          stringsAsFactors = FALSE
+        )
+      } else {
+        NULL
+      }
+    }, error = function(e) NULL)
+  })
+
+  accessible_plots <- do.call(rbind, accessible_plots_list[!sapply(accessible_plots_list, is.null)])
+
+  if (is.null(accessible_plots)) {
+    accessible_plots <- data.frame(
+      username = character(),
+      n_plots = integer(),
+      operations = character(),
+      plot_ids = character(),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  # Create privilege summary per user
+  cli::cli_alert_info("Creating privilege summary...")
+
+  privilege_summary <- stats::aggregate(
+    privilege_type ~ username + database + table_name,
+    data = all_privileges,
+    FUN = function(x) paste(sort(unique(x)), collapse = ", ")
+  )
+  names(privilege_summary)[4] <- "privileges"
+
+  cli::cli_alert_success("User information compiled successfully")
+
+  # Print summary
+  cli::cli_h2("Summary")
+  cli::cli_alert_info("Total users: {nrow(unique_users)}")
+  cli::cli_alert_info("Users with plot access: {nrow(accessible_plots)}")
+  cli::cli_alert_info("Superusers: {sum(unique_users$is_superuser)}")
+
+  return(list(
+    users = tibble::as_tibble(unique_users),
+    table_privileges = tibble::as_tibble(privilege_summary),
+    policies = tibble::as_tibble(policies),
+    accessible_plots = tibble::as_tibble(accessible_plots)
+  ))
+}
+
+#' Print user access summary
+#'
+#' @description
+#' Prints a formatted summary of user access to the database.
+#'
+#' @param con Connection to main database (optional).
+#'
+#' @export
+print_user_access_summary <- function(con = NULL) {
+
+  if (is.null(con)) {
+    con <- call.mydb()
+  }
+
+  cli::cli_h1("Database User Access Summary")
+
+  # Get policies
+  policies <- list_user_policies(con, user = NULL, table = "data_liste_plots")
+
+  if (nrow(policies) == 0) {
+    cli::cli_alert_warning("No row-level security policies found")
+    return(invisible(NULL))
+  }
+
+  # Extract users from policies
+  policy_users <- unique(unlist(lapply(policies$roles, function(x) {
+    gsub("[{}]", "", x)
+  })))
+
+  cli::cli_alert_info("Found {length(policy_users)} users with policies on data_liste_plots")
+  cli::cli_text("")
+
+  for (user in sort(policy_users)) {
+    result <- tryCatch({
+      get_user_accessible_plots(con, user)
+    }, error = function(e) NULL)
+
+    if (!is.null(result) && nrow(result) > 0) {
+      n_plots <- length(unique(unlist(result$plot_ids)))
+      ops <- paste(unique(result$cmd), collapse = ", ")
+      cli::cli_text("{.strong {user}}: {n_plots} plots ({ops})")
+    }
+  }
+}
 
 
 # Database Query Utilities -----------------------------------------------
