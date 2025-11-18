@@ -647,10 +647,22 @@ define_user_policy <- function(con, user, ids,
 }
 
 #' List user policies
+#'
+#' @description
+#' Lists row-level security policies from pg_policies system catalog.
+#'
+#' @param con A database connection object.
+#' @param user Character. Filter policies by username (optional).
+#' @param table Character. Filter by table name. Default is "data_liste_plots".
+#'   Use NULL to see policies on all tables.
+#'
+#' @returns A data frame with policy information (schemaname, tablename,
+#'   policyname, roles, cmd, qual).
+#'
 #' @export
-list_user_policies <- function(con, user = NULL, table = NULL) {
+list_user_policies <- function(con, user = NULL, table = "data_liste_plots") {
   sql_base <- "
-    SELECT 
+    SELECT
       schemaname,
       tablename,
       policyname,
@@ -659,22 +671,102 @@ list_user_policies <- function(con, user = NULL, table = NULL) {
       qual
     FROM pg_policies
   "
-  
+
   conditions <- c()
   if (!is.null(user)) {
-    conditions <- c(conditions, glue::glue("'{user}' = ANY(roles)"))
+    # Cast to name type for proper comparison with name[] array
+    conditions <- c(conditions, glue::glue("'{user}'::name = ANY(roles)"))
   }
   if (!is.null(table)) {
     conditions <- c(conditions, glue::glue("tablename = '{table}'"))
   }
-  
+
   if (length(conditions) > 0) {
     sql_base <- paste0(sql_base, " WHERE ", paste(conditions, collapse = " AND "))
   }
-  
+
   sql_base <- paste0(sql_base, " ORDER BY schemaname, tablename, policyname;")
-  
+
   DBI::dbGetQuery(con, sql_base)
+}
+
+#' Get plot IDs accessible to a user
+#'
+#' @description
+#' Extracts the plot IDs that a user has access to based on their
+#' row-level security policies on data_liste_plots.
+#'
+#' @param con A database connection object.
+#' @param user Character. The username to check.
+#' @param table Character. The table to check policies on.
+#'   Default is "data_liste_plots".
+#'
+#' @returns A data frame with columns:
+#'   - user: the username
+#'   - cmd: the operation type (SELECT, INSERT, UPDATE, DELETE, ALL)
+#'   - plot_ids: vector of accessible plot IDs
+#'
+#'   Returns NULL if no policies found for the user.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # Get plots accessible to user 'klein'
+#' get_user_accessible_plots(con, "klein")
+#'
+#' # Get just the plot IDs as a vector
+#' result <- get_user_accessible_plots(con, "klein")
+#' plot_ids <- result$plot_ids[[1]]
+#' }
+#'
+#' @export
+get_user_accessible_plots <- function(con, user, table = "data_liste_plots") {
+
+  stopifnot(
+    "Connection must be valid" = !is.null(con) && test_connection(con),
+    "User must be specified" = !is.null(user) && nchar(user) > 0
+  )
+
+
+  policies <- list_user_policies(con, user = user, table = table)
+
+  if (nrow(policies) == 0) {
+    cli::cli_alert_warning("No policies found for user '{user}' on table '{table}'")
+    return(NULL)
+  }
+
+  # Parse qual column to extract plot IDs
+  # Common patterns:
+  # - (id_liste_plots = ANY (ARRAY[1, 2, 3]))
+  # - (id_liste_plots IN (1, 2, 3))
+
+  results <- lapply(seq_len(nrow(policies)), function(i) {
+    qual <- policies$qual[i]
+    cmd <- policies$cmd[i]
+
+    # Extract numbers from the qual expression
+    # This handles both ARRAY[...] and IN (...) syntax
+    ids <- as.integer(unlist(regmatches(qual, gregexpr("\\d+", qual))))
+
+    # Remove any non-plot IDs (like array indices if present)
+    # Plot IDs are typically > 0
+    ids <- ids[ids > 0]
+
+    list(
+      user = user,
+      policyname = policies$policyname[i],
+      cmd = cmd,
+      plot_ids = list(sort(unique(ids)))
+    )
+  })
+
+  # Combine results
+  result_df <- do.call(rbind, lapply(results, as.data.frame))
+
+  cli::cli_alert_success("Found {length(unique(unlist(result_df$plot_ids)))} unique plot IDs for user '{user}'")
+
+  return(as_tibble(result_df))
 }
 
 #' Helper functions for common policy scenarios

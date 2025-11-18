@@ -1,0 +1,398 @@
+---
+title: "Database Connections Guide"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Database Connections Guide}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+```{r setup}
+library(CafriplotsR)
+```
+
+## Introduction
+
+This guide explains how to connect to the CafriplotsR databases, manage credentials securely, and troubleshoot common connection issues.
+
+CafriplotsR uses **two separate PostgreSQL databases**:
+1. **Main database** (`plots_transects`): Contains plot, subplot, and individual tree data
+2. **Taxa database** (`rainbio`): Contains taxonomic information and species-level traits
+
+## Quick Start
+
+### First-time Connection
+
+```{r quick-start}
+library(CafriplotsR)
+
+# Connect to main database (will prompt for credentials)
+con_main <- call.mydb()
+
+# Connect to taxa database (uses same credentials)
+con_taxa <- call.mydb.taxa()
+
+# Test your connections
+print_connection_status()
+```
+
+On first use, you'll be prompted to enter:
+
+- **Username**: Your database username
+- **Password**: Your database password
+
+Credentials are cached in memory for the duration of your R session.
+
+## Connection Functions
+
+### Main Database: `call.mydb()`
+
+Use this for all plot, subplot, and individual tree data operations.
+
+```{r main-db}
+# Basic connection
+con <- call.mydb()
+
+# Force new credentials (if you need to switch users)
+con <- call.mydb(reset = TRUE)
+
+# Provide credentials directly (not recommended for security)
+con <- call.mydb(user = "myuser", pass = "mypassword")
+```
+
+### Taxa Database: `call.mydb.taxa()`
+
+Use this for taxonomic queries and species traits.
+
+```{r taxa-db}
+# Connect to taxa database
+con_taxa <- call.mydb.taxa()
+```
+
+**Important**: The taxa database is **read-only** for most users. Write operations are restricted to administrators.
+
+
+## Managing Credentials
+
+### Option 1: Interactive Prompts (Default)
+
+The simplest approach - enter credentials when prompted:
+
+```{r interactive}
+con <- call.mydb()
+# Enter username: [your_username]
+# Enter password: [your_password]
+```
+
+**Pros**: Secure, no stored passwords
+**Cons**: Must enter credentials each new R session
+
+### Option 2: Environment Variables (Persistent)
+
+Store credentials in your `.Renviron` file for automatic loading:
+
+```{r setup-creds}
+# Run once to set up
+setup_db_credentials()
+# Follow the prompts to enter username and password
+```
+
+Then use with `use_env_credentials = TRUE`:
+
+```{r use-env}
+con <- call.mydb(use_env_credentials = TRUE)
+```
+
+**Warning**: Credentials are stored in **plain text** in `~/.Renviron`. Only use this on your personal, secure computer.
+
+To remove stored credentials:
+
+```{r remove-creds}
+remove_db_credentials()
+```
+
+### Option 3: Direct Parameters (Not Recommended)
+
+You can pass credentials directly, but this is **not recommended** as passwords may be visible in your code or history:
+
+```{r direct-creds}
+# Avoid this in shared code!
+con <- call.mydb(user = "myuser", pass = "mypassword")
+```
+
+## Cleaning Up Connections
+
+### Why Clean Connections?
+
+Database connections are limited resources. Failing to close them can cause:
+
+- **Connection exhaustion**: Database refuses new connections
+- **Memory leaks**: Unused connections consume resources
+- **Stale connections**: Old connections may timeout and cause errors
+
+### When to Clean Up
+
+Try to clean up connections when:
+
+1. You're done working with the database
+2. Before closing R/RStudio
+3. When switching between users
+
+### How to Clean Up
+
+```{r cleanup}
+# Close all connections and clear cached credentials
+cleanup_connections()
+```
+
+This function:
+
+- Closes the main database connection
+- Closes the taxa database connection
+- Clears cached credentials from memory
+
+
+## Checking Connection Status
+
+### Quick Status Check
+
+```{r status}
+# See current connection status
+print_connection_status()
+```
+
+Example output:
+```
+-- Database Connections Status --
+v Main DB: Connected to plots_transects as myuser
+v Taxa DB: Connected to rainbio as myuser
+```
+
+### Full Diagnostic
+
+For troubleshooting, run a complete diagnostic:
+
+```{r diagnostic}
+db_diagnostic()
+```
+
+This shows:
+
+- Connection status for both databases
+- Configuration details (host, port, database names)
+- Connectivity test results
+- PostgreSQL version information
+
+## Checking Data Access (Row-Level Security)
+
+The database uses **row-level security (RLS)** to control which plots each user can access.
+
+### View Your Accessible Plots
+
+```{r accessible-plots}
+con <- call.mydb()
+
+# See which plots you can access
+result <- get_user_accessible_plots(con, "your_username")
+print(result)
+
+# Get just the plot IDs as a vector
+plot_ids <- result$plot_ids[[1]]
+print(plot_ids)
+```
+
+### View Your Policies
+
+```{r list-policies}
+# See all policies for a user
+list_user_policies(con, user = "your_username")
+
+# See all policies on a table
+list_user_policies(con, user = NULL, table = "data_liste_plots")
+```
+
+### Understanding Access Levels
+
+Policies can grant different operations:
+
+- **SELECT**: Read-only access
+- **INSERT**: Can add new records
+- **UPDATE**: Can modify existing records
+- **DELETE**: Can remove records
+- **ALL**: Full access (SELECT, INSERT, UPDATE, DELETE)
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+#### "Connection refused" or "Could not connect"
+
+**Causes**:
+
+- Network issues
+- Database server is down
+- Firewall blocking connection
+
+**Solutions**:
+
+1. Check your internet connection
+2. Try again in a few minutes
+3. Contact database administrator
+
+#### "Authentication failed"
+
+**Causes**:
+
+- Wrong username or password
+- Account doesn't exist
+
+**Solutions**:
+
+```{r auth-fix}
+# Reset credentials and try again
+con <- call.mydb(reset = TRUE)
+```
+
+#### "SSL SYSCALL error: EOF detected"
+
+**Causes**:
+
+- Connection was closed but still being used
+- Typically happens after closing a Shiny app
+
+**Solutions**:
+
+```{r ssl-fix}
+# Clean up and reconnect
+cleanup_connections()
+con <- call.mydb()
+```
+
+#### "Too many connections"
+
+**Causes**:
+
+- Multiple unclosed connections
+- Other users consuming connections
+
+**Solutions**:
+
+```{r conn-fix}
+# Clean up your connections
+cleanup_connections()
+
+# Wait and try again
+Sys.sleep(5)
+con <- call.mydb()
+```
+
+#### Query timeout or "Lost connection"
+
+**Causes**:
+
+- Very large query
+- Network instability
+- Server overload
+
+**Solutions**:
+
+The package includes automatic retry for transient failures:
+
+```{r retry}
+# func_try_fetch automatically retries failed queries
+result <- func_try_fetch(con, "SELECT * FROM large_table")
+```
+
+#### "Permission denied" or empty results
+
+**Causes**:
+
+- Row-level security restricting access
+- User doesn't have policy for requested plots
+
+**Solutions**:
+
+1. Check your accessible plots:
+
+```{r check-access}
+get_user_accessible_plots(con, "your_username")
+```
+
+2. Contact administrator to request access to additional plots
+
+### Reset Everything
+
+If you're having persistent issues, do a complete reset:
+
+```{r full-reset}
+# 1. Clean up all connections
+cleanup_connections()
+
+# 2. Restart R session
+.rs.restartR()
+
+# 3. Reconnect fresh
+library(CafriplotsR)
+con <- call.mydb(reset = TRUE)
+```
+
+## Best Practices Summary
+
+### Do's
+
+- **Always call `cleanup_connections()`** before closing R
+- **Use `print_connection_status()`** to verify connections
+- **Check your plot access** with `get_user_accessible_plots()` if queries return empty
+- **Use connection pools** in Shiny apps
+- **Run `db_diagnostic()`** when troubleshooting
+- **Store credentials in `.Renviron`** only on personal secure computers
+
+### Don'ts
+
+- **Don't hardcode passwords** in scripts
+- **Don't share credentials** with others
+- **Don't leave connections open** indefinitely
+- **Don't ignore SSL errors** - clean up and reconnect
+- **Don't create multiple connections** when one will do
+
+### Recommended Workflow
+
+```{r workflow}
+library(CafriplotsR)
+
+# 1. Connect
+con <- call.mydb()
+
+# 2. Verify connection
+print_connection_status()
+
+# 3. Check your access if needed
+get_user_accessible_plots(con, "your_username")
+
+# 4. Do your work
+# ... queries, updates, etc. ...
+
+# 5. Clean up when done
+cleanup_connections()
+```
+
+## Getting Help
+
+If you encounter issues not covered here:
+
+1. Run `db_diagnostic()` and note the output
+2. Check your accessible plots with `get_user_accessible_plots()`
+3. Contact the database administrator with:
+   - The diagnostic output
+   - The exact error message
+   - What you were trying to do
