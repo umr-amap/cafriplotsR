@@ -19,6 +19,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/biomass-agb-estimation.html">Above-Ground Biomass Estimation with BIOMASS Package</a></li>
+    <li><a class="dropdown-item" href="articles/database-connections.html">Database Connections Guide</a></li>
     <li><a class="dropdown-item" href="articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
     <li><a class="dropdown-item" href="articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
@@ -236,6 +237,60 @@
 <p><strong>Helper Functions Pattern:</strong> - Internal helpers use <code>.</code> prefix (e.g., <code><a href="reference/dot-link_table.html">.link_table()</a></code>, <code><a href="reference/dot-add_modif_field.html">.add_modif_field()</a></code>, <code><a href="reference/dot-rename_data.html">.rename_data()</a></code>) - These are exported but intended for internal use or advanced users - Public-facing functions have descriptive names without prefix</p>
 <p><strong>Generic Aggregation Functions:</strong> The package has refactored generic aggregation helpers in <code>R/helpers_traits_common.R</code>: - <code><a href="reference/pivot_numeric_traits_generic.html">pivot_numeric_traits_generic()</a></code>: Aggregate numeric traits with mean/sd/n - <code><a href="reference/pivot_categorical_traits_generic.html">pivot_categorical_traits_generic()</a></code>: Aggregate categorical traits (mode or concat) - <code><a href="reference/aggregate_plot_features.html">aggregate_plot_features()</a></code>: Aggregate multiple feature types for plots</p>
 <p><strong>Standard R Package Structure:</strong> - Documentation lives in <code>man/</code> (generated, not manually edited) - Source code lives in <code>R/</code> - No <code>tests/</code> directory present (consider adding for production robustness) - No <code>vignettes/</code> directory (tutorials are in root as <code>.Rmd</code> files)</p>
+</div>
+<div class="section level3">
+<h3 id="shiny-app-development-guidelines">Shiny App Development Guidelines<a class="anchor" aria-label="anchor" href="#shiny-app-development-guidelines"></a></h3>
+<p>When developing Shiny apps in this package, follow these mandatory patterns:</p>
+<p><strong>1. Database Connection Management:</strong> - Use the <code>mod_database_login_ui/server</code> module for authentication within the app - Do NOT require database connections from R console before launching - Store connection pools in <code>.db_env$pool_main</code> and <code>.db_env$pool_taxa</code> - Use <code><a href="https://rdrr.io/pkg/shinyjs/man/useShinyjs.html" class="external-link">shinyjs::useShinyjs()</a></code> for dynamic UI control</p>
+<p><strong>2. UI Structure with Conditional Authentication:</strong></p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
+<span>  <span class="fu">shinyjs</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shinyjs/man/useShinyjs.html" class="external-link">useShinyjs</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span></span>
+<span>  <span class="co"># Login panel (shown before authentication)</span></span>
+<span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/conditionalPanel.html" class="external-link">conditionalPanel</a></span><span class="op">(</span></span>
+<span>    condition <span class="op">=</span> <span class="st">"!output.authenticated"</span>,</span>
+<span>    <span class="fu"><a href="reference/mod_database_login_ui.html">mod_database_login_ui</a></span><span class="op">(</span><span class="st">"login"</span><span class="op">)</span></span>
+<span>  <span class="op">)</span>,</span>
+<span></span>
+<span>  <span class="co"># Main app content (shown after authentication)</span></span>
+<span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/conditionalPanel.html" class="external-link">conditionalPanel</a></span><span class="op">(</span></span>
+<span>    condition <span class="op">=</span> <span class="st">"output.authenticated"</span>,</span>
+<span>    <span class="co"># ... main app UI ...</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p><strong>3. Server Authentication Pattern:</strong></p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="co"># Use login module</span></span>
+<span>  <span class="va">login_output</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mod_database_login_server.html">mod_database_login_server</a></span><span class="op">(</span><span class="st">"login"</span><span class="op">)</span></span>
+<span>  <span class="va">pool_reactive</span> <span class="op">&lt;-</span> <span class="va">login_output</span><span class="op">$</span><span class="va">pool_main</span></span>
+<span>  <span class="va">authenticated_reactive</span> <span class="op">&lt;-</span> <span class="va">login_output</span><span class="op">$</span><span class="va">authenticated</span></span>
+<span></span>
+<span>  <span class="co"># Output for conditional panel</span></span>
+<span>  <span class="va">output</span><span class="op">$</span><span class="va">authenticated</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/reactive.html" class="external-link">reactive</a></span><span class="op">(</span><span class="op">{</span> <span class="fu">authenticated_reactive</span><span class="op">(</span><span class="op">)</span> <span class="op">}</span><span class="op">)</span></span>
+<span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/outputOptions.html" class="external-link">outputOptions</a></span><span class="op">(</span><span class="va">output</span>, <span class="st">"authenticated"</span>, suspendWhenHidden <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span></span>
+<span>  <span class="co"># Initialize modules only after authentication</span></span>
+<span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/observe.html" class="external-link">observe</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">req</a></span><span class="op">(</span><span class="fu">authenticated_reactive</span><span class="op">(</span><span class="op">)</span> <span class="op">==</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span>    <span class="co"># ... initialize other modules ...</span></span>
+<span>  <span class="op">}</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p><strong>4. Mandatory Session Cleanup:</strong> Always include this session end handler to clean up connections and quit R:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">session</span><span class="op">$</span><span class="fu">onSessionEnded</span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="co"># Clean up all connections and credentials</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>    <span class="fu"><a href="reference/cleanup_connections.html">cleanup_connections</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  <span class="op">}</span>, error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="fu">cli</span><span class="fu">::</span><span class="fu"><a href="https://cli.r-lib.org/reference/cli_alert.html" class="external-link">cli_alert_warning</a></span><span class="op">(</span><span class="st">"Failed to cleanup connections: {e$message}"</span><span class="op">)</span></span>
+<span>  <span class="op">}</span><span class="op">)</span></span>
+<span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/stopApp.html" class="external-link">stopApp</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/quit.html" class="external-link">q</a></span><span class="op">(</span><span class="st">"no"</span><span class="op">)</span></span>
+<span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
+<p><strong>5. Why This Matters:</strong> - Prevents “SSL SYSCALL error: EOF detected” when users run queries after closing app - Prevents “Checked-out object deleted before being returned” warnings - Ensures clean state for subsequent R console usage - Provides consistent user experience across all apps</p>
+<p><strong>Reference Implementations:</strong> - <code>R/shiny_app_query_plots.R</code> - Query plots interactive app - <code>R/shiny_app_taxonomic_match.R</code> - Taxonomic name standardization app</p>
 </div>
 </div>
 <div class="section level2">

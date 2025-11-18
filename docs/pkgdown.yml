@@ -3,10 +3,11 @@ pkgdown: 2.1.3
 pkgdown_sha: ~
 articles:
   biomass-agb-estimation: biomass-agb-estimation.html
+  database-connections: database-connections.html
   importing-plot-data: importing-plot-data.html
   taxonomic-app: taxonomic-app.html
   using-query-plots: using-query-plots.html
-last_built: 2025-11-17T16:39Z
+last_built: 2025-11-18T13:16Z
 urls:
   reference: https://umr-amap.github.io/cafriplotsR/reference
   article: https://umr-amap.github.io/cafriplotsR/articles
