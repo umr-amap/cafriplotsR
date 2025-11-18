@@ -29,14 +29,15 @@
 #' @details
 #' ## Workflow
 #'
-#' 1. **Data Input**: Upload Excel file or provide R data.frame
-#' 2. **Column Selection**: Choose column containing taxonomic names
-#' 3. **Auto Matching**: Automatic matching using hierarchical strategy:
+#' 1. **Database Connection**: Login with database credentials (within the app)
+#' 2. **Data Input**: Upload Excel file or provide R data.frame
+#' 3. **Column Selection**: Choose column containing taxonomic names
+#' 4. **Auto Matching**: Automatic matching using hierarchical strategy:
 #'    - Exact match on full name
 #'    - Genus-constrained fuzzy match (searches species within matched genera)
 #'    - Full database fuzzy match (last resort)
-#' 4. **Review** (Phase 3): Manually review unmatched names with suggestions
-#' 5. **Export**: Download results in Excel, CSV, or RDS format
+#' 5. **Review** (Phase 4): Manually review unmatched names with suggestions
+#' 6. **Export**: Download results in Excel, CSV, or RDS format
 #'
 #' ## Match Quality
 #'
@@ -120,19 +121,10 @@ launch_taxonomic_match_app <- function(
     stop("'max_suggestions' must be a positive integer")
   }
 
-  # Verify database connection
-  tryCatch({
-    con <- call.mydb.taxa()
-    cli::cli_alert_success("Connected to taxonomic backbone database")
-  }, error = function(e) {
-    cli::cli_alert_danger("Failed to connect to database: {e$message}")
-    cli::cli_alert_info("Please check your database credentials")
-    stop("Database connection required to run app")
-  })
-
   # Launch message
   cli::cli_h1("Taxonomic Name Standardization App")
   cli::cli_alert_info("Launching Shiny app in {.strong {language}} mode")
+  cli::cli_alert_info("Database connection will be established within the app")
 
   if (!is.null(data)) {
     cli::cli_alert_info("Pre-loaded data: {nrow(data)} rows, {ncol(data)} columns")
@@ -153,7 +145,8 @@ launch_taxonomic_match_app <- function(
     language = language,
     min_similarity = min_similarity,
     max_suggestions = max_suggestions,
-    mode = mode
+    mode = mode,
+    pool_taxa = NULL  # Connection will be established within the app
   )
 
   # Run app
