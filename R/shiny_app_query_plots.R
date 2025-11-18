@@ -235,6 +235,12 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
 
     # Stop app and quit R when browser is closed
     session$onSessionEnded(function() {
+      # Clean up all connections and credentials
+      tryCatch({
+        cleanup_connections()
+      }, error = function(e) {
+        cli::cli_alert_warning("Failed to cleanup connections: {e$message}")
+      })
       shiny::stopApp()
       q("no")
     })
