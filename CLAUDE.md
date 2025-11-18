@@ -343,6 +343,80 @@ The package has refactored generic aggregation helpers in `R/helpers_traits_comm
 - No `tests/` directory present (consider adding for production robustness)
 - No `vignettes/` directory (tutorials are in root as `.Rmd` files)
 
+### Shiny App Development Guidelines
+
+When developing Shiny apps in this package, follow these mandatory patterns:
+
+**1. Database Connection Management:**
+- Use the `mod_database_login_ui/server` module for authentication within the app
+- Do NOT require database connections from R console before launching
+- Store connection pools in `.db_env$pool_main` and `.db_env$pool_taxa`
+- Use `shinyjs::useShinyjs()` for dynamic UI control
+
+**2. UI Structure with Conditional Authentication:**
+```r
+ui <- shiny::fluidPage(
+  shinyjs::useShinyjs(),
+
+  # Login panel (shown before authentication)
+  shiny::conditionalPanel(
+    condition = "!output.authenticated",
+    mod_database_login_ui("login")
+  ),
+
+  # Main app content (shown after authentication)
+  shiny::conditionalPanel(
+    condition = "output.authenticated",
+    # ... main app UI ...
+  )
+)
+```
+
+**3. Server Authentication Pattern:**
+```r
+server <- function(input, output, session) {
+  # Use login module
+  login_output <- mod_database_login_server("login")
+  pool_reactive <- login_output$pool_main
+  authenticated_reactive <- login_output$authenticated
+
+  # Output for conditional panel
+  output$authenticated <- shiny::reactive({ authenticated_reactive() })
+  shiny::outputOptions(output, "authenticated", suspendWhenHidden = FALSE)
+
+  # Initialize modules only after authentication
+  shiny::observe({
+    shiny::req(authenticated_reactive() == TRUE)
+    # ... initialize other modules ...
+  })
+}
+```
+
+**4. Mandatory Session Cleanup:**
+Always include this session end handler to clean up connections and quit R:
+```r
+session$onSessionEnded(function() {
+  # Clean up all connections and credentials
+  tryCatch({
+    cleanup_connections()
+  }, error = function(e) {
+    cli::cli_alert_warning("Failed to cleanup connections: {e$message}")
+  })
+  shiny::stopApp()
+  q("no")
+})
+```
+
+**5. Why This Matters:**
+- Prevents "SSL SYSCALL error: EOF detected" when users run queries after closing app
+- Prevents "Checked-out object deleted before being returned" warnings
+- Ensures clean state for subsequent R console usage
+- Provides consistent user experience across all apps
+
+**Reference Implementations:**
+- `R/shiny_app_query_plots.R` - Query plots interactive app
+- `R/shiny_app_taxonomic_match.R` - Taxonomic name standardization app
+
 ## Important Notes
 
 ### Database Write Operations
