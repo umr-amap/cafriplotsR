@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -20,6 +20,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/biomass-agb-estimation.html">Above-Ground Biomass Estimation with BIOMASS Package</a></li>
     <li><a class="dropdown-item" href="../articles/database-connections.html">Database Connections Guide</a></li>
+    <li><a class="dropdown-item" href="../articles/growth-mortality-analysis.html">Growth and Mortality Analysis</a></li>
     <li><a class="dropdown-item" href="../articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
     <li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
@@ -39,6 +40,40 @@
 
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.7.1" id="cafriplotsr-171-2025-11-18">CafriplotsR 1.7.1 (2025-11-18)<a class="anchor" aria-label="anchor" href="#cafriplotsr-171-2025-11-18"></a></h2>
+<div class="section level4">
+<h4 id="new-features-1-7-1">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-7-1"></a></h4>
+<ul><li>
+<strong>New <code><a href="../reference/get_user_accessible_plots.html">get_user_accessible_plots()</a></code> function</strong>
+<ul><li>Extracts plot IDs that a user can access based on row-level security policies</li>
+<li>Parses policy expressions to return clean vector of accessible plot IDs</li>
+<li>Useful for checking user permissions and debugging access issues</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-7-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-7-1"></a></h4>
+<ul><li>
+<strong>Fixed <code><a href="../reference/list_user_policies.html">list_user_policies()</a></code> returning empty results</strong>
+<ul><li>Added <code>::name</code> type cast for proper comparison with PostgreSQL <code>name[]</code> array</li>
+<li>Function now correctly filters policies by username</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="documentation-1-7-1">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-7-1"></a></h4>
+<ul><li>
+<strong>New vignette: “Database Connections Guide”</strong>
+<ul><li>Complete guide to database connection workflows</li>
+<li>Explains both <code><a href="../reference/call.mydb.html">call.mydb()</a></code> and <code><a href="../reference/call.mydb.taxa.html">call.mydb.taxa()</a></code> functions</li>
+<li>Credential management options (interactive, .Renviron, direct)</li>
+<li>Connection cleanup best practices with <code><a href="../reference/cleanup_connections.html">cleanup_connections()</a></code>
+</li>
+<li>Row-level security and checking plot accessibility</li>
+<li>Troubleshooting common connection issues</li>
+<li>Best practices summary for users</li>
+</ul></li>
+</ul><hr></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.7" id="cafriplotsr-17-2025-01-13">CafriplotsR 1.7 (2025-01-13)<a class="anchor" aria-label="anchor" href="#cafriplotsr-17-2025-01-13"></a></h2>
 <div class="section level4">

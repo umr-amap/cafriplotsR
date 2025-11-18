@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -20,6 +20,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/biomass-agb-estimation.html">Above-Ground Biomass Estimation with BIOMASS Package</a></li>
     <li><a class="dropdown-item" href="../articles/database-connections.html">Database Connections Guide</a></li>
+    <li><a class="dropdown-item" href="../articles/growth-mortality-analysis.html">Growth and Mortality Analysis</a></li>
     <li><a class="dropdown-item" href="../articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
     <li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
@@ -175,6 +176,18 @@
 
         </dt>
         <dd>Cleanup all database connections</dd>
+      </dl><dl><dt>
+
+          <code><a href="compute_growth.html">compute_growth()</a></code>
+
+        </dt>
+        <dd>Compute growth rates for permanent plots</dd>
+      </dl><dl><dt>
+
+          <code><a href="compute_mortality.html">compute_mortality()</a></code>
+
+        </dt>
+        <dd>Compute mortality and recruitment rates</dd>
       </dl><dl><dt>
 
           <code><a href="connect_database.html">connect_database()</a></code>
@@ -399,24 +412,6 @@
         <dd>Internal function</dd>
       </dl><dl><dt>
 
-          <code><a href="dot-split_censuses.html">.split_censuses()</a></code>
-
-        </dt>
-        <dd>Split plot data into census</dd>
-      </dl><dl><dt>
-
-          <code><a href="dot-time_diff.html">.time_diff()</a></code>
-
-        </dt>
-        <dd>Add time difference in number of days for two census</dd>
-      </dl><dl><dt>
-
-          <code><a href="dot-trim.growth.html">.trim.growth()</a></code>
-
-        </dt>
-        <dd>Identify potential errors for estimating growth</dd>
-      </dl><dl><dt>
-
           <code><a href="enrich_with_traits.html">enrich_with_traits()</a></code>
 
         </dt>
@@ -501,10 +496,10 @@
         <dd>Get backups of modified taxonomic data</dd>
       </dl><dl><dt>
 
-          <code><a href="growth_computing.html">growth_computing()</a></code>
+          <code><a href="get_user_accessible_plots.html">get_user_accessible_plots()</a></code>
 
         </dt>
-        <dd>Growth computing for multiple census</dd>
+        <dd>Get plot IDs accessible to a user</dd>
       </dl><dl><dt>
 
           <code><a href="import_individual_data.html">import_individual_data()</a></code>
@@ -535,6 +530,12 @@
 
         </dt>
         <dd>Launch Taxonomic Name Standardization App</dd>
+      </dl><dl><dt>
+
+          <code><a href="list_database_users.html">list_database_users()</a></code>
+
+        </dt>
+        <dd>List all database users and their permissions</dd>
       </dl><dl><dt>
 
           <code><a href="list_individual_features.html">list_individual_features()</a></code>
@@ -667,6 +668,12 @@
 
         </dt>
         <dd>Print Template Column Information</dd>
+      </dl><dl><dt>
+
+          <code><a href="print_user_access_summary.html">print_user_access_summary()</a></code>
+
+        </dt>
+        <dd>Print user access summary</dd>
       </dl><dl><dt>
 
           <code><a href="print_validation_results.html">print_validation_results()</a></code>

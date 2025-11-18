@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -20,6 +20,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/biomass-agb-estimation.html">Above-Ground Biomass Estimation with BIOMASS Package</a></li>
     <li><a class="dropdown-item" href="articles/database-connections.html">Database Connections Guide</a></li>
+    <li><a class="dropdown-item" href="articles/growth-mortality-analysis.html">Growth and Mortality Analysis</a></li>
     <li><a class="dropdown-item" href="articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
     <li><a class="dropdown-item" href="articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
@@ -229,7 +230,7 @@
 <p><strong>Taxonomic Functions</strong>: - <code>R/taxonomic_query_functions.R</code>: Taxonomic queries with synonym resolution - <code><a href="reference/query_taxa.html">query_taxa()</a></code>, <code><a href="reference/match_tax.html">match_tax()</a></code> - Taxonomy lookups - <code>R/taxonomic_update_functions.R</code>: Taxonomic data updates - <code><a href="reference/add_entry_taxa.html">add_entry_taxa()</a></code>, <code><a href="reference/update_taxa_link_table.html">update_taxa_link_table()</a></code> - Add/update taxa - <code><a href="reference/merge_individuals_taxa.html">merge_individuals_taxa()</a></code> - Merge individuals with taxonomy</p>
 <p><strong>Update &amp; Delete Functions</strong>: - <code>R/updates_tables_functions.R</code>: Database insert/update operations - <code><a href="reference/add_sp_traits_measures.html">add_sp_traits_measures()</a></code>, <code><a href="reference/add_trait_taxa.html">add_trait_taxa()</a></code> - Add measurements/traits - <code>R/delete_functions.R</code>: Database deletion operations - <code><a href="reference/dot-delete_individuals.html">.delete_individuals()</a></code>, <code><a href="reference/dot-delete_entry_trait_measure.html">.delete_entry_trait_measure()</a></code> - Safe deletions with cascade handling</p>
 <p><strong>Linking &amp; Specimen Management</strong>: - <code>R/link_table_functions.R</code>: Interactive data matching - <code><a href="reference/dot-link_table.html">.link_table()</a></code> - Interactive matching of values to lookup tables - <code><a href="reference/dot-find_cat.html">.find_cat()</a></code> - Fuzzy matching for categorical values - <code>R/specimen_linking_functions.R</code>: Herbarium specimen linking - <code><a href="reference/dot-add_link_specimens.html">.add_link_specimens()</a></code> - Link individuals to herbarium specimens - <code><a href="reference/get_ref_specimen_ind.html">get_ref_specimen_ind()</a></code> - Find reference specimens</p>
-<p><strong>Data Processing &amp; Analysis</strong>: - <code>R/growth_census_functions.R</code>: Growth and census analysis - <code><a href="reference/growth_computing.html">growth_computing()</a></code> - Compute tree growth between censuses - <code>R/functions_divid_plot.R</code>: Plot division and spatial operations - <code>R/functions_manip_db.R</code>: General data processing utilities</p>
+<p><strong>Data Processing &amp; Analysis</strong>: - <code>R/growth_census_functions.R</code>: Growth and census analysis - <code><a href="https://gdauby.github.io/bdd_plots_central_africa/reference/growth_computing.html" class="external-link">growth_computing()</a></code> - Compute tree growth between censuses - <code>R/functions_divid_plot.R</code>: Plot division and spatial operations - <code>R/functions_manip_db.R</code>: General data processing utilities</p>
 <p><strong>Helper Functions</strong>: - <code>R/helpers_traits_common.R</code>: Generic trait aggregation - <code><a href="reference/pivot_numeric_traits_generic.html">pivot_numeric_traits_generic()</a></code>, <code><a href="reference/pivot_categorical_traits_generic.html">pivot_categorical_traits_generic()</a></code> - <code>R/helpers.R</code>: General utilities - <code><a href="reference/choose_prompt.html">choose_prompt()</a></code> - Interactive user prompts</p>
 </div>
 <div class="section level3">

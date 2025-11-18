@@ -50,14 +50,15 @@ and export functionality.
 \details{
 ## Workflow
 
-1. **Data Input**: Upload Excel file or provide R data.frame
-2. **Column Selection**: Choose column containing taxonomic names
-3. **Auto Matching**: Automatic matching using hierarchical strategy:
+1. **Database Connection**: Login with database credentials (within the app)
+2. **Data Input**: Upload Excel file or provide R data.frame
+3. **Column Selection**: Choose column containing taxonomic names
+4. **Auto Matching**: Automatic matching using hierarchical strategy:
    - Exact match on full name
    - Genus-constrained fuzzy match (searches species within matched genera)
    - Full database fuzzy match (last resort)
-4. **Review** (Phase 3): Manually review unmatched names with suggestions
-5. **Export**: Download results in Excel, CSV, or RDS format
+5. **Review** (Phase 4): Manually review unmatched names with suggestions
+6. **Export**: Download results in Excel, CSV, or RDS format
 
 ## Match Quality
 
