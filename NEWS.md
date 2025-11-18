@@ -1,3 +1,31 @@
+# CafriplotsR 1.7.1 (2025-11-18)
+
+### New Features
+
+* **New `get_user_accessible_plots()` function**
+  - Extracts plot IDs that a user can access based on row-level security policies
+  - Parses policy expressions to return clean vector of accessible plot IDs
+  - Useful for checking user permissions and debugging access issues
+
+### Bug Fixes
+
+* **Fixed `list_user_policies()` returning empty results**
+  - Added `::name` type cast for proper comparison with PostgreSQL `name[]` array
+  - Function now correctly filters policies by username
+
+### Documentation
+
+* **New vignette: "Database Connections Guide"**
+  - Complete guide to database connection workflows
+  - Explains both `call.mydb()` and `call.mydb.taxa()` functions
+  - Credential management options (interactive, .Renviron, direct)
+  - Connection cleanup best practices with `cleanup_connections()`
+  - Row-level security and checking plot accessibility
+  - Troubleshooting common connection issues
+  - Best practices summary for users
+
+---
+
 # CafriplotsR 1.7 (2025-01-13)
 
 ### New Features
