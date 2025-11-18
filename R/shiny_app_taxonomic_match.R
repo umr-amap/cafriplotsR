@@ -14,6 +14,7 @@
 #' @param min_similarity Numeric, minimum similarity for fuzzy matching (0-1), default: 0.3
 #' @param max_suggestions Integer, maximum suggestions per name, default: 10
 #' @param mode Character, review mode ("interactive" or "batch"), default: "interactive"
+#' @param pool_taxa Optional connection pool for taxa database (will prompt for login if NULL)
 #'
 #' @return Shiny app object
 #'
@@ -25,7 +26,8 @@ app_taxonomic_match <- function(
   language = "en",
   min_similarity = 0.6,
   max_suggestions = 10,
-  mode = "interactive"
+  mode = "interactive",
+  pool_taxa = NULL
 ) {
 
   # Validate parameters
@@ -34,6 +36,9 @@ app_taxonomic_match <- function(
 
   # UI
   ui <- shiny::fluidPage(
+
+    # Add shinyjs for dynamic show/hide
+    shinyjs::useShinyjs(),
 
     # Custom CSS
     shiny::tags$head(
@@ -55,139 +60,178 @@ app_taxonomic_match <- function(
       "))
     ),
 
-    # Language toggle (top right)
-    shiny::absolutePanel(
-      top = 10,
-      right = 20,
-      fixed = TRUE,
-      draggable = FALSE,
-      mod_language_toggle_ui("language")
+    # Login panel (shown if pool_taxa not provided)
+    shiny::conditionalPanel(
+      condition = "!output.authenticated",
+      mod_database_login_ui("login")
     ),
 
-    # Title
-    shiny::div(
-      class = "container-fluid",
-      shiny::fluidRow(
-        shiny::column(
-          width = 12,
-          shiny::h1(
-            shiny::textOutput("app_title"),
-            style = "color: #2c3e50; margin-top: 20px; margin-bottom: 10px;"
-          ),
-          shiny::p(
-            shiny::textOutput("app_subtitle"),
-            style = "color: #7f8c8d; font-size: 16px; margin-bottom: 30px;"
-          )
-        )
-      )
-    ),
+    # Main app interface (shown after authentication)
+    shiny::conditionalPanel(
+      condition = "output.authenticated",
 
-    # Main layout
-    shiny::fluidRow(
-
-      # Sidebar
-      shiny::column(
-        width = 3,
-        class = "sidebar-panel",
-
-        # Data Input
-        mod_data_input_ui("data_input"),
-        shiny::hr(),
-
-        # Column Selection
-        mod_column_select_ui("column_select"),
-        shiny::hr(),
-
-        # Progress Tracker
-        mod_progress_tracker_ui("progress")
+      # Language toggle (top right)
+      shiny::absolutePanel(
+        top = 10,
+        right = 20,
+        fixed = TRUE,
+        draggable = FALSE,
+        mod_language_toggle_ui("language")
       ),
 
-      # Main panel
-      shiny::column(
-        width = 9,
-        shiny::div(
-          class = "main-tabs",
-
-          shiny::tabsetPanel(
-            id = "main_tabs",
-            type = "pills",
-
-            # Auto Match Tab
-            shiny::tabPanel(
-              title = shiny::textOutput("tab_auto_match", inline = TRUE),
-              value = "auto_match",
-              icon = shiny::icon("magic"),
-              shiny::br(),
-              mod_auto_matching_ui("auto_match")
+      # Title
+      shiny::div(
+        class = "container-fluid",
+        shiny::fluidRow(
+          shiny::column(
+            width = 12,
+            shiny::h1(
+              shiny::textOutput("app_title"),
+              style = "color: #2c3e50; margin-top: 20px; margin-bottom: 10px;"
             ),
-
-            # Review Tab
-            shiny::tabPanel(
-              title = shiny::textOutput("tab_review", inline = TRUE),
-              value = "review",
-              icon = shiny::icon("search"),
-              shiny::br(),
-              mod_name_review_ui("review")
-            ),
-
-            # Export Tab
-            shiny::tabPanel(
-              title = shiny::textOutput("tab_export", inline = TRUE),
-              value = "export",
-              icon = shiny::icon("download"),
-              shiny::br(),
-              mod_results_export_ui("export")
-            ),
-
-            # Traits Enrichment Tab
-            shiny::tabPanel(
-              title = shiny::textOutput("tab_traits", inline = TRUE),
-              value = "traits",
-              icon = shiny::icon("database"),
-              shiny::br(),
-              mod_traits_enrichment_ui("traits")
+            shiny::p(
+              shiny::textOutput("app_subtitle"),
+              style = "color: #7f8c8d; font-size: 16px; margin-bottom: 30px;"
             )
           )
         )
-      )
-    ),
+      ),
 
-    # Footer
-    shiny::hr(),
-    shiny::div(
-      style = "text-align: center; color: #7f8c8d; padding: 20px;",
-      shiny::p(
-        shiny::icon("leaf"),
-        "Taxonomic Name Standardization Tool |",
-        "Powered by CafriplotsR package",
-        style = "font-size: 14px;"
+      # Main layout
+      shiny::fluidRow(
+
+        # Sidebar
+        shiny::column(
+          width = 3,
+          class = "sidebar-panel",
+
+          # Data Input
+          mod_data_input_ui("data_input"),
+          shiny::hr(),
+
+          # Column Selection
+          mod_column_select_ui("column_select"),
+          shiny::hr(),
+
+          # Progress Tracker
+          mod_progress_tracker_ui("progress")
+        ),
+
+        # Main panel
+        shiny::column(
+          width = 9,
+          shiny::div(
+            class = "main-tabs",
+
+            shiny::tabsetPanel(
+              id = "main_tabs",
+              type = "pills",
+
+              # Auto Match Tab
+              shiny::tabPanel(
+                title = shiny::textOutput("tab_auto_match", inline = TRUE),
+                value = "auto_match",
+                icon = shiny::icon("magic"),
+                shiny::br(),
+                mod_auto_matching_ui("auto_match")
+              ),
+
+              # Review Tab
+              shiny::tabPanel(
+                title = shiny::textOutput("tab_review", inline = TRUE),
+                value = "review",
+                icon = shiny::icon("search"),
+                shiny::br(),
+                mod_name_review_ui("review")
+              ),
+
+              # Export Tab
+              shiny::tabPanel(
+                title = shiny::textOutput("tab_export", inline = TRUE),
+                value = "export",
+                icon = shiny::icon("download"),
+                shiny::br(),
+                mod_results_export_ui("export")
+              ),
+
+              # Traits Enrichment Tab
+              shiny::tabPanel(
+                title = shiny::textOutput("tab_traits", inline = TRUE),
+                value = "traits",
+                icon = shiny::icon("database"),
+                shiny::br(),
+                mod_traits_enrichment_ui("traits")
+              )
+            )
+          )
+        )
+      ),
+
+      # Footer
+      shiny::hr(),
+      shiny::div(
+        style = "text-align: center; color: #7f8c8d; padding: 20px;",
+        shiny::p(
+          shiny::icon("leaf"),
+          "Taxonomic Name Standardization Tool |",
+          "Powered by CafriplotsR package",
+          style = "font-size: 14px;"
+        )
       )
-    )
+    ) # End conditionalPanel for main app
   )
 
   # Server
   server <- function(input, output, session) {
 
-    # Create connection pools (prevents connection exhaustion)
-    cli::cli_alert_info("Creating database connection pools...")
-    pool_main <- create_pool_main(minSize = 1, maxSize = 3)
-    pool_taxa <- create_pool_taxa(minSize = 1, maxSize = 3)
+    # Database authentication
+    if (is.null(pool_taxa)) {
+      # Use login module for authentication
+      login_output <- mod_database_login_server("login")
 
-    # Store pools in environment so call.mydb() functions can use them
-    .db_env$pool_main <- pool_main
-    .db_env$pool_taxa <- pool_taxa
+      pool_main_reactive <- login_output$pool_main
+      pool_taxa_reactive <- login_output$pool_taxa
+      authenticated_reactive <- login_output$authenticated
+    } else {
+      # Pool provided, mark as authenticated
+      pool_taxa_reactive <- shiny::reactive(pool_taxa)
+      pool_main_reactive <- shiny::reactive(NULL)  # Not needed for taxonomic matching
+      authenticated_reactive <- shiny::reactive(TRUE)
 
-    # Stop the server when session ends
+      # Store in global env
+      .db_env$pool_taxa <- pool_taxa
+
+      # Clean up pool on session end
+      session$onSessionEnded(function() {
+        if (!is.null(.db_env$pool_taxa)) {
+          tryCatch({
+            pool::poolClose(.db_env$pool_taxa)
+            .db_env$pool_taxa <- NULL
+          }, error = function(e) {
+            cli::cli_alert_warning("Failed to close connection pool: {e$message}")
+          })
+        }
+      })
+    }
+
+    # Stop app and quit R when browser is closed
     session$onSessionEnded(function() {
-      cli::cli_alert_info("Closing connection pools...")
-      pool::poolClose(pool_main)
-      pool::poolClose(pool_taxa)
-      .db_env$pool_main <- NULL
-      .db_env$pool_taxa <- NULL
       shiny::stopApp()
+      q("no")
     })
 
-    # Language management
+    # Output for conditional panel (needs to be suspendable=FALSE)
+    output$authenticated <- shiny::reactive({
+      authenticated_reactive()
+    })
+    shiny::outputOptions(output, "authenticated", suspendWhenHidden = FALSE)
+
+    # Reactive values for module initialization
+    rv <- shiny::reactiveValues(
+      modules_initialized = FALSE
+    )
+
+    # Language management (initialize immediately, works before auth)
     current_language <- mod_language_toggle_server("language", initial = language)
 
     # Get translations
@@ -221,64 +265,76 @@ app_taxonomic_match <- function(
       "Enrich with Traits"
     })
 
-    # Data input module
-    user_data <- mod_data_input_server(
-      "data_input",
-      provided_data = data,
-      language = current_language
-    )
+    # Only initialize modules after authentication (runs once)
+    shiny::observe({
+      shiny::req(authenticated_reactive() == TRUE)
+      shiny::req(!rv$modules_initialized)  # Only run once
 
-    # Column selection module
-    column_info <- mod_column_select_server(
-      "column_select",
-      data = user_data,
-      initial_column = name_column,
-      language = current_language
-    )
+      cli::cli_alert_info("Initializing app modules...")
 
-    # Auto matching module
-    # Use data from column_info (may be modified with combined column)
-    match_results <- mod_auto_matching_server(
-      "auto_match",
-      data = shiny::reactive(column_info()$data),
-      column_name = shiny::reactive(column_info()$column),
-      include_authors = shiny::reactive(column_info()$include_authors),
-      min_similarity = min_similarity,
-      language = current_language
-    )
+      # Data input module
+      user_data <- mod_data_input_server(
+        "data_input",
+        provided_data = data,
+        language = current_language
+      )
 
-    # Progress tracker module
-    mod_progress_tracker_server(
-      "progress",
-      match_results = match_results,
-      language = current_language
-    )
+      # Column selection module
+      column_info <- mod_column_select_server(
+        "column_select",
+        data = user_data,
+        initial_column = name_column,
+        language = current_language
+      )
 
-    # Manual review module
-    reviewed_results <- mod_name_review_server(
-      "review",
-      match_results = match_results,
-      mode = mode,
-      max_suggestions = max_suggestions,
-      min_similarity = min_similarity,
-      language = current_language
-    )
+      # Auto matching module
+      # Use data from column_info (may be modified with combined column)
+      match_results <- mod_auto_matching_server(
+        "auto_match",
+        data = shiny::reactive(column_info()$data),
+        column_name = shiny::reactive(column_info()$column),
+        include_authors = shiny::reactive(column_info()$include_authors),
+        min_similarity = min_similarity,
+        language = current_language
+      )
 
-    # Results export module (use reviewed results instead of just matched results)
-    mod_results_export_server(
-      "export",
-      results = reviewed_results,
-      original_data = user_data,
-      language = current_language
-    )
+      # Progress tracker module
+      mod_progress_tracker_server(
+        "progress",
+        match_results = match_results,
+        language = current_language
+      )
 
-    # Traits enrichment module
-    mod_traits_enrichment_server(
-      "traits",
-      results = reviewed_results,
-      column_name = shiny::reactive(column_info()$column),
-      language = current_language
-    )
+      # Manual review module
+      reviewed_results <- mod_name_review_server(
+        "review",
+        match_results = match_results,
+        mode = mode,
+        max_suggestions = max_suggestions,
+        min_similarity = min_similarity,
+        language = current_language
+      )
+
+      # Results export module (use reviewed results instead of just matched results)
+      mod_results_export_server(
+        "export",
+        results = reviewed_results,
+        original_data = user_data,
+        language = current_language
+      )
+
+      # Traits enrichment module
+      mod_traits_enrichment_server(
+        "traits",
+        results = reviewed_results,
+        column_name = shiny::reactive(column_info()$column),
+        language = current_language
+      )
+
+      # Mark modules as initialized
+      rv$modules_initialized <- TRUE
+      cli::cli_alert_success("All modules initialized successfully!")
+    })  # Close the observe block for module initialization
   }
 
   # Return Shiny app object

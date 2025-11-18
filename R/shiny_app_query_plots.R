@@ -233,6 +233,12 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
       })
     }
 
+    # Stop app and quit R when browser is closed
+    session$onSessionEnded(function() {
+      shiny::stopApp()
+      q("no")
+    })
+
     # Output for conditional panel (needs to be suspendable=FALSE)
     output$authenticated <- shiny::reactive({
       authenticated_reactive()
