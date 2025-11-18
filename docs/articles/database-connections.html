@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,6 +35,7 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/biomass-agb-estimation.html">Above-Ground Biomass Estimation with BIOMASS Package</a></li>
     <li><a class="dropdown-item" href="../articles/database-connections.html">Database Connections Guide</a></li>
+    <li><a class="dropdown-item" href="../articles/growth-mortality-analysis.html">Growth and Mortality Analysis</a></li>
     <li><a class="dropdown-item" href="../articles/importing-plot-data.html">Importing Plot Data into the Database</a></li>
     <li><a class="dropdown-item" href="../articles/taxonomic-app.html">Using the Taxonomic Name Standardization App</a></li>
     <li><a class="dropdown-item" href="../articles/using-query-plots.html">Using query_plots() to Access Plot Data</a></li>
@@ -269,7 +270,7 @@ control which plots each user can access.</p>
 <code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># See which plots you can access</span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">get_user_accessible_plots</span><span class="op">(</span><span class="va">con</span>, <span class="st">"your_username"</span><span class="op">)</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/get_user_accessible_plots.html">get_user_accessible_plots</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"your_username"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Get just the plot IDs as a vector</span></span>
@@ -399,7 +400,7 @@ DELETE)</li>
 <li>Check your accessible plots:</li>
 </ol>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">get_user_accessible_plots</span><span class="op">(</span><span class="va">con</span>, <span class="st">"your_username"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/get_user_accessible_plots.html">get_user_accessible_plots</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"your_username"</span><span class="op">)</span></span></code></pre></div>
 <ol start="2" style="list-style-type: decimal">
 <li>Contact administrator to request access to additional plots</li>
 </ol>
@@ -436,7 +437,7 @@ before closing R</li>
 verify connections</li>
 <li>
 <strong>Check your plot access</strong> with
-<code>get_user_accessible_plots()</code> if queries return empty</li>
+<code><a href="../reference/get_user_accessible_plots.html">get_user_accessible_plots()</a></code> if queries return empty</li>
 <li>
 <strong>Use connection pools</strong> in Shiny apps</li>
 <li>
@@ -478,7 +479,7 @@ do</li>
 <span><span class="fu"><a href="../reference/print_connection_status.html">print_connection_status</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 3. Check your access if needed</span></span>
-<span><span class="fu">get_user_accessible_plots</span><span class="op">(</span><span class="va">con</span>, <span class="st">"your_username"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/get_user_accessible_plots.html">get_user_accessible_plots</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"your_username"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 4. Do your work</span></span>
 <span><span class="co"># ... queries, updates, etc. ...</span></span>
@@ -494,7 +495,7 @@ do</li>
 <ol style="list-style-type: decimal">
 <li>Run <code><a href="../reference/db_diagnostic.html">db_diagnostic()</a></code> and note the output</li>
 <li>Check your accessible plots with
-<code>get_user_accessible_plots()</code>
+<code><a href="../reference/get_user_accessible_plots.html">get_user_accessible_plots()</a></code>
 </li>
 <li>Contact the database administrator with:
 <ul>
