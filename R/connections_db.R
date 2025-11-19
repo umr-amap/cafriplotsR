@@ -415,18 +415,30 @@ check_taxa_permissions <- function(con) {
 #' Cleanup all database connections
 #' @export
 cleanup_connections <- function() {
+  # Close regular DBI connections
   if (!is.null(.db_env$mydb)) {
     try(DBI::dbDisconnect(.db_env$mydb), silent = TRUE)
     .db_env$mydb <- NULL
   }
-  
+
   if (!is.null(.db_env$mydb_taxa)) {
     try(DBI::dbDisconnect(.db_env$mydb_taxa), silent = TRUE)
     .db_env$mydb_taxa <- NULL
   }
-  
+
+  # Close pool connections (used by Shiny apps)
+  if (!is.null(.db_env$pool_main)) {
+    try(pool::poolClose(.db_env$pool_main), silent = TRUE)
+    .db_env$pool_main <- NULL
+  }
+
+  if (!is.null(.db_env$pool_taxa)) {
+    try(pool::poolClose(.db_env$pool_taxa), silent = TRUE)
+    .db_env$pool_taxa <- NULL
+  }
+
   rm(list = ls(envir = credentials), envir = credentials)
-  
+
   cli::cli_alert_success("All connections closed and credentials cleared")
 }
 

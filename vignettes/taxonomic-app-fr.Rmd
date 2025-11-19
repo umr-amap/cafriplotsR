@@ -1,0 +1,452 @@
+---
+title: "Utiliser l'Application de Standardisation des Noms Taxonomiques"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Utiliser l'Application de Standardisation des Noms Taxonomiques}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  echo = TRUE
+)
+```
+
+## Introduction
+
+La fonction `launch_taxonomic_match_app()` fournit une application Shiny interactive pour standardiser les noms taxonomiques contre la base de données taxonomique de référence des plantes d'Afrique centrale. Cette interface visuelle est idéale pour :
+
+- Explorer et nettoyer les données taxonomiques de manière interactive
+- Comprendre la qualité des correspondances grâce au retour visuel
+- Examiner manuellement les correspondances incertaines
+- Enrichir les données avec des traits au niveau de l'espèce
+
+## Prérequis
+
+Avant de lancer l'application, assurez-vous d'avoir :
+
+1. **Des identifiants de base de données** configurés (voir `setup_db_credentials()`)
+2. **Des données à standardiser** dans l'un de ces formats :
+   - Fichier Excel (.xlsx, .xls)
+   - Fichier CSV (.csv)
+3. Une colonne contenant des **noms taxonomiques** (ex. genre + espèce) ou des **colonnes séparées** pour le genre, l'espèce et la famille
+
+## Démarrage Rapide
+
+Lancez l'application avec une seule commande :
+
+```{r}
+library(CafriplotsR)
+launch_taxonomic_match_app()
+```
+
+Alternativement, pré-chargez vos données :
+
+```{r}
+# Avec un data.frame R
+my_data <- read.csv("inventaire_arbres.csv")
+launch_taxonomic_match_app(data = my_data, name_column = "nom_espece")
+
+# Ajuster la sensibilité de la correspondance approximative (par défaut 0.7)
+launch_taxonomic_match_app(min_similarity = 0.5)  # Correspondance plus permissive
+```
+
+## Guide Étape par Étape
+
+### Phase 1 : Vue Initiale
+
+Lorsque vous lancez l'application pour la première fois, vous verrez l'interface principale avec une barre latérale pour la configuration et des onglets pour les différentes phases du flux de travail :
+
+![Vue initiale de l'application](images/app-initial-view.png)
+
+L'application utilise un **flux de travail par onglets** qui vous guide à travers chaque phase séquentiellement :
+
+1. **Auto Match** - Correspondance automatique
+2. **Review** - Révision manuelle des noms non appariés
+3. **Export** - Téléchargement des résultats
+4. **Traits Enrichment** - Ajout de traits d'espèces
+
+### Phase 2 : Charger Vos Données
+
+La première étape est de fournir vos données. Vous pouvez soit :
+
+- **Charger un fichier Excel** en utilisant le navigateur de fichiers (supporte .xlsx, .xls)
+- **Charger un fichier CSV**
+- **Utiliser des données R pré-chargées** (si vous avez passé le paramètre `data`)
+
+![Interface de chargement des données](images/app-upload-data.png)
+
+Pour les fichiers Excel avec plusieurs feuilles, vous pouvez sélectionner quelle feuille utiliser. L'application affichera un aperçu de vos données chargées pour que vous puissiez vérifier qu'elles ont été lues correctement.
+
+### Phase 3 : Sélectionner la/les Colonne(s) de Noms
+
+Une fois les données chargées, vous avez deux options pour sélectionner les noms taxonomiques :
+
+#### Mode Colonne Unique (Par Défaut)
+
+Sélectionnez une colonne contenant le nom taxonomique complet :
+
+![Sélection de colonne - mode unique](images/app-column-select.png)
+
+Le menu déroulant affiche toutes les colonnes disponibles de votre jeu de données. Choisissez celle contenant les noms d'espèces (généralement formatés comme "Genre espèce" ou "Genre espèce Auteur").
+
+#### Mode Colonnes Multiples (NOUVEAU)
+
+Si vos données ont des colonnes séparées pour le genre, l'espèce et la famille, activez **"Utiliser plusieurs colonnes"** :
+
+![Sélection de colonnes - mode multiple](images/app-column-select-multi.png)
+
+L'application combinera automatiquement ces colonnes en un seul nom taxonomique pour la correspondance, en utilisant une approche hiérarchique :
+- Si genre et espèce sont disponibles : "Genre espèce"
+- Si seulement genre : "Genre"
+- Si seulement famille : "Famille"
+
+Vous pouvez aussi optionnellement inclure une colonne d'auteur.
+
+### Phase 4 : Correspondance Automatique
+
+Cliquez sur le bouton **"Démarrer la Correspondance"** pour commencer le processus de correspondance automatique. L'application utilise une **stratégie de correspondance à cinq niveaux** :
+
+1. **Correspondance exacte sur l'espèce** : Recherche directe du nom complet (genre + espèce)
+2. **Correspondance exacte sur le genre** : Correspondance au niveau du genre
+3. **Correspondance exacte sur la famille** : Correspondance au niveau de la famille
+4. **Correspondance exacte sur la classe** : Correspondance à un niveau taxonomique supérieur
+5. **Correspondance approximative** : Correspondance de chaînes approximative pour les noms restants
+
+![Correspondance en cours](images/app-matching-progress.png)
+
+La barre de progression affiche le statut en temps réel. Pour les grands jeux de données, cela peut prendre quelques minutes. La barre latérale affiche des statistiques en direct :
+
+- Nombre de correspondances exactes
+- Nombre de correspondances au niveau du genre
+- Nombre de correspondances approximatives
+- Nombre de noms non appariés
+
+### Phase 5 : Examiner les Résultats de Correspondance
+
+Après la fin de la correspondance, l'onglet Auto Match affiche un tableau résumé avec tous les noms et leur statut de correspondance :
+
+![Résumé des résultats de correspondance](images/app-matching-results.png)
+
+Le tableau des résultats inclut :
+
+- **Nom original** : Votre nom en entrée
+- **matched_name** : Nom trouvé dans la référence
+- **match_method** : Comment il a été apparié (exact_species, exact_genus, exact_family, fuzzy, manual)
+- **match_score** : Score de similarité (0-1, plus élevé est meilleur)
+- **idtax_n** : ID du taxon dans la base de données
+- **is_synonym** : Si le nom apparié est un synonyme
+- **accepted_name** : Nom accepté actuel (si synonyme)
+
+**Indicateurs de qualité de correspondance :**
+
+- **Correspondance exacte (1.0)** : Correspondance parfaite, pas de révision nécessaire
+- **Haute similarité (>0.8)** : Très probablement correct, révision rapide recommandée
+- **Similarité moyenne (0.5-0.8)** : Correspondance possible, révision suggérée
+- **Basse similarité (<0.5)** : Incertain, révision manuelle requise
+- **Pas de correspondance** : Nécessite une sélection manuelle
+
+### Phase 6 : Révision Manuelle
+
+Pour les noms non appariés ou incertains, passez à l'onglet **"Review"** pour réviser manuellement et sélectionner les correspondances :
+
+![Interface de révision manuelle](images/app-review-interface.png)
+
+L'interface de révision fournit deux façons de trouver des correspondances :
+
+#### Panneau de Suggestions Approximatives
+
+Affiche des suggestions automatiques classées par similarité avec des options de filtrage avancées :
+
+![Suggestions approximatives avec filtres](images/app-review-suggestions.png)
+
+**Options de filtrage :**
+
+- **Nombre de suggestions** : Curseur pour afficher 5-30 suggestions
+- **Similarité minimale** : Ajuster le seuil (0.3-1.0)
+- **Filtre de niveau taxonomique** : Filtrer par Tous, Espèce, Genre, Famille, Ordre, Classe ou Infraspécifique
+- **Trier par** : Score de similarité ou ordre alphabétique
+
+Chaque carte de suggestion affiche :
+
+- Nom avec badge de similarité coloré (vert = élevé, bleu = moyen, jaune = bas)
+- Niveau taxonomique et famille
+- Information de synonymie si applicable
+- Bouton **Sélectionner** pour acceptation en un clic
+
+#### Panneau de Recherche Manuelle
+
+Pour les noms sans bonnes suggestions, utilisez la recherche manuelle :
+
+![Interface de recherche manuelle](images/app-review-manual-search.png)
+
+- Tapez n'importe quel terme de recherche pour interroger la référence taxonomique
+- Filtrez les résultats par niveau taxonomique
+- Voir les informations détaillées pour chaque correspondance
+- Sélectionnez la bonne correspondance ou marquez comme "non résolu"
+
+**Navigation :**
+
+- Utilisez les boutons **Précédent/Passer/Suivant** pour parcourir les noms non appariés
+- Le compteur de progression affiche les noms révisés vs. restants
+- L'application mémorise vos sélections et met à jour automatiquement les résultats
+
+### Phase 7 : Enrichir les Données avec des Traits
+
+Passez à l'onglet **"Traits Enrichment"** pour ajouter des traits au niveau de l'espèce à vos données appariées :
+
+![Interface d'enrichissement des traits](images/app-enrich-data-interface.png)
+
+**Options :**
+
+- **Mode d'agrégation catégorielle** :
+  - "mode" - Utiliser la valeur la plus fréquente par taxon
+  - "concat" - Concaténer toutes les valeurs uniques
+
+- **Sélectionner les colonnes à inclure** :
+  - Noms d'entrée originaux
+  - Noms corrigés
+  - IDs taxonomiques
+  - Métadonnées de correspondance
+
+Les traits disponibles incluent :
+
+- Forme de croissance
+- Densité du bois
+- Traits foliaires
+- Caractéristiques écologiques
+
+Les données enrichies combinent vos taxons appariés avec les traits sélectionnés :
+
+![Résultats des données enrichies](images/app-enrich-data-results.png)
+
+**Note** : L'export enrichi crée une ligne par taxon unique, pas par ligne d'entrée. Les noms d'entrée sont concaténés avec des séparateurs pipe.
+
+### Phase 8 : Exporter les Résultats
+
+Passez à l'onglet **"Export"** pour télécharger votre jeu de données standardisé :
+
+![Options d'export](images/app-export-options.png)
+
+**Formats disponibles :**
+
+- **Excel (.xlsx)** : Idéal pour partager avec des collaborateurs
+- **CSV (.csv)** : Format tabulaire universel
+- **RDS (.rds)** : Format natif R préservant les types de données
+
+**Colonnes sélectionnables :**
+
+- Données originales (toutes vos colonnes d'entrée)
+- IDs appariés (idtax_n, idtax_good_n)
+- Noms corrigés (corrected_name, matched_name)
+- Métadonnées de correspondance (match_method, match_score, is_synonym, accepted_name)
+
+Un tableau de prévisualisation montre les données avant l'export avec des contrôles de pagination.
+
+## Comprendre les Colonnes de Sortie
+
+L'application ajoute ces colonnes à vos données :
+
+| Colonne | Description |
+|---------|-------------|
+| `idtax_n` | ID du taxon apparié dans la base de données de référence |
+| `idtax_good_n` | ID du taxon accepté (pour les synonymes) |
+| `matched_name` | Nom trouvé dans la référence |
+| `corrected_name` | Nom standardisé final |
+| `match_method` | Stratégie de correspondance utilisée (exact_species, exact_genus, exact_family, fuzzy, manual, unresolved) |
+| `match_score` | Score de similarité (0-1) |
+| `is_synonym` | TRUE si le nom apparié est un synonyme |
+| `accepted_name` | Nom accepté actuel (si synonyme) |
+| `family` | Famille taxonomique |
+| `genus` | Genre taxonomique |
+
+## Options Avancées
+
+### Sélection de la Langue
+
+Pas encore fonctionnel...
+
+### Ajuster la Correspondance Approximative
+
+Contrôlez la sensibilité de la correspondance avec le paramètre `min_similarity` :
+
+```{r}
+# Très strict - uniquement des correspondances de haute qualité
+launch_taxonomic_match_app(min_similarity = 0.8)
+
+# Paramètre par défaut
+launch_taxonomic_match_app(min_similarity = 0.7)
+
+# Plus permissif - permet des correspondances de moindre qualité
+launch_taxonomic_match_app(min_similarity = 0.5)
+```
+
+Des valeurs plus basses ratissent plus large mais peuvent inclure des faux positifs. Des valeurs plus élevées sont plus conservatrices mais peuvent manquer des correspondances valides.
+
+### Augmenter les Suggestions
+
+Afficher plus de suggestions de correspondance approximative par nom :
+
+```{r}
+# Afficher les 20 meilleures suggestions au lieu des 10 par défaut
+launch_taxonomic_match_app(max_suggestions = 20)
+```
+
+Utile quand les suggestions initiales n'incluent pas la bonne correspondance. Vous pouvez aussi ajuster ceci de manière interactive dans l'onglet Review en utilisant le curseur.
+
+## Paramètres de la Fonction
+
+```{r}
+launch_taxonomic_match_app(
+  data = NULL,           # Optionnel : pré-charger un data.frame
+  name_column = NULL,    # Optionnel : pré-sélectionner une colonne
+  min_similarity = 0.7,  # Seuil de correspondance approximative (0-1)
+  max_suggestions = 10   # Max suggestions par nom non apparié
+)
+```
+
+## Dépannage
+
+### Problèmes de Connexion
+
+**Problème** : "Échec de connexion à la base de données"
+
+**Solution** :
+```{r}
+# Vérifier la connexion
+db_diagnostic()
+
+# Réinitialiser les identifiants si nécessaire
+remove_db_credentials()
+setup_db_credentials()
+```
+
+### Pas de Correspondances Approximatives Trouvées
+
+**Problème** : Aucune suggestion n'apparaît pour les noms non appariés
+
+**Causes possibles** :
+- Seuil `min_similarity` trop élevé
+- Les noms taxonomiques contiennent des fautes de frappe ou un formatage non standard
+- Les noms ne sont pas présents dans la référence taxonomique (ex. taxons non africains)
+
+**Solutions** :
+- Diminuer `min_similarity` : `launch_taxonomic_match_app(min_similarity = 0.5)`
+- Utiliser le filtre de niveau taxonomique pour chercher au niveau du genre ou de la famille
+- Nettoyer les noms en entrée (supprimer les espaces supplémentaires, corriger les fautes évidentes)
+- Vérifier que les noms sont des taxons africains
+
+### Performance de Correspondance Lente
+
+**Problème** : La correspondance prend très longtemps pour les grands jeux de données
+
+**Solutions** :
+- Utiliser le traitement par lots à la place : `match_taxonomic_names()` pour un flux de travail programmatique
+- Traiter les données en morceaux (diviser les grands jeux de données)
+- L'application télécharge toute la référence une fois pour l'efficacité, donc le chargement initial peut être lent
+
+## Quand Utiliser l'Application vs. l'Approche Programmatique
+
+### Utilisez l'Application Shiny quand :
+
+- Exploration interactive des données
+- Vous préférez les interfaces visuelles
+- Le jeu de données est de petite à moyenne taille (<5 000 lignes)
+- Besoin de réviser manuellement les correspondances incertaines
+- Apprentissage du processus de correspondance
+
+### Utilisez `match_taxonomic_names()` quand :
+
+- Traitement de grands jeux de données (>5 000 lignes)
+- Automatisation des flux de travail dans des scripts
+- Intégration avec des pipelines de données
+- La reproductibilité est critique (*NE JAMAIS SUPPRIMER LA COLONNE CONTENANT LE NOM ORIGINAL*)
+- Traitement par lots de plusieurs fichiers
+
+Exemple d'approche programmatique :
+
+```{r}
+# Charger les données
+my_data <- read.csv("inventaire_arbres.csv")
+
+# Apparier les noms
+matched <- match_taxonomic_names(
+  names = my_data$nom_espece,
+  min_similarity = 0.7
+)
+
+# Fusionner avec les données originales
+result <- cbind(my_data, matched)
+
+# Exporter
+write.csv(result, "inventaire_standardise.csv", row.names = FALSE)
+```
+
+## Voir Aussi
+
+- `match_taxonomic_names()` : Fonction de correspondance sous-jacente pour usage programmatique
+- `query_taxa()` : Interroger directement la référence taxonomique
+- `match_tax()` : Fonction simple de recherche taxonomique
+- `vignette("using-query-plots-fr")` : Guide pour interroger les données de parcelles
+
+## Conseils pour de Meilleurs Résultats
+
+1. **Nettoyez d'abord vos données** : Supprimez les fautes de frappe évidentes, les espaces supplémentaires et les caractères spéciaux
+2. **Comprenez vos données** : Sachez quels groupes taxonomiques sont dans votre jeu de données
+3. **Utilisez le mode multi-colonnes** : Si vous avez des colonnes séparées genre/espèce/famille, combinez-les pour une meilleure correspondance
+4. **Filtrez par niveau taxonomique** : Utilisez le filtre de niveau dans l'onglet Review pour trouver des correspondances au genre ou à la famille
+5. **Examinez les scores de correspondance** : N'acceptez pas aveuglément les correspondances à faible similarité (<0.6)
+6. **Sauvegardez de manière incrémentale** : Exportez les résultats intermédiaires pour éviter de perdre le travail de révision manuelle
+7. **Documentez les paramètres** : Notez quelle valeur de `min_similarity` vous avez utilisée pour la reproductibilité
+
+## Exemple de Flux de Travail
+
+Voici un flux de travail complet du début à la fin :
+
+```{r}
+# 1. Charger vos données
+trees <- read.csv("inventaire_forestier.csv")
+# Colonnes : plot_id, tree_number, species_name, dbh, height
+
+# 2. Lancer l'application avec les données
+launch_taxonomic_match_app(
+  data = trees,
+  name_column = "species_name",
+  min_similarity = 0.7
+)
+
+# 3. Dans l'application :
+#    - Revoir les correspondances automatiques dans l'onglet Auto Match
+#    - Utiliser l'onglet Review pour résoudre les noms non appariés
+#    - Appliquer les filtres de niveau taxonomique si nécessaire
+#    - Optionnellement enrichir avec des traits dans l'onglet Traits Enrichment
+#    - Exporter comme "inventaire_forestier_standardise.xlsx"
+
+# 4. Continuer l'analyse avec les données standardisées
+standardized <- readxl::read_excel("inventaire_forestier_standardise.xlsx")
+
+# Vous avez maintenant des IDs taxonomiques propres pour des analyses ultérieures !
+```
+
+Ce flux de travail assure que vos données taxonomiques sont standardisées et prêtes pour des analyses en aval comme les métriques de diversité, les analyses basées sur les traits ou l'intégration dans la base de données.
+
+## Captures d'Écran Suggérées
+
+Pour compléter cette documentation, les captures d'écran suivantes devraient être réalisées :
+
+1. **app-initial-view.png** - Interface complète de l'application après lancement avec tous les onglets visibles
+2. **app-upload-data.png** - Panneau de chargement des données avec navigateur de fichiers et sélection de feuille
+3. **app-column-select.png** - Menu déroulant de sélection de colonne unique
+4. **app-column-select-multi.png** - Mode colonnes multiples avec sélecteurs genre/espèce/famille
+5. **app-matching-progress.png** - Correspondance en cours avec barre de progression et statistiques en direct
+6. **app-matching-results.png** - Tableau des résultats dans l'onglet Auto Match montrant les noms appariés
+7. **app-review-interface.png** - Vue d'ensemble de l'onglet Review avec affichage du nom non apparié
+8. **app-review-suggestions.png** - Panneau de suggestions approximatives avec options de filtrage (filtre niveau, tri, curseur)
+9. **app-review-manual-search.png** - Interface de recherche manuelle avec boîte de recherche et résultats
+10. **app-enrich-data-interface.png** - Onglet d'enrichissement des traits avec mode d'agrégation et sélection de colonnes
+11. **app-enrich-data-results.png** - Aperçu des données enrichies avec traits
+12. **app-export-options.png** - Onglet Export avec sélection de format et cases à cocher des colonnes

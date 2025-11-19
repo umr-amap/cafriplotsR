@@ -200,18 +200,7 @@ app_taxonomic_match <- function(
 
       # Store in global env
       .db_env$pool_taxa <- pool_taxa
-
-      # Clean up pool on session end
-      session$onSessionEnded(function() {
-        if (!is.null(.db_env$pool_taxa)) {
-          tryCatch({
-            pool::poolClose(.db_env$pool_taxa)
-            .db_env$pool_taxa <- NULL
-          }, error = function(e) {
-            cli::cli_alert_warning("Failed to close connection pool: {e$message}")
-          })
-        }
-      })
+      # Note: Pool cleanup is handled by cleanup_connections() below
     }
 
     # Stop app and quit R when browser is closed
@@ -223,7 +212,6 @@ app_taxonomic_match <- function(
         cli::cli_alert_warning("Failed to cleanup connections: {e$message}")
       })
       shiny::stopApp()
-      q("no")
     })
 
     # Output for conditional panel (needs to be suspendable=FALSE)
