@@ -1,0 +1,437 @@
+---
+title: "Utiliser query_plots() pour Accéder aux Données de Parcelles"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Utiliser query_plots() pour Accéder aux Données de Parcelles}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+```{r setup}
+library(tidyverse)
+library(CafriplotsR)
+```
+
+## Introduction
+
+La fonction `query_plots()` est le point d'entrée principal pour accéder aux données de parcelles forestières de la base de données des parcelles d'Afrique centrale. Cette vignette montre comment utiliser les différentes fonctionnalités de la fonction, y compris le nouveau **système de styles de sortie** introduit dans la version 1.5.
+
+## Connexion à la Base de Données
+
+Avant d'interroger les données, établissez les connexions aux deux bases de données :
+
+
+```{r connection-t, eval=T, echo=F, warning=FALSE, message=FALSE}
+library(tidyverse)
+devtools::load_all()
+# Se connecter à la base de données principale
+mydb <- call.mydb(use_env_credentials = T)
+
+# Se connecter à la base de données taxonomique
+mydb_taxa <- call.mydb.taxa(use_env_credentials = T)
+
+```
+
+```{r connection}
+# Se connecter à la base de données principale
+mydb <- call.mydb()
+
+# Se connecter à la base de données taxonomique
+mydb_taxa <- call.mydb.taxa()
+```
+
+Le package demandera les identifiants de manière interactive, ou vous pouvez utiliser les variables d'environnement via `use_env_credentials = TRUE`.
+
+## Utilisation de Base
+
+### Interroger Uniquement les Métadonnées de Parcelles
+
+Pour récupérer uniquement les informations au niveau de la parcelle sans les données d'arbres individuels :
+
+```{r basic-metadata, eval=TRUE, results='hide'}
+# Interroger par nom de parcelle
+plots <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = FALSE
+)
+
+```
+
+```{r, eval=TRUE, message=TRUE}
+# Voir la structure
+plots
+```
+
+
+
+### Interroger les Parcelles avec les Arbres Individuels
+
+Pour inclure les mesures d'arbres/tiges individuels :
+
+```{r with-individuals, eval=TRUE, results='hide'}
+plots_with_trees <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE
+)
+
+
+```
+
+
+```{r, eval=TRUE, message=TRUE}
+# Le résultat est une liste structurée
+plots_with_trees
+```
+
+## Système de Styles de Sortie (v1.5+)
+
+À partir de la version 1.5, `query_plots()` retourne des **listes structurées** au lieu de data frames plats. La structure s'adapte automatiquement en fonction de la méthode d'inventaire.
+
+### Styles de Sortie Disponibles
+
+- **`minimal`** : Métadonnées essentielles de parcelle uniquement, pas de caractéristiques ni de traits
+- **`standard`** : Sortie d'analyse standard avec les caractéristiques communes (par défaut pour les méthodes inconnues)
+- **`permanent_plot`** : Tables organisées pour le suivi de parcelles permanentes (recensement unique)
+- **`permanent_plot_multi_census`** : Données multi-recensement avec colonnes _census_N
+- **`transect`** : Sortie simplifiée pour les transects/relevés pédestres
+- **`full`** : Export complet avec toutes les colonnes (préserve le comportement v1.4)
+
+### Détection Automatique Basée sur la Méthode
+
+Le style de sortie est automatiquement détecté à partir du champ `method` de la parcelle :
+
+```{r auto-detection}
+# Pour une parcelle permanente (method = "1 ha plot")
+perm_plot <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE
+)
+
+# Utilise automatiquement le style 'permanent_plot'
+# Retourne : $metadata, $individuals, $censuses, $height_diameter
+names(perm_plot)
+```
+
+### Sélection Manuelle du Style
+
+Outrepassez la détection automatique en spécifiant `output_style` :
+
+```{r manual-style}
+# Forcer une sortie minimale
+minimal_output <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  output_style = "minimal"
+)
+
+# Forcer une sortie complète (comportement v1.4 - data frame plat)
+full_output <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  output_style = "full"
+)
+```
+
+### Comprendre la Sortie Structurée
+
+Pour les parcelles permanentes avec `extract_individuals = TRUE` :
+
+```{r structured-output}
+result <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE
+)
+
+# Table des métadonnées : informations au niveau de la parcelle
+result$metadata
+#   plot_id | plot_name | country | latitude | longitude | elevation | ...
+
+# Table des individus : mesures d'arbres
+result$individuals
+#   id_n | plot_name | tag | family | genus | species | dbh | height | ...
+
+# Table des recensements : informations de recensement
+result$censuses
+#   plot_name | census_number | census_date | team_leader | ...
+
+# Paires hauteur-diamètre : pour l'analyse allométrique
+result$height_diameter
+#   id_n | plot_name | tag | D | H | POM | census
+
+# Données spatiales (si show_all_coordinates = TRUE)
+result$coordinates_sf
+```
+
+## Options de Filtrage
+
+### Par Localisation
+
+```{r filter-location}
+# Par pays
+cameroon_plots <- query_plots(
+  country = "Cameroon",
+  extract_individuals = FALSE
+)
+
+# Par localité
+dja_plots <- query_plots(
+  locality_name = "Dja",
+  extract_individuals = FALSE
+)
+
+```
+
+### Par Méthode
+
+```{r filter-method}
+# Obtenir toutes les parcelles permanentes
+permanent_plots <- query_plots(
+  method = "1 ha plot",
+  extract_individuals = FALSE
+)
+
+# Obtenir tous les transects
+transects <- query_plots(
+  method = "Long Transect",
+  extract_individuals = FALSE
+)
+```
+
+### Par ID de Parcelle
+
+```{r filter-id}
+# Interroger des IDs de parcelles spécifiques
+plots_by_id <- query_plots(
+  id_plot = c(1, 2, 3),
+  extract_individuals = TRUE
+)
+```
+
+## Travailler avec les Données d'Arbres Individuels
+
+### Extraction Basique des Arbres
+
+```{r individuals-basic}
+trees <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE
+)
+
+# Accéder aux données d'arbres individuels
+trees$individuals
+```
+
+
+## Gestion des Recensements Multiples
+
+### Afficher les Données de Recensements Multiples
+
+Par défaut, seul le recensement le plus récent est retourné. Pour voir tous les recensements :
+
+```{r multiple-census}
+multi_census <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  show_multiple_census = TRUE
+)
+
+# Utilise automatiquement le style 'permanent_plot_multi_census'
+# Colonnes spécifiques au recensement : dbh_census_1, dbh_census_2, height_census_1, ...
+head(multi_census$individuals)
+
+# La table des recensements montre toutes les dates de recensement
+multi_census$censuses
+
+# La table hauteur-diamètre a une ligne par mesure
+multi_census$height_diameter
+```
+
+## Renommage des Colonnes
+
+Les styles de sortie renomment automatiquement les colonnes de la base de données en noms conviviaux :
+
+```{r column-names}
+result <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE
+)
+
+# Noms de base de données → Noms conviviaux
+# ddlat → latitude
+# ddlon → longitude
+# tax_fam → family
+# tax_gen → genus
+# tax_sp_level → species
+# stem_diameter → dbh
+# tree_height → height
+
+names(result$metadata)
+names(result$individuals)
+```
+
+## Données Spatiales
+
+### Coordonnées de Parcelle
+
+Par défaut, retourne une coordonnée par parcelle :
+
+```{r default-coords}
+plots <- query_plots(
+  country = "Gabon",
+  extract_individuals = FALSE
+)
+
+plots$metadata[, c("plot_name", "latitude", "longitude")]
+```
+
+### Toutes les Coordonnées
+
+Certaines parcelles ont plusieurs points de coordonnées (coins, centres de sous-parcelles) :
+
+```{r all-coords}
+plots_all_coords <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = FALSE,
+  show_all_coordinates = TRUE
+)
+
+# Retourne un objet sf avec tous les points de coordonnées
+plots_all_coords$coordinates_sf
+```
+
+### Carte Interactive
+
+Visualiser les emplacements des parcelles :
+
+```{r map}
+query_plots(
+  country = "Cameroon",
+  extract_individuals = FALSE,
+  map = TRUE
+)
+```
+
+## Options Avancées
+
+### Conserver les IDs de Base de Données
+
+Par défaut, les IDs internes sont supprimés. Pour les conserver :
+
+```{r keep-ids}
+with_ids <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  remove_ids = FALSE, output_style = "full"
+)
+
+# Inclut maintenant id_liste_plots, id_census, etc.
+names(with_ids$extract)
+```
+
+### Filtrage par ID d'Individu
+
+Extraire des individus spécifiques :
+
+```{r filter-individual}
+specific_trees <- query_plots(
+  id_individual = c(1001, 1002, 1003),
+  extract_individuals = TRUE
+)
+```
+
+### Filtrage par Taxon
+
+Extraire les individus de taxons spécifiques :
+
+```{r filter-taxon}
+species_trees <- query_plots(
+  plot_name = "mbalmayo001",
+  id_tax = c(115),  # IDs de taxons
+  extract_individuals = TRUE
+)
+```
+
+## Styles de Sortie Personnalisés
+
+Les options `keep_patterns` et `remove_patterns` dans les configurations de style permettent la personnalisation (PAS ENCORE IMPLÉMENTÉ) :
+
+```{r custom-patterns}
+# Dans votre configuration de style personnalisé :
+# keep_patterns = c("^feat_wood", "^trait_leaf")
+# Ceci garde les caractéristiques du bois et les traits foliaires tout en supprimant les autres
+```
+
+## Combinaison d'Options
+
+Requêtes complexes combinant plusieurs filtres :
+
+```{r complex-query}
+complex_result <- query_plots(
+  country = "Cameroon",
+  locality_name = "Dja",
+  method = "1 ha plot",
+  extract_individuals = TRUE,
+  extract_traits = TRUE,
+  extract_individual_features = TRUE,
+  show_multiple_census = TRUE,
+  show_all_coordinates = TRUE,
+  remove_ids = FALSE,
+  output_style = "permanent_plot_multi_census"
+)
+
+# Retourne une sortie structurée complète
+names(complex_result)
+```
+
+
+
+
+
+## Conseils de Performance
+
+1. **Commencer par les métadonnées uniquement** : Utilisez `extract_individuals = FALSE` lors de l'exploration
+2. **Utiliser des filtres spécifiques** : Réduisez le temps de requête en filtrant par plot_name ou id_plot
+3. **Limiter les traits** : N'utilisez `extract_traits = TRUE` que lorsque nécessaire
+4. **Choisir le style approprié** : Utilisez `minimal` ou `standard` pour des analyses rapides
+
+## Dépannage
+
+### Résultats Vides
+
+Si votre requête ne retourne pas de données :
+
+```{r troubleshoot}
+# Vérifier le statut de connexion
+print_connection_status()
+
+# Exécuter le diagnostic
+db_diagnostic()
+
+# Vérifier l'accès aux parcelles (sécurité au niveau des lignes)
+# Vous ne pouvez accéder qu'aux parcelles pour lesquelles vous avez la permission
+```
+
+### Revenir au Comportement v1.4
+
+Si vous avez besoin de l'ancienne sortie en data frame plat :
+
+```{r legacy-behavior}
+flat_output <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  output_style = "full"
+)
+
+# Retourne un seul data frame au lieu d'une liste structurée
+```
+

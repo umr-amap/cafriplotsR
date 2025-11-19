@@ -9,6 +9,13 @@
 
 ### Bug Fixes
 
+* **Fixed Shiny apps crashing RStudio when browser is closed**
+  - Removed duplicate `onSessionEnded` callbacks that caused "Can't access reactive value outside of reactive consumer" errors
+  - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
+  - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
+  - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
+
+
 * **Fixed `list_user_policies()` returning empty results**
   - Added `::name` type cast for proper comparison with PostgreSQL `name[]` array
   - Function now correctly filters policies by username
@@ -103,6 +110,13 @@
 
 ### Bug Fixes
 
+* **Fixed Shiny apps crashing RStudio when browser is closed**
+  - Removed duplicate `onSessionEnded` callbacks that caused "Can't access reactive value outside of reactive consumer" errors
+  - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
+  - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
+  - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
+
+
 * **Fixed `query_plots()` with `output_style` throwing errors on missing columns**
   - Changed column selection from `all_of()` to `any_of()` in output style transformations
   - Functions now gracefully handle missing columns instead of throwing errors
@@ -181,6 +195,13 @@
   - Critical fix: Previously, non-admin imports would fail at Step 6 (subplot features) with empty plot_id_data
 
 ### Bug Fixes
+
+* **Fixed Shiny apps crashing RStudio when browser is closed**
+  - Removed duplicate `onSessionEnded` callbacks that caused "Can't access reactive value outside of reactive consumer" errors
+  - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
+  - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
+  - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
+
 
 * **Restored missing helper functions** accidentally commented out
   - `.rename_data()` (R/helpers.R:307) - Renames columns in datasets
@@ -269,6 +290,13 @@
 
 ### Bug Fixes
 
+* **Fixed Shiny apps crashing RStudio when browser is closed**
+  - Removed duplicate `onSessionEnded` callbacks that caused "Can't access reactive value outside of reactive consumer" errors
+  - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
+  - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
+  - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
+
+
 * **Fixed commented `@export` tag causing roxygen2 errors**
   - Removed `@export` from commented-out `subplot_list()` function in `R/subsplots_features_function.R`
   - Prevents documentation build failures
@@ -295,6 +323,13 @@
   - CSV files are loaded directly without sheet selection
 
 ### Bug Fixes
+
+* **Fixed Shiny apps crashing RStudio when browser is closed**
+  - Removed duplicate `onSessionEnded` callbacks that caused "Can't access reactive value outside of reactive consumer" errors
+  - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
+  - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
+  - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
+
 
 * **Fixed NA input names appearing in trait enrichment**
   - Enrichment module now filters out rows where the input taxonomic name is NA or empty
@@ -366,6 +401,13 @@
 
 ### Bug Fixes
 
+* **Fixed Shiny apps crashing RStudio when browser is closed**
+  - Removed duplicate `onSessionEnded` callbacks that caused "Can't access reactive value outside of reactive consumer" errors
+  - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
+  - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
+  - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
+
+
 * **Fixed `query_taxa()` empty results with `only_family = TRUE`**
   - Previously, fuzzy matching by default caused empty results when filtering for family-level taxa
   - Now uses exact matching by default for higher taxonomic ranks
@@ -397,6 +439,13 @@
   - New helper function `.get_linked_individuals_summary()` queries and summarizes impact
 
 ### Bug Fixes
+
+* **Fixed Shiny apps crashing RStudio when browser is closed**
+  - Removed duplicate `onSessionEnded` callbacks that caused "Can't access reactive value outside of reactive consumer" errors
+  - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
+  - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
+  - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
+
 * **Connection error with complex home paths**: Fixed `create_db_config()` function that failed when home directory path contained spaces or special characters (e.g., OneDrive paths like `C:/Users/NOBUS CAPITAL/OneDrive/Documents/`)
   - Added proper error handling with `tryCatch()` for file creation
   - Creates parent directories if they don't exist

@@ -1,0 +1,378 @@
+---
+title: "Estimation de la Biomasse Aérienne avec le Package BIOMASS"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Estimation de la Biomasse Aérienne avec le Package BIOMASS}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  echo = TRUE,
+  fig.width = 7,
+  fig.height = 5
+)
+```
+
+
+```{r connection-t, eval=T, echo=F, warning=FALSE, message=FALSE, results='hide'}
+library(tidyverse)
+library(BIOMASS)
+devtools::load_all()
+# Se connecter à la base de données principale
+mydb <- call.mydb(use_env_credentials = T)
+
+# Se connecter à la base de données taxonomique
+mydb_taxa <- call.mydb.taxa(use_env_credentials = T)
+
+```
+
+## Aperçu
+
+Cette vignette montre comment utiliser `CafriplotsR` avec le package **BIOMASS** pour estimer la biomasse aérienne (AGB) des parcelles forestières permanentes. La fonction `query_plots()` avec `output_style = "permanent_plot"` fournit des structures de données optimisées pour les analyses allométriques.
+
+**Avantages clés du flux de travail intégré :**
+
+1. **Enrichissement automatique des traits** - La densité du bois et autres traits sont pré-intégrés
+2. **Table hauteur-diamètre prête à l'emploi** - Table `$height_diameter` fournie par défaut
+3. **Sortie structurée** - Tables séparées pour les métadonnées, individus et mesures
+4. **Hiérarchies taxonomiques** - Héritage des traits de l'espèce → genre → famille
+
+## Prérequis
+
+```{r setup}
+library(CafriplotsR)
+library(BIOMASS)
+library(dplyr)
+library(ggplot2)
+
+# Se connecter à la base de données
+mydb <- call.mydb()
+mydb_taxa <- call.mydb.taxa()
+```
+
+---
+
+## Étape 1 : Extraire les Données de Parcelles
+
+Utilisez `output_style = "permanent_plot"` pour obtenir une sortie structurée optimisée pour l'analyse de biomasse :
+
+```{r extract-data, eval=T, results='hide'}
+# Interroger les parcelles permanentes avec les données individuelles
+plot_data <- query_plots(
+  plot_name = c("bouamir001", "mbalmayo001"),  # Parcelles exemples
+  extract_individuals = TRUE, ## extraire les individus/tiges
+  method = "1ha-IRD",
+  con = mydb,
+  census_strategy = "first", ## obtenir le premier recensement (s'il y en a plusieurs) - dans ce cas, parce que les hauteurs d'arbres ont été mesurées lors du premier recensement
+  ## Si wd n'est pas disponible pour l'espèce, la moyenne de wd par genre est attribuée aux espèces appartenant à ce genre
+  ## si wd n'est pas disponible au niveau du genre, la moyenne de la parcelle est donnée
+  ## génère une colonne qui indique la source de l'information
+  traits_to_genera = TRUE
+)
+
+```
+
+```{r, eval=T}
+
+# Vérifier la structure
+names(plot_data)
+# $metadata - Informations au niveau de la parcelle
+# $individuals - Données d'arbres individuels avec traits
+# $height_diameter - Paires hauteur-diamètre (prêtes pour la modélisation)
+```
+
+
+Le style de sortie `permanent_plot` fournit :
+
+- **`$metadata`** : Coordonnées de parcelle, superficie, dates de recensement, investigateurs
+- **`$individuals`** : Inventaire complet des arbres avec traits taxonomiques
+- **`$height_diameter`** : Paires hauteur-diamètre pré-filtrées pour la modélisation allométrique
+
+---
+
+## Étape 2 : Explorer les Données
+
+### Données d'Arbres Individuels
+
+La table des individus inclut des **traits automatiquement enrichis** :
+
+```{r, eval=T}
+# Vérifier quelles données nous avons
+str(plot_data$individuals)
+```
+
+
+```{r explore-individuals, eval=T}
+# Colonnes clés pour la biomasse :
+# - dbh (stem_diameter) : Diamètre à hauteur de poitrine (cm)
+# - species (tax_sp_level) : Nom de l'espèce
+# - wood_density_mean (taxa_mean_wood_density) : Densité moyenne du bois (g/cm³)
+# - wood_density_sd (taxa_sd_wood_density) : Écart-type pour la propagation d'erreur
+# - source_taxa_mean_wood_density (taxa_sd_wood_density) : source d'information pour la densité du bois
+
+# Résumé de la disponibilité de la densité du bois
+plot_data$individuals %>%
+  summarise(
+    n_total = n(),
+    n_with_wd = sum(!is.na(taxa_mean_wood_density)),
+    pct_with_wd = round(100 * n_with_wd / n_total, 1),
+    mean_wd = mean(taxa_mean_wood_density, na.rm = TRUE)
+  )
+```
+
+**Note** : Les traits de densité du bois sont automatiquement :
+- Récupérés de la base de données taxonomique
+- Hérités de l'espèce → genre → famille quand les données au niveau de l'espèce ne sont pas disponibles
+- Moyennés au niveau de la parcelle quand aucune correspondance taxonomique n'est trouvée (si `traits_to_genera = TRUE`)
+
+### Données Hauteur-Diamètre
+
+La table `$height_diameter` est **pré-filtrée et prête** pour la modélisation :
+
+```{r explore-hd, eval=T}
+# Paires hauteur-diamètre (automatiquement filtrées)
+head(plot_data$height_diameter)
+
+# Cette table inclut :
+# - id_n : ID de l'individu
+# - plot_name : Identifiant de la parcelle
+# - tag : Numéro de l'arbre
+# - D : Diamètre (dhp en cm)
+# - H : Hauteur (hauteur de l'arbre en m)
+# - POM : Point de mesure (si disponible)
+
+# Résumé
+plot_data$height_diameter %>%
+  group_by(plot_name) %>%
+  summarise(
+    n_pairs = n(),
+    mean_dbh = round(mean(D), 1),
+    mean_height = round(mean(H), 1),
+    dbh_range = paste(round(min(D), 1), "-", round(max(D), 1)),
+    height_range = paste(round(min(H), 1), "-", round(max(H), 1))
+  )
+```
+
+---
+
+## Étape 3 : Construire les Modèles Hauteur-Diamètre
+
+Utilisez la table `$height_diameter` pré-filtrée directement avec BIOMASS :
+
+### Option A : Modèle Unique (Toutes Parcelles)
+
+```{r hd-model-global, eval=T}
+# Ajuster un modèle hauteur-diamètre global
+hd_model_global <- BIOMASS::modelHD(
+  D = plot_data$height_diameter$D,
+  H = plot_data$height_diameter$H,
+  method = "weibull",
+  useWeight = TRUE
+)
+
+# Vérifier l'ajustement du modèle
+summary(hd_model_global)
+
+# Erreur standard résiduelle pour la propagation d'incertitude
+RSE_global <- hd_model_global$RSE
+print(paste("RSE :", round(RSE_global, 3)))
+```
+
+### Option B : Modèles Spécifiques par Parcelle
+
+Pour les parcelles avec suffisamment de mesures de hauteur (>15 paires recommandées) :
+
+```{r hd-model-by-plot, eval=T}
+# Construire des modèles séparés par parcelle
+hd_models_by_plot <- plot_data$height_diameter %>%
+  group_by(plot_name) %>%
+  filter(n() >= 15) %>%  # Exiger au moins 15 paires H-D
+  group_split() %>%
+  lapply(function(plot_df) {
+    tryCatch({
+      model <- BIOMASS::modelHD(
+        D = plot_df$D,
+        H = plot_df$H,
+        method = "weibull",
+        useWeight = TRUE
+      )
+      list(
+        plot_name = unique(plot_df$plot_name),
+        model = model,
+        RSE = model$RSE,
+        n = nrow(plot_df)
+      )
+    }, error = function(e) {
+      NULL  # Retourner NULL si le modèle échoue
+    })
+  }) %>%
+  Filter(Negate(is.null), .)  # Supprimer les modèles échoués
+
+# Résumé
+cat(sprintf("Construit %d modèles spécifiques par parcelle\n", length(hd_models_by_plot)))
+```
+
+### Visualiser les Relations H-D
+
+```{r plot-hd-models, fig.width=8, fig.height=6, eval=T}
+# Tracer les données hauteur-diamètre avec la courbe ajustée
+ggplot(plot_data$height_diameter, aes(x = D, y = H)) +
+  geom_point(aes(color = plot_name), alpha = 0.6, size = 2) +
+  geom_smooth(method = "nls",
+              formula = y ~ a * (1 - exp(-b * x^c)),
+              method.args = list(start = list(a = 40, b = 0.05, c = 1)),
+              se = TRUE, color = "black", linewidth = 1.5) +
+  labs(
+    title = "Relation Hauteur-Diamètre",
+    x = "Diamètre à hauteur de poitrine (cm)",
+    y = "Hauteur de l'arbre (m)",
+    color = "Parcelle"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+---
+
+## Étape 4 : Prédire les Hauteurs Manquantes
+
+La plupart des arbres n'ont pas de mesures de hauteur. Utilisez le modèle H-D pour les prédire :
+
+```{r predict-heights, eval=T}
+# Préparer les données pour l'estimation AGB
+agb_data <- plot_data$individuals %>%
+  filter(!is.na(dbh)) %>%  # Doit avoir un diamètre
+  mutate(
+    # Prédire la hauteur en utilisant le modèle global (ou spécifique à la parcelle si disponible)
+    H_predicted = BIOMASS::retrieveH(
+      D = dbh,
+      model = hd_model_global
+    )$H,
+    # Utiliser la hauteur mesurée si disponible, sinon prédite
+    H_final = ifelse(!is.na(height), height, H_predicted),
+    # Assigner RSE pour l'incertitude
+    H_RSE = RSE_global
+  )
+
+# Vérifier le succès de la prédiction
+agb_data %>%
+  summarise(
+    n_total = n(),
+    n_measured = sum(!is.na(height)),
+    n_predicted = sum(is.na(height)),
+    pct_predicted = round(100 * n_predicted / n_total, 1)
+  )
+```
+
+**Utiliser des modèles spécifiques par parcelle** (si disponibles) :
+
+```{r predict-heights-plot-specific, eval=T}
+# Créer une table de correspondance pour le RSE spécifique par parcelle
+plot_rse <- data.frame(
+  plot_name = sapply(hd_models_by_plot, function(x) x$plot_name),
+  RSE_plot = sapply(hd_models_by_plot, function(x) x$RSE)
+)
+
+# Prédire avec des modèles spécifiques par parcelle où disponibles
+agb_data <- agb_data %>%
+  filter(!is.na(dbh)) %>%
+  left_join(plot_rse, by = "plot_name") %>%
+  mutate(
+    # Utiliser le RSE spécifique par parcelle si disponible, sinon global
+    H_RSE = ifelse(!is.na(RSE_plot), RSE_plot, RSE_global),
+    # Prédire les hauteurs (nécessiterait de boucler sur les modèles spécifiques par parcelle)
+    H_final = ifelse(!is.na(height), height, H_predicted)
+  )
+```
+
+---
+
+## Étape 5 : Estimer la Biomasse Aérienne
+
+Nous avons maintenant toutes les entrées requises pour BIOMASS :
+
+- **D** : Diamètre (dhp)
+- **WD** : Densité du bois (automatiquement depuis la base de données !)
+- **H** : Hauteur (mesurée ou prédite)
+- **Erreurs** : Écart-type pour la densité du bois, RSE pour la hauteur
+
+### Vérifier la Complétude des Données
+
+```{r check-completeness, eval=T}
+# Résumé des variables requises
+summary(agb_data[, c("dbh", "taxa_mean_wood_density", "H_final", "H_RSE")])
+
+# Vérifier les données manquantes
+agb_data %>%
+  summarise(
+    missing_dbh = sum(is.na(dbh)),
+    missing_wd = sum(is.na(taxa_mean_wood_density)),
+    missing_height = sum(is.na(H_final)),
+    complete_cases = sum(!is.na(dbh) & !is.na(taxa_mean_wood_density) & !is.na(H_final))
+  )
+```
+
+### Estimation Simple d'AGB (Sans Propagation d'Erreur)
+
+Estimation rapide sans incertitude :
+
+```{r agb-simple, eval=T}
+# Calcul simple d'AGB en utilisant l'équation de Chave et al. 2014
+agb_data <- agb_data %>%
+  filter(!is.na(dbh) & !is.na(taxa_mean_wood_density) & !is.na(H_final)) %>%
+  mutate(
+    AGB_kg = BIOMASS::computeAGB(
+      D = dbh,
+      WD = taxa_mean_wood_density,
+      H = H_final
+    )
+  )
+
+# AGB au niveau de la parcelle
+agb_by_plot <- agb_data %>%
+  group_by(plot_name) %>%
+  summarise(
+    n_trees = n(),
+    total_AGB_Mg = sum(AGB_kg) / 1000  # Convertir kg en Mg
+  )
+
+print(agb_by_plot)
+```
+
+---
+
+## Résumé
+
+Cette vignette a démontré le flux de travail complet pour l'estimation d'AGB en utilisant `CafriplotsR` et `BIOMASS` :
+
+1. ✅ **Extraire des données structurées** avec `output_style = "permanent_plot"`
+2. ✅ **Utiliser les données H-D pré-filtrées** de la table `$height_diameter`
+3. ✅ **Construire des modèles allométriques** avec BIOMASS::modelHD()
+4. ✅ **Exploiter les traits intégrés** - densité du bois automatiquement incluse
+
+**Avantages clés :**
+
+- **Pas de correspondance manuelle des traits** - densité du bois pré-intégrée depuis la base de données taxonomique
+- **Table H-D prête à l'emploi** - filtrée et formatée pour BIOMASS
+
+---
+
+## Ressources Supplémentaires
+
+- **Package BIOMASS** : Réjou-Méchain et al. (2017) <https://CRAN.R-project.org/package=BIOMASS>
+- **Équations allométriques** : Chave et al. (2014) <https://doi.org/10.1111/gcb.12629>
+- **Requêtes CafriplotsR** : Voir `vignette("using-query-plots-fr")`
+- **Correspondance taxonomique** : Voir `vignette("taxonomic-app-fr")`
+
+---
+
+## Références
+
+Chave, J., et al. (2014). Improved allometric models to estimate the aboveground biomass of tropical trees. *Global Change Biology*, 20(10), 3177-3190.
+
+Réjou-Méchain, M., et al. (2017). biomass: an R package for estimating above-ground biomass and its uncertainty in tropical forests. *Methods in Ecology and Evolution*, 8(9), 1163-1167.
