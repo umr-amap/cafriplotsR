@@ -2,3 +2,34 @@ url: https://umr-amap.github.io/cafriplotsR/
 template:
   bootstrap: 5
 
+navbar:
+  right:
+    - text: "FR"
+      href: articles/readme-fr.html
+
+articles:
+  - title: "Getting Started"
+    contents:
+    - database-connections
+    - using-query-plots
+  - title: "Data Import & Analysis"
+    contents:
+    - importing-plot-data
+    - biomass-agb-estimation
+    - growth-mortality-analysis
+  - title: "Tools"
+    contents:
+    - taxonomic-app
+  - title: "Français - Démarrage"
+    contents:
+    - readme-fr
+    - database-connections-fr
+    - using-query-plots-fr
+  - title: "Français - Import & Analyse"
+    contents:
+    - importing-plot-data-fr
+    - biomass-agb-estimation-fr
+    - growth-mortality-analysis-fr
+  - title: "Français - Outils"
+    contents:
+    - taxonomic-app-fr

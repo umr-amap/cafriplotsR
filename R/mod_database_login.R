@@ -330,34 +330,10 @@ mod_database_login_server <- function(id) {
       }, message = "Connecting to database...")
     })
 
-    # Clean up pools on session end
-    session$onSessionEnded(function() {
-      if (!is.null(rv$pool_main)) {
-        tryCatch({
-          pool::poolClose(rv$pool_main)
-          .db_env$pool_main <- NULL
-        }, error = function(e) {
-          cli::cli_alert_warning("Failed to close main pool: {e$message}")
-        })
-      }
-
-      if (!is.null(rv$pool_taxa)) {
-        tryCatch({
-          pool::poolClose(rv$pool_taxa)
-          .db_env$pool_taxa <- NULL
-        }, error = function(e) {
-          cli::cli_alert_warning("Failed to close taxa pool: {e$message}")
-        })
-      }
-
-      # Clear cached credentials
-      if (exists("user_db", envir = credentials)) {
-        rm(user_db, envir = credentials)
-      }
-      if (exists("password", envir = credentials)) {
-        rm(password, envir = credentials)
-      }
-    })
+    # Note: Pool cleanup is handled by cleanup_connections() in the main app's
+    # onSessionEnded callback. Removing duplicate cleanup here prevents
+    # "Can't access reactive value outside of reactive consumer" errors
+    # that occur when the session ends and reactive context is destroyed.
 
     # Return reactive values
     return(

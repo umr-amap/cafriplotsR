@@ -1,0 +1,640 @@
+---
+title: "Importer des Données de Parcelles dans la Base de Données"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Importer des Données de Parcelles dans la Base de Données}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  echo = TRUE
+)
+```
+
+## Aperçu
+
+Cette vignette présente le flux de travail complet pour importer de nouvelles données de parcelles dans la base de données. Le processus comprend deux étapes principales :
+
+1. **Importer les métadonnées de parcelles** - Ajouter les informations de parcelles (localisation, taille, dates de recensement, etc.)
+2. **Importer les données d'arbres individuels** - Ajouter les mesures d'arbres et les traits pour les individus dans ces parcelles
+
+Les deux flux de travail utilisent des **imports basés sur les transactions** avec annulation automatique en cas d'erreur, assurant l'intégrité des données.
+
+## Prérequis
+
+Avant d'importer des données, assurez-vous d'avoir :
+
+1. **Des identifiants de base de données** configurés avec des permissions d'écriture
+2. **Des noms taxonomiques standardisés** en utilisant `launch_taxonomic_match_app()` (voir la vignette taxonomic-app)
+3. **Les coordonnées et métadonnées de parcelles** prêtes
+4. **Les données d'arbres individuels** au format Excel ou CSV
+
+```{r}
+library(CafriplotsR)
+library(dplyr)
+
+# Se connecter à la base de données
+con <- call.mydb()
+```
+
+---
+
+## Étape 1 : Importer les Métadonnées de Parcelles
+
+Avant d'importer les arbres individuels, vous devez d'abord créer les parcelles dans la base de données.
+
+### 1.1 Préparer les Données de Parcelles
+
+Les données de parcelles doivent inclure les métadonnées essentielles :
+
+```{r}
+# Exemple : Préparer les métadonnées de parcelles
+plot_metadata <- data.frame(
+  plot_name = c("Parcelle-A", "Parcelle-B", "Parcelle-C"),
+  country = c("Gabon", "Gabon", "Cameroon"),
+  locality_name = c("Lopé NP", "Lopé NP", "Réserve du Dja"),
+  ddlat = c(-0.5, -0.52, 3.2),
+  ddlon = c(11.5, 11.48, 13.5),
+  plot_area = c(1, 1, 0.5),  # hectares
+  date_census_1 = as.Date(c("2020-01-15", "2020-02-10", "2019-11-20")),
+  team_leader_1 = c("Jean Dupont", "Marie Martin", "Pierre Wilson"),
+  principal_investigator_1 = c("Dr. Martin", "Dr. Martin", "Dr. Jones"),
+  method = c("1ha-IRD", "1ha-IRD", "0.5ha-custom"),
+  subplot_shape = c("square", "square", "rectangle"),
+  stringsAsFactors = FALSE
+)
+```
+
+### 1.2 Importer les Parcelles avec le Modèle
+
+Le package fournit des fonctions pour importer les métadonnées de parcelles avec validation :
+
+```{r}
+# Importer les métadonnées de parcelles
+# (Note : la fonction exacte dépend de l'infrastructure d'import de parcelles existante)
+# Utilisez la fonction appropriée du package pour importer les parcelles
+
+# Exemple de flux de travail :
+# 1. Préparer les données au format du modèle Excel
+# 2. Utiliser la fonction d'import de parcelles (consultez la documentation du package)
+# 3. Vérifier que les parcelles ont été créées
+
+# Vérifier que les parcelles existent
+imported_plots <- query_plots(
+  plot_name = c("Parcelle-A", "Parcelle-B", "Parcelle-C"),
+  exact_match = TRUE,
+  con = con
+)
+
+print(imported_plots)
+```
+
+**Important** : Assurez-vous que toutes les parcelles sont importées avec succès avant de procéder à l'import des données individuelles.
+
+---
+
+## Étape 2 : Importer les Données d'Arbres Individuels
+
+Une fois que les parcelles existent dans la base de données, vous pouvez importer les mesures et traits d'arbres individuels.
+
+### 2.1 Comprendre la Structure des Données
+
+Les données individuelles peuvent être organisées de deux manières :
+
+#### Option A : Table Plate (Toutes les Données dans une Feuille)
+
+```
+plot_name   | tag | species      | idtax | dbh  | height | wood_density
+------------|-----|--------------|-------|------|--------|-------------
+Parcelle-A  | 1   | Sp1          | 123   | 35.2 | 18.5   | 0.65
+Parcelle-A  | 2   | Sp2          | 456   | 42.1 | 22.0   | 0.58
+```
+
+#### Option B : Structure à Deux Tables (Individus + Caractéristiques)
+
+**Feuille Individus** (identification de base des arbres) :
+```
+plot_name   | tag | species | idtax | herbarium_code
+------------|-----|---------|-------|---------------
+Parcelle-A  | 1   | Sp1     | 123   | IRD001
+Parcelle-A  | 2   | Sp2     | 456   | IRD002
+```
+
+**Feuille Caractéristiques** (mesures et traits) :
+```
+plot_name   | tag | dbh  | height | wood_density | census_date
+------------|-----|------|--------|--------------|------------
+Parcelle-A  | 1   | 35.2 | 18.5   | 0.65         | 2020-01-15
+Parcelle-A  | 2   | 42.1 | 22.0   | 0.58         | 2020-01-15
+```
+
+### 2.2 Générer un Modèle d'Import
+
+Commencez par générer un modèle pour comprendre les colonnes requises :
+
+```{r}
+# Générer un modèle avec guide
+get_individual_template(output_file = "mon_modele_individuel.xlsx")
+
+# Ceci crée un fichier Excel avec :
+# - Feuille Individuals avec les colonnes requises
+# - Feuille Features pour les mesures de traits
+# - Feuille Notes avec un guide détaillé
+
+# Voir les informations du modèle
+print_individual_template_info()
+```
+
+**Structure du Modèle** :
+
+- **Colonnes requises** : `plot_name`, `idtax_n` (ID taxonomique)
+- **Colonnes recommandées** : `tag` (identifiant d'arbre), `original_tax_name`
+- **Colonnes optionnelles** : `herbarium_nbe_type`, `herbarium_nbe_char`, `multi_tiges_id`
+- **Caractéristiques** : Tout trait de `traits_list()` (ex. `stem_diameter`, `tree_height`, `wood_density`)
+
+### 2.3 Préparer Vos Données
+
+Charger vos données d'inventaire d'arbres :
+
+```{r}
+# Option 1 : Charger depuis Excel (table plate)
+my_data <- readxl::read_excel("mon_inventaire_arbres.xlsx")
+
+# Option 2 : Charger depuis Excel (structure à deux tables)
+individuals_raw <- readxl::read_excel("mon_inventaire_arbres.xlsx", sheet = "Individuals")
+features_raw <- readxl::read_excel("mon_inventaire_arbres.xlsx", sheet = "Features")
+
+# Option 3 : Charger depuis CSV
+my_data <- read.csv("mon_inventaire_arbres.csv")
+```
+
+### 2.4 Correspondance des Colonnes
+
+Faire correspondre vos colonnes de données au schéma de la base de données en utilisant le mappeur interactif :
+
+```{r}
+# MODE INTERACTIF (recommandé pour les nouveaux utilisateurs)
+mapped <- map_individual_columns(
+  data = my_data,
+  interactive = TRUE,
+  con = con
+)
+
+# MODE NON-INTERACTIF (avec synonymes pour un mapping plus rapide)
+mapped <- map_individual_columns(
+  data = my_data,
+  interactive = FALSE,
+  use_synonyms = TRUE,
+  con = con
+)
+
+# Pour une structure à deux tables
+mapped <- map_individual_columns(
+  individuals = individuals_raw,
+  features = features_raw,
+  interactive = TRUE,
+  con = con
+)
+```
+
+**Processus de Correspondance des Colonnes** :
+
+1. **Correspondance automatique** : La fonction fait correspondre approximativement vos noms de colonnes aux colonnes de la base de données
+2. **Classification des caractéristiques** : On vous demandera de classifier les colonnes non mappées :
+   - **OUI** - C'est un trait/caractéristique (ex. DHP, hauteur, surface foliaire)
+   - **NON** - C'est une donnée d'identification (ex. nom de parcelle, numéro d'arbre, espèce)
+   - **PASSER** - Ignorer cette colonne
+3. **Sélection manuelle** : Choisir parmi les correspondances suggérées ou passer des colonnes
+4. **Résumé** : Revoir la correspondance avant de continuer
+
+**Exemple de Session Interactive** :
+```
+Colonne : 'TreeID'
+Est-ce une caractéristique/mesure de trait ? (OUI/NON/PASSER) : NON
+Sélectionnez la meilleure correspondance pour 'TreeID' :
+  1. tag (Identifiant d'arbre individuel)
+  2. id_n (ID de base de données)
+  3. herbarium_nbe_char (Code d'herbier)
+  [0 pour passer]
+Votre choix : 1
+✓ Mappé TreeID → tag
+```
+
+**Résultat** :
+```{r}
+# Structure des données mappées
+str(mapped)
+# $individuals - Données de base des arbres avec noms de colonnes standardisés
+# $features - Mesures de traits (si des caractéristiques étaient présentes)
+# $mapping - Enregistrement des correspondances de noms de colonnes
+```
+
+### 2.5 Validation
+
+Validez vos données avant l'import pour détecter les erreurs tôt :
+
+```{r}
+# Valider les données mappées
+validation <- validate_individual_data(
+  individuals_data = mapped$individuals,
+  features_data = mapped$features,
+  method = "1ha-IRD",  # Votre méthode de parcelle
+  con = con
+)
+
+# Voir les résultats de validation
+print_individual_validation_results(validation)
+```
+
+**Contrôles de Validation** :
+
+1. ✓ **Colonnes requises présentes** (`plot_name`, `idtax_n`)
+2. ✓ **Existence des parcelles** - Toutes les parcelles existent dans la base de données
+3. ✓ **Validation taxonomique** - Toutes les valeurs `idtax_n` sont valides
+4. ✓ **Unicité des tags** - Pas de tags en double dans les parcelles
+5. ✓ **Conflits de tags** - Pas de conflits avec les tags existants dans la base de données
+6. ✓ **Validité des valeurs de traits** - Les traits numériques sont numériques, les valeurs catégorielles sont valides
+7. ✓ **Liaison des caractéristiques** - Les caractéristiques se lient correctement aux individus
+
+**Sortie de Validation** :
+```
+═══ RÉSUMÉ DE VALIDATION ═══
+Statut : ✓ VALIDE (Prêt à importer)
+
+Résumé des Données :
+  • 11 158 individus répartis sur 32 parcelles
+  • 4 523 enregistrements de caractéristiques
+  • 0 erreurs critiques
+  • 2 avertissements
+
+Avertissements :
+  ⚠ Colonne optionnelle manquante : herbarium_nbe_char
+  ⚠ 15 individus sans mesures de tree_height
+```
+
+**Si la validation échoue** :
+```{r}
+if (!validation$valid) {
+  # Voir les erreurs détaillées
+  print_individual_validation_results(validation)
+
+  # Corriger les problèmes dans vos données sources et re-mapper
+  # Problèmes courants :
+  # - Noms de parcelles ne correspondant pas à la base de données (utilisez exact_match dans query_plots)
+  # - IDs taxonomiques invalides (relancer la correspondance taxonomique)
+  # - Tags en double (vérifier vos données sources)
+
+  stop("Corrigez les erreurs de validation avant d'importer")
+}
+```
+
+### 2.6 Essai à Blanc (Prévisualisation de l'Import)
+
+Toujours prévisualiser l'import avant de valider dans la base de données :
+
+```{r}
+# ESSAI À BLANC - Prévisualiser sans valider
+preview <- import_individual_data(
+  individuals_data = validation$cleaned_data$individuals,
+  features_data = validation$cleaned_data$features,
+  validation = validation,
+  method = "1ha-IRD",
+  dry_run = TRUE,
+  con = con
+)
+
+# Revoir ce qui serait importé
+print(preview)
+```
+
+**Sortie de l'Essai à Blanc** :
+```
+═══ Essai à Blanc : Prévisualisation Import (Aucun Changement Ne Sera Fait) ═══
+ℹ Individus à importer : 11 158
+ℹ Enregistrements de caractéristiques à importer : 4 523
+ℹ Import en tant qu'utilisateur : votre_utilisateur
+
+─── Étape 1 : Liaison des individus aux parcelles ───
+✓ 11 158 individus liés à 32 parcelles
+
+─── Étape 2 : Préparation des données individuelles ───
+✓ 11 158 enregistrements individuels préparés
+ℹ Colonnes : id_table_liste_plots_n, tag, idtax_n, original_tax_name
+
+─── Étape 3 : Prévisualisation - Insertion dans data_individuals ───
+Aperçu des données (3 premières lignes) :
+  id_table_liste_plots_n tag idtax_n original_tax_name
+1                    145   1    1234      Sp1
+2                    145   2    5678      Sp2
+3                    145   3    9012      Sp3
+
+─── Étape 4 : Prévisualisation des caractéristiques individuelles ───
+ℹ Insertion de 4 523 enregistrements de caractéristiques
+Aperçu des caractéristiques (3 premières lignes) :
+  id_data_individuals traitid traitvalue
+1                   1       5       35.2
+2                   1       8       18.5
+3                   2       5       42.1
+
+✓ Essai à blanc terminé - aucun changement effectué
+ℹ Exécutez avec dry_run = FALSE pour importer réellement
+```
+
+### 2.7 Import Réel
+
+Si l'essai à blanc semble correct, procédez à l'import réel :
+
+```{r}
+# IMPORT RÉEL avec support de transaction
+result <- import_individual_data(
+  individuals_data = validation$cleaned_data$individuals,
+  features_data = validation$cleaned_data$features,
+  validation = validation,
+  method = "1ha-IRD",
+  dry_run = FALSE,
+  ask_confirmation = TRUE,  # Demander confirmation
+  con = con
+)
+
+# Vérifier le résultat
+if (result$success) {
+  cat("✓ Import réussi :\n")
+  cat("  -", result$n_individuals, "individus\n")
+  cat("  -", result$n_features, "enregistrements de caractéristiques\n")
+  cat("  - Parcelles affectées :", paste(result$plot_names, collapse = ", "), "\n")
+} else {
+  cat("✗ Import échoué :", result$message, "\n")
+}
+```
+
+**Processus d'Import** :
+
+1. **Confirmation utilisateur** - On vous demandera de confirmer avant de continuer
+2. **Transaction démarrée** - Import tout-ou-rien commence
+3. **Liaison aux parcelles** - Les individus sont liés aux IDs de parcelles
+4. **Insertion des individus** - Données de base insérées dans `data_individuals`
+5. **Insertion des caractéristiques** - Traits insérés dans `data_traits_measures`
+6. **Transaction validée** - Les changements sont sauvegardés
+7. **Annulation automatique** - Si une erreur survient, tous les changements sont annulés
+
+**Sortie d'Import** :
+```
+═══ Import des Données Individuelles ═══
+ℹ Individus à importer : 11 158
+ℹ Enregistrements de caractéristiques à importer : 4 523
+ℹ Import en tant qu'utilisateur : votre_utilisateur
+
+Procéder à l'import ? (oui/non) : oui
+
+ℹ Transaction démarrée
+✓ 11 158 individus liés à 32 parcelles
+✓ 11 158 enregistrements individuels préparés
+✓ 11 158 individus insérés
+✓ 4 523 enregistrements de caractéristiques insérés
+✓ Transaction validée avec succès
+
+═══════════════════════════════════════
+✓ Import terminé avec succès !
+
+ℹ 11 158 individus importés
+ℹ 4 523 enregistrements de caractéristiques importés
+ℹ Parcelles affectées : Parcelle-A, Parcelle-B, Parcelle-C, ...
+═══════════════════════════════════════
+```
+
+### 2.8 Vérifier l'Import
+
+Après l'import, vérifiez que les données ont été correctement ajoutées :
+
+```{r}
+# Interroger les données importées
+imported_data <- query_plots(
+  plot_name = c("Parcelle-A", "Parcelle-B", "Parcelle-C"),
+  exact_match = TRUE,
+  extract_individuals = TRUE,
+  output_style = "permanent_plot",
+  con = con
+)
+
+# Vérifier les individus
+head(imported_data$individuals)
+
+# Vérifier les métadonnées
+imported_data$metadata
+
+# Vérifier les comptages
+cat("Individus importés par parcelle :\n")
+table(imported_data$individuals$plot_name)
+```
+
+---
+
+## Exemple de Flux de Travail Complet
+
+Voici un exemple complet de bout en bout :
+
+```{r}
+library(CafriplotsR)
+
+# 1. Se connecter
+con <- call.mydb()
+
+# 2. Charger les données brutes
+raw_data <- readxl::read_excel("mes_donnees_terrain.xlsx")
+
+# 3. S'assurer que les parcelles existent (importer les métadonnées de parcelles d'abord si nécessaire)
+existing_plots <- query_plots(
+  plot_name = unique(raw_data$PlotName),
+  exact_match = TRUE,
+  con = con
+)
+
+if (nrow(existing_plots) == 0) {
+  stop("Parcelles non trouvées ! Importez d'abord les métadonnées de parcelles.")
+}
+
+# 4. Mapper les colonnes
+mapped <- map_individual_columns(
+  data = raw_data,
+  interactive = TRUE,
+  con = con
+)
+
+# 5. Valider
+validation <- validate_individual_data(
+  individuals_data = mapped$individuals,
+  features_data = mapped$features,
+  method = "1ha-IRD",
+  con = con
+)
+
+# 6. Vérifier la validation
+if (!validation$valid) {
+  print_individual_validation_results(validation)
+  stop("Corrigez d'abord les erreurs de validation !")
+}
+
+# 7. Essai à blanc
+preview <- import_individual_data(
+  individuals_data = validation$cleaned_data$individuals,
+  features_data = validation$cleaned_data$features,
+  validation = validation,
+  dry_run = TRUE,
+  con = con
+)
+
+# 8. Import réel
+result <- import_individual_data(
+  individuals_data = validation$cleaned_data$individuals,
+  features_data = validation$cleaned_data$features,
+  validation = validation,
+  dry_run = FALSE,
+  con = con
+)
+
+# 9. Vérifier
+if (result$success) {
+  cat("✓ Import réussi !\n")
+
+  # Interroger les données importées
+  verification <- query_plots(
+    plot_name = result$plot_names,
+    exact_match = TRUE,
+    extract_individuals = TRUE,
+    con = con
+  )
+
+  cat("Vérifié :", nrow(verification$individuals), "individus importés\n")
+} else {
+  cat("✗ Import échoué :", result$message, "\n")
+}
+
+# 10. Nettoyage
+DBI::dbDisconnect(con)
+```
+
+---
+
+## Problèmes Courants et Solutions
+
+### Problème : "Parcelle non trouvée dans la base de données"
+
+**Solution** : Importez d'abord les métadonnées de parcelles avant d'importer les individus.
+
+```{r}
+# Vérifier si les parcelles existent
+query_plots(plot_name = "Parcelle-A", exact_match = TRUE, con = con)
+
+# Si non trouvée, importez d'abord les métadonnées de parcelles
+```
+
+### Problème : "ID taxonomique invalide"
+
+**Solution** : Standardisez les noms taxonomiques en utilisant l'application de correspondance taxonomique.
+
+```{r}
+# Lancer l'application de correspondance taxonomique
+launch_taxonomic_match_app(data = my_data, name_column = "species")
+
+# Ou utiliser la correspondance programmatique
+matched <- match_taxonomic_names(my_data, name_column = "species", con_taxa = con_taxa)
+```
+
+### Problème : "Tags en double dans la parcelle"
+
+**Solution** : Assurez-vous que les tags sont uniques dans chaque parcelle, ou laissez la fonction générer automatiquement les tags.
+
+```{r}
+# Supprimer la colonne tag pour générer automatiquement des tags séquentiels
+my_data$tag <- NULL
+
+# Ou corriger manuellement les doublons
+my_data <- my_data %>%
+  group_by(plot_name) %>%
+  mutate(tag = row_number()) %>%
+  ungroup()
+```
+
+### Problème : "Correspondance de colonnes peu claire"
+
+**Solution** : Utilisez le mode interactif et lisez attentivement les invites. Lors de la classification des colonnes :
+- **Caractéristiques** = mesures/traits (DHP, hauteur, densité)
+- **Individus** = identification (parcelle, tag, espèce)
+
+### Problème : "Annulation de transaction sur erreur"
+
+**Solution** : Vérifiez attentivement le message d'erreur. Causes courantes :
+- Colonnes requises manquantes
+- Références de clés étrangères invalides
+- Incompatibilités de types de données
+
+Tous les changements sont automatiquement annulés en cas d'erreur, donc votre base de données reste cohérente.
+
+---
+
+## Bonnes Pratiques
+
+1. **Toujours valider d'abord** - Utilisez `validate_individual_data()` avant d'importer
+2. **Utiliser l'essai à blanc** - Prévisualisez avec `dry_run = TRUE` avant l'import réel
+3. **Standardiser la taxonomie** - Faites correspondre les noms taxonomiques avant d'importer les individus
+4. **Importer les parcelles d'abord** - Assurez-vous que les métadonnées de parcelles existent avant d'ajouter les individus
+5. **Utiliser les transactions** - Les fonctions d'import utilisent les transactions pour la sécurité
+6. **Garder des sauvegardes** - Maintenez des sauvegardes de votre base de données
+7. **Documenter les changements** - Gardez une trace de quelles données ont été importées et quand
+8. **Vérifier les permissions** - Assurez-vous d'avoir les permissions d'écriture sur la base de données
+
+---
+
+## Avancé : Correspondance Programmatique des Colonnes
+
+Pour des imports répétés avec des formats de données cohérents, vous pouvez utiliser des synonymes pour automatiser la correspondance :
+
+```{r}
+# Définir des synonymes personnalisés
+custom_synonyms <- list(
+  tag = c("TreeID", "Tree_Number", "Individual_ID"),
+  stem_diameter = c("DBH", "Diameter", "dbh_cm"),
+  tree_height = c("Height", "H", "height_m")
+)
+
+# Mapper avec des synonymes personnalisés
+mapped <- map_individual_columns(
+  data = my_data,
+  interactive = FALSE,
+  use_synonyms = TRUE,
+  custom_synonyms = custom_synonyms,
+  con = con
+)
+```
+
+---
+
+## Ressources Supplémentaires
+
+- **Correspondance taxonomique** : Voir `vignette("taxonomic-app-fr")`
+- **Interrogation des données** : Voir `vignette("using-query-plots-fr")`
+- **Fonctions de modèles** : `?get_individual_template`, `?print_individual_template_info`
+- **Fonctions de validation** : `?validate_individual_data`, `?print_individual_validation_results`
+- **Fonctions d'import** : `?import_individual_data`
+- **Correspondance de colonnes** : `?map_individual_columns`
+
+---
+
+## Résumé
+
+Le flux de travail complet pour importer des données de parcelles :
+
+1. ✅ **Importer les métadonnées de parcelles** (localisation, dates de recensement, etc.)
+2. ✅ **Standardiser la taxonomie** en utilisant `launch_taxonomic_match_app()`
+3. ✅ **Mapper les colonnes** en utilisant `map_individual_columns()`
+4. ✅ **Valider les données** en utilisant `validate_individual_data()`
+5. ✅ **Prévisualiser l'import** avec `dry_run = TRUE`
+6. ✅ **Importer les données** avec `dry_run = FALSE`
+7. ✅ **Vérifier l'import** en utilisant `query_plots()`
+
+Tous les imports utilisent une **sécurité basée sur les transactions** avec annulation automatique en cas d'erreur, assurant que votre base de données reste cohérente même si quelque chose se passe mal.

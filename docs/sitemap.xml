@@ -1,11 +1,18 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://umr-amap.github.io/cafriplotsR/404.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/articles/biomass-agb-estimation-fr.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/biomass-agb-estimation.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/articles/database-connections-fr.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/database-connections.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/articles/growth-mortality-analysis-fr.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/growth-mortality-analysis.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/articles/importing-plot-data-fr.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/importing-plot-data.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/index.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/articles/readme-fr.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/articles/taxonomic-app-fr.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/taxonomic-app.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/articles/using-query-plots-fr.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/using-query-plots.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/authors.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/BUGFIX_find_cat_return_value.html</loc></url>
@@ -17,6 +24,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/news/index.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/NEXT_SESSION_COLUMN_MAPPING_REDESIGN.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/QUERY_TAXA_AUTO_FUZZY_FALLBACK.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/README-fr.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/REFACTORING_SUMMARY.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/REFACTOR_PROPOSAL_query_taxa.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/add_entry_taxa.html</loc></url>
