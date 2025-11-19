@@ -219,18 +219,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
 
       # Store in global env
       .db_env$pool_main <- pool_main
-
-      # Clean up pool on session end
-      session$onSessionEnded(function() {
-        if (!is.null(.db_env$pool_main)) {
-          tryCatch({
-            pool::poolClose(.db_env$pool_main)
-            .db_env$pool_main <- NULL
-          }, error = function(e) {
-            cli::cli_alert_warning("Failed to close connection pool: {e$message}")
-          })
-        }
-      })
+      # Note: Pool cleanup is handled by cleanup_connections() below
     }
 
     # Stop app and quit R when browser is closed
@@ -242,7 +231,6 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
         cli::cli_alert_warning("Failed to cleanup connections: {e$message}")
       })
       shiny::stopApp()
-      q("no")
     })
 
     # Output for conditional panel (needs to be suspendable=FALSE)

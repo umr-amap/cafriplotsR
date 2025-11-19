@@ -1,0 +1,398 @@
+---
+title: "Guide des Connexions à la Base de Données"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Guide des Connexions à la Base de Données}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+```{r setup}
+library(CafriplotsR)
+```
+
+## Introduction
+
+Ce guide explique comment se connecter aux bases de données CafriplotsR, gérer les identifiants de manière sécurisée et résoudre les problèmes de connexion courants.
+
+CafriplotsR utilise **deux bases de données PostgreSQL distinctes** :
+1. **Base de données principale** (`plots_transects`) : Contient les données de parcelles, sous-parcelles et arbres individuels
+2. **Base de données taxonomique** (`rainbio`) : Contient les informations taxonomiques et les traits au niveau de l'espèce
+
+## Démarrage Rapide
+
+### Première Connexion
+
+```{r quick-start}
+library(CafriplotsR)
+
+# Se connecter à la base de données principale (demandera les identifiants)
+con_main <- call.mydb()
+
+# Se connecter à la base de données taxonomique (utilise les mêmes identifiants)
+con_taxa <- call.mydb.taxa()
+
+# Tester vos connexions
+print_connection_status()
+```
+
+Lors de la première utilisation, vous serez invité à entrer :
+
+- **Nom d'utilisateur** : Votre nom d'utilisateur de base de données
+- **Mot de passe** : Votre mot de passe de base de données
+
+Les identifiants sont mis en cache en mémoire pour la durée de votre session R.
+
+## Fonctions de Connexion
+
+### Base de Données Principale : `call.mydb()`
+
+Utilisez ceci pour toutes les opérations sur les données de parcelles, sous-parcelles et arbres individuels.
+
+```{r main-db}
+# Connexion basique
+con <- call.mydb()
+
+# Forcer de nouveaux identifiants (si vous devez changer d'utilisateur)
+con <- call.mydb(reset = TRUE)
+
+# Fournir les identifiants directement (non recommandé pour la sécurité)
+con <- call.mydb(user = "monutilisateur", pass = "monmotdepasse")
+```
+
+### Base de Données Taxonomique : `call.mydb.taxa()`
+
+Utilisez ceci pour les requêtes taxonomiques et les traits d'espèces.
+
+```{r taxa-db}
+# Se connecter à la base de données taxonomique
+con_taxa <- call.mydb.taxa()
+```
+
+**Important** : La base de données taxonomique est en **lecture seule** pour la plupart des utilisateurs. Les opérations d'écriture sont réservées aux administrateurs.
+
+
+## Gestion des Identifiants
+
+### Option 1 : Invites Interactives (Par Défaut)
+
+L'approche la plus simple - entrez les identifiants lorsque demandé :
+
+```{r interactive}
+con <- call.mydb()
+# Entrez le nom d'utilisateur : [votre_utilisateur]
+# Entrez le mot de passe : [votre_mot_de_passe]
+```
+
+**Avantages** : Sécurisé, pas de mots de passe stockés
+**Inconvénients** : Doit entrer les identifiants à chaque nouvelle session R
+
+### Option 2 : Variables d'Environnement (Persistant)
+
+Stockez les identifiants dans votre fichier `.Renviron` pour un chargement automatique :
+
+```{r setup-creds}
+# Exécuter une fois pour configurer
+setup_db_credentials()
+# Suivez les invites pour entrer le nom d'utilisateur et le mot de passe
+```
+
+Puis utilisez avec `use_env_credentials = TRUE` :
+
+```{r use-env}
+con <- call.mydb(use_env_credentials = TRUE)
+```
+
+**Attention** : Les identifiants sont stockés en **texte clair** dans `~/.Renviron`. N'utilisez ceci que sur votre ordinateur personnel et sécurisé.
+
+Pour supprimer les identifiants stockés :
+
+```{r remove-creds}
+remove_db_credentials()
+```
+
+### Option 3 : Paramètres Directs (Non Recommandé)
+
+Vous pouvez passer les identifiants directement, mais ce n'est **pas recommandé** car les mots de passe peuvent être visibles dans votre code ou historique :
+
+```{r direct-creds}
+# Évitez ceci dans le code partagé !
+con <- call.mydb(user = "monutilisateur", pass = "monmotdepasse")
+```
+
+## Nettoyage des Connexions
+
+### Pourquoi Nettoyer les Connexions ?
+
+Les connexions à la base de données sont des ressources limitées. Ne pas les fermer peut causer :
+
+- **Épuisement des connexions** : La base de données refuse les nouvelles connexions
+- **Fuites de mémoire** : Les connexions inutilisées consomment des ressources
+- **Connexions périmées** : Les anciennes connexions peuvent expirer et causer des erreurs
+
+### Quand Nettoyer
+
+Essayez de nettoyer les connexions quand :
+
+1. Vous avez fini de travailler avec la base de données
+2. Avant de fermer R/RStudio
+3. Lors du changement d'utilisateur
+
+### Comment Nettoyer
+
+```{r cleanup}
+# Fermer toutes les connexions et effacer les identifiants en cache
+cleanup_connections()
+```
+
+Cette fonction :
+
+- Ferme la connexion à la base de données principale
+- Ferme la connexion à la base de données taxonomique
+- Efface les identifiants en cache de la mémoire
+
+
+## Vérification du Statut de Connexion
+
+### Vérification Rapide du Statut
+
+```{r status}
+# Voir le statut actuel des connexions
+print_connection_status()
+```
+
+Exemple de sortie :
+```
+-- Statut des Connexions à la Base de Données --
+v Base principale : Connecté à plots_transects en tant que monutilisateur
+v Base taxonomique : Connecté à rainbio en tant que monutilisateur
+```
+
+### Diagnostic Complet
+
+Pour le dépannage, exécutez un diagnostic complet :
+
+```{r diagnostic}
+db_diagnostic()
+```
+
+Ceci affiche :
+
+- Le statut de connexion pour les deux bases de données
+- Les détails de configuration (hôte, port, noms des bases)
+- Les résultats des tests de connectivité
+- Les informations de version PostgreSQL
+
+## Vérification de l'Accès aux Données (Sécurité au Niveau des Lignes)
+
+La base de données utilise la **sécurité au niveau des lignes (RLS)** pour contrôler quelles parcelles chaque utilisateur peut accéder.
+
+### Voir Vos Parcelles Accessibles
+
+```{r accessible-plots}
+con <- call.mydb()
+
+# Voir quelles parcelles vous pouvez accéder
+result <- get_user_accessible_plots(con, "votre_utilisateur")
+print(result)
+
+# Obtenir uniquement les IDs de parcelles comme vecteur
+plot_ids <- result$plot_ids[[1]]
+print(plot_ids)
+```
+
+### Voir Vos Politiques
+
+```{r list-policies}
+# Voir toutes les politiques pour un utilisateur
+list_user_policies(con, user = "votre_utilisateur")
+
+# Voir toutes les politiques sur une table
+list_user_policies(con, user = NULL, table = "data_liste_plots")
+```
+
+### Comprendre les Niveaux d'Accès
+
+Les politiques peuvent accorder différentes opérations :
+
+- **SELECT** : Accès en lecture seule
+- **INSERT** : Peut ajouter de nouveaux enregistrements
+- **UPDATE** : Peut modifier les enregistrements existants
+- **DELETE** : Peut supprimer des enregistrements
+- **ALL** : Accès complet (SELECT, INSERT, UPDATE, DELETE)
+
+## Dépannage
+
+### Problèmes Courants et Solutions
+
+#### "Connexion refusée" ou "Impossible de se connecter"
+
+**Causes** :
+
+- Problèmes réseau
+- Le serveur de base de données est arrêté
+- Le pare-feu bloque la connexion
+
+**Solutions** :
+
+1. Vérifiez votre connexion internet
+2. Réessayez dans quelques minutes
+3. Contactez l'administrateur de la base de données
+
+#### "Échec d'authentification"
+
+**Causes** :
+
+- Mauvais nom d'utilisateur ou mot de passe
+- Le compte n'existe pas
+
+**Solutions** :
+
+```{r auth-fix}
+# Réinitialiser les identifiants et réessayer
+con <- call.mydb(reset = TRUE)
+```
+
+#### "Erreur SSL SYSCALL : EOF détecté"
+
+**Causes** :
+
+- La connexion a été fermée mais est encore utilisée
+- Se produit généralement après la fermeture d'une application Shiny
+
+**Solutions** :
+
+```{r ssl-fix}
+# Nettoyer et se reconnecter
+cleanup_connections()
+con <- call.mydb()
+```
+
+#### "Trop de connexions"
+
+**Causes** :
+
+- Plusieurs connexions non fermées
+- D'autres utilisateurs consomment les connexions
+
+**Solutions** :
+
+```{r conn-fix}
+# Nettoyer vos connexions
+cleanup_connections()
+
+# Attendre et réessayer
+Sys.sleep(5)
+con <- call.mydb()
+```
+
+#### Délai d'attente de requête ou "Connexion perdue"
+
+**Causes** :
+
+- Requête très volumineuse
+- Instabilité réseau
+- Surcharge du serveur
+
+**Solutions** :
+
+Le package inclut une nouvelle tentative automatique pour les échecs transitoires :
+
+```{r retry}
+# func_try_fetch réessaie automatiquement les requêtes échouées
+result <- func_try_fetch(con, "SELECT * FROM grande_table")
+```
+
+#### "Permission refusée" ou résultats vides
+
+**Causes** :
+
+- La sécurité au niveau des lignes restreint l'accès
+- L'utilisateur n'a pas de politique pour les parcelles demandées
+
+**Solutions** :
+
+1. Vérifiez vos parcelles accessibles :
+
+```{r check-access}
+get_user_accessible_plots(con, "votre_utilisateur")
+```
+
+2. Contactez l'administrateur pour demander l'accès à des parcelles supplémentaires
+
+### Réinitialisation Complète
+
+Si vous avez des problèmes persistants, faites une réinitialisation complète :
+
+```{r full-reset}
+# 1. Nettoyer toutes les connexions
+cleanup_connections()
+
+# 2. Redémarrer la session R
+.rs.restartR()
+
+# 3. Se reconnecter à neuf
+library(CafriplotsR)
+con <- call.mydb(reset = TRUE)
+```
+
+## Résumé des Bonnes Pratiques
+
+### À Faire
+
+- **Toujours appeler `cleanup_connections()`** avant de fermer R
+- **Utiliser `print_connection_status()`** pour vérifier les connexions
+- **Vérifier votre accès aux parcelles** avec `get_user_accessible_plots()` si les requêtes retournent vide
+- **Utiliser les pools de connexions** dans les applications Shiny
+- **Exécuter `db_diagnostic()`** lors du dépannage
+- **Stocker les identifiants dans `.Renviron`** uniquement sur des ordinateurs personnels sécurisés
+
+### À Ne Pas Faire
+
+- **Ne pas coder en dur les mots de passe** dans les scripts
+- **Ne pas partager les identifiants** avec d'autres
+- **Ne pas laisser les connexions ouvertes** indéfiniment
+- **Ne pas ignorer les erreurs SSL** - nettoyer et se reconnecter
+- **Ne pas créer plusieurs connexions** quand une seule suffit
+
+### Flux de Travail Recommandé
+
+```{r workflow}
+library(CafriplotsR)
+
+# 1. Se connecter
+con <- call.mydb()
+
+# 2. Vérifier la connexion
+print_connection_status()
+
+# 3. Vérifier votre accès si nécessaire
+get_user_accessible_plots(con, "votre_utilisateur")
+
+# 4. Faire votre travail
+# ... requêtes, mises à jour, etc. ...
+
+# 5. Nettoyer quand terminé
+cleanup_connections()
+```
+
+## Obtenir de l'Aide
+
+Si vous rencontrez des problèmes non couverts ici :
+
+1. Exécutez `db_diagnostic()` et notez la sortie
+2. Vérifiez vos parcelles accessibles avec `get_user_accessible_plots()`
+3. Contactez l'administrateur de la base de données avec :
+   - La sortie du diagnostic
+   - Le message d'erreur exact
+   - Ce que vous essayiez de faire
