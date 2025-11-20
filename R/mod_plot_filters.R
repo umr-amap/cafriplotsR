@@ -247,10 +247,10 @@ mod_plot_filters_server <- function(id, pool) {
 
       list(
         # Basic filters
-        country = if (length(input$country) > 0 && input$country != "") input$country else NULL,
+        country = if (length(input$country) > 0 && !all(input$country == "")) input$country else NULL,
         plot_name = plot_names,
         locality_name = if (nzchar(input$locality)) input$locality else NULL,
-        method = if (length(input$method) > 0 && input$method != "") input$method else NULL,
+        method = if (length(input$method) > 0 && !all(input$method == "")) input$method else NULL,
         tag = if (nzchar(input$tag)) input$tag else NULL,
 
         # Advanced filters
