@@ -11,9 +11,51 @@ define_user_policy(
   table = "data_liste_plots",
   policy_name = NULL,
   operations = "SELECT",
-  drop_existing = TRUE
+  drop_existing = TRUE,
+  mode = c("replace", "add", "remove")
 )
 }
+\arguments{
+\item{con}{A database connection object.}
+
+\item{user}{Character. The username to create the policy for.}
+
+\item{ids}{Integer vector. Plot IDs to grant access to.}
+
+\item{table}{Character. The table to apply the policy to. Default is "data_liste_plots".}
+
+\item{policy_name}{Character. Custom policy name (optional). If NULL, generates from username.}
+
+\item{operations}{Character vector. Operations to allow: "SELECT", "INSERT", "UPDATE",
+"DELETE", or "ALL". Default is "SELECT".}
+
+\item{drop_existing}{Logical. Whether to drop existing policies before creating new ones.
+Default TRUE. Ignored when mode is "add" or "remove".}
+
+\item{mode}{Character. How to handle existing plot access:
+- "replace" (default): Replace existing access with new IDs
+- "add": Add new IDs to existing access
+- "remove": Remove specified IDs from existing access}
+}
+\value{
+Invisibly returns TRUE on success, FALSE on failure.
+}
 \description{
-Define user policy for row-level security
+Creates or updates row-level security policies for a user on a specified table.
+Supports different modes for managing plot access: replace (default), add, or remove.
+}
+\examples{
+\dontrun{
+con <- call.mydb()
+
+# Replace all access with new plots
+define_user_policy(con, "user1", c(1, 2, 3), operations = "ALL")
+
+# Add plots to existing access
+define_user_policy(con, "user1", c(4, 5), operations = "ALL", mode = "add")
+
+# Remove plots from existing access
+define_user_policy(con, "user1", c(2), operations = "ALL", mode = "remove")
+}
+
 }

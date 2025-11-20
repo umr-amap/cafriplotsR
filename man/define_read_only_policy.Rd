@@ -2,10 +2,42 @@
 % Please edit documentation in R/connections_db.R
 \name{define_read_only_policy}
 \alias{define_read_only_policy}
-\title{Helper functions for common policy scenarios}
+\title{Define read-only policy for a user}
 \usage{
-define_read_only_policy(con, user, ids, table = "data_liste_plots")
+define_read_only_policy(
+  con,
+  user,
+  ids,
+  table = "data_liste_plots",
+  mode = c("replace", "add", "remove")
+)
+}
+\arguments{
+\item{con}{A database connection object.}
+
+\item{user}{Character. The username to create the policy for.}
+
+\item{ids}{Integer vector. Plot IDs to grant access to.}
+
+\item{table}{Character. The table to apply the policy to. Default is "data_liste_plots".}
+
+\item{mode}{Character. How to handle existing plot access:
+- "replace" (default): Replace existing access with new IDs
+- "add": Add new IDs to existing access
+- "remove": Remove specified IDs from existing access}
 }
 \description{
-Helper functions for common policy scenarios
+Convenience wrapper for \code{\link{define_user_policy}} that grants SELECT-only access.
+}
+\examples{
+\dontrun{
+con <- call.mydb()
+
+# Grant read-only access to plots 1, 2, 3
+define_read_only_policy(con, "user1", c(1, 2, 3))
+
+# Add more plots to existing read access
+define_read_only_policy(con, "user1", c(4, 5), mode = "add")
+}
+
 }
