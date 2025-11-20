@@ -574,31 +574,108 @@ db_diagnostic <- function() {
 }
 
 #' Define user policy for row-level security
+#'
+#' @description
+#' Creates or updates row-level security policies for a user on a specified table.
+#' Supports different modes for managing plot access: replace (default), add, or remove.
+#'
+#' @param con A database connection object.
+#' @param user Character. The username to create the policy for.
+#' @param ids Integer vector. Plot IDs to grant access to.
+#' @param table Character. The table to apply the policy to. Default is "data_liste_plots".
+#' @param policy_name Character. Custom policy name (optional). If NULL, generates from username.
+#' @param operations Character vector. Operations to allow: "SELECT", "INSERT", "UPDATE",
+#'   "DELETE", or "ALL". Default is "SELECT".
+#' @param drop_existing Logical. Whether to drop existing policies before creating new ones.
+#'   Default TRUE. Ignored when mode is "add" or "remove".
+#' @param mode Character. How to handle existing plot access:
+#'   - "replace" (default): Replace existing access with new IDs
+#'   - "add": Add new IDs to existing access
+#'   - "remove": Remove specified IDs from existing access
+#'
+#' @returns Invisibly returns TRUE on success, FALSE on failure.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # Replace all access with new plots
+#' define_user_policy(con, "user1", c(1, 2, 3), operations = "ALL")
+#'
+#' # Add plots to existing access
+#' define_user_policy(con, "user1", c(4, 5), operations = "ALL", mode = "add")
+#'
+#' # Remove plots from existing access
+#' define_user_policy(con, "user1", c(2), operations = "ALL", mode = "remove")
+#' }
+#'
 #' @export
-define_user_policy <- function(con, user, ids, 
-                               table = "data_liste_plots", 
+define_user_policy <- function(con, user, ids,
+                               table = "data_liste_plots",
                                policy_name = NULL,
                                operations = "SELECT",
-                               drop_existing = TRUE) {
-  
+                               drop_existing = TRUE,
+                               mode = c("replace", "add", "remove")) {
+
   valid_ops <- c("SELECT", "INSERT", "UPDATE", "DELETE", "ALL")
-  
+  mode <- match.arg(mode)
+
   stopifnot(
     "Connection must be valid" = !is.null(con) && test_connection(con),
     "User must be specified" = !is.null(user) && nchar(user) > 0,
     "IDs must be provided" = length(ids) > 0 && all(is.finite(ids)),
     "Operations must be valid" = all(operations %in% valid_ops)
   )
-  
+
+  # Handle add/remove modes by combining with existing IDs
+  if (mode %in% c("add", "remove")) {
+    existing_access <- get_user_accessible_plots(con, user, table)
+
+    if (is.null(existing_access) || nrow(existing_access) == 0) {
+      if (mode == "remove") {
+        cli::cli_alert_warning("No existing policies found for user '{user}'. Nothing to remove.")
+        return(invisible(FALSE))
+      }
+      # For "add" mode with no existing policy, treat as replace
+      existing_ids <- integer(0)
+      cli::cli_alert_info("No existing policy found. Creating new policy with provided IDs.")
+    } else {
+      # Get all unique plot IDs from existing policies
+      existing_ids <- unique(unlist(existing_access$plot_ids))
+    }
+
+    if (mode == "add") {
+      # Combine existing and new IDs
+      ids <- sort(unique(c(existing_ids, ids)))
+      cli::cli_alert_info("Adding {length(ids) - length(existing_ids)} new plot IDs to existing {length(existing_ids)} IDs")
+    } else if (mode == "remove") {
+      # Remove specified IDs from existing
+      new_ids <- setdiff(existing_ids, ids)
+      removed_count <- length(existing_ids) - length(new_ids)
+
+      if (length(new_ids) == 0) {
+        cli::cli_alert_danger("Removing all IDs would leave user with no access. Operation aborted.")
+        cli::cli_alert_info("To remove all access, use drop_user_policies() instead.")
+        return(invisible(FALSE))
+      }
+
+      cli::cli_alert_info("Removing {removed_count} plot IDs from existing {length(existing_ids)} IDs")
+      ids <- sort(new_ids)
+    }
+
+    # Force drop_existing for add/remove modes since we're updating
+    drop_existing <- TRUE
+  }
+
   if ("ALL" %in% operations) {
     operations <- "ALL"
     cli::cli_alert_info("Using 'ALL' operations (overrides specific operations)")
   }
-  
+
   if (is.null(policy_name)) {
     policy_name <- paste0("policy_", gsub("[^a-zA-Z0-9_]", "_", user))
   }
-  
+
   id_list <- paste(ids, collapse = ", ")
   
   tryCatch({
@@ -791,20 +868,84 @@ get_user_accessible_plots <- function(con, user, table = "data_liste_plots") {
   return(as_tibble(result_df))
 }
 
-#' Helper functions for common policy scenarios
+#' Define read-only policy for a user
+#'
+#' @description
+#' Convenience wrapper for \code{\link{define_user_policy}} that grants SELECT-only access.
+#'
+#' @inheritParams define_user_policy
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # Grant read-only access to plots 1, 2, 3
+#' define_read_only_policy(con, "user1", c(1, 2, 3))
+#'
+#' # Add more plots to existing read access
+#' define_read_only_policy(con, "user1", c(4, 5), mode = "add")
+#' }
+#'
 #' @export
-define_read_only_policy <- function(con, user, ids, table = "data_liste_plots") {
-  define_user_policy(con, user, ids, table, operations = "SELECT")
+define_read_only_policy <- function(con, user, ids, table = "data_liste_plots",
+                                    mode = c("replace", "add", "remove")) {
+  mode <- match.arg(mode)
+  define_user_policy(con, user, ids, table, operations = "SELECT", mode = mode)
 }
 
+#' Define full access policy for a user
+#'
+#' @description
+#' Convenience wrapper for \code{\link{define_user_policy}} that grants ALL operations
+#' (SELECT, INSERT, UPDATE, DELETE).
+#'
+#' @inheritParams define_user_policy
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # Grant full access to plots 1, 2, 3
+#' define_full_access_policy(con, "user1", c(1, 2, 3))
+#'
+#' # Add more plots to existing access
+#' define_full_access_policy(con, "user1", c(4, 5), mode = "add")
+#'
+#' # Remove a plot from access
+#' define_full_access_policy(con, "user1", c(2), mode = "remove")
+#' }
+#'
 #' @export
-define_full_access_policy <- function(con, user, ids, table = "data_liste_plots") {
-  define_user_policy(con, user, ids, table, operations = "ALL")
+define_full_access_policy <- function(con, user, ids, table = "data_liste_plots",
+                                      mode = c("replace", "add", "remove")) {
+  mode <- match.arg(mode)
+  define_user_policy(con, user, ids, table, operations = "ALL", mode = mode)
 }
 
+#' Define read-write policy for a user
+#'
+#' @description
+#' Convenience wrapper for \code{\link{define_user_policy}} that grants SELECT, INSERT,
+#' and UPDATE operations (but not DELETE).
+#'
+#' @inheritParams define_user_policy
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # Grant read-write access to plots 1, 2, 3
+#' define_read_write_policy(con, "user1", c(1, 2, 3))
+#'
+#' # Add more plots to existing access
+#' define_read_write_policy(con, "user1", c(4, 5), mode = "add")
+#' }
+#'
 #' @export
-define_read_write_policy <- function(con, user, ids, table = "data_liste_plots") {
-  define_user_policy(con, user, ids, table, operations = c("SELECT", "INSERT", "UPDATE"))
+define_read_write_policy <- function(con, user, ids, table = "data_liste_plots",
+                                     mode = c("replace", "add", "remove")) {
+  mode <- match.arg(mode)
+  define_user_policy(con, user, ids, table, operations = c("SELECT", "INSERT", "UPDATE"), mode = mode)
 }
 
 #' List all database users and their permissions
