@@ -10,7 +10,7 @@
 #'
 #' @param data Optional data.frame or reactive, pre-loaded data to standardize
 #' @param name_column Optional character, pre-selected column name containing taxa
-#' @param language Character, initial language ("en" or "fr"), default: "en"
+#' @param language Character, initial language ("en" or "fr"), default: "fr"
 #' @param min_similarity Numeric, minimum similarity for fuzzy matching (0-1), default: 0.3
 #' @param max_suggestions Integer, maximum suggestions per name, default: 10
 #' @param mode Character, review mode ("interactive" or "batch"), default: "interactive"
@@ -23,7 +23,7 @@
 app_taxonomic_match <- function(
   data = NULL,
   name_column = NULL,
-  language = "en",
+  language = "fr",
   min_similarity = 0.6,
   max_suggestions = 10,
   mode = "interactive",
