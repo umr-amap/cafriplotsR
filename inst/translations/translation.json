@@ -1,417 +1,417 @@
 {
   "languages": ["en", "fr"],
-  "translation": {
-    "app_title": {
+  "translation": [
+    {
       "en": "Taxonomic Name Standardization for Tropical African Plants",
       "fr": "Standardisation de noms taxonomiques pour les plantes d'Afrique tropicale"
     },
-    "app_subtitle": {
+    {
       "en": "Standardize species names against the taxonomic backbone",
       "fr": "Standardiser les noms d'espèces selon le référentiel taxonomique"
     },
-    "tab_auto_match": {
+    {
       "en": "Auto Match",
       "fr": "Appariement auto"
     },
-    "tab_review": {
+    {
       "en": "Review",
       "fr": "Révision"
     },
-    "tab_export": {
+    {
       "en": "Export",
       "fr": "Exporter"
     },
-    "tab_traits": {
+    {
       "en": "Enrich with Traits",
       "fr": "Enrichir avec traits"
     },
-    "data_input_title": {
+    {
       "en": "Data Input",
       "fr": "Données d'entrée"
     },
-    "data_upload_file": {
+    {
       "en": "Upload Excel file",
       "fr": "Télécharger un fichier Excel"
     },
-    "data_upload_help": {
+    {
       "en": "Select an Excel file (.xlsx) containing taxonomic names",
       "fr": "Sélectionner un fichier Excel (.xlsx) contenant les noms taxonomiques"
     },
-    "data_choose_file": {
+    {
       "en": "Choose file...",
       "fr": "Choisir un fichier..."
     },
-    "data_using_r_data": {
+    {
       "en": "Using R data from environment",
       "fr": "Utilisation des données R de l'environnement"
     },
-    "data_rows": {
+    {
       "en": "rows",
       "fr": "lignes"
     },
-    "data_columns": {
+    {
       "en": "columns",
       "fr": "colonnes"
     },
-    "column_select_title": {
+    {
       "en": "Column Selection",
       "fr": "Sélection de colonne"
     },
-    "column_select_name": {
+    {
       "en": "Select name column:",
       "fr": "Sélectionner la colonne de noms :"
     },
-    "column_select_help": {
+    {
       "en": "Choose the column containing taxonomic names to standardize",
       "fr": "Choisir la colonne contenant les noms taxonomiques à standardiser"
     },
-    "column_match_authors": {
+    {
       "en": "Match with author names",
       "fr": "Apparier avec les noms d'auteurs"
     },
-    "column_match_authors_help": {
+    {
       "en": "Include author names in matching (slower but more precise)",
       "fr": "Inclure les noms d'auteurs dans l'appariement (plus lent mais plus précis)"
     },
-    "auto_match_title": {
+    {
       "en": "Automatic Matching",
       "fr": "Appariement automatique"
     },
-    "auto_match_start": {
+    {
       "en": "Start Matching",
       "fr": "Démarrer l'appariement"
     },
-    "auto_match_running": {
+    {
       "en": "Matching in progress...",
       "fr": "Appariement en cours..."
     },
-    "auto_match_complete": {
+    {
       "en": "Matching complete!",
       "fr": "Appariement terminé !"
     },
-    "auto_match_summary": {
+    {
       "en": "Matching Summary",
       "fr": "Résumé de l'appariement"
     },
-    "auto_match_total": {
+    {
       "en": "Total unique names:",
       "fr": "Total de noms uniques :"
     },
-    "auto_match_exact": {
+    {
       "en": "Exact matches:",
       "fr": "Correspondances exactes :"
     },
-    "auto_match_genus": {
+    {
       "en": "Genus-level matches:",
       "fr": "Correspondances au niveau du genre :"
     },
-    "auto_match_fuzzy": {
+    {
       "en": "Fuzzy matches:",
       "fr": "Correspondances approximatives :"
     },
-    "auto_match_unmatched": {
+    {
       "en": "Requiring review:",
       "fr": "Nécessitant une révision :"
     },
-    "auto_match_min_sim": {
+    {
       "en": "Minimum similarity:",
       "fr": "Similarité minimale :"
     },
-    "auto_match_min_sim_help": {
+    {
       "en": "Threshold for fuzzy matching (0-1, higher = stricter)",
       "fr": "Seuil pour l'appariement approximatif (0-1, plus élevé = plus strict)"
     },
-    "progress_title": {
+    {
       "en": "Progress Summary",
       "fr": "Résumé de progression"
     },
-    "progress_total": {
+    {
       "en": "Total unique names:",
       "fr": "Total de noms uniques :"
     },
-    "progress_matched": {
+    {
       "en": "Successfully matched:",
       "fr": "Appariés avec succès :"
     },
-    "progress_review": {
+    {
       "en": "Requiring review:",
       "fr": "Nécessitant une révision :"
     },
-    "progress_remaining": {
+    {
       "en": "Remaining:",
       "fr": "Restant :"
     },
-    "progress_percent": {
+    {
       "en": "Progress:",
       "fr": "Progression :"
     },
-    "review_title": {
+    {
       "en": "Review Unmatched Names",
       "fr": "Réviser les noms non appariés"
     },
-    "review_remaining": {
+    {
       "en": "remaining",
       "fr": "restant(s)"
     },
-    "review_input_name": {
+    {
       "en": "Input name:",
       "fr": "Nom saisi :"
     },
-    "review_suggestions": {
+    {
       "en": "Suggestions (ranked by similarity):",
       "fr": "Suggestions (classées par similarité) :"
     },
-    "review_no_suggestions": {
+    {
       "en": "No suggestions found",
       "fr": "Aucune suggestion trouvée"
     },
-    "review_custom_name": {
+    {
       "en": "Enter custom name:",
       "fr": "Saisir un nom personnalisé :"
     },
-    "review_mark_unresolved": {
+    {
       "en": "Mark as unresolved",
       "fr": "Marquer comme non résolu"
     },
-    "review_select_match": {
+    {
       "en": "Select",
       "fr": "Sélectionner"
     },
-    "review_score": {
+    {
       "en": "score:",
       "fr": "score :"
     },
-    "review_family": {
+    {
       "en": "Family:",
       "fr": "Famille :"
     },
-    "review_genus": {
+    {
       "en": "Genus:",
       "fr": "Genre :"
     },
-    "review_method": {
+    {
       "en": "Match method:",
       "fr": "Méthode d'appariement :"
     },
-    "review_prev": {
+    {
       "en": "Previous",
       "fr": "Précédent"
     },
-    "review_next": {
+    {
       "en": "Next",
       "fr": "Suivant"
     },
-    "review_skip": {
+    {
       "en": "Skip",
       "fr": "Passer"
     },
-    "review_accept": {
+    {
       "en": "Accept",
       "fr": "Accepter"
     },
-    "review_num_suggestions": {
+    {
       "en": "Number of suggestions:",
       "fr": "Nombre de suggestions :"
     },
-    "review_sort": {
+    {
       "en": "Sort by:",
       "fr": "Trier par :"
     },
-    "review_sort_similarity": {
+    {
       "en": "Similarity",
       "fr": "Similarité"
     },
-    "review_sort_alphabetical": {
+    {
       "en": "Alphabetical",
       "fr": "Alphabétique"
     },
-    "review_mode": {
+    {
       "en": "Review mode:",
       "fr": "Mode de révision :"
     },
-    "review_mode_interactive": {
+    {
       "en": "Interactive (one-by-one)",
       "fr": "Interactif (un par un)"
     },
-    "review_mode_batch": {
+    {
       "en": "Batch (table view)",
       "fr": "Par lot (vue tableau)"
     },
-    "suggestions_title": {
+    {
       "en": "Suggestions for:",
       "fr": "Suggestions pour :"
     },
-    "suggestions_no_match": {
+    {
       "en": "No matches found",
       "fr": "Aucune correspondance trouvée"
     },
-    "suggestions_show_more": {
+    {
       "en": "Show more...",
       "fr": "Afficher plus..."
     },
-    "suggestions_show_authors": {
+    {
       "en": "Show authors",
       "fr": "Afficher les auteurs"
     },
-    "export_title": {
+    {
       "en": "Export Results",
       "fr": "Exporter les résultats"
     },
-    "export_format": {
+    {
       "en": "Export format:",
       "fr": "Format d'export :"
     },
-    "export_format_xlsx": {
+    {
       "en": "Excel (.xlsx) - recommended",
       "fr": "Excel (.xlsx) - recommandé"
     },
-    "export_format_csv": {
+    {
       "en": "CSV (.csv)",
       "fr": "CSV (.csv)"
     },
-    "export_format_rds": {
+    {
       "en": "R data (.rds)",
       "fr": "Données R (.rds)"
     },
-    "export_include": {
+    {
       "en": "Include columns:",
       "fr": "Inclure les colonnes :"
     },
-    "export_include_original": {
+    {
       "en": "Original data",
       "fr": "Données originales"
     },
-    "export_include_ids": {
+    {
       "en": "Matched IDs (idtax_n, idtax_good_n)",
       "fr": "IDs appariés (idtax_n, idtax_good_n)"
     },
-    "export_include_corrected": {
+    {
       "en": "Corrected names",
       "fr": "Noms corrigés"
     },
-    "export_include_metadata": {
+    {
       "en": "Match metadata (method, score)",
       "fr": "Métadonnées d'appariement (méthode, score)"
     },
-    "export_include_hierarchy": {
+    {
       "en": "Taxonomic hierarchy (family, genus)",
       "fr": "Hiérarchie taxonomique (famille, genre)"
     },
-    "export_download": {
+    {
       "en": "Download",
       "fr": "Télécharger"
     },
-    "export_filename": {
+    {
       "en": "standardized_taxonomy",
       "fr": "taxonomie_standardisee"
     },
-    "export_ready": {
+    {
       "en": "Results ready for export",
       "fr": "Résultats prêts pour l'export"
     },
-    "export_not_ready": {
+    {
       "en": "Complete matching and review before exporting",
       "fr": "Terminer l'appariement et la révision avant d'exporter"
     },
-    "language_label": {
+    {
       "en": "Language:",
       "fr": "Langue :"
     },
-    "language_en": {
+    {
       "en": "English",
       "fr": "English"
     },
-    "language_fr": {
+    {
       "en": "Français",
       "fr": "Français"
     },
-    "msg_loading": {
+    {
       "en": "Loading...",
       "fr": "Chargement..."
     },
-    "msg_processing": {
+    {
       "en": "Processing...",
       "fr": "Traitement..."
     },
-    "msg_error": {
+    {
       "en": "Error:",
       "fr": "Erreur :"
     },
-    "msg_warning": {
+    {
       "en": "Warning:",
       "fr": "Avertissement :"
     },
-    "msg_success": {
+    {
       "en": "Success:",
       "fr": "Succès :"
     },
-    "msg_no_data": {
+    {
       "en": "No data loaded",
       "fr": "Aucune donnée chargée"
     },
-    "msg_select_column": {
+    {
       "en": "Please select a column to standardize",
       "fr": "Veuillez sélectionner une colonne à standardiser"
     },
-    "msg_no_unmatched": {
+    {
       "en": "All names successfully matched!",
       "fr": "Tous les noms ont été appariés avec succès !"
     },
-    "msg_file_uploaded": {
+    {
       "en": "File uploaded successfully",
       "fr": "Fichier téléchargé avec succès"
     },
-    "msg_matching_complete": {
+    {
       "en": "Matching process completed",
       "fr": "Processus d'appariement terminé"
     },
-    "btn_start": {
+    {
       "en": "Start",
       "fr": "Démarrer"
     },
-    "btn_stop": {
+    {
       "en": "Stop",
       "fr": "Arrêter"
     },
-    "btn_continue": {
+    {
       "en": "Continue",
       "fr": "Continuer"
     },
-    "btn_reset": {
+    {
       "en": "Reset",
       "fr": "Réinitialiser"
     },
-    "btn_cancel": {
+    {
       "en": "Cancel",
       "fr": "Annuler"
     },
-    "btn_close": {
+    {
       "en": "Close",
       "fr": "Fermer"
     },
-    "btn_help": {
+    {
       "en": "Help",
       "fr": "Aide"
     },
-    "unit_percent": {
+    {
       "en": "%",
       "fr": "%"
     },
-    "unit_of": {
+    {
       "en": "of",
       "fr": "de"
     },
-    "traits_no_matches": {
+    {
       "en": "No matched taxa found. Complete the matching process first.",
       "fr": "Aucun taxon apparié trouvé. Complétez d'abord le processus d'appariement."
     },
-    "footer_title": {
+    {
       "en": "Taxonomic Name Standardization Tool",
       "fr": "Outil de standardisation de noms taxonomiques"
     },
-    "footer_powered_by": {
+    {
       "en": "Powered by CafriplotsR package",
       "fr": "Propulsé par le package CafriplotsR"
     }
-  }
+  ]
 }
