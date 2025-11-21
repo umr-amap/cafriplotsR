@@ -1,5 +1,13 @@
 # CafriplotsR 1.7.2 (Development)
 
+### Bug Fixes
+
+* **Fixed `query_individual_features()` ignoring `trait_ids` parameter with large datasets**
+  - When querying more than 1000 individuals, the chunking mechanism was not passing `trait_ids` filter
+  - This caused all traits to be returned instead of only the requested ones
+  - Fixed by passing `trait_ids` parameter through `fetch_with_chunking()` to `build_trait_query()`
+  - Affects `individual_features_function.R:1319` and `individual_features_function.R:1270`
+
 ### Code Refactoring
 
 * **Removed obsolete `table_taxa_tb` dataset**
