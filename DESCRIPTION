@@ -9,6 +9,7 @@ License: GPL-2
 Imports:
     methods,
     shiny,
+    shiny.i18n,
     DBI,
     dplyr,
     DT,
