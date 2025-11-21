@@ -1,23 +1,3 @@
-
-#' Table taxa
-#'
-#'
-#' Rainbio taxonomic backbone
-#'
-#' @docType data
-#'
-#' @usage data(table_taxa_tb)
-#'
-#' @format An object data.frame/tibble
-#'
-#' @keywords datasets
-#'
-#'
-#' @examples
-#' data(table_taxa_tb)
-"table_taxa_tb"
-
-
 #' phylo_tree
 #'
 #' Phylogeny from Janssens et al 2020

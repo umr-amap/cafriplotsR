@@ -1,3 +1,14 @@
+# CafriplotsR 1.7.2 (Development)
+
+### Code Refactoring
+
+* **Removed obsolete `table_taxa_tb` dataset**
+  - Deleted `data/table_taxa_tb.RData` and associated documentation
+  - Data is no longer needed as taxonomy queries now use direct database connections
+  - Reduced package size and maintenance burden
+
+---
+
 # CafriplotsR 1.7.1 (2025-11-18)
 
 ### New Features
