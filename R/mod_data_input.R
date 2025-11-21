@@ -24,12 +24,12 @@ mod_data_input_ui <- function(id) {
 #'
 #' @param id Character, module ID
 #' @param provided_data Reactive or data.frame, optional pre-loaded data
-#' @param language Reactive returning current language ("en" or "fr")
+#' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return Reactive data.frame with user data
 #'
 #' @keywords internal
-mod_data_input_server <- function(id, provided_data = NULL, language = shiny::reactive("en")) {
+mod_data_input_server <- function(id, provided_data = NULL, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Reactive values
@@ -38,14 +38,9 @@ mod_data_input_server <- function(id, provided_data = NULL, language = shiny::re
     excel_sheets <- shiny::reactiveVal(NULL)
     uploaded_file_path <- shiny::reactiveVal(NULL)
 
-    # Get translations
-    t <- shiny::reactive({
-      get_translations(language())
-    })
-
     # Module title
     output$title <- shiny::renderText({
-      t()$data_input_title
+      i18n()$t("Data Input")
     })
 
     # Input controls
@@ -64,16 +59,16 @@ mod_data_input_server <- function(id, provided_data = NULL, language = shiny::re
         if (!is.null(data_to_check) && nrow(data_to_check) > 0) {
           shiny::div(
             shiny::icon("check-circle", class = "fa-2x", style = "color: green;"),
-            shiny::p(t()$data_using_r_data, style = "font-weight: bold;")
+            shiny::p(i18n()$t("Using R data from environment"), style = "font-weight: bold;")
           )
         } else {
           # Show file upload
           shiny::tagList(
             shiny::fileInput(
               inputId = ns("file_upload"),
-              label = t()$data_upload_file,
+              label = i18n()$t("Upload Excel file"),
               accept = c(".xlsx", ".xls", ".csv"),
-              placeholder = t()$data_choose_file
+              placeholder = i18n()$t("Choose file...")
             ),
             shiny::uiOutput(ns("sheet_selector"))
           )
@@ -83,9 +78,9 @@ mod_data_input_server <- function(id, provided_data = NULL, language = shiny::re
         shiny::tagList(
           shiny::fileInput(
             inputId = ns("file_upload"),
-            label = t()$data_upload_file,
+            label = i18n()$t("Upload Excel file"),
             accept = c(".xlsx", ".xls", ".csv"),
-            placeholder = t()$data_choose_file
+            placeholder = i18n()$t("Choose file...")
           ),
           shiny::uiOutput(ns("sheet_selector"))
         )
@@ -148,7 +143,7 @@ mod_data_input_server <- function(id, provided_data = NULL, language = shiny::re
           shinybusy::hide_spinner()
 
           shiny::showNotification(
-            t()$msg_file_uploaded,
+            i18n()$t("File uploaded successfully"),
             type = "message",
             duration = 3
           )
@@ -164,7 +159,7 @@ mod_data_input_server <- function(id, provided_data = NULL, language = shiny::re
         shinybusy::hide_spinner()
 
         shiny::showNotification(
-          paste(t()$msg_error, e$message),
+          paste(i18n()$t("Error:"), e$message),
           type = "error",
           duration = 10
         )
@@ -193,7 +188,7 @@ mod_data_input_server <- function(id, provided_data = NULL, language = shiny::re
         shinybusy::hide_spinner()
 
         shiny::showNotification(
-          paste0(t()$msg_file_uploaded, " (Sheet: ", input$excel_sheet, ")"),
+          paste0(i18n()$t("File uploaded successfully"), " (Sheet: ", input$excel_sheet, ")"),
           type = "message",
           duration = 3
         )
@@ -202,7 +197,7 @@ mod_data_input_server <- function(id, provided_data = NULL, language = shiny::re
         shinybusy::hide_spinner()
 
         shiny::showNotification(
-          paste(t()$msg_error, e$message),
+          paste(i18n()$t("Error:"), e$message),
           type = "error",
           duration = 10
         )
@@ -242,7 +237,7 @@ mod_data_input_server <- function(id, provided_data = NULL, language = shiny::re
         shiny::p(
           shiny::strong(file_name()),
           shiny::br(),
-          paste(nrow(data), t()$data_rows, ",", ncol(data), t()$data_columns)
+          paste(nrow(data), i18n()$t("rows"), ",", ncol(data), i18n()$t("columns"))
         )
       )
     })
