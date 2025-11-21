@@ -4,7 +4,14 @@
 \alias{fetch_with_chunking}
 \title{Generic chunking function for large queries}
 \usage{
-fetch_with_chunking(ids, query_fun, chunk_size, con, desc = "data")
+fetch_with_chunking(
+  ids,
+  query_fun,
+  chunk_size,
+  con,
+  desc = "data",
+  trait_ids = NULL
+)
 }
 \description{
 Generic chunking function for large queries

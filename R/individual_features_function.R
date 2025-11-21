@@ -1256,7 +1256,7 @@ query_individual_features <- function(
 #' Fetch trait measurements with automatic chunking
 #' @keywords internal
 fetch_trait_measurements <- function(individual_ids, trait_ids, con) {
-  
+
   # Chunk if necessary
   if (!is.null(individual_ids) && length(individual_ids) > 1000) {
     result <- fetch_with_chunking(
@@ -1266,7 +1266,8 @@ fetch_trait_measurements <- function(individual_ids, trait_ids, con) {
       },
       chunk_size = 1000,
       con = con,
-      desc = "individual features"
+      desc = "individual features",
+      trait_ids = trait_ids
     )
   } else {
     sql <- build_trait_query(individual_ids, trait_ids, con)
@@ -1316,23 +1317,23 @@ build_trait_query <- function(individual_ids, trait_ids, con) {
 
 #' Generic chunking function for large queries
 #' @keywords internal
-fetch_with_chunking <- function(ids, query_fun, chunk_size, con, desc = "data") {
-  
+fetch_with_chunking <- function(ids, query_fun, chunk_size, con, desc = "data", trait_ids = NULL) {
+
   chunks <- split(ids, ceiling(seq_along(ids) / chunk_size))
   n_chunks <- length(chunks)
-  
+
   cli::cli_alert_info("Processing {n_chunks} chunk(s) for {desc}")
-  
+
   pb <- txtProgressBar(min = 0, max = n_chunks, style = 3)
-  
+
   results <- lapply(seq_along(chunks), function(i) {
     setTxtProgressBar(pb, i)
-    sql <- query_fun(chunks[[i]], NULL)
+    sql <- query_fun(chunks[[i]], trait_ids)
     DBI::dbGetQuery(con, sql) %>% as_tibble(.name_repair = "minimal")
   })
-  
+
   close(pb)
-  
+
   suppressMessages(bind_rows(results))
 }
 
