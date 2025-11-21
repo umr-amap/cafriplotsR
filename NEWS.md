@@ -1,5 +1,24 @@
 # CafriplotsR 1.7.2 (Development)
 
+### New Features
+
+* **Bilingual support for Taxonomic Matching Shiny App**
+  - Implemented full internationalization using shiny.i18n package
+  - French and English interfaces with instant language switching
+  - French is now the default language
+  - Migrated all 7 modules to use centralized i18n translation system:
+    - `mod_auto_matching` - Auto matching tab
+    - `mod_column_select` - Column selection
+    - `mod_data_input` - Data upload/input
+    - `mod_fuzzy_suggestions` - Fuzzy match suggestions
+    - `mod_name_review` - Manual review interface
+    - `mod_results_export` - Results export
+    - `mod_traits_enrichment` - Traits enrichment
+  - Added `utils_i18n.R` with `init_translator()` and translation utilities
+  - Created `inst/translations/translation.json` with comprehensive translations
+  - Language toggle located in top-right corner of app
+  - Set via `launch_taxonomic_match_app(language = "fr")` or `language = "en"`
+
 ### Bug Fixes
 
 * **Fixed `query_individual_features()` ignoring `trait_ids` parameter with large datasets**
@@ -7,6 +26,15 @@
   - This caused all traits to be returned instead of only the requested ones
   - Fixed by passing `trait_ids` parameter through `fetch_with_chunking()` to `build_trait_query()`
   - Affects `individual_features_function.R:1319` and `individual_features_function.R:1270`
+
+### Documentation
+
+* **Updated Taxonomic App vignettes for bilingual support**
+  - English vignette (`taxonomic-app.Rmd`) now documents language switching feature
+  - French vignette (`taxonomic-app-fr.Rmd`) includes parallel documentation
+  - Documented EN/FR toggle button usage
+  - Documented programmatic language selection
+  - Noted French as default language
 
 ### Code Refactoring
 
