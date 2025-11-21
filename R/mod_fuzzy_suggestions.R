@@ -28,7 +28,7 @@ mod_fuzzy_suggestions_ui <- function(id) {
 #' @param max_suggestions Reactive or numeric, maximum suggestions to show
 #' @param min_similarity Reactive or numeric, minimum similarity threshold
 #' @param include_authors Reactive or logical, whether to include author names
-#' @param language Reactive returning current language ("en" or "fr")
+#' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return Reactive integer, idtax_n of selected suggestion (or NULL)
 #'
@@ -36,17 +36,12 @@ mod_fuzzy_suggestions_ui <- function(id) {
 mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny::reactive(10),
                                          min_similarity = shiny::reactive(0.3),
                                          include_authors = shiny::reactive(FALSE),
-                                         language = shiny::reactive("en")) {
+                                         i18n) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Reactive values
     suggestions <- shiny::reactiveVal(NULL)
     selected_id <- shiny::reactiveVal(NULL)
-
-    # Get translations
-    t <- shiny::reactive({
-      get_translations(language())
-    })
 
     # Fetch suggestions when input name OR filters change
     # Make reactive to: input_name, num_suggestions, min_similarity_slider, filter_level
@@ -192,7 +187,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       shiny::div(
         style = "padding: 10px; background-color: #e7f3ff; border-radius: 5px; margin-bottom: 10px;",
         shiny::h4(
-          paste(t()$suggestions_title, '"', input_name(), '"'),
+          paste(i18n()$t("Suggestions for:"), '"', input_name(), '"'),
           style = "margin: 0; color: #0056b3;"
         )
       )
@@ -202,13 +197,31 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
     output$suggestions_controls <- shiny::renderUI({
       ns <- session$ns
 
+      # Build choices vectors with translations
+      level_choices <- c("all", "species", "genus", "family", "order", "higher", "infraspecific")
+      names(level_choices) <- c(
+        i18n()$t("All levels"),
+        i18n()$t("Species"),
+        i18n()$t("Genus"),
+        i18n()$t("Family"),
+        i18n()$t("Order"),
+        i18n()$t("Class (Higher)"),
+        i18n()$t("Infraspecific")
+      )
+
+      sort_choices <- c("similarity", "alphabetical")
+      names(sort_choices) <- c(
+        i18n()$t("Similarity"),
+        i18n()$t("Alphabetical")
+      )
+
       shiny::tagList(
         shiny::fluidRow(
           shiny::column(
             width = 3,
             shiny::numericInput(
               inputId = ns("num_suggestions"),
-              label = t()$review_num_suggestions,
+              label = i18n()$t("Number of suggestions:"),
               value = if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions,
               min = 5,
               max = 30,
@@ -219,7 +232,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
             width = 3,
             shiny::sliderInput(
               inputId = ns("min_similarity_slider"),
-              label = "Min. similarity",
+              label = i18n()$t("Min. similarity"),
               value = if (shiny::is.reactive(min_similarity)) min_similarity() else min_similarity,
               min = 0.3,
               max = 1.0,
@@ -230,16 +243,8 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
             width = 3,
             shiny::selectInput(
               inputId = ns("filter_level"),
-              label = "Filter by level",
-              choices = c(
-                "All levels" = "all",
-                "Species" = "species",
-                "Genus" = "genus",
-                "Family" = "family",
-                "Order" = "order",
-                "Class (Higher)" = "higher",
-                "Infraspecific" = "infraspecific"
-              ),
+              label = i18n()$t("Filter by level"),
+              choices = level_choices,
               selected = "all"
             )
           ),
@@ -247,11 +252,8 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
             width = 3,
             shiny::radioButtons(
               inputId = ns("sort_by"),
-              label = t()$review_sort,
-              choices = c(
-                "Similarity" = "similarity",
-                "Alphabetical" = "alphabetical"
-              ),
+              label = i18n()$t("Sort by:"),
+              choices = sort_choices,
               selected = "similarity",
               inline = TRUE
             )
@@ -272,7 +274,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
             style = "padding: 20px; background-color: #fff3cd; border-radius: 5px;",
             shiny::p(
               shiny::icon("exclamation-triangle"),
-              t()$suggestions_no_match,
+              i18n()$t("No suggestions found"),
               style = "color: #856404; margin: 0;"
             )
           )
@@ -348,22 +350,22 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
                   class = "text-muted mb-1",
                   style = "font-size: 0.9em;",
                   paste0(
-                    if (!is.na(row$tax_level)) paste("Level:", row$tax_level, " | ") else "",
-                    if (!is.na(row$tax_fam)) paste(t()$review_family, row$tax_fam, " | ") else "",
-                    if (!is.na(row$tax_gen)) paste(t()$review_genus, row$tax_gen) else ""
+                    if (!is.na(row$tax_level)) paste(i18n()$t("Level:"), row$tax_level, " | ") else "",
+                    if (!is.na(row$tax_fam)) paste(i18n()$t("Family:"), row$tax_fam, " | ") else "",
+                    if (!is.na(row$tax_gen)) paste(i18n()$t("Genus:"), row$tax_gen) else ""
                   )
                 ),
                 shiny::p(
                   class = "text-muted mb-0",
                   style = "font-size: 0.85em;",
-                  paste(t()$review_method, row$match_method)
+                  paste(i18n()$t("Match method:"), row$match_method)
                 ),
                 if (row$is_synonym && !is.na(row$accepted_name)) {
                   shiny::p(
                     class = "text-warning mb-0",
                     style = "font-size: 0.85em;",
                     shiny::icon("info-circle"),
-                    paste("Synonym →", row$accepted_name)
+                    paste(i18n()$t("Synonym"), "→", row$accepted_name)
                   )
                 }
               ),
@@ -372,7 +374,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
                 class = "text-right",
                 shiny::actionButton(
                   inputId = ns(paste0("select_", i)),
-                  label = t()$review_select_match,
+                  label = i18n()$t("Select"),
                   class = "btn-sm btn-primary",
                   onclick = paste0("Shiny.setInputValue('", ns("selected_row"), "', ", i, ", {priority: 'event'});")
                 )

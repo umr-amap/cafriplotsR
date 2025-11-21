@@ -25,22 +25,17 @@ mod_column_select_ui <- function(id) {
 #' @param id Character, module ID
 #' @param data Reactive data.frame from data input module
 #' @param initial_column Character, optional pre-selected column name
-#' @param language Reactive returning current language ("en" or "fr")
+#' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return Reactive list with $column (selected column name), $include_authors (logical), and $data (potentially modified data)
 #'
 #' @keywords internal
-mod_column_select_server <- function(id, data, initial_column = NULL, language = shiny::reactive("en")) {
+mod_column_select_server <- function(id, data, initial_column = NULL, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
-
-    # Get translations
-    t <- shiny::reactive({
-      get_translations(language())
-    })
 
     # Module title
     output$title <- shiny::renderText({
-      t()$column_select_title
+      i18n()$t("Column Selection")
     })
 
     # Column selection controls
@@ -57,7 +52,7 @@ mod_column_select_server <- function(id, data, initial_column = NULL, language =
         return(
           shiny::div(
             style = "color: red;",
-            shiny::p(t()$msg_error, "No character columns found in data")
+            shiny::p(i18n()$t("Error:"), i18n()$t("No character columns found in data"))
           )
         )
       }
@@ -69,14 +64,22 @@ mod_column_select_server <- function(id, data, initial_column = NULL, language =
         char_cols[1]
       }
 
+      # Build choices vector for column mode
+      mode_choices <- c("single", "multiple")
+      names(mode_choices) <- c(
+        i18n()$t("Single column (all taxonomic info in one column)"),
+        i18n()$t("Multiple columns (genus, species, family separated)")
+      )
+
+      # Build choices with translated "(none)" option
+      none_choice <- c("")
+      names(none_choice) <- i18n()$t("(none)")
+
       shiny::tagList(
         shiny::radioButtons(
           inputId = ns("column_mode"),
-          label = shiny::strong("Column structure:"),
-          choices = c(
-            "Single column (all taxonomic info in one column)" = "single",
-            "Multiple columns (genus, species, family separated)" = "multiple"
-          ),
+          label = shiny::strong(i18n()$t("Column structure:")),
+          choices = mode_choices,
           selected = "single"
         ),
 
@@ -86,7 +89,7 @@ mod_column_select_server <- function(id, data, initial_column = NULL, language =
           ns = ns,
           shiny::selectInput(
             inputId = ns("column_name"),
-            label = t()$column_select_name,
+            label = i18n()$t("Select name column:"),
             choices = char_cols,
             selected = selected_col
           )
@@ -100,18 +103,18 @@ mod_column_select_server <- function(id, data, initial_column = NULL, language =
             style = "background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 10px;",
             shiny::p(
               shiny::icon("info-circle"),
-              shiny::strong("Select columns for each taxonomic component:"),
+              shiny::strong(i18n()$t("Select columns for each taxonomic component:")),
               style = "margin-top: 0;"
             ),
-            shiny::helpText("The app will create a combined column using available information (genus + species epithet, or genus only, or family only)."),
+            shiny::helpText(i18n()$t("The app will create a combined column using available information (genus + species epithet, or genus only, or family only).")),
 
             shiny::fluidRow(
               shiny::column(
                 width = 4,
                 shiny::selectInput(
                   inputId = ns("genus_column"),
-                  label = "Genus column:",
-                  choices = c("(none)" = "", char_cols),
+                  label = i18n()$t("Genus column:"),
+                  choices = c(none_choice, char_cols),
                   selected = ""
                 )
               ),
@@ -119,8 +122,8 @@ mod_column_select_server <- function(id, data, initial_column = NULL, language =
                 width = 4,
                 shiny::selectInput(
                   inputId = ns("species_column"),
-                  label = "Species epithet column:",
-                  choices = c("(none)" = "", char_cols),
+                  label = i18n()$t("Species epithet column:"),
+                  choices = c(none_choice, char_cols),
                   selected = ""
                 )
               ),
@@ -128,8 +131,8 @@ mod_column_select_server <- function(id, data, initial_column = NULL, language =
                 width = 4,
                 shiny::selectInput(
                   inputId = ns("family_column"),
-                  label = "Family column:",
-                  choices = c("(none)" = "", char_cols),
+                  label = i18n()$t("Family column:"),
+                  choices = c(none_choice, char_cols),
                   selected = ""
                 )
               )
@@ -139,10 +142,10 @@ mod_column_select_server <- function(id, data, initial_column = NULL, language =
 
         shiny::checkboxInput(
           inputId = ns("include_authors"),
-          label = t()$column_match_authors,
+          label = i18n()$t("Match with author names"),
           value = FALSE
         ),
-        shiny::helpText(t()$column_match_authors_help)
+        shiny::helpText(i18n()$t("Include author names in matching (slower but more precise)"))
       )
     })
 
