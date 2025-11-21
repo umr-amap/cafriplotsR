@@ -34,8 +34,14 @@ app_taxonomic_match <- function(
   language <- match.arg(language, c("en", "fr"))
   mode <- match.arg(mode, c("interactive", "batch"))
 
+  # Initialize translator (must be before UI for usei18n)
+  translator <- init_translator()
+
   # UI
   ui <- shiny::fluidPage(
+
+    # Add shiny.i18n (required for automatic translation)
+    shiny.i18n::usei18n(translator),
 
     # Add shinyjs for dynamic show/hide
     shinyjs::useShinyjs(),
@@ -173,8 +179,7 @@ app_taxonomic_match <- function(
         style = "text-align: center; color: #7f8c8d; padding: 20px;",
         shiny::p(
           shiny::icon("leaf"),
-          "Taxonomic Name Standardization Tool |",
-          "Powered by CafriplotsR package",
+          shiny::textOutput("footer_text", inline = TRUE),
           style = "font-size: 14px;"
         )
       )
@@ -228,35 +233,48 @@ app_taxonomic_match <- function(
     # Language management (initialize immediately, works before auth)
     current_language <- mod_language_toggle_server("language", initial = language)
 
-    # Get translations
-    t <- shiny::reactive({
-      get_translations(current_language())
+    # Create reactive translator (shiny.i18n recommended pattern)
+    i18n <- shiny::reactive({
+      selected <- current_language()
+      if (length(selected) > 0 && selected %in% translator$get_languages()) {
+        translator$set_translation_language(selected)
+      }
+      translator
     })
 
     # App title and subtitle
     output$app_title <- shiny::renderText({
-      t()$app_title
+      i18n()$t("Taxonomic Name Standardization for Tropical African Plants")
     })
 
     output$app_subtitle <- shiny::renderText({
-      t()$app_subtitle
+      i18n()$t("Standardize species names against the taxonomic backbone")
     })
 
     # Tab labels (need to be reactive for language switching)
     output$tab_auto_match <- shiny::renderText({
-      t()$tab_auto_match
+      i18n()$t("Auto Match")
     })
 
     output$tab_review <- shiny::renderText({
-      t()$tab_review
+      i18n()$t("Review")
     })
 
     output$tab_export <- shiny::renderText({
-      t()$tab_export
+      i18n()$t("Export")
     })
 
     output$tab_traits <- shiny::renderText({
-      "Enrich with Traits"
+      i18n()$t("Enrich with Traits")
+    })
+
+    # Footer text
+    output$footer_text <- shiny::renderText({
+      paste(
+        i18n()$t("Taxonomic Name Standardization Tool"),
+        "|",
+        i18n()$t("Powered by CafriplotsR package")
+      )
     })
 
     # Only initialize modules after authentication (runs once)
