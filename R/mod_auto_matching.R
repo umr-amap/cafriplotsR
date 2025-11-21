@@ -50,7 +50,7 @@ mod_auto_matching_ui <- function(id) {
 #' @param column_name Reactive character, name of column to match
 #' @param include_authors Reactive logical, whether to include author names
 #' @param min_similarity Numeric, minimum similarity threshold (default: 0.3)
-#' @param language Reactive returning current language ("en" or "fr")
+#' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return Reactive list containing:
 #'   - data: Updated data frame with match results
@@ -59,7 +59,7 @@ mod_auto_matching_ui <- function(id) {
 #'
 #' @keywords internal
 mod_auto_matching_server <- function(id, data, column_name, include_authors,
-                                     min_similarity = 0.3, language = shiny::reactive("en")) {
+                                     min_similarity = 0.3, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Reactive values
@@ -77,23 +77,18 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       matching_in_progress(FALSE)
     })
 
-    # Get translations
-    t <- shiny::reactive({
-      get_translations(language())
-    })
-
     # Module title
     output$title <- shiny::renderText({
-      t()$auto_match_title
+      i18n()$t("Automatic Matching")
     })
 
     # Labels
     output$min_sim_label <- shiny::renderText({
-      t()$auto_match_min_sim
+      i18n()$t("Minimum similarity:")
     })
 
     output$min_sim_help <- shiny::renderText({
-      t()$auto_match_min_sim_help
+      i18n()$t("Threshold for fuzzy matching (0-1, higher = stricter)")
     })
 
     # Start button
@@ -106,12 +101,12 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       if (matching_in_progress()) {
         shiny::div(
           shinybusy::use_busy_spinner(spin = "fading-circle"),
-          shiny::p(t()$auto_match_running, style = "color: blue;")
+          shiny::p(i18n()$t("Matching in progress..."), style = "color: blue;")
         )
       } else {
         shiny::actionButton(
           inputId = ns("start_matching"),
-          label = t()$auto_match_start,
+          label = i18n()$t("Start Matching"),
           class = "btn-primary",
           icon = shiny::icon("play")
         )
@@ -150,7 +145,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
 
         if (total_names_to_match == 0) {
           shiny::showNotification(
-            t()$msg_no_data,
+            i18n()$t("No data loaded"),
             type = "warning"
           )
           matching_in_progress(FALSE)
@@ -537,7 +532,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         matching_in_progress(FALSE)
 
         shiny::showNotification(
-          t()$auto_match_complete,
+          i18n()$t("Matching complete!"),
           type = "message",
           duration = 3
         )
@@ -547,7 +542,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         matching_in_progress(FALSE)
 
         shiny::showNotification(
-          paste(t()$msg_error, e$message),
+          paste(i18n()$t("Error:"), e$message),
           type = "error",
           duration = 10
         )
@@ -561,7 +556,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
           style = "padding: 10px; background-color: #d1ecf1; border-radius: 5px;",
           shiny::p(
             shiny::icon("spinner", class = "fa-spin"),
-            t()$msg_processing,
+            i18n()$t("Processing..."),
             style = "color: #0c5460;"
           )
         )
@@ -576,31 +571,31 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
 
       shiny::div(
         style = "padding: 15px; background-color: #d4edda; border-radius: 5px; margin-top: 10px;",
-        shiny::h4(t()$auto_match_summary),
+        shiny::h4(i18n()$t("Matching Summary")),
 
         shiny::tags$ul(
           shiny::tags$li(
-            shiny::strong(t()$auto_match_total),
+            shiny::strong(i18n()$t("Total unique names:")),
             stats$total_names
           ),
           shiny::tags$li(
-            shiny::strong(t()$auto_match_exact),
+            shiny::strong(i18n()$t("Exact matches:")),
             paste0(stats$n_exact, " (",
                   round(stats$n_exact / stats$total_names * 100, 1), "%)")
           ),
           shiny::tags$li(
-            shiny::strong(t()$auto_match_genus),
+            shiny::strong(i18n()$t("Genus-level matches:")),
             paste0(stats$n_genus, " (",
                   round(stats$n_genus / stats$total_names * 100, 1), "%)")
           ),
           shiny::tags$li(
-            shiny::strong(t()$auto_match_fuzzy),
+            shiny::strong(i18n()$t("Fuzzy matches:")),
             paste0(stats$n_fuzzy, " (",
                   round(stats$n_fuzzy / stats$total_names * 100, 1), "%)")
           ),
           shiny::tags$li(
             style = if (stats$n_unmatched > 0) "color: orange; font-weight: bold;" else "",
-            shiny::strong(t()$auto_match_unmatched),
+            shiny::strong(i18n()$t("Requiring review:")),
             paste0(stats$n_unmatched, " (",
                   round(stats$n_unmatched / stats$total_names * 100, 1), "%)")
           )
@@ -609,7 +604,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         if (stats$n_unmatched > 0) {
           shiny::p(
             shiny::icon("info-circle"),
-            "Go to the Review tab to manually review unmatched names.",
+            i18n()$t("Go to the Review tab to manually review unmatched names."),
             style = "margin-top: 10px; color: #856404;"
           )
         }

@@ -305,7 +305,7 @@ app_taxonomic_match <- function(
         "column_select",
         data = user_data,
         initial_column = name_column,
-        language = current_language
+        i18n = i18n
       )
 
       # Auto matching module
@@ -316,14 +316,14 @@ app_taxonomic_match <- function(
         column_name = shiny::reactive(column_info()$column),
         include_authors = shiny::reactive(column_info()$include_authors),
         min_similarity = min_similarity,
-        language = current_language
+        i18n = i18n
       )
 
       # Progress tracker module
       mod_progress_tracker_server(
         "progress",
         match_results = match_results,
-        language = current_language
+        i18n = i18n
       )
 
       # Manual review module
@@ -333,7 +333,7 @@ app_taxonomic_match <- function(
         mode = mode,
         max_suggestions = max_suggestions,
         min_similarity = min_similarity,
-        language = current_language
+        i18n = i18n
       )
 
       # Results export module (use reviewed results instead of just matched results)
@@ -341,7 +341,7 @@ app_taxonomic_match <- function(
         "export",
         results = reviewed_results,
         original_data = user_data,
-        language = current_language
+        i18n = i18n
       )
 
       # Traits enrichment module
@@ -349,7 +349,7 @@ app_taxonomic_match <- function(
         "traits",
         results = reviewed_results,
         column_name = shiny::reactive(column_info()$column),
-        language = current_language
+        i18n = i18n
       )
 
       # Mark modules as initialized

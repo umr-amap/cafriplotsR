@@ -23,22 +23,17 @@ mod_progress_tracker_ui <- function(id) {
 #'
 #' @param id Character, module ID
 #' @param match_results Reactive list containing matching results
-#' @param language Reactive returning current language ("en" or "fr")
+#' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return NULL (display only module)
 #'
 #' @keywords internal
-mod_progress_tracker_server <- function(id, match_results, language = shiny::reactive("en")) {
+mod_progress_tracker_server <- function(id, match_results, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
-
-    # Get translations
-    t <- shiny::reactive({
-      get_translations(language())
-    })
 
     # Module title
     output$title <- shiny::renderText({
-      t()$progress_title
+      i18n()$t("Progress Summary")
     })
 
     # Progress display
@@ -66,34 +61,34 @@ mod_progress_tracker_server <- function(id, match_results, language = shiny::rea
 
         # Total names
         shiny::p(
-          shiny::strong(t()$progress_total),
+          shiny::strong(i18n()$t("Total unique names:")),
           total_names
         ),
 
         # Breakdown
         shiny::tags$ul(
           shiny::tags$li(
-            paste(t()$auto_match_exact, n_exact,
+            paste(i18n()$t("Exact matches:"), n_exact,
                   paste0("(", round(n_exact/total_names*100, 1), "%)"))
           ),
           shiny::tags$li(
-            paste(t()$auto_match_genus, n_genus,
+            paste(i18n()$t("Genus-level matches:"), n_genus,
                   paste0("(", round(n_genus/total_names*100, 1), "%)"))
           ),
           shiny::tags$li(
-            paste(t()$auto_match_fuzzy, n_fuzzy,
+            paste(i18n()$t("Fuzzy matches:"), n_fuzzy,
                   paste0("(", round(n_fuzzy/total_names*100, 1), "%)"))
           ),
           shiny::tags$li(
             style = if (n_unmatched > 0) "color: orange; font-weight: bold;" else "",
-            paste(t()$auto_match_unmatched, n_unmatched,
+            paste(i18n()$t("Requiring review:"), n_unmatched,
                   paste0("(", round(n_unmatched/total_names*100, 1), "%)"))
           )
         ),
 
         # Progress bar
         shiny::hr(),
-        shiny::p(shiny::strong(paste0(t()$progress_percent, " ", percent_complete, "%"))),
+        shiny::p(shiny::strong(paste0(i18n()$t("Progress:"), " ", percent_complete, "%"))),
         shiny::div(
           class = "progress",
           shiny::div(
