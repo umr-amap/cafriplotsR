@@ -4,18 +4,14 @@
 \alias{mod_data_input_server}
 \title{Data Input Module - Server}
 \usage{
-mod_data_input_server(
-  id,
-  provided_data = NULL,
-  language = shiny::reactive("en")
-)
+mod_data_input_server(id, provided_data = NULL, i18n)
 }
 \arguments{
 \item{id}{Character, module ID}
 
 \item{provided_data}{Reactive or data.frame, optional pre-loaded data}
 
-\item{language}{Reactive returning current language ("en" or "fr")}
+\item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
 Reactive data.frame with user data

@@ -52,26 +52,21 @@ mod_traits_enrichment_ui <- function(id) {
 #' @param id Character, module ID
 #' @param results Reactive list from review module (contains final matched data)
 #' @param column_name Reactive returning the selected column name containing taxa
-#' @param language Reactive returning current language ("en" or "fr")
+#' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return NULL
 #'
 #' @keywords internal
-mod_traits_enrichment_server <- function(id, results, column_name, language = shiny::reactive("en")) {
+mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Reactive values
     enriched_data <- shiny::reactiveVal(NULL)
     enrichment_in_progress <- shiny::reactiveVal(FALSE)
 
-    # Get translations
-    t <- shiny::reactive({
-      get_translations(language())
-    })
-
     # Module title
     output$title <- shiny::renderText({
-      "Enrich with Traits"
+      i18n()$t("Enrich with Traits")
     })
 
     # Enrichment status
@@ -95,7 +90,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, language = sh
           style = "padding: 15px; background-color: #fff3cd; border-radius: 5px;",
           shiny::p(
             shiny::icon("exclamation-triangle"),
-            "No matched taxa found. Complete the matching process first.",
+            i18n()$t("No matched taxa found. Complete the matching process first."),
             style = "color: #856404; margin: 0;"
           )
         )
@@ -104,8 +99,8 @@ mod_traits_enrichment_server <- function(id, results, column_name, language = sh
           style = "padding: 15px; background-color: #d4edda; border-radius: 5px;",
           shiny::p(
             shiny::icon("check-circle"),
-            shiny::strong(paste0(n_matched, " unique taxa matched")),
-            " - Ready to enrich with trait data",
+            shiny::strong(paste0(n_matched, " ", i18n()$t("unique taxa matched"))),
+            " - ", i18n()$t("Ready to enrich with trait data"),
             style = "color: #155724; margin: 0;"
           )
         )
@@ -121,20 +116,24 @@ mod_traits_enrichment_server <- function(id, results, column_name, language = sh
     output$categorical_mode <- shiny::renderUI({
       ns <- session$ns
 
+      # Build choices with translations
+      cat_choices <- c("mode", "concat")
+      names(cat_choices) <- c(
+        i18n()$t("Most frequent value (mode)"),
+        i18n()$t("All values (concatenated)")
+      )
+
       shiny::tagList(
-        shiny::h5("Categorical Traits"),
+        shiny::h5(i18n()$t("Categorical Traits")),
         shiny::radioButtons(
           inputId = ns("categorical_format"),
           label = NULL,
-          choices = c(
-            "Most frequent value (mode)" = "mode",
-            "All values (concatenated)" = "concat"
-          ),
+          choices = cat_choices,
           selected = "mode"
         ),
         shiny::tags$small(
           class = "text-muted",
-          "How to aggregate categorical traits when multiple values exist"
+          i18n()$t("How to aggregate categorical traits when multiple values exist")
         )
       )
     })
@@ -143,17 +142,21 @@ mod_traits_enrichment_server <- function(id, results, column_name, language = sh
     output$include_original <- shiny::renderUI({
       ns <- session$ns
 
+      # Build choices with translations
+      col_choices <- c("original", "corrected", "ids", "metadata")
+      names(col_choices) <- c(
+        i18n()$t("Original input names"),
+        i18n()$t("Corrected names"),
+        i18n()$t("Taxonomic IDs"),
+        i18n()$t("Match metadata")
+      )
+
       shiny::tagList(
-        shiny::h5("Include Columns"),
+        shiny::h5(i18n()$t("Include Columns")),
         shiny::checkboxGroupInput(
           inputId = ns("include_cols"),
           label = NULL,
-          choices = c(
-            "Original input names" = "original",
-            "Corrected names" = "corrected",
-            "Taxonomic IDs" = "ids",
-            "Match metadata" = "metadata"
-          ),
+          choices = col_choices,
           selected = c("original", "corrected", "ids")
         )
       )
@@ -174,7 +177,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, language = sh
       if (n_matched > 0) {
         shiny::actionButton(
           inputId = ns("btn_enrich"),
-          label = shiny::tagList(shiny::icon("database"), "Fetch Traits from Database"),
+          label = shiny::tagList(shiny::icon("database"), i18n()$t("Fetch Traits from Database")),
           class = "btn-primary btn-lg"
         )
       }
@@ -204,7 +207,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, language = sh
 
         if (nrow(matched_taxa) == 0) {
           shiny::showNotification(
-            "No matched taxa to enrich",
+            i18n()$t("No matched taxa to enrich"),
             type = "warning"
           )
           enrichment_in_progress(FALSE)
@@ -214,7 +217,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, language = sh
 
         # Fetch traits using query_taxa_traits
         shiny::showNotification(
-          paste0("Fetching traits for ", nrow(matched_taxa), " taxa..."),
+          paste0(i18n()$t("Fetching traits for"), " ", nrow(matched_taxa), " ", i18n()$t("taxa...")),
           duration = NULL,
           id = "fetch_traits",
           type = "message"
@@ -239,7 +242,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, language = sh
 
         if (is.null(traits_result) || (!has_numeric && !has_categorical)) {
           shiny::showNotification(
-            "No trait data found for these taxa",
+            i18n()$t("No trait data found for these taxa"),
             type = "warning",
             duration = 5
           )
@@ -268,7 +271,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, language = sh
 
         if (nrow(enriched_filtered) == 0) {
           shiny::showNotification(
-            "No matched taxa to enrich. All input names are unmatched or invalid.",
+            i18n()$t("No matched taxa to enrich. All input names are unmatched or invalid."),
             type = "warning",
             duration = 5
           )
@@ -357,7 +360,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, language = sh
         enriched_data(enriched_result)
 
         shiny::showNotification(
-          paste0("Successfully enriched ", nrow(enriched_result), " unique taxa with trait data"),
+          paste0(i18n()$t("Successfully enriched"), " ", nrow(enriched_result), " ", i18n()$t("unique taxa with trait data")),
           type = "message",
           duration = 5
         )
@@ -367,7 +370,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, language = sh
 
       }, error = function(e) {
         shiny::showNotification(
-          paste("Error enriching data:", e$message),
+          paste(i18n()$t("Error enriching data:"), e$message),
           type = "error",
           duration = 10
         )
@@ -386,7 +389,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, language = sh
         style = "margin-top: 20px;",
         shiny::downloadButton(
           outputId = ns("download_enriched"),
-          label = "Download Enriched Data",
+          label = i18n()$t("Download Enriched Data"),
           class = "btn-success"
         )
       )
