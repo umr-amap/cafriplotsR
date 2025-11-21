@@ -297,7 +297,7 @@ app_taxonomic_match <- function(
       user_data <- mod_data_input_server(
         "data_input",
         provided_data = data,
-        language = current_language
+        i18n = i18n
       )
 
       # Column selection module
