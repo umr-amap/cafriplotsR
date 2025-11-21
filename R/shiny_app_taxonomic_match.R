@@ -82,7 +82,14 @@ app_taxonomic_match <- function(
         right = 20,
         fixed = TRUE,
         draggable = FALSE,
-        mod_language_toggle_ui("language")
+        style = "z-index: 1000;",
+        shiny::radioButtons(
+          inputId = "selected_language",
+          label = NULL,
+          choices = c("EN" = "en", "FR" = "fr"),
+          selected = language,
+          inline = TRUE
+        )
       ),
 
       # Title
@@ -230,16 +237,18 @@ app_taxonomic_match <- function(
       modules_initialized = FALSE
     )
 
-    # Language management (initialize immediately, works before auth)
-    current_language <- mod_language_toggle_server("language", initial = language)
-
     # Create reactive translator (shiny.i18n recommended pattern)
     i18n <- shiny::reactive({
-      selected <- current_language()
+      selected <- input$selected_language
       if (length(selected) > 0 && selected %in% translator$get_languages()) {
         translator$set_translation_language(selected)
       }
       translator
+    })
+
+    # Current language reactive (for modules still using old system)
+    current_language <- shiny::reactive({
+      input$selected_language
     })
 
     # App title and subtitle
