@@ -404,6 +404,62 @@
     {
       "en": "Powered by CafriplotsR package",
       "fr": "Propulsé par le package CafriplotsR"
+    },
+    {
+      "en": "No character columns found in data",
+      "fr": "Aucune colonne de caractères trouvée dans les données"
+    },
+    {
+      "en": "Column structure:",
+      "fr": "Structure des colonnes :"
+    },
+    {
+      "en": "Single column (all taxonomic info in one column)",
+      "fr": "Colonne unique (toutes les informations taxonomiques dans une colonne)"
+    },
+    {
+      "en": "Multiple columns (genus, species, family separated)",
+      "fr": "Colonnes multiples (genre, espèce, famille séparés)"
+    },
+    {
+      "en": "Select columns for each taxonomic component:",
+      "fr": "Sélectionner les colonnes pour chaque composant taxonomique :"
+    },
+    {
+      "en": "The app will create a combined column using available information (genus + species epithet, or genus only, or family only).",
+      "fr": "L'application créera une colonne combinée en utilisant les informations disponibles (genre + épithète spécifique, ou genre seul, ou famille seule)."
+    },
+    {
+      "en": "Genus column:",
+      "fr": "Colonne genre :"
+    },
+    {
+      "en": "Species epithet column:",
+      "fr": "Colonne épithète spécifique :"
+    },
+    {
+      "en": "Family column:",
+      "fr": "Colonne famille :"
+    },
+    {
+      "en": "(none)",
+      "fr": "(aucune)"
+    },
+    {
+      "en": "Go to the Review tab to manually review unmatched names.",
+      "fr": "Allez à l'onglet Révision pour réviser manuellement les noms non appariés."
+    },
+    {
+      "en": "Reviewed:",
+      "fr": "Révisés :"
+    },
+    {
+      "en": "Missing Taxonomic Name",
+      "fr": "Nom taxonomique manquant"
+    },
+    {
+      "en": "(Original value: NA)",
+      "fr": "(Valeur originale : NA)"
     }
   ]
 }
