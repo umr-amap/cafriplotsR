@@ -268,7 +268,34 @@ L'application ajoute ces colonnes à vos données :
 
 ### Sélection de la Langue
 
-Pas encore fonctionnel...
+L'application supporte désormais **l'opération bilingue** avec des interfaces en français et en anglais. **Le français est la langue par défaut**.
+
+**Dans l'Interface de l'Application:**
+
+Un sélecteur de langue est situé en haut à droite de l'application :
+- Cliquez sur **"FR"** pour l'interface en français
+- Cliquez sur **"EN"** pour l'interface en anglais
+
+Le changement de langue est instantané et affecte tous les éléments de l'interface incluant :
+- Les libellés des onglets
+- Le texte des boutons
+- Les instructions et textes d'aide
+- Les en-têtes de colonnes
+- Les messages d'erreur et notifications
+
+**Définir la Langue Initiale par Programme:**
+
+```{r, eval=FALSE}
+# Lancer l'application en anglais
+launch_taxonomic_match_app(language = "en")
+
+# Lancer l'application en français (par défaut)
+launch_taxonomic_match_app(language = "fr")
+# ou simplement :
+launch_taxonomic_match_app()
+```
+
+Le paramètre de langue est interactif - les utilisateurs peuvent changer de langue à tout moment pendant leur session sans perdre leur progression ou leurs données.
 
 ### Ajuster la Correspondance Approximative
 

@@ -49,7 +49,7 @@ init_translator <- function() {
   translator <- shiny.i18n::Translator$new(translation_json_path = translation_file)
 
   # Set default language
-  translator$set_translation_language("en")
+  translator$set_translation_language("fr")
 
   # Verify languages loaded
   available_langs <- translator$get_languages()

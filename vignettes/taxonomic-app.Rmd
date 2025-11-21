@@ -268,7 +268,34 @@ The app adds these columns to your data:
 
 ### Language Selection
 
-Not yet functional...
+The app now supports **bilingual operation** with French and English interfaces. **French is the default language**.
+
+**In the App Interface:**
+
+A language toggle is located in the top-right corner of the app:
+- Click **"FR"** for French interface
+- Click **"EN"** for English interface
+
+The language switch is instant and affects all UI elements including:
+- Tab labels
+- Button text
+- Instructions and help text
+- Column headers
+- Error messages and notifications
+
+**Setting Initial Language Programmatically:**
+
+```{r, eval=FALSE}
+# Launch app in English
+launch_taxonomic_match_app(language = "en")
+
+# Launch app in French (default)
+launch_taxonomic_match_app(language = "fr")
+# or simply:
+launch_taxonomic_match_app()
+```
+
+The language setting is interactive - users can switch languages at any time during their session without losing work progress or data.
 
 ### Adjusting Fuzzy Matching
 
