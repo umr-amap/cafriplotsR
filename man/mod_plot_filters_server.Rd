@@ -4,12 +4,14 @@
 \alias{mod_plot_filters_server}
 \title{Plot Filters Module - Server}
 \usage{
-mod_plot_filters_server(id, pool)
+mod_plot_filters_server(id, pool, i18n)
 }
 \arguments{
 \item{id}{Module namespace ID}
 
 \item{pool}{Database connection pool (reactive or static)}
+
+\item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
 A reactive list containing:

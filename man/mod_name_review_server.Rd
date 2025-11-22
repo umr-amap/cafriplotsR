@@ -10,7 +10,7 @@ mod_name_review_server(
   mode = "interactive",
   max_suggestions = 10,
   min_similarity = 0.3,
-  language = shiny::reactive("en")
+  i18n
 )
 }
 \arguments{
@@ -24,7 +24,7 @@ mod_name_review_server(
 
 \item{min_similarity}{Numeric, minimum similarity threshold}
 
-\item{language}{Reactive returning current language ("en" or "fr")}
+\item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
 Reactive list with updated match results

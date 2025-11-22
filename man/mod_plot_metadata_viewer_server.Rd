@@ -4,12 +4,14 @@
 \alias{mod_plot_metadata_viewer_server}
 \title{Plot Metadata Viewer Module - Server}
 \usage{
-mod_plot_metadata_viewer_server(id, metadata)
+mod_plot_metadata_viewer_server(id, metadata, i18n)
 }
 \arguments{
 \item{id}{Module namespace ID}
 
 \item{metadata}{Reactive containing plot metadata from query_plots()}
+
+\item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
 A reactive containing selected plot IDs
