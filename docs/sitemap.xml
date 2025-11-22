@@ -66,8 +66,11 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/create_db_config.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/create_pool_main.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/create_pool_taxa.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/create_reactive_translator.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/db_diagnostic.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/define_full_access_policy.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/define_read_only_policy.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/define_read_write_policy.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/define_user_policy.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/detect_direct_changes.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/divid_plot.html</loc></url>
@@ -191,6 +194,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/fetch_with_chunking.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/filter_to_census.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/func_try_fetch.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_available_languages.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_connection_info.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_database_fk.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_import_column_routing.html</loc></url>
@@ -212,6 +216,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/import_individual_data.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/import_plot_metadata.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/index.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/init_translator.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/latlong2UTM.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/launch_query_plots_app.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/launch_stand_tax_app.html</loc></url>
@@ -329,6 +334,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/SHINY_APP_PHASE1_COMPLETE.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/SHINY_APP_PHASE2_COMPLETE.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/SHINY_ARCHITECTURE_ANALYSIS.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/SHINY_I18N_IMPLEMENTATION_PLAN.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/TAXONOMIC_MATCHING_SUMMARY.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/TAX_LEVEL_FIELD_PROPOSAL.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/TAX_LEVEL_IMPLEMENTATION_SUMMARY.html</loc></url>

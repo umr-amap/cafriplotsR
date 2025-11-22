@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -519,6 +519,476 @@ rapides</li>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Retourne un seul data frame au lieu d'une liste structurée</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="application-shiny-interactive">Application Shiny Interactive<a class="anchor" aria-label="anchor" href="#application-shiny-interactive"></a>
+</h2>
+<p>CafriplotsR fournit une application Shiny interactive pour les
+utilisateurs qui préfèrent une interface graphique à l’écriture de code
+R. L’application encapsule <code><a href="../reference/query_plots.html">query_plots()</a></code> avec un flux de
+travail intuitif en deux étapes.</p>
+<div class="section level3">
+<h3 id="lancement-de-lapplication">Lancement de l’Application<a class="anchor" aria-label="anchor" href="#lancement-de-lapplication"></a>
+</h3>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Lancer l'application de requête interactive</span></span>
+<span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Ou spécifier la langue (Français ou Anglais)</span></span>
+<span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span>  <span class="co"># Français (par défaut)</span></span>
+<span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"en"</span><span class="op">)</span>  <span class="co"># Anglais</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="aperçu-de-lapplication">Aperçu de l’Application<a class="anchor" aria-label="anchor" href="#aper%C3%A7u-de-lapplication"></a>
+</h3>
+<p>Lorsque vous lancez l’application, vous verrez l’interface principale
+avec une barre de navigation contenant trois onglets :</p>
+<div class="float">
+<img src="images/app-query-initial-view-fr.png" alt="Vue initiale de l’application"><div class="figcaption">Vue initiale de l’application</div>
+</div>
+<p>L’application utilise un <strong>flux de travail par onglets</strong>
+:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Constructeur de requête</strong> - Définir les filtres et
+critères de recherche</li>
+<li>
+<strong>Résultats &amp; Extraction</strong> - Visualiser les
+résultats, sélectionner des parcelles, extraire les individus</li>
+<li>
+<strong>À propos</strong> - Documentation de l’application et
+informations sur le package</li>
+</ol>
+</div>
+<div class="section level3">
+<h3 id="phase-1-constructeur-de-requête">Phase 1 : Constructeur de Requête<a class="anchor" aria-label="anchor" href="#phase-1-constructeur-de-requ%C3%AAte"></a>
+</h3>
+<div class="section level4">
+<h4 id="configuration-des-filtres">Configuration des Filtres<a class="anchor" aria-label="anchor" href="#configuration-des-filtres"></a>
+</h4>
+<p>L’onglet Constructeur de requête propose diverses options de filtrage
+pour trouver les parcelles d’intérêt :</p>
+<div class="float">
+<img src="images/app-query-filters-fr.png" alt="Panneau de filtres"><div class="figcaption">Panneau de filtres</div>
+</div>
+<p><strong>Filtres de base :</strong></p>
+<ul>
+<li>
+<strong>Pays</strong> : Menu déroulant multi-sélection des pays
+disponibles</li>
+<li>
+<strong>Méthode</strong> : Filtrer par méthode d’inventaire (1 ha
+plot, Long Transect, etc.)</li>
+<li>
+<strong>Nom(s) de parcelle</strong> : Recherche textuelle (séparés
+par des virgules pour plusieurs parcelles)</li>
+<li>
+<strong>Localité</strong> : Recherche par nom de localité</li>
+<li>
+<strong>Étiquette individuelle</strong> : Recherche par numéro
+d’étiquette d’arbre</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="filtres-avancés">Filtres Avancés<a class="anchor" aria-label="anchor" href="#filtres-avanc%C3%A9s"></a>
+</h4>
+<p>Cliquez sur “Filtres avancés” pour développer les options de
+recherche supplémentaires :</p>
+<div class="float">
+<img src="images/app-query-advanced-filters-fr.png" alt="Filtres avancés"><div class="figcaption">Filtres avancés</div>
+</div>
+<ul>
+<li>
+<strong>ID de parcelle</strong> : Recherche par ID de parcelle dans
+la base de données</li>
+<li>
+<strong>ID individuel</strong> : Recherche par ID d’individu
+spécifique</li>
+<li>
+<strong>ID de taxon</strong> : Filtrer par ID taxonomique</li>
+<li>
+<strong>ID de spécimen</strong> : Recherche par ID de spécimen
+d’herbier</li>
+<li>
+<strong>Correspondance exacte</strong> : Basculer pour une
+correspondance stricte du texte</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="exécution-de-la-requête">Exécution de la Requête<a class="anchor" aria-label="anchor" href="#ex%C3%A9cution-de-la-requ%C3%AAte"></a>
+</h4>
+<p>Après avoir configuré vos filtres, cliquez sur <strong>“Exécuter la
+requête”</strong> pour récupérer les métadonnées des parcelles.
+L’application affiche un résumé des filtres actifs avant
+l’exécution.</p>
+</div>
+</div>
+<div class="section level3">
+<h3 id="phase-2-résultats-extraction">Phase 2 : Résultats &amp; Extraction<a class="anchor" aria-label="anchor" href="#phase-2-r%C3%A9sultats-extraction"></a>
+</h3>
+<div class="section level4">
+<h4 id="carte-interactive-1">Carte Interactive<a class="anchor" aria-label="anchor" href="#carte-interactive-1"></a>
+</h4>
+<p>Les résultats de la requête sont affichés sur une carte interactive
+avec plusieurs options de fond de carte :</p>
+<div class="float">
+<img src="images/app-query-map-view-fr.png" alt="Carte interactive avec marqueurs de parcelles"><div class="figcaption">Carte interactive avec marqueurs de
+parcelles</div>
+</div>
+<p><strong>Fonctionnalités de la carte :</strong></p>
+<ul>
+<li>
+<strong>Couches de fond de carte</strong> : OpenStreetMap,
+Satellite, Physique</li>
+<li>
+<strong>Marqueurs cliquables</strong> : Cliquez pour voir les
+détails de la parcelle</li>
+<li>
+<strong>Information contextuelle</strong> : Nom de parcelle, pays,
+méthode, superficie</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="tableau-des-métadonnées">Tableau des Métadonnées<a class="anchor" aria-label="anchor" href="#tableau-des-m%C3%A9tadonn%C3%A9es"></a>
+</h4>
+<p>Sous la carte, un tableau triable et consultable affiche toutes les
+métadonnées des parcelles :</p>
+<div class="float">
+<img src="images/app-query-metadata-table-fr.png" alt="Tableau des métadonnées de parcelles"><div class="figcaption">Tableau des métadonnées de parcelles</div>
+</div>
+<p><strong>Fonctionnalités du tableau :</strong></p>
+<ul>
+<li>
+<strong>Recherche</strong> : Filtrer le contenu du tableau</li>
+<li>
+<strong>Tri</strong> : Cliquez sur les en-têtes de colonnes pour
+trier</li>
+<li>
+<strong>Pagination</strong> : Naviguer dans les grands ensembles de
+résultats</li>
+<li>
+<strong>Sélection de lignes</strong> : Cliquez sur les lignes pour
+sélectionner/désélectionner des parcelles</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="sélection-des-parcelles">Sélection des Parcelles<a class="anchor" aria-label="anchor" href="#s%C3%A9lection-des-parcelles"></a>
+</h4>
+<p>Sélectionnez des parcelles spécifiques pour l’extraction individuelle
+en cliquant sur les lignes du tableau :</p>
+<div class="float">
+<img src="images/app-query-plot-selection-fr.png" alt="Parcelles sélectionnées en surbrillance"><div class="figcaption">Parcelles sélectionnées en surbrillance</div>
+</div>
+<ul>
+<li>Les lignes sélectionnées sont mises en surbrillance</li>
+<li>Un compteur affiche le nombre de parcelles sélectionnées</li>
+<li>Par défaut, toutes les parcelles sont sélectionnées</li>
+</ul>
+</div>
+</div>
+<div class="section level3">
+<h3 id="phase-3-configuration-de-lextraction">Phase 3 : Configuration de l’Extraction<a class="anchor" aria-label="anchor" href="#phase-3-configuration-de-lextraction"></a>
+</h3>
+<div class="section level4">
+<h4 id="style-de-sortie">Style de Sortie<a class="anchor" aria-label="anchor" href="#style-de-sortie"></a>
+</h4>
+<p>Choisissez comment les données extraites doivent être formatées :</p>
+<div class="float">
+<img src="images/app-query-extraction-config.png" alt="Panneau de configuration d’extraction"><div class="figcaption">Panneau de configuration d’extraction</div>
+</div>
+<p><strong>Styles disponibles :</strong></p>
+<table class="table">
+<colgroup>
+<col width="35%">
+<col width="65%">
+</colgroup>
+<thead><tr class="header">
+<th>Style</th>
+<th>Description</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Détection automatique</td>
+<td>Sélectionne automatiquement selon la méthode de parcelle</td>
+</tr>
+<tr class="even">
+<td>Minimal</td>
+<td>Colonnes essentielles uniquement (parcelle, étiquette, espèce,
+dhp)</td>
+</tr>
+<tr class="odd">
+<td>Standard</td>
+<td>Colonnes communes pour l’analyse écologique générale</td>
+</tr>
+<tr class="even">
+<td>Parcelle permanente</td>
+<td>Format recensement unique pour le suivi de parcelles
+permanentes</td>
+</tr>
+<tr class="odd">
+<td>Parcelle permanente (multi-recensements)</td>
+<td>Préserve toutes les colonnes de recensement</td>
+</tr>
+<tr class="even">
+<td>Transect</td>
+<td>Format simplifié pour les relevés pédestres</td>
+</tr>
+<tr class="odd">
+<td>Complet</td>
+<td>Ensemble de données complet avec toutes les colonnes</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level4">
+<h4 id="gestion-des-recensements">Gestion des Recensements<a class="anchor" aria-label="anchor" href="#gestion-des-recensements"></a>
+</h4>
+<p>Configurez comment les recensements multiples doivent être gérés
+:</p>
+<div class="float">
+<img src="images/app-query-census-options.png" alt="Options de gestion des recensements"><div class="figcaption">Options de gestion des recensements</div>
+</div>
+<ul>
+<li>
+<strong>Stratégie de recensement</strong> : Dernier recensement,
+Premier recensement, ou Moyenne entre les recensements</li>
+<li>
+<strong>Afficher les données de recensements multiples</strong> :
+Crée des colonnes séparées pour chaque recensement (ex. dbh_census_1,
+dbh_census_2)</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="organisation-des-données">Organisation des Données<a class="anchor" aria-label="anchor" href="#organisation-des-donn%C3%A9es"></a>
+</h4>
+<p>Contrôlez la structure de sortie :</p>
+<ul>
+<li>
+<strong>Concaténer les tiges multiples</strong> : Combiner les
+données des arbres à tiges multiples</li>
+<li>
+<strong>Supprimer les IDs de base de données</strong> : Masquer les
+colonnes d’ID internes pour une sortie plus claire</li>
+<li>
+<strong>Supprimer les observations avec problèmes</strong> : Exclure
+les enregistrements problématiques signalés</li>
+<li>
+<strong>Inclure les drapeaux de problèmes</strong> : Ajouter des
+colonnes de drapeaux de qualité à la sortie</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="données-additionnelles">Données Additionnelles<a class="anchor" aria-label="anchor" href="#donn%C3%A9es-additionnelles"></a>
+</h4>
+<p>Sélectionnez quelles informations supplémentaires inclure :</p>
+<div class="float">
+<img src="images/app-query-additional-data.png" alt="Options de données additionnelles"><div class="figcaption">Options de données additionnelles</div>
+</div>
+<ul>
+<li>
+<strong>Extraire les traits taxonomiques</strong> : Densité du bois,
+forme de croissance, etc.</li>
+<li>
+<strong>Extraire les caractéristiques au niveau individuel</strong>
+: Mesures spécifiques aux arbres</li>
+<li>
+<strong>Extraire les caractéristiques au niveau
+sous-parcelle</strong> : Caractéristiques des sous-parcelles</li>
+<li>
+<strong>Utiliser les traits au niveau du genre</strong> : Utiliser
+les données du genre quand l’espèce n’est pas disponible</li>
+</ul>
+</div>
+</div>
+<div class="section level3">
+<h3 id="phase-4-extraction-et-téléchargement">Phase 4 : Extraction et Téléchargement<a class="anchor" aria-label="anchor" href="#phase-4-extraction-et-t%C3%A9l%C3%A9chargement"></a>
+</h3>
+<div class="section level4">
+<h4 id="résultats-dextraction">Résultats d’Extraction<a class="anchor" aria-label="anchor" href="#r%C3%A9sultats-dextraction"></a>
+</h4>
+<p>Cliquez sur <strong>“Extraire les individus des parcelles
+sélectionnées”</strong> pour récupérer les données détaillées des arbres
+:</p>
+<p>Les résultats sont organisés en onglets :</p>
+<ul>
+<li>
+<strong>Individus</strong> : Mesures au niveau de l’arbre</li>
+<li>
+<strong>Métadonnées</strong> : Informations de parcelle</li>
+<li>
+<strong>Recensements</strong> : Dates et détails des recensements
+(si applicable)</li>
+<li>
+<strong>Hauteur-Diamètre</strong> : Paires H-D pour l’allométrie (si
+applicable)</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="options-de-téléchargement">Options de Téléchargement<a class="anchor" aria-label="anchor" href="#options-de-t%C3%A9l%C3%A9chargement"></a>
+</h4>
+<p>Exportez vos données dans plusieurs formats :</p>
+<div class="float">
+<img src="images/app-query-download-panel.png" alt="Panneau de téléchargement"><div class="figcaption">Panneau de téléchargement</div>
+</div>
+<p><strong>Formats disponibles :</strong></p>
+<ul>
+<li>
+<strong>Excel (.xlsx)</strong> : Classeur multi-feuilles</li>
+<li>
+<strong>CSV (compressé)</strong> : Fichiers CSV séparés dans une
+archive ZIP</li>
+<li>
+<strong>Objet R (.rds)</strong> : Format natif R préservant les
+types de données</li>
+<li>
+<strong>Shapefile (.zip)</strong> : Données spatiales (si
+coordonnées disponibles)</li>
+</ul>
+<p>Sélectionnez les tableaux à inclure dans votre export en utilisant
+les cases à cocher.</p>
+</div>
+</div>
+<div class="section level3">
+<h3 id="visualisation-du-code-r-équivalent">Visualisation du Code R Équivalent<a class="anchor" aria-label="anchor" href="#visualisation-du-code-r-%C3%A9quivalent"></a>
+</h3>
+<p>Une fonctionnalité clé de l’application est le panneau <strong>“Code
+R équivalent”</strong>, affiché après l’exécution des requêtes :</p>
+<div class="float">
+<img src="images/app-query-code-preview.png" alt="Panneau de prévisualisation du code"><div class="figcaption">Panneau de prévisualisation du code</div>
+</div>
+<p>Ceci montre le code R exact que vous utiliseriez avec
+<code><a href="../reference/query_plots.html">query_plots()</a></code> pour reproduire les mêmes résultats de
+manière programmatique.</p>
+<p><strong>Sections de code :</strong></p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Requête de métadonnées</strong> : Code pour récupérer les
+métadonnées de parcelles avec vos filtres</li>
+<li>
+<strong>Extraction individuelle</strong> : Code pour extraire les
+données d’arbres avec vos options</li>
+<li>
+<strong>Script de flux de travail complet</strong> : Script complet
+combinant les deux étapes</li>
+</ol>
+<div class="float">
+<img src="images/app-query-code-complete.png" alt="Script de flux de travail complet"><div class="figcaption">Script de flux de travail complet</div>
+</div>
+<p><strong>Pourquoi c’est important :</strong></p>
+<ul>
+<li>
+<strong>Apprentissage</strong> : Comprendre comment les options de
+l’application correspondent aux paramètres de fonction</li>
+<li>
+<strong>Reproductibilité</strong> : Sauvegarder le code exact pour
+la documentation de votre analyse</li>
+<li>
+<strong>Scripting</strong> : Copier le code pour des flux de travail
+automatisés</li>
+<li>
+<strong>Collaboration</strong> : Partager les paramètres de requête
+avec vos collègues</li>
+</ul>
+<p>Cliquez sur <strong>“Copier dans le presse-papiers”</strong> pour
+copier n’importe quelle section de code.</p>
+</div>
+<div class="section level3">
+<h3 id="page-à-propos">Page À Propos<a class="anchor" aria-label="anchor" href="#page-%C3%A0-propos"></a>
+</h3>
+<p>L’onglet À propos fournit la documentation de l’application et les
+informations sur le package :</p>
+<div class="float">
+<img src="images/app-query-about-page-fr.png" alt="Page À propos"><div class="figcaption">Page À propos</div>
+</div>
+</div>
+<div class="section level3">
+<h3 id="application-vs-fonction-quand-utiliser-chacune">Application vs Fonction : Quand Utiliser Chacune<a class="anchor" aria-label="anchor" href="#application-vs-fonction-quand-utiliser-chacune"></a>
+</h3>
+<table class="table">
+<colgroup>
+<col width="54%">
+<col width="45%">
+</colgroup>
+<thead><tr class="header">
+<th>Cas d’utilisation</th>
+<th>Recommandation</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Exploration rapide des données</td>
+<td>Utiliser l’application</td>
+</tr>
+<tr class="even">
+<td>Sélection interactive de parcelles sur une carte</td>
+<td>Utiliser l’application</td>
+</tr>
+<tr class="odd">
+<td>Apprentissage des paramètres de fonction</td>
+<td>Commencer avec l’application, copier le code généré</td>
+</tr>
+<tr class="even">
+<td>Scripts d’analyse reproductibles</td>
+<td>Utiliser <code><a href="../reference/query_plots.html">query_plots()</a></code>
+</td>
+</tr>
+<tr class="odd">
+<td>Pipelines de données automatisés</td>
+<td>Utiliser <code><a href="../reference/query_plots.html">query_plots()</a></code>
+</td>
+</tr>
+<tr class="even">
+<td>Traitement de nombreuses requêtes</td>
+<td>Utiliser <code><a href="../reference/query_plots.html">query_plots()</a></code>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level3">
+<h3 id="sélection-de-la-langue">Sélection de la Langue<a class="anchor" aria-label="anchor" href="#s%C3%A9lection-de-la-langue"></a>
+</h3>
+<p>L’application supporte le <strong>fonctionnement bilingue</strong>
+(Français et Anglais). Le français est la langue par défaut.</p>
+<p>Un sélecteur de langue est situé dans le coin supérieur droit :</p>
+<ul>
+<li>Cliquez sur <strong>“FR”</strong> pour l’interface française</li>
+<li>Cliquez sur <strong>“EN”</strong> pour l’interface anglaise</li>
+</ul>
+<p>Le changement est instantané et affecte tous les éléments de
+l’interface.</p>
+</div>
+<div class="section level3">
+<h3 id="exemple-de-lapplication-au-script">Exemple : De l’Application au Script<a class="anchor" aria-label="anchor" href="#exemple-de-lapplication-au-script"></a>
+</h3>
+<p>Voici comment l’application vous aide à construire des requêtes
+reproductibles :</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>Dans l’application</strong> : Sélectionnez Cameroun,
+filtrez par méthode “1 ha plot”, extrayez avec les traits</p></li>
+<li><p><strong>Copiez le code généré</strong> :</p></li>
+</ol>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Requête de métadonnées de parcelles</span></span>
+<span><span class="va">metadata</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  country <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Cameroon"</span><span class="op">)</span>,</span>
+<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"1 ha plot"</span><span class="op">)</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Extraction des données d'arbres individuels des parcelles sélectionnées</span></span>
+<span><span class="va">individuals</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  id_plot <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">5</span>, <span class="fl">12</span><span class="op">)</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  output_style <span class="op">=</span> <span class="st">"permanent_plot"</span>,</span>
+<span>  extract_traits <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  extract_individual_features <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<ol start="3" style="list-style-type: decimal">
+<li>
+<strong>Utilisez dans votre script d’analyse</strong> pour une
+recherche reproductible</li>
+</ol>
 </div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

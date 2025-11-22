@@ -460,6 +460,610 @@
     {
       "en": "(Original value: NA)",
       "fr": "(Valeur originale : NA)"
+    },
+    {
+      "en": "CafriplotsR - Plot Query Tool",
+      "fr": "CafriplotsR - Outil de requête de parcelles"
+    },
+    {
+      "en": "Query Builder",
+      "fr": "Constructeur de requête"
+    },
+    {
+      "en": "Results & Extraction",
+      "fr": "Résultats & Extraction"
+    },
+    {
+      "en": "About",
+      "fr": "À propos"
+    },
+    {
+      "en": "Forest Plot Query Builder",
+      "fr": "Constructeur de requête de parcelles forestières"
+    },
+    {
+      "en": "Filter and select forest plots, then extract detailed individual tree data",
+      "fr": "Filtrer et sélectionner les parcelles forestières, puis extraire les données détaillées des arbres individuels"
+    },
+    {
+      "en": "Query Results & Individual Extraction",
+      "fr": "Résultats de requête & Extraction individuelle"
+    },
+    {
+      "en": "View plot locations, select plots of interest, and extract individual tree data",
+      "fr": "Voir les emplacements des parcelles, sélectionner les parcelles d'intérêt et extraire les données des arbres individuels"
+    },
+    {
+      "en": "About CafriplotsR Query Tool",
+      "fr": "À propos de l'outil de requête CafriplotsR"
+    },
+    {
+      "en": "Overview",
+      "fr": "Aperçu"
+    },
+    {
+      "en": "Features",
+      "fr": "Fonctionnalités"
+    },
+    {
+      "en": "Package Information",
+      "fr": "Informations sur le package"
+    },
+    {
+      "en": "This interactive tool provides a user-friendly interface for querying the CafriplotsR forest plot database.",
+      "fr": "Cet outil interactif fournit une interface conviviale pour interroger la base de données de parcelles forestières CafriplotsR."
+    },
+    {
+      "en": "It wraps the powerful",
+      "fr": "Il encapsule la puissante fonction"
+    },
+    {
+      "en": "function with an intuitive two-stage workflow:",
+      "fr": "avec un flux de travail intuitif en deux étapes :"
+    },
+    {
+      "en": "Filter & Discover:",
+      "fr": "Filtrer & Découvrir :"
+    },
+    {
+      "en": "Use various filters to find plots of interest, view them on an interactive map",
+      "fr": "Utiliser divers filtres pour trouver les parcelles d'intérêt, les visualiser sur une carte interactive"
+    },
+    {
+      "en": "Select & Extract:",
+      "fr": "Sélectionner & Extraire :"
+    },
+    {
+      "en": "Choose specific plots and extract detailed individual tree data with customizable options",
+      "fr": "Choisir des parcelles spécifiques et extraire les données détaillées des arbres individuels avec des options personnalisables"
+    },
+    {
+      "en": "Interactive map visualization with multiple basemaps",
+      "fr": "Visualisation cartographique interactive avec plusieurs fonds de carte"
+    },
+    {
+      "en": "Flexible filtering by country, plot name, method, and more",
+      "fr": "Filtrage flexible par pays, nom de parcelle, méthode, et plus"
+    },
+    {
+      "en": "Dynamic table display with search and sort capabilities",
+      "fr": "Affichage dynamique de tableau avec capacités de recherche et tri"
+    },
+    {
+      "en": "Multiple output styles for different analysis needs",
+      "fr": "Plusieurs styles de sortie pour différents besoins d'analyse"
+    },
+    {
+      "en": "Export results in Excel, CSV, RDS, or shapefile formats",
+      "fr": "Exporter les résultats aux formats Excel, CSV, RDS ou shapefile"
+    },
+    {
+      "en": "Version:",
+      "fr": "Version :"
+    },
+    {
+      "en": "Authors:",
+      "fr": "Auteurs :"
+    },
+    {
+      "en": "Repository:",
+      "fr": "Dépôt :"
+    },
+    {
+      "en": "Documentation:",
+      "fr": "Documentation :"
+    },
+    {
+      "en": "Query Filters",
+      "fr": "Filtres de requête"
+    },
+    {
+      "en": "Select criteria to filter forest plots",
+      "fr": "Sélectionner les critères pour filtrer les parcelles forestières"
+    },
+    {
+      "en": "Country",
+      "fr": "Pays"
+    },
+    {
+      "en": "Method",
+      "fr": "Méthode"
+    },
+    {
+      "en": "Plot Name(s)",
+      "fr": "Nom(s) de parcelle"
+    },
+    {
+      "en": "e.g., bouamir001, mbalmayo001 (comma-separated)",
+      "fr": "p.ex., bouamir001, mbalmayo001 (séparés par des virgules)"
+    },
+    {
+      "en": "Locality",
+      "fr": "Localité"
+    },
+    {
+      "en": "e.g., Lope",
+      "fr": "p.ex., Lope"
+    },
+    {
+      "en": "Individual Tag",
+      "fr": "Étiquette individuelle"
+    },
+    {
+      "en": "Search by tree tag",
+      "fr": "Rechercher par étiquette d'arbre"
+    },
+    {
+      "en": "Advanced Filters",
+      "fr": "Filtres avancés"
+    },
+    {
+      "en": "Plot ID",
+      "fr": "ID de parcelle"
+    },
+    {
+      "en": "Individual ID",
+      "fr": "ID individuel"
+    },
+    {
+      "en": "Taxon ID",
+      "fr": "ID de taxon"
+    },
+    {
+      "en": "Specimen ID",
+      "fr": "ID de spécimen"
+    },
+    {
+      "en": "Exact match for text filters",
+      "fr": "Correspondance exacte pour les filtres texte"
+    },
+    {
+      "en": "Execute Query",
+      "fr": "Exécuter la requête"
+    },
+    {
+      "en": "No filters applied - will return all plots",
+      "fr": "Aucun filtre appliqué - retournera toutes les parcelles"
+    },
+    {
+      "en": "Active filters:",
+      "fr": "Filtres actifs :"
+    },
+    {
+      "en": "Plot Metadata & Selection",
+      "fr": "Métadonnées de parcelle & Sélection"
+    },
+    {
+      "en": "Interactive Map",
+      "fr": "Carte interactive"
+    },
+    {
+      "en": "Plot Metadata Table",
+      "fr": "Tableau de métadonnées de parcelle"
+    },
+    {
+      "en": "Click on map markers or select rows in the table below. Selected plots will be used for individual extraction.",
+      "fr": "Cliquer sur les marqueurs de carte ou sélectionner les lignes dans le tableau ci-dessous. Les parcelles sélectionnées seront utilisées pour l'extraction individuelle."
+    },
+    {
+      "en": "Execute a query to view plot metadata",
+      "fr": "Exécuter une requête pour visualiser les métadonnées de parcelle"
+    },
+    {
+      "en": "Found %d plot(s)",
+      "fr": "Trouvé %d parcelle(s)"
+    },
+    {
+      "en": "Click to select",
+      "fr": "Cliquer pour sélectionner"
+    },
+    {
+      "en": "Area:",
+      "fr": "Superficie :"
+    },
+    {
+      "en": "ha",
+      "fr": "ha"
+    },
+    {
+      "en": "Selected plots:",
+      "fr": "Parcelles sélectionnées :"
+    },
+    {
+      "en": "Click rows in the table to select/deselect plots",
+      "fr": "Cliquer sur les lignes du tableau pour sélectionner/désélectionner des parcelles"
+    },
+    {
+      "en": "All plots selected by default",
+      "fr": "Toutes les parcelles sélectionnées par défaut"
+    },
+    {
+      "en": "Individual Extraction Configuration",
+      "fr": "Configuration d'extraction individuelle"
+    },
+    {
+      "en": "Configure how individual tree data should be extracted and formatted",
+      "fr": "Configurer comment les données d'arbres individuels doivent être extraites et formatées"
+    },
+    {
+      "en": "Output Style",
+      "fr": "Style de sortie"
+    },
+    {
+      "en": "Auto-detect from method",
+      "fr": "Détection automatique depuis la méthode"
+    },
+    {
+      "en": "Minimal (essential columns only)",
+      "fr": "Minimal (colonnes essentielles seulement)"
+    },
+    {
+      "en": "Standard (common analysis)",
+      "fr": "Standard (analyse commune)"
+    },
+    {
+      "en": "Permanent Plot (single census)",
+      "fr": "Parcelle permanente (recensement unique)"
+    },
+    {
+      "en": "Permanent Plot (multi-census)",
+      "fr": "Parcelle permanente (multi-recensements)"
+    },
+    {
+      "en": "Transect (walk surveys)",
+      "fr": "Transect (relevés de marche)"
+    },
+    {
+      "en": "Full (all columns)",
+      "fr": "Complet (toutes les colonnes)"
+    },
+    {
+      "en": "Automatically selects the best format based on plot method",
+      "fr": "Sélectionne automatiquement le meilleur format basé sur la méthode de parcelle"
+    },
+    {
+      "en": "Returns only essential columns (plot, tag, species, dbh)",
+      "fr": "Retourne seulement les colonnes essentielles (parcelle, étiquette, espèce, dhp)"
+    },
+    {
+      "en": "Common columns for general ecological analysis",
+      "fr": "Colonnes communes pour l'analyse écologique générale"
+    },
+    {
+      "en": "Structured format for permanent plot monitoring (single census)",
+      "fr": "Format structuré pour le suivi de parcelle permanente (recensement unique)"
+    },
+    {
+      "en": "Preserves all census columns for time-series analysis",
+      "fr": "Préserve toutes les colonnes de recensement pour l'analyse de séries temporelles"
+    },
+    {
+      "en": "Simplified format optimized for transect walk surveys",
+      "fr": "Format simplifié optimisé pour les relevés de transect"
+    },
+    {
+      "en": "Complete dataset with all available columns",
+      "fr": "Ensemble de données complet avec toutes les colonnes disponibles"
+    },
+    {
+      "en": "Census Handling",
+      "fr": "Gestion des recensements"
+    },
+    {
+      "en": "Census Strategy",
+      "fr": "Stratégie de recensement"
+    },
+    {
+      "en": "Last census",
+      "fr": "Dernier recensement"
+    },
+    {
+      "en": "First census",
+      "fr": "Premier recensement"
+    },
+    {
+      "en": "Mean across censuses",
+      "fr": "Moyenne entre les recensements"
+    },
+    {
+      "en": "Show multiple census data",
+      "fr": "Afficher les données de recensements multiples"
+    },
+    {
+      "en": "Creates separate columns for each census",
+      "fr": "Crée des colonnes séparées pour chaque recensement"
+    },
+    {
+      "en": "Data Organization",
+      "fr": "Organisation des données"
+    },
+    {
+      "en": "Concatenate multiple stems",
+      "fr": "Concaténer les tiges multiples"
+    },
+    {
+      "en": "Combine data from multiple stems per individual",
+      "fr": "Combiner les données de tiges multiples par individu"
+    },
+    {
+      "en": "Remove database IDs",
+      "fr": "Supprimer les IDs de base de données"
+    },
+    {
+      "en": "Remove internal ID columns for cleaner output",
+      "fr": "Supprimer les colonnes d'ID internes pour une sortie plus claire"
+    },
+    {
+      "en": "Remove observations with issues",
+      "fr": "Supprimer les observations avec problèmes"
+    },
+    {
+      "en": "Exclude flagged problematic records",
+      "fr": "Exclure les enregistrements problématiques signalés"
+    },
+    {
+      "en": "Include issue flags in output",
+      "fr": "Inclure les drapeaux de problème dans la sortie"
+    },
+    {
+      "en": "Additional Data",
+      "fr": "Données additionnelles"
+    },
+    {
+      "en": "Extract taxonomic traits (wood density, etc.)",
+      "fr": "Extraire les traits taxonomiques (densité du bois, etc.)"
+    },
+    {
+      "en": "Extract individual-level features",
+      "fr": "Extraire les caractéristiques au niveau individuel"
+    },
+    {
+      "en": "Extract subplot-level features",
+      "fr": "Extraire les caractéristiques au niveau de sous-parcelle"
+    },
+    {
+      "en": "Fallback to genus-level traits when species data unavailable",
+      "fr": "Utiliser les traits au niveau du genre quand les données d'espèce ne sont pas disponibles"
+    },
+    {
+      "en": "Extract Individuals from Selected Plots",
+      "fr": "Extraire les individus des parcelles sélectionnées"
+    },
+    {
+      "en": "Extraction Results",
+      "fr": "Résultats d'extraction"
+    },
+    {
+      "en": "Download Results",
+      "fr": "Télécharger les résultats"
+    },
+    {
+      "en": "Excel (.xlsx)",
+      "fr": "Excel (.xlsx)"
+    },
+    {
+      "en": "CSV (zipped)",
+      "fr": "CSV (compressé)"
+    },
+    {
+      "en": "R Object (.rds)",
+      "fr": "Objet R (.rds)"
+    },
+    {
+      "en": "Shapefile (.zip)",
+      "fr": "Shapefile (.zip)"
+    },
+    {
+      "en": "Select tables to include in export:",
+      "fr": "Sélectionner les tableaux à inclure dans l'export :"
+    },
+    {
+      "en": "Configure extraction options and click 'Extract Individuals' to view results",
+      "fr": "Configurer les options d'extraction et cliquer sur 'Extraire les individus' pour voir les résultats"
+    },
+    {
+      "en": "Extraction complete! %d total records",
+      "fr": "Extraction terminée ! %d enregistrements au total"
+    },
+    {
+      "en": "OpenStreetMap",
+      "fr": "OpenStreetMap"
+    },
+    {
+      "en": "Satellite",
+      "fr": "Satellite"
+    },
+    {
+      "en": "Physical",
+      "fr": "Physique"
+    },
+    {
+      "en": "unique taxa matched",
+      "fr": "taxons uniques appariés"
+    },
+    {
+      "en": "Ready to enrich with trait data",
+      "fr": "Prêt à enrichir avec des données de traits"
+    },
+    {
+      "en": "Categorical Traits",
+      "fr": "Traits catégoriels"
+    },
+    {
+      "en": "Most frequent value (mode)",
+      "fr": "Valeur la plus fréquente (mode)"
+    },
+    {
+      "en": "All values (concatenated)",
+      "fr": "Toutes les valeurs (concaténées)"
+    },
+    {
+      "en": "How to aggregate categorical traits when multiple values exist",
+      "fr": "Comment agréger les traits catégoriels quand plusieurs valeurs existent"
+    },
+    {
+      "en": "Include Columns",
+      "fr": "Inclure les colonnes"
+    },
+    {
+      "en": "Original input names",
+      "fr": "Noms saisis originaux"
+    },
+    {
+      "en": "Taxonomic IDs",
+      "fr": "IDs taxonomiques"
+    },
+    {
+      "en": "Match metadata",
+      "fr": "Métadonnées d'appariement"
+    },
+    {
+      "en": "Fetch Traits from Database",
+      "fr": "Récupérer les traits de la base de données"
+    },
+    {
+      "en": "No matched taxa to enrich",
+      "fr": "Aucun taxon apparié à enrichir"
+    },
+    {
+      "en": "Fetching traits for",
+      "fr": "Récupération des traits pour"
+    },
+    {
+      "en": "taxa...",
+      "fr": "taxons..."
+    },
+    {
+      "en": "No trait data found for these taxa",
+      "fr": "Aucune donnée de trait trouvée pour ces taxons"
+    },
+    {
+      "en": "Successfully enriched",
+      "fr": "Enrichi avec succès"
+    },
+    {
+      "en": "unique taxa with trait data",
+      "fr": "taxons uniques avec des données de traits"
+    },
+    {
+      "en": "Error enriching data:",
+      "fr": "Erreur lors de l'enrichissement des données :"
+    },
+    {
+      "en": "Download Enriched Data",
+      "fr": "Télécharger les données enrichies"
+    },
+    {
+      "en": "All levels",
+      "fr": "Tous les niveaux"
+    },
+    {
+      "en": "Species",
+      "fr": "Espèce"
+    },
+    {
+      "en": "Class (Higher)",
+      "fr": "Classe (Supérieur)"
+    },
+    {
+      "en": "Infraspecific",
+      "fr": "Infraspécifique"
+    },
+    {
+      "en": "Filter by level",
+      "fr": "Filtrer par niveau"
+    },
+    {
+      "en": "Min. similarity",
+      "fr": "Similarité min."
+    },
+    {
+      "en": "Level:",
+      "fr": "Niveau :"
+    },
+    {
+      "en": "Order",
+      "fr": "Ordre"
+    },
+    {
+      "en": "Synonym",
+      "fr": "Synonyme"
+    },
+    {
+      "en": "No matched taxa to enrich. All input names are unmatched or invalid.",
+      "fr": "Aucun taxon apparié à enrichir. Tous les noms saisis sont non appariés ou invalides."
+    },
+    {
+      "en": "Equivalent R Code",
+      "fr": "Code R équivalent"
+    },
+    {
+      "en": "Use this code to reproduce the same query programmatically with query_plots()",
+      "fr": "Utilisez ce code pour reproduire la même requête de manière programmatique avec query_plots()"
+    },
+    {
+      "en": "Metadata Query",
+      "fr": "Requête de métadonnées"
+    },
+    {
+      "en": "Copy to clipboard",
+      "fr": "Copier dans le presse-papiers"
+    },
+    {
+      "en": "Code copied!",
+      "fr": "Code copié !"
+    },
+    {
+      "en": "Individual Extraction",
+      "fr": "Extraction individuelle"
+    },
+    {
+      "en": "Complete Workflow Script",
+      "fr": "Script de flux de travail complet"
+    },
+    {
+      "en": "Full script combining metadata query and individual extraction",
+      "fr": "Script complet combinant requête de métadonnées et extraction individuelle"
+    },
+    {
+      "en": "Copy complete script",
+      "fr": "Copier le script complet"
+    },
+    {
+      "en": "Please select at least one plot before extracting individuals",
+      "fr": "Veuillez sélectionner au moins une parcelle avant d'extraire les individus"
+    },
+    {
+      "en": "Extraction complete!",
+      "fr": "Extraction terminée !"
+    },
+    {
+      "en": "total records",
+      "fr": "enregistrements au total"
+    },
+    {
+      "en": "Showing",
+      "fr": "Affichage de"
     }
   ]
 }
