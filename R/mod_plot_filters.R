@@ -11,17 +11,16 @@ mod_plot_filters_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    shiny::h4("Query Filters"),
-    shiny::p("Select criteria to filter forest plots", class = "text-muted"),
+    shiny::uiOutput(ns("title_ui")),
 
-    # Basic Filters
+    # Basic Filters - inputs are static to preserve choices
     shiny::fluidRow(
       shiny::column(
         6,
         shiny::selectInput(
           ns("country"),
-          "Country",
-          choices = NULL,  # Will be populated in server
+          label = NULL,  # Label set dynamically
+          choices = NULL,
           selected = NULL,
           multiple = TRUE
         )
@@ -30,119 +29,49 @@ mod_plot_filters_ui <- function(id) {
         6,
         shiny::selectInput(
           ns("method"),
-          "Method",
-          choices = NULL,  # Will be populated in server
+          label = NULL,  # Label set dynamically
+          choices = NULL,
           selected = NULL,
           multiple = TRUE
         )
       )
     ),
-
     shiny::fluidRow(
       shiny::column(
         6,
         shiny::textInput(
           ns("plot_name"),
-          "Plot Name(s)",
-          placeholder = "e.g., bouamir001, mbalmayo001 (comma-separated)"
+          label = NULL,  # Label set dynamically
+          placeholder = ""
         )
       ),
       shiny::column(
         6,
         shiny::textInput(
           ns("locality"),
-          "Locality",
-          placeholder = "e.g., Lope"
+          label = NULL,  # Label set dynamically
+          placeholder = ""
         )
       )
     ),
-
     shiny::fluidRow(
       shiny::column(
         6,
         shiny::textInput(
           ns("tag"),
-          "Individual Tag",
-          placeholder = "Search by tree tag"
+          label = NULL,  # Label set dynamically
+          placeholder = ""
         )
       )
     ),
 
     # Advanced Filters (collapsible)
     shiny::hr(),
-    shiny::h5(
-      shiny::icon("chevron-down"),
-      "Advanced Filters",
-      style = "cursor: pointer;",
-      onclick = sprintf("$('#%s').toggle();", ns("advanced_panel"))
-    ),
-
-    shiny::div(
-      id = ns("advanced_panel"),
-      style = "display: none;",
-      shiny::fluidRow(
-        shiny::column(
-          4,
-          shiny::numericInput(
-            ns("id_plot"),
-            "Plot ID",
-            value = NA,
-            min = 1
-          )
-        ),
-        shiny::column(
-          4,
-          shiny::numericInput(
-            ns("id_individual"),
-            "Individual ID",
-            value = NA,
-            min = 1
-          )
-        ),
-        shiny::column(
-          4,
-          shiny::numericInput(
-            ns("id_tax"),
-            "Taxon ID",
-            value = NA,
-            min = 1
-          )
-        )
-      ),
-      shiny::fluidRow(
-        shiny::column(
-          4,
-          shiny::numericInput(
-            ns("id_specimen"),
-            "Specimen ID",
-            value = NA,
-            min = 1
-          )
-        ),
-        shiny::column(
-          4,
-          shiny::checkboxInput(
-            ns("exact_match"),
-            "Exact match for text filters",
-            value = FALSE
-          )
-        )
-      )
-    ),
+    shiny::uiOutput(ns("advanced_filters_ui")),
 
     # Execute Button
     shiny::hr(),
-    shiny::fluidRow(
-      shiny::column(
-        12,
-        shiny::actionButton(
-          ns("execute_query"),
-          "Execute Query",
-          icon = shiny::icon("search"),
-          class = "btn-primary btn-lg btn-block"
-        )
-      )
-    ),
+    shiny::uiOutput(ns("execute_button_ui")),
 
     # Query summary
     shiny::uiOutput(ns("query_summary"))
@@ -155,6 +84,7 @@ mod_plot_filters_ui <- function(id) {
 #'
 #' @param id Module namespace ID
 #' @param pool Database connection pool (reactive or static)
+#' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return A reactive list containing:
 #'   - filters: Named list of filter values
@@ -162,13 +92,128 @@ mod_plot_filters_ui <- function(id) {
 #'
 #' @keywords internal
 #' @export
-mod_plot_filters_server <- function(id, pool) {
+mod_plot_filters_server <- function(id, pool, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
     # Reactive values
     execute_counter <- shiny::reactiveVal(0)
     choices_loaded <- shiny::reactiveVal(FALSE)
+
+    # Title UI
+    output$title_ui <- shiny::renderUI({
+      shiny::tagList(
+        shiny::h4(i18n()$t("Query Filters")),
+        shiny::p(i18n()$t("Select criteria to filter forest plots"), class = "text-muted")
+      )
+    })
+
+    # Update input labels when language changes
+    shiny::observe({
+      # Update labels using updateSelectInput/updateTextInput
+      shiny::updateSelectInput(
+        session, "country",
+        label = i18n()$t("Country")
+      )
+      shiny::updateSelectInput(
+        session, "method",
+        label = i18n()$t("Method")
+      )
+      shiny::updateTextInput(
+        session, "plot_name",
+        label = i18n()$t("Plot Name(s)"),
+        placeholder = i18n()$t("e.g., bouamir001, mbalmayo001 (comma-separated)")
+      )
+      shiny::updateTextInput(
+        session, "locality",
+        label = i18n()$t("Locality"),
+        placeholder = i18n()$t("e.g., Lope")
+      )
+      shiny::updateTextInput(
+        session, "tag",
+        label = i18n()$t("Individual Tag"),
+        placeholder = i18n()$t("Search by tree tag")
+      )
+    })
+
+    # Advanced Filters UI
+    output$advanced_filters_ui <- shiny::renderUI({
+      shiny::tagList(
+        shiny::h5(
+          shiny::icon("chevron-down"),
+          i18n()$t("Advanced Filters"),
+          style = "cursor: pointer;",
+          onclick = sprintf("$('#%s').toggle();", ns("advanced_panel"))
+        ),
+        shiny::div(
+          id = ns("advanced_panel"),
+          style = "display: none;",
+          shiny::fluidRow(
+            shiny::column(
+              4,
+              shiny::numericInput(
+                ns("id_plot"),
+                i18n()$t("Plot ID"),
+                value = NA,
+                min = 1
+              )
+            ),
+            shiny::column(
+              4,
+              shiny::numericInput(
+                ns("id_individual"),
+                i18n()$t("Individual ID"),
+                value = NA,
+                min = 1
+              )
+            ),
+            shiny::column(
+              4,
+              shiny::numericInput(
+                ns("id_tax"),
+                i18n()$t("Taxon ID"),
+                value = NA,
+                min = 1
+              )
+            )
+          ),
+          shiny::fluidRow(
+            shiny::column(
+              4,
+              shiny::numericInput(
+                ns("id_specimen"),
+                i18n()$t("Specimen ID"),
+                value = NA,
+                min = 1
+              )
+            ),
+            shiny::column(
+              4,
+              shiny::checkboxInput(
+                ns("exact_match"),
+                i18n()$t("Exact match for text filters"),
+                value = FALSE
+              )
+            )
+          )
+        )
+      )
+    })
+
+    # Execute Button UI
+    output$execute_button_ui <- shiny::renderUI({
+      shiny::fluidRow(
+        shiny::column(
+          12,
+          shiny::actionButton(
+            ns("execute_query"),
+            i18n()$t("Execute Query"),
+            icon = shiny::icon("search"),
+            class = "btn-primary btn-lg btn-block"
+          )
+        )
+      )
+    })
 
     # Get pool connection
     con <- shiny::reactive({
@@ -272,7 +317,7 @@ mod_plot_filters_server <- function(id, pool) {
             class = "alert alert-info",
             style = "margin-top: 15px;",
             shiny::icon("info-circle"),
-            " No filters applied - will return all plots"
+            " ", i18n()$t("No filters applied - will return all plots")
           )
         )
       }
@@ -290,7 +335,7 @@ mod_plot_filters_server <- function(id, pool) {
         class = "alert alert-success",
         style = "margin-top: 15px;",
         shiny::icon("filter"),
-        shiny::strong(" Active filters: "),
+        shiny::strong(" ", i18n()$t("Active filters:"), " "),
         shiny::tags$br(),
         shiny::tags$small(filter_text)
       )
