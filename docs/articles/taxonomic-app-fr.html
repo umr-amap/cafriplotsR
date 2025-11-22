@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -70,6 +70,7 @@ interactive</li>
 <li>Comprendre la qualité des correspondances grâce au retour
 visuel</li>
 <li>Examiner manuellement les correspondances incertaines</li>
+<li>Enrichir les données avec des traits au niveau de l’espèce</li>
 </ul>
 </div>
 <div class="section level2">
@@ -84,11 +85,13 @@ visuel</li>
 <strong>Des données à standardiser</strong> dans l’un de ces formats
 :
 <ul>
-<li>Fichier Excel (.xlsx)</li>
+<li>Fichier Excel (.xlsx, .xls)</li>
+<li>Fichier CSV (.csv)</li>
 </ul>
 </li>
-<li>Une colonne contenant des <strong>noms taxonomiques</strong> Par
-exemple : (genre + espèce) ou (genre) ou (famille)</li>
+<li>Une colonne contenant des <strong>noms taxonomiques</strong> (ex.
+genre + espèce) ou des <strong>colonnes séparées</strong> pour le genre,
+l’espèce et la famille</li>
 </ol>
 </div>
 <div class="section level2">
@@ -104,9 +107,8 @@ exemple : (genre + espèce) ou (genre) ou (famille)</li>
 <span><span class="va">my_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"inventaire_arbres.csv"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">my_data</span>, name_column <span class="op">=</span> <span class="st">"nom_espece"</span><span class="op">)</span></span>
 <span></span>
-<span></span>
-<span><span class="co"># Ajuster la sensibilité de la correspondance approximative</span></span>
-<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.7</span><span class="op">)</span>  <span class="co"># Correspondance plus stricte</span></span></code></pre></div>
+<span><span class="co"># Ajuster la sensibilité de la correspondance approximative (par défaut 0.7)</span></span>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span>  <span class="co"># Correspondance plus permissive</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="guide-étape-par-étape">Guide Étape par Étape<a class="anchor" aria-label="anchor" href="#guide-%C3%A9tape-par-%C3%A9tape"></a>
@@ -121,7 +123,18 @@ des onglets pour les différentes phases du flux de travail :</p>
 <img src="images/app-initial-view.png" alt="Vue initiale de l’application"><div class="figcaption">Vue initiale de l’application</div>
 </div>
 <p>L’application utilise un <strong>flux de travail par onglets</strong>
-qui vous guide à travers chaque phase séquentiellement.</p>
+qui vous guide à travers chaque phase séquentiellement :</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Auto Match</strong> - Correspondance automatique</li>
+<li>
+<strong>Review</strong> - Révision manuelle des noms non
+appariés</li>
+<li>
+<strong>Export</strong> - Téléchargement des résultats</li>
+<li>
+<strong>Traits Enrichment</strong> - Ajout de traits d’espèces</li>
+</ol>
 </div>
 <div class="section level3">
 <h3 id="phase-2-charger-vos-données">Phase 2 : Charger Vos Données<a class="anchor" aria-label="anchor" href="#phase-2-charger-vos-donn%C3%A9es"></a>
@@ -130,7 +143,8 @@ qui vous guide à travers chaque phase séquentiellement.</p>
 <ul>
 <li>
 <strong>Charger un fichier Excel</strong> en utilisant le navigateur
-de fichiers</li>
+de fichiers (supporte .xlsx, .xls)</li>
+<li><strong>Charger un fichier CSV</strong></li>
 <li>
 <strong>Utiliser des données R pré-chargées</strong> (si vous avez
 passé le paramètre <code>data</code>)</li>
@@ -138,50 +152,85 @@ passé le paramètre <code>data</code>)</li>
 <div class="float">
 <img src="images/app-upload-data.png" alt="Interface de chargement des données"><div class="figcaption">Interface de chargement des données</div>
 </div>
-<p>L’application affichera un aperçu de vos données chargées pour que
-vous puissiez vérifier qu’elles ont été lues correctement.</p>
+<p>Pour les fichiers Excel avec plusieurs feuilles, vous pouvez
+sélectionner quelle feuille utiliser. L’application affichera un aperçu
+de vos données chargées pour que vous puissiez vérifier qu’elles ont été
+lues correctement.</p>
 </div>
 <div class="section level3">
-<h3 id="phase-3-sélectionner-la-colonne-des-noms">Phase 3 : Sélectionner la Colonne des Noms<a class="anchor" aria-label="anchor" href="#phase-3-s%C3%A9lectionner-la-colonne-des-noms"></a>
+<h3 id="phase-3-sélectionner-lales-colonnes-de-noms">Phase 3 : Sélectionner la/les Colonne(s) de Noms<a class="anchor" aria-label="anchor" href="#phase-3-s%C3%A9lectionner-lales-colonnes-de-noms"></a>
 </h3>
-<p>Une fois les données chargées, sélectionnez quelle colonne contient
-les noms taxonomiques à standardiser :</p>
+<p>Une fois les données chargées, vous avez deux options pour
+sélectionner les noms taxonomiques :</p>
+<div class="section level4">
+<h4 id="mode-colonne-unique-par-défaut">Mode Colonne Unique (Par Défaut)<a class="anchor" aria-label="anchor" href="#mode-colonne-unique-par-d%C3%A9faut"></a>
+</h4>
+<p>Sélectionnez une colonne contenant le nom taxonomique complet :</p>
 <div class="float">
-<img src="images/app-column-select.png" alt="Sélection de colonne"><div class="figcaption">Sélection de colonne</div>
+<img src="images/app-column-select.png" alt="Sélection de colonne - mode unique"><div class="figcaption">Sélection de colonne - mode unique</div>
 </div>
 <p>Le menu déroulant affiche toutes les colonnes disponibles de votre
 jeu de données. Choisissez celle contenant les noms d’espèces
 (généralement formatés comme “Genre espèce” ou “Genre espèce
 Auteur”).</p>
 </div>
+<div class="section level4">
+<h4 id="mode-colonnes-multiples-nouveau">Mode Colonnes Multiples (NOUVEAU)<a class="anchor" aria-label="anchor" href="#mode-colonnes-multiples-nouveau"></a>
+</h4>
+<p>Si vos données ont des colonnes séparées pour le genre, l’espèce et
+la famille, activez <strong>“Utiliser plusieurs colonnes”</strong> :</p>
+<div class="float">
+<img src="images/app-column-select-multi.png" alt="Sélection de colonnes - mode multiple"><div class="figcaption">Sélection de colonnes - mode multiple</div>
+</div>
+<p>L’application combinera automatiquement ces colonnes en un seul nom
+taxonomique pour la correspondance, en utilisant une approche
+hiérarchique : - Si genre et espèce sont disponibles : “Genre espèce” -
+Si seulement genre : “Genre” - Si seulement famille : “Famille”</p>
+<p>Vous pouvez aussi optionnellement inclure une colonne d’auteur.</p>
+</div>
+</div>
 <div class="section level3">
 <h3 id="phase-4-correspondance-automatique">Phase 4 : Correspondance Automatique<a class="anchor" aria-label="anchor" href="#phase-4-correspondance-automatique"></a>
 </h3>
 <p>Cliquez sur le bouton <strong>“Démarrer la Correspondance”</strong>
 pour commencer le processus de correspondance automatique. L’application
-utilise une stratégie de correspondance à trois niveaux :</p>
+utilise une <strong>stratégie de correspondance à cinq niveaux</strong>
+:</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong>Correspondance exacte</strong> : Recherche directe du nom
-complet</li>
+<strong>Correspondance exacte sur l’espèce</strong> : Recherche
+directe du nom complet (genre + espèce)</li>
 <li>
-<strong>Correspondance approximative contrainte par genre</strong> :
-Recherche dans les genres correspondants</li>
+<strong>Correspondance exacte sur le genre</strong> : Correspondance
+au niveau du genre</li>
 <li>
-<strong>Correspondance approximative sur toute la base</strong> :
-Recherche dans toute la référence (dernier recours)</li>
+<strong>Correspondance exacte sur la famille</strong> :
+Correspondance au niveau de la famille</li>
+<li>
+<strong>Correspondance exacte sur la classe</strong> :
+Correspondance à un niveau taxonomique supérieur</li>
+<li>
+<strong>Correspondance approximative</strong> : Correspondance de
+chaînes approximative pour les noms restants</li>
 </ol>
 <div class="float">
 <img src="images/app-matching-progress.png" alt="Correspondance en cours"><div class="figcaption">Correspondance en cours</div>
 </div>
 <p>La barre de progression affiche le statut en temps réel. Pour les
-grands jeux de données, cela peut prendre quelques minutes.</p>
+grands jeux de données, cela peut prendre quelques minutes. La barre
+latérale affiche des statistiques en direct :</p>
+<ul>
+<li>Nombre de correspondances exactes</li>
+<li>Nombre de correspondances au niveau du genre</li>
+<li>Nombre de correspondances approximatives</li>
+<li>Nombre de noms non appariés</li>
+</ul>
 </div>
 <div class="section level3">
 <h3 id="phase-5-examiner-les-résultats-de-correspondance">Phase 5 : Examiner les Résultats de Correspondance<a class="anchor" aria-label="anchor" href="#phase-5-examiner-les-r%C3%A9sultats-de-correspondance"></a>
 </h3>
-<p>Après la fin de la correspondance, vous verrez un tableau résumé
-montrant tous les noms avec leur statut de correspondance :</p>
+<p>Après la fin de la correspondance, l’onglet Auto Match affiche un
+tableau résumé avec tous les noms et leur statut de correspondance :</p>
 <div class="float">
 <img src="images/app-matching-results.png" alt="Résumé des résultats de correspondance"><div class="figcaption">Résumé des résultats de correspondance</div>
 </div>
@@ -192,8 +241,8 @@ montrant tous les noms avec leur statut de correspondance :</p>
 <li>
 <strong>matched_name</strong> : Nom trouvé dans la référence</li>
 <li>
-<strong>match_method</strong> : Comment il a été apparié (exact,
-genus_constrained, fuzzy, manual)</li>
+<strong>match_method</strong> : Comment il a été apparié
+(exact_species, exact_genus, exact_family, fuzzy, manual)</li>
 <li>
 <strong>match_score</strong> : Score de similarité (0-1, plus élevé
 est meilleur)</li>
@@ -228,75 +277,125 @@ manuelle</li>
 <h3 id="phase-6-révision-manuelle">Phase 6 : Révision Manuelle<a class="anchor" aria-label="anchor" href="#phase-6-r%C3%A9vision-manuelle"></a>
 </h3>
 <p>Pour les noms non appariés ou incertains, passez à l’onglet
-<strong>“Révision”</strong> pour réviser manuellement et sélectionner
-les correspondances :</p>
+<strong>“Review”</strong> pour réviser manuellement et sélectionner les
+correspondances :</p>
 <div class="float">
 <img src="images/app-review-interface.png" alt="Interface de révision manuelle"><div class="figcaption">Interface de révision manuelle</div>
 </div>
-<p>L’interface de révision montre :</p>
-<ul>
-<li>
-<strong>Nom actuel non apparié</strong> en haut</li>
-<li>
-<strong>Suggestions de correspondance approximative</strong>
-classées par similarité</li>
-<li>
-<strong>Informations taxonomiques</strong> pour chaque suggestion
-(famille, genre, espèce)</li>
-<li>
-<strong>Scores de similarité</strong> pour aider à évaluer la
-qualité de la correspondance</li>
-</ul>
-<p>Vous pouvez :</p>
-<ul>
-<li>
-<strong>Accepter une suggestion</strong> : Cliquez sur le nom pour
-le sélectionner</li>
-<li>
-<strong>Passer</strong> : Passer au nom suivant sans
-sélectionner</li>
-<li>
-<strong>Rechercher manuellement</strong> : Tapez pour rechercher
-dans la base de données de référence</li>
-</ul>
+<p>L’interface de révision fournit deux façons de trouver des
+correspondances :</p>
+<div class="section level4">
+<h4 id="panneau-de-suggestions-approximatives">Panneau de Suggestions Approximatives<a class="anchor" aria-label="anchor" href="#panneau-de-suggestions-approximatives"></a>
+</h4>
+<p>Affiche des suggestions automatiques classées par similarité avec des
+options de filtrage avancées :</p>
 <div class="float">
-<img src="images/app-review-interface-2.png" alt="Interface de révision montrant les suggestions"><div class="figcaption">Interface de révision montrant les
-suggestions</div>
+<img src="images/app-review-suggestions.png" alt="Suggestions approximatives avec filtres"><div class="figcaption">Suggestions approximatives avec filtres</div>
 </div>
-<p>L’application mémorise vos sélections et met à jour automatiquement
-le tableau des résultats.</p>
+<p><strong>Options de filtrage :</strong></p>
+<ul>
+<li>
+<strong>Nombre de suggestions</strong> : Curseur pour afficher 5-30
+suggestions</li>
+<li>
+<strong>Similarité minimale</strong> : Ajuster le seuil
+(0.3-1.0)</li>
+<li>
+<strong>Filtre de niveau taxonomique</strong> : Filtrer par Tous,
+Espèce, Genre, Famille, Ordre, Classe ou Infraspécifique</li>
+<li>
+<strong>Trier par</strong> : Score de similarité ou ordre
+alphabétique</li>
+</ul>
+<p>Chaque carte de suggestion affiche :</p>
+<ul>
+<li>Nom avec badge de similarité coloré (vert = élevé, bleu = moyen,
+jaune = bas)</li>
+<li>Niveau taxonomique et famille</li>
+<li>Information de synonymie si applicable</li>
+<li>Bouton <strong>Sélectionner</strong> pour acceptation en un
+clic</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="panneau-de-recherche-manuelle">Panneau de Recherche Manuelle<a class="anchor" aria-label="anchor" href="#panneau-de-recherche-manuelle"></a>
+</h4>
+<p>Pour les noms sans bonnes suggestions, utilisez la recherche manuelle
+:</p>
+<div class="float">
+<img src="images/app-review-manual-search.png" alt="Interface de recherche manuelle"><div class="figcaption">Interface de recherche manuelle</div>
+</div>
+<ul>
+<li>Tapez n’importe quel terme de recherche pour interroger la référence
+taxonomique</li>
+<li>Filtrez les résultats par niveau taxonomique</li>
+<li>Voir les informations détaillées pour chaque correspondance</li>
+<li>Sélectionnez la bonne correspondance ou marquez comme “non
+résolu”</li>
+</ul>
+<p><strong>Navigation :</strong></p>
+<ul>
+<li>Utilisez les boutons <strong>Précédent/Passer/Suivant</strong> pour
+parcourir les noms non appariés</li>
+<li>Le compteur de progression affiche les noms révisés
+vs. restants</li>
+<li>L’application mémorise vos sélections et met à jour automatiquement
+les résultats</li>
+</ul>
+</div>
 </div>
 <div class="section level3">
 <h3 id="phase-7-enrichir-les-données-avec-des-traits">Phase 7 : Enrichir les Données avec des Traits<a class="anchor" aria-label="anchor" href="#phase-7-enrichir-les-donn%C3%A9es-avec-des-traits"></a>
 </h3>
-<p>De plus, vous pouvez enrichir vos données appariées avec des traits
-taxonomiques de la base de données de référence :</p>
+<p>Passez à l’onglet <strong>“Traits Enrichment”</strong> pour ajouter
+des traits au niveau de l’espèce à vos données appariées :</p>
 <div class="float">
-<img src="images/app-enrich-data-interface.png" alt="Interface d’enrichissement des données"><div class="figcaption">Interface d’enrichissement des données</div>
+<img src="images/app-enrich-data-interface.png" alt="Interface d’enrichissement des traits"><div class="figcaption">Interface d’enrichissement des traits</div>
 </div>
-<p>Sélectionnez quels traits ajouter à votre jeu de données, tels que
-:</p>
+<p><strong>Options :</strong></p>
+<ul>
+<li>
+<strong>Mode d’agrégation catégorielle</strong> :
+<ul>
+<li>“mode” - Utiliser la valeur la plus fréquente par taxon</li>
+<li>“concat” - Concaténer toutes les valeurs uniques</li>
+</ul>
+</li>
+<li>
+<strong>Sélectionner les colonnes à inclure</strong> :
+<ul>
+<li>Noms d’entrée originaux</li>
+<li>Noms corrigés</li>
+<li>IDs taxonomiques</li>
+<li>Métadonnées de correspondance</li>
+</ul>
+</li>
+</ul>
+<p>Les traits disponibles incluent :</p>
 <ul>
 <li>Forme de croissance</li>
 <li>Densité du bois</li>
 <li>Traits foliaires</li>
 <li>Caractéristiques écologiques</li>
 </ul>
-<p>Les données enrichies combinent vos données originales avec les
-informations taxonomiques et les traits sélectionnés :</p>
+<p>Les données enrichies combinent vos taxons appariés avec les traits
+sélectionnés :</p>
 <div class="float">
 <img src="images/app-enrich-data-results.png" alt="Résultats des données enrichies"><div class="figcaption">Résultats des données enrichies</div>
 </div>
+<p><strong>Note</strong> : L’export enrichi crée une ligne par taxon
+unique, pas par ligne d’entrée. Les noms d’entrée sont concaténés avec
+des séparateurs pipe.</p>
 </div>
 <div class="section level3">
 <h3 id="phase-8-exporter-les-résultats">Phase 8 : Exporter les Résultats<a class="anchor" aria-label="anchor" href="#phase-8-exporter-les-r%C3%A9sultats"></a>
 </h3>
-<p>Une fois satisfait des correspondances, exportez votre jeu de données
-standardisé :</p>
+<p>Passez à l’onglet <strong>“Export”</strong> pour télécharger votre
+jeu de données standardisé :</p>
 <div class="float">
 <img src="images/app-export-options.png" alt="Options d’export"><div class="figcaption">Options d’export</div>
 </div>
-<p>Formats d’export disponibles :</p>
+<p><strong>Formats disponibles :</strong></p>
 <ul>
 <li>
 <strong>Excel (.xlsx)</strong> : Idéal pour partager avec des
@@ -307,14 +406,16 @@ collaborateurs</li>
 <strong>RDS (.rds)</strong> : Format natif R préservant les types de
 données</li>
 </ul>
-<p>Le fichier exporté inclut :</p>
+<p><strong>Colonnes sélectionnables :</strong></p>
 <ul>
-<li>Toutes vos colonnes originales</li>
-<li>Nouvelles colonnes avec informations taxonomiques
-(<code>idtax_n</code>, <code>matched_name</code>,
-<code>match_method</code>, etc.)</li>
-<li>Données de traits enrichis (si sélectionnées)</li>
+<li>Données originales (toutes vos colonnes d’entrée)</li>
+<li>IDs appariés (idtax_n, idtax_good_n)</li>
+<li>Noms corrigés (corrected_name, matched_name)</li>
+<li>Métadonnées de correspondance (match_method, match_score,
+is_synonym, accepted_name)</li>
 </ul>
+<p>Un tableau de prévisualisation montre les données avant l’export avec
+des contrôles de pagination.</p>
 </div>
 </div>
 <div class="section level2">
@@ -349,8 +450,8 @@ données</li>
 </tr>
 <tr class="odd">
 <td><code>match_method</code></td>
-<td>Stratégie de correspondance utilisée (exact, genus_constrained,
-fuzzy, manual)</td>
+<td>Stratégie de correspondance utilisée (exact_species, exact_genus,
+exact_family, fuzzy, manual, unresolved)</td>
 </tr>
 <tr class="even">
 <td><code>match_score</code></td>
@@ -381,19 +482,44 @@ fuzzy, manual)</td>
 <div class="section level3">
 <h3 id="sélection-de-la-langue">Sélection de la Langue<a class="anchor" aria-label="anchor" href="#s%C3%A9lection-de-la-langue"></a>
 </h3>
-<p>Pas encore fonctionnel…</p>
+<p>L’application supporte désormais <strong>l’opération
+bilingue</strong> avec des interfaces en français et en anglais.
+<strong>Le français est la langue par défaut</strong>.</p>
+<p><strong>Dans l’Interface de l’Application:</strong></p>
+<p>Un sélecteur de langue est situé en haut à droite de l’application :
+- Cliquez sur <strong>“FR”</strong> pour l’interface en français -
+Cliquez sur <strong>“EN”</strong> pour l’interface en anglais</p>
+<p>Le changement de langue est instantané et affecte tous les éléments
+de l’interface incluant : - Les libellés des onglets - Le texte des
+boutons - Les instructions et textes d’aide - Les en-têtes de colonnes -
+Les messages d’erreur et notifications</p>
+<p><strong>Définir la Langue Initiale par Programme:</strong></p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Lancer l'application en anglais</span></span>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"en"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Lancer l'application en français (par défaut)</span></span>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span>
+<span><span class="co"># ou simplement :</span></span>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>Le paramètre de langue est interactif - les utilisateurs peuvent
+changer de langue à tout moment pendant leur session sans perdre leur
+progression ou leurs données.</p>
 </div>
 <div class="section level3">
 <h3 id="ajuster-la-correspondance-approximative">Ajuster la Correspondance Approximative<a class="anchor" aria-label="anchor" href="#ajuster-la-correspondance-approximative"></a>
 </h3>
 <p>Contrôlez la sensibilité de la correspondance avec le paramètre
 <code>min_similarity</code> :</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Très strict - uniquement des correspondances de haute qualité</span></span>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># Paramètre par défaut</span></span>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.7</span><span class="op">)</span></span>
+<span></span>
 <span><span class="co"># Plus permissif - permet des correspondances de moindre qualité</span></span>
-<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span>  <span class="co"># Par défaut</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span></span></code></pre></div>
 <p>Des valeurs plus basses ratissent plus large mais peuvent inclure des
 faux positifs. Des valeurs plus élevées sont plus conservatrices mais
 peuvent manquer des correspondances valides.</p>
@@ -403,12 +529,24 @@ peuvent manquer des correspondances valides.</p>
 </h3>
 <p>Afficher plus de suggestions de correspondance approximative par nom
 :</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Afficher les 20 meilleures suggestions au lieu des 10 par défaut</span></span>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>max_suggestions <span class="op">=</span> <span class="fl">20</span><span class="op">)</span></span></code></pre></div>
 <p>Utile quand les suggestions initiales n’incluent pas la bonne
-correspondance.</p>
+correspondance. Vous pouvez aussi ajuster ceci de manière interactive
+dans l’onglet Review en utilisant le curseur.</p>
 </div>
+</div>
+<div class="section level2">
+<h2 id="paramètres-de-la-fonction">Paramètres de la Fonction<a class="anchor" aria-label="anchor" href="#param%C3%A8tres-de-la-fonction"></a>
+</h2>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="cn">NULL</span>,           <span class="co"># Optionnel : pré-charger un data.frame</span></span>
+<span>  name_column <span class="op">=</span> <span class="cn">NULL</span>,    <span class="co"># Optionnel : pré-sélectionner une colonne</span></span>
+<span>  min_similarity <span class="op">=</span> <span class="fl">0.7</span>,  <span class="co"># Seuil de correspondance approximative (0-1)</span></span>
+<span>  max_suggestions <span class="op">=</span> <span class="fl">10</span>   <span class="co"># Max suggestions par nom non apparié</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="dépannage">Dépannage<a class="anchor" aria-label="anchor" href="#d%C3%A9pannage"></a>
@@ -419,7 +557,7 @@ correspondance.</p>
 <p><strong>Problème</strong> : “Échec de connexion à la base de
 données”</p>
 <p><strong>Solution</strong> :</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Vérifier la connexion</span></span>
 <span><span class="fu"><a href="../reference/db_diagnostic.html">db_diagnostic</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
@@ -435,11 +573,14 @@ noms non appariés</p>
 <p><strong>Causes possibles</strong> : - Seuil
 <code>min_similarity</code> trop élevé - Les noms taxonomiques
 contiennent des fautes de frappe ou un formatage non standard - Les noms
-ne sont pas présents dans la référence taxonomique</p>
+ne sont pas présents dans la référence taxonomique (ex. taxons non
+africains)</p>
 <p><strong>Solutions</strong> : - Diminuer <code>min_similarity</code> :
-<code>launch_taxonomic_match_app(min_similarity = 0.2)</code> - Nettoyer
-les noms en entrée (supprimer les espaces supplémentaires, corriger les
-fautes évidentes) - Vérifier que les noms sont des taxons africains</p>
+<code>launch_taxonomic_match_app(min_similarity = 0.5)</code> - Utiliser
+le filtre de niveau taxonomique pour chercher au niveau du genre ou de
+la famille - Nettoyer les noms en entrée (supprimer les espaces
+supplémentaires, corriger les fautes évidentes) - Vérifier que les noms
+sont des taxons africains</p>
 </div>
 <div class="section level3">
 <h3 id="performance-de-correspondance-lente">Performance de Correspondance Lente<a class="anchor" aria-label="anchor" href="#performance-de-correspondance-lente"></a>
@@ -449,8 +590,8 @@ pour les grands jeux de données</p>
 <p><strong>Solutions</strong> : - Utiliser le traitement par lots à la
 place : <code><a href="../reference/match_taxonomic_names.html">match_taxonomic_names()</a></code> pour un flux de travail
 programmatique - Traiter les données en morceaux (diviser les grands
-jeux de données) - Augmenter la taille du pool de connexions à la base
-de données (avancé)</p>
+jeux de données) - L’application télécharge toute la référence une fois
+pour l’efficacité, donc le chargement initial peut être lent</p>
 </div>
 </div>
 <div class="section level2">
@@ -480,14 +621,14 @@ CONTENANT LE NOM ORIGINAL</em>)</li>
 <li>Traitement par lots de plusieurs fichiers</li>
 </ul>
 <p>Exemple d’approche programmatique :</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Charger les données</span></span>
 <span><span class="va">my_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"inventaire_arbres.csv"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Apparier les noms</span></span>
 <span><span class="va">matched</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/match_taxonomic_names.html">match_taxonomic_names</a></span><span class="op">(</span></span>
 <span>  names <span class="op">=</span> <span class="va">my_data</span><span class="op">$</span><span class="va">nom_espece</span>,</span>
-<span>  min_similarity <span class="op">=</span> <span class="fl">0.5</span></span>
+<span>  min_similarity <span class="op">=</span> <span class="fl">0.7</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Fusionner avec les données originales</span></span>
@@ -527,6 +668,14 @@ spéciaux</li>
 <strong>Comprenez vos données</strong> : Sachez quels groupes
 taxonomiques sont dans votre jeu de données</li>
 <li>
+<strong>Utilisez le mode multi-colonnes</strong> : Si vous avez des
+colonnes séparées genre/espèce/famille, combinez-les pour une meilleure
+correspondance</li>
+<li>
+<strong>Filtrez par niveau taxonomique</strong> : Utilisez le filtre
+de niveau dans l’onglet Review pour trouver des correspondances au genre
+ou à la famille</li>
+<li>
 <strong>Examinez les scores de correspondance</strong> : N’acceptez
 pas aveuglément les correspondances à faible similarité (&lt;0.6)</li>
 <li>
@@ -543,7 +692,7 @@ reproductibilité</li>
 <h2 id="exemple-de-flux-de-travail">Exemple de Flux de Travail<a class="anchor" aria-label="anchor" href="#exemple-de-flux-de-travail"></a>
 </h2>
 <p>Voici un flux de travail complet du début à la fin :</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1. Charger vos données</span></span>
 <span><span class="va">trees</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"inventaire_forestier.csv"</span><span class="op">)</span></span>
 <span><span class="co"># Colonnes : plot_id, tree_number, species_name, dbh, height</span></span>
@@ -552,13 +701,14 @@ reproductibilité</li>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">trees</span>,</span>
 <span>  name_column <span class="op">=</span> <span class="st">"species_name"</span>,</span>
-<span>  min_similarity <span class="op">=</span> <span class="fl">0.5</span></span>
+<span>  min_similarity <span class="op">=</span> <span class="fl">0.7</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 3. Dans l'application :</span></span>
-<span><span class="co">#    - Revoir les correspondances automatiques</span></span>
-<span><span class="co">#    - Résoudre manuellement les noms non appariés</span></span>
-<span><span class="co">#    - Optionnellement enrichir avec des traits (ex. densité du bois)</span></span>
+<span><span class="co">#    - Revoir les correspondances automatiques dans l'onglet Auto Match</span></span>
+<span><span class="co">#    - Utiliser l'onglet Review pour résoudre les noms non appariés</span></span>
+<span><span class="co">#    - Appliquer les filtres de niveau taxonomique si nécessaire</span></span>
+<span><span class="co">#    - Optionnellement enrichir avec des traits dans l'onglet Traits Enrichment</span></span>
 <span><span class="co">#    - Exporter comme "inventaire_forestier_standardise.xlsx"</span></span>
 <span></span>
 <span><span class="co"># 4. Continuer l'analyse avec les données standardisées</span></span>
@@ -569,6 +719,52 @@ reproductibilité</li>
 standardisées et prêtes pour des analyses en aval comme les métriques de
 diversité, les analyses basées sur les traits ou l’intégration dans la
 base de données.</p>
+</div>
+<div class="section level2">
+<h2 id="captures-décran-suggérées">Captures d’Écran Suggérées<a class="anchor" aria-label="anchor" href="#captures-d%C3%A9cran-sugg%C3%A9r%C3%A9es"></a>
+</h2>
+<p>Pour compléter cette documentation, les captures d’écran suivantes
+devraient être réalisées :</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>app-initial-view.png</strong> - Interface complète de
+l’application après lancement avec tous les onglets visibles</li>
+<li>
+<strong>app-upload-data.png</strong> - Panneau de chargement des
+données avec navigateur de fichiers et sélection de feuille</li>
+<li>
+<strong>app-column-select.png</strong> - Menu déroulant de sélection
+de colonne unique</li>
+<li>
+<strong>app-column-select-multi.png</strong> - Mode colonnes
+multiples avec sélecteurs genre/espèce/famille</li>
+<li>
+<strong>app-matching-progress.png</strong> - Correspondance en cours
+avec barre de progression et statistiques en direct</li>
+<li>
+<strong>app-matching-results.png</strong> - Tableau des résultats
+dans l’onglet Auto Match montrant les noms appariés</li>
+<li>
+<strong>app-review-interface.png</strong> - Vue d’ensemble de
+l’onglet Review avec affichage du nom non apparié</li>
+<li>
+<strong>app-review-suggestions.png</strong> - Panneau de suggestions
+approximatives avec options de filtrage (filtre niveau, tri,
+curseur)</li>
+<li>
+<strong>app-review-manual-search.png</strong> - Interface de
+recherche manuelle avec boîte de recherche et résultats</li>
+<li>
+<strong>app-enrich-data-interface.png</strong> - Onglet
+d’enrichissement des traits avec mode d’agrégation et sélection de
+colonnes</li>
+<li>
+<strong>app-enrich-data-results.png</strong> - Aperçu des données
+enrichies avec traits</li>
+<li>
+<strong>app-export-options.png</strong> - Onglet Export avec
+sélection de format et cases à cocher des colonnes</li>
+</ol>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
