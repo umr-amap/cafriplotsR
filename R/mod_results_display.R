@@ -11,63 +11,8 @@ mod_results_display_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    shiny::h4("Extraction Results"),
-
-    # Status message
-    shiny::uiOutput(ns("status_message")),
-
-    # Download panel
-    shiny::div(
-      id = ns("download_panel"),
-      style = "display: none;",
-      shiny::wellPanel(
-        shiny::h5(shiny::icon("download"), " Download Results"),
-        shiny::fluidRow(
-          shiny::column(
-            3,
-            shiny::downloadButton(
-              ns("download_excel"),
-              "Excel (.xlsx)",
-              class = "btn-primary btn-block"
-            )
-          ),
-          shiny::column(
-            3,
-            shiny::downloadButton(
-              ns("download_csv"),
-              "CSV (zipped)",
-              class = "btn-primary btn-block"
-            )
-          ),
-          shiny::column(
-            3,
-            shiny::downloadButton(
-              ns("download_rds"),
-              "R Object (.rds)",
-              class = "btn-primary btn-block"
-            )
-          ),
-          shiny::column(
-            3,
-            shiny::uiOutput(ns("download_shapefile_ui"))
-          )
-        ),
-        shiny::hr(),
-        shiny::checkboxGroupInput(
-          ns("tables_to_export"),
-          "Select tables to include in export:",
-          choices = NULL
-        )
-      )
-    ),
-
-    shiny::br(),
-
-    # Results tabs (dynamically generated)
-    shiny::div(
-      id = ns("results_tabs_panel"),
-      shiny::uiOutput(ns("results_tabs_ui"))
-    )
+    # All UI elements rendered dynamically for i18n support
+    shiny::uiOutput(ns("results_ui"))
   )
 }
 
@@ -77,14 +22,78 @@ mod_results_display_ui <- function(id) {
 #'
 #' @param id Module namespace ID
 #' @param results Reactive containing query_plots() results
+#' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return NULL
 #'
 #' @keywords internal
 #' @export
-mod_results_display_server <- function(id, results) {
+mod_results_display_server <- function(id, results, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Main UI with translations
+    output$results_ui <- shiny::renderUI({
+      shiny::tagList(
+        shiny::h4(i18n()$t("Extraction Results")),
+
+        # Status message
+        shiny::uiOutput(ns("status_message")),
+
+        # Download panel
+        shiny::div(
+          id = ns("download_panel"),
+          style = "display: none;",
+          shiny::wellPanel(
+            shiny::h5(shiny::icon("download"), " ", i18n()$t("Download Results")),
+            shiny::fluidRow(
+              shiny::column(
+                3,
+                shiny::downloadButton(
+                  ns("download_excel"),
+                  i18n()$t("Excel (.xlsx)"),
+                  class = "btn-primary btn-block"
+                )
+              ),
+              shiny::column(
+                3,
+                shiny::downloadButton(
+                  ns("download_csv"),
+                  i18n()$t("CSV (zipped)"),
+                  class = "btn-primary btn-block"
+                )
+              ),
+              shiny::column(
+                3,
+                shiny::downloadButton(
+                  ns("download_rds"),
+                  i18n()$t("R Object (.rds)"),
+                  class = "btn-primary btn-block"
+                )
+              ),
+              shiny::column(
+                3,
+                shiny::uiOutput(ns("download_shapefile_ui"))
+              )
+            ),
+            shiny::hr(),
+            shiny::checkboxGroupInput(
+              ns("tables_to_export"),
+              i18n()$t("Select tables to include in export:"),
+              choices = NULL
+            )
+          )
+        ),
+
+        shiny::br(),
+
+        # Results tabs (dynamically generated)
+        shiny::div(
+          id = ns("results_tabs_panel"),
+          shiny::uiOutput(ns("results_tabs_ui"))
+        )
+      )
+    })
 
     # Show download panel when results available
     shiny::observe({
@@ -99,7 +108,7 @@ mod_results_display_server <- function(id, results) {
           shiny::div(
             class = "alert alert-info",
             shiny::icon("info-circle"),
-            " Configure extraction options and click 'Extract Individuals' to view results"
+            " ", i18n()$t("Configure extraction options and click 'Extract Individuals' to view results")
           )
         )
       }
@@ -117,7 +126,10 @@ mod_results_display_server <- function(id, results) {
       shiny::div(
         class = "alert alert-success",
         shiny::icon("check-circle"),
-        sprintf(" Extraction complete! %d total records", total_rows)
+        sprintf(" %s %d %s",
+                i18n()$t("Extraction complete!"),
+                total_rows,
+                i18n()$t("total records"))
       )
     })
 
@@ -172,7 +184,7 @@ mod_results_display_server <- function(id, results) {
       if (has_spatial) {
         shiny::downloadButton(
           ns("download_shapefile"),
-          "Shapefile (.zip)",
+          i18n()$t("Shapefile (.zip)"),
           class = "btn-primary btn-block"
         )
       } else {
@@ -196,7 +208,12 @@ mod_results_display_server <- function(id, results) {
           shiny::br(),
           shiny::div(
             class = "text-muted",
-            sprintf("Showing %d rows × %d columns", nrow(tab_data), ncol(tab_data))
+            sprintf("%s %d %s x %d %s",
+                    i18n()$t("Showing"),
+                    nrow(tab_data),
+                    i18n()$t("rows"),
+                    ncol(tab_data),
+                    i18n()$t("columns"))
           )
         )
       })
