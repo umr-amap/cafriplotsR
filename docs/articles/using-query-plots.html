@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -512,6 +512,454 @@ or <code>standard</code> for quick analyses</li>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Returns a single data frame instead of structured list</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="interactive-shiny-application">Interactive Shiny Application<a class="anchor" aria-label="anchor" href="#interactive-shiny-application"></a>
+</h2>
+<p>CafriplotsR provides an interactive Shiny application for users who
+prefer a graphical interface over writing R code. The app wraps
+<code><a href="../reference/query_plots.html">query_plots()</a></code> with an intuitive two-stage workflow.</p>
+<div class="section level3">
+<h3 id="launching-the-app">Launching the App<a class="anchor" aria-label="anchor" href="#launching-the-app"></a>
+</h3>
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Launch the interactive query app</span></span>
+<span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Or specify language (French or English)</span></span>
+<span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span>  <span class="co"># French (default)</span></span>
+<span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"en"</span><span class="op">)</span>  <span class="co"># English</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="app-overview">App Overview<a class="anchor" aria-label="anchor" href="#app-overview"></a>
+</h3>
+<p>When you first launch the app, you’ll see the main interface with a
+navigation bar containing three tabs:</p>
+<div class="float">
+<img src="images/app-query-initial-view.png" alt="Application initial view"><div class="figcaption">Application initial view</div>
+</div>
+<p>The app uses a <strong>tabbed workflow</strong>:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Query Builder</strong> - Define filters and search
+criteria</li>
+<li>
+<strong>Results &amp; Extraction</strong> - View results, select
+plots, extract individuals</li>
+<li>
+<strong>About</strong> - App documentation and package
+information</li>
+</ol>
+</div>
+<div class="section level3">
+<h3 id="phase-1-query-builder">Phase 1: Query Builder<a class="anchor" aria-label="anchor" href="#phase-1-query-builder"></a>
+</h3>
+<div class="section level4">
+<h4 id="setting-up-filters">Setting Up Filters<a class="anchor" aria-label="anchor" href="#setting-up-filters"></a>
+</h4>
+<p>The Query Builder tab provides various filtering options to find
+plots of interest:</p>
+<div class="float">
+<img src="images/app-query-filters.png" alt="Filter panel"><div class="figcaption">Filter panel</div>
+</div>
+<p><strong>Basic Filters:</strong></p>
+<ul>
+<li>
+<strong>Country</strong>: Multi-select dropdown of available
+countries</li>
+<li>
+<strong>Method</strong>: Filter by inventory method (1 ha plot, Long
+Transect, etc.)</li>
+<li>
+<strong>Plot Name(s)</strong>: Text search (comma-separated for
+multiple plots)</li>
+<li>
+<strong>Locality</strong>: Search by locality name</li>
+<li>
+<strong>Individual Tag</strong>: Search by tree tag number</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="advanced-filters">Advanced Filters<a class="anchor" aria-label="anchor" href="#advanced-filters"></a>
+</h4>
+<p>Click on “Advanced Filters” to expand additional search options:</p>
+<div class="float">
+<img src="images/app-query-advanced-filters.png" alt="Advanced filters"><div class="figcaption">Advanced filters</div>
+</div>
+<ul>
+<li>
+<strong>Plot ID</strong>: Search by database plot ID</li>
+<li>
+<strong>Individual ID</strong>: Search by specific individual
+ID</li>
+<li>
+<strong>Taxon ID</strong>: Filter by taxonomic ID</li>
+<li>
+<strong>Specimen ID</strong>: Search by herbarium specimen ID</li>
+<li>
+<strong>Exact match</strong>: Toggle for strict text matching</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="executing-the-query">Executing the Query<a class="anchor" aria-label="anchor" href="#executing-the-query"></a>
+</h4>
+<p>After setting your filters, click <strong>“Execute Query”</strong> to
+retrieve plot metadata. The app shows a summary of active filters before
+execution.</p>
+</div>
+</div>
+<div class="section level3">
+<h3 id="phase-2-results-extraction">Phase 2: Results &amp; Extraction<a class="anchor" aria-label="anchor" href="#phase-2-results-extraction"></a>
+</h3>
+<div class="section level4">
+<h4 id="interactive-map-1">Interactive Map<a class="anchor" aria-label="anchor" href="#interactive-map-1"></a>
+</h4>
+<p>Query results are displayed on an interactive map with multiple
+basemap options:</p>
+<div class="float">
+<img src="images/app-query-map-view.png" alt="Interactive map with plot markers"><div class="figcaption">Interactive map with plot markers</div>
+</div>
+<p><strong>Map features:</strong></p>
+<ul>
+<li>
+<strong>Basemap layers</strong>: OpenStreetMap, Satellite,
+Physical</li>
+<li>
+<strong>Clickable markers</strong>: Click to see plot details</li>
+<li>
+<strong>Popup information</strong>: Plot name, country, method,
+area</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="metadata-table">Metadata Table<a class="anchor" aria-label="anchor" href="#metadata-table"></a>
+</h4>
+<p>Below the map, a sortable and searchable table displays all plot
+metadata:</p>
+<div class="float">
+<img src="images/app-query-metadata-table.png" alt="Plot metadata table"><div class="figcaption">Plot metadata table</div>
+</div>
+<p><strong>Table features:</strong></p>
+<ul>
+<li>
+<strong>Search</strong>: Filter table contents</li>
+<li>
+<strong>Sort</strong>: Click column headers to sort</li>
+<li>
+<strong>Pagination</strong>: Navigate through large result sets</li>
+<li>
+<strong>Row selection</strong>: Click rows to select/deselect
+plots</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="selecting-plots">Selecting Plots<a class="anchor" aria-label="anchor" href="#selecting-plots"></a>
+</h4>
+<p>Select specific plots for individual extraction by clicking rows in
+the table:</p>
+<div class="float">
+<img src="images/app-query-plot-selection.png" alt="Selected plots highlighted"><div class="figcaption">Selected plots highlighted</div>
+</div>
+<ul>
+<li>Selected rows are highlighted</li>
+<li>A counter shows the number of selected plots</li>
+<li>By default, all plots are selected</li>
+</ul>
+</div>
+</div>
+<div class="section level3">
+<h3 id="phase-3-configure-extraction">Phase 3: Configure Extraction<a class="anchor" aria-label="anchor" href="#phase-3-configure-extraction"></a>
+</h3>
+<div class="section level4">
+<h4 id="output-style">Output Style<a class="anchor" aria-label="anchor" href="#output-style"></a>
+</h4>
+<p>Choose how the extracted data should be formatted:</p>
+<div class="float">
+<img src="images/app-query-extraction-config.png" alt="Extraction configuration panel"><div class="figcaption">Extraction configuration panel</div>
+</div>
+<p><strong>Available styles:</strong></p>
+<table class="table">
+<thead><tr class="header">
+<th>Style</th>
+<th>Description</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Auto-detect</td>
+<td>Automatically selects based on plot method</td>
+</tr>
+<tr class="even">
+<td>Minimal</td>
+<td>Essential columns only (plot, tag, species, dbh)</td>
+</tr>
+<tr class="odd">
+<td>Standard</td>
+<td>Common columns for general ecological analysis</td>
+</tr>
+<tr class="even">
+<td>Permanent Plot</td>
+<td>Single census format for permanent plot monitoring</td>
+</tr>
+<tr class="odd">
+<td>Permanent Plot (multi-census)</td>
+<td>Preserves all census columns</td>
+</tr>
+<tr class="even">
+<td>Transect</td>
+<td>Simplified format for walk surveys</td>
+</tr>
+<tr class="odd">
+<td>Full</td>
+<td>Complete dataset with all columns</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level4">
+<h4 id="census-handling">Census Handling<a class="anchor" aria-label="anchor" href="#census-handling"></a>
+</h4>
+<p>Configure how multiple censuses should be handled:</p>
+<div class="float">
+<img src="images/app-query-census-options.png" alt="Census handling options"><div class="figcaption">Census handling options</div>
+</div>
+<ul>
+<li>
+<strong>Census Strategy</strong>: Last census, First census, or Mean
+across censuses</li>
+<li>
+<strong>Show multiple census data</strong>: Creates separate columns
+for each census (e.g., dbh_census_1, dbh_census_2)</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="data-organization">Data Organization<a class="anchor" aria-label="anchor" href="#data-organization"></a>
+</h4>
+<p>Control output structure:</p>
+<ul>
+<li>
+<strong>Concatenate multiple stems</strong>: Combine data from
+multi-stemmed trees</li>
+<li>
+<strong>Remove database IDs</strong>: Hide internal ID columns for
+cleaner output</li>
+<li>
+<strong>Remove observations with issues</strong>: Exclude flagged
+problematic records</li>
+<li>
+<strong>Include issue flags</strong>: Add quality flag columns to
+output</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="additional-data">Additional Data<a class="anchor" aria-label="anchor" href="#additional-data"></a>
+</h4>
+<p>Select what extra information to include:</p>
+<div class="float">
+<img src="images/app-query-additional-data.png" alt="Additional data options"><div class="figcaption">Additional data options</div>
+</div>
+<ul>
+<li>
+<strong>Extract taxonomic traits</strong>: Wood density, growth
+form, etc.</li>
+<li>
+<strong>Extract individual-level features</strong>: Tree-specific
+measurements</li>
+<li>
+<strong>Extract subplot-level features</strong>: Subplot
+characteristics</li>
+<li>
+<strong>Fallback to genus-level traits</strong>: Use genus data when
+species unavailable</li>
+</ul>
+</div>
+</div>
+<div class="section level3">
+<h3 id="phase-4-extract-and-download">Phase 4: Extract and Download<a class="anchor" aria-label="anchor" href="#phase-4-extract-and-download"></a>
+</h3>
+<div class="section level4">
+<h4 id="extraction-results">Extraction Results<a class="anchor" aria-label="anchor" href="#extraction-results"></a>
+</h4>
+<p>Click <strong>“Extract Individuals from Selected Plots”</strong> to
+retrieve detailed tree data:</p>
+<div class="float">
+<img src="images/app-query-results-display.png" alt="Results display with tabs"><div class="figcaption">Results display with tabs</div>
+</div>
+<p>Results are organized in tabs:</p>
+<ul>
+<li>
+<strong>Individuals</strong>: Tree-level measurements</li>
+<li>
+<strong>Metadata</strong>: Plot information</li>
+<li>
+<strong>Censuses</strong>: Census dates and details (if
+applicable)</li>
+<li>
+<strong>Height-Diameter</strong>: H-D pairs for allometry (if
+applicable)</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="download-options">Download Options<a class="anchor" aria-label="anchor" href="#download-options"></a>
+</h4>
+<p>Export your data in multiple formats:</p>
+<div class="float">
+<img src="images/app-query-download-panel.png" alt="Download panel"><div class="figcaption">Download panel</div>
+</div>
+<p><strong>Available formats:</strong></p>
+<ul>
+<li>
+<strong>Excel (.xlsx)</strong>: Multi-sheet workbook</li>
+<li>
+<strong>CSV (zipped)</strong>: Separate CSV files in a ZIP
+archive</li>
+<li>
+<strong>R Object (.rds)</strong>: Native R format preserving data
+types</li>
+<li>
+<strong>Shapefile (.zip)</strong>: Spatial data (if coordinates
+available)</li>
+</ul>
+<p>Select which tables to include in your export using the
+checkboxes.</p>
+</div>
+</div>
+<div class="section level3">
+<h3 id="viewing-the-equivalent-r-code">Viewing the Equivalent R Code<a class="anchor" aria-label="anchor" href="#viewing-the-equivalent-r-code"></a>
+</h3>
+<p>A key feature of the app is the <strong>“Equivalent R Code”</strong>
+panel, displayed after running queries:</p>
+<div class="float">
+<img src="images/app-query-code-preview.png" alt="Code preview panel"><div class="figcaption">Code preview panel</div>
+</div>
+<p>This shows the exact R code you would use with
+<code><a href="../reference/query_plots.html">query_plots()</a></code> to reproduce the same results
+programmatically.</p>
+<p><strong>Code sections:</strong></p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Metadata Query</strong>: Code to retrieve plot metadata with
+your filters</li>
+<li>
+<strong>Individual Extraction</strong>: Code to extract tree data
+with your options</li>
+<li>
+<strong>Complete Workflow Script</strong>: Full script combining
+both steps</li>
+</ol>
+<div class="float">
+<img src="images/app-query-code-complete.png" alt="Complete workflow script"><div class="figcaption">Complete workflow script</div>
+</div>
+<p><strong>Why this matters:</strong></p>
+<ul>
+<li>
+<strong>Learning</strong>: Understand how app options map to
+function parameters</li>
+<li>
+<strong>Reproducibility</strong>: Save the exact code for your
+analysis documentation</li>
+<li>
+<strong>Scripting</strong>: Copy code for automated workflows</li>
+<li>
+<strong>Collaboration</strong>: Share query parameters with
+colleagues</li>
+</ul>
+<p>Click <strong>“Copy to clipboard”</strong> to copy any code
+section.</p>
+</div>
+<div class="section level3">
+<h3 id="about-page">About Page<a class="anchor" aria-label="anchor" href="#about-page"></a>
+</h3>
+<p>The About tab provides app documentation and package information:</p>
+<div class="float">
+<img src="images/app-query-about-page.png" alt="About page"><div class="figcaption">About page</div>
+</div>
+</div>
+<div class="section level3">
+<h3 id="app-vs--function-when-to-use-each">App vs. Function: When to Use Each<a class="anchor" aria-label="anchor" href="#app-vs--function-when-to-use-each"></a>
+</h3>
+<table class="table">
+<colgroup>
+<col width="38%">
+<col width="61%">
+</colgroup>
+<thead><tr class="header">
+<th>Use Case</th>
+<th>Recommendation</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Quick data exploration</td>
+<td>Use the app</td>
+</tr>
+<tr class="even">
+<td>Interactive plot selection on a map</td>
+<td>Use the app</td>
+</tr>
+<tr class="odd">
+<td>Learning function parameters</td>
+<td>Start with the app, copy generated code</td>
+</tr>
+<tr class="even">
+<td>Reproducible analysis scripts</td>
+<td>Use <code><a href="../reference/query_plots.html">query_plots()</a></code>
+</td>
+</tr>
+<tr class="odd">
+<td>Automated data pipelines</td>
+<td>Use <code><a href="../reference/query_plots.html">query_plots()</a></code>
+</td>
+</tr>
+<tr class="even">
+<td>Processing many queries</td>
+<td>Use <code><a href="../reference/query_plots.html">query_plots()</a></code>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level3">
+<h3 id="language-selection">Language Selection<a class="anchor" aria-label="anchor" href="#language-selection"></a>
+</h3>
+<p>The app supports <strong>bilingual operation</strong> (French and
+English). French is the default language.</p>
+<p>A language toggle is located in the top-right corner:</p>
+<ul>
+<li>Click <strong>“FR”</strong> for French interface</li>
+<li>Click <strong>“EN”</strong> for English interface</li>
+</ul>
+<p>The switch is instant and affects all UI elements.</p>
+</div>
+<div class="section level3">
+<h3 id="example-from-app-to-script">Example: From App to Script<a class="anchor" aria-label="anchor" href="#example-from-app-to-script"></a>
+</h3>
+<p>Here’s how the app helps you build reproducible queries:</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>In the app</strong>: Select Cameroon, filter by “1 ha
+plot” method, extract with traits</p></li>
+<li><p><strong>Copy the generated code</strong>:</p></li>
+</ol>
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Query plot metadata</span></span>
+<span><span class="va">metadata</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  country <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Cameroon"</span><span class="op">)</span>,</span>
+<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"1 ha plot"</span><span class="op">)</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Extract individual tree data from selected plots</span></span>
+<span><span class="va">individuals</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  id_plot <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">5</span>, <span class="fl">12</span><span class="op">)</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  output_style <span class="op">=</span> <span class="st">"permanent_plot"</span>,</span>
+<span>  extract_traits <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  extract_individual_features <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<ol start="3" style="list-style-type: decimal">
+<li>
+<strong>Use in your analysis script</strong> for reproducible
+research</li>
+</ol>
 </div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
