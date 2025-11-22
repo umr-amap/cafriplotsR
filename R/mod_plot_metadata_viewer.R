@@ -11,7 +11,7 @@ mod_plot_metadata_viewer_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    shiny::h4("Plot Metadata & Selection"),
+    shiny::uiOutput(ns("title_ui")),
 
     # Status message
     shiny::uiOutput(ns("status_message")),
@@ -20,7 +20,7 @@ mod_plot_metadata_viewer_ui <- function(id) {
     shiny::fluidRow(
       shiny::column(
         12,
-        shiny::h5("Interactive Map"),
+        shiny::uiOutput(ns("map_title_ui")),
         leaflet::leafletOutput(ns("plot_map"), height = "400px")
       )
     ),
@@ -31,11 +31,7 @@ mod_plot_metadata_viewer_ui <- function(id) {
     shiny::fluidRow(
       shiny::column(
         12,
-        shiny::h5("Plot Metadata Table"),
-        shiny::p(
-          class = "text-muted",
-          "Click on map markers or select rows in the table below. Selected plots will be used for individual extraction."
-        ),
+        shiny::uiOutput(ns("table_title_ui")),
         DT::DTOutput(ns("metadata_table"))
       )
     ),
@@ -53,12 +49,13 @@ mod_plot_metadata_viewer_ui <- function(id) {
 #'
 #' @param id Module namespace ID
 #' @param metadata Reactive containing plot metadata from query_plots()
+#' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return A reactive containing selected plot IDs
 #'
 #' @keywords internal
 #' @export
-mod_plot_metadata_viewer_server <- function(id, metadata) {
+mod_plot_metadata_viewer_server <- function(id, metadata, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -67,6 +64,25 @@ mod_plot_metadata_viewer_server <- function(id, metadata) {
       selected_rows = NULL,
       map_click_id = NULL
     )
+
+    # Title UIs
+    output$title_ui <- shiny::renderUI({
+      shiny::h4(i18n()$t("Plot Metadata & Selection"))
+    })
+
+    output$map_title_ui <- shiny::renderUI({
+      shiny::h5(i18n()$t("Interactive Map"))
+    })
+
+    output$table_title_ui <- shiny::renderUI({
+      shiny::tagList(
+        shiny::h5(i18n()$t("Plot Metadata Table")),
+        shiny::p(
+          class = "text-muted",
+          i18n()$t("Click on map markers or select rows in the table below. Selected plots will be used for individual extraction.")
+        )
+      )
+    })
 
     # Initialize selection when metadata is received
     shiny::observe({
@@ -93,7 +109,7 @@ mod_plot_metadata_viewer_server <- function(id, metadata) {
           shiny::div(
             class = "alert alert-info",
             shiny::icon("info-circle"),
-            " Execute a query to view plot metadata"
+            " ", i18n()$t("Execute a query to view plot metadata")
           )
         )
       }
@@ -103,7 +119,7 @@ mod_plot_metadata_viewer_server <- function(id, metadata) {
       shiny::div(
         class = "alert alert-success",
         shiny::icon("check-circle"),
-        sprintf(" Found %d plot(s)", n_plots)
+        sprintf(" %s", sprintf(i18n()$t("Found %d plot(s)"), n_plots))
       )
     })
 
