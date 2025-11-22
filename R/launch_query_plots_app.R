@@ -14,8 +14,11 @@
 #' @param pool_main Optional database connection pool for the main database.
 #'   If not provided, the app will create one automatically using
 #'   \code{\link{create_pool_main}}.
-#' @param language Character string for UI language. Default is "en" (English).
-#'   Future support for "fr" (French) planned.
+#' @param language Character string for UI language. Options:
+#'   \itemize{
+#'     \item "fr" (French, default)
+#'     \item "en" (English)
+#'   }
 #' @param ... Additional arguments passed to \code{\link[shiny]{runApp}}
 #'   (e.g., \code{launch.browser = TRUE}, \code{port = 3838})
 #'
@@ -90,7 +93,10 @@
 #' \code{\link{launch_taxonomic_match_app}} for the taxonomic matching app
 #'
 #' @export
-launch_query_plots_app <- function(pool_main = NULL, language = "en", ...) {
+launch_query_plots_app <- function(pool_main = NULL, language = c("fr", "en"), ...) {
+
+  # Validate language
+  language <- match.arg(language)
 
   # Check required packages
   required_pkgs <- c("shiny", "DT", "mapview", "sf", "bslib", "shinyjs", "writexl", "zip")
