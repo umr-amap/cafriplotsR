@@ -4,12 +4,7 @@
 \alias{mod_column_select_server}
 \title{Column Select Module - Server}
 \usage{
-mod_column_select_server(
-  id,
-  data,
-  initial_column = NULL,
-  language = shiny::reactive("en")
-)
+mod_column_select_server(id, data, initial_column = NULL, i18n)
 }
 \arguments{
 \item{id}{Character, module ID}
@@ -18,7 +13,7 @@ mod_column_select_server(
 
 \item{initial_column}{Character, optional pre-selected column name}
 
-\item{language}{Reactive returning current language ("en" or "fr")}
+\item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
 Reactive list with $column (selected column name), $include_authors (logical), and $data (potentially modified data)

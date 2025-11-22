@@ -4,12 +4,12 @@
 \alias{shiny_app_query_plots}
 \title{Query Plots Shiny App}
 \usage{
-shiny_app_query_plots(pool_main = NULL, language = "en")
+shiny_app_query_plots(pool_main = NULL, language = "fr")
 }
 \arguments{
 \item{pool_main}{Main database connection pool (optional, will prompt for login)}
 
-\item{language}{Language for UI (default: "en", future: "fr")}
+\item{language}{Character, initial language ("en" or "fr"), default: "fr"}
 }
 \value{
 A Shiny app object

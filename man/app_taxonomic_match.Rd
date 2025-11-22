@@ -7,7 +7,7 @@
 app_taxonomic_match(
   data = NULL,
   name_column = NULL,
-  language = "en",
+  language = "fr",
   min_similarity = 0.6,
   max_suggestions = 10,
   mode = "interactive",
@@ -19,7 +19,7 @@ app_taxonomic_match(
 
 \item{name_column}{Optional character, pre-selected column name containing taxa}
 
-\item{language}{Character, initial language ("en" or "fr"), default: "en"}
+\item{language}{Character, initial language ("en" or "fr"), default: "fr"}
 
 \item{min_similarity}{Numeric, minimum similarity for fuzzy matching (0-1), default: 0.3}
 
