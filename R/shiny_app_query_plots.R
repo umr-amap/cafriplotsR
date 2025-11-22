@@ -3,16 +3,25 @@
 #' Main Shiny app function for interactive forest plot querying
 #'
 #' @param pool_main Main database connection pool (optional, will prompt for login)
-#' @param language Language for UI (default: "en", future: "fr")
+#' @param language Character, initial language ("en" or "fr"), default: "fr"
 #'
 #' @return A Shiny app object
 #' @keywords internal
 #' @export
-shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
+shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
+
+  # Validate parameters
+  language <- match.arg(language, c("en", "fr"))
+
+  # Initialize translator (must be before UI for usei18n)
+  translator <- init_translator()
 
   # Create UI
   ui <- function(request) {
     shiny::tagList(
+      # Add shiny.i18n (required for automatic translation)
+      shiny.i18n::usei18n(translator),
+
       # Add shinyjs for dynamic show/hide
       shinyjs::useShinyjs(),
 
@@ -46,15 +55,32 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
       shiny::conditionalPanel(
         condition = "output.authenticated",
 
+        # Language toggle (top right)
+        shiny::absolutePanel(
+          top = 10,
+          right = 20,
+          fixed = TRUE,
+          draggable = FALSE,
+          style = "z-index: 1000;",
+          shiny::radioButtons(
+            inputId = "selected_language",
+            label = NULL,
+            choices = c("EN" = "en", "FR" = "fr"),
+            selected = language,
+            inline = TRUE
+          )
+        ),
+
         # Navigation bar
         shiny::navbarPage(
-          title = "CafriplotsR - Plot Query Tool",
+          title = shiny::textOutput("app_title", inline = TRUE),
           id = "main_nav",
+          windowTitle = "CafriplotsR - Plot Query Tool",
           theme = bslib::bs_theme(version = 5, bootswatch = "flatly"),
 
         # Page 1: Query Builder
         shiny::tabPanel(
-          "Query Builder",
+          shiny::textOutput("tab_query_builder", inline = TRUE),
           value = "page_query",
           icon = shiny::icon("filter"),
 
@@ -63,10 +89,10 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
             shiny::fluidRow(
               shiny::column(
                 12,
-                shiny::h2("Forest Plot Query Builder"),
+                shiny::h2(shiny::textOutput("page_query_title", inline = TRUE)),
                 shiny::p(
                   class = "lead",
-                  "Filter and select forest plots, then extract detailed individual tree data"
+                  shiny::textOutput("page_query_subtitle", inline = TRUE)
                 )
               )
             ),
@@ -88,7 +114,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
 
         # Page 2: Results
         shiny::tabPanel(
-          "Results & Extraction",
+          shiny::textOutput("tab_results", inline = TRUE),
           value = "page_results",
           icon = shiny::icon("chart-line"),
 
@@ -97,10 +123,10 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
             shiny::fluidRow(
               shiny::column(
                 12,
-                shiny::h2("Query Results & Individual Extraction"),
+                shiny::h2(shiny::textOutput("page_results_title", inline = TRUE)),
                 shiny::p(
                   class = "lead",
-                  "View plot locations, select plots of interest, and extract individual tree data"
+                  shiny::textOutput("page_results_subtitle", inline = TRUE)
                 )
               )
             ),
@@ -142,59 +168,32 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
                   mod_results_display_ui("results")
                 )
               )
+            ),
+
+            shiny::hr(),
+
+            # Code preview (equivalent R code)
+            shiny::fluidRow(
+              shiny::column(
+                12,
+                shiny::div(
+                  class = "module-section",
+                  mod_code_preview_ui("code_preview")
+                )
+              )
             )
           )
         ),
 
         # About panel
         shiny::tabPanel(
-          "About",
+          shiny::textOutput("tab_about", inline = TRUE),
           value = "page_about",
           icon = shiny::icon("info-circle"),
 
           shiny::fluidPage(
             shiny::br(),
-            shiny::fluidRow(
-              shiny::column(
-                12,
-                shiny::h2("About CafriplotsR Query Tool"),
-                shiny::hr(),
-                shiny::h4("Overview"),
-                shiny::p(
-                  "This interactive tool provides a user-friendly interface for querying the CafriplotsR forest plot database.",
-                  "It wraps the powerful", shiny::code("query_plots()"), "function with an intuitive two-stage workflow:"
-                ),
-                shiny::tags$ol(
-                  shiny::tags$li(shiny::strong("Filter & Discover:"), " Use various filters to find plots of interest, view them on an interactive map"),
-                  shiny::tags$li(shiny::strong("Select & Extract:"), " Choose specific plots and extract detailed individual tree data with customizable options")
-                ),
-                shiny::hr(),
-                shiny::h4("Features"),
-                shiny::tags$ul(
-                  shiny::tags$li(shiny::icon("map"), " Interactive map visualization with multiple basemaps"),
-                  shiny::tags$li(shiny::icon("filter"), " Flexible filtering by country, plot name, method, and more"),
-                  shiny::tags$li(shiny::icon("table"), " Dynamic table display with search and sort capabilities"),
-                  shiny::tags$li(shiny::icon("cog"), " Multiple output styles for different analysis needs"),
-                  shiny::tags$li(shiny::icon("download"), " Export results in Excel, CSV, RDS, or shapefile formats")
-                ),
-                shiny::hr(),
-                shiny::h4("Package Information"),
-                shiny::p(
-                  shiny::strong("Version:"), "1.7", shiny::br(),
-                  shiny::strong("Authors:"), "Gilles Dauby, Hugo Leblanc", shiny::br(),
-                  shiny::strong("Repository:"), shiny::a(
-                    "github.com/umr-amap/cafriplotsR",
-                    href = "https://github.com/umr-amap/cafriplotsR",
-                    target = "_blank"
-                  ), shiny::br(),
-                  shiny::strong("Documentation:"), shiny::a(
-                    "umr-amap.github.io/cafriplotsR",
-                    href = "https://umr-amap.github.io/cafriplotsR",
-                    target = "_blank"
-                  )
-                )
-              )
-            )
+            shiny::uiOutput("about_content")
           )
         )
         ) # End navbarPage
@@ -239,6 +238,102 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
     })
     shiny::outputOptions(output, "authenticated", suspendWhenHidden = FALSE)
 
+    # Create reactive translator (shiny.i18n recommended pattern)
+    i18n <- shiny::reactive({
+      selected <- input$selected_language
+      if (length(selected) > 0 && selected %in% translator$get_languages()) {
+        translator$set_translation_language(selected)
+      }
+      translator
+    })
+
+    # App title
+    output$app_title <- shiny::renderText({
+      i18n()$t("CafriplotsR - Plot Query Tool")
+    })
+
+    # Tab labels
+    output$tab_query_builder <- shiny::renderText({
+      i18n()$t("Query Builder")
+    })
+
+    output$tab_results <- shiny::renderText({
+      i18n()$t("Results & Extraction")
+    })
+
+    output$tab_about <- shiny::renderText({
+      i18n()$t("About")
+    })
+
+    # Page titles and subtitles
+    output$page_query_title <- shiny::renderText({
+      i18n()$t("Forest Plot Query Builder")
+    })
+
+    output$page_query_subtitle <- shiny::renderText({
+      i18n()$t("Filter and select forest plots, then extract detailed individual tree data")
+    })
+
+    output$page_results_title <- shiny::renderText({
+      i18n()$t("Query Results & Individual Extraction")
+    })
+
+    output$page_results_subtitle <- shiny::renderText({
+      i18n()$t("View plot locations, select plots of interest, and extract individual tree data")
+    })
+
+    # About page content
+    output$about_content <- shiny::renderUI({
+      shiny::fluidRow(
+        shiny::column(
+          12,
+          shiny::h2(i18n()$t("About CafriplotsR Query Tool")),
+          shiny::hr(),
+          shiny::h4(i18n()$t("Overview")),
+          shiny::p(
+            i18n()$t("This interactive tool provides a user-friendly interface for querying the CafriplotsR forest plot database."),
+            i18n()$t("It wraps the powerful"), shiny::code("query_plots()"),
+            i18n()$t("function with an intuitive two-stage workflow:")
+          ),
+          shiny::tags$ol(
+            shiny::tags$li(
+              shiny::strong(i18n()$t("Filter & Discover:")),
+              " ", i18n()$t("Use various filters to find plots of interest, view them on an interactive map")
+            ),
+            shiny::tags$li(
+              shiny::strong(i18n()$t("Select & Extract:")),
+              " ", i18n()$t("Choose specific plots and extract detailed individual tree data with customizable options")
+            )
+          ),
+          shiny::hr(),
+          shiny::h4(i18n()$t("Features")),
+          shiny::tags$ul(
+            shiny::tags$li(shiny::icon("map"), " ", i18n()$t("Interactive map visualization with multiple basemaps")),
+            shiny::tags$li(shiny::icon("filter"), " ", i18n()$t("Flexible filtering by country, plot name, method, and more")),
+            shiny::tags$li(shiny::icon("table"), " ", i18n()$t("Dynamic table display with search and sort capabilities")),
+            shiny::tags$li(shiny::icon("cog"), " ", i18n()$t("Multiple output styles for different analysis needs")),
+            shiny::tags$li(shiny::icon("download"), " ", i18n()$t("Export results in Excel, CSV, RDS, or shapefile formats"))
+          ),
+          shiny::hr(),
+          shiny::h4(i18n()$t("Package Information")),
+          shiny::p(
+            shiny::strong(i18n()$t("Version:")), " 1.7.2", shiny::br(),
+            shiny::strong(i18n()$t("Authors:")), " Gilles Dauby, Hugo Leblanc", shiny::br(),
+            shiny::strong(i18n()$t("Repository:")), " ", shiny::a(
+              "github.com/umr-amap/cafriplotsR",
+              href = "https://github.com/umr-amap/cafriplotsR",
+              target = "_blank"
+            ), shiny::br(),
+            shiny::strong(i18n()$t("Documentation:")), " ", shiny::a(
+              "umr-amap.github.io/cafriplotsR",
+              href = "https://umr-amap.github.io/cafriplotsR",
+              target = "_blank"
+            )
+          )
+        )
+      )
+    })
+
     # Reactive values for data flow
     rv <- shiny::reactiveValues(
       metadata = NULL,
@@ -255,7 +350,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
       cli::cli_alert_info("Initializing app modules...")
 
       # Module 1: Filters
-      filter_output <- mod_plot_filters_server("filters", pool = pool_reactive)
+      filter_output <- mod_plot_filters_server("filters", pool = pool_reactive, i18n = i18n)
 
       # Execute metadata query when filters are applied
       shiny::observeEvent(filter_output$execute_trigger(), {
@@ -344,13 +439,15 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
       # Module 2: Metadata Viewer (map + table with selection)
       selected_plots <- mod_plot_metadata_viewer_server(
         "metadata",
-        metadata = shiny::reactive(rv$metadata)
+        metadata = shiny::reactive(rv$metadata),
+        i18n = i18n
       )
 
       # Module 3: Extraction Configuration
       extraction_output <- mod_extraction_config_server(
         "extraction",
-        selected_plots = selected_plots
+        selected_plots = selected_plots,
+        i18n = i18n
       )
 
       # Execute individual extraction when requested
@@ -405,7 +502,19 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "en") {
       # Module 4: Results Display
       mod_results_display_server(
         "results",
-        results = shiny::reactive(rv$individuals)
+        results = shiny::reactive(rv$individuals),
+        i18n = i18n
+      )
+
+      # Module 5: Code Preview (equivalent R code)
+      mod_code_preview_server(
+        "code_preview",
+        filters = filter_output$filters,
+        selected_plots = selected_plots,
+        extraction_options = extraction_output$options,
+        metadata_available = shiny::reactive(!is.null(rv$metadata)),
+        individuals_available = shiny::reactive(!is.null(rv$individuals)),
+        i18n = i18n
       )
 
       # Mark modules as initialized
