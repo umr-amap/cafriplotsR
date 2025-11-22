@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,6 +68,7 @@ interface is ideal for:</p>
 <li>Exploring and cleaning taxonomic data interactively</li>
 <li>Understanding match quality through visual feedback</li>
 <li>Manually reviewing uncertain matches</li>
+<li>Enriching data with species-level traits</li>
 </ul>
 </div>
 <div class="section level2">
@@ -81,11 +82,13 @@ interface is ideal for:</p>
 <li>
 <strong>Data to standardize</strong> in one of these formats:
 <ul>
-<li>Excel file (.xlsx)</li>
+<li>Excel file (.xlsx, .xls)</li>
+<li>CSV file (.csv)</li>
 </ul>
 </li>
-<li>A column containing <strong>taxonomic names</strong> For example :
-(genus + species) or (genus) or (family)</li>
+<li>A column containing <strong>taxonomic names</strong> (e.g., genus +
+species) or <strong>separate columns</strong> for genus, species, and
+family</li>
 </ol>
 </div>
 <div class="section level2">
@@ -101,9 +104,8 @@ interface is ideal for:</p>
 <span><span class="va">my_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"tree_inventory.csv"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">my_data</span>, name_column <span class="op">=</span> <span class="st">"species_name"</span><span class="op">)</span></span>
 <span></span>
-<span></span>
-<span><span class="co"># Adjust fuzzy matching sensitivity</span></span>
-<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.7</span><span class="op">)</span>  <span class="co"># More strict matching</span></span></code></pre></div>
+<span><span class="co"># Adjust fuzzy matching sensitivity (default is 0.7)</span></span>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span>  <span class="co"># More permissive matching</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-by-step-walkthrough">Step-by-Step Walkthrough<a class="anchor" aria-label="anchor" href="#step-by-step-walkthrough"></a>
@@ -117,7 +119,17 @@ sidebar for configuration and tabs for different workflow phases:</p>
 <img src="images/app-initial-view.png" alt="Application initial view"><div class="figcaption">Application initial view</div>
 </div>
 <p>The app uses a <strong>tabbed workflow</strong> that guides you
-through each phase sequentially.</p>
+through each phase sequentially:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Auto Match</strong> - Automatic matching</li>
+<li>
+<strong>Review</strong> - Manual review of unmatched names</li>
+<li>
+<strong>Export</strong> - Download results</li>
+<li>
+<strong>Traits Enrichment</strong> - Add species traits</li>
+</ol>
 </div>
 <div class="section level3">
 <h3 id="phase-2-upload-your-data">Phase 2: Upload Your Data<a class="anchor" aria-label="anchor" href="#phase-2-upload-your-data"></a>
@@ -125,7 +137,9 @@ through each phase sequentially.</p>
 <p>The first step is to provide your data. You can either:</p>
 <ul>
 <li>
-<strong>Upload an Excel file</strong> using the file browser</li>
+<strong>Upload an Excel file</strong> using the file browser
+(supports .xlsx, .xls)</li>
+<li><strong>Upload a CSV file</strong></li>
 <li>
 <strong>Use pre-loaded R data</strong> (if you passed
 <code>data</code> parameter)</li>
@@ -133,48 +147,79 @@ through each phase sequentially.</p>
 <div class="float">
 <img src="images/app-upload-data.png" alt="Data upload interface"><div class="figcaption">Data upload interface</div>
 </div>
-<p>The app will display a preview of your uploaded data so you can
+<p>For Excel files with multiple sheets, you can select which sheet to
+use. The app will display a preview of your uploaded data so you can
 verify it was read correctly.</p>
 </div>
 <div class="section level3">
-<h3 id="phase-3-select-name-column">Phase 3: Select Name Column<a class="anchor" aria-label="anchor" href="#phase-3-select-name-column"></a>
+<h3 id="phase-3-select-name-columns">Phase 3: Select Name Column(s)<a class="anchor" aria-label="anchor" href="#phase-3-select-name-columns"></a>
 </h3>
-<p>Once data is loaded, select which column contains the taxonomic names
-to standardize:</p>
+<p>Once data is loaded, you have two options for selecting taxonomic
+names:</p>
+<div class="section level4">
+<h4 id="single-column-mode-default">Single Column Mode (Default)<a class="anchor" aria-label="anchor" href="#single-column-mode-default"></a>
+</h4>
+<p>Select one column containing the full taxonomic name:</p>
 <div class="float">
-<img src="images/app-column-select.png" alt="Column selection"><div class="figcaption">Column selection</div>
+<img src="images/app-column-select.png" alt="Column selection - single mode"><div class="figcaption">Column selection - single mode</div>
 </div>
 <p>The dropdown menu shows all available columns from your dataset.
 Choose the one containing species names (typically formatted as “Genus
 species” or “Genus species Author”).</p>
 </div>
+<div class="section level4">
+<h4 id="multiple-column-mode-new">Multiple Column Mode (NEW)<a class="anchor" aria-label="anchor" href="#multiple-column-mode-new"></a>
+</h4>
+<p>If your data has separate columns for genus, species, and family,
+enable <strong>“Use multiple columns”</strong>:</p>
+<div class="float">
+<img src="images/app-column-select-multi.png" alt="Column selection - multiple columns"><div class="figcaption">Column selection - multiple columns</div>
+</div>
+<p>The app will automatically combine these columns into a single
+taxonomic name for matching, using a hierarchical approach: - If genus
+and species are available: “Genus species” - If only genus: “Genus” - If
+only family: “Family”</p>
+<p>You can also optionally include an author column.</p>
+</div>
+</div>
 <div class="section level3">
 <h3 id="phase-4-automatic-matching">Phase 4: Automatic Matching<a class="anchor" aria-label="anchor" href="#phase-4-automatic-matching"></a>
 </h3>
 <p>Click the <strong>“Start Matching”</strong> button to begin the
-automatic matching process. The app uses a three-tier matching
-strategy:</p>
+automatic matching process. The app uses a <strong>five-tier matching
+strategy</strong>:</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong>Exact match</strong>: Direct lookup of full name</li>
+<strong>Exact match on species</strong>: Direct lookup of full name
+(genus + species)</li>
 <li>
-<strong>Genus-constrained fuzzy match</strong>: Searches within
-matched genera</li>
+<strong>Exact match on genus</strong>: Match at genus level</li>
 <li>
-<strong>Full database fuzzy match</strong>: Searches entire backbone
-(last resort)</li>
+<strong>Exact match on family</strong>: Match at family level</li>
+<li>
+<strong>Exact match on class</strong>: Match at higher taxonomic
+level</li>
+<li>
+<strong>Fuzzy matching</strong>: Approximate string matching for
+remaining names</li>
 </ol>
 <div class="float">
 <img src="images/app-matching-progress.png" alt="Matching in progress"><div class="figcaption">Matching in progress</div>
 </div>
 <p>The progress bar shows real-time status. For large datasets, this may
-take a few minutes.</p>
+take a few minutes. The sidebar displays live statistics:</p>
+<ul>
+<li>Number of exact matches</li>
+<li>Number of genus-level matches</li>
+<li>Number of fuzzy matches</li>
+<li>Number of unmatched names</li>
+</ul>
 </div>
 <div class="section level3">
 <h3 id="phase-5-review-match-results">Phase 5: Review Match Results<a class="anchor" aria-label="anchor" href="#phase-5-review-match-results"></a>
 </h3>
-<p>After matching completes, you’ll see a summary table showing all
-names with their match status:</p>
+<p>After matching completes, the Auto Match tab shows a summary table
+with all names and their match status:</p>
 <div class="float">
 <img src="images/app-matching-results.png" alt="Matching results summary"><div class="figcaption">Matching results summary</div>
 </div>
@@ -185,8 +230,8 @@ names with their match status:</p>
 <li>
 <strong>matched_name</strong>: Name found in backbone</li>
 <li>
-<strong>match_method</strong>: How it was matched (exact,
-genus_constrained, fuzzy, manual)</li>
+<strong>match_method</strong>: How it was matched (exact_species,
+exact_genus, exact_family, fuzzy, manual)</li>
 <li>
 <strong>match_score</strong>: Similarity score (0-1, higher is
 better)</li>
@@ -224,65 +269,114 @@ required</li>
 <div class="float">
 <img src="images/app-review-interface.png" alt="Manual review interface"><div class="figcaption">Manual review interface</div>
 </div>
-<p>The review interface shows:</p>
-<ul>
-<li>
-<strong>Current unmatched name</strong> at the top</li>
-<li>
-<strong>Fuzzy match suggestions</strong> ranked by similarity</li>
-<li>
-<strong>Taxonomic information</strong> for each suggestion (family,
-genus, species)</li>
-<li>
-<strong>Similarity scores</strong> to help assess match quality</li>
-</ul>
-<p>You can:</p>
-<ul>
-<li>
-<strong>Accept a suggestion</strong>: Click the name to select
-it</li>
-<li>
-<strong>Skip</strong>: Move to next name without selecting</li>
-<li>
-<strong>Search manually</strong>: Type to search the backbone
-database</li>
-</ul>
+<p>The review interface provides two ways to find matches:</p>
+<div class="section level4">
+<h4 id="fuzzy-suggestions-panel">Fuzzy Suggestions Panel<a class="anchor" aria-label="anchor" href="#fuzzy-suggestions-panel"></a>
+</h4>
+<p>Shows automatic suggestions ranked by similarity with advanced
+filtering options:</p>
 <div class="float">
-<img src="images/app-review-interface-2.png" alt="Review interface showing suggestions"><div class="figcaption">Review interface showing suggestions</div>
+<img src="images/app-review-suggestions.png" alt="Fuzzy suggestions with filters"><div class="figcaption">Fuzzy suggestions with filters</div>
 </div>
-<p>The app remembers your selections and automatically updates the
-results table.</p>
+<p><strong>Filtering options:</strong></p>
+<ul>
+<li>
+<strong>Number of suggestions</strong>: Slider to show 5-30
+suggestions</li>
+<li>
+<strong>Minimum similarity</strong>: Adjust threshold (0.3-1.0)</li>
+<li>
+<strong>Taxonomic level filter</strong>: Filter by All, Species,
+Genus, Family, Order, Class, or Infraspecific</li>
+<li>
+<strong>Sort by</strong>: Similarity score or alphabetical
+order</li>
+</ul>
+<p>Each suggestion card displays:</p>
+<ul>
+<li>Name with color-coded similarity badge (green = high, blue = medium,
+yellow = low)</li>
+<li>Taxonomic level and family</li>
+<li>Synonym information if applicable</li>
+<li>
+<strong>Select</strong> button for one-click acceptance</li>
+</ul>
+</div>
+<div class="section level4">
+<h4 id="manual-search-panel">Manual Search Panel<a class="anchor" aria-label="anchor" href="#manual-search-panel"></a>
+</h4>
+<p>For names without good suggestions, use the manual search:</p>
+<div class="float">
+<img src="images/app-review-manual-search.png" alt="Manual search interface"><div class="figcaption">Manual search interface</div>
+</div>
+<ul>
+<li>Type any search term to query the taxonomic backbone</li>
+<li>Filter results by taxonomic level</li>
+<li>View detailed information for each match</li>
+<li>Select the correct match or mark as “unresolved”</li>
+</ul>
+<p><strong>Navigation:</strong></p>
+<ul>
+<li>Use <strong>Previous/Skip/Next</strong> buttons to browse unmatched
+names</li>
+<li>Progress counter shows reviewed vs. remaining names</li>
+<li>The app remembers your selections and automatically updates the
+results</li>
+</ul>
+</div>
 </div>
 <div class="section level3">
 <h3 id="phase-7-enrich-data-with-traits">Phase 7: Enrich Data with Traits<a class="anchor" aria-label="anchor" href="#phase-7-enrich-data-with-traits"></a>
 </h3>
-<p>Additionally, you can enrich your matched data with taxonomic traits
-from the backbone database:</p>
+<p>Switch to the <strong>“Traits Enrichment”</strong> tab to add
+species-level traits to your matched data:</p>
 <div class="float">
 <img src="images/app-enrich-data-interface.png" alt="Trait enrichment interface"><div class="figcaption">Trait enrichment interface</div>
 </div>
-<p>Select which traits to add to your dataset, such as:</p>
+<p><strong>Options:</strong></p>
+<ul>
+<li>
+<strong>Categorical aggregation mode</strong>:
+<ul>
+<li>“mode” - Use most frequent value per taxon</li>
+<li>“concat” - Concatenate all unique values</li>
+</ul>
+</li>
+<li>
+<strong>Select columns to include</strong>:
+<ul>
+<li>Original input names</li>
+<li>Corrected names</li>
+<li>Taxonomic IDs</li>
+<li>Match metadata</li>
+</ul>
+</li>
+</ul>
+<p>Available traits include:</p>
 <ul>
 <li>Growth form</li>
 <li>Wood density</li>
 <li>Leaf traits</li>
 <li>Ecological characteristics</li>
 </ul>
-<p>The enriched data combines your original data with taxonomic
-information and selected traits:</p>
+<p>The enriched data combines your matched taxa with selected
+traits:</p>
 <div class="float">
 <img src="images/app-enrich-data-results.png" alt="Enriched data results"><div class="figcaption">Enriched data results</div>
 </div>
+<p><strong>Note</strong>: The enriched export creates one row per unique
+taxon, not per input row. Input names are concatenated with pipe
+separators.</p>
 </div>
 <div class="section level3">
 <h3 id="phase-8-export-results">Phase 8: Export Results<a class="anchor" aria-label="anchor" href="#phase-8-export-results"></a>
 </h3>
-<p>Once you’re satisfied with the matches, export your standardized
-dataset:</p>
+<p>Switch to the <strong>“Export”</strong> tab to download your
+standardized dataset:</p>
 <div class="float">
 <img src="images/app-export-options.png" alt="Export options"><div class="figcaption">Export options</div>
 </div>
-<p>Available export formats:</p>
+<p><strong>Available formats:</strong></p>
 <ul>
 <li>
 <strong>Excel (.xlsx)</strong>: Best for sharing with
@@ -293,13 +387,16 @@ collaborators</li>
 <strong>RDS (.rds)</strong>: R-native format preserving data
 types</li>
 </ul>
-<p>The exported file includes:</p>
+<p><strong>Selectable columns:</strong></p>
 <ul>
-<li>All your original columns</li>
-<li>New columns with taxonomic information (<code>idtax_n</code>,
-<code>matched_name</code>, <code>match_method</code>, etc.)</li>
-<li>Enriched trait data (if selected)</li>
+<li>Original data (all your input columns)</li>
+<li>Matched IDs (idtax_n, idtax_good_n)</li>
+<li>Corrected names (corrected_name, matched_name)</li>
+<li>Match metadata (match_method, match_score, is_synonym,
+accepted_name)</li>
 </ul>
+<p>A preview table shows the data before export with pagination
+controls.</p>
 </div>
 </div>
 <div class="section level2">
@@ -334,8 +431,8 @@ types</li>
 </tr>
 <tr class="odd">
 <td><code>match_method</code></td>
-<td>Matching strategy used (exact, genus_constrained, fuzzy,
-manual)</td>
+<td>Matching strategy used (exact_species, exact_genus, exact_family,
+fuzzy, manual, unresolved)</td>
 </tr>
 <tr class="even">
 <td><code>match_score</code></td>
@@ -366,19 +463,42 @@ manual)</td>
 <div class="section level3">
 <h3 id="language-selection">Language Selection<a class="anchor" aria-label="anchor" href="#language-selection"></a>
 </h3>
-<p>Not yet functional…</p>
+<p>The app now supports <strong>bilingual operation</strong> with French
+and English interfaces. <strong>French is the default
+language</strong>.</p>
+<p><strong>In the App Interface:</strong></p>
+<p>A language toggle is located in the top-right corner of the app: -
+Click <strong>“FR”</strong> for French interface - Click
+<strong>“EN”</strong> for English interface</p>
+<p>The language switch is instant and affects all UI elements including:
+- Tab labels - Button text - Instructions and help text - Column headers
+- Error messages and notifications</p>
+<p><strong>Setting Initial Language Programmatically:</strong></p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Launch app in English</span></span>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"en"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Launch app in French (default)</span></span>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span>
+<span><span class="co"># or simply:</span></span>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>The language setting is interactive - users can switch languages at
+any time during their session without losing work progress or data.</p>
 </div>
 <div class="section level3">
 <h3 id="adjusting-fuzzy-matching">Adjusting Fuzzy Matching<a class="anchor" aria-label="anchor" href="#adjusting-fuzzy-matching"></a>
 </h3>
 <p>Control matching sensitivity with the <code>min_similarity</code>
 parameter:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Very strict - only high-quality matches</span></span>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.8</span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># Default setting</span></span>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.7</span><span class="op">)</span></span>
+<span></span>
 <span><span class="co"># More permissive - allows lower-quality matches</span></span>
-<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span>  <span class="co"># Default</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span></span></code></pre></div>
 <p>Lower values cast a wider net but may include false positives. Higher
 values are more conservative but may miss valid matches.</p>
 </div>
@@ -386,11 +506,25 @@ values are more conservative but may miss valid matches.</p>
 <h3 id="increasing-suggestions">Increasing Suggestions<a class="anchor" aria-label="anchor" href="#increasing-suggestions"></a>
 </h3>
 <p>Show more fuzzy match suggestions per name:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Show top 20 suggestions instead of default 10</span></span>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>max_suggestions <span class="op">=</span> <span class="fl">20</span><span class="op">)</span></span></code></pre></div>
-<p>Useful when initial suggestions don’t include the correct match.</p>
+<p>Useful when initial suggestions don’t include the correct match. You
+can also adjust this interactively in the Review tab using the
+slider.</p>
 </div>
+</div>
+<div class="section level2">
+<h2 id="function-parameters">Function Parameters<a class="anchor" aria-label="anchor" href="#function-parameters"></a>
+</h2>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="cn">NULL</span>,           <span class="co"># Optional: pre-load data.frame</span></span>
+<span></span>
+<span>  name_column <span class="op">=</span> <span class="cn">NULL</span>,    <span class="co"># Optional: pre-select column</span></span>
+<span>  min_similarity <span class="op">=</span> <span class="fl">0.7</span>,  <span class="co"># Fuzzy match threshold (0-1)</span></span>
+<span>  max_suggestions <span class="op">=</span> <span class="fl">10</span>   <span class="co"># Max suggestions per unmatched name</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="troubleshooting">Troubleshooting<a class="anchor" aria-label="anchor" href="#troubleshooting"></a>
@@ -400,7 +534,7 @@ values are more conservative but may miss valid matches.</p>
 </h3>
 <p><strong>Problem</strong>: “Failed to connect to database”</p>
 <p><strong>Solution</strong>:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Check connection</span></span>
 <span><span class="fu"><a href="../reference/db_diagnostic.html">db_diagnostic</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
@@ -415,10 +549,12 @@ values are more conservative but may miss valid matches.</p>
 names</p>
 <p><strong>Possible causes</strong>: - <code>min_similarity</code>
 threshold too high - Taxonomic names contain typos or non-standard
-formatting - Names not present in the taxonomic backbone</p>
+formatting - Names not present in the taxonomic backbone (e.g.,
+non-African taxa)</p>
 <p><strong>Solutions</strong>: - Lower <code>min_similarity</code>:
-<code>launch_taxonomic_match_app(min_similarity = 0.2)</code> - Clean
-input names (remove extra spaces, fix obvious typos) - Verify names are
+<code>launch_taxonomic_match_app(min_similarity = 0.5)</code> - Use the
+taxonomic level filter to search at genus or family level - Clean input
+names (remove extra spaces, fix obvious typos) - Verify names are
 African taxa</p>
 </div>
 <div class="section level3">
@@ -428,8 +564,8 @@ African taxa</p>
 datasets</p>
 <p><strong>Solutions</strong>: - Use batch processing instead:
 <code><a href="../reference/match_taxonomic_names.html">match_taxonomic_names()</a></code> for programmatic workflow - Process
-data in chunks (split large datasets) - Increase database connection
-pool size (advanced)</p>
+data in chunks (split large datasets) - The app downloads the entire
+backbone once for efficiency, so initial load may be slow</p>
 </div>
 </div>
 <div class="section level2">
@@ -454,18 +590,18 @@ pool size (advanced)</p>
 <li>Automating workflows in scripts</li>
 <li>Integrating with data pipelines</li>
 <li>Reproducibility is critical (<em>NEVER REMOVE THE COLUMN THAT
-CONTAIN THE ORIGINAL NAME</em>)</li>
+CONTAINS THE ORIGINAL NAME</em>)</li>
 <li>Batch processing multiple files</li>
 </ul>
 <p>Example programmatic approach:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load data</span></span>
 <span><span class="va">my_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"tree_inventory.csv"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Match names</span></span>
 <span><span class="va">matched</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/match_taxonomic_names.html">match_taxonomic_names</a></span><span class="op">(</span></span>
 <span>  names <span class="op">=</span> <span class="va">my_data</span><span class="op">$</span><span class="va">species_name</span>,</span>
-<span>  min_similarity <span class="op">=</span> <span class="fl">0.5</span></span>
+<span>  min_similarity <span class="op">=</span> <span class="fl">0.7</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Merge back with original data</span></span>
@@ -502,6 +638,12 @@ whitespace, and special characters</li>
 <strong>Understand your data</strong>: Know which taxonomic groups
 are in your dataset</li>
 <li>
+<strong>Use multi-column mode</strong>: If you have separate
+genus/species/family columns, combine them for better matching</li>
+<li>
+<strong>Filter by taxonomic level</strong>: Use the level filter in
+Review tab to find genus or family matches</li>
+<li>
 <strong>Review match scores</strong>: Don’t blindly accept
 low-similarity matches (&lt;0.6)</li>
 <li>
@@ -516,7 +658,7 @@ avoid losing manual review work</li>
 <h2 id="example-workflow">Example Workflow<a class="anchor" aria-label="anchor" href="#example-workflow"></a>
 </h2>
 <p>Here’s a complete workflow from start to finish:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1. Load your data</span></span>
 <span><span class="va">trees</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"forest_inventory.csv"</span><span class="op">)</span></span>
 <span><span class="co"># Columns: plot_id, tree_number, species_name, dbh, height</span></span>
@@ -525,13 +667,14 @@ avoid losing manual review work</li>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">trees</span>,</span>
 <span>  name_column <span class="op">=</span> <span class="st">"species_name"</span>,</span>
-<span>  min_similarity <span class="op">=</span> <span class="fl">0.5</span></span>
+<span>  min_similarity <span class="op">=</span> <span class="fl">0.7</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 3. In the app:</span></span>
-<span><span class="co">#    - Review automatic matches</span></span>
-<span><span class="co">#    - Manually resolve unmatched names</span></span>
-<span><span class="co">#    - Optionally enrich with traits (e.g., wood density)</span></span>
+<span><span class="co">#    - Review automatic matches in Auto Match tab</span></span>
+<span><span class="co">#    - Use Review tab to resolve unmatched names</span></span>
+<span><span class="co">#    - Apply taxonomic level filters if needed</span></span>
+<span><span class="co">#    - Optionally enrich with traits in Traits Enrichment tab</span></span>
 <span><span class="co">#    - Export as "forest_inventory_standardized.xlsx"</span></span>
 <span></span>
 <span><span class="co"># 4. Continue analysis with standardized data</span></span>
@@ -541,6 +684,50 @@ avoid losing manual review work</li>
 <p>This workflow ensures your taxonomic data is standardized and ready
 for downstream analyses like diversity metrics, trait-based analyses, or
 database integration.</p>
+</div>
+<div class="section level2">
+<h2 id="suggested-screenshots">Suggested Screenshots<a class="anchor" aria-label="anchor" href="#suggested-screenshots"></a>
+</h2>
+<p>To complete this documentation, the following screenshots should be
+captured:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>app-initial-view.png</strong> - Full app interface after
+launch with all tabs visible</li>
+<li>
+<strong>app-upload-data.png</strong> - Data upload panel with file
+browser and sheet selection</li>
+<li>
+<strong>app-column-select.png</strong> - Single column selection
+dropdown</li>
+<li>
+<strong>app-column-select-multi.png</strong> - Multiple column mode
+with genus/species/family selectors</li>
+<li>
+<strong>app-matching-progress.png</strong> - Matching in progress
+with progress bar and live statistics</li>
+<li>
+<strong>app-matching-results.png</strong> - Results table in Auto
+Match tab showing matched names</li>
+<li>
+<strong>app-review-interface.png</strong> - Review tab overview with
+unmatched name display</li>
+<li>
+<strong>app-review-suggestions.png</strong> - Fuzzy suggestions
+panel with filtering options (level filter, sort, slider)</li>
+<li>
+<strong>app-review-manual-search.png</strong> - Manual search
+interface with search box and results</li>
+<li>
+<strong>app-enrich-data-interface.png</strong> - Traits enrichment
+tab with aggregation mode and column selection</li>
+<li>
+<strong>app-enrich-data-results.png</strong> - Preview of enriched
+data with traits</li>
+<li>
+<strong>app-export-options.png</strong> - Export tab with format
+selection and column checkboxes</li>
+</ol>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

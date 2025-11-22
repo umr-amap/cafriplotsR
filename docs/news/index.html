@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,6 +32,71 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.7.2" id="cafriplotsr-172-development">CafriplotsR 1.7.2 (Development)<a class="anchor" aria-label="anchor" href="#cafriplotsr-172-development"></a></h2>
+<div class="section level4">
+<h4 id="new-features-1-7-2">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-7-2"></a></h4>
+<ul><li>
+<strong>Bilingual support for Taxonomic Matching Shiny App</strong>
+<ul><li>Implemented full internationalization using shiny.i18n package</li>
+<li>French and English interfaces with instant language switching</li>
+<li>French is now the default language</li>
+<li>Migrated all 7 modules to use centralized i18n translation system:
+<ul><li>
+<code>mod_auto_matching</code> - Auto matching tab</li>
+<li>
+<code>mod_column_select</code> - Column selection</li>
+<li>
+<code>mod_data_input</code> - Data upload/input</li>
+<li>
+<code>mod_fuzzy_suggestions</code> - Fuzzy match suggestions</li>
+<li>
+<code>mod_name_review</code> - Manual review interface</li>
+<li>
+<code>mod_results_export</code> - Results export</li>
+<li>
+<code>mod_traits_enrichment</code> - Traits enrichment</li>
+</ul></li>
+<li>Added <code>utils_i18n.R</code> with <code><a href="../reference/init_translator.html">init_translator()</a></code> and translation utilities</li>
+<li>Created <code>inst/translations/translation.json</code> with comprehensive translations</li>
+<li>Language toggle located in top-right corner of app</li>
+<li>Set via <code>launch_taxonomic_match_app(language = "fr")</code> or <code>language = "en"</code>
+</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-7-2">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-7-2"></a></h4>
+<ul><li>
+<strong>Fixed <code><a href="../reference/query_individual_features.html">query_individual_features()</a></code> ignoring <code>trait_ids</code> parameter with large datasets</strong>
+<ul><li>When querying more than 1000 individuals, the chunking mechanism was not passing <code>trait_ids</code> filter</li>
+<li>This caused all traits to be returned instead of only the requested ones</li>
+<li>Fixed by passing <code>trait_ids</code> parameter through <code><a href="../reference/fetch_with_chunking.html">fetch_with_chunking()</a></code> to <code><a href="../reference/build_trait_query.html">build_trait_query()</a></code>
+</li>
+<li>Affects <code>individual_features_function.R:1319</code> and <code>individual_features_function.R:1270</code>
+</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="documentation-1-7-2">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-7-2"></a></h4>
+<ul><li>
+<strong>Updated Taxonomic App vignettes for bilingual support</strong>
+<ul><li>English vignette (<code>taxonomic-app.Rmd</code>) now documents language switching feature</li>
+<li>French vignette (<code>taxonomic-app-fr.Rmd</code>) includes parallel documentation</li>
+<li>Documented EN/FR toggle button usage</li>
+<li>Documented programmatic language selection</li>
+<li>Noted French as default language</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="code-refactoring-1-7-2">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-7-2"></a></h4>
+<ul><li>
+<strong>Removed obsolete <code>table_taxa_tb</code> dataset</strong>
+<ul><li>Deleted <code>data/table_taxa_tb.RData</code> and associated documentation</li>
+<li>Data is no longer needed as taxonomy queries now use direct database connections</li>
+<li>Reduced package size and maintenance burden</li>
+</ul></li>
+</ul><hr></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.7.1" id="cafriplotsr-171-2025-11-18">CafriplotsR 1.7.1 (2025-11-18)<a class="anchor" aria-label="anchor" href="#cafriplotsr-171-2025-11-18"></a></h2>
 <div class="section level4">
 <h4 id="new-features-1-7-1">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-7-1"></a></h4>
@@ -45,6 +110,14 @@
 <div class="section level4">
 <h4 id="bug-fixes-1-7-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-7-1"></a></h4>
 <ul><li>
+<strong>Fixed Shiny apps crashing RStudio when browser is closed</strong>
+<ul><li>Removed duplicate <code>onSessionEnded</code> callbacks that caused “Can’t access reactive value outside of reactive consumer” errors</li>
+<li>Updated <code><a href="../reference/cleanup_connections.html">cleanup_connections()</a></code> to properly close pool connections used by Shiny apps</li>
+<li>Removed <code>q("no")</code> calls that were quitting R entirely and crashing RStudio</li>
+<li>Affects <code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code> and <code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code>
+</li>
+</ul></li>
+<li>
 <strong>Fixed <code><a href="../reference/list_user_policies.html">list_user_policies()</a></code> returning empty results</strong>
 <ul><li>Added <code>::name</code> type cast for proper comparison with PostgreSQL <code>name[]</code> array</li>
 <li>Function now correctly filters policies by username</li>
@@ -154,6 +227,14 @@
 <div class="section level4">
 <h4 id="bug-fixes-1-7">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-7"></a></h4>
 <ul><li>
+<strong>Fixed Shiny apps crashing RStudio when browser is closed</strong>
+<ul><li>Removed duplicate <code>onSessionEnded</code> callbacks that caused “Can’t access reactive value outside of reactive consumer” errors</li>
+<li>Updated <code><a href="../reference/cleanup_connections.html">cleanup_connections()</a></code> to properly close pool connections used by Shiny apps</li>
+<li>Removed <code>q("no")</code> calls that were quitting R entirely and crashing RStudio</li>
+<li>Affects <code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code> and <code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code>
+</li>
+</ul></li>
+<li>
 <strong>Fixed <code><a href="../reference/query_plots.html">query_plots()</a></code> with <code>output_style</code> throwing errors on missing columns</strong>
 <ul><li>Changed column selection from <code><a href="https://tidyselect.r-lib.org/reference/all_of.html" class="external-link">all_of()</a></code> to <code><a href="https://tidyselect.r-lib.org/reference/all_of.html" class="external-link">any_of()</a></code> in output style transformations</li>
 <li>Functions now gracefully handle missing columns instead of throwing errors</li>
@@ -261,6 +342,14 @@
 <div class="section level4">
 <h4 id="bug-fixes-1-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5"></a></h4>
 <ul><li>
+<strong>Fixed Shiny apps crashing RStudio when browser is closed</strong>
+<ul><li>Removed duplicate <code>onSessionEnded</code> callbacks that caused “Can’t access reactive value outside of reactive consumer” errors</li>
+<li>Updated <code><a href="../reference/cleanup_connections.html">cleanup_connections()</a></code> to properly close pool connections used by Shiny apps</li>
+<li>Removed <code>q("no")</code> calls that were quitting R entirely and crashing RStudio</li>
+<li>Affects <code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code> and <code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code>
+</li>
+</ul></li>
+<li>
 <strong>Restored missing helper functions</strong> accidentally commented out
 <ul><li>
 <code><a href="../reference/dot-rename_data.html">.rename_data()</a></code> (R/helpers.R:307) - Renames columns in datasets</li>
@@ -389,6 +478,14 @@
 <div class="section level4">
 <h4 id="bug-fixes-1-5-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-5-1"></a></h4>
 <ul><li>
+<strong>Fixed Shiny apps crashing RStudio when browser is closed</strong>
+<ul><li>Removed duplicate <code>onSessionEnded</code> callbacks that caused “Can’t access reactive value outside of reactive consumer” errors</li>
+<li>Updated <code><a href="../reference/cleanup_connections.html">cleanup_connections()</a></code> to properly close pool connections used by Shiny apps</li>
+<li>Removed <code>q("no")</code> calls that were quitting R entirely and crashing RStudio</li>
+<li>Affects <code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code> and <code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code>
+</li>
+</ul></li>
+<li>
 <strong>Fixed commented <code>@export</code> tag causing roxygen2 errors</strong>
 <ul><li>Removed <code>@export</code> from commented-out <code><a href="../reference/subplot_list.html">subplot_list()</a></code> function in <code>R/subsplots_features_function.R</code>
 </li>
@@ -424,6 +521,14 @@
 <div class="section level4">
 <h4 id="bug-fixes-1-4">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-4"></a></h4>
 <ul><li>
+<strong>Fixed Shiny apps crashing RStudio when browser is closed</strong>
+<ul><li>Removed duplicate <code>onSessionEnded</code> callbacks that caused “Can’t access reactive value outside of reactive consumer” errors</li>
+<li>Updated <code><a href="../reference/cleanup_connections.html">cleanup_connections()</a></code> to properly close pool connections used by Shiny apps</li>
+<li>Removed <code>q("no")</code> calls that were quitting R entirely and crashing RStudio</li>
+<li>Affects <code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code> and <code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code>
+</li>
+</ul></li>
+<li>
 <strong>Fixed NA input names appearing in trait enrichment</strong>
 <ul><li>Enrichment module now filters out rows where the input taxonomic name is NA or empty</li>
 <li>Prevents invalid NA entries from being matched to taxa or included in enriched output</li>
@@ -516,6 +621,14 @@
 <div class="section level4">
 <h4 id="bug-fixes-1-4-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-4-1"></a></h4>
 <ul><li>
+<strong>Fixed Shiny apps crashing RStudio when browser is closed</strong>
+<ul><li>Removed duplicate <code>onSessionEnded</code> callbacks that caused “Can’t access reactive value outside of reactive consumer” errors</li>
+<li>Updated <code><a href="../reference/cleanup_connections.html">cleanup_connections()</a></code> to properly close pool connections used by Shiny apps</li>
+<li>Removed <code>q("no")</code> calls that were quitting R entirely and crashing RStudio</li>
+<li>Affects <code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code> and <code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code>
+</li>
+</ul></li>
+<li>
 <strong>Fixed <code><a href="../reference/query_taxa.html">query_taxa()</a></code> empty results with <code>only_family = TRUE</code></strong>
 <ul><li>Previously, fuzzy matching by default caused empty results when filtering for family-level taxa</li>
 <li>Now uses exact matching by default for higher taxonomic ranks</li>
@@ -567,6 +680,14 @@
 <div class="section level4">
 <h4 id="bug-fixes-1-0">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-0"></a></h4>
 <ul><li>
+<strong>Fixed Shiny apps crashing RStudio when browser is closed</strong>
+<ul><li>Removed duplicate <code>onSessionEnded</code> callbacks that caused “Can’t access reactive value outside of reactive consumer” errors</li>
+<li>Updated <code><a href="../reference/cleanup_connections.html">cleanup_connections()</a></code> to properly close pool connections used by Shiny apps</li>
+<li>Removed <code>q("no")</code> calls that were quitting R entirely and crashing RStudio</li>
+<li>Affects <code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code> and <code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code>
+</li>
+</ul></li>
+<li>
 <strong>Connection error with complex home paths</strong>: Fixed <code><a href="../reference/create_db_config.html">create_db_config()</a></code> function that failed when home directory path contained spaces or special characters (e.g., OneDrive paths like <code>C:/Users/NOBUS CAPITAL/OneDrive/Documents/</code>)
 <ul><li>Added proper error handling with <code><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch()</a></code> for file creation</li>
 <li>Creates parent directories if they don’t exist</li>
