@@ -319,16 +319,35 @@
     dplyr::select(plot_name, typevalue, year, month) %>%
     dplyr::distinct()
 
-  # Create census_date
+  # Create census_date with robust handling of missing/invalid data
   if ("year" %in% names(census_info) && "month" %in% names(census_info)) {
-    census_info <- 
-      census_info %>%
-      filter(!is.na(year), !is.na(month)) %>% 
+    census_info <- census_info %>%
       dplyr::mutate(
-        census_date = as.Date(paste(year, month, "01", sep = "-")),
-        census_date = format(census_date, "%Y-%m")
-      ) %>%
-      dplyr::select(-year, -month)
+        # Ensure numeric and valid ranges
+        year_num = suppressWarnings(as.integer(year)),
+        month_num = suppressWarnings(as.integer(month)),
+        # Flag valid date components (year > 1900 and month 1-12)
+        valid_date = !is.na(year_num) & !is.na(month_num) &
+                     year_num > 1900 & year_num < 2100 &
+                     month_num >= 1 & month_num <= 12
+      )
+
+    # Create census_date only if there are valid entries (avoid as.Date error on empty/all-NA)
+    if (any(census_info$valid_date, na.rm = TRUE)) {
+      census_info <- census_info %>%
+        dplyr::mutate(
+          census_date = dplyr::case_when(
+            valid_date ~ paste0(year_num, "-", sprintf("%02d", month_num)),
+            TRUE ~ NA_character_
+          )
+        )
+    } else {
+      # No valid dates - add empty census_date column
+      census_info$census_date <- NA_character_
+    }
+
+    census_info <- census_info %>%
+      dplyr::select(-year, -month, -year_num, -month_num, -valid_date)
   }
 
   # Rename typevalue to census_number
