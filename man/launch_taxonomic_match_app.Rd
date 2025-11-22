@@ -7,7 +7,7 @@
 launch_taxonomic_match_app(
   data = NULL,
   name_column = NULL,
-  language = c("en", "fr"),
+  language = c("fr", "en"),
   min_similarity = 0.7,
   max_suggestions = 10,
   mode = c("interactive", "batch"),
@@ -22,8 +22,8 @@ If NULL, user will upload an Excel file through the app interface.}
 containing taxonomic names. If NULL, user will select interactively.}
 
 \item{language}{Character, initial interface language. Options:
-- "en" (English, default)
-- "fr" (French)}
+- "fr" (French, default)
+- "en" (English)}
 
 \item{min_similarity}{Numeric between 0 and 1, minimum similarity threshold
 for fuzzy matching. Lower values are more permissive. Default: 0.3}

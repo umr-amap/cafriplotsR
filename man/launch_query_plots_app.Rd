@@ -4,15 +4,18 @@
 \alias{launch_query_plots_app}
 \title{Launch Query Plots Interactive App}
 \usage{
-launch_query_plots_app(pool_main = NULL, language = "en", ...)
+launch_query_plots_app(pool_main = NULL, language = c("fr", "en"), ...)
 }
 \arguments{
 \item{pool_main}{Optional database connection pool for the main database.
 If not provided, the app will create one automatically using
 \code{\link{create_pool_main}}.}
 
-\item{language}{Character string for UI language. Default is "en" (English).
-Future support for "fr" (French) planned.}
+\item{language}{Character string for UI language. Options:
+\itemize{
+  \item "fr" (French, default)
+  \item "en" (English)
+}}
 
 \item{...}{Additional arguments passed to \code{\link[shiny]{runApp}}
 (e.g., \code{launch.browser = TRUE}, \code{port = 3838})}

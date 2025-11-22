@@ -10,7 +10,7 @@ mod_fuzzy_suggestions_server(
   max_suggestions = shiny::reactive(10),
   min_similarity = shiny::reactive(0.3),
   include_authors = shiny::reactive(FALSE),
-  language = shiny::reactive("en")
+  i18n
 )
 }
 \arguments{
@@ -24,7 +24,7 @@ mod_fuzzy_suggestions_server(
 
 \item{include_authors}{Reactive or logical, whether to include author names}
 
-\item{language}{Reactive returning current language ("en" or "fr")}
+\item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
 Reactive integer, idtax_n of selected suggestion (or NULL)

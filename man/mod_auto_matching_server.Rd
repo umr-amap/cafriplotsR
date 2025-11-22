@@ -10,7 +10,7 @@ mod_auto_matching_server(
   column_name,
   include_authors,
   min_similarity = 0.3,
-  language = shiny::reactive("en")
+  i18n
 )
 }
 \arguments{
@@ -24,7 +24,7 @@ mod_auto_matching_server(
 
 \item{min_similarity}{Numeric, minimum similarity threshold (default: 0.3)}
 
-\item{language}{Reactive returning current language ("en" or "fr")}
+\item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
 Reactive list containing:
