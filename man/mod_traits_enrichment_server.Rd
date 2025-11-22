@@ -4,12 +4,7 @@
 \alias{mod_traits_enrichment_server}
 \title{Traits Enrichment Module - Server}
 \usage{
-mod_traits_enrichment_server(
-  id,
-  results,
-  column_name,
-  language = shiny::reactive("en")
-)
+mod_traits_enrichment_server(id, results, column_name, i18n)
 }
 \arguments{
 \item{id}{Character, module ID}
@@ -18,7 +13,7 @@ mod_traits_enrichment_server(
 
 \item{column_name}{Reactive returning the selected column name containing taxa}
 
-\item{language}{Reactive returning current language ("en" or "fr")}
+\item{i18n}{Reactive returning shiny.i18n translator}
 }
 \description{
 Traits Enrichment Module - Server

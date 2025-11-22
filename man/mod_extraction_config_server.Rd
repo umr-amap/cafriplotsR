@@ -4,12 +4,14 @@
 \alias{mod_extraction_config_server}
 \title{Extraction Configuration Module - Server}
 \usage{
-mod_extraction_config_server(id, selected_plots)
+mod_extraction_config_server(id, selected_plots, i18n)
 }
 \arguments{
 \item{id}{Module namespace ID}
 
 \item{selected_plots}{Reactive containing selected plot IDs}
+
+\item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
 A reactive list containing:

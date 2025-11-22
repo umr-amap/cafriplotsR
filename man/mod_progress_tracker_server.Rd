@@ -4,18 +4,14 @@
 \alias{mod_progress_tracker_server}
 \title{Progress Tracker Module - Server}
 \usage{
-mod_progress_tracker_server(
-  id,
-  match_results,
-  language = shiny::reactive("en")
-)
+mod_progress_tracker_server(id, match_results, i18n)
 }
 \arguments{
 \item{id}{Character, module ID}
 
 \item{match_results}{Reactive list containing matching results}
 
-\item{language}{Reactive returning current language ("en" or "fr")}
+\item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
 NULL (display only module)

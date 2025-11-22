@@ -4,12 +4,7 @@
 \alias{mod_results_export_server}
 \title{Results Export Module - Server}
 \usage{
-mod_results_export_server(
-  id,
-  results,
-  original_data,
-  language = shiny::reactive("en")
-)
+mod_results_export_server(id, results, original_data, i18n)
 }
 \arguments{
 \item{id}{Character, module ID}
@@ -18,7 +13,7 @@ mod_results_export_server(
 
 \item{original_data}{Reactive data.frame, original user data}
 
-\item{language}{Reactive returning current language ("en" or "fr")}
+\item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
 NULL (handles download only)
