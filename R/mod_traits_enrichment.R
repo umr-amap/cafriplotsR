@@ -19,6 +19,11 @@ mod_traits_enrichment_ui <- function(id) {
 
     shiny::hr(),
 
+    # Explanatory information about trait aggregation
+    shiny::uiOutput(ns("traits_info_box")),
+
+    shiny::hr(),
+
     # Enrichment options
     shiny::fluidRow(
       shiny::column(
@@ -67,6 +72,42 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
     # Module title
     output$title <- shiny::renderText({
       i18n()$t("Enrich with Traits")
+    })
+
+    # Explanatory info box about trait aggregation
+    output$traits_info_box <- shiny::renderUI({
+      shiny::div(
+        class = "panel panel-info",
+        style = "background-color: #e8f4f8; border: 1px solid #bee5eb; border-radius: 5px; padding: 15px; margin-bottom: 15px;",
+        shiny::h5(
+          shiny::icon("info-circle"),
+          i18n()$t("How traits are attributed to taxa"),
+          style = "color: #0c5460; margin-top: 0;"
+        ),
+        shiny::p(
+          i18n()$t("Trait values are aggregated across all available measurements for each taxon in the database:"),
+          style = "color: #0c5460; margin-bottom: 10px;"
+        ),
+        shiny::tags$ul(
+          style = "color: #0c5460; margin-bottom: 10px;",
+          shiny::tags$li(
+            shiny::tags$strong(i18n()$t("Numeric traits:")),
+            " ",
+            i18n()$t("Each numeric trait appears as three columns: _mean (average value), _sd (standard deviation), and _n (number of measurements). For example, 'wood_density' becomes 'wood_density_mean', 'wood_density_sd', and 'wood_density_n'.")
+          ),
+          shiny::tags$li(
+            shiny::tags$strong(i18n()$t("Categorical traits:")),
+            " ",
+            i18n()$t("For categorical traits (e.g., growth form, dispersal mode), you can choose to display either the most frequent value (mode) or all unique values concatenated.")
+          )
+        ),
+        shiny::p(
+          shiny::icon("link"),
+          " ",
+          i18n()$t("Synonym resolution: Trait data from taxonomic synonyms are automatically consolidated under the accepted taxon name."),
+          style = "color: #0c5460; font-style: italic; margin-bottom: 0;"
+        )
+      )
     })
 
     # Enrichment status

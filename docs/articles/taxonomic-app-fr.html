@@ -139,7 +139,11 @@ appariés</li>
 <div class="section level3">
 <h3 id="phase-2-charger-vos-données">Phase 2 : Charger Vos Données<a class="anchor" aria-label="anchor" href="#phase-2-charger-vos-donn%C3%A9es"></a>
 </h3>
-<p>La première étape est de fournir vos données. Vous pouvez soit :</p>
+<p>La première étape est de fournir vos données. L’application offre
+deux méthodes d’import :</p>
+<div class="section level4">
+<h4 id="import-par-fichier-par-défaut">Import par Fichier (Par Défaut)<a class="anchor" aria-label="anchor" href="#import-par-fichier-par-d%C3%A9faut"></a>
+</h4>
 <ul>
 <li>
 <strong>Charger un fichier Excel</strong> en utilisant le navigateur
@@ -156,6 +160,36 @@ passé le paramètre <code>data</code>)</li>
 sélectionner quelle feuille utiliser. L’application affichera un aperçu
 de vos données chargées pour que vous puissiez vérifier qu’elles ont été
 lues correctement.</p>
+</div>
+<div class="section level4">
+<h4 id="saisie-texte-copier-coller---nouveau">Saisie Texte (Copier-Coller) - NOUVEAU<a class="anchor" aria-label="anchor" href="#saisie-texte-copier-coller---nouveau"></a>
+</h4>
+<p>Pour standardiser rapidement quelques noms, ou lorsque vous avez une
+liste copiée depuis une autre source, utilisez la méthode <strong>Saisie
+texte</strong> :</p>
+<div class="float">
+<img src="images/app-text-input.gif" alt="Interface de saisie texte"><div class="figcaption">Interface de saisie texte</div>
+</div>
+<ol style="list-style-type: decimal">
+<li>Sélectionnez <strong>“Texte (coller/saisir)”</strong> dans les
+boutons radio de méthode d’import</li>
+<li>Collez ou tapez vos noms taxonomiques dans la zone de texte</li>
+<li>Cliquez sur <strong>“Charger les noms”</strong> pour traiter la
+saisie</li>
+</ol>
+<p><strong>Séparateurs acceptés :</strong> - Un nom par ligne
+(recommandé) - Séparés par virgule :
+<code>Lophira alata, Terminalia superba, Aucoumea klaineana</code> -
+Séparés par point-virgule :
+<code>Lophira alata; Terminalia superba; Aucoumea klaineana</code> -
+Séparés par tabulation (utile lors du copier-coller depuis Excel)</p>
+<p>L’application automatiquement : - Supprime les lignes vides et les
+espaces superflus - Supprime les doublons (en préservant l’ordre) - Crée
+une colonne unique nommée <code>taxon_name</code> pour l’appariement</p>
+<p>Cette méthode est idéale pour : - Vérifier rapidement quelques noms
+d’espèces - Coller des listes depuis des emails ou documents - Tester
+l’application sans préparer de fichier</p>
+</div>
 </div>
 <div class="section level3">
 <h3 id="phase-3-sélectionner-lales-colonnes-de-noms">Phase 3 : Sélectionner la/les Colonne(s) de Noms<a class="anchor" aria-label="anchor" href="#phase-3-s%C3%A9lectionner-lales-colonnes-de-noms"></a>
@@ -732,6 +766,9 @@ l’application après lancement avec tous les onglets visibles</li>
 <li>
 <strong>app-upload-data.png</strong> - Panneau de chargement des
 données avec navigateur de fichiers et sélection de feuille</li>
+<li>
+<strong>app-text-input.gif</strong> - Interface de saisie texte avec
+zone de texte et bouton “Charger les noms” (NOUVEAU)</li>
 <li>
 <strong>app-column-select.png</strong> - Menu déroulant de sélection
 de colonne unique</li>

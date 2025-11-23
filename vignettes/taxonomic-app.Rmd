@@ -72,7 +72,9 @@ The app uses a **tabbed workflow** that guides you through each phase sequential
 
 ### Phase 2: Upload Your Data
 
-The first step is to provide your data. You can either:
+The first step is to provide your data. The app offers two input methods:
+
+#### File Upload (Default)
 
 - **Upload an Excel file** using the file browser (supports .xlsx, .xls)
 - **Upload a CSV file**
@@ -81,6 +83,32 @@ The first step is to provide your data. You can either:
 ![Data upload interface](images/app-upload-data.png)
 
 For Excel files with multiple sheets, you can select which sheet to use. The app will display a preview of your uploaded data so you can verify it was read correctly.
+
+#### Text Input (Copy-Paste) - NEW
+
+For quick standardization of a few names, or when you have a list copied from another source, use the **Text input** method:
+
+![Text input interface](images/app-text-input.gif)
+
+1. Select **"Text input (paste/type)"** from the input method radio buttons
+2. Paste or type your taxonomic names in the text area
+3. Click **"Load names"** to process the input
+
+**Accepted separators:**
+- One name per line (recommended)
+- Comma-separated: `Lophira alata, Terminalia superba, Aucoumea klaineana`
+- Semicolon-separated: `Lophira alata; Terminalia superba; Aucoumea klaineana`
+- Tab-separated (useful when pasting from Excel)
+
+The app automatically:
+- Removes empty lines and whitespace
+- Removes duplicate names (preserving order)
+- Creates a single column named `taxon_name` for matching
+
+This method is ideal for:
+- Quick checks of a few species names
+- Pasting lists from emails or documents
+- Testing the app without preparing a file
 
 ### Phase 3: Select Name Column(s)
 
@@ -468,13 +496,14 @@ To complete this documentation, the following screenshots should be captured:
 
 1. **app-initial-view.png** - Full app interface after launch with all tabs visible
 2. **app-upload-data.png** - Data upload panel with file browser and sheet selection
-3. **app-column-select.png** - Single column selection dropdown
-4. **app-column-select-multi.png** - Multiple column mode with genus/species/family selectors
-5. **app-matching-progress.png** - Matching in progress with progress bar and live statistics
-6. **app-matching-results.png** - Results table in Auto Match tab showing matched names
-7. **app-review-interface.png** - Review tab overview with unmatched name display
-8. **app-review-suggestions.png** - Fuzzy suggestions panel with filtering options (level filter, sort, slider)
-9. **app-review-manual-search.png** - Manual search interface with search box and results
-10. **app-enrich-data-interface.png** - Traits enrichment tab with aggregation mode and column selection
-11. **app-enrich-data-results.png** - Preview of enriched data with traits
-12. **app-export-options.png** - Export tab with format selection and column checkboxes
+3. **app-text-input.gif** - Text input interface with text area and "Load names" button (NEW)
+4. **app-column-select.png** - Single column selection dropdown
+5. **app-column-select-multi.png** - Multiple column mode with genus/species/family selectors
+6. **app-matching-progress.png** - Matching in progress with progress bar and live statistics
+7. **app-matching-results.png** - Results table in Auto Match tab showing matched names
+8. **app-review-interface.png** - Review tab overview with unmatched name display
+9. **app-review-suggestions.png** - Fuzzy suggestions panel with filtering options (level filter, sort, slider)
+10. **app-review-manual-search.png** - Manual search interface with search box and results
+11. **app-enrich-data-interface.png** - Traits enrichment tab with aggregation mode and column selection
+12. **app-enrich-data-results.png** - Preview of enriched data with traits
+13. **app-export-options.png** - Export tab with format selection and column checkboxes
