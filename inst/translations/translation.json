@@ -1064,6 +1064,82 @@
     {
       "en": "Showing",
       "fr": "Affichage de"
+    },
+    {
+      "en": "How traits are attributed to taxa",
+      "fr": "Comment les traits sont attribués aux taxons"
+    },
+    {
+      "en": "Trait values are aggregated across all available measurements for each taxon in the database:",
+      "fr": "Les valeurs de traits sont agrégées à partir de toutes les mesures disponibles pour chaque taxon dans la base de données :"
+    },
+    {
+      "en": "Numeric traits:",
+      "fr": "Traits numériques :"
+    },
+    {
+      "en": "Each numeric trait appears as three columns: _mean (average value), _sd (standard deviation), and _n (number of measurements). For example, 'wood_density' becomes 'wood_density_mean', 'wood_density_sd', and 'wood_density_n'.",
+      "fr": "Chaque trait numérique apparaît sous forme de trois colonnes : _mean (valeur moyenne), _sd (écart-type), et _n (nombre de mesures). Par exemple, 'wood_density' devient 'wood_density_mean', 'wood_density_sd', et 'wood_density_n'."
+    },
+    {
+      "en": "Categorical traits:",
+      "fr": "Traits catégoriels :"
+    },
+    {
+      "en": "For categorical traits (e.g., growth form, dispersal mode), you can choose to display either the most frequent value (mode) or all unique values concatenated.",
+      "fr": "Pour les traits catégoriels (ex : forme de croissance, mode de dispersion), vous pouvez choisir d'afficher soit la valeur la plus fréquente (mode), soit toutes les valeurs uniques concaténées."
+    },
+    {
+      "en": "Synonym resolution: Trait data from taxonomic synonyms are automatically consolidated under the accepted taxon name.",
+      "fr": "Résolution des synonymes : les données de traits des synonymes taxonomiques sont automatiquement consolidées sous le nom de taxon accepté."
+    },
+    {
+      "en": "Input method:",
+      "fr": "Méthode d'import :"
+    },
+    {
+      "en": "File upload",
+      "fr": "Fichier"
+    },
+    {
+      "en": "Text input (paste/type)",
+      "fr": "Texte (coller/saisir)"
+    },
+    {
+      "en": "Enter or paste taxonomic names:",
+      "fr": "Saisir ou coller des noms taxonomiques :"
+    },
+    {
+      "en": "One name per line, or separated by comma/semicolon/tab",
+      "fr": "Un nom par ligne, ou séparés par virgule/point-virgule/tabulation"
+    },
+    {
+      "en": "Accepted separators: newline, comma, semicolon, tab",
+      "fr": "Séparateurs acceptés : retour à la ligne, virgule, point-virgule, tabulation"
+    },
+    {
+      "en": "Load names",
+      "fr": "Charger les noms"
+    },
+    {
+      "en": "Please enter at least one taxonomic name",
+      "fr": "Veuillez saisir au moins un nom taxonomique"
+    },
+    {
+      "en": "No valid names found in the input",
+      "fr": "Aucun nom valide trouvé dans la saisie"
+    },
+    {
+      "en": "Text input",
+      "fr": "Saisie texte"
+    },
+    {
+      "en": "names",
+      "fr": "noms"
+    },
+    {
+      "en": "names loaded successfully",
+      "fr": "noms chargés avec succès"
     }
   ]
 }
