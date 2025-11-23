@@ -134,7 +134,11 @@ through each phase sequentially:</p>
 <div class="section level3">
 <h3 id="phase-2-upload-your-data">Phase 2: Upload Your Data<a class="anchor" aria-label="anchor" href="#phase-2-upload-your-data"></a>
 </h3>
-<p>The first step is to provide your data. You can either:</p>
+<p>The first step is to provide your data. The app offers two input
+methods:</p>
+<div class="section level4">
+<h4 id="file-upload-default">File Upload (Default)<a class="anchor" aria-label="anchor" href="#file-upload-default"></a>
+</h4>
 <ul>
 <li>
 <strong>Upload an Excel file</strong> using the file browser
@@ -150,6 +154,35 @@ through each phase sequentially:</p>
 <p>For Excel files with multiple sheets, you can select which sheet to
 use. The app will display a preview of your uploaded data so you can
 verify it was read correctly.</p>
+</div>
+<div class="section level4">
+<h4 id="text-input-copy-paste---new">Text Input (Copy-Paste) - NEW<a class="anchor" aria-label="anchor" href="#text-input-copy-paste---new"></a>
+</h4>
+<p>For quick standardization of a few names, or when you have a list
+copied from another source, use the <strong>Text input</strong>
+method:</p>
+<div class="float">
+<img src="images/app-text-input.gif" alt="Text input interface"><div class="figcaption">Text input interface</div>
+</div>
+<ol style="list-style-type: decimal">
+<li>Select <strong>“Text input (paste/type)”</strong> from the input
+method radio buttons</li>
+<li>Paste or type your taxonomic names in the text area</li>
+<li>Click <strong>“Load names”</strong> to process the input</li>
+</ol>
+<p><strong>Accepted separators:</strong> - One name per line
+(recommended) - Comma-separated:
+<code>Lophira alata, Terminalia superba, Aucoumea klaineana</code> -
+Semicolon-separated:
+<code>Lophira alata; Terminalia superba; Aucoumea klaineana</code> -
+Tab-separated (useful when pasting from Excel)</p>
+<p>The app automatically: - Removes empty lines and whitespace - Removes
+duplicate names (preserving order) - Creates a single column named
+<code>taxon_name</code> for matching</p>
+<p>This method is ideal for: - Quick checks of a few species names -
+Pasting lists from emails or documents - Testing the app without
+preparing a file</p>
+</div>
 </div>
 <div class="section level3">
 <h3 id="phase-3-select-name-columns">Phase 3: Select Name Column(s)<a class="anchor" aria-label="anchor" href="#phase-3-select-name-columns"></a>
@@ -697,6 +730,9 @@ launch with all tabs visible</li>
 <li>
 <strong>app-upload-data.png</strong> - Data upload panel with file
 browser and sheet selection</li>
+<li>
+<strong>app-text-input.gif</strong> - Text input interface with text
+area and “Load names” button (NEW)</li>
 <li>
 <strong>app-column-select.png</strong> - Single column selection
 dropdown</li>

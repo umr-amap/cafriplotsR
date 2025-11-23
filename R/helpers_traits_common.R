@@ -97,7 +97,7 @@ pivot_numeric_traits_generic <- function(
       data,
       as.formula(paste(id_col, "~ trait")),
       value.var = "traitvalue_num",
-      fun.aggregate = function(x) mean(x, na.rm = TRUE)
+      fun.aggregate = function(x) round(mean(x, na.rm = TRUE), 2)
     )
     
     # Add prefix
@@ -112,8 +112,8 @@ pivot_numeric_traits_generic <- function(
   
   # Calculate statistics (mean, sd, n)
   stats_dt <- data[, .(
-    mean = mean(traitvalue_num, na.rm = TRUE),
-    sd = sd(traitvalue_num, na.rm = TRUE),
+    mean = round(mean(traitvalue_num, na.rm = TRUE), 2),
+    sd = round(sd(traitvalue_num, na.rm = TRUE), 2),
     n = sum(!is.na(traitvalue_num))
   ), by = c(id_col, "trait")]
   
