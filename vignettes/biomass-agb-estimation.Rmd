@@ -338,7 +338,7 @@ agb_by_plot <- agb_data %>%
   group_by(plot_name) %>%
   summarise(
     n_trees = n(),
-    total_AGB_Mg = sum(AGB_kg) / 1000  # Convert kg to Mg
+    total_AGB_Mg = sum(AGB_kg)
   )
 
 print(agb_by_plot)

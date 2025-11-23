@@ -72,7 +72,9 @@ L'application utilise un **flux de travail par onglets** qui vous guide à trave
 
 ### Phase 2 : Charger Vos Données
 
-La première étape est de fournir vos données. Vous pouvez soit :
+La première étape est de fournir vos données. L'application offre deux méthodes d'import :
+
+#### Import par Fichier (Par Défaut)
 
 - **Charger un fichier Excel** en utilisant le navigateur de fichiers (supporte .xlsx, .xls)
 - **Charger un fichier CSV**
@@ -81,6 +83,32 @@ La première étape est de fournir vos données. Vous pouvez soit :
 ![Interface de chargement des données](images/app-upload-data.png)
 
 Pour les fichiers Excel avec plusieurs feuilles, vous pouvez sélectionner quelle feuille utiliser. L'application affichera un aperçu de vos données chargées pour que vous puissiez vérifier qu'elles ont été lues correctement.
+
+#### Saisie Texte (Copier-Coller) - NOUVEAU
+
+Pour standardiser rapidement quelques noms, ou lorsque vous avez une liste copiée depuis une autre source, utilisez la méthode **Saisie texte** :
+
+![Interface de saisie texte](images/app-text-input.gif)
+
+1. Sélectionnez **"Texte (coller/saisir)"** dans les boutons radio de méthode d'import
+2. Collez ou tapez vos noms taxonomiques dans la zone de texte
+3. Cliquez sur **"Charger les noms"** pour traiter la saisie
+
+**Séparateurs acceptés :**
+- Un nom par ligne (recommandé)
+- Séparés par virgule : `Lophira alata, Terminalia superba, Aucoumea klaineana`
+- Séparés par point-virgule : `Lophira alata; Terminalia superba; Aucoumea klaineana`
+- Séparés par tabulation (utile lors du copier-coller depuis Excel)
+
+L'application automatiquement :
+- Supprime les lignes vides et les espaces superflus
+- Supprime les doublons (en préservant l'ordre)
+- Crée une colonne unique nommée `taxon_name` pour l'appariement
+
+Cette méthode est idéale pour :
+- Vérifier rapidement quelques noms d'espèces
+- Coller des listes depuis des emails ou documents
+- Tester l'application sans préparer de fichier
 
 ### Phase 3 : Sélectionner la/les Colonne(s) de Noms
 
@@ -467,13 +495,14 @@ Pour compléter cette documentation, les captures d'écran suivantes devraient �
 
 1. **app-initial-view.png** - Interface complète de l'application après lancement avec tous les onglets visibles
 2. **app-upload-data.png** - Panneau de chargement des données avec navigateur de fichiers et sélection de feuille
-3. **app-column-select.png** - Menu déroulant de sélection de colonne unique
-4. **app-column-select-multi.png** - Mode colonnes multiples avec sélecteurs genre/espèce/famille
-5. **app-matching-progress.png** - Correspondance en cours avec barre de progression et statistiques en direct
-6. **app-matching-results.png** - Tableau des résultats dans l'onglet Auto Match montrant les noms appariés
-7. **app-review-interface.png** - Vue d'ensemble de l'onglet Review avec affichage du nom non apparié
-8. **app-review-suggestions.png** - Panneau de suggestions approximatives avec options de filtrage (filtre niveau, tri, curseur)
-9. **app-review-manual-search.png** - Interface de recherche manuelle avec boîte de recherche et résultats
-10. **app-enrich-data-interface.png** - Onglet d'enrichissement des traits avec mode d'agrégation et sélection de colonnes
-11. **app-enrich-data-results.png** - Aperçu des données enrichies avec traits
-12. **app-export-options.png** - Onglet Export avec sélection de format et cases à cocher des colonnes
+3. **app-text-input.gif** - Interface de saisie texte avec zone de texte et bouton "Charger les noms" (NOUVEAU)
+4. **app-column-select.png** - Menu déroulant de sélection de colonne unique
+5. **app-column-select-multi.png** - Mode colonnes multiples avec sélecteurs genre/espèce/famille
+6. **app-matching-progress.png** - Correspondance en cours avec barre de progression et statistiques en direct
+7. **app-matching-results.png** - Tableau des résultats dans l'onglet Auto Match montrant les noms appariés
+8. **app-review-interface.png** - Vue d'ensemble de l'onglet Review avec affichage du nom non apparié
+9. **app-review-suggestions.png** - Panneau de suggestions approximatives avec options de filtrage (filtre niveau, tri, curseur)
+10. **app-review-manual-search.png** - Interface de recherche manuelle avec boîte de recherche et résultats
+11. **app-enrich-data-interface.png** - Onglet d'enrichissement des traits avec mode d'agrégation et sélection de colonnes
+12. **app-enrich-data-results.png** - Aperçu des données enrichies avec traits
+13. **app-export-options.png** - Onglet Export avec sélection de format et cases à cocher des colonnes

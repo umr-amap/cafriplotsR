@@ -1,6 +1,6 @@
 # Data Input Module
 #
-# Handles file upload or direct R data input
+# Handles file upload, text input (copy-paste), or direct R data input
 
 #' Data Input Module - UI
 #'
@@ -14,6 +14,7 @@ mod_data_input_ui <- function(id) {
 
   shiny::tagList(
     shiny::h4(shiny::textOutput(ns("title"))),
+    shiny::uiOutput(ns("input_method_selector")),
     shiny::uiOutput(ns("input_controls")),
     shiny::uiOutput(ns("data_summary"))
   )
@@ -37,13 +38,54 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
     file_name <- shiny::reactiveVal(NULL)
     excel_sheets <- shiny::reactiveVal(NULL)
     uploaded_file_path <- shiny::reactiveVal(NULL)
+    input_method <- shiny::reactiveVal("file")  # "file" or "text"
 
     # Module title
     output$title <- shiny::renderText({
       i18n()$t("Data Input")
     })
 
-    # Input controls
+    # Input method selector (only shown when no pre-provided data)
+    output$input_method_selector <- shiny::renderUI({
+      # If data is pre-provided, don't show selector
+      if (!is.null(provided_data)) {
+        data_to_check <- if (shiny::is.reactive(provided_data)) {
+          provided_data()
+        } else {
+          provided_data
+        }
+        if (!is.null(data_to_check) && nrow(data_to_check) > 0) {
+          return(NULL)
+        }
+      }
+
+      ns <- session$ns
+
+      # Build choices with translations
+      method_choices <- c("file", "text")
+      names(method_choices) <- c(
+        i18n()$t("File upload"),
+        i18n()$t("Text input (paste/type)")
+      )
+
+      shiny::div(
+        style = "margin-bottom: 15px;",
+        shiny::radioButtons(
+          inputId = ns("input_method"),
+          label = i18n()$t("Input method:"),
+          choices = method_choices,
+          selected = "file",
+          inline = TRUE
+        )
+      )
+    })
+
+    # Track input method changes
+    shiny::observeEvent(input$input_method, {
+      input_method(input$input_method)
+    })
+
+    # Input controls (conditional on input method)
     output$input_controls <- shiny::renderUI({
       ns <- session$ns
 
@@ -57,24 +99,18 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
         }
 
         if (!is.null(data_to_check) && nrow(data_to_check) > 0) {
-          shiny::div(
+          return(shiny::div(
             shiny::icon("check-circle", class = "fa-2x", style = "color: green;"),
             shiny::p(i18n()$t("Using R data from environment"), style = "font-weight: bold;")
-          )
-        } else {
-          # Show file upload
-          shiny::tagList(
-            shiny::fileInput(
-              inputId = ns("file_upload"),
-              label = i18n()$t("Upload Excel file"),
-              accept = c(".xlsx", ".xls", ".csv"),
-              placeholder = i18n()$t("Choose file...")
-            ),
-            shiny::uiOutput(ns("sheet_selector"))
-          )
+          ))
         }
-      } else {
-        # Show file upload
+      }
+
+      # Get current input method
+      current_method <- input$input_method %||% "file"
+
+      if (current_method == "file") {
+        # File upload interface
         shiny::tagList(
           shiny::fileInput(
             inputId = ns("file_upload"),
@@ -83,6 +119,27 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
             placeholder = i18n()$t("Choose file...")
           ),
           shiny::uiOutput(ns("sheet_selector"))
+        )
+      } else {
+        # Text input interface
+        shiny::tagList(
+          shiny::textAreaInput(
+            inputId = ns("text_input"),
+            label = i18n()$t("Enter or paste taxonomic names:"),
+            placeholder = i18n()$t("One name per line, or separated by comma/semicolon/tab"),
+            rows = 8,
+            width = "100%"
+          ),
+          shiny::tags$small(
+            class = "text-muted",
+            style = "display: block; margin-top: -10px; margin-bottom: 10px;",
+            i18n()$t("Accepted separators: newline, comma, semicolon, tab")
+          ),
+          shiny::actionButton(
+            inputId = ns("btn_load_text"),
+            label = shiny::tagList(shiny::icon("check"), i18n()$t("Load names")),
+            class = "btn-primary btn-sm"
+          )
         )
       }
     })
@@ -189,6 +246,81 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
 
         shiny::showNotification(
           paste0(i18n()$t("File uploaded successfully"), " (Sheet: ", input$excel_sheet, ")"),
+          type = "message",
+          duration = 3
+        )
+
+      }, error = function(e) {
+        shinybusy::hide_spinner()
+
+        shiny::showNotification(
+          paste(i18n()$t("Error:"), e$message),
+          type = "error",
+          duration = 10
+        )
+      })
+    })
+
+    # Handle text input (paste/type names)
+    shiny::observeEvent(input$btn_load_text, {
+      req(input$text_input)
+
+      text_content <- input$text_input
+
+      # Check if text is empty or only whitespace
+      if (trimws(text_content) == "") {
+        shiny::showNotification(
+          i18n()$t("Please enter at least one taxonomic name"),
+          type = "warning",
+          duration = 5
+        )
+        return(NULL)
+      }
+
+      tryCatch({
+        shinybusy::show_spinner()
+
+        # Parse text input: split by newline, comma, semicolon, or tab
+        # First replace all separators with newline, then split
+        text_normalized <- text_content %>%
+          gsub(";", "\n", .) %>%
+          gsub(",", "\n", .) %>%
+          gsub("\t", "\n", .)
+
+        # Split by newline and clean
+        names_vector <- strsplit(text_normalized, "\n")[[1]]
+
+        # Clean each name: trim whitespace, remove empty strings
+        names_vector <- trimws(names_vector)
+        names_vector <- names_vector[names_vector != ""]
+        names_vector <- names_vector[!is.na(names_vector)]
+
+        # Remove duplicates while preserving order
+        names_vector <- unique(names_vector)
+
+        if (length(names_vector) == 0) {
+          shinybusy::hide_spinner()
+          shiny::showNotification(
+            i18n()$t("No valid names found in the input"),
+            type = "warning",
+            duration = 5
+          )
+          return(NULL)
+        }
+
+        # Create data frame with taxon_name column
+        data <- tibble::tibble(
+          taxon_name = names_vector,
+          id_data = seq_along(names_vector)
+        )
+
+        user_data(data)
+        file_name(paste0(i18n()$t("Text input"), " (", length(names_vector), " ", i18n()$t("names"), ")"))
+
+        shinybusy::hide_spinner()
+
+        shiny::showNotification(
+          paste0(length(names_vector), " ", i18n()$t("names loaded successfully")),
           type = "message",
           duration = 3
         )
