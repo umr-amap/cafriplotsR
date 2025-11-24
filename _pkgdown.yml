@@ -15,6 +15,7 @@ articles:
   - title: "Data Import & Analysis"
     contents:
     - importing-plot-data
+    - updating-data
     - biomass-agb-estimation
     - growth-mortality-analysis
   - title: "Tools"
@@ -28,6 +29,7 @@ articles:
   - title: "Français - Import & Analyse"
     contents:
     - importing-plot-data-fr
+    - updating-data-fr
     - biomass-agb-estimation-fr
     - growth-mortality-analysis-fr
   - title: "Français - Outils"
