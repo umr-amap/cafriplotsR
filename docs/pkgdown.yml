@@ -13,9 +13,11 @@ articles:
   readme-fr: readme-fr.html
   taxonomic-app-fr: taxonomic-app-fr.html
   taxonomic-app: taxonomic-app.html
+  updating-data-fr: updating-data-fr.html
+  updating-data: updating-data.html
   using-query-plots-fr: using-query-plots-fr.html
   using-query-plots: using-query-plots.html
-last_built: 2025-11-23T09:13Z
+last_built: 2025-11-24T16:50Z
 urls:
   reference: https://umr-amap.github.io/cafriplotsR/reference
   article: https://umr-amap.github.io/cafriplotsR/articles
