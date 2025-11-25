@@ -1,5 +1,7 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://umr-amap.github.io/cafriplotsR/404.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/ADD_PLOT_FEATURES_IMPLEMENTATION.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/articles/adding-plot-features.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/biomass-agb-estimation-fr.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/biomass-agb-estimation.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/articles/database-connections-fr.html</loc></url>
@@ -27,6 +29,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/news/index.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/NEXT_SESSION_COLUMN_MAPPING_REDESIGN.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/QUERY_TAXA_AUTO_FUZZY_FALLBACK.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/QUICKSTART_ADD_PLOT_FEATURES.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/README-fr.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/REFACTORING_SUMMARY.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/REFACTOR_PROPOSAL_query_taxa.html</loc></url>
@@ -36,6 +39,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/add_method.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/add_plots.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/add_plot_coordinates.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/add_plot_features.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/add_specimens.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/add_sp_traits_measures.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/add_subplot_features.html</loc></url>
@@ -106,6 +110,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-display_changes_grouped.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-extract_and_process_subplot_features.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-find_cat.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-find_fuzzy_match.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-find_ids.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-find_similar_string.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-find_synonym_match.html</loc></url>
@@ -120,10 +125,12 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_individual_columns_from_db.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_individual_column_synonyms.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_linked_individuals_summary.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_subplot_feature_synonyms.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_template_examples.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_trait_columns_from_db.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_trait_column_synonyms.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_trait_individuals_values.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-identify_plot_id_column.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-link_country_for_import.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-link_individuals_to_plots.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-link_method_for_import.html</loc></url>
@@ -133,6 +140,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-link_trait.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-map_flat_table_interactive.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-map_sheet_columns.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-map_subplot_feature_columns.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-map_two_tables.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-match_class.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-match_exact_sql.html</loc></url>
@@ -144,6 +152,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-prepare_features_data.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-prepare_individuals_data.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-prepare_plot_data.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-prepare_subplot_features.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-print_mapping_summary.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-print_taxa_results.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-query_taxa_by_ids.html</loc></url>
@@ -166,6 +175,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-validate_lookup_values_interactive.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-validate_method_requirements.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-validate_plot_access.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-validate_plot_features_data.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-validate_ranges.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-validate_required_fields.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-validate_required_fields_individuals.html</loc></url>
@@ -278,6 +288,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/pivot_traits_to_wide.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/PlotFetcher.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/PlotFilterBuilder.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/print.plot_features_result.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/print.plot_query_list.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/print.plot_validation_result.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/print_connection_status.html</loc></url>
