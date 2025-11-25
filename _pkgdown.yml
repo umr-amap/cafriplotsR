@@ -15,6 +15,7 @@ articles:
   - title: "Data Import & Analysis"
     contents:
     - importing-plot-data
+    - adding-plot-features
     - updating-data
     - biomass-agb-estimation
     - growth-mortality-analysis
