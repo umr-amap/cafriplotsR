@@ -2,6 +2,7 @@ pandoc: '3.4'
 pkgdown: 2.1.3
 pkgdown_sha: ~
 articles:
+  adding-plot-features: adding-plot-features.html
   biomass-agb-estimation-fr: biomass-agb-estimation-fr.html
   biomass-agb-estimation: biomass-agb-estimation.html
   database-connections-fr: database-connections-fr.html
@@ -17,7 +18,7 @@ articles:
   updating-data: updating-data.html
   using-query-plots-fr: using-query-plots-fr.html
   using-query-plots: using-query-plots.html
-last_built: 2025-11-24T22:12Z
+last_built: 2025-11-25T14:33Z
 urls:
   reference: https://umr-amap.github.io/cafriplotsR/reference
   article: https://umr-amap.github.io/cafriplotsR/articles
