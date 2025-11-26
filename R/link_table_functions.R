@@ -634,13 +634,13 @@
     missing_colnams_unique <- missing_colnams %>% distinct(!!original_enquo)
     for (i in 1:nrow(missing_colnams_unique)) {
 
-      print(missing_colnams_unique$original_colnam[i])
+      print(missing_colnams_unique[[original_]][i])
 
-      add <- 
+      add <-
         choose_prompt(message = "Add a new name?")
-      
 
-      if(add) {
+
+      if(!is.null(add) && isTRUE(add)) {
         new_colname <-
           readline(prompt="Provide a new collector name following same format: ")
 
@@ -664,16 +664,16 @@
                           row.names = FALSE)
 
         selected_name_id <-
-          dplyr::tbl(mydb, "table_colnam") %>%
-          dplyr::filter(colnam == new_colname) %>%
-          dplyr::select(id_table_colnam) %>%
+          dplyr::tbl(mydb, table_name) %>%
+          dplyr::filter(!!sym(column_name) == new_colname) %>%
+          dplyr::select(!!sym(id_table_name)) %>%
           dplyr::collect() %>%
           dplyr::pull()
 
         data_stand <-
           data_stand %>%
           mutate(!!sym(id_field) := replace(!!sym(id_field),
-                                     original_colnam == missing_colnams_unique$original_colnam[i],
+                                     !!sym(original_) == missing_colnams_unique[[original_]][i],
                                      selected_name_id))
 
       }

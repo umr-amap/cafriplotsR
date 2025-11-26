@@ -112,11 +112,14 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
     }
 
     # Generate code for individual extraction
-    generate_individuals_code <- function(plot_ids, options) {
+    generate_individuals_code <- function(plot_ids, options, use_metadata_ref = FALSE) {
       args <- c()
 
-      # Plot IDs
-      if (length(plot_ids) == 1) {
+      # Plot IDs - use metadata reference if available and multiple plots
+      if (use_metadata_ref && length(plot_ids) > 1) {
+        # Suggest using metadata output instead of long vector
+        args <- c(args, '  id_plot = metadata$metadata$id_liste_plots')
+      } else if (length(plot_ids) == 1) {
         args <- c(args, sprintf('  id_plot = %s', plot_ids))
       } else {
         args <- c(args, sprintf('  id_plot = c(%s)', paste(plot_ids, collapse = ", ")))
@@ -173,13 +176,23 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
         args <- c(args, '  traits_to_genera = TRUE')
       }
 
-      # Build the code
-      code <- paste0(
-        "# Extract individual tree data from selected plots\n",
-        "individuals <- query_plots(\n",
-        paste(args, collapse = ",\n"),
-        "\n)"
-      )
+      # Build the code with helpful comment if using metadata reference
+      if (use_metadata_ref && length(plot_ids) > 1) {
+        code <- paste0(
+          "# Extract individual tree data from selected plots\n",
+          "# Note: Column name might be 'plot_id' instead of 'id_liste_plots' depending on output_style\n",
+          "individuals <- query_plots(\n",
+          paste(args, collapse = ",\n"),
+          "\n)"
+        )
+      } else {
+        code <- paste0(
+          "# Extract individual tree data from selected plots\n",
+          "individuals <- query_plots(\n",
+          paste(args, collapse = ",\n"),
+          "\n)"
+        )
+      }
 
       return(code)
     }
@@ -208,7 +221,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
       if (has_individuals) {
         current_plots <- selected_plots()
         current_options <- extraction_options()
-        individuals_code <- generate_individuals_code(current_plots, current_options)
+        individuals_code <- generate_individuals_code(current_plots, current_options, use_metadata_ref = has_metadata)
         code_sections$individuals <- individuals_code
       }
 
