@@ -95,6 +95,11 @@
 
 #' Extract metadata table from query results
 #'
+#' @description
+#' Extracts plot-level metadata from query results. Always includes id_liste_plots
+#' (or plot_id if renamed) to enable chaining queries (e.g., extracting individuals
+#' from metadata results: query_plots(id_plot = metadata$metadata$id_liste_plots)).
+#'
 #' @keywords internal
 #' @noRd
 .extract_metadata_table <- function(data, meta_data = NULL, style_config, extract_individuals) {
@@ -128,8 +133,12 @@
   # Get available columns from source data
   available_cols <- names(source_data)
 
-  # Keep specified columns that exist
-  keep_cols <- intersect(meta_cols, available_cols)
+  # Always keep id_liste_plots (similar to id_n for individuals)
+  keep_cols <- "id_liste_plots"
+
+  # Add specified columns that exist
+  specified_cols <- setdiff(meta_cols, "id_liste_plots")
+  keep_cols <- c(keep_cols, intersect(specified_cols, available_cols))
 
   # Handle common features
   if (!is.null(style_config$keep_common_features) && style_config$keep_common_features) {
