@@ -1140,6 +1140,90 @@
     {
       "en": "names loaded successfully",
       "fr": "noms chargés avec succès"
+    },
+    {
+      "en": "Statistics",
+      "fr": "Statistiques"
+    },
+    {
+      "en": "Plot Statistics & Visualizations",
+      "fr": "Statistiques & Visualisations des parcelles"
+    },
+    {
+      "en": "No data available. Please extract individuals first.",
+      "fr": "Aucune donnée disponible. Veuillez d'abord extraire les individus."
+    },
+    {
+      "en": "Diameter data not available in current output",
+      "fr": "Données de diamètre non disponibles dans la sortie actuelle"
+    },
+    {
+      "en": "Species data not available in current output",
+      "fr": "Données d'espèces non disponibles dans la sortie actuelle"
+    },
+    {
+      "en": "Plots",
+      "fr": "Parcelles"
+    },
+    {
+      "en": "Individuals",
+      "fr": "Individus"
+    },
+    {
+      "en": "Families",
+      "fr": "Familles"
+    },
+    {
+      "en": "Mean:",
+      "fr": "Moyenne :"
+    },
+    {
+      "en": "Median:",
+      "fr": "Médiane :"
+    },
+    {
+      "en": "Min:",
+      "fr": "Min :"
+    },
+    {
+      "en": "Max:",
+      "fr": "Max :"
+    },
+    {
+      "en": "Number of species to show:",
+      "fr": "Nombre d'espèces à afficher :"
+    },
+    {
+      "en": "Diameter Statistics (cm)",
+      "fr": "Statistiques de diamètre (cm)"
+    },
+    {
+      "en": "Diameter Distribution",
+      "fr": "Distribution des diamètres"
+    },
+    {
+      "en": "Most Abundant Species",
+      "fr": "Espèces les plus abondantes"
+    },
+    {
+      "en": "Export Statistics",
+      "fr": "Exporter les statistiques"
+    },
+    {
+      "en": "Download Summary (.csv)",
+      "fr": "Télécharger le résumé (.csv)"
+    },
+    {
+      "en": "Diameter (cm)",
+      "fr": "Diamètre (cm)"
+    },
+    {
+      "en": "Frequency",
+      "fr": "Fréquence"
+    },
+    {
+      "en": "Number of individuals",
+      "fr": "Nombre d'individus"
     }
   ]
 }

@@ -2,6 +2,22 @@
 
 ### New Features
 
+* **Plot Statistics & Visualizations module for Query Plots Shiny App**
+  - New "Statistics" tab in `launch_query_plots_app()` displays comprehensive plot statistics
+  - Smart column mapping system automatically adapts to different output styles (`minimal`, `standard`, `permanent_plot`, etc.)
+  - Detects column names regardless of renaming (e.g., `stem_diameter`/`dbh`/`D`, `tax_sp_level`/`species`)
+  - Summary statistics cards: number of plots, individuals, species (richness), families
+  - Diameter statistics: mean, median, min, max (when diameter data available)
+  - Interactive visualizations using `ggplot2` + `plotly`:
+    - Diameter distribution histogram with hover tooltips
+    - Top N species composition bar chart (adjustable slider: 5-30 species)
+  - Graceful degradation: sections automatically hide when data unavailable
+  - Download summary statistics as CSV
+  - Fully bilingual (EN/FR) with integrated i18n support
+  - New module files: `R/mod_plot_statistics.R` (UI/server functions)
+  - Added 24 translation strings to `inst/translations/translation.json`
+  - Designed for easy expansion (guild analysis, height-diameter plots, basal area, etc.)
+
 * **Bilingual support for Taxonomic Matching Shiny App**
   - Implemented full internationalization using shiny.i18n package
   - French and English interfaces with instant language switching
