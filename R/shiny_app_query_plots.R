@@ -185,6 +185,26 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
           )
         ),
 
+        # Page 3: Statistics & Visualizations
+        shiny::tabPanel(
+          shiny::textOutput("tab_statistics", inline = TRUE),
+          value = "page_statistics",
+          icon = shiny::icon("chart-bar"),
+
+          shiny::fluidPage(
+            shiny::br(),
+            shiny::fluidRow(
+              shiny::column(
+                12,
+                shiny::div(
+                  class = "module-section",
+                  mod_plot_statistics_ui("statistics")
+                )
+              )
+            )
+          )
+        ),
+
         # About panel
         shiny::tabPanel(
           shiny::textOutput("tab_about", inline = TRUE),
@@ -259,6 +279,10 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
 
     output$tab_results <- shiny::renderText({
       i18n()$t("Results & Extraction")
+    })
+
+    output$tab_statistics <- shiny::renderText({
+      i18n()$t("Statistics")
     })
 
     output$tab_about <- shiny::renderText({
@@ -514,6 +538,13 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
         extraction_options = extraction_output$options,
         metadata_available = shiny::reactive(!is.null(rv$metadata)),
         individuals_available = shiny::reactive(!is.null(rv$individuals)),
+        i18n = i18n
+      )
+
+      # Module 6: Plot Statistics (new)
+      mod_plot_statistics_server(
+        "statistics",
+        results = shiny::reactive(rv$individuals),
         i18n = i18n
       )
 
