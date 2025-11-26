@@ -35,6 +35,25 @@
 <div class="section level4">
 <h4 id="new-features-1-7-2">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-7-2"></a></h4>
 <ul><li>
+<strong>Plot Statistics &amp; Visualizations module for Query Plots Shiny App</strong>
+<ul><li>New “Statistics” tab in <code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code> displays comprehensive plot statistics</li>
+<li>Smart column mapping system automatically adapts to different output styles (<code>minimal</code>, <code>standard</code>, <code>permanent_plot</code>, etc.)</li>
+<li>Detects column names regardless of renaming (e.g., <code>stem_diameter</code>/<code>dbh</code>/<code>D</code>, <code>tax_sp_level</code>/<code>species</code>)</li>
+<li>Summary statistics cards: number of plots, individuals, species (richness), families</li>
+<li>Diameter statistics: mean, median, min, max (when diameter data available)</li>
+<li>Interactive visualizations using <code>ggplot2</code> + <code>plotly</code>:
+<ul><li>Diameter distribution histogram with hover tooltips</li>
+<li>Top N species composition bar chart (adjustable slider: 5-30 species)</li>
+</ul></li>
+<li>Graceful degradation: sections automatically hide when data unavailable</li>
+<li>Download summary statistics as CSV</li>
+<li>Fully bilingual (EN/FR) with integrated i18n support</li>
+<li>New module files: <code>R/mod_plot_statistics.R</code> (UI/server functions)</li>
+<li>Added 24 translation strings to <code>inst/translations/translation.json</code>
+</li>
+<li>Designed for easy expansion (guild analysis, height-diameter plots, basal area, etc.)</li>
+</ul></li>
+<li>
 <strong>Bilingual support for Taxonomic Matching Shiny App</strong>
 <ul><li>Implemented full internationalization using shiny.i18n package</li>
 <li>French and English interfaces with instant language switching</li>

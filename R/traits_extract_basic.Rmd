@@ -1,0 +1,470 @@
+---
+title: "Traits sampling summary in Mbalmayo, Bouamir and Loundoungou"
+author: "Gilles Dauby"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+  toc: true
+toc_float: true
+beamer_presentation: default
+slidy_presentation: default
+ioslides_presentation: default
+pdf_document: default
+---
+
+
+
+```{r setup, echo=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+devtools::load_all()
+mydb <- call.mydb(use_env_credentials = T)
+mydb_taxa <- call.mydb.taxa(use_env_credentials = T)
+library(tidyverse)
+library(gt)
+library(sf)
+library(ade4)
+library(RecordLinkage)
+```
+
+```{r PackNeed, include=TRUE, eval=FALSE, echo=TRUE}
+# to install the package 'cafriplotsR'
+# make sure you are running recent R version
+
+install.packages(c("tidyverse", "dbplyr", "devtools"))
+devtools::install_github("umr-amap/cafriplotsR", upgrade = "never")
+## if the installation above failed, it may be because your timeout is too low
+## you can increase the timeout by using the following code
+options(timeout = 1000)
+
+library(tidyverse)
+library(cafriplotsR) ## R package for exploring the database
+library(sf)
+library(gt)
+
+mydb <- call.mydb()
+mydb_taxa <- call.mydb.taxa()
+
+```
+
+Vérifier que la version du package est bien la [dernière en ligne](https://github.com/umr-amap/cafriplotsR/blob/master/DESCRIPTION).
+
+
+```{r, echo=TRUE, include=TRUE, eval=FALSE, message=FALSE}
+packageVersion("cafriplotsR")
+```
+
+
+# Extract data from the database
+
+Concerning observatories, taxonomic and traits data are stored and managed in this database. Phenological characterization and spatial vectors linked to each tree (crown polygons) are managed trough the Shiny apps.
+
+Data are stored in a postrgresql relational database and are available with several 'query' functions using an R package and a proper password and login name (ask Gilles).
+
+Data is subject to evolve regularly : new data can be added and taxonomic identification can be updated.
+
+Extract datasets for mbalmayo and bouamir observatories.
+
+```{r extractData, echo=TRUE, include=TRUE, eval=TRUE, message=FALSE, cache=F, results='hide'}
+
+tree_data <-
+  query_plots(
+    ### Extract from those localityes
+    locality_name = c("Bouamir", "Mbalmayo", "Loundoungou"),
+    ### Extract inventories of these specific methods
+    method = c("1ha-IRD", "phenological_observatory"),
+    ### Get inventories
+    extract_individuals = TRUE,
+    ### keeping keys
+    remove_ids = FALSE, 
+    ### output styl as full (many columns)
+    output_style = "full"
+  )
+
+metadata <- 
+  tree_data$metadata
+
+tree_data <- 
+  tree_data$extract
+
+```
+
+
+
+Query all features (including traits) linked to an individual in the inventories. A feature can be anything (including traits but not only).
+```{r extractFeatMba, echo=TRUE, include=TRUE, eval=TRUE, cache=F, results='hide'}
+
+all_traits <- 
+  traits_list()
+
+selected_traits <- 
+  all_traits %>% 
+  filter(grepl("lma_", trait) |
+           trait %in% c(
+             "twig_specific_gravity",
+             "leaf_area",
+             "SPAD_chlorophyll_measurement",
+             "mesophyl_thickness",
+             "whole_leaf_area",
+             "leaf_structure_mass_area",
+             "total_chlorophyll_content",
+             "leaf_delta_carbon_13",
+             "leaf_N_percentage",
+             "leaf_C_percentage"
+           ))
+
+### export all features linked to an individual
+
+all_traits_features <-
+  query_individual_features(
+    individual_ids = tree_data$id_n, 
+    format = "long", 
+    remove_issues = TRUE, 
+    include_metadata = TRUE,
+    trait_ids = selected_traits$id_trait)
+
+
+
+```
+
+# Explore and rearrange the dataset
+
+Here we only want want features that are numeric, so we filter out everything that is not numeric and keep it in a dedicated table.
+```{r featsOutputs, echo=TRUE, include=TRUE, eval=TRUE, message=FALSE}
+
+## extracting traits/features that are numeric
+numeric_traits <- 
+  traits_list() %>% filter(valuetype == "numeric")
+
+## Filtering out all traits/features to keep only numeric ones
+all_features_num <- 
+  all_traits_features %>% 
+  filter(id_trait %in% numeric_traits$id_trait)
+
+
+### count number of values for all numerical features
+
+list_features_num <-
+  all_features_num %>%
+  group_by(trait, id_trait) %>%
+  count()
+
+
+```
+
+
+# How traits are collected in the field and metada are associated
+
+Each set of traits measured on a tree in an observatory is associated with a unique number __pheno_tree_nbr__ which is incremental. 
+
+Thus, each __pheno_tree_nbr__ is linked to a tree, to trait measurements, to any observations/remarks on these measurements (for example the *id* of the leaf, because leaf traits are measured for at least 3 leaves), to any axillary measures used for the measurements (for example the area of the leaf for leaf mass per area measurements), to people involved in the measurements and to the date of measurement.
+```{r ExtractPHTraits, echo=TRUE, include=TRUE, eval=TRUE}
+
+### Extract all measurements with non empty pheno_tree_nbr (traits measured in Cameroon observatories)
+all_traits_canopy_trees_cameroon <- 
+  all_features_num %>%
+  filter(!is.na(pheno_tree_nbr)) %>% ### non empty pheno_tree_nbr
+  left_join( ### joining and retreiving tree dataset
+    tree_data %>% select(id_n, tax_sp_level, tax_gen, plot_name, tag),
+    by = c("id_data_individuals" = "id_n")
+  ) %>% 
+  filter(!grepl("lound", plot_name)) %>% 
+  mutate(colnbr = pheno_tree_nbr) %>% 
+  mutate(voucher_type = "phenotree")
+
+### Extract all measurements with non empty pheno_tree_nbr (traits measured in Congo obsevatory)
+all_traits_canopy_trees_congo <- 
+  all_features_num %>%
+  filter(!is.na(pheno_tree_nbr)) %>% ### non empty pheno_tree_nbr
+  left_join( ### joining and retreiving tree dataset
+    tree_data %>% select(id_n, tax_sp_level, tax_gen, plot_name, tag),
+    by = c("id_data_individuals" = "id_n")
+  ) %>% 
+  filter(grepl("lound", plot_name)) %>% 
+  mutate(colnbr = pheno_tree_nbr) %>% 
+  mutate(voucher_type = "phenocongo")
+
+## combining both dataset
+all_traits_canopy_trees <- 
+  bind_rows(all_traits_canopy_trees_cameroon,
+            all_traits_canopy_trees_congo)
+### Here one row is one measurement
+
+
+## Getting measurements done on trees from plots
+all_traits_plot <-
+  all_features_num %>%
+  select(-id_specimen) %>% 
+  left_join(
+    ### joining and retrieving tree dataset
+    tree_data %>% select(
+      id_n,
+      tax_sp_level,
+      tax_gen,
+      plot_name,
+      tag,
+      id_specimen,
+      colnbr
+    ),
+    by = c("id_data_individuals" = "id_n")
+  ) %>%
+  filter(!grepl("_observatory", plot_name)) %>% ### filter out all traits measured on trees from phenological observatories
+  mutate(voucher_type = "pird")
+
+## Combining all traits from plots and observatories
+all_traits <- 
+  bind_rows(all_traits_canopy_trees, all_traits_plot)
+
+
+```
+
+## Arranging the data into columns
+```{r DataWide, echo=TRUE, include=TRUE, message=FALSE, eval=TRUE}
+
+## retrieving information associated to each leaf : maturity and cohort when available
+leaves_data <- 
+  all_traits %>% 
+  group_by(colnbr, voucher_type, leaf_id) %>% 
+  summarise(leaf_maturity = first(leaf_maturity, na_rm = T),
+            cohort_id = first(cohort_id, na_rm = T)) %>% 
+  filter(!is.na(leaf_id)) %>% 
+  ungroup()
+
+## re arrangin the data in columns
+# each trait columns will start with a prefix 't_' that help selection
+all_traits_wide <-
+  all_traits %>%
+  select(
+    id_data_individuals,
+    id_trait_measures,
+    colnbr,
+    voucher_type,
+    leaf_id,
+    tag,
+    plot_name,
+    tax_sp_level,
+    tax_gen,
+    trait,
+    traitvalue,
+    day,
+    month,
+    year
+  ) %>%
+  pivot_wider(names_from = trait, 
+              values_from = traitvalue,
+              names_prefix = "t_")
+
+traits_leaf_level <-
+  all_traits_wide %>%
+  ## grouping by voucher, tag, leaf etc..
+  group_by(voucher_type ,
+           colnbr,
+           leaf_id,
+           tag,
+           tax_sp_level,
+           id_data_individuals,
+           plot_name) %>%
+  ## get the mean for all traits and keeping the information for measurement date and plot
+  summarise(across(starts_with("t_"), ~ mean(., na.rm = T)), 
+            plot_name = first(plot_name),
+            day = first(day, na_rm = T),
+            month = first(month, na_rm = T),
+            year = first(year, na_rm = T)) %>%
+  ## joining leaves data that inform on the leaves where traits were measured
+  left_join(leaves_data) %>%
+  ungroup()
+
+traits_leaf_level_averaged <-
+  traits_leaf_level %>%
+  ### grouping by voucher, tag, cohort, etc..
+  group_by(voucher_type,
+           colnbr,
+           tag,
+           tax_sp_level,
+           cohort_id,
+           leaf_maturity,
+           id_data_individuals) %>%
+  ## get the mean for all traits and keeping the information for measurement date and plot
+  summarise(across(starts_with("t_"), ~ mean(., na.rm = T)),
+            day = first(day, na_rm = T),
+            month = first(month, na_rm = T),
+            year = first(year, na_rm = T), 
+            plot_name = first(plot_name), 
+            plot_name = first(plot_name))
+
+
+```
+
+# Species level
+
+
+## Grouping by species
+```{r arrangeSpLevel, echo=TRUE, include=TRUE, eval=TRUE}
+
+colnbr_per_sp <-
+  traits_leaf_level %>%
+  filter(leaf_maturity != "immature" |
+           is.na(leaf_maturity)) %>%  ## excluding immature leaf for species level
+  group_by(voucher_type, colnbr, tag, id_data_individuals, plot_name) %>%
+  summarise(
+    tax_sp_level = first(tax_sp_level),
+    across(starts_with("t_"), ~ mean(., na.rm = TRUE)),
+    plot_name = first(plot_name)
+  )
+
+traits_taxa <-
+  colnbr_per_sp %>%
+  mutate(locality = case_when(
+    grepl("mbalmayo", plot_name) ~ "mbalmayo",
+    grepl("bouamir", plot_name) ~ "bouamir",
+    grepl("loundoungou", plot_name) ~ "loundoungou"
+  )) %>% 
+  ## grouping by species
+  group_by(tax_sp_level, locality) %>%
+  summarise(across(
+    starts_with("t_"),
+    list(
+      mean = ~ round(mean(.x, na.rm = TRUE), 2),
+      sd   = ~ round(sd(.x, na.rm = TRUE), 2),
+      n    = ~ sum(!is.na(.x))
+    ),
+    .names = "{.col}_{.fn}"
+  )) %>%
+  filter(!grepl("indet", tax_sp_level), !is.na(tax_sp_level))
+
+writexl::write_xlsx(traits_taxa, "traits_taxa.xlsx")
+
+```
+
+
+```{r}
+
+tree_ind_dataset <- 
+  tree_data %>% 
+  filter(grepl("bouamir0", plot_name)) %>% 
+  select(tax_sp_level, plot_name)
+
+joined_plot_traits <- 
+  tree_ind_dataset %>% 
+  left_join(traits_taxa %>%
+              filter(locality == "bouamir") %>% 
+  select(
+    tax_sp_level,
+    t_lma_lamina_mean,
+    t_lma_mesophyll_mean,
+    t_lma_whole_leaf_mean,
+    t_mesophyl_thickness_mean,
+    t_SPAD_chlorophyll_measurement_mean,
+    t_leaf_area_mean,
+    t_leaf_structure_mass_area_mean,
+    t_twig_specific_gravity_mean,
+    t_leaf_N_percentage_mean,
+    t_leaf_C_percentage_mean
+  )) %>% 
+  arrange(tax_sp_level)
+
+trait_cols <- grep("^t_", names(joined_plot_traits), value = TRUE)
+
+prop_indiv_plot <- 
+  joined_plot_traits %>%
+  group_by(plot_name) %>%
+  summarise(across(all_of(trait_cols),
+                   ~ round(mean(!is.na(.x)) * 100, 1),
+                   .names = "prop_indiv_{.col}"))
+
+prop_species_plot <- 
+  joined_plot_traits %>%
+  group_by(plot_name, tax_sp_level) %>%
+  summarise(across(all_of(trait_cols), ~ any(!is.na(.x))), .groups = "drop") %>%
+  group_by(plot_name) %>%
+  summarise(across(all_of(trait_cols),
+                   ~ round(mean(.x) * 100, 1),
+                   .names = "prop_species_{.col}"))
+
+prop_indiv_plot_long <- prop_indiv_plot %>%
+  pivot_longer(
+    cols = starts_with("prop_indiv_"),
+    names_to = "trait",
+    values_to = "prop"
+  ) %>%
+  mutate(trait = sub("^prop_indiv_", "", trait))
+
+ggplot(prop_indiv_plot_long, aes(
+  x = reorder(plot_name, prop),
+  y = prop # conversion en pourcentage
+)) +
+  geom_col(fill = "steelblue") +
+  facet_wrap(~ trait, scales = "free_y") +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, by = 20),
+    labels = function(x) paste0(x, "%")
+  ) +
+  labs(
+    x = "Plot",
+    y = "Complétude (%)",
+    title = "Complétude des traits par plot (individus)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    strip.text = element_text(face = "bold"),
+    axis.text.y = element_text(size = 10)
+  )
+
+prop_species_plot_long <- prop_species_plot %>%
+  pivot_longer(
+    cols = starts_with("prop_species_"),
+    names_to = "trait",
+    values_to = "prop"
+  ) %>%
+  mutate(trait = sub("^prop_species_", "", trait))
+
+ggplot(prop_species_plot_long, aes(
+  x = reorder(plot_name, prop),
+  y = prop
+)) +
+  geom_col(fill = "darkseagreen") +
+  facet_wrap(~ trait, scales = "free_y") +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 100),
+    breaks = seq(0, 100, by = 20),
+    labels = function(x) paste0(x, "%")
+  ) +
+  labs(
+    x = "Plot",
+    y = "Complétude (%)",
+    title = "Complétude des traits par plot (espèces)"
+  ) +
+  theme_minimal(base_size = 13)
+
+
+sum_stems_missing_traits <- joined_plot_traits %>% 
+  filter(is.na(t_twig_specific_gravity_mean), !is.na(tax_sp_level)) %>% 
+  group_by(plot_name, tax_sp_level) %>% 
+  count() %>% 
+  arrange(desc(n))
+
+missing_species <- 
+  sum_stems_missing_traits %>% 
+  ungroup() %>% 
+  group_by(tax_sp_level) %>% 
+  summarise(n = sum(n), freq = n()) %>% 
+  arrange(desc(n)) %>% 
+  rename(nbe_stems = n,
+         nbe_plots = freq)
+
+writexl::write_xlsx(missing_species, "D:/Papiers-Bourses-colloques/sejours_etrangers_bourses_financements_missions/mission_bouamir_novembre_2025//missing_species_wd.xlsx")
+
+
+
+```
+
+
+
+
+
+
+
+
+

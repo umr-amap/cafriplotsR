@@ -35,17 +35,23 @@ choose_prompt <- function(choices_vec = c("Yes", "No", "Cancel"),
     cli::cli_alert_success("You selected {.strong {choices_vec[selection]}}.")
   } else {
     cli::cli_alert_danger("Invalid selection.")
+    return(NULL)  # Return NULL for invalid selection
   }
-  
-  if (selection == 1) 
-    val_logical <- TRUE
-  
-  if (selection == 2) 
-    val_logical <- FALSE
-  
-  if (selection == 3) 
-    val_logical <- NA
-  
+
+  # Initialize return value
+  val_logical <- NULL
+
+  if (!is.na(selection)) {
+    if (selection == 1)
+      val_logical <- TRUE
+
+    if (selection == 2)
+      val_logical <- FALSE
+
+    if (selection == 3)
+      val_logical <- NA
+  }
+
   return(val_logical)
   
 }
