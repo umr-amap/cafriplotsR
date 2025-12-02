@@ -1,0 +1,576 @@
+---
+title: "Adding Plot Features to Existing Plots"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Adding Plot Features to Existing Plots}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  echo = TRUE
+)
+```
+
+## Overview
+
+This vignette demonstrates how to add **subplot features** (census information, team members, plot characteristics, etc.) to existing plots in the database using the user-friendly `add_plot_features()` function.
+
+**What are subplot features?**
+
+Subplot features are attributes that describe plots or census events, stored in the `data_liste_sub_plots` table:
+- **People**: Team leader, principal investigator, data manager, etc.
+- **Dates**: Census dates (year, month, day)
+- **Plot characteristics**: Various plot-specific measurements and metadata
+
+## Prerequisites
+
+```{r}
+library(CafriplotsR)
+library(dplyr)
+
+# Connect to database (requires write permissions)
+con <- call.mydb()
+```
+
+## Quick Start Example
+
+```{r}
+# Prepare your data
+plot_features <- data.frame(
+  plot_name = c("Plot-A", "Plot-B", "Plot-C"),
+  team_leader = c("John Doe", "Jane Smith", "Bob Wilson"),
+  principal_investigator = c("Dr. Smith", "Dr. Smith", "Dr. Jones"),
+  census_year = c(2020, 2020, 2021)
+)
+
+# Preview what would be added (DRY RUN - always do this first!)
+result <- add_plot_features(
+  data = plot_features,
+  dry_run = TRUE
+)
+
+# If the preview looks good, actually add the features
+result <- add_plot_features(
+  data = plot_features,
+  dry_run = FALSE
+)
+```
+
+## Step-by-Step Workflow
+
+### Step 1: Discover Available Features
+
+First, see what subplot features are available in the database:
+
+```{r}
+# Get all available subplot feature types
+available_features <- subplot_list()
+
+# View the list
+View(available_features)
+
+# Common feature types:
+# - team_leader
+# - principal_investigator
+# - data_manager
+# - data_provider
+# - census_date (with year, month, day components)
+# - additional_people
+# - plot_area
+# - vegetation_type
+```
+
+### Step 2: Prepare Your Data
+
+Your data should have:
+1. A **plot identifier column** (`plot_name` or `id_liste_plots`)
+2. One or more **feature columns**
+
+```{r}
+# Example 1: Simple features
+my_data <- data.frame(
+  plot_name = c("DJA_PLOT_001", "LOPE_PLOT_023", "IVINDO_PLOT_012"),
+  team_leader = c("Dr. Marie Blanc", "John Doe", "Dr. Jean Nguema"),
+  principal_investigator = c("Prof. Gilles Dauby", "Dr. Sarah White", "Prof. Pierre Dupont"),
+  census_year = c(2022, 2023, 2023),
+  census_month = c(11, 5, 9)
+)
+
+# Example 2: Multiple people (comma-separated)
+my_data <- data.frame(
+  plot_name = c("Plot-A", "Plot-B"),
+  team_leader = c("John Doe, Jane Smith", "Bob Wilson"),
+  data_manager = c("Alice Brown", "Tom Jones, Emma Davis")
+)
+
+# Example 3: Using plot IDs instead of names
+my_data <- data.frame(
+  id_liste_plots = c(1, 2, 3),
+  team_leader = c("John Doe", "Jane Smith", "Bob Wilson")
+)
+```
+
+### Step 3: Add Features (with Dry Run First!)
+
+**Always use `dry_run = TRUE` first** to preview changes:
+
+```{r}
+# Dry run - preview what would be added
+preview <- add_plot_features(
+  data = my_data,
+  dry_run = TRUE
+)
+
+# Review the preview
+print(preview)
+```
+
+**Expected output:**
+```
+═══ Adding Plot Features ═══
+ℹ Mode: DRY RUN (preview only)
+ℹ Rows to process: 3
+
+─── Step 1: Identifying plot ID column ───
+✓ Using 'plot_name' as plot identifier (name)
+
+─── Step 2: Mapping columns to subplot features ───
+✓ Mapped 3 feature column(s):
+ℹ   team_leader → team_leader
+ℹ   principal_investigator → principal_investigator
+ℹ   census_year → census_date
+
+─── Step 3: Validating data ───
+✓ Validation passed!
+
+─── Step 4: Preparing features for import ───
+✓ Prepared 3 features for import
+
+─── Step 5: Preview - Would Add Features ───
+ℹ Would add 3 record(s) for feature: team_leader
+ℹ Would add 3 record(s) for feature: principal_investigator
+ℹ Would add 3 record(s) for feature: census_date
+
+✓ Dry run completed - no changes made
+ℹ Run with dry_run = FALSE to actually import
+```
+
+### Step 4: Actually Add Features
+
+If the dry run looks good, proceed with the actual import:
+
+```{r}
+# Actual import
+result <- add_plot_features(
+  data = my_data,
+  dry_run = FALSE
+)
+
+# Check result
+if (result$success) {
+  cat("✓ Successfully added features!\n")
+  cat("  - Records added:", result$n_rows, "\n")
+  cat("  - Plots affected:", result$n_plots, "\n")
+  cat("  - Feature types:", paste(result$feature_types, collapse = ", "), "\n")
+}
+```
+
+### Step 5: Verify Features Were Added
+
+Query the plots to confirm the features were added:
+
+```{r}
+# Query plots with features
+plots_with_features <- query_plots(
+  plot_name = c("Plot-A", "Plot-B", "Plot-C"),
+  exact_match = TRUE,
+  show_multiple_census = TRUE,
+  con = con
+)
+
+# Check census features
+View(plots_with_features$census_features)
+
+# Or query subplot features directly
+subplot_features <- query_subplot_features(
+  plot_ids = plots_with_features$id_liste_plots,
+  format = "wide",
+  con = con
+)
+
+View(subplot_features)
+```
+
+---
+
+## Advanced Usage
+
+### Handling Custom Column Names
+
+The function automatically maps column names, but you can also provide custom mappings:
+
+```{r}
+# Your data has non-standard column names
+my_data <- data.frame(
+  PlotName = c("Plot-A", "Plot-B"),
+  TeamLead = c("John Doe", "Jane Smith"),
+  PI = c("Dr. Smith", "Dr. Jones"),
+  Year = c(2020, 2021)
+)
+
+# Interactive mapping (default - will prompt you)
+result <- add_plot_features(
+  data = my_data,
+  interactive = TRUE,
+  dry_run = TRUE
+)
+
+# Non-interactive with pre-defined mapping
+mapping <- list(
+  PlotName = "plot_name",
+  TeamLead = "team_leader",
+  PI = "principal_investigator",
+  Year = "census_year"
+)
+
+result <- add_plot_features(
+  data = my_data,
+  column_mapping = mapping,
+  interactive = FALSE,
+  dry_run = FALSE
+)
+```
+
+### Adding Multiple People
+
+For people-related features, you can specify multiple people using comma-separated names:
+
+```{r}
+plot_features <- data.frame(
+  plot_name = c("Plot-A", "Plot-B"),
+  team_leader = c("John Doe, Jane Smith", "Bob Wilson"),
+  additional_people = c("Alice Brown, Tom Jones, Emma Davis", "Chris Lee")
+)
+
+result <- add_plot_features(
+  data = plot_features,
+  dry_run = FALSE
+)
+
+# The function will:
+# 1. Split comma-separated names
+# 2. Match each name to table_colnam (or prompt to add if not found)
+# 3. Create separate records for each person
+```
+
+### Adding Census Date Information
+
+Census dates can be specified in multiple ways:
+
+```{r}
+# Option 1: Separate year/month/day columns
+census_data <- data.frame(
+  plot_name = c("Plot-A", "Plot-B"),
+  census_year = c(2020, 2021),
+  census_month = c(6, 8),
+  census_day = c(15, 22)
+)
+
+# Option 2: Just year
+census_data <- data.frame(
+  plot_name = c("Plot-A", "Plot-B"),
+  census_year = c(2020, 2021)
+)
+
+# The function will handle partial dates (month/day will be NA if not provided)
+result <- add_plot_features(
+  data = census_data,
+  dry_run = FALSE
+)
+```
+
+### Non-Interactive Mode (for Scripts)
+
+For automated scripts, disable interactive prompts:
+
+```{r}
+# Define mapping explicitly
+mapping <- list(
+  plot_id = "plot_name",
+  leader = "team_leader",
+  pi = "principal_investigator"
+)
+
+result <- add_plot_features(
+  data = my_data,
+  column_mapping = mapping,
+  interactive = FALSE,
+  ask_before_update = FALSE,
+  verbose = FALSE,
+  dry_run = FALSE
+)
+```
+
+---
+
+## Column Mapping Details
+
+The function uses intelligent column mapping:
+
+### 1. Exact Match
+```
+Column "team_leader" → feature "team_leader"
+```
+
+### 2. Synonym Match
+```
+Column "PI" → feature "principal_investigator"
+Column "TeamLead" → feature "team_leader"
+Column "leader" → feature "team_leader"
+```
+
+Common synonyms recognized:
+- `PI`, `princ_invest`, `investigator` → `principal_investigator`
+- `teamlead`, `team_lead`, `leader` → `team_leader`
+- `datamanager`, `data_mgr`, `manager` → `data_manager`
+- `area`, `surface`, `plot_size` → `plot_area`
+
+### 3. Fuzzy String Match
+```
+Column "TeamLeader" → feature "team_leader" (similarity: 85%)
+Column "Investigator" → feature "principal_investigator" (similarity: 70%)
+```
+
+### 4. Interactive Selection
+
+If auto-mapping fails, you'll be prompted:
+
+```
+⚠ Could not auto-map column: 'MyCustomColumn'
+
+Select the subplot feature type for column 'MyCustomColumn':
+  0. Skip this column
+  1. team_leader
+  2. principal_investigator
+  3. data_manager
+  4. data_provider
+  ...
+  99. Show all features
+
+Your choice:
+```
+
+---
+
+## Common Scenarios
+
+### Scenario 1: Adding Team Information After Plot Creation
+
+You've imported plots but forgot to add team members:
+
+```{r}
+# Query existing plots
+existing_plots <- query_plots(
+  locality_name = "Dja Reserve",
+  extract_individuals = FALSE,
+  con = con
+)
+
+# Prepare team info
+team_info <- data.frame(
+  plot_name = existing_plots$plot_name,
+  team_leader = c("John Doe", "Jane Smith", "Bob Wilson"),
+  principal_investigator = rep("Dr. Paul Nguema", nrow(existing_plots)),
+  data_manager = c("Alice Brown", "Alice Brown", "Tom Jones")
+)
+
+# Add team info
+result <- add_plot_features(
+  data = team_info,
+  dry_run = FALSE
+)
+```
+
+### Scenario 2: Adding Census Date Information
+
+You want to record when each plot was censused:
+
+```{r}
+census_dates <- data.frame(
+  plot_name = c("Plot-A", "Plot-B", "Plot-C"),
+  census_year = c(2020, 2020, 2021),
+  census_month = c(6, 8, 3),
+  census_day = c(15, 22, 10)
+)
+
+result <- add_plot_features(
+  data = census_dates,
+  dry_run = FALSE
+)
+```
+
+### Scenario 3: Bulk Update from Excel File
+
+You have an Excel file with plot features to add:
+
+```{r}
+# Load data from Excel
+library(readxl)
+plot_features <- read_excel("plot_features_to_add.xlsx")
+
+# Preview the data
+View(plot_features)
+
+# Dry run to check mapping
+preview <- add_plot_features(
+  data = plot_features,
+  interactive = TRUE,
+  dry_run = TRUE
+)
+
+# If mapping looks good, proceed
+result <- add_plot_features(
+  data = plot_features,
+  interactive = FALSE,  # Use the same mapping as dry run
+  dry_run = FALSE
+)
+```
+
+### Scenario 4: Adding Features with Plot IDs
+
+If you already have plot IDs (e.g., from a query):
+
+```{r}
+# Get plot IDs from query
+plots <- query_plots(method = "1ha-IRD", con = con)
+
+# Prepare features using IDs
+features <- data.frame(
+  id_liste_plots = plots$id_liste_plots[1:5],
+  team_leader = c("Person A", "Person B", "Person C", "Person D", "Person E")
+)
+
+# Add features
+result <- add_plot_features(
+  data = features,
+  plot_id_column = "id_liste_plots",
+  dry_run = FALSE
+)
+```
+
+---
+
+## Troubleshooting
+
+### Issue: "Plots not found in database"
+
+**Solution**: Ensure plot names exactly match database values. Use `exact_match = TRUE` when querying:
+
+```{r}
+# Check if plots exist
+existing_plots <- query_plots(
+  plot_name = c("Plot-A", "Plot-B"),
+  exact_match = TRUE,
+  con = con
+)
+
+if (nrow(existing_plots) == 0) {
+  cat("Plots not found! Check spelling.\n")
+}
+```
+
+### Issue: "Could not auto-map column"
+
+**Solution**: Use interactive mode or provide explicit mapping:
+
+```{r}
+# Option 1: Interactive
+result <- add_plot_features(data = my_data, interactive = TRUE, dry_run = TRUE)
+
+# Option 2: Explicit mapping
+mapping <- list(MyColumn = "team_leader")
+result <- add_plot_features(data = my_data, column_mapping = mapping, dry_run = TRUE)
+```
+
+### Issue: "Person not found in table_colnam"
+
+**Solution**: The function will prompt you to add new people interactively. Alternatively, add people first:
+
+```{r}
+# Add new person to table_colnam
+# (You'll be prompted during import if using interactive mode)
+
+# Or check existing people
+people <- DBI::dbGetQuery(con, "SELECT * FROM table_colnam")
+View(people)
+```
+
+### Issue: "Invalid subplot feature type"
+
+**Solution**: Check available features:
+
+```{r}
+# See all valid feature types
+available <- subplot_list(con = con)
+View(available)
+
+# Use exact names from the 'type' column
+```
+
+---
+
+## Best Practices
+
+1. **Always dry run first**: Use `dry_run = TRUE` to preview changes before committing
+
+2. **Verify plot names**: Ensure plot names in your data exactly match database values
+
+3. **Use interactive mode initially**: Let the function help you map columns interactively
+
+4. **Save mappings for reuse**: If you have a standard data format, save the column mapping:
+   ```r
+   # Save mapping for reuse
+   my_standard_mapping <- list(
+     PlotName = "plot_name",
+     TeamLead = "team_leader",
+     PI = "principal_investigator"
+   )
+
+   # Use in subsequent imports
+   result <- add_plot_features(data, column_mapping = my_standard_mapping,
+                                interactive = FALSE, dry_run = FALSE)
+   ```
+
+5. **Verify after import**: Always query back the data to confirm features were added correctly
+
+6. **Handle people carefully**: For people-related features, ensure names are formatted consistently
+   (e.g., "First Last" or "Last, First")
+
+---
+
+## Related Functions
+
+- `subplot_list()` - List all available subplot feature types
+- `query_subplot_features()` - Query existing subplot features
+- `add_subplot_features()` - Low-level function (used internally)
+- `query_plots()` - Query plot metadata and features
+
+---
+
+## Summary
+
+The `add_plot_features()` function provides a user-friendly interface for adding subplot features to existing plots:
+
+1. ✅ **Intelligent column mapping** (exact, synonym, fuzzy, interactive)
+2. ✅ **Automatic validation** (plots exist, feature types valid)
+3. ✅ **Dry run mode** (preview before committing)
+4. ✅ **People linking** (automatic matching/adding to table_colnam)
+5. ✅ **Clear feedback** (detailed progress messages)
+6. ✅ **Safe operations** (uses existing add_subplot_features internally)
+
+Always start with a dry run, verify the mapping, then proceed with the actual import!

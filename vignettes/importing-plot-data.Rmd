@@ -70,28 +70,251 @@ plot_metadata <- data.frame(
 )
 ```
 
-### 1.2 Import Plots Using Template
+### 1.2 Generate Import Template (Optional)
 
-The package provides functions for importing plot metadata with validation:
+If you're starting from scratch, generate a template to understand required fields:
 
 ```{r}
-# Import plot metadata
-# (Note: exact function depends on existing plot import infrastructure)
-# Use the appropriate function from the package to import plots
+# Generate a template with examples
+template <- get_plot_metadata_template(
+  template_type = "permanent_plot",  # or "transect", "minimal", "full"
+  with_examples = TRUE
+)
 
-# Example workflow:
-# 1. Prepare data in Excel template format
-# 2. Use plot import function (check package documentation)
-# 3. Verify plots were created
+# View template structure
+View(template)
 
-# Verify plots exist
-imported_plots <- query_plots(
-  plot_name = c("Plot-A", "Plot-B", "Plot-C"),
-  exact_match = TRUE,
+# Export to Excel for filling
+export_plot_template(
+  file_path = "my_plots_template.xlsx",
+  template_type = "permanent_plot",
+  with_examples = TRUE
+)
+
+# See what columns are available
+print_template_info("permanent_plot")
+```
+
+**Template includes**:
+- **Required**: `plot_name`, `method`, `country`
+- **Location**: `ddlat`, `ddlon`, `elevation`, `locality_name`
+- **Dates**: `date_y`, `date_m`, `date_d`
+- **People**: `team_leader`, `principal_investigator`, `data_manager`
+- **Optional**: Plot characteristics and other subplot features
+
+### 1.3 Map Your Data Columns
+
+Map your data columns to the database schema:
+
+```{r}
+# Load your data (from Excel, CSV, etc.)
+my_plot_data <- readxl::read_excel("my_plots.xlsx")
+# or
+my_plot_data <- read.csv("my_plots.csv")
+
+# Get import configuration
+config <- get_import_column_routing(import_type = "plots")
+
+# Map columns automatically (with fuzzy matching)
+mapping_result <- map_user_columns(
+  data = my_plot_data,
+  config = config,
+  similarity_threshold = 0.6,
+  interactive = TRUE  # Set FALSE for non-interactive
+)
+
+# Review mappings
+print_mapping_summary(mapping_result)
+```
+
+**Column Mapping Features**:
+- ✅ Automatic exact matching
+- ✅ Synonym recognition (e.g., `PI` → `principal_investigator`)
+- ✅ Fuzzy string matching for typos
+- ✅ Interactive selection for unclear mappings
+
+### 1.4 Validate Data
+
+Validate your data before importing:
+
+```{r}
+# Validate plot metadata
+validation <- validate_plot_metadata(
+  data = my_plot_data,
+  column_mappings = mapping_result$mappings,
+  config = config,
+  interactive = TRUE,  # Allow interactive fixing
+  fix_on_fly = TRUE    # Fix issues during validation
+)
+
+# View validation results
+print_validation_results(validation)
+
+# Check if valid
+if (!validation$valid) {
+  cat("❌ Validation failed! Fix errors before importing.\n")
+  # View detailed errors
+  View(validation$errors)
+  stop("Data validation failed")
+}
+```
+
+**Validation Checks**:
+1. ✅ Required fields present (`plot_name`, `method`, `country`)
+2. ✅ Lookup values valid (method, country)
+3. ✅ Column types correct (numeric, character)
+4. ✅ Value ranges valid (coordinates, dates)
+5. ✅ Unique constraints (no duplicate plot names)
+
+**Interactive Fixing**: The validation function can automatically fix lookup mismatches using fuzzy matching if `interactive = TRUE`.
+
+### 1.5 Dry Run (Preview Import)
+
+Always preview before committing:
+
+```{r}
+# DRY RUN - preview without committing
+preview <- import_plot_metadata(
+  data = my_plot_data,
+  column_mappings = mapping_result$mappings,
+  validation = validation,
+  config = config,
+  dry_run = TRUE,  # IMPORTANT: Preview first!
   con = con
 )
 
-print(imported_plots)
+# Review what would be imported
+print_import_result(preview)
+```
+
+**Dry Run Output**:
+```
+═══ Dry Run: Preview Import (No Changes Will Be Made) ═══
+ℹ Plots to import: 3
+ℹ Importing as user: your_username
+
+─── Step 1: Linking methods ───
+✓ Would link 2 unique methods
+
+─── Step 2: Linking countries ───
+✓ Would link 2 unique countries
+
+─── Step 3: Processing subplot features ───
+✓ Found 4 subplot feature column(s): team_leader, principal_investigator, ...
+
+─── Step 4: Preparing plot data ───
+✓ Prepared 3 rows with 15 columns
+
+─── Step 5: Preview - Would Insert Into data_liste_plots ───
+Data preview (first 3 rows):
+  plot_name     method  id_method id_country ddlat  ddlon
+1 Plot-A        1ha-IRD    1          2      -0.50  11.50
+2 Plot-B        1ha-IRD    1          2      -0.52  11.48
+3 Plot-C        0.5ha       5          1       3.20  13.50
+
+─── Step 6: Preview subplot features ───
+ℹ Would insert 3 team_leader records (people)
+ℹ Would insert 3 principal_investigator records (people)
+
+✓ Dry run completed - no changes made
+```
+
+### 1.6 Actual Import
+
+If dry run looks good, proceed with actual import:
+
+```{r}
+# ACTUAL IMPORT
+result <- import_plot_metadata(
+  data = my_plot_data,
+  column_mappings = mapping_result$mappings,
+  validation = validation,
+  config = config,
+  dry_run = FALSE,  # Actually import
+  interactive = TRUE,
+  con = con
+)
+
+# Check result
+if (result$success) {
+  cat("✅ Successfully imported", result$n_plots, "plots!\n")
+  cat("Plot names:", paste(result$plot_names, collapse = ", "), "\n")
+} else {
+  cat("❌ Import failed:", result$message, "\n")
+}
+```
+
+**Import Process**:
+1. Transaction started (all-or-nothing)
+2. Methods linked to `methodslist` table
+3. Countries linked to `table_countries` table
+4. People linked to `table_colnam` table (interactive matching)
+5. Plot data inserted into `data_liste_plots`
+6. Subplot features inserted into `data_liste_sub_plots`
+7. Transaction committed (or rolled back on error)
+
+### 1.7 Row-Level Security (RLS) - Important!
+
+**After import, you may not have access to your plots yet!**
+
+The function generates admin access code:
+
+```{r}
+# Admin code is returned in the result
+cat(result$admin_code)
+
+# Or save to file to send to admin
+writeLines(result$admin_code, "admin_access_request.R")
+```
+
+**Send this code to your database administrator** to grant you access:
+
+```r
+# ══════════════════════════════════════════════════════════════════════
+# ROW-LEVEL SECURITY: Grant Access to User
+# ══════════════════════════════════════════════════════════════════════
+# User: your_username
+# Plots: Plot-A, Plot-B, Plot-C
+
+library(CafriplotsR)
+con <- call.mydb()  # Admin credentials
+
+# Get plot IDs
+plot_ids <- DBI::dbGetQuery(con,
+  "SELECT id_liste_plots FROM data_liste_plots
+   WHERE plot_name IN ('Plot-A', 'Plot-B', 'Plot-C')")$id_liste_plots
+
+# Grant access
+define_user_policy(
+  con = con,
+  user = "your_username",
+  ids = plot_ids,
+  table = "data_liste_plots",
+  operations = c("SELECT", "UPDATE"),
+  drop_existing = TRUE
+)
+```
+
+### 1.8 Verify Import
+
+After admin grants access, verify plots were created:
+
+```{r}
+# Query imported plots
+imported_plots <- query_plots(
+  plot_name = c("Plot-A", "Plot-B", "Plot-C"),
+  exact_match = TRUE,
+  show_multiple_census = TRUE,
+  con = con
+)
+
+# Check metadata
+print(imported_plots$metadata)
+
+# Check census features
+if (!is.null(imported_plots$census_features)) {
+  print(imported_plots$census_features)
+}
 ```
 
 **Important**: Ensure all plots are successfully imported before proceeding to individual data import.

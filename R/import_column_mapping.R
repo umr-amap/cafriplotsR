@@ -18,9 +18,10 @@
     # Plot identification
     plot_name = c(
       "plot_id", "plotid", "plot.id", "plot code", "plot_code", "plotcode",
-      "site_id", "siteid", "site.id", "site_name", "sitename", "site.name",
+      "site_id", "siteid", "site.id", 
       "plot no", "plot_no", "plotno", "plot number", "plot_number",
-      "transect_id", "transect_name", "transect"
+      "transect_id", "transect_name", "transect", "plot", "transect_num",
+      "transect num", "plot name"
     ),
 
     # Survey method
@@ -28,7 +29,7 @@
       "survey_method", "surveymethod", "survey.method",
       "sampling_method", "samplingmethod", "sampling.method",
       "protocol", "survey_type", "plot_type", "method_type",
-      "methodology", "technique"
+      "methodology", "technique", "sampling", "méthode","protocole"
     ),
 
     # Geographic: Country
@@ -64,7 +65,7 @@
     locality_name = c(
       "locality", "location", "site", "place", "place_name", "placename",
       "site_name", "sitename", "site.name", "location_name", "locationname",
-      "area", "area_name", "areaname", "region", "village", "town"
+      "area", "area_name", "areaname", "region", "village", "town", "localité"
     ),
 
     # Province
@@ -77,19 +78,19 @@
     date_y = c(
       "year", "yyyy", "yr", "survey_year", "surveyyear", "survey.year",
       "census_year", "censusyear", "census.year", "year_survey",
-      "sampling_year", "date_year", "year_of_survey"
+      "sampling_year", "date_year", "year_of_survey", "année"
     ),
 
     date_m = c(
       "month", "mm", "mon", "survey_month", "surveymonth", "survey.month",
       "census_month", "censusmonth", "census.month", "month_survey",
-      "sampling_month", "date_month", "month_of_survey"
+      "sampling_month", "date_month", "month_of_survey", "mois"
     ),
 
     date_d = c(
       "day", "dd", "survey_day", "surveyday", "survey.day",
       "census_day", "censusday", "census.day", "day_survey",
-      "sampling_day", "date_day", "day_of_survey"
+      "sampling_day", "date_day", "day_of_survey", "jour"
     ),
 
     date_begin = c(
@@ -145,14 +146,6 @@
       "fournisseur", "fournisseur donnees"
     ),
 
-    # Plot characteristics
-    plot_area = c(
-      "area", "surface", "plot_size", "plotsize", "plot.size",
-      "area_ha", "areaha", "area.ha", "size", "plot_area_ha",
-      "area_plot", "areaplot", "area.plot", "superficie",
-      "plot area (ha)", "plot_area_hectares"
-    ),
-
     vegetation_type = c(
       "vegetation", "veg_type", "vegtype", "veg.type",
       "vegetation_class", "vegetationclass", "vegetation.class",
@@ -201,6 +194,125 @@
 }
 
 
+#' Get Column Descriptions
+#'
+#' Returns descriptions for database columns to help users understand what data is expected.
+#' Includes both flat table columns (hard-coded) and feature columns (from database).
+#'
+#' @param con Database connection
+#' @param table_type Character: "plots" or "individuals"
+#'
+#' @return Named list of column descriptions (and additional info for traits)
+#' @keywords internal
+.get_column_descriptions <- function(con, table_type = "plots") {
+
+  # Hard-coded descriptions for flat table columns
+  flat_descriptions <- list(
+    # Plot identification
+    plot_name = "Unique identifier for the plot (required). Must be unique across the database.",
+
+    # Geographic
+    country = "Country where the plot is located (required). Use standard country names.",
+    province = "Province, state, or administrative region within the country.",
+    locality_name = "Name of the locality, village, or specific location.",
+    ddlat = "Latitude in decimal degrees (recommended). Range: -90 to 90.",
+    ddlon = "Longitude in decimal degrees (recommended). Range: -180 to 180.",
+    elevation = "Elevation above sea level in meters. Typical range: -500 to 6000m.",
+
+    # Plot characteristics
+    method = "Survey method or protocol used (required). E.g., '1ha-IRD', 'transect', etc.",
+    plot_area = "Total area of the plot in hectares. E.g., 1.0 for 1 hectare plot.",
+    vegetation_type = "Type of vegetation. E.g., 'tropical rainforest', 'savanna', 'mangrove'.",
+
+    # Dates
+    date_y = "Year of survey/census (recommended). Format: YYYY (e.g., 2023).",
+    date_m = "Month of survey/census. Range: 1-12.",
+    date_d = "Day of survey/census. Range: 1-31.",
+    date_begin = "Start date of survey. Can be full date string or use date_y/m/d columns.",
+    date_end = "End date of survey if different from start date.",
+
+    # People
+    principal_investigator = "Name of the principal investigator or lead scientist.",
+    data_manager = "Person responsible for data management and quality control.",
+    team_leader = "Field team leader who conducted the survey.",
+    additional_people = "Other team members or collaborators (comma-separated).",
+    data_provider = "Institution or person providing the data.",
+
+    # Individual tree columns
+    idtax_n = "Taxonomic ID from the taxonomic database (required for individuals). Use taxonomic matching app to get this ID.",
+    tag = "Unique tree tag or identifier within the plot.",
+    stem_diameter = "Diameter at breast height (DBH) in centimeters.",
+
+    # Additional metadata
+    notes = "Any additional notes or comments about the plot or survey.",
+    observations = "Observations or notes about individual trees."
+  )
+
+  # Fetch feature descriptions from database
+  feature_info <- list()
+
+  if (table_type == "plots") {
+    # Get subplot feature descriptions
+    tryCatch({
+      subplot_desc <- DBI::dbGetQuery(con, "
+        SELECT type, typedescription
+        FROM subplotype_list
+        WHERE typedescription IS NOT NULL AND typedescription != ''
+      ")
+
+      if (nrow(subplot_desc) > 0) {
+        for (i in 1:nrow(subplot_desc)) {
+          feature_info[[subplot_desc$type[i]]] <- list(
+            description = subplot_desc$typedescription[i]
+          )
+        }
+      }
+    }, error = function(e) {
+      cli::cli_alert_warning("Could not fetch subplot feature descriptions: {e$message}")
+    })
+  } else if (table_type == "individuals") {
+    # Get individual feature/trait descriptions with additional info
+    tryCatch({
+      trait_info <- DBI::dbGetQuery(con, "
+        SELECT trait, traitdescription, factorlevels, expectedunit
+        FROM traitlist
+        WHERE traitdescription IS NOT NULL AND traitdescription != ''
+      ")
+
+      if (nrow(trait_info) > 0) {
+        for (i in 1:nrow(trait_info)) {
+          info <- list(
+            description = trait_info$traitdescription[i]
+          )
+
+          # Add factor levels if available
+          if (!is.na(trait_info$factorlevels[i]) && trait_info$factorlevels[i] != "") {
+            info$factorlevels <- trait_info$factorlevels[i]
+          }
+
+          # Add expected unit if available
+          if (!is.na(trait_info$expectedunit[i]) && trait_info$expectedunit[i] != "") {
+            info$expectedunit <- trait_info$expectedunit[i]
+          }
+
+          feature_info[[trait_info$trait[i]]] <- info
+        }
+      }
+    }, error = function(e) {
+      cli::cli_alert_warning("Could not fetch trait descriptions: {e$message}")
+    })
+  }
+
+  # For flat columns, convert to same structure as features
+  flat_info <- lapply(flat_descriptions, function(desc) {
+    list(description = desc)
+  })
+
+  # Combine flat and feature info
+  c(flat_info, feature_info)
+}
+
+
 #' Get Import Column Routing Configuration
 #'
 #' Extends the existing get_column_routing() system with import-specific
@@ -232,6 +344,9 @@ get_import_column_routing <- function(table_type = "plots", con = NULL) {
 
     # Column synonyms for smart mapping
     column_synonyms = .get_column_synonyms(),
+
+    # Column descriptions for user guidance
+    column_descriptions = .get_column_descriptions(con, table_type),
 
     # Required columns for plots
     required_columns = c("plot_name", "method", "country"),

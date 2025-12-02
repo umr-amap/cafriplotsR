@@ -2,6 +2,34 @@
 
 ### New Features
 
+* **Interactive Import Wizard Shiny App for Plot Metadata**
+  - New `launch_import_wizard()` function provides comprehensive 7-step workflow for importing plot metadata
+  - **Step 1: Choose Type** - Select import type (plots or individuals)
+  - **Step 2: Upload Data** - Upload Excel/CSV files or download template
+  - **Step 3: Map Columns** - Intelligent fuzzy column mapping with confidence scores and descriptions
+  - **Step 4: Match Lookups** - Proactive lookup matching before validation
+    - Analyzes all lookup columns (method, country, people fields)
+    - Identifies exact matches vs. values needing matching
+    - Interactive fuzzy matching with similarity scores for all possibilities
+    - Displays method descriptions when selecting matches
+    - Supports comma-separated people values (e.g., "Gilles Dauby, Hugo Leblanc")
+    - Each person matched individually and aggregated back
+  - **Step 5: Validate** - Comprehensive data validation using matched values
+    - Validates both IDs (after matching) and names (before matching)
+    - Clear error reporting with actionable messages
+  - **Step 6: Preview** - Preview cleaned data with readable names
+    - Displays lookup names instead of IDs for user-friendly preview
+    - Handles comma-separated people fields (shows aggregated names)
+    - Download enriched data as Excel or CSV with human-readable values
+  - **Step 7: Execute Import** - Live import with transaction support
+    - Dry run mode for testing without database changes
+    - Uses existing `import_plot_metadata()` function
+    - Displays admin code for row-level security access
+    - Copy to clipboard and download as .R file options
+  - New module files: `R/mod_step1_choose_type.R`, `R/mod_step2_upload.R`, `R/mod_step3_mapping.R`, `R/mod_step4_lookup_matching.R`, `R/mod_step5_validation.R`, `R/mod_step6_preview.R`, `R/mod_step7_import.R`, `R/mod_lookup_matcher.R`
+  - Reuses existing validation and import functions for consistency
+  - Full connection pool support with proper cleanup
+
 * **Plot Statistics & Visualizations module for Query Plots Shiny App**
   - New "Statistics" tab in `launch_query_plots_app()` displays comprehensive plot statistics
   - Smart column mapping system automatically adapts to different output styles (`minimal`, `standard`, `permanent_plot`, etc.)
@@ -36,6 +64,33 @@
   - Set via `launch_taxonomic_match_app(language = "fr")` or `language = "en"`
 
 ### Bug Fixes
+
+* **Fixed import failing with unmapped columns**
+  - Import now filters out columns that were skipped during column mapping
+  - Prevents "ERROR: column 'X' of relation 'data_liste_plots' does not exist"
+  - Only mapped columns are included in database insertion
+
+* **Fixed type mismatch error when joining subplot features**
+  - Added explicit character type conversion for `plot_name` before joins
+  - Prevents "Can't join due to incompatible types" errors
+  - Applies to both people features and other subplot features
+
+* **Fixed `poolWithTransaction()` warning in Shiny app imports**
+  - Import now properly handles connection pools by checking out dedicated connections
+  - Uses `pool::poolCheckout()` and `pool::poolReturn()` for proper pool management
+  - Eliminates "Please use `poolWithTransaction()` instead" warnings
+
+* **Fixed validation errors after lookup matching**
+  - Validation now correctly handles both IDs (after Step 4 matching) and names (before matching)
+  - Detects if values are numeric (IDs) or character (names) and validates accordingly
+  - Applies to method, country, and people column validation
+
+* **Fixed preview and downloads showing IDs instead of names**
+  - Preview now enriches lookup columns by replacing IDs with readable names
+  - Method IDs → Method names (e.g., 18 → "Plot_40x40")
+  - Country IDs → Country names (e.g., 5 → "Cameroon")
+  - People IDs → People names with comma-separated aggregation
+  - Excel and CSV downloads export enriched data with names
 
 * **Fixed `query_individual_features()` ignoring `trait_ids` parameter with large datasets**
   - When querying more than 1000 individuals, the chunking mechanism was not passing `trait_ids` filter
