@@ -1,4 +1,4 @@
-# CafriplotsR 1.7.2 (Development)
+# CafriplotsR 1.8.0 (2025-12-02)
 
 ### New Features
 
