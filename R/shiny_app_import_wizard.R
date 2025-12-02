@@ -173,60 +173,71 @@ import_wizard_ui <- function() {
       "))
     ),
 
-    # Header
-    div(
-      style = "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; margin-bottom: 30px; color: white; border-radius: 0 0 12px 12px;",
-      fluidRow(
-        column(12,
-          h2(
-            icon("cloud-upload-alt", style = "margin-right: 10px;"),
-            "CafriPlots Import Wizard",
-            style = "margin: 0; font-weight: bold;"
-          ),
-          p("Step-by-step guide for importing plot and tree data", style = "margin: 5px 0 0 0; opacity: 0.9;")
-        )
-      )
+    # Login panel (shown before authentication)
+    shiny::conditionalPanel(
+      condition = "!output.authenticated",
+      mod_database_login_ui("login")
     ),
 
-    # Main content container
-    div(
-      class = "container-fluid",
-      style = "max-width: 1200px; margin: 0 auto;",
+    # Main app content (shown after authentication)
+    shiny::conditionalPanel(
+      condition = "output.authenticated",
 
-      # Step indicator
-      uiOutput("step_indicator"),
-
-      # Main content area (changes based on step)
+      # Header
       div(
-        style = "min-height: 400px;",
-        uiOutput("step_content")
-      ),
-
-      # Navigation buttons
-      div(
-        class = "nav-buttons",
+        style = "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; margin-bottom: 30px; color: white; border-radius: 0 0 12px 12px;",
         fluidRow(
-          column(6,
-            uiOutput("back_button")
-          ),
-          column(6,
-            uiOutput("next_button"),
-            align = "right"
+          column(12,
+            h2(
+              icon("cloud-upload-alt", style = "margin-right: 10px;"),
+              "CafriPlots Import Wizard",
+              style = "margin: 0; font-weight: bold;"
+            ),
+            p("Step-by-step guide for importing plot and tree data", style = "margin: 5px 0 0 0; opacity: 0.9;")
           )
         )
-      )
-    ),
+      ),
 
-    # Footer
-    hr(),
-    div(
-      style = "text-align: center; color: #6c757d; padding: 20px 0;",
-      p(
-        "CafriplotsR Import Wizard v1.0 |",
-        tags$a(href = "https://github.com/your-repo", "Documentation", target = "_blank"),
-        style = "margin: 0;"
+      # Main content container
+      div(
+        class = "container-fluid",
+        style = "max-width: 1200px; margin: 0 auto;",
+
+        # Step indicator
+        uiOutput("step_indicator"),
+
+        # Main content area (changes based on step)
+        div(
+          style = "min-height: 400px;",
+          uiOutput("step_content")
+        ),
+
+        # Navigation buttons
+        div(
+          class = "nav-buttons",
+          fluidRow(
+            column(6,
+              uiOutput("back_button")
+            ),
+            column(6,
+              uiOutput("next_button"),
+              align = "right"
+            )
+          )
+        )
+      ),
+
+      # Footer
+      hr(),
+      div(
+        style = "text-align: center; color: #6c757d; padding: 20px 0;",
+        p(
+          "CafriplotsR Import Wizard v1.0 |",
+          tags$a(href = "https://github.com/your-repo", "Documentation", target = "_blank"),
+          style = "margin: 0;"
+        )
       )
-    )
+    ) # End conditionalPanel for main app
   )
 }
 
@@ -235,6 +246,29 @@ import_wizard_ui <- function() {
 #' @keywords internal
 import_wizard_server <- function(input, output, session) {
 
+  # Database authentication using login module
+  login_output <- mod_database_login_server("login")
+  pool_main_reactive <- login_output$pool_main
+  pool_taxa_reactive <- login_output$pool_taxa
+  authenticated_reactive <- login_output$authenticated
+
+  # Output for conditional panel (needs to be suspendable=FALSE)
+  output$authenticated <- shiny::reactive({
+    authenticated_reactive()
+  })
+  shiny::outputOptions(output, "authenticated", suspendWhenHidden = FALSE)
+
+  # Cleanup on session end
+  session$onSessionEnded(function() {
+    # Clean up all connections and credentials
+    tryCatch({
+      cleanup_connections()
+    }, error = function(e) {
+      cli::cli_alert_warning("Failed to cleanup connections: {e$message}")
+    })
+    shiny::stopApp()
+  })
+
   # Reactive values to store state
   rv <- reactiveValues(
     step = 1,
@@ -242,38 +276,15 @@ import_wizard_server <- function(input, output, session) {
     import_type = NULL,
     config = NULL,
     data = NULL,
-    mappings = NULL,
+    mapping_result = NULL,  # Contains mappings and validation from Step 3
+    mappings = NULL,        # Extracted mappings for later steps
+    matched_data_result = NULL,  # Result from Step 4 (lookup matching)
+    matched_data = NULL,    # Matched data to use in validation
     validation = NULL,
     dry_run_result = NULL,
-    import_result = NULL
+    import_result = NULL,
+    modules_initialized = FALSE
   )
-
-  # Database connection (initialized in Step 1)
-  con <- reactiveVal(NULL)
-
-  # Initialize connection on app start
-  observe({
-    tryCatch({
-      con(call.mydb())
-    }, error = function(e) {
-      showNotification(
-        paste("Database connection failed:", e$message),
-        type = "error",
-        duration = NULL
-      )
-    })
-  })
-
-  # Cleanup on session end
-  session$onSessionEnded(function() {
-    if (!is.null(con())) {
-      tryCatch({
-        DBI::dbDisconnect(con())
-      }, error = function(e) {
-        message("Error disconnecting: ", e$message)
-      })
-    }
-  })
 
   # Step indicator UI
   output$step_indicator <- renderUI({
@@ -281,6 +292,7 @@ import_wizard_server <- function(input, output, session) {
       "Choose Type",
       "Upload Data",
       "Map Columns",
+      "Match Lookups",
       "Validate",
       "Preview",
       "Import"
@@ -288,7 +300,7 @@ import_wizard_server <- function(input, output, session) {
 
     div(
       class = "step-indicator",
-      lapply(1:6, function(i) {
+      lapply(1:7, function(i) {
         class_name <- if (i < rv$step) {
           "step completed"
         } else if (i == rv$step) {
@@ -317,10 +329,11 @@ import_wizard_server <- function(input, output, session) {
       as.character(rv$step),
       "1" = mod_step1_choose_type_ui("step1"),
       "2" = mod_step2_upload_ui("step2"),
-      "3" = tagList(h3("Step 3: Map Columns"), p("Coming soon...")),
-      "4" = tagList(h3("Step 4: Validate"), p("Coming soon...")),
-      "5" = tagList(h3("Step 5: Preview"), p("Coming soon...")),
-      "6" = tagList(h3("Step 6: Import"), p("Coming soon..."))
+      "3" = mod_step3_mapping_ui("step3"),
+      "4" = mod_step4_lookup_matching_ui("step4"),
+      "5" = mod_step5_validation_ui("step5"),
+      "6" = mod_step6_preview_ui("step6"),
+      "7" = mod_step7_import_ui("step7")
     )
   })
 
@@ -340,7 +353,7 @@ import_wizard_server <- function(input, output, session) {
     disabled <- !can_proceed_to_next_step()
 
     # Change label on final step
-    label <- if (rv$step == 6) {
+    label <- if (rv$step == 7) {
       tagList(icon("check"), " Execute Import")
     } else {
       tagList("Next ", icon("arrow-right"))
@@ -360,10 +373,11 @@ import_wizard_server <- function(input, output, session) {
       as.character(rv$step),
       "1" = !is.null(rv$import_type),
       "2" = !is.null(rv$data),
-      "3" = !is.null(rv$mappings),
-      "4" = !is.null(rv$validation) && rv$validation$valid,
-      "5" = !is.null(rv$dry_run_result),
-      "6" = FALSE  # Import step - different logic
+      "3" = !is.null(rv$mapping_result) && rv$mapping_result$validation$valid,
+      "4" = !is.null(rv$matched_data_result),  # Lookup matching complete
+      "5" = !is.null(rv$validation) && rv$validation$valid,  # Validation passed
+      "6" = !is.null(rv$validation) && rv$validation$valid,  # Preview (can proceed if validated)
+      "7" = FALSE  # Import step - different logic
     )
   })
 
@@ -385,42 +399,147 @@ import_wizard_server <- function(input, output, session) {
     }
   })
 
-  # Step 1: Choose import type
-  step1_result <- mod_step1_choose_type_server("step1")
+  # Initialize step modules only after authentication (runs once)
+  shiny::observe({
+    shiny::req(authenticated_reactive() == TRUE)
+    shiny::req(pool_main_reactive())
+    shiny::req(!rv$modules_initialized)  # Only run once
 
-  observeEvent(step1_result(), {
-    req(step1_result())
+    cli::cli_alert_info("Initializing import wizard modules...")
 
-    rv$import_type <- step1_result()
+    # Step 1: Choose import type
+    step1_result <- mod_step1_choose_type_server("step1")
 
-    # Load configuration
-    tryCatch({
-      rv$config <- get_import_column_routing(rv$import_type, con = con())
+    observeEvent(step1_result(), {
+      req(step1_result())
+
+      rv$import_type <- step1_result()
+
+      # Load configuration using connection pool
+      tryCatch({
+        rv$config <- get_import_column_routing(rv$import_type, con = pool_main_reactive())
+
+        showNotification(
+          paste("Configuration loaded for:", rv$import_type),
+          type = "message"
+        )
+      }, error = function(e) {
+        showNotification(
+          paste("Error loading configuration:", e$message),
+          type = "error"
+        )
+      })
+    })
+
+    # Step 2: Upload data
+    step2_result <- mod_step2_upload_server("step2", config = reactive(rv$config))
+
+    observeEvent(step2_result(), {
+      req(step2_result())
+      rv$data <- step2_result()
 
       showNotification(
-        paste("Configuration loaded for:", rv$import_type),
+        sprintf("Data loaded: %d rows, %d columns", nrow(rv$data), ncol(rv$data)),
         type = "message"
       )
-    }, error = function(e) {
+    })
+
+    # Step 3: Column mapping
+    step3_result <- mod_step3_mapping_server(
+      "step3",
+      data = reactive(rv$data),
+      config = reactive(rv$config)
+    )
+
+    observeEvent(step3_result(), {
+      req(step3_result())
+
+      rv$mapping_result <- step3_result()
+      rv$mappings <- step3_result()$mappings
+
+      if (step3_result()$validation$valid) {
+        showNotification(
+          sprintf("Column mapping complete: %d columns mapped", length(rv$mappings)),
+          type = "message"
+        )
+      }
+    })
+
+    # Step 4: Lookup matching
+    step4_result <- mod_step4_lookup_matching_server(
+      "step4",
+      data = reactive(rv$data),
+      mappings = reactive(rv$mappings),
+      con = pool_main_reactive
+    )
+
+    observeEvent(step4_result$complete(), {
+      req(step4_result$complete() == TRUE)
+
+      rv$matched_data_result <- step4_result
+      rv$matched_data <- step4_result$data()
+
       showNotification(
-        paste("Error loading configuration:", e$message),
-        type = "error"
+        "Lookup matching complete!",
+        type = "message",
+        duration = 3
       )
     })
-  })
 
-  # Step 2: Upload data
-  step2_result <- mod_step2_upload_server("step2", config = reactive(rv$config))
-
-  observeEvent(step2_result(), {
-    req(step2_result())
-    rv$data <- step2_result()
-
-    showNotification(
-      sprintf("Data loaded: %d rows, %d columns", nrow(rv$data), ncol(rv$data)),
-      type = "message"
+    # Step 5: Validation (uses matched data from Step 4)
+    step5_result <- mod_step5_validation_server(
+      "step5",
+      data = reactive({
+        # Use matched data if available, otherwise use original data
+        if (!is.null(rv$matched_data)) rv$matched_data else rv$data
+      }),
+      mappings = reactive(rv$mappings),
+      config = reactive(rv$config),
+      con = pool_main_reactive
     )
-  })
 
-  # TODO: Add remaining step modules (Step 3-6)
+    observeEvent(step5_result(), {
+      req(step5_result())
+
+      rv$validation <- step5_result()
+
+      if (step5_result()$valid) {
+        showNotification(
+          "Data validation passed!",
+          type = "message",
+          duration = 3
+        )
+      }
+    })
+
+    # Step 6: Preview
+    step6_result <- mod_step6_preview_server(
+      "step6",
+      validation_result = reactive(rv$validation)
+    )
+
+    # Step 7: Import execution
+    step7_result <- mod_step7_import_server(
+      "step7",
+      validation_result = reactive(rv$validation),
+      mappings = reactive(rv$mappings),
+      config = reactive(rv$config),
+      con = pool_main_reactive
+    )
+
+    observeEvent(step7_result(), {
+      req(step7_result())
+
+      result <- step7_result()
+
+      if (result$success && !result$dry_run) {
+        rv$import_result <- result
+        cli::cli_alert_success("Import completed: {result$n_plots} plots imported")
+      }
+    })
+
+    # Mark modules as initialized
+    rv$modules_initialized <- TRUE
+    cli::cli_alert_success("Import wizard modules initialized successfully!")
+  })
 }

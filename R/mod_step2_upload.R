@@ -66,7 +66,7 @@ mod_step2_upload_ui <- function(id) {
           shiny::div(
             style = "margin-top: 15px; padding: 10px; background: white; border-radius: 4px;",
             shiny::icon("lightbulb", style = "color: #ffc107;"),
-            shiny::small(
+            shiny::tags$small(
               " Tip: The template includes column descriptions and validation rules.",
               style = "color: #6c757d;"
             )

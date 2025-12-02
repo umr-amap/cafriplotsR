@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 15 Rscript:*)",
+      "Bash(timeout 20 Rscript:*)",
+      "Bash(awk:*)",
+      "Bash(sed:*)",
+      "Bash(Rscript -e \"roxygen2::roxygenise(roclets = ''namespace'')\")",
+      "Bash(Rscript:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

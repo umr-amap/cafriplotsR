@@ -17,8 +17,42 @@ mod_step1_choose_type_ui <- function(id) {
     ),
 
     shiny::p(
-      "Select the type of data you want to import. Plot metadata must be imported before individual tree data.",
-      style = "color: #6c757d; font-size: 16px; margin-bottom: 30px;"
+      "Select the type of data you want to import.",
+      style = "color: #6c757d; font-size: 16px; margin-bottom: 20px;"
+    ),
+
+    # Important messages with checkboxes at the top
+    shiny::div(
+      class = "alert alert-warning",
+      style = "margin-bottom: 30px; background-color: #fff3cd; border-left: 4px solid #ffc107;",
+      shiny::h5(
+        shiny::icon("exclamation-triangle"),
+        shiny::strong(" Important Requirements"),
+        style = "margin-top: 0; color: #856404;"
+      ),
+      shiny::p(
+        "Please read and confirm you understand these requirements before proceeding:",
+        style = "color: #856404; margin-bottom: 15px;"
+      ),
+
+      shiny::div(
+        style = "margin-left: 10px;",
+        shiny::checkboxInput(
+          ns("confirm_plot_first"),
+          shiny::HTML(
+            "<strong>Plot metadata must be imported first:</strong> You must import plot metadata before importing individual tree data. Individual trees are linked to plots via <code>plot_name</code>."
+          ),
+          value = FALSE
+        ),
+
+        shiny::checkboxInput(
+          ns("confirm_taxonomy"),
+          shiny::HTML(
+            "<strong>Taxonomic information required:</strong> Before uploading individual data, make sure you have a column with the <code>idtax_n</code> of taxonomic information, which can be assigned using either the automatic function or the interactive app (see the information in the dedicated vignette of the tool)."
+          ),
+          value = FALSE
+        )
+      )
     ),
 
     # Import type selection cards
@@ -95,17 +129,8 @@ mod_step1_choose_type_ui <- function(id) {
     # Selected type indicator
     shiny::uiOutput(ns("selection_indicator")),
 
-    # Info box
-    shiny::div(
-      class = "alert alert-info",
-      style = "margin-top: 30px;",
-      shiny::icon("info-circle"),
-      shiny::strong(" Important: "),
-      "You must import plot metadata before importing individual tree data. ",
-      "Individual trees are linked to plots via ",
-      shiny::tags$code("plot_name"),
-      "."
-    )
+    # Requirements validation message
+    shiny::uiOutput(ns("requirements_validation"))
   )
 }
 
@@ -145,6 +170,21 @@ mod_step1_choose_type_server <- function(id) {
       )
     })
 
+    # Check if requirements are confirmed
+    requirements_confirmed <- shiny::reactive({
+      # For plot metadata, no special requirements needed
+      if (is.null(selected_type()) || selected_type() == "plots") {
+        return(TRUE)
+      }
+
+      # For individual trees, both checkboxes must be checked
+      if (selected_type() == "individuals") {
+        return(input$confirm_plot_first && input$confirm_taxonomy)
+      }
+
+      return(FALSE)
+    })
+
     # Selection indicator
     output$selection_indicator <- shiny::renderUI({
       shiny::req(selected_type())
@@ -178,7 +218,44 @@ mod_step1_choose_type_server <- function(id) {
       )
     })
 
-    # Return selected type
-    return(selected_type)
+    # Requirements validation message
+    output$requirements_validation <- shiny::renderUI({
+      shiny::req(selected_type())
+
+      # Only show for individual trees
+      if (selected_type() == "individuals") {
+        if (!requirements_confirmed()) {
+          shiny::div(
+            class = "alert alert-danger",
+            style = "margin-top: 20px;",
+            shiny::icon("exclamation-circle"),
+            shiny::strong(" Action Required: "),
+            "Please confirm that you have read and understood both requirements above by checking the boxes before proceeding."
+          )
+        } else {
+          shiny::div(
+            class = "alert alert-success",
+            style = "margin-top: 20px;",
+            shiny::icon("check-circle"),
+            shiny::strong(" Requirements Confirmed: "),
+            "You may now proceed to the next step."
+          )
+        }
+      }
+    })
+
+    # Return selected type only if requirements are met
+    validated_selection <- shiny::reactive({
+      shiny::req(selected_type())
+
+      if (requirements_confirmed()) {
+        return(selected_type())
+      } else {
+        return(NULL)
+      }
+    })
+
+    # Return validated selection
+    return(validated_selection)
   })
 }
