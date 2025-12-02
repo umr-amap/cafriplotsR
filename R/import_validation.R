@@ -502,18 +502,45 @@ validate_plot_metadata <- function(data,
 
   # Method validation
   if ("method" %in% names(data)) {
-    valid_methods <- tryCatch({
-      method_list()$method
+    method_lookup <- tryCatch({
+      method_list()
     }, error = function(e) {
       NULL
     })
 
-    if (!is.null(valid_methods)) {
-      invalid_rows <- which(
-        !is.na(data$method) &
-        trimws(data$method) != "" &
-        !(data$method %in% valid_methods)
-      )
+    if (!is.null(method_lookup)) {
+      # Check if values are IDs (numeric) or names (character)
+      # After lookup matching, they should be IDs
+      method_values <- data$method[!is.na(data$method) & trimws(data$method) != ""]
+
+      cli::cli_alert_info("Method validation: checking {length(method_values)} value(s)")
+      cli::cli_alert_info("  Sample values: {paste(head(method_values, 3), collapse=', ')}")
+      cli::cli_alert_info("  Valid IDs available: {paste(head(method_lookup$id_method, 5), collapse=', ')}")
+
+      # Try to determine if these are IDs or names
+      are_numeric <- suppressWarnings(!any(is.na(as.numeric(method_values))))
+      cli::cli_alert_info("  Are all values numeric? {are_numeric}")
+
+      if (are_numeric) {
+        # Validate against id_method (IDs)
+        valid_ids <- method_lookup$id_method
+        cli::cli_alert_info("  Validating against {length(valid_ids)} valid ID(s)")
+        invalid_rows <- which(
+          !is.na(data$method) &
+          trimws(data$method) != "" &
+          !(as.numeric(data$method) %in% valid_ids)
+        )
+        cli::cli_alert_info("  Found {length(invalid_rows)} invalid row(s)")
+      } else {
+        # Validate against method names (backwards compatibility)
+        valid_methods <- method_lookup$method
+        cli::cli_alert_info("  Validating against method names")
+        invalid_rows <- which(
+          !is.na(data$method) &
+          trimws(data$method) != "" &
+          !(data$method %in% valid_methods)
+        )
+      }
 
       for (row in invalid_rows) {
         errors <- c(errors, list(list(
@@ -531,18 +558,36 @@ validate_plot_metadata <- function(data,
 
   # Country validation
   if ("country" %in% names(data)) {
-    valid_countries <- tryCatch({
-      country_list()$country
+    country_lookup <- tryCatch({
+      country_list()
     }, error = function(e) {
       NULL
     })
 
-    if (!is.null(valid_countries)) {
-      invalid_rows <- which(
-        !is.na(data$country) &
-        trimws(data$country) != "" &
-        !(data$country %in% valid_countries)
-      )
+    if (!is.null(country_lookup)) {
+      # Check if values are IDs (numeric) or names (character)
+      country_values <- data$country[!is.na(data$country) & trimws(data$country) != ""]
+
+      # Try to determine if these are IDs or names
+      are_numeric <- suppressWarnings(!any(is.na(as.numeric(country_values))))
+
+      if (are_numeric) {
+        # Validate against id_country (IDs)
+        valid_ids <- country_lookup$id_country
+        invalid_rows <- which(
+          !is.na(data$country) &
+          trimws(data$country) != "" &
+          !(as.numeric(data$country) %in% valid_ids)
+        )
+      } else {
+        # Validate against country names (backwards compatibility)
+        valid_countries <- country_lookup$country
+        invalid_rows <- which(
+          !is.na(data$country) &
+          trimws(data$country) != "" &
+          !(data$country %in% valid_countries)
+        )
+      }
 
       for (row in invalid_rows) {
         errors <- c(errors, list(list(
@@ -569,9 +614,9 @@ validate_plot_metadata <- function(data,
   if (!is.null(subplot_info)) {
     people_columns <- subplot_info$type[subplot_info$valuetype == "table_colnam"]
 
-    # Get valid people names from table_colnam
+    # Get valid people IDs and names from table_colnam
     valid_people <- tryCatch({
-      DBI::dbGetQuery(con, "SELECT DISTINCT last_name, first_name FROM table_colnam") %>%
+      DBI::dbGetQuery(con, "SELECT id_table_colnam, colnam, last_name, first_name FROM table_colnam") %>%
         dplyr::mutate(
           full_name = paste(trimws(first_name), trimws(last_name)),
           full_name_rev = paste(trimws(last_name), trimws(first_name))
@@ -581,12 +626,16 @@ validate_plot_metadata <- function(data,
     })
 
     if (!is.null(valid_people)) {
+      # Get valid IDs for validation
+      valid_ids <- valid_people$id_table_colnam
+
       # Create lookup list of valid names (handle different formats)
       valid_name_list <- c(
         valid_people$full_name,
         valid_people$full_name_rev,
         valid_people$last_name,
-        valid_people$first_name
+        valid_people$first_name,
+        valid_people$colnam
       )
       valid_name_list <- unique(tolower(trimws(valid_name_list[!is.na(valid_name_list)])))
 
@@ -596,23 +645,44 @@ validate_plot_metadata <- function(data,
         for (row in seq_len(nrow(data))) {
           if (is.na(data[[col]][row]) || trimws(data[[col]][row]) == "") next
 
-          # Split comma-separated names
-          names_list <- strsplit(as.character(data[[col]][row]), ",")[[1]]
-          names_list <- trimws(names_list)
+          # Check if values are IDs (numeric) or names (character)
+          value <- as.character(data[[col]][row])
 
-          for (person_name in names_list) {
-            person_name_lower <- tolower(trimws(person_name))
+          # Split comma-separated values (could be IDs or names)
+          value_list <- strsplit(value, ",")[[1]]
+          value_list <- trimws(value_list)
 
-            if (!person_name_lower %in% valid_name_list) {
-              warnings <- c(warnings, list(list(
-                column = col,
-                row = row,
-                message = sprintf(
-                  "Person '%s' not found in table_colnam. During import, you will be prompted to match or add this person.",
-                  person_name
-                ),
-                value = person_name
-              )))
+          for (val in value_list) {
+            # Try to determine if this is an ID or name
+            is_numeric <- suppressWarnings(!is.na(as.numeric(val)))
+
+            if (is_numeric) {
+              # Validate against IDs (after lookup matching)
+              if (!(as.numeric(val) %in% valid_ids)) {
+                warnings <- c(warnings, list(list(
+                  column = col,
+                  row = row,
+                  message = sprintf(
+                    "Person ID '%s' not found in table_colnam.",
+                    val
+                  ),
+                  value = val
+                )))
+              }
+            } else {
+              # Validate against names (before lookup matching)
+              val_lower <- tolower(trimws(val))
+              if (!val_lower %in% valid_name_list) {
+                warnings <- c(warnings, list(list(
+                  column = col,
+                  row = row,
+                  message = sprintf(
+                    "Person '%s' not found in table_colnam. During import, you will be prompted to match or add this person.",
+                    val
+                  ),
+                  value = val
+                )))
+              }
             }
           }
         }
@@ -778,6 +848,8 @@ validate_plot_metadata <- function(data,
                                   lookup_table_name, con,
                                   interactive, fix_on_fly) {
 
+  cli::cli_alert_info("=== RESOLVE LOOKUP COLUMN: {column_name} ===")
+
   errors <- list()
   changes <- data.frame(
     column = character(),
@@ -795,6 +867,8 @@ validate_plot_metadata <- function(data,
     NULL
   })
 
+  cli::cli_alert_info("Lookup table fetched: {nrow(lookup_table) %||% 0} rows")
+
   if (is.null(lookup_table)) {
     return(list(
       errors = errors,
@@ -804,13 +878,37 @@ validate_plot_metadata <- function(data,
   }
 
   valid_values <- lookup_table[[lookup_value_col]]
+  valid_ids <- lookup_table[[lookup_id_col]]
+
+  cli::cli_alert_info("Column data sample: {paste(head(data[[column_name]], 3), collapse=', ')}")
+  cli::cli_alert_info("Valid values sample: {paste(head(valid_values, 3), collapse=', ')}")
+  cli::cli_alert_info("Valid IDs sample: {paste(head(valid_ids, 3), collapse=', ')}")
+
+  # Check if data contains IDs (numeric) or names (character)
+  data_values <- data[[column_name]][!is.na(data[[column_name]]) & trimws(data[[column_name]]) != ""]
+  are_numeric <- suppressWarnings(!any(is.na(as.numeric(data_values))))
+  cli::cli_alert_info("Are values numeric (IDs)? {are_numeric}")
 
   # Find invalid values
-  invalid_rows <- which(
-    !is.na(data[[column_name]]) &
-    trimws(data[[column_name]]) != "" &
-    !(data[[column_name]] %in% valid_values)
-  )
+  if (are_numeric) {
+    cli::cli_alert_info("Validating against IDs")
+    # Values are IDs - check against valid_ids
+    invalid_rows <- which(
+      !is.na(data[[column_name]]) &
+      trimws(data[[column_name]]) != "" &
+      !(as.numeric(data[[column_name]]) %in% valid_ids)
+    )
+  } else {
+    cli::cli_alert_info("Validating against names")
+    # Values are names - check against valid_values
+    invalid_rows <- which(
+      !is.na(data[[column_name]]) &
+      trimws(data[[column_name]]) != "" &
+      !(data[[column_name]] %in% valid_values)
+    )
+  }
+
+  cli::cli_alert_info("Found {length(invalid_rows)} invalid row(s)")
 
   if (length(invalid_rows) == 0) {
     return(list(
@@ -894,16 +992,26 @@ validate_plot_metadata <- function(data,
   } else {
     # Non-interactive mode - just report errors
     for (row in invalid_rows) {
+      val <- data[[column_name]][row]
+
+      # Create appropriate error message based on whether it's an ID or name
+      if (are_numeric) {
+        error_msg <- sprintf(
+          "Invalid %s ID '%s'. Value should be a valid %s ID from %s_list().",
+          column_name, val, column_name, column_name
+        )
+      } else {
+        error_msg <- sprintf(
+          "Invalid %s '%s'. Use %s_list() to see valid values.",
+          column_name, val, column_name
+        )
+      }
+
       errors <- c(errors, list(list(
         column = column_name,
         row = row,
-        message = sprintf(
-          "Invalid %s '%s'. Use %s_list() to see valid values.",
-          column_name,
-          data[[column_name]][row],
-          column_name
-        ),
-        value = as.character(data[[column_name]][row])
+        message = error_msg,
+        value = as.character(val)
       )))
     }
   }
