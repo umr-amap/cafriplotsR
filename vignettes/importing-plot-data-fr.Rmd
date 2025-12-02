@@ -70,28 +70,251 @@ plot_metadata <- data.frame(
 )
 ```
 
-### 1.2 Importer les Parcelles avec le Modèle
+### 1.2 Générer un Modèle d'Import (Optionnel)
 
-Le package fournit des fonctions pour importer les métadonnées de parcelles avec validation :
+Si vous partez de zéro, générez un modèle pour comprendre les champs requis :
 
 ```{r}
-# Importer les métadonnées de parcelles
-# (Note : la fonction exacte dépend de l'infrastructure d'import de parcelles existante)
-# Utilisez la fonction appropriée du package pour importer les parcelles
+# Générer un modèle avec des exemples
+template <- get_plot_metadata_template(
+  template_type = "permanent_plot",  # ou "transect", "minimal", "full"
+  with_examples = TRUE
+)
 
-# Exemple de flux de travail :
-# 1. Préparer les données au format du modèle Excel
-# 2. Utiliser la fonction d'import de parcelles (consultez la documentation du package)
-# 3. Vérifier que les parcelles ont été créées
+# Visualiser la structure du modèle
+View(template)
 
-# Vérifier que les parcelles existent
-imported_plots <- query_plots(
-  plot_name = c("Parcelle-A", "Parcelle-B", "Parcelle-C"),
-  exact_match = TRUE,
+# Exporter vers Excel pour remplissage
+export_plot_template(
+  file_path = "mon_modele_parcelles.xlsx",
+  template_type = "permanent_plot",
+  with_examples = TRUE
+)
+
+# Voir quelles colonnes sont disponibles
+print_template_info("permanent_plot")
+```
+
+**Le modèle inclut** :
+- **Requis** : `plot_name`, `method`, `country`
+- **Localisation** : `ddlat`, `ddlon`, `elevation`, `locality_name`
+- **Dates** : `date_y`, `date_m`, `date_d`
+- **Personnes** : `team_leader`, `principal_investigator`, `data_manager`
+- **Optionnel** : Caractéristiques de parcelles et autres attributs de sous-parcelles
+
+### 1.3 Mapper les Colonnes de Vos Données
+
+Mapper les colonnes de vos données au schéma de la base de données :
+
+```{r}
+# Charger vos données (depuis Excel, CSV, etc.)
+mes_donnees_parcelles <- readxl::read_excel("mes_parcelles.xlsx")
+# ou
+mes_donnees_parcelles <- read.csv("mes_parcelles.csv")
+
+# Obtenir la configuration d'import
+config <- get_import_column_routing(import_type = "plots")
+
+# Mapper les colonnes automatiquement (avec correspondance floue)
+resultat_mapping <- map_user_columns(
+  data = mes_donnees_parcelles,
+  config = config,
+  similarity_threshold = 0.6,
+  interactive = TRUE  # Mettre FALSE pour mode non-interactif
+)
+
+# Examiner les mappages
+print_mapping_summary(resultat_mapping)
+```
+
+**Fonctionnalités du Mapping de Colonnes** :
+- ✅ Correspondance exacte automatique
+- ✅ Reconnaissance de synonymes (ex : `PI` → `principal_investigator`)
+- ✅ Correspondance floue pour les fautes de frappe
+- ✅ Sélection interactive pour les mappages peu clairs
+
+### 1.4 Valider les Données
+
+Valider vos données avant l'import :
+
+```{r}
+# Valider les métadonnées de parcelles
+validation <- validate_plot_metadata(
+  data = mes_donnees_parcelles,
+  column_mappings = resultat_mapping$mappings,
+  config = config,
+  interactive = TRUE,  # Permettre la correction interactive
+  fix_on_fly = TRUE    # Corriger les problèmes pendant la validation
+)
+
+# Visualiser les résultats de validation
+print_validation_results(validation)
+
+# Vérifier si valide
+if (!validation$valid) {
+  cat("❌ Validation échouée ! Corrigez les erreurs avant d'importer.\n")
+  # Voir les erreurs détaillées
+  View(validation$errors)
+  stop("La validation des données a échoué")
+}
+```
+
+**Vérifications de Validation** :
+1. ✅ Champs requis présents (`plot_name`, `method`, `country`)
+2. ✅ Valeurs de recherche valides (method, country)
+3. ✅ Types de colonnes corrects (numérique, caractère)
+4. ✅ Plages de valeurs valides (coordonnées, dates)
+5. ✅ Contraintes d'unicité (pas de noms de parcelles dupliqués)
+
+**Correction Interactive** : La fonction de validation peut corriger automatiquement les erreurs de recherche en utilisant la correspondance floue si `interactive = TRUE`.
+
+### 1.5 Essai à Blanc (Aperçu de l'Import)
+
+Toujours prévisualiser avant de valider :
+
+```{r}
+# ESSAI À BLANC - prévisualiser sans valider
+apercu <- import_plot_metadata(
+  data = mes_donnees_parcelles,
+  column_mappings = resultat_mapping$mappings,
+  validation = validation,
+  config = config,
+  dry_run = TRUE,  # IMPORTANT : Prévisualiser d'abord !
   con = con
 )
 
-print(imported_plots)
+# Examiner ce qui serait importé
+print_import_result(apercu)
+```
+
+**Sortie de l'Essai à Blanc** :
+```
+═══ Essai à Blanc : Aperçu de l'Import (Aucune Modification Ne Sera Effectuée) ═══
+ℹ Parcelles à importer : 3
+ℹ Import en tant qu'utilisateur : votre_nom_utilisateur
+
+─── Étape 1 : Liaison des méthodes ───
+✓ Lierait 2 méthodes uniques
+
+─── Étape 2 : Liaison des pays ───
+✓ Lierait 2 pays uniques
+
+─── Étape 3 : Traitement des attributs de sous-parcelles ───
+✓ Trouvé 4 colonne(s) d'attributs de sous-parcelles : team_leader, principal_investigator, ...
+
+─── Étape 4 : Préparation des données de parcelles ───
+✓ Préparé 3 lignes avec 15 colonnes
+
+─── Étape 5 : Aperçu - Insérerait Dans data_liste_plots ───
+Aperçu des données (3 premières lignes) :
+  plot_name     method  id_method id_country ddlat  ddlon
+1 Parcelle-A    1ha-IRD    1          2      -0.50  11.50
+2 Parcelle-B    1ha-IRD    1          2      -0.52  11.48
+3 Parcelle-C    0.5ha       5          1       3.20  13.50
+
+─── Étape 6 : Aperçu des attributs de sous-parcelles ───
+ℹ Insérerait 3 enregistrements team_leader (personnes)
+ℹ Insérerait 3 enregistrements principal_investigator (personnes)
+
+✓ Essai à blanc terminé - aucune modification effectuée
+```
+
+### 1.6 Import Réel
+
+Si l'essai à blanc semble bon, procédez à l'import réel :
+
+```{r}
+# IMPORT RÉEL
+resultat <- import_plot_metadata(
+  data = mes_donnees_parcelles,
+  column_mappings = resultat_mapping$mappings,
+  validation = validation,
+  config = config,
+  dry_run = FALSE,  # Importer réellement
+  interactive = TRUE,
+  con = con
+)
+
+# Vérifier le résultat
+if (resultat$success) {
+  cat("✅ Importé avec succès", resultat$n_plots, "parcelles !\n")
+  cat("Noms de parcelles :", paste(resultat$plot_names, collapse = ", "), "\n")
+} else {
+  cat("❌ L'import a échoué :", resultat$message, "\n")
+}
+```
+
+**Processus d'Import** :
+1. Transaction démarrée (tout ou rien)
+2. Méthodes liées à la table `methodslist`
+3. Pays liés à la table `table_countries`
+4. Personnes liées à la table `table_colnam` (correspondance interactive)
+5. Données de parcelles insérées dans `data_liste_plots`
+6. Attributs de sous-parcelles insérés dans `data_liste_sub_plots`
+7. Transaction validée (ou annulée en cas d'erreur)
+
+### 1.7 Sécurité au Niveau des Lignes (RLS) - Important !
+
+**Après l'import, vous n'aurez peut-être pas encore accès à vos parcelles !**
+
+La fonction génère un code d'accès administrateur :
+
+```{r}
+# Le code admin est retourné dans le résultat
+cat(resultat$admin_code)
+
+# Ou sauvegarder dans un fichier pour l'envoyer à l'admin
+writeLines(resultat$admin_code, "demande_acces_admin.R")
+```
+
+**Envoyez ce code à votre administrateur de base de données** pour vous accorder l'accès :
+
+```r
+# ══════════════════════════════════════════════════════════════════════
+# SÉCURITÉ AU NIVEAU DES LIGNES : Accorder l'Accès à l'Utilisateur
+# ══════════════════════════════════════════════════════════════════════
+# Utilisateur : votre_nom_utilisateur
+# Parcelles : Parcelle-A, Parcelle-B, Parcelle-C
+
+library(CafriplotsR)
+con <- call.mydb()  # Identifiants admin
+
+# Obtenir les IDs de parcelles
+plot_ids <- DBI::dbGetQuery(con,
+  "SELECT id_liste_plots FROM data_liste_plots
+   WHERE plot_name IN ('Parcelle-A', 'Parcelle-B', 'Parcelle-C')")$id_liste_plots
+
+# Accorder l'accès
+define_user_policy(
+  con = con,
+  user = "votre_nom_utilisateur",
+  ids = plot_ids,
+  table = "data_liste_plots",
+  operations = c("SELECT", "UPDATE"),
+  drop_existing = TRUE
+)
+```
+
+### 1.8 Vérifier l'Import
+
+Après que l'admin a accordé l'accès, vérifier que les parcelles ont été créées :
+
+```{r}
+# Interroger les parcelles importées
+parcelles_importees <- query_plots(
+  plot_name = c("Parcelle-A", "Parcelle-B", "Parcelle-C"),
+  exact_match = TRUE,
+  show_multiple_census = TRUE,
+  con = con
+)
+
+# Vérifier les métadonnées
+print(parcelles_importees$metadata)
+
+# Vérifier les attributs de recensement
+if (!is.null(parcelles_importees$census_features)) {
+  print(parcelles_importees$census_features)
+}
 ```
 
 **Important** : Assurez-vous que toutes les parcelles sont importées avec succès avant de procéder à l'import des données individuelles.

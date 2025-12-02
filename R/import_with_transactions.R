@@ -84,14 +84,31 @@ import_plot_metadata <- function(data,
   }
 
   # Initialize connection if needed
-
+  close_on_exit <- FALSE
   if (is.null(con)) {
     con <- call.mydb()
+    close_on_exit <- TRUE
+  }
+
+  # Handle connection pools properly to avoid poolWithTransaction warning
+  # Check if con is a pool and check out a connection for the import
+  is_pool <- inherits(con, "Pool")
+  if (is_pool) {
+    # Check out a connection from the pool for the duration of import
+    actual_con <- pool::poolCheckout(con)
+    # Ensure connection is returned to pool on exit
+    on.exit({
+      pool::poolReturn(actual_con)
+    }, add = TRUE)
+
+    if (progress) cli::cli_alert_info("Using connection pool (checked out dedicated connection)")
+  } else {
+    actual_con <- con
   }
 
   # Get current username for RLS
   username <- tryCatch({
-    DBI::dbGetQuery(con, "SELECT current_user;")[[1]]
+    DBI::dbGetQuery(actual_con, "SELECT current_user;")[[1]]
   }, error = function(e) {
     "unknown_user"
   })
@@ -105,6 +122,18 @@ import_plot_metadata <- function(data,
     }
   }
 
+  # Remove columns that were not mapped (keep only schema columns)
+  # This prevents errors when trying to insert unmapped columns into database
+  schema_columns <- unlist(column_mappings)
+  unmapped_columns <- setdiff(names(import_data), schema_columns)
+
+  if (length(unmapped_columns) > 0) {
+    if (progress) {
+      cli::cli_alert_info("Removing {length(unmapped_columns)} unmapped column(s): {paste(unmapped_columns, collapse=', ')}")
+    }
+    import_data <- import_data[, names(import_data) %in% schema_columns, drop = FALSE]
+  }
+
   if (progress) {
     if (dry_run) {
       cli::cli_h1("Dry Run: Preview Import (No Changes Will Be Made)")
@@ -112,6 +141,7 @@ import_plot_metadata <- function(data,
       cli::cli_h1("Importing Plot Metadata")
     }
     cli::cli_alert_info("Plots to import: {nrow(import_data)}")
+    cli::cli_alert_info("Columns to import: {ncol(import_data)}")
     cli::cli_alert_info("Importing as user: {username}")
   }
 
@@ -120,15 +150,15 @@ import_plot_metadata <- function(data,
 
     # Begin transaction (unless dry run)
     if (!dry_run) {
-      DBI::dbBegin(con)
+      DBI::dbBegin(actual_con)
       if (progress) cli::cli_alert_info("Transaction started")
     }
 
     # Step 1: Link method
     if (progress) cli::cli_h2("Step 1: Linking methods")
-    import_data <- .link_method_for_import(data = 
+    import_data <- .link_method_for_import(data =
       import_data,
-      con,
+      actual_con,
       interactive = interactive,
       dry_run = dry_run,
       progress = progress
@@ -138,7 +168,7 @@ import_plot_metadata <- function(data,
     if (progress) cli::cli_h2("Step 2: Linking countries")
     import_data <- .link_country_for_import(
       import_data,
-      con,
+      actual_con,
       interactive = interactive,
       dry_run = dry_run,
       progress = progress
@@ -149,7 +179,7 @@ import_plot_metadata <- function(data,
     subplot_data <- .extract_and_process_subplot_features(
       import_data,
       config,
-      con,
+      actual_con,
       interactive = interactive,
       dry_run = dry_run,
       progress = progress
@@ -158,7 +188,9 @@ import_plot_metadata <- function(data,
     # Step 4: Prepare data for data_liste_plots
     if (progress) cli::cli_h2("Step 4: Preparing plot data")
     plot_data <- .prepare_plot_data(
-      import_data,
+      data = 
+        import_data, 
+      people_columns = 
       subplot_data$all_subplot_columns,
       progress = progress
     )
@@ -201,7 +233,10 @@ import_plot_metadata <- function(data,
       )
 
       # Execute and get returned IDs
-      plot_id_data <- DBI::dbGetQuery(con, insert_sql)
+      plot_id_data <- DBI::dbGetQuery(actual_con, insert_sql)
+
+      # Ensure plot_name is character type to avoid join type mismatches
+      plot_id_data$plot_name <- as.character(plot_id_data$plot_name)
 
       if (progress) cli::cli_alert_success("{nrow(plot_data)} plots inserted")
     }
@@ -232,7 +267,8 @@ import_plot_metadata <- function(data,
         feature_df <- subplot_data$people_features[[feature_type]]
 
         if (!is.null(feature_df) && nrow(feature_df) > 0) {
-          # Join with plot IDs
+          # Join with plot IDs (ensure plot_name is character to avoid type mismatches)
+          feature_df$plot_name <- as.character(feature_df$plot_name)
           feature_df <- feature_df %>%
             dplyr::left_join(plot_id_data, by = "plot_name")
 
@@ -243,7 +279,7 @@ import_plot_metadata <- function(data,
             subplottype_field = feature_type,
             add_data = TRUE,
             ask_before_update = FALSE,
-            con = con
+            con = actual_con
           )
 
           if (progress) {
@@ -257,7 +293,8 @@ import_plot_metadata <- function(data,
         feature_df <- subplot_data$other_features[[feature_type]]
 
         if (!is.null(feature_df) && nrow(feature_df) > 0) {
-          # Join with plot IDs
+          # Join with plot IDs (ensure plot_name is character to avoid type mismatches)
+          feature_df$plot_name <- as.character(feature_df$plot_name)
           feature_df <- feature_df %>%
             dplyr::left_join(plot_id_data, by = "plot_name")
 
@@ -268,7 +305,7 @@ import_plot_metadata <- function(data,
             subplottype_field = feature_type,
             add_data = TRUE,
             ask_before_update = FALSE,
-            con = con
+            con = actual_con
           )
 
           if (progress) {
@@ -280,7 +317,7 @@ import_plot_metadata <- function(data,
 
     # Commit transaction
     if (!dry_run) {
-      DBI::dbCommit(con)
+      DBI::dbCommit(actual_con)
       if (progress) cli::cli_alert_success("Transaction committed successfully")
     }
 
@@ -346,7 +383,7 @@ import_plot_metadata <- function(data,
     # Rollback on error
     if (!dry_run) {
       tryCatch({
-        DBI::dbRollback(con)
+        DBI::dbRollback(actual_con)
         if (progress) cli::cli_alert_danger("Transaction rolled back due to error")
       }, error = function(rollback_error) {
         if (progress) cli::cli_alert_danger("Error during rollback: {rollback_error$message}")
@@ -469,6 +506,36 @@ DBI::dbDisconnect(con)
     return(data)
   }
 
+  # Check if method values are already IDs (from Step 4 lookup matching)
+  method_values <- data$method[!is.na(data$method) & trimws(data$method) != ""]
+  are_numeric <- suppressWarnings(!any(is.na(as.numeric(method_values))))
+
+  if (are_numeric && length(method_values) > 0) {
+    # Values are already IDs - just rename column and validate
+    if (progress) cli::cli_alert_info("Method values are already IDs from lookup matching")
+
+    # Validate IDs against method_list
+    method_lookup <- method_list()
+    valid_ids <- method_lookup$id_method
+    invalid_ids <- method_values[!(as.numeric(method_values) %in% valid_ids)]
+
+    if (length(invalid_ids) > 0) {
+      stop(sprintf(
+        "Invalid method IDs found: %s. This should have been caught by validation!",
+        paste(unique(invalid_ids), collapse = ", ")
+      ))
+    }
+
+    # Rename column to id_method
+    data$id_method <- as.numeric(data$method)
+    # Keep method column for reference (will be removed later by .prepare_plot_data())
+
+    if (progress) cli::cli_alert_success("Method IDs validated ({length(unique(method_values))} unique)")
+
+    return(data)
+  }
+
+  # Values are names - use .link_table() as before
   if (dry_run) {
     if (progress) {
       unique_methods <- unique(data$method[!is.na(data$method)])
@@ -509,6 +576,36 @@ DBI::dbDisconnect(con)
     return(data)
   }
 
+  # Check if country values are already IDs (from Step 4 lookup matching)
+  country_values <- data$country[!is.na(data$country) & trimws(data$country) != ""]
+  are_numeric <- suppressWarnings(!any(is.na(as.numeric(country_values))))
+
+  if (are_numeric && length(country_values) > 0) {
+    # Values are already IDs - just rename column and validate
+    if (progress) cli::cli_alert_info("Country values are already IDs from lookup matching")
+
+    # Validate IDs against country_list
+    country_lookup <- country_list()
+    valid_ids <- country_lookup$id_country
+    invalid_ids <- country_values[!(as.numeric(country_values) %in% valid_ids)]
+
+    if (length(invalid_ids) > 0) {
+      stop(sprintf(
+        "Invalid country IDs found: %s. This should have been caught by validation!",
+        paste(unique(invalid_ids), collapse = ", ")
+      ))
+    }
+
+    # Rename column to id_country
+    data$id_country <- as.numeric(data$country)
+    # Keep country column for reference (will be removed later by .prepare_plot_data())
+
+    if (progress) cli::cli_alert_success("Country IDs validated ({length(unique(country_values))} unique)")
+
+    return(data)
+  }
+
+  # Values are names - use .link_table() as before
   if (dry_run) {
     if (progress) {
       unique_countries <- unique(data$country[!is.na(data$country)])
@@ -611,7 +708,34 @@ DBI::dbDisconnect(con)
         next
       }
 
-      if (dry_run) {
+      # Check if values are already IDs (from Step 4 lookup matching)
+      feature_values <- feature_sep[[feature_type]][!is.na(feature_sep[[feature_type]]) & trimws(feature_sep[[feature_type]]) != ""]
+      are_numeric <- suppressWarnings(!any(is.na(as.numeric(feature_values))))
+
+      if (are_numeric && length(feature_values) > 0) {
+        # Values are already IDs - just validate and rename
+        if (progress) cli::cli_alert_info("{feature_type} values are already IDs from lookup matching")
+
+        # Validate IDs against table_colnam
+        people_lookup <- DBI::dbGetQuery(con, "SELECT id_table_colnam FROM table_colnam")
+        valid_ids <- people_lookup$id_table_colnam
+        invalid_ids <- feature_values[!(as.numeric(feature_values) %in% valid_ids)]
+
+        if (length(invalid_ids) > 0) {
+          stop(sprintf(
+            "Invalid {feature_type} IDs found: %s. This should have been caught by validation!",
+            paste(unique(invalid_ids), collapse = ", ")
+          ))
+        }
+
+        # Rename column to id_table_colnam
+        feature_sep$id_table_colnam <- as.numeric(feature_sep[[feature_type]])
+        people_features[[feature_type]] <- feature_sep
+
+        if (progress) cli::cli_alert_success("{nrow(feature_sep)} {feature_type} IDs validated")
+
+      } else if (dry_run) {
+        # Dry run with names
         if (progress) {
           cli::cli_alert_info("Would link {nrow(feature_sep)} {feature_type} names")
           unique_names <- unique(feature_sep[[feature_type]])
@@ -621,7 +745,7 @@ DBI::dbDisconnect(con)
         people_features[[feature_type]] <- feature_sep
 
       } else {
-        # Use existing .link_colnam()
+        # Values are names - use .link_colnam()
         feature_linked <- .link_colnam(
           data_stand = feature_sep,
           column_searched = feature_type,
