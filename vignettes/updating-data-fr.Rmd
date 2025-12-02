@@ -1,0 +1,430 @@
+---
+title: "Mettre à jour les données existantes dans la base de données"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Mettre à jour les données existantes dans la base de données}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE,
+  echo = TRUE
+)
+```
+
+## Aperçu
+
+Cette vignette explique comment mettre à jour les enregistrements existants dans la base de données en utilisant la fonction `update_records()`.
+
+**Le défi principal** : Lorsque vous interrogez les données, vous voyez une *table plate* qui fusionne des informations provenant de plusieurs tables de la base de données. La colonne que vous souhaitez mettre à jour peut provenir de la table principale, d'une table de référence, d'une table de caractéristiques, ou être une agrégation de plusieurs enregistrements. Comprendre cette structure est essentiel pour mettre à jour correctement les données.
+
+## Prérequis
+
+```{r}
+library(CafriplotsR)
+library(dplyr)
+
+# Connexion à la base de données (nécessite des droits d'écriture)
+con <- call.mydb()
+```
+
+---
+
+## Comprendre la structure des données
+
+### Le problème : Tables plates vs. Base de données relationnelle
+
+Lorsque vous interrogez des parcelles ou des individus, vous voyez des colonnes comme :
+
+```{r}
+# Interroger une parcelle
+plot_data <- query_plots(plot_name = "ma_parcelle", extract_individuals = TRUE)
+
+# Vous voyez des colonnes comme :
+# - plot_name, ddlat, ddlon (directement de data_liste_plots)
+# - country (de table_countries via id_country)
+# - method (de methodslist via id_method)
+# - team_leader (agrégé de data_liste_sub_plots)
+# - dbh, height (agrégé de data_traits_measures)
+```
+
+Mais ces colonnes proviennent de **sources différentes** :
+
+| Type de colonne | Exemple | Source | Comment mettre à jour |
+|-----------------|---------|--------|----------------------|
+| **Colonnes directes** | `plot_name`, `ddlat`, `ddlon` | Table principale | `table_type = "plots"` |
+| **Colonnes de référence** | `country`, `method` | Tables de référence | Auto-résolu par `update_records()` |
+| **Caractéristiques subplot** | `team_leader`, `census_date` | `data_liste_sub_plots` | `table_type = "subplot_features"` |
+| **Caractéristiques individus** | `dbh`, `height` | `data_traits_measures` | `table_type = "individual_features"` |
+| **Valeurs agrégées** | Plusieurs DHP par arbre | Agrégation | Impossible à mettre à jour directement |
+
+---
+
+## La fonction `update_records()`
+
+### Utilisation de base
+
+```{r}
+update_records(
+  data = vos_donnees,         # Data frame avec les mises à jour
+  table_type = "individuals", # Quel type de table mettre à jour
+  execute = FALSE,            # FALSE = simulation, TRUE = appliquer les changements
+  con = con
+)
+```
+
+### Types de tables disponibles
+
+| `table_type` | Table de la BDD | Colonne ID | Description |
+|--------------|-----------------|------------|-------------|
+| `"individuals"` | `data_individuals` | `id_n` | Enregistrements des arbres individuels |
+| `"plots"` | `data_liste_plots` | `id_liste_plots` | Métadonnées des parcelles |
+| `"individual_features"` | `data_traits_measures` | `id_trait_measures` | Mesures des arbres (DHP, hauteur, etc.) |
+| `"subplot_features"` | `data_liste_sub_plots` | `id_sub_plots` | Caractéristiques des parcelles (dates de recensement, équipe, etc.) |
+| `"individual_features_metadata"` | `data_ind_measures_feat` | `id_ind_meas_feat` | Métadonnées des mesures (hauteur POM, etc.) |
+| `"methodslist"` | `methodslist` | `id_method` | Méthodes d'échantillonnage |
+| `"table_colnam"` | `table_colnam` | `id_table_colnam` | Noms des collecteurs |
+| `"traitlist"` | `traitlist` | `id_trait` | Définitions des traits |
+| `"subplotype_list"` | `subplotype_list` | `id_subplotype` | Types de caractéristiques subplot |
+
+---
+
+## Workflow : Décider quel type de table utiliser
+
+### Étape 1 : Identifier quelle colonne vous voulez mettre à jour
+
+Posez-vous la question : *D'où vient cette colonne ?*
+
+**Utilisez `get_column_routing()` pour voir la structure :**
+
+```{r}
+# Voir la configuration pour les individus
+config <- get_column_routing("individuals", con)
+print(config$direct_columns)   # Colonnes directement dans data_individuals
+print(config$feature_columns)  # Colonnes qui sont des caractéristiques (traits)
+```
+
+### Étape 2 : Choisir le bon type de table
+
+#### Cas A : Colonnes directes (plot_name, coordonnées, tag, etc.)
+
+```{r}
+# Mettre à jour les coordonnées d'un individu
+update_data <- data.frame(
+  id_n = c(1001, 1002),  # IDs des individus
+  x = c(11.0, 26.0),     # Nouvelles coordonnées X
+  y = c(6.0, 13.0)       # Nouvelles coordonnées Y
+)
+
+update_records(
+  data = update_data,
+  table_type = "individuals",
+  execute = FALSE,
+  con = con
+)
+```
+
+#### Cas B : Colonnes de caractéristiques (DHP, hauteur, etc.)
+
+Les colonnes de caractéristiques nécessitent de **travailler au niveau des mesures**, pas au niveau de l'individu :
+
+```{r}
+# INCORRECT : Essayer de mettre à jour le DHP via la table des individus
+# Cela ne fonctionnera pas car le DHP est stocké dans data_traits_measures
+
+# CORRECT : D'abord obtenir les IDs des mesures
+measures <- query_individual_features(
+  individual_ids = c(1001, 1002),
+  trait_ids = 1,  # ID pour le trait DHP
+  format = "long"
+)
+
+# Maintenant mettre à jour les mesures
+update_data <- data.frame(
+  id_trait_measures = measures$traits_num[[1]]$id_trait_measures,
+  traitvalue = c(45.2, 32.1)  # Nouvelles valeurs de DHP
+)
+
+update_records(
+  data = update_data,
+  table_type = "individual_features",
+  execute = FALSE,
+  con = con
+)
+```
+
+#### Cas C : Caractéristiques subplot (team_leader, dates de recensement, etc.)
+
+```{r}
+# D'abord, obtenir les IDs des caractéristiques subplot
+subplots <- query_subplot_features(plot_ids = 1, format = "long")
+
+# Mettre à jour des caractéristiques subplot spécifiques
+update_data <- data.frame(
+  id_sub_plots = subplots$id_sub_plots[1:2],
+  year = c(2024, 2024)  # Mettre à jour les années de recensement
+)
+
+update_records(
+  data = update_data,
+  table_type = "subplot_features",
+  execute = FALSE,
+  con = con
+)
+```
+
+---
+
+## Gestion des cas particuliers
+
+### Cas 1 : Les valeurs agrégées ne peuvent pas être mises à jour directement
+
+Si une colonne représente une **agrégation** (par ex. DHP moyen sur plusieurs recensements), vous ne pouvez pas la mettre à jour directement :
+
+```{r}
+# Quand vous interrogez avec agrégation :
+individuals <- query_individual_features(
+  plot_ids = 1,
+  trait_ids = c(1, 2),
+  format = "wide"  # Agrège plusieurs mesures
+)
+
+# Si un individu a 3 mesures de DHP sur plusieurs recensements,
+# le DHP affiché est une moyenne - vous ne pouvez pas mettre à jour "la moyenne"
+
+# SOLUTION : Travailler avec les mesures brutes
+individuals_long <- query_individual_features(
+  individual_ids = 1001,
+  trait_ids = 1,
+  format = "long"  # Montre toutes les mesures individuelles
+)
+
+# Maintenant mettre à jour la mesure spécifique que vous voulez changer
+update_records(
+  data = data.frame(
+    id_trait_measures = individuals_long$traits_num[[1]]$id_trait_measures[1],
+    traitvalue = 45.2
+  ),
+  table_type = "individual_features",
+  execute = FALSE,
+  con = con
+)
+```
+
+### Cas 2 : Caractéristiques spécifiques au recensement
+
+Si vos données ont des colonnes comme `dbh_census_1`, `dbh_census_2`, celles-ci sont spécifiques au recensement et nécessitent un traitement particulier :
+
+```{r}
+# Interroger avec le détail des recensements
+data_census <- query_individual_features(
+  plot_ids = 1,
+  include_multi_census = TRUE  # Garde les colonnes spécifiques au recensement
+)
+
+# Pour mettre à jour une mesure de recensement spécifique :
+# 1. Filtrer sur le recensement souhaité
+# 2. Obtenir l'ID de la mesure
+# 3. Mettre à jour avec table_type = "individual_features"
+```
+
+### Cas 3 : Valeurs des tables de référence (Pays, Méthode)
+
+La fonction `update_records()` **résout automatiquement** les valeurs de référence :
+
+```{r}
+# Vous pouvez fournir le nom lisible (country = "Gabon")
+# au lieu de l'ID (id_country = 5)
+
+update_data <- data.frame(
+  id_liste_plots = 1,
+  country = "Cameroun"  # Sera résolu en id_country automatiquement
+)
+
+update_records(
+  data = update_data,
+  table_type = "plots",
+  execute = FALSE,
+  con = con
+)
+```
+
+---
+
+## Exemples pratiques
+
+### Exemple 1 : Mettre à jour les coordonnées d'une parcelle
+
+```{r}
+# Étape 1 : Interroger la parcelle pour obtenir son ID
+plot <- query_plots(plot_name = "ma_parcelle")
+plot_id <- plot$id_liste_plots
+
+# Étape 2 : Préparer les données de mise à jour
+update_data <- data.frame(
+  id_liste_plots = plot_id,
+  ddlat = -0.52,
+  ddlon = 11.48
+)
+
+# Étape 3 : Simulation
+update_records(
+  data = update_data,
+  table_type = "plots",
+  execute = FALSE,
+  con = con
+)
+
+# Étape 4 : Exécuter si satisfait
+update_records(
+  data = update_data,
+  table_type = "plots",
+  execute = TRUE,
+  con = con
+)
+```
+
+### Exemple 2 : Mettre à jour la taxonomie d'un individu
+
+```{r}
+# Mettre à jour l'ID taxonomique d'un individu
+update_data <- data.frame(
+  id_n = 1001,
+  idtax_n = 67890  # Nouvel ID taxonomique
+)
+
+update_records(
+  data = update_data,
+  table_type = "individuals",
+  execute = FALSE,
+  con = con
+)
+```
+
+### Exemple 3 : Mettre à jour des mesures de DHP
+
+```{r}
+# Étape 1 : Obtenir les IDs des mesures pour les valeurs de DHP à mettre à jour
+measures <- query_individual_features(
+  individual_ids = c(1001, 1002, 1003),
+  trait_ids = 1,  # DHP
+  format = "long"
+)
+
+# Étape 2 : Examiner les données existantes
+print(measures$traits_num[[1]] %>% select(id_trait_measures, id_data_individuals, traitvalue))
+
+# Étape 3 : Préparer les mises à jour (ne changer que ce qui est nécessaire)
+update_data <- data.frame(
+  id_trait_measures = c(5001, 5002, 5003),  # IDs des mesures
+  traitvalue = c(45.2, 32.1, 28.5)          # Nouvelles valeurs de DHP
+)
+
+# Étape 4 : Mettre à jour
+update_records(
+  data = update_data,
+  table_type = "individual_features",
+  execute = FALSE,
+  con = con
+)
+```
+
+### Exemple 4 : Mettre à jour les métadonnées de mesure (hauteur POM)
+
+```{r}
+# Obtenir les IDs des caractéristiques de mesure
+feat <- query_traits_measures_features(id_trait_measures = c(5001, 5002))
+
+# Mettre à jour les métadonnées de hauteur POM
+update_data <- data.frame(
+  id_ind_meas_feat = feat$id_ind_meas_feat,
+  typevalue = c(1.3, 1.5)  # Nouvelles hauteurs POM
+)
+
+update_records(
+  data = update_data,
+  table_type = "individual_features_metadata",
+  execute = FALSE,
+  con = con
+)
+```
+
+---
+
+## Simulation vs Exécution
+
+**Utilisez toujours `execute = FALSE` d'abord** pour prévisualiser les changements :
+
+```{r}
+# Simulation - montre ce qui changerait sans modifier la base de données
+result <- update_records(
+  data = update_data,
+  table_type = "individuals",
+  execute = FALSE,  # IMPORTANT : Prévisualiser d'abord !
+  con = con
+)
+
+# Examiner les changements détectés
+print(result$changes)
+
+# Si satisfait, exécuter la mise à jour
+update_records(
+  data = update_data,
+  table_type = "individuals",
+  execute = TRUE,
+  con = con
+)
+```
+
+---
+
+## Arbre de décision
+
+```
+Je veux mettre à jour une colonne...
+│
+├─► Est-ce plot_name, ddlat, ddlon, elevation, locality_name ?
+│   └─► OUI → table_type = "plots"
+│
+├─► Est-ce tag, x, y, idtax_n, stem_code (données de base individu) ?
+│   └─► OUI → table_type = "individuals"
+│
+├─► Est-ce une mesure (dbh, height, etc.) ?
+│   │
+│   ├─► Avez-vous l'ID de la mesure (id_trait_measures) ?
+│   │   └─► OUI → table_type = "individual_features"
+│   │
+│   └─► NON → D'abord interroger avec format = "long" pour obtenir les IDs
+│
+├─► Est-ce team_leader, census_date, principal_investigator (caractéristique parcelle) ?
+│   │
+│   ├─► Avez-vous l'ID subplot (id_sub_plots) ?
+│   │   └─► OUI → table_type = "subplot_features"
+│   │
+│   └─► NON → D'abord interroger avec query_subplot_features() pour obtenir les IDs
+│
+├─► Est-ce une métadonnée sur une mesure (pom_height, method, etc.) ?
+│   └─► OUI → table_type = "individual_features_metadata"
+│
+└─► Est-ce une entrée de table de référence (définition de méthode, de trait) ?
+    └─► OUI → table_type = "methodslist", "traitlist", "table_colnam", etc.
+```
+
+---
+
+## Résumé des points clés
+
+1. **La table plate que vous voyez est une fusion de plusieurs tables de la base de données**
+2. **Utilisez `execute = FALSE` d'abord** pour prévisualiser tous les changements
+3. **Travaillez au bon niveau** :
+   - Données de base individu → `table_type = "individuals"`
+   - Données de base parcelle → `table_type = "plots"`
+   - Mesures (DHP, hauteur) → `table_type = "individual_features"`
+   - Caractéristiques parcelle (recensement, équipe) → `table_type = "subplot_features"`
+4. **Les valeurs agrégées ne peuvent pas être mises à jour directement** - obtenez d'abord les IDs des mesures brutes
+5. **Les valeurs de référence sont auto-résolues** - vous pouvez utiliser des noms lisibles comme "Gabon" au lieu des IDs
+6. **Les changements sont sauvegardés** automatiquement dans les tables `followup_updates_*` quand disponibles

@@ -1,4 +1,4 @@
-# CafriplotsR
+# CafriplotsR <img src="man/figures/logo.png" align="right" height="139" />
 
 > R package for managing and exploring the Central African forest plot database [cafriplot network](https://cafriplot.net/)
 

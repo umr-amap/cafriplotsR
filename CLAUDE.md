@@ -161,6 +161,101 @@ The package follows a **layered query architecture**:
 
 ![mydb databse structure](./vignettes/images/mydb_structure.png)
 
+### Plot Data Storage Architecture
+
+**CRITICAL: Understanding the three types of columns for plots**
+
+When working with plot data import/validation, it's essential to understand how different types of data are stored:
+
+#### 1. **Flat Columns** (Direct storage in `data_liste_plots`)
+Columns stored directly in the main plots table:
+- `plot_name`, `ddlat`, `ddlon`, `elevation`, `date_y`, `date_m`, `date_d`, etc.
+- Also includes ID columns for lookups (see below)
+- Retrieved directly when querying plots
+
+#### 2. **Lookup Columns** (Stored as Foreign Key IDs in `data_liste_plots`)
+
+**ONLY these two columns are lookup columns for plots:**
+- `method` → Foreign key to `methodslist.id_method`
+- `country` → Foreign key to `table_countries.id_country`
+
+These are stored as integer IDs directly in `data_liste_plots` and require lookup table matching during import.
+
+**Important:** People-related columns (principal_investigator, team_leader, etc.) are NOT lookup columns in `data_liste_plots` - they are features (see below).
+
+#### 3. **Features** (Stored in `data_liste_sub_plots` table)
+
+Features are stored separately in `data_liste_sub_plots` and linked to plots. Each row represents one feature instance.
+
+**Table structure of `data_liste_sub_plots`:**
+```r
+id_table_liste_plots  # FK to data_liste_plots
+id_type_sub_plot      # FK to subplotype_list (defines feature type)
+id_colnam             # FK to table_colnam (for people features)
+year, month, day      # Date information
+typevalue             # Numeric feature values
+typecode              # Character/text feature values
+```
+
+**Feature types are defined in `subplotype_list` table:**
+
+Query to see all feature types:
+```r
+subplot_list(con)  # Returns all available subplot feature types
+```
+
+**Three categories of features based on `valuetype`:**
+
+1. **Lookup Features** (`valuetype == "table_colnam"`):
+   - `principal_investigator` (id_subplotype = 247)
+   - `data_manager` (id_subplotype = 248)
+   - `additional_people` (id_subplotype = 249)
+   - `team_leader` (id_subplotype = 250)
+   - Stored in: `data_liste_sub_plots.id_colnam`
+   - **Require ID matching during import** (match person names to `table_colnam.id_table_colnam`)
+
+2. **Character Features** (`valuetype == "character"` or similar):
+   - `data_provider` and others
+   - Stored in: `data_liste_sub_plots.typecode`
+   - **No matching needed** - free text values
+
+3. **Numeric Features** (`valuetype == "numeric"`):
+   - Various measurements
+   - Stored in: `data_liste_sub_plots.typevalue`
+   - **No matching needed** - numeric values
+
+**How to dynamically identify lookup features:**
+```r
+# Get all feature types
+subplot_info <- subplot_list(con)
+
+# Filter for people features that need ID matching
+people_features <- subplot_info$type[subplot_info$valuetype == "table_colnam"]
+# Returns: c("principal_investigator", "data_manager", "additional_people", "team_leader")
+```
+
+**Import/Validation workflow:**
+1. **Plot-level lookups** (method, country): Match to IDs for `data_liste_plots`
+2. **Feature-level lookups** (people columns): Match to IDs for `data_liste_sub_plots.id_colnam`
+3. **Character features**: Store as-is in `data_liste_sub_plots.typecode`
+4. **Numeric features**: Store as-is in `data_liste_sub_plots.typevalue`
+
+**Key function for column routing:**
+```r
+config <- get_import_column_routing("plots", con)
+# Returns:
+# - direct_columns: columns in data_liste_plots (includes method, country as IDs)
+# - subplot_features: feature types from subplotype_list
+# - metadata_mappings: currently only defines country (method needs to be added)
+```
+
+**Common mistakes to avoid:**
+- ❌ Don't treat people columns as lookup columns in `data_liste_plots` - they're features!
+- ❌ Don't hardcode the list of people features - query `subplotype_list` dynamically
+- ❌ Don't try to match `data_provider` as a lookup - it's a character feature
+- ✅ Only method and country need lookup matching for the main plot table
+- ✅ Use `valuetype == "table_colnam"` to identify which features need ID matching
+
 ## Development Commands
 
 ### Building and Checking
