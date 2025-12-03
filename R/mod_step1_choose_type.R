@@ -35,22 +35,55 @@ mod_step1_choose_type_ui <- function(id) {
         style = "color: #856404; margin-bottom: 15px;"
       ),
 
+      shiny::tags$style(shiny::HTML("
+        .custom-checkbox-wrapper {
+          display: flex;
+          align-items: flex-start;
+          margin-bottom: 15px;
+          width: 100%;
+        }
+        .custom-checkbox-wrapper input[type='checkbox'] {
+          margin-top: 3px;
+          margin-right: 10px;
+          flex-shrink: 0;
+        }
+        .custom-checkbox-wrapper .checkbox-text {
+          flex: 1;
+          line-height: 1.5;
+          color: #856404;
+        }
+      ")),
+
       shiny::div(
         style = "margin-left: 10px;",
-        shiny::checkboxInput(
-          ns("confirm_plot_first"),
-          shiny::HTML(
-            "<strong>Plot metadata must be imported first:</strong> You must import plot metadata before importing individual tree data. Individual trees are linked to plots via <code>plot_name</code>."
+        shiny::tags$div(
+          class = "custom-checkbox-wrapper",
+          shiny::tags$input(
+            type = "checkbox",
+            id = ns("confirm_plot_first"),
+            value = FALSE
           ),
-          value = FALSE
+          shiny::tags$div(
+            class = "checkbox-text",
+            shiny::HTML(
+              "<strong>Plot/inventory metadata must be imported before individual trees/stems:</strong> Always import plot metadata first, before importing individual tree data. Individual trees are linked to plots via <code>plot_name</code>. If unsure how to structure your dataset, see the templates provided in the Plot metadata import section."
+            )
+          )
         ),
 
-        shiny::checkboxInput(
-          ns("confirm_taxonomy"),
-          shiny::HTML(
-            "<strong>Taxonomic information required:</strong> Before uploading individual data, make sure you have a column with the <code>idtax_n</code> of taxonomic information, which can be assigned using either the automatic function or the interactive app (see the information in the dedicated vignette of the tool)."
+        shiny::tags$div(
+          class = "custom-checkbox-wrapper",
+          shiny::tags$input(
+            type = "checkbox",
+            id = ns("confirm_taxonomy"),
+            value = FALSE
           ),
-          value = FALSE
+          shiny::tags$div(
+            class = "checkbox-text",
+            shiny::HTML(
+              "<strong>Taxonomic standardization required for trees/stems data:</strong> Before importing individual tree data, you must standardize taxonomic information. Use either the automatic standardization function or the interactive Shiny app for semi-automatic taxonomic matching. See the dedicated vignette for detailed instructions on taxonomic standardization."
+            )
+          )
         )
       )
     ),
