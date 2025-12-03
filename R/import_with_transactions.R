@@ -206,7 +206,13 @@ import_plot_metadata <- function(data,
         print(utils::head(plot_data, 3))
         cli::cli_alert_info("Columns: {paste(names(plot_data), collapse = ', ')}")
       }
-      plot_id_data <- NULL
+
+      # Create mock plot IDs for dry-run so feature joins work
+      plot_id_data <- data.frame(
+        id_liste_plots = 999L + seq_len(nrow(plot_data)),
+        plot_name = as.character(plot_data$plot_name),
+        stringsAsFactors = FALSE
+      )
     } else {
       if (progress) cli::cli_h2("Step 5: Inserting into data_liste_plots")
 
@@ -279,6 +285,7 @@ import_plot_metadata <- function(data,
             subplottype_field = feature_type,
             add_data = TRUE,
             ask_before_update = FALSE,
+            interactive = interactive,
             con = actual_con
           )
 
@@ -305,6 +312,7 @@ import_plot_metadata <- function(data,
             subplottype_field = feature_type,
             add_data = TRUE,
             ask_before_update = FALSE,
+            interactive = interactive,
             con = actual_con
           )
 
