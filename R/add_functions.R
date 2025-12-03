@@ -449,6 +449,7 @@ add_plots <- function(new_data,
 #' @param subplottype_field string vector listing trait columns names in new_data
 #' @param add_data logical whether or not data should be added - by default FALSE
 #' @param ask_before_update logical ask before adding
+#' @param interactive logical whether to use interactive prompts (default TRUE)
 #' @param verbose logical
 #' @param check_existing_data logical if it should be checked if imported data already exist in the database
 #' @param con database connection (optional, will create if NULL)
@@ -464,6 +465,7 @@ add_subplot_features <- function(new_data,
                                  features_field = NULL,
                                  add_data = FALSE,
                                  ask_before_update = TRUE,
+                                 interactive = TRUE,
                                  verbose = TRUE,
                                  check_existing_data = TRUE,
                                  con = NULL) {
@@ -542,41 +544,52 @@ add_subplot_features <- function(new_data,
   }
   
   if(!is.null(id_plot_name)) {
-    
+
     # if(id_plot_name == "id_table_liste_plots_n") id_plot_name <- "id_table_liste_plots_n"
-    
+
     new_data_renamed <-
       new_data_renamed %>%
       dplyr::rename_at(dplyr::all_of(dplyr::vars(id_plot_name)), ~ dplyr::all_of(id_plot_name_corresp))
-    
-    if(any(colnames(new_data_renamed) == "plot_name"))
-      new_data_renamed <-
-        new_data_renamed %>%
-        dplyr::select(-plot_name)
-    
-    if (id_plot_name_corresp == "id_table_liste_plots_n")
-      link_plot <-
-        new_data_renamed %>%
-        dplyr::left_join(
-          dplyr::tbl(mydb, "data_liste_plots") %>%
-            dplyr::select(plot_name, id_liste_plots) %>% dplyr::collect(),
-          by = c("id_table_liste_plots_n" = "id_liste_plots")
-        )
-    
-    
-    if (id_plot_name_corresp == "id_old")
-      link_plot <-
-        new_data_renamed %>%
-        dplyr::left_join(dplyr::tbl(mydb, "data_liste_plots") %>%
-                           dplyr::select(plot_name, id_old) %>% dplyr::collect(),
-                         by=c("id_old" = "id_old"))
-    
-    if(dplyr::filter(link_plot, is.na(plot_name)) %>%
-       nrow() > 0) {
-      print(dplyr::filter(link_plot, is.na(plot_name)))
-      if (verbose)  cli::cli_alert_warning("provided id plot not found in plot metadata")
+
+    # Check if plot_name already exists in the data
+    has_plot_name <- any(colnames(new_data_renamed) == "plot_name")
+
+    # Only look up plot_name from database if it's not already present
+    if (!has_plot_name) {
+      if (id_plot_name_corresp == "id_table_liste_plots_n") {
+        link_plot <-
+          new_data_renamed %>%
+          dplyr::left_join(
+            dplyr::tbl(mydb, "data_liste_plots") %>%
+              dplyr::select(plot_name, id_liste_plots) %>% dplyr::collect(),
+            by = c("id_table_liste_plots_n" = "id_liste_plots")
+          )
+
+        # Update new_data_renamed with the joined data (including plot_name)
+        new_data_renamed <- link_plot
+      }
+
+      if (id_plot_name_corresp == "id_old") {
+        link_plot <-
+          new_data_renamed %>%
+          dplyr::left_join(dplyr::tbl(mydb, "data_liste_plots") %>%
+                             dplyr::select(plot_name, id_old) %>% dplyr::collect(),
+                           by=c("id_old" = "id_old"))
+
+        # Update new_data_renamed with the joined data (including plot_name)
+        new_data_renamed <- link_plot
+      }
+
+      # Check if lookup failed
+      if(dplyr::filter(new_data_renamed, is.na(plot_name)) %>%
+         nrow() > 0) {
+        print(dplyr::filter(new_data_renamed, is.na(plot_name)))
+        if (verbose)  cli::cli_alert_warning("provided id plot not found in plot metadata")
+      }
+    } else {
+      if (verbose) cli::cli_alert_info("plot_name already present in data, skipping database lookup")
     }
-    
+
     if(id_plot_name_corresp == "id_table_liste_plots_n")
       new_data_renamed <-
         new_data_renamed %>%
@@ -660,13 +673,19 @@ add_subplot_features <- function(new_data,
                     date_modif_y = data_subplottype$date_modif_y)
     
     if(any(is.na(data_to_add$id_table_liste_plots))) {
-      rm_na <- choose_prompt(message = "Remove features not linked to plot ?")
-      
-      
+      # In interactive mode, ask user what to do
+      # In non-interactive mode, automatically remove NA records
+      if (interactive) {
+        rm_na <- choose_prompt(message = "Remove features not linked to plot ?")
+      } else {
+        rm_na <- TRUE  # Auto-remove in non-interactive mode
+        if (verbose) cli::cli_alert_warning("Removing {sum(is.na(data_to_add$id_table_liste_plots))} features not linked to plots (non-interactive mode)")
+      }
+
       if(rm_na) data_to_add <-
           data_to_add %>%
           filter(!is.na(id_table_liste_plots))
-      
+
     }
     
     list_add_data[[i]] <-
@@ -700,8 +719,13 @@ add_subplot_features <- function(new_data,
       if (nrow(crossing_data) > 0) {
         cli::cli_alert_info("Data to be imported already exist in the database")
         print(crossing_data)
-        continue <- choose_prompt(message = "Continue importing ?")
-        
+        if (interactive) {
+          continue <- choose_prompt(message = "Continue importing ?")
+        } else {
+          continue <- FALSE  # Don't import duplicates in non-interactive mode
+          if (verbose) cli::cli_alert_warning("Skipping {nrow(crossing_data)} duplicate records (non-interactive mode)")
+        }
+
       }
       
     } else {
@@ -711,8 +735,8 @@ add_subplot_features <- function(new_data,
     print(data_to_add)
     
     if(continue) {
-      
-      if (ask_before_update) {
+
+      if (ask_before_update && interactive) {
         response <-
           choose_prompt(message = "Confirm add these data to data_liste_sub_plots table?")
       } else {
