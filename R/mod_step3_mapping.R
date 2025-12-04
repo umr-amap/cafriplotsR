@@ -5,19 +5,20 @@
 #' Step 3 Module: Column Mapping - UI
 #'
 #' @param id Module namespace ID
+#' @param i18n Translator object from shiny.i18n
 #' @keywords internal
-mod_step3_mapping_ui <- function(id) {
+mod_step3_mapping_ui <- function(id, i18n) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
     shiny::h3(
       shiny::icon("exchange-alt"),
-      "Step 3: Map Your Columns to Database Schema",
+      i18n$t("Step 3: Map Your Columns to Database Schema"),
       style = "color: #495057; margin-bottom: 20px;"
     ),
 
     shiny::p(
-      "Review and adjust the automatic column mapping. The wizard has attempted to match your columns to the database schema.",
+      i18n$t("Review and adjust the automatic column mapping. The wizard has attempted to match your columns to the database schema."),
       style = "color: #6c757d; font-size: 16px; margin-bottom: 30px;"
     ),
 
@@ -27,7 +28,7 @@ mod_step3_mapping_ui <- function(id) {
     shiny::hr(),
 
     # Column mapping interface
-    shiny::h4("Column Mappings", style = "margin-bottom: 20px;"),
+    shiny::h4(i18n$t("Column Mappings"), style = "margin-bottom: 20px;"),
     shiny::uiOutput(ns("mapping_interface")),
 
     # Validation messages

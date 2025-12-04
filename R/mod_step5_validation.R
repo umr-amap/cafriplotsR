@@ -5,26 +5,27 @@
 #' Step 5 Module: Data Validation - UI
 #'
 #' @param id Module namespace ID
+#' @param i18n Translator object from shiny.i18n
 #' @keywords internal
-mod_step5_validation_ui <- function(id) {
+mod_step5_validation_ui <- function(id, i18n) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
     shiny::h3(
       shiny::icon("check-circle"),
-      "Step 5: Validate Your Data",
+      i18n$t("Step 5: Validate Your Data"),
       style = "color: #495057; margin-bottom: 20px;"
     ),
 
     shiny::p(
-      "Run validation checks on your data to identify any errors or warnings before importing.",
+      i18n$t("Run validation checks on your data to identify any errors or warnings before importing."),
       style = "color: #6c757d; font-size: 16px; margin-bottom: 30px;"
     ),
 
     # Run validation button
     shiny::actionButton(
       ns("run_validation"),
-      shiny::tagList(shiny::icon("play"), " Run Validation"),
+      shiny::tagList(shiny::icon("play"), paste0(" ", i18n$t("Run Validation"))),
       class = "btn-primary btn-lg",
       style = "margin-bottom: 30px;"
     ),

@@ -1224,6 +1224,978 @@
     {
       "en": "Number of individuals",
       "fr": "Nombre d'individus"
+    },
+    {
+      "en": "CafriPlots Import Wizard",
+      "fr": "Assistant d'import CafriPlots"
+    },
+    {
+      "en": "Step-by-step guide for importing plot and tree data",
+      "fr": "Guide étape par étape pour l'import de données de parcelles et d'arbres"
+    },
+    {
+      "en": "Choose Type",
+      "fr": "Choisir le type"
+    },
+    {
+      "en": "Upload Data",
+      "fr": "Charger les données"
+    },
+    {
+      "en": "Map Columns",
+      "fr": "Mapper les colonnes"
+    },
+    {
+      "en": "Match Lookups",
+      "fr": "Apparier les valeurs"
+    },
+    {
+      "en": "Validate",
+      "fr": "Valider"
+    },
+    {
+      "en": "Preview",
+      "fr": "Aperçu"
+    },
+    {
+      "en": "Import",
+      "fr": "Importer"
+    },
+    {
+      "en": "Step 1: Choose Import Type",
+      "fr": "Étape 1 : Choisir le type d'import"
+    },
+    {
+      "en": "Select the type of data you want to import.",
+      "fr": "Sélectionnez le type de données que vous souhaitez importer."
+    },
+    {
+      "en": "Important Requirements",
+      "fr": "Exigences importantes"
+    },
+    {
+      "en": "Please read and confirm you understand these requirements before proceeding:",
+      "fr": "Veuillez lire et confirmer que vous comprenez ces exigences avant de continuer :"
+    },
+    {
+      "en": "Plot/inventory metadata must be imported before individual trees/stems:",
+      "fr": "Les métadonnées de parcelle/inventaire doivent être importées avant les arbres/tiges individuels :"
+    },
+    {
+      "en": "Always import plot metadata first, before importing individual tree data. Individual trees are linked to plots via",
+      "fr": "Importez toujours les métadonnées de parcelle en premier, avant d'importer les données d'arbres individuels. Les arbres individuels sont liés aux parcelles via"
+    },
+    {
+      "en": "If unsure how to structure your dataset, see the templates provided in the Plot metadata import section.",
+      "fr": "Si vous ne savez pas comment structurer votre jeu de données, consultez les modèles fournis dans la section d'import des métadonnées de parcelle."
+    },
+    {
+      "en": "Taxonomic standardization required for trees/stems data:",
+      "fr": "Standardisation taxonomique requise pour les données d'arbres/tiges :"
+    },
+    {
+      "en": "Before importing individual tree data, you must standardize taxonomic information. Use either the automatic standardization function or the interactive Shiny app for semi-automatic taxonomic matching. See the dedicated vignette for detailed instructions on taxonomic standardization.",
+      "fr": "Avant d'importer les données d'arbres individuels, vous devez standardiser les informations taxonomiques. Utilisez soit la fonction de standardisation automatique, soit l'application Shiny interactive pour l'appariement taxonomique semi-automatique. Consultez la vignette dédiée pour des instructions détaillées sur la standardisation taxonomique."
+    },
+    {
+      "en": "Plot Metadata",
+      "fr": "Métadonnées de parcelle"
+    },
+    {
+      "en": "Import plot locations, census dates, methods, and associated metadata.",
+      "fr": "Importer les emplacements de parcelles, dates de recensement, méthodes et métadonnées associées."
+    },
+    {
+      "en": "Plot names and locations (coordinates)",
+      "fr": "Noms de parcelles et emplacements (coordonnées)"
+    },
+    {
+      "en": "Census dates and methods",
+      "fr": "Dates de recensement et méthodes"
+    },
+    {
+      "en": "Team members and investigators",
+      "fr": "Membres de l'équipe et chercheurs"
+    },
+    {
+      "en": "Plot characteristics",
+      "fr": "Caractéristiques des parcelles"
+    },
+    {
+      "en": "Required fields:",
+      "fr": "Champs requis :"
+    },
+    {
+      "en": "Individual Trees",
+      "fr": "Arbres individuels"
+    },
+    {
+      "en": "Import tree measurements, species identifications, and trait data.",
+      "fr": "Importer les mesures d'arbres, identifications d'espèces et données de traits."
+    },
+    {
+      "en": "Tree identifiers (tags)",
+      "fr": "Identifiants d'arbres (étiquettes)"
+    },
+    {
+      "en": "Species names (taxonomic data)",
+      "fr": "Noms d'espèces (données taxonomiques)"
+    },
+    {
+      "en": "Measurements (DBH, height, etc.)",
+      "fr": "Mesures (DHP, hauteur, etc.)"
+    },
+    {
+      "en": "Trait values",
+      "fr": "Valeurs de traits"
+    },
+    {
+      "en": "Selected:",
+      "fr": "Sélectionné :"
+    },
+    {
+      "en": "Action Required:",
+      "fr": "Action requise :"
+    },
+    {
+      "en": "Please confirm that you have read and understood both requirements above by checking the boxes before proceeding.",
+      "fr": "Veuillez confirmer que vous avez lu et compris les deux exigences ci-dessus en cochant les cases avant de continuer."
+    },
+    {
+      "en": "Requirements Confirmed:",
+      "fr": "Exigences confirmées :"
+    },
+    {
+      "en": "You may now proceed to the next step.",
+      "fr": "Vous pouvez maintenant passer à l'étape suivante."
+    },
+    {
+      "en": "Step 2: Upload Data or Download Template",
+      "fr": "Étape 2 : Charger des données ou télécharger un modèle"
+    },
+    {
+      "en": "Option 1: Download Template",
+      "fr": "Option 1 : Télécharger un modèle"
+    },
+    {
+      "en": "Start with a pre-formatted template to ensure your data matches the required structure.",
+      "fr": "Commencez avec un modèle pré-formaté pour vous assurer que vos données correspondent à la structure requise."
+    },
+    {
+      "en": "Template Type:",
+      "fr": "Type de modèle :"
+    },
+    {
+      "en": "Minimal (Required fields only)",
+      "fr": "Minimal (Champs requis seulement)"
+    },
+    {
+      "en": "Permanent Plot (Recommended)",
+      "fr": "Parcelle permanente (Recommandé)"
+    },
+    {
+      "en": "Transect Survey",
+      "fr": "Relevé de transect"
+    },
+    {
+      "en": "Full (All optional fields)",
+      "fr": "Complet (Tous les champs optionnels)"
+    },
+    {
+      "en": "Include example data",
+      "fr": "Inclure des exemples de données"
+    },
+    {
+      "en": "Download Template",
+      "fr": "Télécharger le modèle"
+    },
+    {
+      "en": "Tip: The template includes column descriptions and validation rules.",
+      "fr": "Conseil : Le modèle inclut des descriptions de colonnes et des règles de validation."
+    },
+    {
+      "en": "Option 2: Upload Your Data",
+      "fr": "Option 2 : Charger vos données"
+    },
+    {
+      "en": "Upload an existing Excel or CSV file with your data.",
+      "fr": "Charger un fichier Excel ou CSV existant avec vos données."
+    },
+    {
+      "en": "Supported formats:",
+      "fr": "Formats supportés :"
+    },
+    {
+      "en": "Excel: .xlsx, .xls",
+      "fr": "Excel : .xlsx, .xls"
+    },
+    {
+      "en": "CSV: .csv (UTF-8 encoding)",
+      "fr": "CSV : .csv (encodage UTF-8)"
+    },
+    {
+      "en": "Maximum file size:",
+      "fr": "Taille maximale du fichier :"
+    },
+    {
+      "en": "Data Preview",
+      "fr": "Aperçu des données"
+    },
+    {
+      "en": "Rows",
+      "fr": "Lignes"
+    },
+    {
+      "en": "Columns",
+      "fr": "Colonnes"
+    },
+    {
+      "en": "Size",
+      "fr": "Taille"
+    },
+    {
+      "en": "Column names:",
+      "fr": "Noms de colonnes :"
+    },
+    {
+      "en": "Showing first 100 rows",
+      "fr": "Affichage des 100 premières lignes"
+    },
+    {
+      "en": "Generating template...",
+      "fr": "Génération du modèle..."
+    },
+    {
+      "en": "Creating structure...",
+      "fr": "Création de la structure..."
+    },
+    {
+      "en": "Writing Excel file...",
+      "fr": "Écriture du fichier Excel..."
+    },
+    {
+      "en": "Complete!",
+      "fr": "Terminé !"
+    },
+    {
+      "en": "Template downloaded successfully!",
+      "fr": "Modèle téléchargé avec succès !"
+    },
+    {
+      "en": "Loading file...",
+      "fr": "Chargement du fichier..."
+    },
+    {
+      "en": "Reading file...",
+      "fr": "Lecture du fichier..."
+    },
+    {
+      "en": "Validating structure...",
+      "fr": "Validation de la structure..."
+    },
+    {
+      "en": "Error loading file:",
+      "fr": "Erreur lors du chargement du fichier :"
+    },
+    {
+      "en": "File loaded:",
+      "fr": "Fichier chargé :"
+    },
+    {
+      "en": "Step 3: Map Your Columns to Database Schema",
+      "fr": "Étape 3 : Mapper vos colonnes au schéma de la base de données"
+    },
+    {
+      "en": "Review and adjust the automatic column mapping. The wizard has attempted to match your columns to the database schema.",
+      "fr": "Examiner et ajuster le mappage automatique des colonnes. L'assistant a tenté de faire correspondre vos colonnes au schéma de la base de données."
+    },
+    {
+      "en": "Column Mappings",
+      "fr": "Mappages de colonnes"
+    },
+    {
+      "en": "Auto-Mapped",
+      "fr": "Mappé automatiquement"
+    },
+    {
+      "en": "Review Suggested",
+      "fr": "Révision suggérée"
+    },
+    {
+      "en": "Needs Mapping",
+      "fr": "Nécessite un mappage"
+    },
+    {
+      "en": "Total Columns",
+      "fr": "Total de colonnes"
+    },
+    {
+      "en": "Exact Match",
+      "fr": "Correspondance exacte"
+    },
+    {
+      "en": "Fuzzy",
+      "fr": "Approximatif"
+    },
+    {
+      "en": "Not Mapped",
+      "fr": "Non mappé"
+    },
+    {
+      "en": "Samples:",
+      "fr": "Exemples :"
+    },
+    {
+      "en": "(Skip this column)",
+      "fr": "(Ignorer cette colonne)"
+    },
+    {
+      "en": "Mapping Complete:",
+      "fr": "Mappage terminé :"
+    },
+    {
+      "en": "All %d required columns are mapped. You have mapped %d columns total.",
+      "fr": "Toutes les %d colonnes requises sont mappées. Vous avez mappé %d colonnes au total."
+    },
+    {
+      "en": "Missing Required Columns:",
+      "fr": "Colonnes requises manquantes :"
+    },
+    {
+      "en": "You must map the following required columns:",
+      "fr": "Vous devez mapper les colonnes requises suivantes :"
+    },
+    {
+      "en": "Step 4: Match Lookup Values",
+      "fr": "Étape 4 : Apparier les valeurs de référence"
+    },
+    {
+      "en": "Before validation, let's match your lookup values (methods, countries, people) to the database.",
+      "fr": "Avant la validation, apparions vos valeurs de référence (méthodes, pays, personnes) à la base de données."
+    },
+    {
+      "en": "This step ensures your data references the correct database entries.",
+      "fr": "Cette étape garantit que vos données référencent les bonnes entrées de la base de données."
+    },
+    {
+      "en": "Analyze Lookup Values",
+      "fr": "Analyser les valeurs de référence"
+    },
+    {
+      "en": "Analyzing lookup values...",
+      "fr": "Analyse des valeurs de référence..."
+    },
+    {
+      "en": "Analysis complete!",
+      "fr": "Analyse terminée !"
+    },
+    {
+      "en": "Analysis Results",
+      "fr": "Résultats de l'analyse"
+    },
+    {
+      "en": "Total Lookup Values",
+      "fr": "Total de valeurs de référence"
+    },
+    {
+      "en": "Exact Matches",
+      "fr": "Correspondances exactes"
+    },
+    {
+      "en": "Need Matching",
+      "fr": "Nécessitent un appariement"
+    },
+    {
+      "en": "All values match!",
+      "fr": "Toutes les valeurs correspondent !"
+    },
+    {
+      "en": "You can proceed to the next step.",
+      "fr": "Vous pouvez passer à l'étape suivante."
+    },
+    {
+      "en": "Matching required:",
+      "fr": "Appariement requis :"
+    },
+    {
+      "en": "Please review and match the %d value(s) below to continue.",
+      "fr": "Veuillez examiner et apparier les %d valeur(s) ci-dessous pour continuer."
+    },
+    {
+      "en": "Great! All lookup values match exactly. You can proceed to validation.",
+      "fr": "Excellent ! Toutes les valeurs de référence correspondent exactement. Vous pouvez passer à la validation."
+    },
+    {
+      "en": "Found %d lookup value(s) that need matching.",
+      "fr": "Trouvé %d valeur(s) de référence nécessitant un appariement."
+    },
+    {
+      "en": "Interactive Lookup Matching",
+      "fr": "Appariement interactif de référence"
+    },
+    {
+      "en": "Some values in your data don't exactly match the database.",
+      "fr": "Certaines valeurs dans vos données ne correspondent pas exactement à la base de données."
+    },
+    {
+      "en": "Please review and select the correct match for each value, or add new entries.",
+      "fr": "Veuillez examiner et sélectionner la correspondance correcte pour chaque valeur, ou ajouter de nouvelles entrées."
+    },
+    {
+      "en": "Apply Matches",
+      "fr": "Appliquer les correspondances"
+    },
+    {
+      "en": "Skip (Keep as Errors)",
+      "fr": "Passer (Garder comme erreurs)"
+    },
+    {
+      "en": "All values match! No manual matching needed.",
+      "fr": "Toutes les valeurs correspondent ! Aucun appariement manuel nécessaire."
+    },
+    {
+      "en": "Column:",
+      "fr": "Colonne :"
+    },
+    {
+      "en": "Found %d unique value(s) that need matching:",
+      "fr": "Trouvé %d valeur(s) unique(s) nécessitant un appariement :"
+    },
+    {
+      "en": "Your value:",
+      "fr": "Votre valeur :"
+    },
+    {
+      "en": "Select correct match:",
+      "fr": "Sélectionner la correspondance correcte :"
+    },
+    {
+      "en": "(Select a match)",
+      "fr": "(Sélectionner une correspondance)"
+    },
+    {
+      "en": "--- Add New Value ---",
+      "fr": "--- Ajouter une nouvelle valeur ---"
+    },
+    {
+      "en": "Description:",
+      "fr": "Description :"
+    },
+    {
+      "en": "Add New Method",
+      "fr": "Ajouter une nouvelle méthode"
+    },
+    {
+      "en": "Add a new method for:",
+      "fr": "Ajouter une nouvelle méthode pour :"
+    },
+    {
+      "en": "Method Name:",
+      "fr": "Nom de la méthode :"
+    },
+    {
+      "en": "Protocol Description:",
+      "fr": "Description du protocole :"
+    },
+    {
+      "en": "Describe the survey protocol/method...",
+      "fr": "Décrire le protocole/méthode de relevé..."
+    },
+    {
+      "en": "Add Method",
+      "fr": "Ajouter la méthode"
+    },
+    {
+      "en": "Add New Person",
+      "fr": "Ajouter une nouvelle personne"
+    },
+    {
+      "en": "Add a new person for:",
+      "fr": "Ajouter une nouvelle personne pour :"
+    },
+    {
+      "en": "First Name:",
+      "fr": "Prénom :"
+    },
+    {
+      "en": "Last Name:",
+      "fr": "Nom de famille :"
+    },
+    {
+      "en": "Add Person",
+      "fr": "Ajouter la personne"
+    },
+    {
+      "en": "Method name is required",
+      "fr": "Le nom de la méthode est requis"
+    },
+    {
+      "en": "Both first and last names are required",
+      "fr": "Le prénom et le nom de famille sont tous deux requis"
+    },
+    {
+      "en": "Added new method:",
+      "fr": "Nouvelle méthode ajoutée :"
+    },
+    {
+      "en": "Added new person:",
+      "fr": "Nouvelle personne ajoutée :"
+    },
+    {
+      "en": "Error adding method:",
+      "fr": "Erreur lors de l'ajout de la méthode :"
+    },
+    {
+      "en": "Error adding person:",
+      "fr": "Erreur lors de l'ajout de la personne :"
+    },
+    {
+      "en": "Applied %d match(es)",
+      "fr": "Appliqué %d correspondance(s)"
+    },
+    {
+      "en": "Successfully matched %d value(s)! You can proceed to validation.",
+      "fr": "Succès d'appariement de %d valeur(s) ! Vous pouvez passer à la validation."
+    },
+    {
+      "en": "Skipped matching. Original data will be used for validation.",
+      "fr": "Appariement ignoré. Les données originales seront utilisées pour la validation."
+    },
+    {
+      "en": "Step 5: Validate Your Data",
+      "fr": "Étape 5 : Valider vos données"
+    },
+    {
+      "en": "Run validation checks on your data to identify any errors or warnings before importing.",
+      "fr": "Exécuter les vérifications de validation sur vos données pour identifier les erreurs ou avertissements avant l'import."
+    },
+    {
+      "en": "Run Validation",
+      "fr": "Exécuter la validation"
+    },
+    {
+      "en": "Validating data...",
+      "fr": "Validation des données..."
+    },
+    {
+      "en": "Validation complete!",
+      "fr": "Validation terminée !"
+    },
+    {
+      "en": "Total Rows",
+      "fr": "Total de lignes"
+    },
+    {
+      "en": "Errors",
+      "fr": "Erreurs"
+    },
+    {
+      "en": "Warnings",
+      "fr": "Avertissements"
+    },
+    {
+      "en": "Auto-Fixed",
+      "fr": "Corrigé automatiquement"
+    },
+    {
+      "en": "Validation Passed!",
+      "fr": "Validation réussie !"
+    },
+    {
+      "en": "Your data meets all requirements and is ready to import.",
+      "fr": "Vos données répondent à toutes les exigences et sont prêtes à être importées."
+    },
+    {
+      "en": "Note: %d warning(s) were found but do not prevent import.",
+      "fr": "Note : %d avertissement(s) ont été trouvés mais n'empêchent pas l'import."
+    },
+    {
+      "en": "Validation Failed",
+      "fr": "Validation échouée"
+    },
+    {
+      "en": "Found %d error(s) that must be fixed before import.",
+      "fr": "Trouvé %d erreur(s) qui doivent être corrigées avant l'import."
+    },
+    {
+      "en": "Auto-Applied Fixes",
+      "fr": "Corrections auto-appliquées"
+    },
+    {
+      "en": "The following values were automatically corrected during validation:",
+      "fr": "Les valeurs suivantes ont été automatiquement corrigées lors de la validation :"
+    },
+    {
+      "en": "Validation passed! Your data is ready to import.",
+      "fr": "Validation réussie ! Vos données sont prêtes à être importées."
+    },
+    {
+      "en": "Validation found %d error(s). Please review and fix.",
+      "fr": "La validation a trouvé %d erreur(s). Veuillez examiner et corriger."
+    },
+    {
+      "en": "Running validation...",
+      "fr": "Exécution de la validation..."
+    },
+    {
+      "en": "Validation error:",
+      "fr": "Erreur de validation :"
+    },
+    {
+      "en": "Step 6: Preview Your Data",
+      "fr": "Étape 6 : Aperçu de vos données"
+    },
+    {
+      "en": "Review your cleaned and validated data before importing to the database.",
+      "fr": "Examiner vos données nettoyées et validées avant de les importer dans la base de données."
+    },
+    {
+      "en": "Rows to Import",
+      "fr": "Lignes à importer"
+    },
+    {
+      "en": "Columns Mapped",
+      "fr": "Colonnes mappées"
+    },
+    {
+      "en": "Values Auto-Fixed",
+      "fr": "Valeurs corrigées automatiquement"
+    },
+    {
+      "en": "Ready to Import",
+      "fr": "Prêt pour l'import"
+    },
+    {
+      "en": "No automatic changes were made to your data. All values were valid.",
+      "fr": "Aucune modification automatique n'a été apportée à vos données. Toutes les valeurs étaient valides."
+    },
+    {
+      "en": "%d automatic change(s) were applied:",
+      "fr": "%d modification(s) automatique(s) appliquée(s) :"
+    },
+    {
+      "en": "Your original data remains unchanged. Only the imported data will reflect these corrections.",
+      "fr": "Vos données originales restent inchangées. Seules les données importées refléteront ces corrections."
+    },
+    {
+      "en": "Changes Applied:",
+      "fr": "Modifications appliquées :"
+    },
+    {
+      "en": "Download Cleaned Data",
+      "fr": "Télécharger les données nettoyées"
+    },
+    {
+      "en": "Download your cleaned data for review or backup:",
+      "fr": "Téléchargez vos données nettoyées pour examen ou sauvegarde :"
+    },
+    {
+      "en": "Download Excel",
+      "fr": "Télécharger Excel"
+    },
+    {
+      "en": "Download CSV",
+      "fr": "Télécharger CSV"
+    },
+    {
+      "en": "Showing %d of %d total rows",
+      "fr": "Affichage de %d sur %d lignes au total"
+    },
+    {
+      "en": "Excel file downloaded successfully! (with readable lookup values)",
+      "fr": "Fichier Excel téléchargé avec succès ! (avec valeurs de référence lisibles)"
+    },
+    {
+      "en": "CSV file downloaded successfully! (with readable lookup values)",
+      "fr": "Fichier CSV téléchargé avec succès ! (avec valeurs de référence lisibles)"
+    },
+    {
+      "en": "Step 7: Execute Import",
+      "fr": "Étape 7 : Exécuter l'import"
+    },
+    {
+      "en": "Ready to import your data into the database. This operation will:",
+      "fr": "Prêt à importer vos données dans la base de données. Cette opération va :"
+    },
+    {
+      "en": "Link methods and countries to database references",
+      "fr": "Lier les méthodes et pays aux références de la base de données"
+    },
+    {
+      "en": "Insert plot metadata into data_liste_plots",
+      "fr": "Insérer les métadonnées de parcelle dans data_liste_plots"
+    },
+    {
+      "en": "Insert subplot features (people, census info, etc.)",
+      "fr": "Insérer les caractéristiques de sous-parcelle (personnes, info de recensement, etc.)"
+    },
+    {
+      "en": "Use database transactions (rollback on error)",
+      "fr": "Utiliser les transactions de base de données (annulation en cas d'erreur)"
+    },
+    {
+      "en": "Generate admin code for row-level security access",
+      "fr": "Générer le code admin pour l'accès de sécurité au niveau des lignes"
+    },
+    {
+      "en": "Dry Run (Preview)",
+      "fr": "Essai à vide (Aperçu)"
+    },
+    {
+      "en": "Preview the import without making changes to the database.",
+      "fr": "Prévisualiser l'import sans apporter de modifications à la base de données."
+    },
+    {
+      "en": "Run Dry Run",
+      "fr": "Exécuter l'essai à vide"
+    },
+    {
+      "en": "Live Import",
+      "fr": "Import réel"
+    },
+    {
+      "en": "Execute the actual import to the database.",
+      "fr": "Exécuter l'import réel dans la base de données."
+    },
+    {
+      "en": "Execute Import",
+      "fr": "Exécuter l'import"
+    },
+    {
+      "en": "Running dry run...",
+      "fr": "Exécution de l'essai à vide..."
+    },
+    {
+      "en": "Dry run complete!",
+      "fr": "Essai à vide terminé !"
+    },
+    {
+      "en": "Dry run completed successfully! Review the results below.",
+      "fr": "Essai à vide terminé avec succès ! Examinez les résultats ci-dessous."
+    },
+    {
+      "en": "Dry run failed:",
+      "fr": "Essai à vide échoué :"
+    },
+    {
+      "en": "Confirm Import",
+      "fr": "Confirmer l'import"
+    },
+    {
+      "en": "Are you sure you want to import this data to the database?",
+      "fr": "Êtes-vous sûr de vouloir importer ces données dans la base de données ?"
+    },
+    {
+      "en": "This will insert %d rows into the database.",
+      "fr": "Cela va insérer %d lignes dans la base de données."
+    },
+    {
+      "en": "Yes, Import Now",
+      "fr": "Oui, importer maintenant"
+    },
+    {
+      "en": "Importing data...",
+      "fr": "Import des données..."
+    },
+    {
+      "en": "Import complete!",
+      "fr": "Import terminé !"
+    },
+    {
+      "en": "Successfully imported %d plots!",
+      "fr": "Succès de l'import de %d parcelles !"
+    },
+    {
+      "en": "Import failed:",
+      "fr": "Échec de l'import :"
+    },
+    {
+      "en": "Dry Run Completed: %d plots would be imported",
+      "fr": "Essai à vide terminé : %d parcelles seraient importées"
+    },
+    {
+      "en": "Import Successful: %d plots imported!",
+      "fr": "Import réussi : %d parcelles importées !"
+    },
+    {
+      "en": "Important: Row-Level Security",
+      "fr": "Important : Sécurité au niveau des lignes"
+    },
+    {
+      "en": "You may not have access to these plots yet due to row-level security policies.",
+      "fr": "Vous pourriez ne pas encore avoir accès à ces parcelles en raison des politiques de sécurité au niveau des lignes."
+    },
+    {
+      "en": "Imported plots:",
+      "fr": "Parcelles importées :"
+    },
+    {
+      "en": "Admin Access Code",
+      "fr": "Code d'accès administrateur"
+    },
+    {
+      "en": "Send the following R code to your database administrator to grant you access:",
+      "fr": "Envoyez le code R suivant à votre administrateur de base de données pour obtenir l'accès :"
+    },
+    {
+      "en": "Download Admin Code (.R)",
+      "fr": "Télécharger le code admin (.R)"
+    },
+    {
+      "en": "Copy to Clipboard",
+      "fr": "Copier dans le presse-papiers"
+    },
+    {
+      "en": "Admin code copied to clipboard!",
+      "fr": "Code admin copié dans le presse-papiers !"
+    },
+    {
+      "en": "Import Failed",
+      "fr": "Échec de l'import"
+    },
+    {
+      "en": "Admin code downloaded successfully!",
+      "fr": "Code admin téléchargé avec succès !"
+    },
+    {
+      "en": "Database Connection",
+      "fr": "Connexion à la base de données"
+    },
+    {
+      "en": "Connect to the CafriplotsR database to access forest plot data.",
+      "fr": "Se connecter à la base de données CafriplotsR pour accéder aux données de parcelles forestières."
+    },
+    {
+      "en": "Use saved credentials from .Renviron",
+      "fr": "Utiliser les identifiants enregistrés depuis .Renviron"
+    },
+    {
+      "en": "Database Credentials",
+      "fr": "Identifiants de base de données"
+    },
+    {
+      "en": "Username",
+      "fr": "Nom d'utilisateur"
+    },
+    {
+      "en": "Database username",
+      "fr": "Nom d'utilisateur de la base de données"
+    },
+    {
+      "en": "Database password",
+      "fr": "Mot de passe de la base de données"
+    },
+    {
+      "en": "Credentials will only be used for this session. To save credentials permanently, use",
+      "fr": "Les identifiants ne seront utilisés que pour cette session. Pour enregistrer les identifiants de manière permanente, utilisez"
+    },
+    {
+      "en": "in R console.",
+      "fr": "dans la console R."
+    },
+    {
+      "en": "Connect to Database",
+      "fr": "Se connecter à la base de données"
+    },
+    {
+      "en": "Saved credentials detected",
+      "fr": "Identifiants enregistrés détectés"
+    },
+    {
+      "en": "You can use your saved credentials or enter new ones manually.",
+      "fr": "Vous pouvez utiliser vos identifiants enregistrés ou en saisir de nouveaux manuellement."
+    },
+    {
+      "en": "No saved credentials found. Please enter your database credentials.",
+      "fr": "Aucun identifiant enregistré trouvé. Veuillez saisir vos identifiants de base de données."
+    },
+    {
+      "en": "Please enter username and password",
+      "fr": "Veuillez saisir nom d'utilisateur et mot de passe"
+    },
+    {
+      "en": "Connecting to main database...",
+      "fr": "Connexion à la base de données principale..."
+    },
+    {
+      "en": "Connecting to taxa database...",
+      "fr": "Connexion à la base de données taxonomiques..."
+    },
+    {
+      "en": "Connection successful!",
+      "fr": "Connexion réussie !"
+    },
+    {
+      "en": "Successfully connected to database!",
+      "fr": "Connexion réussie à la base de données !"
+    },
+    {
+      "en": "Successfully connected to databases!",
+      "fr": "Connexion réussie aux bases de données !"
+    },
+    {
+      "en": "Connecting to database...",
+      "fr": "Connexion à la base de données..."
+    },
+    {
+      "en": "Main database connection failed:",
+      "fr": "Échec de la connexion à la base de données principale :"
+    },
+    {
+      "en": "Taxa database connection failed:",
+      "fr": "Échec de la connexion à la base de données taxonomiques :"
+    },
+    {
+      "en": "Back",
+      "fr": "Retour"
+    },
+    {
+      "en": "Please complete this step before proceeding",
+      "fr": "Veuillez compléter cette étape avant de continuer"
+    },
+    {
+      "en": "Configuration loaded for:",
+      "fr": "Configuration chargée pour :"
+    },
+    {
+      "en": "Error loading configuration:",
+      "fr": "Erreur lors du chargement de la configuration :"
+    },
+    {
+      "en": "Data loaded:",
+      "fr": "Données chargées :"
+    },
+    {
+      "en": "Column mapping complete:",
+      "fr": "Mappage de colonnes terminé :"
+    },
+    {
+      "en": "columns mapped",
+      "fr": "colonnes mappées"
+    },
+    {
+      "en": "Lookup matching complete!",
+      "fr": "Appariement de référence terminé !"
+    },
+    {
+      "en": "Data validation passed!",
+      "fr": "Validation des données réussie !"
+    },
+    {
+      "en": "Browse...",
+      "fr": "Parcourir..."
+    },
+    {
+      "en": "No file selected",
+      "fr": "Aucun fichier sélectionné"
+    },
+    {
+      "en": "Unsupported file format:",
+      "fr": "Format de fichier non supporté :"
+    },
+    {
+      "en": "match",
+      "fr": "correspondance"
     }
   ]
 }

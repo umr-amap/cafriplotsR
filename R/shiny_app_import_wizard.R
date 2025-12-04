@@ -42,11 +42,16 @@
 #' launch_import_wizard(launch_browser = FALSE)
 #' }
 #'
+#' @param language Character, initial language ("en" or "fr"), default: "fr"
+#'
 #' @export
-launch_import_wizard <- function(launch_browser = TRUE) {
+launch_import_wizard <- function(launch_browser = TRUE, language = "fr") {
+
+  # Validate parameters
+  language <- match.arg(language, c("en", "fr"))
 
   # Check required packages
-  required_pkgs <- c("shiny", "shinyjs", "DT")
+  required_pkgs <- c("shiny", "shinyjs", "DT", "shiny.i18n")
   missing_pkgs <- required_pkgs[!sapply(required_pkgs, requireNamespace, quietly = TRUE)]
 
   if (length(missing_pkgs) > 0) {
@@ -57,10 +62,15 @@ launch_import_wizard <- function(launch_browser = TRUE) {
     ))
   }
 
+  # Initialize translator (must be before UI for usei18n)
+  translator <- init_translator()
+
   # Launch app
   shiny::shinyApp(
-    ui = import_wizard_ui(),
-    server = import_wizard_server,
+    ui = import_wizard_ui(translator, language),
+    server = function(input, output, session) {
+      import_wizard_server(input, output, session, translator)
+    },
     options = list(launch.browser = launch_browser)
   )
 }
@@ -68,11 +78,31 @@ launch_import_wizard <- function(launch_browser = TRUE) {
 
 #' UI for Import Wizard
 #' @keywords internal
-import_wizard_ui <- function() {
+import_wizard_ui <- function(translator, language = "fr") {
 
-  shiny::fluidPage(
+  shiny::tagList(
+    # Add shiny.i18n (required for automatic translation)
+    shiny.i18n::usei18n(translator),
+
     # Enable shinyjs for JavaScript interactions
     shinyjs::useShinyjs(),
+
+  shiny::fluidPage(
+    # Language toggle (top right)
+    shiny::absolutePanel(
+      top = 10,
+      right = 20,
+      fixed = TRUE,
+      draggable = FALSE,
+      style = "z-index: 1000;",
+      shiny::radioButtons(
+        inputId = "selected_language",
+        label = NULL,
+        choices = c("EN" = "en", "FR" = "fr"),
+        selected = language,
+        inline = TRUE
+      )
+    ),
 
     # Custom CSS
     tags$head(
@@ -238,13 +268,14 @@ import_wizard_ui <- function() {
         )
       )
     ) # End conditionalPanel for main app
-  )
+  ) # End fluidPage
+  ) # End tagList
 }
 
 
 #' Server for Import Wizard
 #' @keywords internal
-import_wizard_server <- function(input, output, session) {
+import_wizard_server <- function(input, output, session, translator) {
 
   # Database authentication using login module
   login_output <- mod_database_login_server("login")
@@ -257,6 +288,15 @@ import_wizard_server <- function(input, output, session) {
     authenticated_reactive()
   })
   shiny::outputOptions(output, "authenticated", suspendWhenHidden = FALSE)
+
+  # Create reactive translator (shiny.i18n recommended pattern)
+  i18n <- shiny::reactive({
+    selected <- input$selected_language
+    if (length(selected) > 0 && selected %in% translator$get_languages()) {
+      translator$set_translation_language(selected)
+    }
+    translator
+  })
 
   # Cleanup on session end
   session$onSessionEnded(function() {
@@ -289,13 +329,13 @@ import_wizard_server <- function(input, output, session) {
   # Step indicator UI
   output$step_indicator <- renderUI({
     step_labels <- c(
-      "Choose Type",
-      "Upload Data",
-      "Map Columns",
-      "Match Lookups",
-      "Validate",
-      "Preview",
-      "Import"
+      i18n()$t("Choose Type"),
+      i18n()$t("Upload Data"),
+      i18n()$t("Map Columns"),
+      i18n()$t("Match Lookups"),
+      i18n()$t("Validate"),
+      i18n()$t("Preview"),
+      i18n()$t("Import")
     )
 
     div(
@@ -327,13 +367,13 @@ import_wizard_server <- function(input, output, session) {
   output$step_content <- renderUI({
     switch(
       as.character(rv$step),
-      "1" = mod_step1_choose_type_ui("step1"),
-      "2" = mod_step2_upload_ui("step2"),
-      "3" = mod_step3_mapping_ui("step3"),
-      "4" = mod_step4_lookup_matching_ui("step4"),
-      "5" = mod_step5_validation_ui("step5"),
-      "6" = mod_step6_preview_ui("step6"),
-      "7" = mod_step7_import_ui("step7")
+      "1" = mod_step1_choose_type_ui("step1", i18n()),
+      "2" = mod_step2_upload_ui("step2", i18n()),
+      "3" = mod_step3_mapping_ui("step3", i18n()),
+      "4" = mod_step4_lookup_matching_ui("step4", i18n()),
+      "5" = mod_step5_validation_ui("step5", i18n()),
+      "6" = mod_step6_preview_ui("step6", i18n()),
+      "7" = mod_step7_import_ui("step7", i18n())
     )
   })
 
@@ -342,7 +382,7 @@ import_wizard_server <- function(input, output, session) {
     if (rv$step > 1) {
       actionButton(
         "btn_back",
-        label = tagList(icon("arrow-left"), " Back"),
+        label = tagList(icon("arrow-left"), " ", i18n()$t("Back")),
         class = "btn btn-secondary btn-lg"
       )
     }
@@ -354,9 +394,9 @@ import_wizard_server <- function(input, output, session) {
 
     # Change label on final step
     label <- if (rv$step == 7) {
-      tagList(icon("check"), " Execute Import")
+      tagList(icon("check"), " ", i18n()$t("Execute Import"))
     } else {
-      tagList("Next ", icon("arrow-right"))
+      tagList(i18n()$t("Next"), " ", icon("arrow-right"))
     }
 
     actionButton(
