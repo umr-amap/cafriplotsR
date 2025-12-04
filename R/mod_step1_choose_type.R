@@ -5,19 +5,20 @@
 #' Step 1 Module: Choose Import Type - UI
 #'
 #' @param id Module namespace ID
+#' @param i18n Translator object from shiny.i18n
 #' @keywords internal
-mod_step1_choose_type_ui <- function(id) {
+mod_step1_choose_type_ui <- function(id, i18n) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
     shiny::h3(
       shiny::icon("clipboard-list"),
-      "Step 1: Choose Import Type",
+      i18n$t("Step 1: Choose Import Type"),
       style = "color: #495057; margin-bottom: 20px;"
     ),
 
     shiny::p(
-      "Select the type of data you want to import.",
+      i18n$t("Select the type of data you want to import."),
       style = "color: #6c757d; font-size: 16px; margin-bottom: 20px;"
     ),
 
@@ -27,11 +28,11 @@ mod_step1_choose_type_ui <- function(id) {
       style = "margin-bottom: 30px; background-color: #fff3cd; border-left: 4px solid #ffc107;",
       shiny::h5(
         shiny::icon("exclamation-triangle"),
-        shiny::strong(" Important Requirements"),
+        shiny::strong(paste0(" ", i18n$t("Important Requirements"))),
         style = "margin-top: 0; color: #856404;"
       ),
       shiny::p(
-        "Please read and confirm you understand these requirements before proceeding:",
+        i18n$t("Please read and confirm you understand these requirements before proceeding:"),
         style = "color: #856404; margin-bottom: 15px;"
       ),
 
@@ -66,7 +67,12 @@ mod_step1_choose_type_ui <- function(id) {
           shiny::tags$div(
             class = "checkbox-text",
             shiny::HTML(
-              "<strong>Plot/inventory metadata must be imported before individual trees/stems:</strong> Always import plot metadata first, before importing individual tree data. Individual trees are linked to plots via <code>plot_name</code>. If unsure how to structure your dataset, see the templates provided in the Plot metadata import section."
+              paste0(
+                "<strong>", i18n$t("Plot/inventory metadata must be imported before individual trees/stems:"), "</strong> ",
+                i18n$t("Always import plot metadata first, before importing individual tree data. Individual trees are linked to plots via"),
+                " <code>plot_name</code>. ",
+                i18n$t("If unsure how to structure your dataset, see the templates provided in the Plot metadata import section.")
+              )
             )
           )
         ),
@@ -81,7 +87,10 @@ mod_step1_choose_type_ui <- function(id) {
           shiny::tags$div(
             class = "checkbox-text",
             shiny::HTML(
-              "<strong>Taxonomic standardization required for trees/stems data:</strong> Before importing individual tree data, you must standardize taxonomic information. Use either the automatic standardization function or the interactive Shiny app for semi-automatic taxonomic matching. See the dedicated vignette for detailed instructions on taxonomic standardization."
+              paste0(
+                "<strong>", i18n$t("Taxonomic standardization required for trees/stems data:"), "</strong> ",
+                i18n$t("Before importing individual tree data, you must standardize taxonomic information. Use either the automatic standardization function or the interactive Shiny app for semi-automatic taxonomic matching. See the dedicated vignette for detailed instructions on taxonomic standardization.")
+              )
             )
           )
         )
@@ -101,24 +110,24 @@ mod_step1_choose_type_ui <- function(id) {
           shiny::h4(
             shiny::icon("map-marked-alt", style = "color: #007bff; font-size: 32px;"),
             br(),
-            "Plot Metadata"
+            i18n$t("Plot Metadata")
           ),
 
           shiny::p(
-            "Import plot locations, census dates, methods, and associated metadata.",
+            i18n$t("Import plot locations, census dates, methods, and associated metadata."),
             style = "color: #6c757d;"
           ),
 
           shiny::tags$ul(
-            shiny::tags$li("Plot names and locations (coordinates)"),
-            shiny::tags$li("Census dates and methods"),
-            shiny::tags$li("Team members and investigators"),
-            shiny::tags$li("Plot characteristics")
+            shiny::tags$li(i18n$t("Plot names and locations (coordinates)")),
+            shiny::tags$li(i18n$t("Census dates and methods")),
+            shiny::tags$li(i18n$t("Team members and investigators")),
+            shiny::tags$li(i18n$t("Plot characteristics"))
           ),
 
           shiny::div(
             style = "margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;",
-            shiny::strong("Required fields:"),
+            shiny::strong(paste0(i18n$t("Required fields"), ":")),
             shiny::tags$code("plot_name, method, country")
           )
         )
@@ -135,24 +144,24 @@ mod_step1_choose_type_ui <- function(id) {
           shiny::h4(
             shiny::icon("tree", style = "color: #28a745; font-size: 32px;"),
             br(),
-            "Individual Trees"
+            i18n$t("Individual Trees")
           ),
 
           shiny::p(
-            "Import tree measurements, species identifications, and trait data.",
+            i18n$t("Import tree measurements, species identifications, and trait data."),
             style = "color: #6c757d;"
           ),
 
           shiny::tags$ul(
-            shiny::tags$li("Tree identifiers (tags)"),
-            shiny::tags$li("Species names (taxonomic data)"),
-            shiny::tags$li("Measurements (DBH, height, etc.)"),
-            shiny::tags$li("Trait values")
+            shiny::tags$li(i18n$t("Tree identifiers (tags)")),
+            shiny::tags$li(i18n$t("Species names (taxonomic data)")),
+            shiny::tags$li(i18n$t("Measurements (DBH, height, etc.)")),
+            shiny::tags$li(i18n$t("Trait values"))
           ),
 
           shiny::div(
             style = "margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;",
-            shiny::strong("Required fields:"),
+            shiny::strong(paste0(i18n$t("Required fields"), ":")),
             shiny::tags$code("plot_name, idtax_n")
           )
         )

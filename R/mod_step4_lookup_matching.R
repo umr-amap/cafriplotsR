@@ -5,27 +5,31 @@
 #' Step 4 Module: Lookup Matching - UI
 #'
 #' @param id Module namespace ID
+#' @param i18n Translator object from shiny.i18n
 #' @keywords internal
-mod_step4_lookup_matching_ui <- function(id) {
+mod_step4_lookup_matching_ui <- function(id, i18n) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
     shiny::h3(
       shiny::icon("link"),
-      "Step 4: Match Lookup Values",
+      i18n$t("Step 4: Match Lookup Values"),
       style = "color: #495057; margin-bottom: 20px;"
     ),
 
     shiny::p(
-      "Before validation, let's match your lookup values (methods, countries, people) to the database. ",
-      "This step ensures your data references the correct database entries.",
+      paste0(
+        i18n$t("Before validation, let's match your lookup values (methods, countries, people) to the database."),
+        " ",
+        i18n$t("This step ensures your data references the correct database entries.")
+      ),
       style = "color: #6c757d; font-size: 16px; margin-bottom: 30px;"
     ),
 
     # Analyze button
     shiny::actionButton(
       ns("analyze_lookups"),
-      shiny::tagList(shiny::icon("search"), " Analyze Lookup Values"),
+      shiny::tagList(shiny::icon("search"), paste0(" ", i18n$t("Analyze Lookup Values"))),
       class = "btn-primary btn-lg",
       style = "margin-bottom: 30px;"
     ),

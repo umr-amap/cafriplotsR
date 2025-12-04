@@ -5,14 +5,15 @@
 #' Step 2 Module: Upload Data - UI
 #'
 #' @param id Module namespace ID
+#' @param i18n Translator object from shiny.i18n
 #' @keywords internal
-mod_step2_upload_ui <- function(id) {
+mod_step2_upload_ui <- function(id, i18n) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
     shiny::h3(
       shiny::icon("cloud-upload-alt"),
-      "Step 2: Upload Data or Download Template",
+      i18n$t("Step 2: Upload Data or Download Template"),
       style = "color: #495057; margin-bottom: 20px;"
     ),
 
@@ -27,11 +28,11 @@ mod_step2_upload_ui <- function(id) {
 
           shiny::h4(
             shiny::icon("file-download", style = "color: #007bff;"),
-            " Option 1: Download Template"
+            paste0(" ", i18n$t("Option 1: Download Template"))
           ),
 
           shiny::p(
-            "Start with a pre-formatted template to ensure your data matches the required structure.",
+            i18n$t("Start with a pre-formatted template to ensure your data matches the required structure."),
             style = "color: #6c757d;"
           ),
 
@@ -40,7 +41,7 @@ mod_step2_upload_ui <- function(id) {
           # Template type selection
           shiny::radioButtons(
             ns("template_type"),
-            "Template Type:",
+            paste0(i18n$t("Template Type"), ":"),
             choices = c(
               "Minimal (Required fields only)" = "minimal",
               "Permanent Plot (Recommended)" = "permanent_plot",
@@ -52,13 +53,13 @@ mod_step2_upload_ui <- function(id) {
 
           shiny::checkboxInput(
             ns("with_examples"),
-            "Include example data",
+            i18n$t("Include example data"),
             value = TRUE
           ),
 
           shiny::downloadButton(
             ns("download_template"),
-            "Download Template",
+            i18n$t("Download Template"),
             class = "btn-primary btn-lg",
             style = "width: 100%; margin-top: 10px;"
           ),
@@ -67,7 +68,7 @@ mod_step2_upload_ui <- function(id) {
             style = "margin-top: 15px; padding: 10px; background: white; border-radius: 4px;",
             shiny::icon("lightbulb", style = "color: #ffc107;"),
             shiny::tags$small(
-              " Tip: The template includes column descriptions and validation rules.",
+              paste0(" ", i18n$t("Tip: The template includes column descriptions and validation rules.")),
               style = "color: #6c757d;"
             )
           )
@@ -83,11 +84,11 @@ mod_step2_upload_ui <- function(id) {
 
           shiny::h4(
             shiny::icon("file-upload", style = "color: #28a745;"),
-            " Option 2: Upload Your Data"
+            paste0(" ", i18n$t("Option 2: Upload Your Data"))
           ),
 
           shiny::p(
-            "Upload an existing Excel or CSV file with your data.",
+            i18n$t("Upload an existing Excel or CSV file with your data."),
             style = "color: #6c757d;"
           ),
 
@@ -98,15 +99,15 @@ mod_step2_upload_ui <- function(id) {
             ns("file_upload"),
             NULL,
             accept = c(".xlsx", ".xls", ".csv"),
-            placeholder = "No file selected",
-            buttonLabel = "Browse...",
+            placeholder = i18n$t("No file selected"),
+            buttonLabel = i18n$t("Browse..."),
             width = "100%"
           ),
 
           shiny::div(
             class = "alert alert-secondary",
             style = "font-size: 14px;",
-            shiny::strong("Supported formats:"),
+            shiny::strong(paste0(i18n$t("Supported formats"), ":")),
             shiny::tags$ul(
               style = "margin-bottom: 0;",
               shiny::tags$li("Excel: .xlsx, .xls"),
@@ -118,7 +119,7 @@ mod_step2_upload_ui <- function(id) {
             class = "alert alert-warning",
             style = "font-size: 14px;",
             shiny::icon("exclamation-triangle"),
-            shiny::strong(" Maximum file size: "),
+            shiny::strong(paste0(" ", i18n$t("Maximum file size"), ": ")),
             "100 MB"
           )
         )
