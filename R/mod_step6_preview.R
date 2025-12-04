@@ -5,19 +5,20 @@
 #' Step 6 Module: Preview Data - UI
 #'
 #' @param id Module namespace ID
+#' @param i18n Translator object from shiny.i18n
 #' @keywords internal
-mod_step6_preview_ui <- function(id) {
+mod_step6_preview_ui <- function(id, i18n) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
     shiny::h3(
       shiny::icon("eye"),
-      "Step 6: Preview Your Data",
+      i18n$t("Step 6: Preview Your Data"),
       style = "color: #495057; margin-bottom: 20px;"
     ),
 
     shiny::p(
-      "Review your cleaned and validated data before importing to the database.",
+      i18n$t("Review your cleaned and validated data before importing to the database."),
       style = "color: #6c757d; font-size: 16px; margin-bottom: 30px;"
     ),
 
