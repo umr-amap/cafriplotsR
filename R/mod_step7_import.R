@@ -5,19 +5,20 @@
 #' Step 7 Module: Execute Import - UI
 #'
 #' @param id Module namespace ID
+#' @param i18n Translator object from shiny.i18n
 #' @keywords internal
-mod_step7_import_ui <- function(id) {
+mod_step7_import_ui <- function(id, i18n) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
     shiny::h3(
       shiny::icon("database"),
-      "Step 7: Execute Import",
+      i18n$t("Step 7: Execute Import"),
       style = "color: #495057; margin-bottom: 20px;"
     ),
 
     shiny::p(
-      "Ready to import your data into the database. This operation will:",
+      paste0(i18n$t("Ready to import your data into the database. This operation will"), ":"),
       style = "color: #6c757d; font-size: 16px;"
     ),
 
