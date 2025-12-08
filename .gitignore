@@ -19,6 +19,9 @@ R/*.Rmd
 *.xlsx
 *.csv
 *.gpkg
+*.gpkg-shm
+*.gpkg-wal
+*.kml
 
 # Ignore working markdown documentation in root (keep README.md, NEWS.md, CLAUDE.md)
 ADD_PLOT_FEATURES_IMPLEMENTATION.md
