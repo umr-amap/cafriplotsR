@@ -2,6 +2,29 @@
 
 ### New Features
 
+* **Import Wizard: Duplicate plot detection during validation**
+  - New validation step checks for potential duplicate plots in database
+  - Matches on method, country, and coordinates (rounded to 3 decimals ≈ 111m precision)
+  - Prevents re-importing existing plots with different names (e.g., "FND32" vs "Releve32")
+  - Returns warnings (not errors) with existing plot names for user awareness
+  - Respects row-level security (only checks plots user can access)
+
+* **Import Wizard: UTM coordinate detection and conversion**
+  - Two-stage detection system for UTM coordinates:
+    - **Stage 1 (Validation)**: Detects coordinates > 1000 with specific error message
+    - **Stage 2 (Preview)**: Interactive converter with zone and hemisphere inputs
+  - Uses sf package for coordinate transformation (EPSG 326XX/327XX → 4326)
+  - Converts in-place and updates preview map automatically
+  - Guides users to convert rather than rejecting data
+
+* **Import Wizard: Interactive map preview in Step 6**
+  - Leaflet map displays plot locations with marker clustering
+  - Auto-zoom to plot extent
+  - Clickable popups show plot details (name, coordinates, method, country)
+  - Warnings for invalid coordinates and unusual ranges
+  - Info box guides users to fix reversed lat/lon by switching column mappings
+  - Helps catch common errors: reversed coordinates, wrong coordinate system
+
 * **Interactive Import Wizard Shiny App for Plot Metadata**
   - New `launch_import_wizard()` function provides comprehensive 7-step workflow for importing plot metadata
   - **Step 1: Choose Type** - Select import type (plots or individuals)
@@ -64,6 +87,23 @@
   - Set via `launch_taxonomic_match_app(language = "fr")` or `language = "en"`
 
 ### Bug Fixes
+
+* **Import Wizard: Fixed mixed IDs and names in people column preview**
+  - Preview was showing mix of numeric IDs (169, 85) and text names (Théophile Ayol)
+  - Now processes each value individually in comma-separated lists
+  - Converts numeric IDs to names, keeps text names as-is
+  - Applies to all lookup columns (method, country, people fields)
+
+* **Import Wizard: Fixed skipped columns still appearing in preview**
+  - Columns set to "skip" in column mapping were still appearing in data preview
+  - Now properly filters out NA mappings in both validation and preview steps
+  - Removed skipped columns from data before processing
+
+* **Import Wizard: Fixed mapping state not persisting on navigation**
+  - Manual changes (e.g., skipping columns) were lost when navigating back
+  - Added persistent `user_modified_mappings` ReactiveVal to track changes
+  - Observers now track dropdown changes without cascade triggering
+  - Returns both `mappings` (no NAs) and `mappings_with_skips` (includes NAs)
 
 * **Fixed import failing with unmapped columns**
   - Import now filters out columns that were skipped during column mapping

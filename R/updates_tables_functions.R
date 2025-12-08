@@ -3956,62 +3956,112 @@ get_column_routing <- function(table_type, con) {
 }
 
 get_table_columns <- function(table_name, con) {
-  cols <- DBI::dbListFields(con, table_name)
-  
-  system_cols <- c("date_creation_d", "date_creation_m", "date_creation_y",
-                   "date_modif_d", "date_modif_m", "date_modif_y",
-                   "user_creation", "user_modif")
-  
-  if (table_name == "data_liste_plots") {
-    system_cols <- c(system_cols,
-                     "team_leader", "province", "region_name2", "region_name1",
-                     "additional_people", "data_provider", "co_authorship",
-                     "forest_type", "area_plot", "topo_comment", "notes")
-  }
-  
+
+  # For data_individuals, only specific columns are actually user-editable during import
+  # All other "features" are stored in data_ind_measures_feat and mapped via traitlist
   if (table_name == "data_individuals") {
-    system_cols <- c(system_cols,
-                     "position_x", "position_y", "tree_height", "observations")
+    return(c(
+      "plot_name",           # Plot identifier (required)
+      "tag",                 # Individual tag/number (recommended)
+      "idtax_n",             # Taxonomy ID (required)
+      "original_tax_name",   # Original taxonomic name (required)
+      "herbarium_nbe_type",  # Herbarium specimen type (optional)
+      "herbarium_nbe_char",  # Herbarium specimen number (optional)
+      "multi_tiges_id"       # Multi-stem identifier (optional)
+    ))
   }
-  
-  setdiff(cols, system_cols)
+
+  # For other tables, dynamically query and filter system columns
+  tryCatch({
+    # Handle pool connections
+    actual_con <- if (inherits(con, "Pool")) {
+      pool::poolCheckout(con)
+    } else {
+      con
+    }
+
+    # Ensure we return the connection to pool if needed
+    on.exit({
+      if (inherits(con, "Pool") && !is.null(actual_con)) {
+        pool::poolReturn(actual_con)
+      }
+    }, add = TRUE)
+
+    cols <- DBI::dbListFields(actual_con, table_name)
+
+    system_cols <- c("date_creation_d", "date_creation_m", "date_creation_y",
+                     "date_modif_d", "date_modif_m", "date_modif_y",
+                     "user_modif")
+
+    if (table_name == "data_liste_plots") {
+      system_cols <- c(system_cols,
+                       "team_leader", "province",
+                       "additional_people", "data_provider", "co_authorship",
+                       "forest_type", "area_plot", "topo_comment", "notes")
+    }
+
+    setdiff(cols, system_cols)
+  }, error = function(e) {
+    # Fallback: return basic required columns if query fails
+    message("Note: Could not fetch table columns for ", table_name, " (", e$message, "). Using fallback columns.")
+    if (table_name == "data_liste_plots") {
+      c("plot_name", "ddlat", "ddlon", "elevation", "date_y", "date_m", "date_d",
+        "locality_name", "method", "country")
+    } else {
+      character(0)
+    }
+  })
 }
 
 get_available_individual_features <- function(con) {
-  dplyr::tbl(con, "traitlist") %>%
-    dplyr::select(trait) %>%
-    dplyr::distinct() %>%
-    dplyr::collect() %>%
-    dplyr::pull(trait)
+  tryCatch({
+    dplyr::tbl(con, "traitlist") %>%
+      dplyr::select(trait) %>%
+      dplyr::distinct() %>%
+      dplyr::collect() %>%
+      dplyr::pull(trait)
+  }, error = function(e) {
+    # Fallback: return empty character vector if query fails
+    # Log to console but don't propagate error
+    message("Note: Could not fetch trait list (", e$message, "). Using empty list.")
+    character(0)
+  })
 }
 
 get_available_subplot_types <- function(con) {
-  dplyr::tbl(con, "subplotype_list") %>%
-    dplyr::select(type) %>%
-    dplyr::distinct() %>%
-    dplyr::collect() %>%
-    dplyr::pull(type)
+  tryCatch({
+    dplyr::tbl(con, "subplotype_list") %>%
+      dplyr::select(type) %>%
+      dplyr::distinct() %>%
+      dplyr::collect() %>%
+      dplyr::pull(type)
+  }, error = function(e) {
+    # Fallback: return empty character vector if query fails
+    # Log to console but don't propagate error
+    message("Note: Could not fetch subplot types (", e$message, "). Using empty list.")
+    character(0)
+  })
 }
 
 get_metadata_mappings_individuals <- function(con) {
-  list(
-    country = list(
-      id_col = "id_country",
-      lookup_table = "table_countries",
-      lookup_key = "id_country",
-      lookup_value = "country"
-    ),
+  # Individuals have NO lookup columns that need matching
+  # - plot_name: references existing plot (validated separately)
+  # - idtax_n: already the taxonomy ID (from pre-matching step)
+  # - tag, original_tax_name, herbarium_*, multi_tiges_id: all free text
+  #
+  # Method and country are plot-level fields, NOT individual-level
+  list()
+}
+
+get_metadata_mappings_plots <- function(con) {
+  # Plot-level lookups (hardcoded - stored directly in data_liste_plots)
+  mappings <- list(
     method = list(
       id_col = "id_method",
       lookup_table = "methodslist",
       lookup_key = "id_method",
       lookup_value = "method"
-    )
-  )
-}
-
-get_metadata_mappings_plots <- function(con) {
-  list(
+    ),
     country = list(
       id_col = "id_country",
       lookup_table = "table_countries",
@@ -4019,6 +4069,55 @@ get_metadata_mappings_plots <- function(con) {
       lookup_value = "country"
     )
   )
+
+  # Feature-level lookups (dynamic - query from subplotype_list)
+  # These are features stored in data_liste_sub_plots that use table_colnam for lookups
+  tryCatch({
+    # If con is a pool, get a regular connection
+    actual_con <- if (inherits(con, "Pool")) {
+      pool::poolCheckout(con)
+    } else {
+      con
+    }
+
+    # Ensure we return the connection to pool if needed
+    on.exit({
+      if (inherits(con, "Pool") && !is.null(actual_con)) {
+        pool::poolReturn(actual_con)
+      }
+    }, add = TRUE)
+
+    subplot_info <- subplot_list(actual_con)
+
+    # Filter for features that use table_colnam (people columns)
+    if (!is.null(subplot_info) &&
+        is.data.frame(subplot_info) &&
+        nrow(subplot_info) > 0 &&
+        "type" %in% names(subplot_info) &&
+        "valuetype" %in% names(subplot_info)) {
+
+      people_features <- subplot_info$type[!is.na(subplot_info$valuetype) & subplot_info$valuetype == "table_colnam"]
+      people_features <- people_features[!is.na(people_features)]
+
+      # Add each people feature to mappings
+      if (length(people_features) > 0) {
+        for (feature in as.character(people_features)) {
+          mappings[[feature]] <- list(
+            id_col = "id_colnam",
+            lookup_table = "table_colnam",
+            lookup_key = "id_table_colnam",
+            lookup_value = "colnam"
+          )
+        }
+      }
+    }
+  }, error = function(e) {
+    # Log to console for debugging but don't propagate error
+    # This ensures users don't see confusing error messages
+    message("Note: Could not fetch subplot types for metadata mappings (", e$message, "). Continuing with basic lookups.")
+  })
+
+  return(mappings)
 }
 
 reverse_map_metadata <- function(data, config, con, interactive = TRUE, similarity_threshold = 0.6) {
