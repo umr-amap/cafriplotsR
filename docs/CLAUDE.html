@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -141,12 +141,92 @@
 <img src="./articles/images/mydb_structure.png" alt="mydb databse structure"><div class="figcaption">mydb databse structure</div>
 </div>
 </div>
+<div class="section level3">
+<h3 id="plot-data-storage-architecture">Plot Data Storage Architecture<a class="anchor" aria-label="anchor" href="#plot-data-storage-architecture"></a></h3>
+<p><strong>CRITICAL: Understanding the three types of columns for plots</strong></p>
+<p>When working with plot data import/validation, it’s essential to understand how different types of data are stored:</p>
+<div class="section level4">
+<h4 id="id_1-flat-columns-direct-storage-in-data_liste_plots">1. <strong>Flat Columns</strong> (Direct storage in <code>data_liste_plots</code>)<a class="anchor" aria-label="anchor" href="#id_1-flat-columns-direct-storage-in-data_liste_plots"></a></h4>
+<p>Columns stored directly in the main plots table: - <code>plot_name</code>, <code>ddlat</code>, <code>ddlon</code>, <code>elevation</code>, <code>date_y</code>, <code>date_m</code>, <code>date_d</code>, etc. - Also includes ID columns for lookups (see below) - Retrieved directly when querying plots</p>
+</div>
+<div class="section level4">
+<h4 id="id_2-lookup-columns-stored-as-foreign-key-ids-in-data_liste_plots">2. <strong>Lookup Columns</strong> (Stored as Foreign Key IDs in <code>data_liste_plots</code>)<a class="anchor" aria-label="anchor" href="#id_2-lookup-columns-stored-as-foreign-key-ids-in-data_liste_plots"></a></h4>
+<p><strong>ONLY these two columns are lookup columns for plots:</strong> - <code>method</code> → Foreign key to <code>methodslist.id_method</code> - <code>country</code> → Foreign key to <code>table_countries.id_country</code></p>
+<p>These are stored as integer IDs directly in <code>data_liste_plots</code> and require lookup table matching during import.</p>
+<p><strong>Important:</strong> People-related columns (principal_investigator, team_leader, etc.) are NOT lookup columns in <code>data_liste_plots</code> - they are features (see below).</p>
+</div>
+<div class="section level4">
+<h4 id="id_3-features-stored-in-data_liste_sub_plots-table">3. <strong>Features</strong> (Stored in <code>data_liste_sub_plots</code> table)<a class="anchor" aria-label="anchor" href="#id_3-features-stored-in-data_liste_sub_plots-table"></a></h4>
+<p>Features are stored separately in <code>data_liste_sub_plots</code> and linked to plots. Each row represents one feature instance.</p>
+<p><strong>Table structure of <code>data_liste_sub_plots</code>:</strong></p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>id_table_liste_plots  <span class="co"># FK to data_liste_plots</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>id_type_sub_plot      <span class="co"># FK to subplotype_list (defines feature type)</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>id_colnam             <span class="co"># FK to table_colnam (for people features)</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>year, month, day      <span class="co"># Date information</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>typevalue             <span class="co"># Numeric feature values</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>typecode              <span class="co"># Character/text feature values</span></span></code></pre></div>
+<p><strong>Feature types are defined in <code>subplotype_list</code> table:</strong></p>
+<p>Query to see all feature types:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/subplot_list.html">subplot_list</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span>  <span class="co"># Returns all available subplot feature types</span></span></code></pre></div>
+<p><strong>Three categories of features based on <code>valuetype</code>:</strong></p>
+<ol style="list-style-type: decimal"><li>
+<strong>Lookup Features</strong> (<code>valuetype == "table_colnam"</code>):
+<ul><li>
+<code>principal_investigator</code> (id_subplotype = 247)</li>
+<li>
+<code>data_manager</code> (id_subplotype = 248)</li>
+<li>
+<code>additional_people</code> (id_subplotype = 249)</li>
+<li>
+<code>team_leader</code> (id_subplotype = 250)</li>
+<li>Stored in: <code>data_liste_sub_plots.id_colnam</code>
+</li>
+<li>
+<strong>Require ID matching during import</strong> (match person names to <code>table_colnam.id_table_colnam</code>)</li>
+</ul></li>
+<li>
+<strong>Character Features</strong> (<code>valuetype == "character"</code> or similar):
+<ul><li>
+<code>data_provider</code> and others</li>
+<li>Stored in: <code>data_liste_sub_plots.typecode</code>
+</li>
+<li>
+<strong>No matching needed</strong> - free text values</li>
+</ul></li>
+<li>
+<strong>Numeric Features</strong> (<code>valuetype == "numeric"</code>):
+<ul><li>Various measurements</li>
+<li>Stored in: <code>data_liste_sub_plots.typevalue</code>
+</li>
+<li>
+<strong>No matching needed</strong> - numeric values</li>
+</ul></li>
+</ol><p><strong>How to dynamically identify lookup features:</strong></p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Get all feature types</span></span>
+<span><span class="va">subplot_info</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/subplot_list.html">subplot_list</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Filter for people features that need ID matching</span></span>
+<span><span class="va">people_features</span> <span class="op">&lt;-</span> <span class="va">subplot_info</span><span class="op">$</span><span class="va">type</span><span class="op">[</span><span class="va">subplot_info</span><span class="op">$</span><span class="va">valuetype</span> <span class="op">==</span> <span class="st">"table_colnam"</span><span class="op">]</span></span>
+<span><span class="co"># Returns: c("principal_investigator", "data_manager", "additional_people", "team_leader")</span></span></code></pre></div>
+<p><strong>Import/Validation workflow:</strong> 1. <strong>Plot-level lookups</strong> (method, country): Match to IDs for <code>data_liste_plots</code> 2. <strong>Feature-level lookups</strong> (people columns): Match to IDs for <code>data_liste_sub_plots.id_colnam</code> 3. <strong>Character features</strong>: Store as-is in <code>data_liste_sub_plots.typecode</code> 4. <strong>Numeric features</strong>: Store as-is in <code>data_liste_sub_plots.typevalue</code></p>
+<p><strong>Key function for column routing:</strong></p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">config</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_import_column_routing.html">get_import_column_routing</a></span><span class="op">(</span><span class="st">"plots"</span>, <span class="va">con</span><span class="op">)</span></span>
+<span><span class="co"># Returns:</span></span>
+<span><span class="co"># - direct_columns: columns in data_liste_plots (includes method, country as IDs)</span></span>
+<span><span class="co"># - subplot_features: feature types from subplotype_list</span></span>
+<span><span class="co"># - metadata_mappings: currently only defines country (method needs to be added)</span></span></code></pre></div>
+<p><strong>Common mistakes to avoid:</strong> - ❌ Don’t treat people columns as lookup columns in <code>data_liste_plots</code> - they’re features! - ❌ Don’t hardcode the list of people features - query <code>subplotype_list</code> dynamically - ❌ Don’t try to match <code>data_provider</code> as a lookup - it’s a character feature - ✅ Only method and country need lookup matching for the main plot table - ✅ Use <code>valuetype == "table_colnam"</code> to identify which features need ID matching</p>
+</div>
+</div>
 </div>
 <div class="section level2">
 <h2 id="development-commands">Development Commands<a class="anchor" aria-label="anchor" href="#development-commands"></a></h2>
 <div class="section level3">
 <h3 id="building-and-checking">Building and Checking<a class="anchor" aria-label="anchor" href="#building-and-checking"></a></h3>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load package for development</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/load_all.html" class="external-link">load_all</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
@@ -161,7 +241,7 @@
 </div>
 <div class="section level3">
 <h3 id="database-connection-testing">Database Connection Testing<a class="anchor" aria-label="anchor" href="#database-connection-testing"></a></h3>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Test connections</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/db_diagnostic.html">db_diagnostic</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># Full diagnostic</span></span>
@@ -176,7 +256,7 @@
 </div>
 <div class="section level3">
 <h3 id="common-query-examples">Common Query Examples<a class="anchor" aria-label="anchor" href="#common-query-examples"></a></h3>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Query plots</span></span>
 <span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/query_plots.html">query_plots</a></span><span class="op">(</span>plot_ids <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
@@ -227,6 +307,40 @@
 <h3 id="coding-conventions">Coding Conventions<a class="anchor" aria-label="anchor" href="#coding-conventions"></a></h3>
 <p><strong>Helper Functions Pattern:</strong> - Internal helpers use <code>.</code> prefix (e.g., <code><a href="reference/dot-link_table.html">.link_table()</a></code>, <code><a href="reference/dot-add_modif_field.html">.add_modif_field()</a></code>, <code><a href="reference/dot-rename_data.html">.rename_data()</a></code>) - These are exported but intended for internal use or advanced users - Public-facing functions have descriptive names without prefix</p>
 <p><strong>Generic Aggregation Functions:</strong> The package has refactored generic aggregation helpers in <code>R/helpers_traits_common.R</code>: - <code><a href="reference/pivot_numeric_traits_generic.html">pivot_numeric_traits_generic()</a></code>: Aggregate numeric traits with mean/sd/n - <code><a href="reference/pivot_categorical_traits_generic.html">pivot_categorical_traits_generic()</a></code>: Aggregate categorical traits (mode or concat) - <code><a href="reference/aggregate_plot_features.html">aggregate_plot_features()</a></code>: Aggregate multiple feature types for plots</p>
+<p><strong>Error Handling Pattern for Configuration Functions:</strong> Configuration functions that query the database MUST implement graceful error handling to support users with limited database permissions:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Pattern for functions that query database tables</span></span>
+<span><span class="va">get_example_config</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">con</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>    <span class="co"># Handle pool connections</span></span>
+<span>    <span class="va">actual_con</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">inherits</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"Pool"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>      <span class="fu">pool</span><span class="fu">::</span><span class="fu"><a href="http://rstudio.github.io/pool/reference/poolCheckout.html" class="external-link">poolCheckout</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
+<span>    <span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
+<span>      <span class="va">con</span></span>
+<span>    <span class="op">}</span></span>
+<span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>      <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">inherits</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"Pool"</span><span class="op">)</span> <span class="op">&amp;&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">actual_con</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>        <span class="fu">pool</span><span class="fu">::</span><span class="fu"><a href="http://rstudio.github.io/pool/reference/poolCheckout.html" class="external-link">poolReturn</a></span><span class="op">(</span><span class="va">actual_con</span><span class="op">)</span></span>
+<span>      <span class="op">}</span></span>
+<span>    <span class="op">}</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span>    <span class="co"># Perform database query</span></span>
+<span>    <span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">actual_con</span>, <span class="st">"SELECT ..."</span><span class="op">)</span></span>
+<span></span>
+<span>    <span class="co"># Process and return result</span></span>
+<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span></span>
+<span></span>
+<span>  <span class="op">}</span>, error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="co"># Log to console for debugging (NOT user-facing)</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/message.html" class="external-link">message</a></span><span class="op">(</span><span class="st">"Note: Could not fetch data ("</span>, <span class="va">e</span><span class="op">$</span><span class="va">message</span>, <span class="st">"). Using fallback."</span><span class="op">)</span></span>
+<span></span>
+<span>    <span class="co"># Return sensible fallback value</span></span>
+<span>    <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="va">default_value</span><span class="op">)</span></span>
+<span>  <span class="op">}</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p><strong>Key principles:</strong> - Use <code><a href="https://rdrr.io/r/base/message.html" class="external-link">message()</a></code> for debug logging, NOT <code>cli::cli_alert_*()</code> or <code><a href="https://rdrr.io/pkg/shiny/man/showNotification.html" class="external-link">shiny::showNotification()</a></code> - Always provide fallback values (empty lists, character vectors, or minimal defaults) - Handle pool connections explicitly with checkout/return - Never let configuration errors crash the app</p>
+<p><strong>Functions implementing this pattern:</strong> - <code>get_table_columns()</code> - Returns fallback columns on error - <code>get_metadata_mappings_plots()</code> - Returns basic lookups only on error - <code>get_available_subplot_types()</code> - Returns empty vector on error - <code>get_available_individual_features()</code> - Returns empty vector on error - <code>.get_column_descriptions()</code> - Skips feature descriptions on error</p>
 <p><strong>Standard R Package Structure:</strong> - Documentation lives in <code>man/</code> (generated, not manually edited) - Source code lives in <code>R/</code> - No <code>tests/</code> directory present (consider adding for production robustness) - No <code>vignettes/</code> directory (tutorials are in root as <code>.Rmd</code> files)</p>
 </div>
 <div class="section level3">
@@ -234,7 +348,7 @@
 <p>When developing Shiny apps in this package, follow these mandatory patterns:</p>
 <p><strong>1. Database Connection Management:</strong> - Use the <code>mod_database_login_ui/server</code> module for authentication within the app - Do NOT require database connections from R console before launching - Store connection pools in <code>.db_env$pool_main</code> and <code>.db_env$pool_taxa</code> - Use <code><a href="https://rdrr.io/pkg/shinyjs/man/useShinyjs.html" class="external-link">shinyjs::useShinyjs()</a></code> for dynamic UI control</p>
 <p><strong>2. UI Structure with Conditional Authentication:</strong></p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu">shinyjs</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shinyjs/man/useShinyjs.html" class="external-link">useShinyjs</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span></span>
@@ -251,7 +365,7 @@
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><strong>3. Server Authentication Pattern:</strong></p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="co"># Use login module</span></span>
 <span>  <span class="va">login_output</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mod_database_login_server.html">mod_database_login_server</a></span><span class="op">(</span><span class="st">"login"</span><span class="op">)</span></span>
@@ -269,7 +383,7 @@
 <span>  <span class="op">}</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 <p><strong>4. Mandatory Session Cleanup:</strong> Always include this session end handler to clean up connections and quit R:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">session</span><span class="op">$</span><span class="fu">onSessionEnded</span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="co"># Clean up all connections and credentials</span></span>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="op">{</span></span>
