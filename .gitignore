@@ -15,6 +15,9 @@ Export_OVFI/
 /*.Rmd
 R/*.Rmd
 
+# Ignore Excel data files
+*.xlsx
+
 # Ignore working markdown documentation in root (keep README.md, NEWS.md, CLAUDE.md)
 ADD_PLOT_FEATURES_IMPLEMENTATION.md
 BUGFIX_*.md
