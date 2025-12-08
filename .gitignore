@@ -11,6 +11,10 @@ Export_OVFI/
 # Ignore working HTML files in root (presentations, reports, etc.)
 /*.html
 
+# Ignore working Rmd files in root (keep vignettes/*.Rmd)
+/*.Rmd
+R/*.Rmd
+
 # Ignore working markdown documentation in root (keep README.md, NEWS.md, CLAUDE.md)
 ADD_PLOT_FEATURES_IMPLEMENTATION.md
 BUGFIX_*.md
