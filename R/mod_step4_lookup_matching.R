@@ -48,10 +48,12 @@ mod_step4_lookup_matching_ui <- function(id, i18n) {
 #' @param id Module namespace ID
 #' @param data Reactive containing uploaded user data
 #' @param mappings Reactive containing column mappings
+#' @param config Reactive containing import configuration
 #' @param con Reactive containing database connection pool
+#' @param i18n Translator object from shiny.i18n
 #' @return Reactive containing matched/updated data
 #' @keywords internal
-mod_step4_lookup_matching_server <- function(id, data, mappings, con) {
+mod_step4_lookup_matching_server <- function(id, data, mappings, config, con, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Storage for analysis and matched data
@@ -62,7 +64,24 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, con) {
 
     # Analyze lookup values when button clicked
     shiny::observeEvent(input$analyze_lookups, {
-      shiny::req(data(), mappings(), con())
+      shiny::req(data(), mappings(), con(), config())
+
+      # Check if there are any lookup columns to match
+      has_lookup_columns <- !is.null(config()$metadata_mappings) && length(config()$metadata_mappings) > 0
+
+      if (!has_lookup_columns) {
+        # No lookup columns needed - skip directly to validation
+        cli::cli_alert_info("No lookup columns to match - proceeding directly")
+        matched_data(data())
+        matching_complete(TRUE)
+
+        shiny::showNotification(
+          i18n$t("No lookup matching needed for this import type. You can proceed to validation."),
+          type = "message",
+          duration = 5
+        )
+        return()
+      }
 
       shiny::withProgress({
         shiny::setProgress(0.3, message = "Analyzing lookup values...")
@@ -71,7 +90,7 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, con) {
 
         # Analyze all lookup columns
         result <- tryCatch({
-          .analyze_lookup_columns(data(), mappings(), con())
+          .analyze_lookup_columns(data(), mappings(), con(), config())
         }, error = function(e) {
           cli::cli_alert_danger("Analysis failed: {e$message}")
           shiny::showNotification(
@@ -91,7 +110,12 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, con) {
           needs_matching <- result$non_exact_matches
           non_exact_matches(needs_matching)
 
-          total_non_exact <- sum(sapply(needs_matching, length))
+          # Fix: Safely compute total, handling empty lists
+          total_non_exact <- if (length(needs_matching) == 0) {
+            0
+          } else {
+            sum(sapply(needs_matching, length))
+          }
 
           cli::cli_alert_success(
             "Analysis complete: {result$summary$total_values} total values, ",
@@ -329,33 +353,51 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, con) {
 #' @param con Database connection
 #' @return List with analysis results
 #' @keywords internal
-.analyze_lookup_columns <- function(data, mappings, con) {
+.analyze_lookup_columns <- function(data, mappings, con, config = NULL) {
 
-  # Identify plot-level lookup columns (method, country)
-  plot_lookups <- c("method", "country")
+  # Determine lookup columns from config's metadata_mappings
+  # This ensures we only process columns that actually need lookup matching
+  if (!is.null(config) && !is.null(config$metadata_mappings)) {
+    all_lookup_columns <- names(config$metadata_mappings)
+    cli::cli_alert_info("Lookup columns from config: {paste(all_lookup_columns, collapse=', ')}")
 
-  # Identify feature-level lookup columns (people fields from subplot_list)
-  feature_lookups <- tryCatch({
-    subplot_info <- subplot_list(con)
+    # Identify which are feature-level lookups (people columns that need comma-splitting)
+    # These use table_colnam lookup table
+    feature_lookups <- names(config$metadata_mappings)[
+      sapply(config$metadata_mappings, function(x) !is.null(x$lookup_table) && x$lookup_table == "table_colnam")
+    ]
+    cli::cli_alert_info("Feature-level lookup columns: {paste(feature_lookups, collapse=', ')}")
+  } else {
+    # Fallback: Legacy behavior (plots import without config)
+    cli::cli_alert_info("No config provided, using legacy lookup detection")
 
-    # Ensure subplot_info has the required columns
-    if (!is.null(subplot_info) && "type" %in% names(subplot_info) && "valuetype" %in% names(subplot_info)) {
-      # Filter for table_colnam types and remove NAs
-      people_cols <- subplot_info$type[!is.na(subplot_info$valuetype) & subplot_info$valuetype == "table_colnam"]
-      people_cols <- people_cols[!is.na(people_cols)]
-      as.character(people_cols)
-    } else {
-      cli::cli_alert_warning("subplot_list returned unexpected structure")
-      character(0)
-    }
-  }, error = function(e) {
-    cli::cli_alert_warning("Could not fetch subplot types: {e$message}")
-    # Fallback to known people features if database query fails
-    c("principal_investigator", "data_manager", "additional_people", "team_leader")
-  })
+    # Identify plot-level lookup columns (method, country)
+    plot_lookups <- c("method", "country")
 
-  # Combine all lookup columns
-  all_lookup_columns <- c(plot_lookups, feature_lookups)
+    # Identify feature-level lookup columns (people fields from subplot_list)
+    feature_lookups <- tryCatch({
+      subplot_info <- subplot_list(con)
+
+      # Ensure subplot_info has the required columns
+      if (!is.null(subplot_info) && "type" %in% names(subplot_info) && "valuetype" %in% names(subplot_info)) {
+        # Filter for table_colnam types and remove NAs
+        people_cols <- subplot_info$type[!is.na(subplot_info$valuetype) & subplot_info$valuetype == "table_colnam"]
+        people_cols <- people_cols[!is.na(people_cols)]
+        as.character(people_cols)
+      } else {
+        cli::cli_alert_warning("subplot_list returned unexpected structure")
+        character(0)
+      }
+    }, error = function(e) {
+      cli::cli_alert_warning("Could not fetch subplot types: {e$message}")
+      # Fallback to known people features if database query fails
+      c("principal_investigator", "data_manager", "additional_people", "team_leader")
+    })
+
+    # Combine all lookup columns
+    all_lookup_columns <- c(plot_lookups, feature_lookups)
+  }
+
   cli::cli_alert_info("All possible lookup columns: {paste(all_lookup_columns, collapse=', ')}")
 
   # Get reverse mappings (db_col -> user_col)

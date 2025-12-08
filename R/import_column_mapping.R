@@ -21,7 +21,7 @@
       "site_id", "siteid", "site.id", 
       "plot no", "plot_no", "plotno", "plot number", "plot_number",
       "transect_id", "transect_name", "transect", "plot", "transect_num",
-      "transect num", "plot name"
+      "transect num", "plot name", "nom du plot", "numéro du plot"
     ),
 
     # Survey method
@@ -87,19 +87,13 @@
       "sampling_month", "date_month", "month_of_survey", "mois"
     ),
 
-    date_d = c(
+    data_d = c(
       "day", "dd", "survey_day", "surveyday", "survey.day",
       "census_day", "censusday", "census.day", "day_survey",
-      "sampling_day", "date_day", "day_of_survey", "jour"
+      "sampling_day", "date_day", "day_of_survey", "jour", "colday",
+      "jour"
     ),
 
-    date_begin = c(
-      "survey_date", "surveydate", "survey.date", "start_date", "startdate",
-      "date_start", "datestart", "date.start", "beginning_date", "beginningdate",
-      "census_date", "censusdate", "census.date", "sampling_date", "samplingdate",
-      "date", "date_survey", "datesurvey", "date.survey",
-      "date_debut", "date_recensement"
-    ),
 
     # People: Team leader
     team_leader = c(
@@ -138,7 +132,6 @@
       "autres personnes", "collaborateurs"
     ),
 
-    # People: Data provider
     data_provider = c(
       "dataprovider", "data.provider", "data provider name",
       "provider", "data_source", "datasource", "data.source",
@@ -146,24 +139,9 @@
       "fournisseur", "fournisseur donnees"
     ),
 
-    vegetation_type = c(
-      "vegetation", "veg_type", "vegtype", "veg.type",
-      "vegetation_class", "vegetationclass", "vegetation.class",
-      "habitat", "habitat_type", "habitattype", "habitat.type",
-      "forest_class", "forestclass", "forest.class",
-      "type vegetation", "type_vegetation"
-    ),
 
-    forest_type = c(
-      "forest", "forest_class", "forestclass", "forest.class",
-      "forest_category", "forestcategory", "forest.category",
-      "stand_type", "standtype", "stand.type",
-      "type foret", "type_foret", "classe foret"
-    ),
-
-    # Tree measurements (for future individual-level imports)
     # IMPORTANT: Domain-specific synonyms that aren't textually similar!
-    dbh = c(
+    stem_diameter = c(
       # Direct variations
       "diameter", "diam", "d", "diameter_cm", "diam_cm",
       "dbh_cm", "dbhcm", "dbh.cm", "d_cm", "dcm",
@@ -189,6 +167,60 @@
       "tree_tag", "treetag", "tree.tag", "tag_number", "tagnumber",
       "individual_id", "individualid", "individual.id",
       "stem_id", "stemid", "stem.id", "id", "numero", "numero_arbre"
+    ),
+
+    # Taxonomy columns (for individuals import)
+    idtax_n = c(
+      "idtax", "id_tax", "taxonomy_id", "taxonomyid", "taxonomy.id",
+      "taxon_id", "taxonid", "taxon.id", "id_taxon",
+      "tax_id", "taxid", "tax.id", "species_id", "speciesid", "species.id",
+      "taxon code", "taxon_code", "taxoncode"
+    ),
+
+    original_tax_name = c(
+      "original_name", "originalname", "original.name",
+      "scientific_name", "scientificname", "scientific.name",
+      "species_name", "speciesname", "species.name", "species",
+      "taxon_name", "taxonname", "taxon.name", "taxon",
+      "name", "nom_scientifique", "nom scientifique", "espece",
+      "binomial", "latin_name", "latinname", "latin.name",
+      "full_name", "fullname", "full.name", "nom_original",
+      "taxonomy", "tax_name", "taxname", "original_taxon"
+    ),
+
+    # Herbarium specimens (optional, for individuals)
+    herbarium_nbe_type = c(
+      "herbarium_type", "herbariumtype", "herbarium.type",
+      "specimen_type", "specimentype", "specimen.type",
+      "voucher_type", "vouchertype", "voucher.type",
+      "type", "specimen type", "voucher type", "herbarium type",
+      "type_specimen", "type specimen"
+    ),
+
+    herbarium_nbe_char = c(
+      "herbarium_number", "herbariumnumber", "herbarium.number",
+      "herbarium_code", "herbariumcode", "herbarium.code",
+      "specimen_number", "specimennumber", "specimen.number",
+      "specimen_code", "specimencode", "specimen.code",
+      "voucher_number", "vouchernumber", "voucher.number",
+      "voucher_code", "vouchercode", "voucher.code",
+      "herbarium_id", "herbariumid", "herbarium.id",
+      "specimen_id", "specimenid", "specimen.id",
+      "accession", "accession_number", "accessionnumber",
+      "barcode", "herbarium barcode", "numero herbier",
+      "code herbier", "numero specimen"
+    ),
+
+    # Multi-stem identifier (optional, for individuals)
+    multi_tiges_id = c(
+      "multi_stem", "multistem", "multi.stem",
+      "stem_id", "stemid", "stem.id",
+      "multistem_id", "multistemid", "multistem.id",
+      "stem_code", "stemcode", "stem.code",
+      "stem letter", "stem_letter", "stemletter",
+      "multi tige", "multi_tige", "tige",
+      "stem", "stem identifier", "stem_identifier",
+      "stem_grouping", "stemgrouping", "stem.grouping"
     )
   )
 }
@@ -206,46 +238,45 @@
 #' @keywords internal
 .get_column_descriptions <- function(con, table_type = "plots") {
 
+  # Warning suffix for plot metadata when importing individuals
+  plot_metadata_warning <- if (table_type == "individuals") {
+    " ⚠️ For individuals import: Skip this column - import via Plot Metadata instead."
+  } else {
+    ""
+  }
+
   # Hard-coded descriptions for flat table columns
   flat_descriptions <- list(
     # Plot identification
     plot_name = "Unique identifier for the plot (required). Must be unique across the database.",
 
     # Geographic
-    country = "Country where the plot is located (required). Use standard country names.",
-    province = "Province, state, or administrative region within the country.",
-    locality_name = "Name of the locality, village, or specific location.",
-    ddlat = "Latitude in decimal degrees (recommended). Range: -90 to 90.",
-    ddlon = "Longitude in decimal degrees (recommended). Range: -180 to 180.",
-    elevation = "Elevation above sea level in meters. Typical range: -500 to 6000m.",
+    country = paste0("Country where the plot is located.", plot_metadata_warning),
+    province = paste0("Province, state, or administrative region within the country.", plot_metadata_warning),
+    locality_name = paste0("Name of the locality, village, or specific location.", plot_metadata_warning),
+    ddlat = paste0("Latitude in decimal degrees. Range: -90 to 90.", plot_metadata_warning),
+    ddlon = paste0("Longitude in decimal degrees. Range: -180 to 180.", plot_metadata_warning),
+    elevation = paste0("Elevation above sea level in meters. Typical range: -500 to 6000m.", plot_metadata_warning),
 
     # Plot characteristics
-    method = "Survey method or protocol used (required). E.g., '1ha-IRD', 'transect', etc.",
-    plot_area = "Total area of the plot in hectares. E.g., 1.0 for 1 hectare plot.",
-    vegetation_type = "Type of vegetation. E.g., 'tropical rainforest', 'savanna', 'mangrove'.",
+    method = paste0("Survey method or protocol used. E.g., '1ha-IRD', 'transect', etc.", plot_metadata_warning),
 
     # Dates
-    date_y = "Year of survey/census (recommended). Format: YYYY (e.g., 2023).",
-    date_m = "Month of survey/census. Range: 1-12.",
-    date_d = "Day of survey/census. Range: 1-31.",
-    date_begin = "Start date of survey. Can be full date string or use date_y/m/d columns.",
-    date_end = "End date of survey if different from start date.",
-
-    # People
-    principal_investigator = "Name of the principal investigator or lead scientist.",
-    data_manager = "Person responsible for data management and quality control.",
-    team_leader = "Field team leader who conducted the survey.",
-    additional_people = "Other team members or collaborators (comma-separated).",
-    data_provider = "Institution or person providing the data.",
+    date_y = paste0("Year of survey/census. Format: YYYY (e.g., 2023).", plot_metadata_warning),
+    date_m = paste0("Month of survey/census. Range: 1-12.", plot_metadata_warning),
+    data_d = paste0("Day of survey/census. Range: 1-31.", plot_metadata_warning),
 
     # Individual tree columns
     idtax_n = "Taxonomic ID from the taxonomic database (required for individuals). Use taxonomic matching app to get this ID.",
-    tag = "Unique tree tag or identifier within the plot.",
-    stem_diameter = "Diameter at breast height (DBH) in centimeters.",
+    original_tax_name = "Original taxonomic name before standardization (required for individuals). Keeps traceability of the original field identification.",
+    tag = "Tree tag or identifier within the plot (recommended). If not provided, will be auto-generated as sequential integers (1, 2, 3, ...) per plot.",
 
-    # Additional metadata
-    notes = "Any additional notes or comments about the plot or survey.",
-    observations = "Observations or notes about individual trees."
+    # Herbarium specimens (optional for individuals)
+    herbarium_nbe_type = "Type or source of herbarium specimen (optional). E.g., 'IRD plot 4181', institution name.",
+    herbarium_nbe_char = "Herbarium specimen reference number or barcode (optional). E.g., 'Lejoly 485', accession number.",
+
+    # Multi-stem trees (optional for individuals)
+    multi_tiges_id = "Multi-stem identifier for trees with multiple stems (optional). Links secondary stems to the main individual by referencing the main stem's tag."
   )
 
   # Fetch feature descriptions from database
@@ -268,7 +299,7 @@
         }
       }
     }, error = function(e) {
-      cli::cli_alert_warning("Could not fetch subplot feature descriptions: {e$message}")
+      message("Note: Could not fetch subplot feature descriptions (", e$message, ").")
     })
   } else if (table_type == "individuals") {
     # Get individual feature/trait descriptions with additional info
@@ -299,7 +330,7 @@
         }
       }
     }, error = function(e) {
-      cli::cli_alert_warning("Could not fetch trait descriptions: {e$message}")
+      message("Note: Could not fetch trait descriptions (", e$message, ").")
     })
   }
 
@@ -332,27 +363,54 @@
 #' @export
 get_import_column_routing <- function(table_type = "plots", con = NULL) {
 
-  if (is.null(con)) {
-    con <- call.mydb()
-  }
+  tryCatch({
+    message("get_import_column_routing: Starting for table_type = ", table_type)
 
-  # Get base routing config
-  base_config <- get_column_routing(table_type, con)
+    if (is.null(con)) {
+      message("get_import_column_routing: Creating new connection")
+      con <- call.mydb()
+    }
 
-  # Add import-specific configuration
-  base_config$import_config <- list(
+    # Get base routing config
+    message("get_import_column_routing: Calling get_column_routing()")
+    base_config <- get_column_routing(table_type, con)
+    message("get_import_column_routing: Base config retrieved successfully")
 
-    # Column synonyms for smart mapping
-    column_synonyms = .get_column_synonyms(),
+    # Set required and recommended columns based on table type
+    if (table_type == "individuals") {
+      required_cols <- c("plot_name", "idtax_n", "original_tax_name")
+      recommended_cols <- c("tag")
+    } else {
+      # Default: plots
+      required_cols <- c("plot_name", "method", "country")
+      recommended_cols <- c("ddlat", "ddlon", "date_y", "locality_name", "data_d", "date_m", "date_y")
+    }
 
-    # Column descriptions for user guidance
-    column_descriptions = .get_column_descriptions(con, table_type),
+    # Add import-specific configuration
+    message("get_import_column_routing: Building import_config")
 
-    # Required columns for plots
-    required_columns = c("plot_name", "method", "country"),
+    # Get column synonyms
+    message("get_import_column_routing: Getting column synonyms")
+    col_synonyms <- .get_column_synonyms()
+
+    # Get column descriptions
+    message("get_import_column_routing: Getting column descriptions")
+    col_descriptions <- .get_column_descriptions(con, table_type)
+    message("get_import_column_routing: Column descriptions retrieved")
+
+    base_config$import_config <- list(
+
+      # Column synonyms for smart mapping
+      column_synonyms = col_synonyms,
+
+      # Column descriptions for user guidance
+      column_descriptions = col_descriptions,
+
+    # Required columns
+    required_columns = required_cols,
 
     # Optional but recommended columns
-    recommended_columns = c("ddlat", "ddlon", "date_y", "locality_name"),
+    recommended_columns = recommended_cols,
 
     # Validation rules
     validation_rules = list(
@@ -393,7 +451,8 @@ get_import_column_routing <- function(table_type = "plots", con = NULL) {
         min = -90,
         max = 90,
         severity = "error",
-        message = "Latitude must be between -90 and 90"
+        message = "Latitude must be between -90 and 90",
+        utm_hint = TRUE  # Flag to check for UTM coordinates
       ),
 
       ddlon = list(
@@ -401,7 +460,8 @@ get_import_column_routing <- function(table_type = "plots", con = NULL) {
         min = -180,
         max = 180,
         severity = "error",
-        message = "Longitude must be between -180 and 180"
+        message = "Longitude must be between -180 and 180",
+        utm_hint = TRUE  # Flag to check for UTM coordinates
       ),
 
       elevation = list(
@@ -473,7 +533,18 @@ get_import_column_routing <- function(table_type = "plots", con = NULL) {
     }
   }
 
+  message("get_import_column_routing: Completed successfully")
   return(base_config)
+
+  }, error = function(e) {
+    message("ERROR in get_import_column_routing:")
+    message("  Table type: ", table_type)
+    message("  Error message: ", e$message)
+    message("  Error call: ", deparse(e$call))
+
+    # Re-throw the error so it can be caught by the Shiny app
+    stop(e)
+  })
 }
 
 

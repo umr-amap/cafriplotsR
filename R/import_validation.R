@@ -8,7 +8,8 @@
 #'
 #' Comprehensive validation of plot metadata using database rules and lookup
 #' tables. Returns structured results with severity levels (error vs warning).
-#' Can interactively fix lookup mismatches using fuzzy matching.
+#' Can interactively fix lookup mismatches using fuzzy matching. Also checks
+#' for potential duplicate plots by matching method, country, and coordinates.
 #'
 #' @param data Data frame containing plot metadata to validate
 #' @param column_mappings Named list mapping user columns to schema columns
@@ -22,7 +23,7 @@
 #' @return List with validation results:
 #'   \item{valid}{Logical: TRUE if no errors (warnings allowed)}
 #'   \item{errors}{Data frame of error messages}
-#'   \item{warnings}{Data frame of warning messages}
+#'   \item{warnings}{Data frame of warning messages (includes duplicate plot warnings)}
 #'   \item{summary}{Summary statistics}
 #'   \item{original_data}{Original input data (unchanged)}
 #'   \item{cleaned_data}{Data with interactive fixes applied (if any)}
@@ -91,12 +92,22 @@ validate_plot_metadata <- function(data,
   )
 
   # Rename columns to schema names for validation
+  # Filter out NA mappings (skipped columns)
+  valid_mappings <- column_mappings[!is.na(column_mappings)]
+
   validated_data <- data
-  for (user_col in names(column_mappings)) {
-    schema_col <- column_mappings[[user_col]]
+  for (user_col in names(valid_mappings)) {
+    schema_col <- valid_mappings[[user_col]]
     if (user_col %in% names(validated_data)) {
       names(validated_data)[names(validated_data) == user_col] <- schema_col
     }
+  }
+
+  # Remove any columns that were not mapped (skipped columns)
+  skipped_cols <- names(column_mappings)[is.na(column_mappings)]
+  if (length(skipped_cols) > 0) {
+    validated_data <- validated_data[, !(names(validated_data) %in% skipped_cols), drop = FALSE]
+    cli::cli_alert_info("Removed {length(skipped_cols)} skipped column(s) from data")
   }
 
   # 1. Required fields validation
@@ -147,6 +158,14 @@ validate_plot_metadata <- function(data,
     config
   )
   errors <- c(errors, unique_check)
+
+  # 6. Check for potential duplicate plots (same location, method, country)
+  duplicate_check <- .check_duplicate_plots(
+    validated_data,
+    con
+  )
+  warnings <- c(warnings, duplicate_check$warnings)
+  errors <- c(errors, duplicate_check$errors)
 
   # Convert to data frames
   errors_df <- if (length(errors) > 0) {
@@ -414,6 +433,97 @@ validate_plot_metadata <- function(data,
 .validate_ranges <- function(data, config, con) {
   errors <- list()
   warnings <- list()
+
+  # First, check import_config validation rules (for flat columns like ddlat, ddlon)
+  if (!is.null(config$import_config$validation_rules)) {
+    for (col in names(config$import_config$validation_rules)) {
+      if (!col %in% names(data)) next
+
+      rule <- config$import_config$validation_rules[[col]]
+
+      # Only process numeric columns with min/max rules
+      if (is.null(rule$type) || rule$type != "numeric") next
+      if (is.null(rule$min) && is.null(rule$max)) next
+
+      # Get numeric values
+      values <- suppressWarnings(as.numeric(data[[col]]))
+
+      # Check for potential UTM coordinates (large values way outside range)
+      is_coord_col <- col %in% c("ddlat", "ddlon")
+      has_utm_hint <- !is.null(rule$utm_hint) && rule$utm_hint == TRUE
+
+      if (is_coord_col && has_utm_hint) {
+        # Detect potential UTM coordinates
+        large_values <- which(!is.na(values) & (abs(values) > 1000))
+
+        if (length(large_values) > 0) {
+          # Add specific UTM warning
+          errors <- c(errors, list(list(
+            column = col,
+            row = large_values[1],  # Just show first occurrence
+            message = sprintf(
+              "⚠️ Possible UTM coordinates detected! Values are very large (e.g., %.0f). Geographic coordinates should be: Latitude (-90 to 90), Longitude (-180 to 180). If these are UTM coordinates, you can convert them in the Preview step.",
+              values[large_values[1]]
+            ),
+            value = as.character(data[[col]][large_values[1]])
+          )))
+
+          # Don't check min/max for obvious UTM values
+          next
+        }
+      }
+
+      # Check min value
+      if (!is.null(rule$min)) {
+        invalid_rows <- which(!is.na(values) & values < rule$min)
+        for (row in invalid_rows) {
+          item <- list(
+            column = col,
+            row = row,
+            message = sprintf(
+              "%s (value: %.4f, expected: %.2f to %.2f)",
+              rule$message,
+              values[row],
+              rule$min,
+              rule$max %||% Inf
+            ),
+            value = as.character(data[[col]][row])
+          )
+
+          if (!is.null(rule$severity) && rule$severity == "warning") {
+            warnings <- c(warnings, list(item))
+          } else {
+            errors <- c(errors, list(item))
+          }
+        }
+      }
+
+      # Check max value
+      if (!is.null(rule$max)) {
+        invalid_rows <- which(!is.na(values) & values > rule$max)
+        for (row in invalid_rows) {
+          item <- list(
+            column = col,
+            row = row,
+            message = sprintf(
+              "%s (value: %.4f, expected: %.2f to %.2f)",
+              rule$message,
+              values[row],
+              rule$min %||% -Inf,
+              rule$max
+            ),
+            value = as.character(data[[col]][row])
+          )
+
+          if (!is.null(rule$severity) && rule$severity == "warning") {
+            warnings <- c(warnings, list(item))
+          } else {
+            errors <- c(errors, list(item))
+          }
+        }
+      }
+    }
+  }
 
   # Get subplot feature validation rules from database
   subplot_info <- tryCatch({
@@ -1058,6 +1168,111 @@ validate_plot_metadata <- function(data,
   }
 
   errors
+}
+
+
+#' Check for Duplicate Plots in Database
+#'
+#' Detects potential duplicate plots by matching method, country, and coordinates
+#' (rounded to 3 decimal places ~111m). Helps prevent re-importing existing plots
+#' with different names (e.g., "FND32" vs "Releve32").
+#'
+#' @param data Data frame with plot data (must have method, country, ddlat, ddlon)
+#' @param con Database connection
+#'
+#' @return List with warnings and errors
+#' @keywords internal
+.check_duplicate_plots <- function(data, con) {
+  warnings <- list()
+  errors <- list()
+
+  # Only check if we have required columns
+  required_cols <- c("method", "country", "ddlat", "ddlon")
+  if (!all(required_cols %in% names(data))) {
+    return(list(warnings = warnings, errors = errors))
+  }
+
+  tryCatch({
+    # Get existing plots from database (respects row-level security)
+    existing_plots <- DBI::dbGetQuery(con, "
+      SELECT
+        id_liste_plots,
+        plot_name,
+        id_method,
+        id_country,
+        ddlat,
+        ddlon
+      FROM data_liste_plots
+      WHERE ddlat IS NOT NULL
+        AND ddlon IS NOT NULL
+    ")
+
+    if (nrow(existing_plots) == 0) {
+      return(list(warnings = warnings, errors = errors))
+    }
+
+    # Get method and country lookup tables for matching IDs to names
+    method_lookup <- method_list()
+    country_lookup <- country_list()
+
+    # Create reverse lookups (name -> ID)
+    method_name_to_id <- setNames(method_lookup$id_method, method_lookup$method)
+    country_name_to_id <- setNames(country_lookup$id_country, country_lookup$country)
+
+    # Round existing plot coordinates (3 decimals ~111m)
+    existing_plots$ddlat_rounded <- round(existing_plots$ddlat, 3)
+    existing_plots$ddlon_rounded <- round(existing_plots$ddlon, 3)
+
+    # Check each plot in the import data
+    for (i in 1:nrow(data)) {
+      row_data <- data[i, ]
+
+      # Skip if coordinates are missing
+      if (is.na(row_data$ddlat) || is.na(row_data$ddlon)) next
+
+      # Convert method and country names to IDs for comparison
+      method_id <- method_name_to_id[[as.character(row_data$method)]]
+      country_id <- country_name_to_id[[as.character(row_data$country)]]
+
+      if (is.null(method_id) || is.null(country_id)) next
+
+      # Round import coordinates
+      lat_rounded <- round(row_data$ddlat, 3)
+      lon_rounded <- round(row_data$ddlon, 3)
+
+      # Find matching plots (same method, country, and coordinates)
+      matches <- existing_plots[
+        existing_plots$id_method == method_id &
+        existing_plots$id_country == country_id &
+        existing_plots$ddlat_rounded == lat_rounded &
+        existing_plots$ddlon_rounded == lon_rounded,
+      ]
+
+      if (nrow(matches) > 0) {
+        # Found potential duplicate(s)
+        match_names <- paste(matches$plot_name, collapse = ", ")
+
+        warnings <- c(warnings, list(list(
+          column = "plot_name",
+          row = i,
+          message = sprintf(
+            "⚠️ Potential duplicate: Plot '%s' has same location (%.3f, %.3f), method, and country as existing plot(s): %s. This may be a re-import of an existing plot with a different name.",
+            row_data$plot_name,
+            lat_rounded,
+            lon_rounded,
+            match_names
+          ),
+          value = as.character(row_data$plot_name)
+        )))
+      }
+    }
+
+  }, error = function(e) {
+    # Log error but don't fail validation
+    cli::cli_alert_warning("Could not check for duplicate plots: {e$message}")
+  })
+
+  list(warnings = warnings, errors = errors)
 }
 
 

@@ -41,7 +41,8 @@ Imports:
     lifecycle,
     data.table,
     zoo,
-    pool
+    pool,
+    leaflet
 Suggests:
     getPass,
     dm,

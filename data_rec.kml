@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document id="root_doc">
+<Schema name="data_rec" id="data_rec">
+	<SimpleField name="_leaflet_id" type="int"></SimpleField>
+	<SimpleField name="feature_type" type="string"></SimpleField>
+</Schema>
+<Folder><name>data_rec</name>
+  <Placemark>
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#data_rec">
+		<SimpleData name="_leaflet_id">386</SimpleData>
+		<SimpleData name="feature_type">rectangle</SimpleData>
+	</SchemaData></ExtendedData>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>11.439192,3.427186 11.439192,3.438334 11.453655,3.438334 11.453655,3.427186 11.439192,3.427186</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+</Folder>
+</Document></kml>
