@@ -6,5 +6,24 @@ inst/doc
 .sql
 .tex
 Export_OVFI/
-# docs  # Uncomment to ignore built pkgdown site
 .Rprofile
+
+# Ignore working HTML files in root (presentations, reports, etc.)
+/*.html
+
+# Ignore working markdown documentation in root (keep README.md, NEWS.md, CLAUDE.md)
+ADD_PLOT_FEATURES_IMPLEMENTATION.md
+BUGFIX_*.md
+COLUMN_MAPPING_*.md
+IMPLEMENTATION_PLAN.md
+IMPORT_PROPOSAL.md
+IMPORT_WIZARD_*.md
+NEXT_SESSION_*.md
+QUICKSTART_*.md
+SHINY_*.md
+STEP*.md
+TEST_RESULTS_*.md
+WIZARD_*.md
+*_PLAN.md
+*_ANALYSIS.md
+workshop_*.md
