@@ -38,24 +38,8 @@ mod_step2_upload_ui <- function(id, i18n) {
 
           shiny::hr(),
 
-          # Template type selection
-          shiny::radioButtons(
-            ns("template_type"),
-            paste0(i18n$t("Template Type"), ":"),
-            choices = c(
-              "Minimal (Required fields only)" = "minimal",
-              "Permanent Plot (Recommended)" = "permanent_plot",
-              "Transect Survey" = "transect",
-              "Full (All optional fields)" = "full"
-            ),
-            selected = "permanent_plot"
-          ),
-
-          shiny::checkboxInput(
-            ns("with_examples"),
-            i18n$t("Include example data"),
-            value = TRUE
-          ),
+          # Template options (dynamic based on import type)
+          shiny::uiOutput(ns("template_options")),
 
           shiny::downloadButton(
             ns("download_template"),
@@ -135,32 +119,118 @@ mod_step2_upload_ui <- function(id, i18n) {
 #' Step 2 Module: Upload Data - Server
 #'
 #' @param id Module namespace ID
+#' @param import_type Reactive value containing import type ("plots" or "individuals")
 #' @param config Reactive value containing import configuration
+#' @param con Reactive database connection pool
 #' @return Reactive value containing uploaded data (data frame)
 #' @keywords internal
-mod_step2_upload_server <- function(id, config) {
+mod_step2_upload_server <- function(id, import_type, config, con) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Store uploaded data
     uploaded_data <- shiny::reactiveVal(NULL)
 
+    # Dynamic template options based on import type
+    output$template_options <- shiny::renderUI({
+      shiny::req(import_type())
+
+      if (import_type() == "plots") {
+        # Plot metadata template options
+        shiny::tagList(
+          shiny::radioButtons(
+            session$ns("template_type"),
+            "Template Type:",
+            choices = c(
+              "Minimal (Required fields only)" = "minimal",
+              "Permanent Plot (Recommended)" = "permanent_plot",
+              "Transect Survey" = "transect",
+              "Full (All optional fields)" = "full"
+            ),
+            selected = "permanent_plot"
+          ),
+          shiny::checkboxInput(
+            session$ns("with_examples"),
+            "Include example data",
+            value = TRUE
+          )
+        )
+      } else {
+        # Individual tree template options
+        shiny::tagList(
+          shiny::checkboxInput(
+            session$ns("with_examples"),
+            "Include features sheet (traits/measurements)",
+            value = TRUE
+          ),
+          shiny::div(
+            class = "alert alert-info",
+            style = "font-size: 14px; margin-top: 15px;",
+            shiny::icon("info-circle"),
+            shiny::strong(" Note: "),
+            "Individual template includes all possible columns. ",
+            "Features sheet contains trait measurements (DBH, height, etc.)."
+          ),
+          # Hidden field for template_type to satisfy download handler
+          shiny::tags$input(
+            type = "hidden",
+            id = session$ns("template_type"),
+            value = "full"
+          )
+        )
+      }
+    })
+
     # Template download handler
     output$download_template <- shiny::downloadHandler(
       filename = function() {
-        type <- input$template_type
         timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-        sprintf("cafriplot_template_%s_%s.xlsx", type, timestamp)
+
+        if (import_type() == "plots") {
+          type <- input$template_type
+          sprintf("cafriplot_template_%s_%s.xlsx", type, timestamp)
+        } else {
+          sprintf("cafriplot_individuals_template_%s.xlsx", timestamp)
+        }
       },
       content = function(file) {
         shiny::withProgress(message = 'Generating template...', value = 0, {
 
           shiny::incProgress(0.3, detail = "Creating structure...")
 
-          # Generate template using existing function
-          template <- get_plot_metadata_template(
-            template_type = input$template_type,
-            with_examples = input$with_examples
-          )
+          # Generate template based on import type
+          template <- tryCatch({
+            if (import_type() == "plots") {
+              get_plot_metadata_template(
+                template_type = input$template_type,
+                with_examples = input$with_examples
+              )
+            } else {
+              # For individuals, generate individual tree template
+              # Get a regular connection from the pool
+              db_pool <- con()
+              db_con <- pool::poolCheckout(db_pool)
+              on.exit(pool::poolReturn(db_con), add = TRUE)
+
+              get_individual_template(
+                method = NULL,  # NULL = all columns
+                include_features = isTRUE(input$with_examples),  # Ensure boolean
+                con = db_con,  # Pass checked-out connection
+                return_data = TRUE
+              )
+            }
+          }, error = function(e) {
+            shiny::showNotification(
+              paste("Error generating template:", e$message),
+              type = "error",
+              duration = NULL
+            )
+            return(NULL)
+          })
+
+          # Check if template was generated
+          if (is.null(template)) {
+            stop("Template generation failed")
+          }
 
           shiny::incProgress(0.6, detail = "Writing Excel file...")
 

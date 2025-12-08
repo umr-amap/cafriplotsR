@@ -432,6 +432,55 @@ The package has refactored generic aggregation helpers in `R/helpers_traits_comm
 - `pivot_categorical_traits_generic()`: Aggregate categorical traits (mode or concat)
 - `aggregate_plot_features()`: Aggregate multiple feature types for plots
 
+**Error Handling Pattern for Configuration Functions:**
+Configuration functions that query the database MUST implement graceful error handling to support users with limited database permissions:
+
+```r
+# Pattern for functions that query database tables
+get_example_config <- function(con) {
+  tryCatch({
+    # Handle pool connections
+    actual_con <- if (inherits(con, "Pool")) {
+      pool::poolCheckout(con)
+    } else {
+      con
+    }
+
+    on.exit({
+      if (inherits(con, "Pool") && !is.null(actual_con)) {
+        pool::poolReturn(actual_con)
+      }
+    }, add = TRUE)
+
+    # Perform database query
+    result <- DBI::dbGetQuery(actual_con, "SELECT ...")
+
+    # Process and return result
+    return(result)
+
+  }, error = function(e) {
+    # Log to console for debugging (NOT user-facing)
+    message("Note: Could not fetch data (", e$message, "). Using fallback.")
+
+    # Return sensible fallback value
+    return(default_value)
+  })
+}
+```
+
+**Key principles:**
+- Use `message()` for debug logging, NOT `cli::cli_alert_*()` or `shiny::showNotification()`
+- Always provide fallback values (empty lists, character vectors, or minimal defaults)
+- Handle pool connections explicitly with checkout/return
+- Never let configuration errors crash the app
+
+**Functions implementing this pattern:**
+- `get_table_columns()` - Returns fallback columns on error
+- `get_metadata_mappings_plots()` - Returns basic lookups only on error
+- `get_available_subplot_types()` - Returns empty vector on error
+- `get_available_individual_features()` - Returns empty vector on error
+- `.get_column_descriptions()` - Skips feature descriptions on error
+
 **Standard R Package Structure:**
 - Documentation lives in `man/` (generated, not manually edited)
 - Source code lives in `R/`

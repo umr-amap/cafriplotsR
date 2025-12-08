@@ -457,22 +457,48 @@ import_wizard_server <- function(input, output, session, translator) {
 
       # Load configuration using connection pool
       tryCatch({
-        rv$config <- get_import_column_routing(rv$import_type, con = pool_main_reactive())
+        # Debug logging
+        message("Loading configuration for import type: ", rv$import_type)
+
+        # Get connection pool
+        pool <- pool_main_reactive()
+        message("Connection pool retrieved: ", class(pool)[1])
+
+        # Load configuration
+        rv$config <- get_import_column_routing(rv$import_type, con = pool)
+
+        message("Configuration loaded successfully")
 
         showNotification(
           paste("Configuration loaded for:", rv$import_type),
           type = "message"
         )
       }, error = function(e) {
+        # Detailed error logging
+        message("ERROR in configuration loading:")
+        message("  Import type: ", rv$import_type)
+        message("  Error message: ", e$message)
+        message("  Error call: ", deparse(e$call))
+
+        # Print full traceback
+        traceback_msg <- paste(capture.output(traceback()), collapse = "\n")
+        message("  Traceback:\n", traceback_msg)
+
         showNotification(
           paste("Error loading configuration:", e$message),
-          type = "error"
+          type = "error",
+          duration = 10
         )
       })
     })
 
     # Step 2: Upload data
-    step2_result <- mod_step2_upload_server("step2", config = reactive(rv$config))
+    step2_result <- mod_step2_upload_server(
+      "step2",
+      import_type = reactive(rv$import_type),
+      config = reactive(rv$config),
+      con = pool_main_reactive
+    )
 
     observeEvent(step2_result(), {
       req(step2_result())
@@ -488,14 +514,15 @@ import_wizard_server <- function(input, output, session, translator) {
     step3_result <- mod_step3_mapping_server(
       "step3",
       data = reactive(rv$data),
-      config = reactive(rv$config)
+      config = reactive(rv$config),
+      i18n = i18n
     )
 
     observeEvent(step3_result(), {
       req(step3_result())
 
       rv$mapping_result <- step3_result()
-      rv$mappings <- step3_result()$mappings
+      rv$mappings <- step3_result()$mappings_with_skips  # Use full mappings including NA for skipped columns
 
       if (step3_result()$validation$valid) {
         showNotification(
@@ -510,7 +537,9 @@ import_wizard_server <- function(input, output, session, translator) {
       "step4",
       data = reactive(rv$data),
       mappings = reactive(rv$mappings),
-      con = pool_main_reactive
+      config = reactive(rv$config),
+      con = pool_main_reactive,
+      i18n = i18n
     )
 
     observeEvent(step4_result$complete(), {

@@ -444,6 +444,37 @@
 }
 
 
+
+#' Delete an entry in country table
+#'
+#' Delete an entry in country table using id for selection
+#'
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#' @param id integer
+#'
+#' @return No values
+#' @export
+.delete_country <- function(id) {
+  
+  if(!exists("mydb")) call.mydb()
+  
+  query <- "DELETE FROM table_countries WHERE MMM"
+  query <-
+    gsub(
+      pattern = "MMM",
+      replacement = paste0("id_country IN ('",
+                           paste(unique(id), collapse = "', '"), "')"),
+      x = query
+    )
+  
+  rs <- DBI::dbSendQuery(mydb, query)
+  DBI::dbClearResult(rs)
+  
+}
+
+
 #' Delete an entry in plot meta-data
 #'
 #' Delete an entry in plot meta-data table using id for selection
