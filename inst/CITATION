@@ -1,0 +1,19 @@
+bibentry(
+  bibtype = "Manual",
+  title = "CafriplotsR: Tools for Exploring, Managing and Standardizing Vegetation Inventories in Central Africa",
+  author = c(
+    person("Gilles", "Dauby"),
+    person("Hugo", "Leblanc"),
+    person("Pierre", "Ploton")
+  ),
+  year = format(Sys.Date(), "%Y"),
+  note = sprintf("R package version %s", meta$Version),
+  url = "https://umr-amap.github.io/cafriplotsR/",
+  textVersion = paste(
+    "Dauby, G., Leblanc, H., & Ploton, P.",
+    sprintf("(%s).", format(Sys.Date(), "%Y")),
+    "CafriplotsR: Tools for Exploring, Managing and Standardizing Vegetation Inventories in Central Africa.",
+    sprintf("R package version %s.", meta$Version),
+    "https://umr-amap.github.io/cafriplotsR/"
+  )
+)
