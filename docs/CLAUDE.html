@@ -115,6 +115,19 @@
 <strong>Taxa database</strong> (<code>rainbio</code>): Contains taxonomic information and species-level traits</li>
 </ol><p><strong>Connection management</strong> (<code>R/connections_db.R</code>): - Connections are stored in internal environment <code>.db_env</code> - Use <code><a href="reference/call.mydb.html">call.mydb()</a></code> for main database, <code><a href="reference/call.mydb.taxa.html">call.mydb.taxa()</a></code> for taxa database - Credentials cached in <code>credentials</code> environment during session - Connection pooling: functions check for existing valid connections before creating new ones - Use <code><a href="reference/cleanup_connections.html">cleanup_connections()</a></code> to close all connections and clear credentials</p>
 <p><strong>Credential setup options</strong>: 1. Interactive prompts (default) 2. Store in <code>~/.Renviron</code> via <code><a href="reference/setup_db_credentials.html">setup_db_credentials()</a></code> (WARNING: plaintext storage) 3. Pass directly to connection functions</p>
+<p><strong>CRITICAL SECURITY WARNING - Database Credentials:</strong></p>
+<p>⚠️ <strong>NEVER commit database credentials to version control</strong></p>
+<p>When writing code examples, documentation, or vignettes that demonstrate database connections:</p>
+<p>✅ <strong>CORRECT - Use placeholder credentials:</strong></p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Example with placeholder credentials</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/call.mydb.html">call.mydb</a></span><span class="op">(</span>user <span class="op">=</span> <span class="st">"your_username"</span>, password <span class="op">=</span> <span class="st">"your_password"</span><span class="op">)</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/call.mydb.html">call.mydb</a></span><span class="op">(</span>user <span class="op">=</span> <span class="st">"eee"</span>, password <span class="op">=</span> <span class="st">"sss"</span><span class="op">)</span></span></code></pre></div>
+<p>❌ <strong>NEVER do this - Real credentials in code:</strong></p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># DANGER: Never use actual credentials in code</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/call.mydb.html">call.mydb</a></span><span class="op">(</span>user <span class="op">=</span> <span class="st">"john.doe"</span>, password <span class="op">=</span> <span class="st">"MyP@ssw0rd123"</span><span class="op">)</span></span></code></pre></div>
+<p><strong>Security best practices:</strong> - Always use <code><a href="reference/call.mydb.html">call.mydb()</a></code> without parameters to trigger interactive prompts (preferred) - If credentials must be in code, use obvious placeholders like “eee”, “sss”, “your_username” - Never commit files containing real usernames or passwords (.Rmd, .R, .Rprofile, etc.) - If credentials are accidentally committed: 1. Immediately change the password in the database 2. Remove the credentials from git history using <code>git filter-branch</code> or <code>git filter-repo</code> 3. Force push the cleaned history to remote - Keep <code>.Rprofile</code> in <code>.gitignore</code> (already configured) - Review all Rmd vignettes before committing to ensure no real credentials</p>
 </div>
 <div class="section level3">
 <h3 id="data-query-architecture">Data Query Architecture<a class="anchor" aria-label="anchor" href="#data-query-architecture"></a></h3>
@@ -159,15 +172,15 @@
 <h4 id="id_3-features-stored-in-data_liste_sub_plots-table">3. <strong>Features</strong> (Stored in <code>data_liste_sub_plots</code> table)<a class="anchor" aria-label="anchor" href="#id_3-features-stored-in-data_liste_sub_plots-table"></a></h4>
 <p>Features are stored separately in <code>data_liste_sub_plots</code> and linked to plots. Each row represents one feature instance.</p>
 <p><strong>Table structure of <code>data_liste_sub_plots</code>:</strong></p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>id_table_liste_plots  <span class="co"># FK to data_liste_plots</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>id_type_sub_plot      <span class="co"># FK to subplotype_list (defines feature type)</span></span>
-<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>id_colnam             <span class="co"># FK to table_colnam (for people features)</span></span>
-<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>year, month, day      <span class="co"># Date information</span></span>
-<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>typevalue             <span class="co"># Numeric feature values</span></span>
-<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>typecode              <span class="co"># Character/text feature values</span></span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>id_table_liste_plots  <span class="co"># FK to data_liste_plots</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>id_type_sub_plot      <span class="co"># FK to subplotype_list (defines feature type)</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>id_colnam             <span class="co"># FK to table_colnam (for people features)</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>year, month, day      <span class="co"># Date information</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>typevalue             <span class="co"># Numeric feature values</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>typecode              <span class="co"># Character/text feature values</span></span></code></pre></div>
 <p><strong>Feature types are defined in <code>subplotype_list</code> table:</strong></p>
 <p>Query to see all feature types:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/subplot_list.html">subplot_list</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span>  <span class="co"># Returns all available subplot feature types</span></span></code></pre></div>
 <p><strong>Three categories of features based on <code>valuetype</code>:</strong></p>
 <ol style="list-style-type: decimal"><li>
@@ -203,7 +216,7 @@
 <strong>No matching needed</strong> - numeric values</li>
 </ul></li>
 </ol><p><strong>How to dynamically identify lookup features:</strong></p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Get all feature types</span></span>
 <span><span class="va">subplot_info</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/subplot_list.html">subplot_list</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
 <span></span>
@@ -212,7 +225,7 @@
 <span><span class="co"># Returns: c("principal_investigator", "data_manager", "additional_people", "team_leader")</span></span></code></pre></div>
 <p><strong>Import/Validation workflow:</strong> 1. <strong>Plot-level lookups</strong> (method, country): Match to IDs for <code>data_liste_plots</code> 2. <strong>Feature-level lookups</strong> (people columns): Match to IDs for <code>data_liste_sub_plots.id_colnam</code> 3. <strong>Character features</strong>: Store as-is in <code>data_liste_sub_plots.typecode</code> 4. <strong>Numeric features</strong>: Store as-is in <code>data_liste_sub_plots.typevalue</code></p>
 <p><strong>Key function for column routing:</strong></p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">config</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_import_column_routing.html">get_import_column_routing</a></span><span class="op">(</span><span class="st">"plots"</span>, <span class="va">con</span><span class="op">)</span></span>
 <span><span class="co"># Returns:</span></span>
 <span><span class="co"># - direct_columns: columns in data_liste_plots (includes method, country as IDs)</span></span>
@@ -226,7 +239,7 @@
 <h2 id="development-commands">Development Commands<a class="anchor" aria-label="anchor" href="#development-commands"></a></h2>
 <div class="section level3">
 <h3 id="building-and-checking">Building and Checking<a class="anchor" aria-label="anchor" href="#building-and-checking"></a></h3>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load package for development</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/load_all.html" class="external-link">load_all</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
@@ -241,7 +254,7 @@
 </div>
 <div class="section level3">
 <h3 id="database-connection-testing">Database Connection Testing<a class="anchor" aria-label="anchor" href="#database-connection-testing"></a></h3>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Test connections</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/db_diagnostic.html">db_diagnostic</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># Full diagnostic</span></span>
@@ -256,7 +269,7 @@
 </div>
 <div class="section level3">
 <h3 id="common-query-examples">Common Query Examples<a class="anchor" aria-label="anchor" href="#common-query-examples"></a></h3>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Query plots</span></span>
 <span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/query_plots.html">query_plots</a></span><span class="op">(</span>plot_ids <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
@@ -308,7 +321,7 @@
 <p><strong>Helper Functions Pattern:</strong> - Internal helpers use <code>.</code> prefix (e.g., <code><a href="reference/dot-link_table.html">.link_table()</a></code>, <code><a href="reference/dot-add_modif_field.html">.add_modif_field()</a></code>, <code><a href="reference/dot-rename_data.html">.rename_data()</a></code>) - These are exported but intended for internal use or advanced users - Public-facing functions have descriptive names without prefix</p>
 <p><strong>Generic Aggregation Functions:</strong> The package has refactored generic aggregation helpers in <code>R/helpers_traits_common.R</code>: - <code><a href="reference/pivot_numeric_traits_generic.html">pivot_numeric_traits_generic()</a></code>: Aggregate numeric traits with mean/sd/n - <code><a href="reference/pivot_categorical_traits_generic.html">pivot_categorical_traits_generic()</a></code>: Aggregate categorical traits (mode or concat) - <code><a href="reference/aggregate_plot_features.html">aggregate_plot_features()</a></code>: Aggregate multiple feature types for plots</p>
 <p><strong>Error Handling Pattern for Configuration Functions:</strong> Configuration functions that query the database MUST implement graceful error handling to support users with limited database permissions:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Pattern for functions that query database tables</span></span>
 <span><span class="va">get_example_config</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">con</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="op">{</span></span>
@@ -348,7 +361,7 @@
 <p>When developing Shiny apps in this package, follow these mandatory patterns:</p>
 <p><strong>1. Database Connection Management:</strong> - Use the <code>mod_database_login_ui/server</code> module for authentication within the app - Do NOT require database connections from R console before launching - Store connection pools in <code>.db_env$pool_main</code> and <code>.db_env$pool_taxa</code> - Use <code><a href="https://rdrr.io/pkg/shinyjs/man/useShinyjs.html" class="external-link">shinyjs::useShinyjs()</a></code> for dynamic UI control</p>
 <p><strong>2. UI Structure with Conditional Authentication:</strong></p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu">shinyjs</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shinyjs/man/useShinyjs.html" class="external-link">useShinyjs</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span></span>
@@ -365,7 +378,7 @@
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p><strong>3. Server Authentication Pattern:</strong></p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="co"># Use login module</span></span>
 <span>  <span class="va">login_output</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mod_database_login_server.html">mod_database_login_server</a></span><span class="op">(</span><span class="st">"login"</span><span class="op">)</span></span>
@@ -383,7 +396,7 @@
 <span>  <span class="op">}</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 <p><strong>4. Mandatory Session Cleanup:</strong> Always include this session end handler to clean up connections and quit R:</p>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">session</span><span class="op">$</span><span class="fu">onSessionEnded</span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="co"># Clean up all connections and credentials</span></span>
 <span>  <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="op">{</span></span>
