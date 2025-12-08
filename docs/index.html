@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Exploring and updating the Central Africa plot database • CafriplotsR</title>
+<title>Tools for Exploring, Managing and Standardizing Vegetation Inventories in Central Africa • CafriplotsR</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
 <link rel="icon" type="”image/svg+xml”" href="favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -15,7 +15,7 @@
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Exploring and updating the Central Africa plot database">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Tools for Exploring, Managing and Standardizing Vegetation Inventories in Central Africa">
 <meta name="description" content="Exploring and updating the database containing plot data from Central Africa. This package contains several function for manipulating tree inventories data from Central Africa. Access is restricted.">
 <meta property="og:description" content="Exploring and updating the database containing plot data from Central Africa. This package contains several function for manipulating tree inventories data from Central Africa. Access is restricted.">
 <meta property="og:image" content="https://umr-amap.github.io/cafriplotsR/logo.png">
@@ -191,7 +191,7 @@ The advantage of this package is allow managing inventories, traits and observat
 </h2>
 <ul>
 <li>
-<strong>Authors:</strong> Gilles Dauby, Hugo Leblanc</li>
+<strong>Authors:</strong> Gilles Dauby, Hugo Leblanc, Pierre Ploton</li>
 <li>
 <strong>Maintainer:</strong> Gilles Dauby (<a href="mailto:gilles.dauby@ird.fr" class="email">gilles.dauby@ird.fr</a>)</li>
 <li>
@@ -209,6 +209,25 @@ The advantage of this package is allow managing inventories, traits and observat
 <h2 id="support">Support<a class="anchor" aria-label="anchor" href="#support"></a>
 </h2>
 <p>For issues, questions, or feature requests, contact the package maintainer.</p>
+</div>
+<div class="section level2">
+<h2 id="citation">Citation<a class="anchor" aria-label="anchor" href="#citation"></a>
+</h2>
+<p>To cite CafriplotsR in publications, use:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/citation.html" class="external-link">citation</a></span><span class="op">(</span><span class="st">"CafriplotsR"</span><span class="op">)</span></span></code></pre></div>
+<p>Or manually:</p>
+<blockquote>
+<p>Dauby, G., Leblanc, H., &amp; Ploton, P. (2024). CafriplotsR: Tools for Exploring, Managing and Standardizing Vegetation Inventories in Central Africa. R package version 1.8.0. <a href="https://umr-amap.github.io/cafriplotsR/" class="uri">https://umr-amap.github.io/cafriplotsR/</a></p>
+</blockquote>
+<p>BibTeX entry:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bibtex"><code class="sourceCode bibtex"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="va">@Manual</span>{<span class="ot">cafriplotsr</span>,</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  <span class="dt">title</span> = {CafriplotsR: Tools for Exploring, Managing and Standardizing Vegetation Inventories in Central Africa},</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="dt">author</span> = {Gilles Dauby and Hugo Leblanc and Pierre Ploton},</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>  <span class="dt">year</span> = {2024},</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  <span class="dt">note</span> = {R package version 1.8.0},</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>  <span class="dt">url</span> = {https://umr-amap.github.io/cafriplotsR/}</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>}</span></code></pre></div>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="license">
@@ -229,7 +248,8 @@ The advantage of this package is allow managing inventories, traits and observat
 <div class="developers">
 <h2 data-toc-skip>Developers</h2>
 <ul class="list-unstyled">
-<li>Gilles Dauby <br><small class="roles"> Maintainer </small>   </li>
+<li>Gilles Dauby <br><small class="roles"> Author, maintainer, funder, copyright holder </small> <a href="https://orcid.org/0000-0003-4303-5140" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a>  </li>
+<li><a href="authors.html">More about authors...</a></li>
 </ul>
 </div>
 
