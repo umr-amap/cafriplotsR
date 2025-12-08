@@ -124,7 +124,35 @@ The package manages connections to **two separate PostgreSQL databases**:
 2. Store in `~/.Renviron` via `setup_db_credentials()` (WARNING: plaintext storage)
 3. Pass directly to connection functions
 
+**CRITICAL SECURITY WARNING - Database Credentials:**
 
+⚠️ **NEVER commit database credentials to version control**
+
+When writing code examples, documentation, or vignettes that demonstrate database connections:
+
+✅ **CORRECT - Use placeholder credentials:**
+```r
+# Example with placeholder credentials
+con <- call.mydb(user = "your_username", password = "your_password")
+con <- call.mydb(user = "eee", password = "sss")
+```
+
+❌ **NEVER do this - Real credentials in code:**
+```r
+# DANGER: Never use actual credentials in code
+con <- call.mydb(user = "john.doe", password = "MyP@ssw0rd123")
+```
+
+**Security best practices:**
+- Always use `call.mydb()` without parameters to trigger interactive prompts (preferred)
+- If credentials must be in code, use obvious placeholders like "eee", "sss", "your_username"
+- Never commit files containing real usernames or passwords (.Rmd, .R, .Rprofile, etc.)
+- If credentials are accidentally committed:
+  1. Immediately change the password in the database
+  2. Remove the credentials from git history using `git filter-branch` or `git filter-repo`
+  3. Force push the cleaned history to remote
+- Keep `.Rprofile` in `.gitignore` (already configured)
+- Review all Rmd vignettes before committing to ensure no real credentials
 
 ### Data Query Architecture
 
