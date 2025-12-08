@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -64,22 +64,26 @@
 <div class="section level2">
 <h2 id="aperçu">Aperçu<a class="anchor" aria-label="anchor" href="#aper%C3%A7u"></a>
 </h2>
-<p>Cette vignette présente le flux de travail complet pour importer de
-nouvelles données de parcelles dans la base de données. Le processus
-comprend deux étapes principales :</p>
+<p>Cette vignette montre comment importer de nouvelles données de
+parcelles dans la base de données. Le package propose <strong>deux
+approches</strong> :</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong>Importer les métadonnées de parcelles</strong> - Ajouter les
-informations de parcelles (localisation, taille, dates de recensement,
-etc.)</li>
+<strong>✨ Application Shiny Interactive (Recommandée)</strong> -
+Interface conviviale avec aperçu visuel et validation guidée</li>
 <li>
-<strong>Importer les données d’arbres individuels</strong> - Ajouter
-les mesures d’arbres et les traits pour les individus dans ces
-parcelles</li>
+<strong>💻 Flux de Travail Programmatique (Avancé)</strong> - Code R
+pour l’automatisation et les workflows personnalisés</li>
 </ol>
-<p>Les deux flux de travail utilisent des <strong>imports basés sur les
-transactions</strong> avec annulation automatique en cas d’erreur,
-assurant l’intégrité des données.</p>
+<p>Nous <strong>recommandons fortement l’utilisation de l’application
+Shiny</strong> pour la plupart des utilisateurs, en particulier lorsque
+: - Vous importez des données pour la première fois - Vous travaillez
+avec de nouveaux formats de données - Vous souhaitez une confirmation
+visuelle avant l’import - Vous préférez un processus guidé étape par
+étape</p>
+<p>Le flux de travail programmatique est destiné aux utilisateurs
+avancés qui ont besoin d’automatisation ou d’intégration
+personnalisée.</p>
 </div>
 <div class="section level2">
 <h2 id="prérequis">Prérequis<a class="anchor" aria-label="anchor" href="#pr%C3%A9requis"></a>
@@ -94,31 +98,283 @@ des permissions d’écriture</li>
 <code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code> (voir la vignette
 taxonomic-app)</li>
 <li>
-<strong>Les coordonnées et métadonnées de parcelles</strong>
-prêtes</li>
+<strong>Les coordonnées et métadonnées de parcelles</strong> au
+format Excel ou CSV</li>
 <li>
-<strong>Les données d’arbres individuels</strong> au format Excel ou
-CSV</li>
+<strong>Les données d’arbres individuels</strong> (si vous importez
+des mesures d’arbres)</li>
 </ol>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Se connecter à la base de données</span></span>
+<span><span class="co"># Se connecter à la base de données (pour vérification)</span></span>
 <span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
-<h2 id="étape-1-importer-les-métadonnées-de-parcelles">Étape 1 : Importer les Métadonnées de Parcelles<a class="anchor" aria-label="anchor" href="#%C3%A9tape-1-importer-les-m%C3%A9tadonn%C3%A9es-de-parcelles"></a>
+<h2 id="importer-avec-lapplication-shiny-recommandé">Importer avec l’Application Shiny (Recommandé)<a class="anchor" aria-label="anchor" href="#importer-avec-lapplication-shiny-recommand%C3%A9"></a>
 </h2>
-<p>Avant d’importer les arbres individuels, vous devez d’abord créer les
-parcelles dans la base de données.</p>
+<p>L’<strong>Assistant d’Import</strong> fournit une interface visuelle
+complète pour importer les métadonnées de parcelles avec validation
+intégrée, aperçu et gestion des erreurs.</p>
 <div class="section level3">
-<h3 id="préparer-les-données-de-parcelles">1.1 Préparer les Données de Parcelles<a class="anchor" aria-label="anchor" href="#pr%C3%A9parer-les-donn%C3%A9es-de-parcelles"></a>
+<h3 id="lancer-lassistant-dimport">Lancer l’Assistant d’Import<a class="anchor" aria-label="anchor" href="#lancer-lassistant-dimport"></a>
 </h3>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Lancer l'Assistant d'Import</span></span>
+<span><span class="fu">launch_import_wizard</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Ou spécifier la langue</span></span>
+<span><span class="fu">launch_import_wizard</span><span class="op">(</span>language <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span>  <span class="co"># Interface française</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="guide-étape-par-étape">Guide Étape par Étape<a class="anchor" aria-label="anchor" href="#guide-%C3%A9tape-par-%C3%A9tape"></a>
+</h3>
+<p>L’Assistant d’Import vous guide à travers 7 étapes :</p>
+<div class="section level4">
+<h4 id="étape-1-choisir-le-type-dimport">
+<strong>Étape 1 : Choisir le Type d’Import</strong><a class="anchor" aria-label="anchor" href="#%C3%A9tape-1-choisir-le-type-dimport"></a>
+</h4>
+<p>Sélectionnez ce que vous voulez importer : - <strong>Métadonnées de
+Parcelles</strong> - Localisations, dates de recensement, investigateurs
+- <strong>Arbres Individuels</strong> - Mesures et traits d’arbres (à
+venir)</p>
+</div>
+<div class="section level4">
+<h4 id="étape-2-télécharger-les-données">
+<strong>Étape 2 : Télécharger les Données</strong><a class="anchor" aria-label="anchor" href="#%C3%A9tape-2-t%C3%A9l%C3%A9charger-les-donn%C3%A9es"></a>
+</h4>
+<ul>
+<li>
+<strong>Téléchargez votre fichier</strong> (Excel <code>.xlsx</code>
+ou CSV)</li>
+<li>
+<strong>Ou téléchargez un modèle</strong> si vous partez de
+zéro</li>
+<li>Prévisualisez vos données pour vérifier qu’elles sont bien
+chargées</li>
+</ul>
+<p><strong>Formats supportés :</strong> - Fichiers Excel
+(<code>.xlsx</code>, <code>.xls</code>) - Fichiers CSV (délimiteur
+<code>,</code> ou <code>;</code>) - Plusieurs feuilles (vous pouvez
+sélectionner quelle feuille importer)</p>
+</div>
+<div class="section level4">
+<h4 id="étape-3-mapper-les-colonnes">
+<strong>Étape 3 : Mapper les Colonnes</strong><a class="anchor" aria-label="anchor" href="#%C3%A9tape-3-mapper-les-colonnes"></a>
+</h4>
+<p>L’assistant mappe automatiquement vos noms de colonnes au schéma de
+la base de données :</p>
+<ul>
+<li>
+<strong>✅ Correspondances exactes</strong> - Surlignées en
+vert</li>
+<li>
+<strong>🔍 Correspondances floues</strong> - Suggérées avec scores
+de confiance</li>
+<li>
+<strong>❓ Colonnes non mappées</strong> - Vous pouvez sélectionner
+manuellement ou ignorer</li>
+</ul>
+<p><strong>Fonctionnalités intelligentes :</strong> - Reconnaît les
+synonymes (ex : <code>PI</code> → <code>principal_investigator</code>) -
+Fournit des descriptions de colonnes au survol - Permet d’ignorer les
+colonnes non désirées - Mémorise vos choix lors de la navigation
+arrière</p>
+</div>
+<div class="section level4">
+<h4 id="étape-4-faire-correspondre-les-valeurs-de-référence">
+<strong>Étape 4 : Faire Correspondre les Valeurs de
+Référence</strong><a class="anchor" aria-label="anchor" href="#%C3%A9tape-4-faire-correspondre-les-valeurs-de-r%C3%A9f%C3%A9rence"></a>
+</h4>
+<p>Pour les colonnes qui référencent des tables de référence (méthode,
+pays, personnes), l’assistant :</p>
+<ul>
+<li>Affiche les correspondances exactes en vert</li>
+<li>Surligne les valeurs nécessitant une correspondance</li>
+<li>Fournit une correspondance floue interactive avec scores de
+similarité</li>
+<li>Permet de rechercher et sélectionner les valeurs correctes</li>
+</ul>
+<p><strong>Exemple :</strong></p>
+<pre><code>Votre valeur : "Cameroun"
+Suggestions :
+  ✓ CAMEROON (95% de similarité)
+  • CAMEROUN (exact mais pas dans la base)
+  • Gabon (20% de similarité)</code></pre>
+</div>
+<div class="section level4">
+<h4 id="étape-5-valider-les-données">
+<strong>Étape 5 : Valider les Données</strong><a class="anchor" aria-label="anchor" href="#%C3%A9tape-5-valider-les-donn%C3%A9es"></a>
+</h4>
+<p>Vérifications complètes de validation :</p>
+<p>✅ <strong>Champs requis</strong> - plot_name, method, country ✅
+<strong>Types de données</strong> - Les colonnes numériques contiennent
+des nombres ✅ <strong>Plages de valeurs</strong> - Coordonnées dans des
+plages valides ✅ <strong>Valeurs de référence</strong> - Toutes les
+références existent dans la base ✅ <strong>Contraintes
+d’unicité</strong> - Pas de noms de parcelles en double ✅
+<strong>Détection de doublons</strong> - Avertit des ré-imports
+potentiels</p>
+<p><strong>Détection des Coordonnées UTM :</strong> Si vos coordonnées
+sont au format UTM (valeurs &gt; 1000), l’assistant : - Les détecte
+automatiquement - Affiche un message d’erreur spécifique - Fournit un
+outil de conversion dans l’étape d’aperçu</p>
+</div>
+<div class="section level4">
+<h4 id="étape-6-prévisualiser-les-données">
+<strong>Étape 6 : Prévisualiser les Données</strong><a class="anchor" aria-label="anchor" href="#%C3%A9tape-6-pr%C3%A9visualiser-les-donn%C3%A9es"></a>
+</h4>
+<p>Aperçu visuel de vos données <strong>avant</strong> l’import :</p>
+<ul>
+<li>
+<strong>Table de données</strong> avec noms de référence enrichis
+(pas d’IDs)</li>
+<li>
+<strong>Carte interactive</strong> montrant les localisations des
+parcelles
+<ul>
+<li>Zoom automatique sur vos parcelles</li>
+<li>Regroupement de marqueurs pour beaucoup de parcelles</li>
+<li>Cliquez sur les marqueurs pour les détails</li>
+<li>Avertissements pour coordonnées invalides/inhabituelles</li>
+</ul>
+</li>
+<li>
+<strong>Outil de conversion UTM</strong> (si coordonnées UTM
+détectées)
+<ul>
+<li>Entrée : zone UTM et hémisphère</li>
+<li>Sortie : Coordonnées WGS84 converties</li>
+<li>Met à jour la carte en temps réel</li>
+</ul>
+</li>
+<li>
+<strong>Options de téléchargement</strong> - Excel ou CSV avec
+données enrichies</li>
+</ul>
+<p><strong>Fonctionnalités de la Carte :</strong> - 🗺️ Vérifier
+visuellement les localisations des parcelles - ⚠️ Détecter
+latitude/longitude inversées - 📍 Vérifier les problèmes de système de
+coordonnées - 💡 Conseils utiles si les parcelles ne sont pas où
+prévu</p>
+</div>
+<div class="section level4">
+<h4 id="étape-7-exécuter-limport">
+<strong>Étape 7 : Exécuter l’Import</strong><a class="anchor" aria-label="anchor" href="#%C3%A9tape-7-ex%C3%A9cuter-limport"></a>
+</h4>
+<p>Dernière étape pour importer dans la base de données :</p>
+<ul>
+<li>Mode <strong>Essai à blanc</strong> pour tester sans
+modifications</li>
+<li>
+<strong>Suivi en direct</strong> de la progression pendant
+l’import</li>
+<li>
+<strong>Sécurité transactionnelle</strong> - Import
+tout-ou-rien</li>
+<li>
+<strong>Code d’accès administrateur</strong> généré pour la sécurité
+au niveau des lignes</li>
+<li>
+<strong>Télécharger les résultats</strong> comme script R ou
+CSV</li>
+</ul>
+<p><strong>Après l’Import :</strong> L’assistant fournit un <strong>code
+d’accès administrateur</strong> qui vous donne la permission d’accéder à
+vos parcelles nouvellement importées. Envoyez ce code à votre
+administrateur de base de données.</p>
+</div>
+</div>
+<div class="section level3">
+<h3 id="exemple-de-session-complète">Exemple de Session Complète<a class="anchor" aria-label="anchor" href="#exemple-de-session-compl%C3%A8te"></a>
+</h3>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># 1. Lancer l'assistant</span></span>
+<span><span class="fu">launch_import_wizard</span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 2. Suivre le processus guidé en 7 étapes :</span></span>
+<span><span class="co">#    - Choisir "Métadonnées de Parcelles"</span></span>
+<span><span class="co">#    - Télécharger votre fichier Excel</span></span>
+<span><span class="co">#    - Réviser le mapping automatique des colonnes</span></span>
+<span><span class="co">#    - Faire correspondre les valeurs de référence de manière interactive</span></span>
+<span><span class="co">#    - Valider les données (corriger les erreurs)</span></span>
+<span><span class="co">#    - Prévisualiser les données et la carte</span></span>
+<span><span class="co">#    - Exécuter l'import (essayez d'abord l'essai à blanc !)</span></span>
+<span></span>
+<span><span class="co"># 3. Copier le code d'accès admin et l'envoyer à l'admin</span></span>
+<span></span>
+<span><span class="co"># 4. Après que l'admin accorde l'accès, vérifier :</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">mes_parcelles</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Parcelle-A"</span>, <span class="st">"Parcelle-B"</span><span class="op">)</span>,</span>
+<span>  exact_match <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  con <span class="op">=</span> <span class="va">con</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="fonctionnalités-de-lassistant-dimport">Fonctionnalités de l’Assistant d’Import<a class="anchor" aria-label="anchor" href="#fonctionnalit%C3%A9s-de-lassistant-dimport"></a>
+</h3>
+<p><strong>Validation et Prévention des Erreurs :</strong> - ✅
+Détection de parcelles en double (méthode + pays + coordonnées) - ✅
+Détection et conversion des coordonnées UTM - ✅ Aperçu de carte
+interactive - ✅ Correspondance de valeurs de référence avec recherche
+floue - ✅ Retour de validation en temps réel - ✅ Détection de lat/lon
+inversées</p>
+<p><strong>Conception Conviviale :</strong> - 📊 Aperçu visuel des
+données - 🗺️ Cartes interactives - 🔍 Mapping intelligent des colonnes -
+⚡ Retour instantané - 💾 Options de téléchargement à chaque étape - 🌍
+Bilingue (Anglais/Français)</p>
+<p><strong>Fonctionnalités de Sécurité :</strong> - 🔒 Mode essai à
+blanc - ↩︎️ Annulation de transaction en cas d’erreur - ✅ Validation
+étape par étape - 📋 Messages d’erreur complets</p>
+<hr>
+</div>
+</div>
+<div class="section level2">
+<h2 id="quand-utiliser-le-flux-de-travail-programmatique">Quand Utiliser le Flux de Travail Programmatique<a class="anchor" aria-label="anchor" href="#quand-utiliser-le-flux-de-travail-programmatique"></a>
+</h2>
+<p>Le flux de travail programmatique est conçu pour les
+<strong>utilisateurs avancés</strong> qui ont besoin de :</p>
+<ul>
+<li>
+<strong>Automatisation</strong> - Traitement par lots de plusieurs
+fichiers</li>
+<li>
+<strong>Validation personnalisée</strong> - Logique métier
+supplémentaire</li>
+<li>
+<strong>Intégration</strong> - Partie d’un pipeline de données plus
+large</li>
+<li>
+<strong>Script</strong> - Flux de travail d’import
+reproductibles</li>
+<li>
+<strong>Performance</strong> - Import de très grands ensembles de
+données de manière efficace</li>
+</ul>
+<p><strong>Pour la plupart des utilisateurs, l’application Shiny est
+recommandée</strong> car elle fournit : - De meilleurs messages d’erreur
+- Confirmation visuelle - Résolution interactive de problèmes - Pas de
+codage requis</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="import-programmatique-utilisateurs-avancés">Import Programmatique (Utilisateurs Avancés)<a class="anchor" aria-label="anchor" href="#import-programmatique-utilisateurs-avanc%C3%A9s"></a>
+</h2>
+<details><summary><strong>Cliquer pour développer la documentation du flux
+programmatique</strong>
+</summary><p>Cette section fournit le flux de travail complet en code R pour
+importer des données de manière programmatique.</p>
+<div class="section level3">
+<h3 id="étape-1-importer-les-métadonnées-de-parcelles">Étape 1 : Importer les Métadonnées de Parcelles<a class="anchor" aria-label="anchor" href="#%C3%A9tape-1-importer-les-m%C3%A9tadonn%C3%A9es-de-parcelles"></a>
+</h3>
+<div class="section level4">
+<h4 id="préparer-les-données-de-parcelles">1.1 Préparer les Données de Parcelles<a class="anchor" aria-label="anchor" href="#pr%C3%A9parer-les-donn%C3%A9es-de-parcelles"></a>
+</h4>
 <p>Les données de parcelles doivent inclure les métadonnées essentielles
 :</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Exemple : Préparer les métadonnées de parcelles</span></span>
 <span><span class="va">plot_metadata</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Parcelle-A"</span>, <span class="st">"Parcelle-B"</span>, <span class="st">"Parcelle-C"</span><span class="op">)</span>,</span>
@@ -135,212 +391,121 @@ parcelles dans la base de données.</p>
 <span>  stringsAsFactors <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="générer-un-modèle-dimport-optionnel">1.2 Générer un Modèle d’Import (Optionnel)<a class="anchor" aria-label="anchor" href="#g%C3%A9n%C3%A9rer-un-mod%C3%A8le-dimport-optionnel"></a>
-</h3>
-<p>Si vous partez de zéro, générez un modèle pour comprendre les champs
-requis :</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="section level4">
+<h4 id="générer-un-modèle-dimport-optionnel">1.2 Générer un Modèle d’Import (Optionnel)<a class="anchor" aria-label="anchor" href="#g%C3%A9n%C3%A9rer-un-mod%C3%A8le-dimport-optionnel"></a>
+</h4>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Générer un modèle avec des exemples</span></span>
 <span><span class="va">template</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/get_plot_metadata_template.html">get_plot_metadata_template</a></span><span class="op">(</span></span>
-<span>  template_type <span class="op">=</span> <span class="st">"permanent_plot"</span>,  <span class="co"># ou "transect", "minimal", "full"</span></span>
+<span>  template_type <span class="op">=</span> <span class="st">"permanent_plot"</span>,</span>
 <span>  with_examples <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Visualiser la structure du modèle</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/View.html" class="external-link">View</a></span><span class="op">(</span><span class="va">template</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Exporter vers Excel pour remplissage</span></span>
+<span><span class="co"># Exporter vers Excel</span></span>
 <span><span class="fu"><a href="../reference/export_plot_template.html">export_plot_template</a></span><span class="op">(</span></span>
 <span>  file_path <span class="op">=</span> <span class="st">"mon_modele_parcelles.xlsx"</span>,</span>
 <span>  template_type <span class="op">=</span> <span class="st">"permanent_plot"</span>,</span>
 <span>  with_examples <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Voir quelles colonnes sont disponibles</span></span>
+<span><span class="co"># Voir les colonnes disponibles</span></span>
 <span><span class="fu"><a href="../reference/print_template_info.html">print_template_info</a></span><span class="op">(</span><span class="st">"permanent_plot"</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Le modèle inclut</strong> : - <strong>Requis</strong> :
-<code>plot_name</code>, <code>method</code>, <code>country</code> -
-<strong>Localisation</strong> : <code>ddlat</code>, <code>ddlon</code>,
-<code>elevation</code>, <code>locality_name</code> -
-<strong>Dates</strong> : <code>date_y</code>, <code>date_m</code>,
-<code>date_d</code> - <strong>Personnes</strong> :
-<code>team_leader</code>, <code>principal_investigator</code>,
-<code>data_manager</code> - <strong>Optionnel</strong> :
-Caractéristiques de parcelles et autres attributs de sous-parcelles</p>
 </div>
-<div class="section level3">
-<h3 id="mapper-les-colonnes-de-vos-données">1.3 Mapper les Colonnes de Vos Données<a class="anchor" aria-label="anchor" href="#mapper-les-colonnes-de-vos-donn%C3%A9es"></a>
-</h3>
-<p>Mapper les colonnes de vos données au schéma de la base de données
-:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Charger vos données (depuis Excel, CSV, etc.)</span></span>
+<div class="section level4">
+<h4 id="mapper-les-colonnes-de-vos-données">1.3 Mapper les Colonnes de Vos Données<a class="anchor" aria-label="anchor" href="#mapper-les-colonnes-de-vos-donn%C3%A9es"></a>
+</h4>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Charger vos données</span></span>
 <span><span class="va">mes_donnees_parcelles</span> <span class="op">&lt;-</span> <span class="fu">readxl</span><span class="fu">::</span><span class="fu"><a href="https://readxl.tidyverse.org/reference/read_excel.html" class="external-link">read_excel</a></span><span class="op">(</span><span class="st">"mes_parcelles.xlsx"</span><span class="op">)</span></span>
-<span><span class="co"># ou</span></span>
-<span><span class="va">mes_donnees_parcelles</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"mes_parcelles.csv"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Obtenir la configuration d'import</span></span>
 <span><span class="va">config</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/get_import_column_routing.html">get_import_column_routing</a></span><span class="op">(</span>import_type <span class="op">=</span> <span class="st">"plots"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Mapper les colonnes automatiquement (avec correspondance floue)</span></span>
+<span><span class="co"># Mapper les colonnes automatiquement</span></span>
 <span><span class="va">resultat_mapping</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/map_user_columns.html">map_user_columns</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">mes_donnees_parcelles</span>,</span>
 <span>  config <span class="op">=</span> <span class="va">config</span>,</span>
 <span>  similarity_threshold <span class="op">=</span> <span class="fl">0.6</span>,</span>
-<span>  interactive <span class="op">=</span> <span class="cn">TRUE</span>  <span class="co"># Mettre FALSE pour mode non-interactif</span></span>
+<span>  interactive <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Examiner les mappages</span></span>
+<span><span class="co"># Réviser les mappings</span></span>
 <span><span class="fu"><a href="../reference/print_mapping_summary.html">print_mapping_summary</a></span><span class="op">(</span><span class="va">resultat_mapping</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Fonctionnalités du Mapping de Colonnes</strong> : - ✅
-Correspondance exacte automatique - ✅ Reconnaissance de synonymes (ex :
-<code>PI</code> → <code>principal_investigator</code>) - ✅
-Correspondance floue pour les fautes de frappe - ✅ Sélection
-interactive pour les mappages peu clairs</p>
 </div>
-<div class="section level3">
-<h3 id="valider-les-données">1.4 Valider les Données<a class="anchor" aria-label="anchor" href="#valider-les-donn%C3%A9es"></a>
-</h3>
-<p>Valider vos données avant l’import :</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="section level4">
+<h4 id="valider-les-données">1.4 Valider les Données<a class="anchor" aria-label="anchor" href="#valider-les-donn%C3%A9es"></a>
+</h4>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Valider les métadonnées de parcelles</span></span>
 <span><span class="va">validation</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/validate_plot_metadata.html">validate_plot_metadata</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">mes_donnees_parcelles</span>,</span>
 <span>  column_mappings <span class="op">=</span> <span class="va">resultat_mapping</span><span class="op">$</span><span class="va">mappings</span>,</span>
 <span>  config <span class="op">=</span> <span class="va">config</span>,</span>
-<span>  interactive <span class="op">=</span> <span class="cn">TRUE</span>,  <span class="co"># Permettre la correction interactive</span></span>
-<span>  fix_on_fly <span class="op">=</span> <span class="cn">TRUE</span>    <span class="co"># Corriger les problèmes pendant la validation</span></span>
+<span>  interactive <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  fix_on_fly <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Visualiser les résultats de validation</span></span>
+<span><span class="co"># Voir les résultats</span></span>
 <span><span class="fu"><a href="../reference/print_validation_results.html">print_validation_results</a></span><span class="op">(</span><span class="va">validation</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Vérifier si valide</span></span>
+<span><span class="co"># Vérifier la validité</span></span>
 <span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">validation</span><span class="op">$</span><span class="va">valid</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"❌ Validation échouée ! Corrigez les erreurs avant d'importer.\n"</span><span class="op">)</span></span>
-<span>  <span class="co"># Voir les erreurs détaillées</span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/utils/View.html" class="external-link">View</a></span><span class="op">(</span><span class="va">validation</span><span class="op">$</span><span class="va">errors</span><span class="op">)</span></span>
-<span>  <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span><span class="st">"La validation des données a échoué"</span><span class="op">)</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span><span class="st">"Corriger les erreurs de validation avant l'import"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-<p><strong>Vérifications de Validation</strong> : 1. ✅ Champs requis
-présents (<code>plot_name</code>, <code>method</code>,
-<code>country</code>) 2. ✅ Valeurs de recherche valides (method,
-country) 3. ✅ Types de colonnes corrects (numérique, caractère) 4. ✅
-Plages de valeurs valides (coordonnées, dates) 5. ✅ Contraintes
-d’unicité (pas de noms de parcelles dupliqués)</p>
-<p><strong>Correction Interactive</strong> : La fonction de validation
-peut corriger automatiquement les erreurs de recherche en utilisant la
-correspondance floue si <code>interactive = TRUE</code>.</p>
 </div>
-<div class="section level3">
-<h3 id="essai-à-blanc-aperçu-de-limport">1.5 Essai à Blanc (Aperçu de l’Import)<a class="anchor" aria-label="anchor" href="#essai-%C3%A0-blanc-aper%C3%A7u-de-limport"></a>
-</h3>
-<p>Toujours prévisualiser avant de valider :</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># ESSAI À BLANC - prévisualiser sans valider</span></span>
+<div class="section level4">
+<h4 id="essai-à-blanc-aperçu">1.5 Essai à Blanc (Aperçu)<a class="anchor" aria-label="anchor" href="#essai-%C3%A0-blanc-aper%C3%A7u"></a>
+</h4>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Aperçu sans engagement</span></span>
 <span><span class="va">apercu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/import_plot_metadata.html">import_plot_metadata</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">mes_donnees_parcelles</span>,</span>
 <span>  column_mappings <span class="op">=</span> <span class="va">resultat_mapping</span><span class="op">$</span><span class="va">mappings</span>,</span>
 <span>  validation <span class="op">=</span> <span class="va">validation</span>,</span>
 <span>  config <span class="op">=</span> <span class="va">config</span>,</span>
-<span>  dry_run <span class="op">=</span> <span class="cn">TRUE</span>,  <span class="co"># IMPORTANT : Prévisualiser d'abord !</span></span>
+<span>  dry_run <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Examiner ce qui serait importé</span></span>
 <span><span class="fu"><a href="../reference/print_import_result.html">print_import_result</a></span><span class="op">(</span><span class="va">apercu</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Sortie de l’Essai à Blanc</strong> :</p>
-<pre><code>═══ Essai à Blanc : Aperçu de l'Import (Aucune Modification Ne Sera Effectuée) ═══
-ℹ Parcelles à importer : 3
-ℹ Import en tant qu'utilisateur : votre_nom_utilisateur
-
-─── Étape 1 : Liaison des méthodes ───
-✓ Lierait 2 méthodes uniques
-
-─── Étape 2 : Liaison des pays ───
-✓ Lierait 2 pays uniques
-
-─── Étape 3 : Traitement des attributs de sous-parcelles ───
-✓ Trouvé 4 colonne(s) d'attributs de sous-parcelles : team_leader, principal_investigator, ...
-
-─── Étape 4 : Préparation des données de parcelles ───
-✓ Préparé 3 lignes avec 15 colonnes
-
-─── Étape 5 : Aperçu - Insérerait Dans data_liste_plots ───
-Aperçu des données (3 premières lignes) :
-  plot_name     method  id_method id_country ddlat  ddlon
-1 Parcelle-A    1ha-IRD    1          2      -0.50  11.50
-2 Parcelle-B    1ha-IRD    1          2      -0.52  11.48
-3 Parcelle-C    0.5ha       5          1       3.20  13.50
-
-─── Étape 6 : Aperçu des attributs de sous-parcelles ───
-ℹ Insérerait 3 enregistrements team_leader (personnes)
-ℹ Insérerait 3 enregistrements principal_investigator (personnes)
-
-✓ Essai à blanc terminé - aucune modification effectuée</code></pre>
 </div>
-<div class="section level3">
-<h3 id="import-réel">1.6 Import Réel<a class="anchor" aria-label="anchor" href="#import-r%C3%A9el"></a>
-</h3>
-<p>Si l’essai à blanc semble bon, procédez à l’import réel :</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># IMPORT RÉEL</span></span>
+<div class="section level4">
+<h4 id="import-réel">1.6 Import Réel<a class="anchor" aria-label="anchor" href="#import-r%C3%A9el"></a>
+</h4>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Importer dans la base de données</span></span>
 <span><span class="va">resultat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/import_plot_metadata.html">import_plot_metadata</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">mes_donnees_parcelles</span>,</span>
 <span>  column_mappings <span class="op">=</span> <span class="va">resultat_mapping</span><span class="op">$</span><span class="va">mappings</span>,</span>
 <span>  validation <span class="op">=</span> <span class="va">validation</span>,</span>
 <span>  config <span class="op">=</span> <span class="va">config</span>,</span>
-<span>  dry_run <span class="op">=</span> <span class="cn">FALSE</span>,  <span class="co"># Importer réellement</span></span>
+<span>  dry_run <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  interactive <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Vérifier le résultat</span></span>
 <span><span class="kw">if</span> <span class="op">(</span><span class="va">resultat</span><span class="op">$</span><span class="va">success</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"✅ Importé avec succès"</span>, <span class="va">resultat</span><span class="op">$</span><span class="va">n_plots</span>, <span class="st">"parcelles !\n"</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Noms de parcelles :"</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="va">resultat</span><span class="op">$</span><span class="va">plot_names</span>, collapse <span class="op">=</span> <span class="st">", "</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"❌ L'import a échoué :"</span>, <span class="va">resultat</span><span class="op">$</span><span class="va">message</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"✅ Import réussi de"</span>, <span class="va">resultat</span><span class="op">$</span><span class="va">n_plots</span>, <span class="st">"parcelles !\n"</span><span class="op">)</span></span>
+<span></span>
+<span>  <span class="co"># Sauvegarder le code d'accès admin</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span><span class="va">resultat</span><span class="op">$</span><span class="va">admin_code</span>, <span class="st">"demande_acces_admin.R"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-<p><strong>Processus d’Import</strong> : 1. Transaction démarrée (tout
-ou rien) 2. Méthodes liées à la table <code>methodslist</code> 3. Pays
-liés à la table <code>table_countries</code> 4. Personnes liées à la
-table <code>table_colnam</code> (correspondance interactive) 5. Données
-de parcelles insérées dans <code>data_liste_plots</code> 6. Attributs de
-sous-parcelles insérés dans <code>data_liste_sub_plots</code> 7.
-Transaction validée (ou annulée en cas d’erreur)</p>
 </div>
-<div class="section level3">
-<h3 id="sécurité-au-niveau-des-lignes-rls---important">1.7 Sécurité au Niveau des Lignes (RLS) - Important !<a class="anchor" aria-label="anchor" href="#s%C3%A9curit%C3%A9-au-niveau-des-lignes-rls---important"></a>
-</h3>
-<p><strong>Après l’import, vous n’aurez peut-être pas encore accès à vos
-parcelles !</strong></p>
-<p>La fonction génère un code d’accès administrateur :</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Le code admin est retourné dans le résultat</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="va">resultat</span><span class="op">$</span><span class="va">admin_code</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Ou sauvegarder dans un fichier pour l'envoyer à l'admin</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span><span class="va">resultat</span><span class="op">$</span><span class="va">admin_code</span>, <span class="st">"demande_acces_admin.R"</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Envoyez ce code à votre administrateur de base de
-données</strong> pour vous accorder l’accès :</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># ══════════════════════════════════════════════════════════════════════</span></span>
-<span><span class="co"># SÉCURITÉ AU NIVEAU DES LIGNES : Accorder l'Accès à l'Utilisateur</span></span>
-<span><span class="co"># ══════════════════════════════════════════════════════════════════════</span></span>
-<span><span class="co"># Utilisateur : votre_nom_utilisateur</span></span>
-<span><span class="co"># Parcelles : Parcelle-A, Parcelle-B, Parcelle-C</span></span>
-<span></span>
+<div class="section level4">
+<h4 id="accès-sécurité-au-niveau-des-lignes">1.7 Accès Sécurité au Niveau des Lignes<a class="anchor" aria-label="anchor" href="#acc%C3%A8s-s%C3%A9curit%C3%A9-au-niveau-des-lignes"></a>
+</h4>
+<p>Envoyer le code admin généré à votre administrateur de base de
+données :</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># L'admin exécute ce code pour accorder l'accès</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span>  <span class="co"># Identifiants admin</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Obtenir les IDs de parcelles</span></span>
 <span><span class="va">plot_ids</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">con</span>,</span>
 <span>  <span class="st">"SELECT id_liste_plots FROM data_liste_plots</span></span>
 <span><span class="st">   WHERE plot_name IN ('Parcelle-A', 'Parcelle-B', 'Parcelle-C')"</span><span class="op">)</span><span class="op">$</span><span class="va">id_liste_plots</span></span>
 <span></span>
-<span><span class="co"># Accorder l'accès</span></span>
 <span><span class="fu"><a href="../reference/define_user_policy.html">define_user_policy</a></span><span class="op">(</span></span>
 <span>  con <span class="op">=</span> <span class="va">con</span>,</span>
 <span>  user <span class="op">=</span> <span class="st">"votre_nom_utilisateur"</span>,</span>
@@ -350,13 +515,11 @@ données</strong> pour vous accorder l’accès :</p>
 <span>  drop_existing <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="vérifier-limport">1.8 Vérifier l’Import<a class="anchor" aria-label="anchor" href="#v%C3%A9rifier-limport"></a>
-</h3>
-<p>Après que l’admin a accordé l’accès, vérifier que les parcelles ont
-été créées :</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Interroger les parcelles importées</span></span>
+<div class="section level4">
+<h4 id="vérifier-limport">1.8 Vérifier l’Import<a class="anchor" aria-label="anchor" href="#v%C3%A9rifier-limport"></a>
+</h4>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Après que l'admin accorde l'accès</span></span>
 <span><span class="va">parcelles_importees</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Parcelle-A"</span>, <span class="st">"Parcelle-B"</span>, <span class="st">"Parcelle-C"</span><span class="op">)</span>,</span>
 <span>  exact_match <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -364,436 +527,157 @@ données</strong> pour vous accorder l’accès :</p>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Vérifier les métadonnées</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">parcelles_importees</span><span class="op">$</span><span class="va">metadata</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Vérifier les attributs de recensement</span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">parcelles_importees</span><span class="op">$</span><span class="va">census_features</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">parcelles_importees</span><span class="op">$</span><span class="va">census_features</span><span class="op">)</span></span>
-<span><span class="op">}</span></span></code></pre></div>
-<p><strong>Important</strong> : Assurez-vous que toutes les parcelles
-sont importées avec succès avant de procéder à l’import des données
-individuelles.</p>
+<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">parcelles_importees</span><span class="op">$</span><span class="va">metadata</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
 </div>
-<div class="section level2">
-<h2 id="étape-2-importer-les-données-darbres-individuels">Étape 2 : Importer les Données d’Arbres Individuels<a class="anchor" aria-label="anchor" href="#%C3%A9tape-2-importer-les-donn%C3%A9es-darbres-individuels"></a>
-</h2>
-<p>Une fois que les parcelles existent dans la base de données, vous
-pouvez importer les mesures et traits d’arbres individuels.</p>
 <div class="section level3">
-<h3 id="comprendre-la-structure-des-données">2.1 Comprendre la Structure des Données<a class="anchor" aria-label="anchor" href="#comprendre-la-structure-des-donn%C3%A9es"></a>
+<h3 id="étape-2-importer-les-données-darbres-individuels">Étape 2 : Importer les Données d’Arbres Individuels<a class="anchor" aria-label="anchor" href="#%C3%A9tape-2-importer-les-donn%C3%A9es-darbres-individuels"></a>
 </h3>
-<p>Les données individuelles peuvent être organisées de deux manières
-:</p>
+<p>Une fois les parcelles créées, importer les mesures d’arbres
+individuels.</p>
 <div class="section level4">
-<h4 id="option-a-table-plate-toutes-les-données-dans-une-feuille">Option A : Table Plate (Toutes les Données dans une Feuille)<a class="anchor" aria-label="anchor" href="#option-a-table-plate-toutes-les-donn%C3%A9es-dans-une-feuille"></a>
+<h4 id="structure-des-données">2.1 Structure des Données<a class="anchor" aria-label="anchor" href="#structure-des-donn%C3%A9es"></a>
 </h4>
-<pre><code>plot_name   | tag | species      | idtax | dbh  | height | wood_density
-------------|-----|--------------|-------|------|--------|-------------
-Parcelle-A  | 1   | Sp1          | 123   | 35.2 | 18.5   | 0.65
-Parcelle-A  | 2   | Sp2          | 456   | 42.1 | 22.0   | 0.58</code></pre>
+<p><strong>Option A : Table Plate</strong></p>
+<pre><code>plot_name | tag | idtax | dbh  | height
+----------|-----|-------|------|-------
+Parcelle-A| 1   | 123   | 35.2 | 18.5
+Parcelle-A| 2   | 456   | 42.1 | 22.0</code></pre>
+<p><strong>Option B : Deux Tables</strong> - <strong>Individus</strong>
+: plot_name, tag, idtax, species - <strong>Caractéristiques</strong> :
+plot_name, tag, dbh, height, wood_density</p>
 </div>
 <div class="section level4">
-<h4 id="option-b-structure-à-deux-tables-individus-caractéristiques">Option B : Structure à Deux Tables (Individus +
-Caractéristiques)<a class="anchor" aria-label="anchor" href="#option-b-structure-%C3%A0-deux-tables-individus-caract%C3%A9ristiques"></a>
+<h4 id="générer-un-modèle">2.2 Générer un Modèle<a class="anchor" aria-label="anchor" href="#g%C3%A9n%C3%A9rer-un-mod%C3%A8le"></a>
 </h4>
-<p><strong>Feuille Individus</strong> (identification de base des
-arbres) :</p>
-<pre><code>plot_name   | tag | species | idtax | herbarium_code
-------------|-----|---------|-------|---------------
-Parcelle-A  | 1   | Sp1     | 123   | IRD001
-Parcelle-A  | 2   | Sp2     | 456   | IRD002</code></pre>
-<p><strong>Feuille Caractéristiques</strong> (mesures et traits) :</p>
-<pre><code>plot_name   | tag | dbh  | height | wood_density | census_date
-------------|-----|------|--------|--------------|------------
-Parcelle-A  | 1   | 35.2 | 18.5   | 0.65         | 2020-01-15
-Parcelle-A  | 2   | 42.1 | 22.0   | 0.58         | 2020-01-15</code></pre>
-</div>
-</div>
-<div class="section level3">
-<h3 id="générer-un-modèle-dimport">2.2 Générer un Modèle d’Import<a class="anchor" aria-label="anchor" href="#g%C3%A9n%C3%A9rer-un-mod%C3%A8le-dimport"></a>
-</h3>
-<p>Commencez par générer un modèle pour comprendre les colonnes requises
-:</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Générer un modèle avec guide</span></span>
-<span><span class="fu"><a href="../reference/get_individual_template.html">get_individual_template</a></span><span class="op">(</span>output_file <span class="op">=</span> <span class="st">"mon_modele_individuel.xlsx"</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Générer le modèle</span></span>
+<span><span class="fu"><a href="../reference/get_individual_template.html">get_individual_template</a></span><span class="op">(</span>output_file <span class="op">=</span> <span class="st">"modele_arbres.xlsx"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Ceci crée un fichier Excel avec :</span></span>
-<span><span class="co"># - Feuille Individuals avec les colonnes requises</span></span>
-<span><span class="co"># - Feuille Features pour les mesures de traits</span></span>
-<span><span class="co"># - Feuille Notes avec un guide détaillé</span></span>
-<span></span>
-<span><span class="co"># Voir les informations du modèle</span></span>
+<span><span class="co"># Voir les infos du modèle</span></span>
 <span><span class="fu"><a href="../reference/print_individual_template_info.html">print_individual_template_info</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Structure du Modèle</strong> :</p>
-<ul>
-<li>
-<strong>Colonnes requises</strong> : <code>plot_name</code>,
-<code>idtax_n</code> (ID taxonomique)</li>
-<li>
-<strong>Colonnes recommandées</strong> : <code>tag</code>
-(identifiant d’arbre), <code>original_tax_name</code>
-</li>
-<li>
-<strong>Colonnes optionnelles</strong> :
-<code>herbarium_nbe_type</code>, <code>herbarium_nbe_char</code>,
-<code>multi_tiges_id</code>
-</li>
-<li>
-<strong>Caractéristiques</strong> : Tout trait de
-<code><a href="../reference/traits_list.html">traits_list()</a></code> (ex. <code>stem_diameter</code>,
-<code>tree_height</code>, <code>wood_density</code>)</li>
-</ul>
 </div>
-<div class="section level3">
-<h3 id="préparer-vos-données">2.3 Préparer Vos Données<a class="anchor" aria-label="anchor" href="#pr%C3%A9parer-vos-donn%C3%A9es"></a>
-</h3>
-<p>Charger vos données d’inventaire d’arbres :</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Option 1 : Charger depuis Excel (table plate)</span></span>
-<span><span class="va">my_data</span> <span class="op">&lt;-</span> <span class="fu">readxl</span><span class="fu">::</span><span class="fu"><a href="https://readxl.tidyverse.org/reference/read_excel.html" class="external-link">read_excel</a></span><span class="op">(</span><span class="st">"mon_inventaire_arbres.xlsx"</span><span class="op">)</span></span>
+<div class="section level4">
+<h4 id="charger-et-mapper-les-données">2.3 Charger et Mapper les Données<a class="anchor" aria-label="anchor" href="#charger-et-mapper-les-donn%C3%A9es"></a>
+</h4>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Charger les données</span></span>
+<span><span class="va">mes_donnees</span> <span class="op">&lt;-</span> <span class="fu">readxl</span><span class="fu">::</span><span class="fu"><a href="https://readxl.tidyverse.org/reference/read_excel.html" class="external-link">read_excel</a></span><span class="op">(</span><span class="st">"mes_arbres.xlsx"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Option 2 : Charger depuis Excel (structure à deux tables)</span></span>
-<span><span class="va">individuals_raw</span> <span class="op">&lt;-</span> <span class="fu">readxl</span><span class="fu">::</span><span class="fu"><a href="https://readxl.tidyverse.org/reference/read_excel.html" class="external-link">read_excel</a></span><span class="op">(</span><span class="st">"mon_inventaire_arbres.xlsx"</span>, sheet <span class="op">=</span> <span class="st">"Individuals"</span><span class="op">)</span></span>
-<span><span class="va">features_raw</span> <span class="op">&lt;-</span> <span class="fu">readxl</span><span class="fu">::</span><span class="fu"><a href="https://readxl.tidyverse.org/reference/read_excel.html" class="external-link">read_excel</a></span><span class="op">(</span><span class="st">"mon_inventaire_arbres.xlsx"</span>, sheet <span class="op">=</span> <span class="st">"Features"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Option 3 : Charger depuis CSV</span></span>
-<span><span class="va">my_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"mon_inventaire_arbres.csv"</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="correspondance-des-colonnes">2.4 Correspondance des Colonnes<a class="anchor" aria-label="anchor" href="#correspondance-des-colonnes"></a>
-</h3>
-<p>Faire correspondre vos colonnes de données au schéma de la base de
-données en utilisant le mappeur interactif :</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># MODE INTERACTIF (recommandé pour les nouveaux utilisateurs)</span></span>
-<span><span class="va">mapped</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/map_individual_columns.html">map_individual_columns</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">my_data</span>,</span>
-<span>  interactive <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  con <span class="op">=</span> <span class="va">con</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># MODE NON-INTERACTIF (avec synonymes pour un mapping plus rapide)</span></span>
-<span><span class="va">mapped</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/map_individual_columns.html">map_individual_columns</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">my_data</span>,</span>
-<span>  interactive <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  use_synonyms <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  con <span class="op">=</span> <span class="va">con</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Pour une structure à deux tables</span></span>
-<span><span class="va">mapped</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/map_individual_columns.html">map_individual_columns</a></span><span class="op">(</span></span>
-<span>  individuals <span class="op">=</span> <span class="va">individuals_raw</span>,</span>
-<span>  features <span class="op">=</span> <span class="va">features_raw</span>,</span>
+<span><span class="co"># Mapper les colonnes de manière interactive</span></span>
+<span><span class="va">donnees_mappees</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/map_individual_columns.html">map_individual_columns</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">mes_donnees</span>,</span>
 <span>  interactive <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><strong>Processus de Correspondance des Colonnes</strong> :</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Correspondance automatique</strong> : La fonction fait
-correspondre approximativement vos noms de colonnes aux colonnes de la
-base de données</li>
-<li>
-<strong>Classification des caractéristiques</strong> : On vous
-demandera de classifier les colonnes non mappées :
-<ul>
-<li>
-<strong>OUI</strong> - C’est un trait/caractéristique (ex. DHP,
-hauteur, surface foliaire)</li>
-<li>
-<strong>NON</strong> - C’est une donnée d’identification (ex. nom de
-parcelle, numéro d’arbre, espèce)</li>
-<li>
-<strong>PASSER</strong> - Ignorer cette colonne</li>
-</ul>
-</li>
-<li>
-<strong>Sélection manuelle</strong> : Choisir parmi les
-correspondances suggérées ou passer des colonnes</li>
-<li>
-<strong>Résumé</strong> : Revoir la correspondance avant de
-continuer</li>
-</ol>
-<p><strong>Exemple de Session Interactive</strong> :</p>
-<pre><code>Colonne : 'TreeID'
-Est-ce une caractéristique/mesure de trait ? (OUI/NON/PASSER) : NON
-Sélectionnez la meilleure correspondance pour 'TreeID' :
-  1. tag (Identifiant d'arbre individuel)
-  2. id_n (ID de base de données)
-  3. herbarium_nbe_char (Code d'herbier)
-  [0 pour passer]
-Votre choix : 1
-✓ Mappé TreeID → tag</code></pre>
-<p><strong>Résultat</strong> :</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Structure des données mappées</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">mapped</span><span class="op">)</span></span>
-<span><span class="co"># $individuals - Données de base des arbres avec noms de colonnes standardisés</span></span>
-<span><span class="co"># $features - Mesures de traits (si des caractéristiques étaient présentes)</span></span>
-<span><span class="co"># $mapping - Enregistrement des correspondances de noms de colonnes</span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="validation">2.5 Validation<a class="anchor" aria-label="anchor" href="#validation"></a>
-</h3>
-<p>Validez vos données avant l’import pour détecter les erreurs tôt
-:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Valider les données mappées</span></span>
+<div class="section level4">
+<h4 id="valider">2.4 Valider<a class="anchor" aria-label="anchor" href="#valider"></a>
+</h4>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Valider</span></span>
 <span><span class="va">validation</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/validate_individual_data.html">validate_individual_data</a></span><span class="op">(</span></span>
-<span>  individuals_data <span class="op">=</span> <span class="va">mapped</span><span class="op">$</span><span class="va">individuals</span>,</span>
-<span>  features_data <span class="op">=</span> <span class="va">mapped</span><span class="op">$</span><span class="va">features</span>,</span>
-<span>  method <span class="op">=</span> <span class="st">"1ha-IRD"</span>,  <span class="co"># Votre méthode de parcelle</span></span>
+<span>  individuals_data <span class="op">=</span> <span class="va">donnees_mappees</span><span class="op">$</span><span class="va">individuals</span>,</span>
+<span>  features_data <span class="op">=</span> <span class="va">donnees_mappees</span><span class="op">$</span><span class="va">features</span>,</span>
+<span>  method <span class="op">=</span> <span class="st">"1ha-IRD"</span>,</span>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Voir les résultats de validation</span></span>
-<span><span class="fu"><a href="../reference/print_individual_validation_results.html">print_individual_validation_results</a></span><span class="op">(</span><span class="va">validation</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Contrôles de Validation</strong> :</p>
-<ol style="list-style-type: decimal">
-<li>✓ <strong>Colonnes requises présentes</strong>
-(<code>plot_name</code>, <code>idtax_n</code>)</li>
-<li>✓ <strong>Existence des parcelles</strong> - Toutes les parcelles
-existent dans la base de données</li>
-<li>✓ <strong>Validation taxonomique</strong> - Toutes les valeurs
-<code>idtax_n</code> sont valides</li>
-<li>✓ <strong>Unicité des tags</strong> - Pas de tags en double dans les
-parcelles</li>
-<li>✓ <strong>Conflits de tags</strong> - Pas de conflits avec les tags
-existants dans la base de données</li>
-<li>✓ <strong>Validité des valeurs de traits</strong> - Les traits
-numériques sont numériques, les valeurs catégorielles sont valides</li>
-<li>✓ <strong>Liaison des caractéristiques</strong> - Les
-caractéristiques se lient correctement aux individus</li>
-</ol>
-<p><strong>Sortie de Validation</strong> :</p>
-<pre><code>═══ RÉSUMÉ DE VALIDATION ═══
-Statut : ✓ VALIDE (Prêt à importer)
-
-Résumé des Données :
-  • 11 158 individus répartis sur 32 parcelles
-  • 4 523 enregistrements de caractéristiques
-  • 0 erreurs critiques
-  • 2 avertissements
-
-Avertissements :
-  ⚠ Colonne optionnelle manquante : herbarium_nbe_char
-  ⚠ 15 individus sans mesures de tree_height</code></pre>
-<p><strong>Si la validation échoue</strong> :</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">validation</span><span class="op">$</span><span class="va">valid</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="co"># Voir les erreurs détaillées</span></span>
-<span>  <span class="fu"><a href="../reference/print_individual_validation_results.html">print_individual_validation_results</a></span><span class="op">(</span><span class="va">validation</span><span class="op">)</span></span>
+<span><span class="co"># Vérifier les résultats</span></span>
+<span><span class="fu"><a href="../reference/print_individual_validation_results.html">print_individual_validation_results</a></span><span class="op">(</span><span class="va">validation</span><span class="op">)</span></span>
 <span></span>
-<span>  <span class="co"># Corriger les problèmes dans vos données sources et re-mapper</span></span>
-<span>  <span class="co"># Problèmes courants :</span></span>
-<span>  <span class="co"># - Noms de parcelles ne correspondant pas à la base de données (utilisez exact_match dans query_plots)</span></span>
-<span>  <span class="co"># - IDs taxonomiques invalides (relancer la correspondance taxonomique)</span></span>
-<span>  <span class="co"># - Tags en double (vérifier vos données sources)</span></span>
-<span></span>
-<span>  <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span><span class="st">"Corrigez les erreurs de validation avant d'importer"</span><span class="op">)</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">validation</span><span class="op">$</span><span class="va">valid</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span><span class="st">"Corriger les erreurs de validation d'abord !"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="essai-à-blanc-prévisualisation-de-limport">2.6 Essai à Blanc (Prévisualisation de l’Import)<a class="anchor" aria-label="anchor" href="#essai-%C3%A0-blanc-pr%C3%A9visualisation-de-limport"></a>
-</h3>
-<p>Toujours prévisualiser l’import avant de valider dans la base de
-données :</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># ESSAI À BLANC - Prévisualiser sans valider</span></span>
-<span><span class="va">preview</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/import_individual_data.html">import_individual_data</a></span><span class="op">(</span></span>
+<div class="section level4">
+<h4 id="importer">2.5 Importer<a class="anchor" aria-label="anchor" href="#importer"></a>
+</h4>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Essai à blanc</span></span>
+<span><span class="va">apercu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/import_individual_data.html">import_individual_data</a></span><span class="op">(</span></span>
 <span>  individuals_data <span class="op">=</span> <span class="va">validation</span><span class="op">$</span><span class="va">cleaned_data</span><span class="op">$</span><span class="va">individuals</span>,</span>
 <span>  features_data <span class="op">=</span> <span class="va">validation</span><span class="op">$</span><span class="va">cleaned_data</span><span class="op">$</span><span class="va">features</span>,</span>
 <span>  validation <span class="op">=</span> <span class="va">validation</span>,</span>
-<span>  method <span class="op">=</span> <span class="st">"1ha-IRD"</span>,</span>
 <span>  dry_run <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Revoir ce qui serait importé</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">preview</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Sortie de l’Essai à Blanc</strong> :</p>
-<pre><code>═══ Essai à Blanc : Prévisualisation Import (Aucun Changement Ne Sera Fait) ═══
-ℹ Individus à importer : 11 158
-ℹ Enregistrements de caractéristiques à importer : 4 523
-ℹ Import en tant qu'utilisateur : votre_utilisateur
-
-─── Étape 1 : Liaison des individus aux parcelles ───
-✓ 11 158 individus liés à 32 parcelles
-
-─── Étape 2 : Préparation des données individuelles ───
-✓ 11 158 enregistrements individuels préparés
-ℹ Colonnes : id_table_liste_plots_n, tag, idtax_n, original_tax_name
-
-─── Étape 3 : Prévisualisation - Insertion dans data_individuals ───
-Aperçu des données (3 premières lignes) :
-  id_table_liste_plots_n tag idtax_n original_tax_name
-1                    145   1    1234      Sp1
-2                    145   2    5678      Sp2
-3                    145   3    9012      Sp3
-
-─── Étape 4 : Prévisualisation des caractéristiques individuelles ───
-ℹ Insertion de 4 523 enregistrements de caractéristiques
-Aperçu des caractéristiques (3 premières lignes) :
-  id_data_individuals traitid traitvalue
-1                   1       5       35.2
-2                   1       8       18.5
-3                   2       5       42.1
-
-✓ Essai à blanc terminé - aucun changement effectué
-ℹ Exécutez avec dry_run = FALSE pour importer réellement</code></pre>
-</div>
-<div class="section level3">
-<h3 id="import-réel-1">2.7 Import Réel<a class="anchor" aria-label="anchor" href="#import-r%C3%A9el-1"></a>
-</h3>
-<p>Si l’essai à blanc semble correct, procédez à l’import réel :</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># IMPORT RÉEL avec support de transaction</span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/import_individual_data.html">import_individual_data</a></span><span class="op">(</span></span>
+<span><span class="co"># Import réel</span></span>
+<span><span class="va">resultat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/import_individual_data.html">import_individual_data</a></span><span class="op">(</span></span>
 <span>  individuals_data <span class="op">=</span> <span class="va">validation</span><span class="op">$</span><span class="va">cleaned_data</span><span class="op">$</span><span class="va">individuals</span>,</span>
 <span>  features_data <span class="op">=</span> <span class="va">validation</span><span class="op">$</span><span class="va">cleaned_data</span><span class="op">$</span><span class="va">features</span>,</span>
 <span>  validation <span class="op">=</span> <span class="va">validation</span>,</span>
-<span>  method <span class="op">=</span> <span class="st">"1ha-IRD"</span>,</span>
 <span>  dry_run <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  ask_confirmation <span class="op">=</span> <span class="cn">TRUE</span>,  <span class="co"># Demander confirmation</span></span>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Vérifier le résultat</span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">success</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"✓ Import réussi :\n"</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"  -"</span>, <span class="va">result</span><span class="op">$</span><span class="va">n_individuals</span>, <span class="st">"individus\n"</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"  -"</span>, <span class="va">result</span><span class="op">$</span><span class="va">n_features</span>, <span class="st">"enregistrements de caractéristiques\n"</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"  - Parcelles affectées :"</span>, <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">plot_names</span>, collapse <span class="op">=</span> <span class="st">", "</span><span class="op">)</span>, <span class="st">"\n"</span><span class="op">)</span></span>
-<span><span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"✗ Import échoué :"</span>, <span class="va">result</span><span class="op">$</span><span class="va">message</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="va">resultat</span><span class="op">$</span><span class="va">success</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"✓ Importé"</span>, <span class="va">resultat</span><span class="op">$</span><span class="va">n_individuals</span>, <span class="st">"individus\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
-<p><strong>Processus d’Import</strong> :</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Confirmation utilisateur</strong> - On vous demandera de
-confirmer avant de continuer</li>
-<li>
-<strong>Transaction démarrée</strong> - Import tout-ou-rien
-commence</li>
-<li>
-<strong>Liaison aux parcelles</strong> - Les individus sont liés aux
-IDs de parcelles</li>
-<li>
-<strong>Insertion des individus</strong> - Données de base insérées
-dans <code>data_individuals</code>
-</li>
-<li>
-<strong>Insertion des caractéristiques</strong> - Traits insérés
-dans <code>data_traits_measures</code>
-</li>
-<li>
-<strong>Transaction validée</strong> - Les changements sont
-sauvegardés</li>
-<li>
-<strong>Annulation automatique</strong> - Si une erreur survient,
-tous les changements sont annulés</li>
-</ol>
-<p><strong>Sortie d’Import</strong> :</p>
-<pre><code>═══ Import des Données Individuelles ═══
-ℹ Individus à importer : 11 158
-ℹ Enregistrements de caractéristiques à importer : 4 523
-ℹ Import en tant qu'utilisateur : votre_utilisateur
-
-Procéder à l'import ? (oui/non) : oui
-
-ℹ Transaction démarrée
-✓ 11 158 individus liés à 32 parcelles
-✓ 11 158 enregistrements individuels préparés
-✓ 11 158 individus insérés
-✓ 4 523 enregistrements de caractéristiques insérés
-✓ Transaction validée avec succès
-
-═══════════════════════════════════════
-✓ Import terminé avec succès !
-
-ℹ 11 158 individus importés
-ℹ 4 523 enregistrements de caractéristiques importés
-ℹ Parcelles affectées : Parcelle-A, Parcelle-B, Parcelle-C, ...
-═══════════════════════════════════════</code></pre>
 </div>
-<div class="section level3">
-<h3 id="vérifier-limport-1">2.8 Vérifier l’Import<a class="anchor" aria-label="anchor" href="#v%C3%A9rifier-limport-1"></a>
-</h3>
-<p>Après l’import, vérifiez que les données ont été correctement
-ajoutées :</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="section level4">
+<h4 id="vérifier">2.6 Vérifier<a class="anchor" aria-label="anchor" href="#v%C3%A9rifier"></a>
+</h4>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Interroger les données importées</span></span>
-<span><span class="va">imported_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  plot_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Parcelle-A"</span>, <span class="st">"Parcelle-B"</span>, <span class="st">"Parcelle-C"</span><span class="op">)</span>,</span>
+<span><span class="va">verification</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="va">resultat</span><span class="op">$</span><span class="va">plot_names</span>,</span>
 <span>  exact_match <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  output_style <span class="op">=</span> <span class="st">"permanent_plot"</span>,</span>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Vérifier les individus</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">imported_data</span><span class="op">$</span><span class="va">individuals</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Vérifier les métadonnées</span></span>
-<span><span class="va">imported_data</span><span class="op">$</span><span class="va">metadata</span></span>
-<span></span>
-<span><span class="co"># Vérifier les comptages</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Individus importés par parcelle :\n"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">imported_data</span><span class="op">$</span><span class="va">individuals</span><span class="op">$</span><span class="va">plot_name</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">verification</span><span class="op">$</span><span class="va">individuals</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
 </div>
-<div class="section level2">
-<h2 id="exemple-de-flux-de-travail-complet">Exemple de Flux de Travail Complet<a class="anchor" aria-label="anchor" href="#exemple-de-flux-de-travail-complet"></a>
-</h2>
-<p>Voici un exemple complet de bout en bout :</p>
-<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+<div class="section level3">
+<h3 id="exemple-programmatique-complet">Exemple Programmatique Complet<a class="anchor" aria-label="anchor" href="#exemple-programmatique-complet"></a>
+</h3>
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 1. Se connecter</span></span>
 <span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># 2. Charger les données brutes</span></span>
-<span><span class="va">raw_data</span> <span class="op">&lt;-</span> <span class="fu">readxl</span><span class="fu">::</span><span class="fu"><a href="https://readxl.tidyverse.org/reference/read_excel.html" class="external-link">read_excel</a></span><span class="op">(</span><span class="st">"mes_donnees_terrain.xlsx"</span><span class="op">)</span></span>
+<span><span class="co"># 2. Charger les données</span></span>
+<span><span class="va">donnees_brutes</span> <span class="op">&lt;-</span> <span class="fu">readxl</span><span class="fu">::</span><span class="fu"><a href="https://readxl.tidyverse.org/reference/read_excel.html" class="external-link">read_excel</a></span><span class="op">(</span><span class="st">"mes_donnees_terrain.xlsx"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># 3. S'assurer que les parcelles existent (importer les métadonnées de parcelles d'abord si nécessaire)</span></span>
-<span><span class="va">existing_plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  plot_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">raw_data</span><span class="op">$</span><span class="va">PlotName</span><span class="op">)</span>,</span>
+<span><span class="co"># 3. Vérifier que les parcelles existent</span></span>
+<span><span class="va">parcelles_existantes</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">donnees_brutes</span><span class="op">$</span><span class="va">NomParcelle</span><span class="op">)</span>,</span>
 <span>  exact_match <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">existing_plots</span><span class="op">)</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span><span class="st">"Parcelles non trouvées ! Importez d'abord les métadonnées de parcelles."</span><span class="op">)</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">parcelles_existantes</span><span class="op">)</span> <span class="op">==</span> <span class="fl">0</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span><span class="st">"Importer d'abord les métadonnées de parcelles !"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
 <span><span class="co"># 4. Mapper les colonnes</span></span>
-<span><span class="va">mapped</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/map_individual_columns.html">map_individual_columns</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">raw_data</span>,</span>
+<span><span class="va">donnees_mappees</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/map_individual_columns.html">map_individual_columns</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">donnees_brutes</span>,</span>
 <span>  interactive <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 5. Valider</span></span>
 <span><span class="va">validation</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/validate_individual_data.html">validate_individual_data</a></span><span class="op">(</span></span>
-<span>  individuals_data <span class="op">=</span> <span class="va">mapped</span><span class="op">$</span><span class="va">individuals</span>,</span>
-<span>  features_data <span class="op">=</span> <span class="va">mapped</span><span class="op">$</span><span class="va">features</span>,</span>
+<span>  individuals_data <span class="op">=</span> <span class="va">donnees_mappees</span><span class="op">$</span><span class="va">individuals</span>,</span>
+<span>  features_data <span class="op">=</span> <span class="va">donnees_mappees</span><span class="op">$</span><span class="va">features</span>,</span>
 <span>  method <span class="op">=</span> <span class="st">"1ha-IRD"</span>,</span>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># 6. Vérifier la validation</span></span>
 <span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">validation</span><span class="op">$</span><span class="va">valid</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="../reference/print_individual_validation_results.html">print_individual_validation_results</a></span><span class="op">(</span><span class="va">validation</span><span class="op">)</span></span>
-<span>  <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span><span class="st">"Corrigez d'abord les erreurs de validation !"</span><span class="op">)</span></span>
+<span>  <span class="kw"><a href="https://rdrr.io/r/base/stop.html" class="external-link">stop</a></span><span class="op">(</span><span class="st">"Corriger les erreurs d'abord !"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="co"># 7. Essai à blanc</span></span>
-<span><span class="va">preview</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/import_individual_data.html">import_individual_data</a></span><span class="op">(</span></span>
+<span><span class="co"># 6. Essai à blanc</span></span>
+<span><span class="va">apercu</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/import_individual_data.html">import_individual_data</a></span><span class="op">(</span></span>
 <span>  individuals_data <span class="op">=</span> <span class="va">validation</span><span class="op">$</span><span class="va">cleaned_data</span><span class="op">$</span><span class="va">individuals</span>,</span>
 <span>  features_data <span class="op">=</span> <span class="va">validation</span><span class="op">$</span><span class="va">cleaned_data</span><span class="op">$</span><span class="va">features</span>,</span>
 <span>  validation <span class="op">=</span> <span class="va">validation</span>,</span>
@@ -801,8 +685,8 @@ ajoutées :</p>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># 8. Import réel</span></span>
-<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/import_individual_data.html">import_individual_data</a></span><span class="op">(</span></span>
+<span><span class="co"># 7. Importer</span></span>
+<span><span class="va">resultat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/import_individual_data.html">import_individual_data</a></span><span class="op">(</span></span>
 <span>  individuals_data <span class="op">=</span> <span class="va">validation</span><span class="op">$</span><span class="va">cleaned_data</span><span class="op">$</span><span class="va">individuals</span>,</span>
 <span>  features_data <span class="op">=</span> <span class="va">validation</span><span class="op">$</span><span class="va">cleaned_data</span><span class="op">$</span><span class="va">features</span>,</span>
 <span>  validation <span class="op">=</span> <span class="va">validation</span>,</span>
@@ -810,207 +694,158 @@ ajoutées :</p>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># 9. Vérifier</span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">success</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"✓ Import réussi !\n"</span><span class="op">)</span></span>
-<span></span>
-<span>  <span class="co"># Interroger les données importées</span></span>
+<span><span class="co"># 8. Vérifier</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="va">resultat</span><span class="op">$</span><span class="va">success</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">verification</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>    plot_name <span class="op">=</span> <span class="va">result</span><span class="op">$</span><span class="va">plot_names</span>,</span>
+<span>    plot_name <span class="op">=</span> <span class="va">resultat</span><span class="op">$</span><span class="va">plot_names</span>,</span>
 <span>    exact_match <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>    extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>    con <span class="op">=</span> <span class="va">con</span></span>
 <span>  <span class="op">)</span></span>
 <span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Vérifié :"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">verification</span><span class="op">$</span><span class="va">individuals</span><span class="op">)</span>, <span class="st">"individus importés\n"</span><span class="op">)</span></span>
-<span><span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"✗ Import échoué :"</span>, <span class="va">result</span><span class="op">$</span><span class="va">message</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"✓ Vérifié :"</span>, <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">verification</span><span class="op">$</span><span class="va">individuals</span><span class="op">)</span>, <span class="st">"individus\n"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="co"># 10. Nettoyage</span></span>
+<span><span class="co"># 9. Nettoyage</span></span>
 <span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbDisconnect.html" class="external-link">dbDisconnect</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
-<div class="section level2">
-<h2 id="problèmes-courants-et-solutions">Problèmes Courants et Solutions<a class="anchor" aria-label="anchor" href="#probl%C3%A8mes-courants-et-solutions"></a>
-</h2>
 <div class="section level3">
-<h3 id="problème-parcelle-non-trouvée-dans-la-base-de-données">Problème : “Parcelle non trouvée dans la base de données”<a class="anchor" aria-label="anchor" href="#probl%C3%A8me-parcelle-non-trouv%C3%A9e-dans-la-base-de-donn%C3%A9es"></a>
+<h3 id="problèmes-courants-et-solutions">Problèmes Courants et Solutions<a class="anchor" aria-label="anchor" href="#probl%C3%A8mes-courants-et-solutions"></a>
 </h3>
-<p><strong>Solution</strong> : Importez d’abord les métadonnées de
-parcelles avant d’importer les individus.</p>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Vérifier si les parcelles existent</span></span>
-<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>plot_name <span class="op">=</span> <span class="st">"Parcelle-A"</span>, exact_match <span class="op">=</span> <span class="cn">TRUE</span>, con <span class="op">=</span> <span class="va">con</span><span class="op">)</span></span>
+<p><strong>Problème : “Parcelle non trouvée dans la base de
+données”</strong></p>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Solution : Importer d'abord les métadonnées de parcelles</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>plot_name <span class="op">=</span> <span class="st">"Parcelle-A"</span>, exact_match <span class="op">=</span> <span class="cn">TRUE</span>, con <span class="op">=</span> <span class="va">con</span><span class="op">)</span></span></code></pre></div>
+<p><strong>Problème : “ID taxonomique invalide”</strong></p>
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Solution : Utiliser l'app de correspondance taxonomique</span></span>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">mes_donnees</span>, name_column <span class="op">=</span> <span class="st">"species"</span><span class="op">)</span></span></code></pre></div>
+<p><strong>Problème : “Tags en double dans la parcelle”</strong></p>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Solution : Auto-générer les tags</span></span>
+<span><span class="va">mes_donnees</span><span class="op">$</span><span class="va">tag</span> <span class="op">&lt;-</span> <span class="cn">NULL</span>  <span class="co"># Supprimer la colonne tag</span></span>
 <span></span>
-<span><span class="co"># Si non trouvée, importez d'abord les métadonnées de parcelles</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="problème-id-taxonomique-invalide">Problème : “ID taxonomique invalide”<a class="anchor" aria-label="anchor" href="#probl%C3%A8me-id-taxonomique-invalide"></a>
-</h3>
-<p><strong>Solution</strong> : Standardisez les noms taxonomiques en
-utilisant l’application de correspondance taxonomique.</p>
-<div class="sourceCode" id="cb30"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Lancer l'application de correspondance taxonomique</span></span>
-<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">my_data</span>, name_column <span class="op">=</span> <span class="st">"species"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Ou utiliser la correspondance programmatique</span></span>
-<span><span class="va">matched</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/match_taxonomic_names.html">match_taxonomic_names</a></span><span class="op">(</span><span class="va">my_data</span>, name_column <span class="op">=</span> <span class="st">"species"</span>, con_taxa <span class="op">=</span> <span class="va">con_taxa</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="problème-tags-en-double-dans-la-parcelle">Problème : “Tags en double dans la parcelle”<a class="anchor" aria-label="anchor" href="#probl%C3%A8me-tags-en-double-dans-la-parcelle"></a>
-</h3>
-<p><strong>Solution</strong> : Assurez-vous que les tags sont uniques
-dans chaque parcelle, ou laissez la fonction générer automatiquement les
-tags.</p>
-<div class="sourceCode" id="cb31"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Supprimer la colonne tag pour générer automatiquement des tags séquentiels</span></span>
-<span><span class="va">my_data</span><span class="op">$</span><span class="va">tag</span> <span class="op">&lt;-</span> <span class="cn">NULL</span></span>
-<span></span>
-<span><span class="co"># Ou corriger manuellement les doublons</span></span>
-<span><span class="va">my_data</span> <span class="op">&lt;-</span> <span class="va">my_data</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span><span class="co"># Ou corriger manuellement</span></span>
+<span><span class="va">mes_donnees</span> <span class="op">&lt;-</span> <span class="va">mes_donnees</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">plot_name</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>tag <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/row_number.html" class="external-link">row_number</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">ungroup</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="problème-correspondance-de-colonnes-peu-claire">Problème : “Correspondance de colonnes peu claire”<a class="anchor" aria-label="anchor" href="#probl%C3%A8me-correspondance-de-colonnes-peu-claire"></a>
-</h3>
-<p><strong>Solution</strong> : Utilisez le mode interactif et lisez
-attentivement les invites. Lors de la classification des colonnes : -
-<strong>Caractéristiques</strong> = mesures/traits (DHP, hauteur,
-densité) - <strong>Individus</strong> = identification (parcelle, tag,
-espèce)</p>
-</div>
-<div class="section level3">
-<h3 id="problème-annulation-de-transaction-sur-erreur">Problème : “Annulation de transaction sur erreur”<a class="anchor" aria-label="anchor" href="#probl%C3%A8me-annulation-de-transaction-sur-erreur"></a>
-</h3>
-<p><strong>Solution</strong> : Vérifiez attentivement le message
-d’erreur. Causes courantes : - Colonnes requises manquantes - Références
-de clés étrangères invalides - Incompatibilités de types de données</p>
-<p>Tous les changements sont automatiquement annulés en cas d’erreur,
-donc votre base de données reste cohérente.</p>
+<p><strong>Problème : “Annulation de transaction en cas
+d’erreur”</strong> - Vérifier le message d’erreur attentivement - Toutes
+les modifications annulées automatiquement - La base de données reste
+cohérente</p>
 <hr>
 </div>
-</div>
-<div class="section level2">
-<h2 id="bonnes-pratiques">Bonnes Pratiques<a class="anchor" aria-label="anchor" href="#bonnes-pratiques"></a>
-</h2>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Toujours valider d’abord</strong> - Utilisez
-<code><a href="../reference/validate_individual_data.html">validate_individual_data()</a></code> avant d’importer</li>
-<li>
-<strong>Utiliser l’essai à blanc</strong> - Prévisualisez avec
-<code>dry_run = TRUE</code> avant l’import réel</li>
-<li>
-<strong>Standardiser la taxonomie</strong> - Faites correspondre les
-noms taxonomiques avant d’importer les individus</li>
-<li>
-<strong>Importer les parcelles d’abord</strong> - Assurez-vous que
-les métadonnées de parcelles existent avant d’ajouter les individus</li>
-<li>
-<strong>Utiliser les transactions</strong> - Les fonctions d’import
-utilisent les transactions pour la sécurité</li>
-<li>
-<strong>Garder des sauvegardes</strong> - Maintenez des sauvegardes
-de votre base de données</li>
-<li>
-<strong>Documenter les changements</strong> - Gardez une trace de
-quelles données ont été importées et quand</li>
-<li>
-<strong>Vérifier les permissions</strong> - Assurez-vous d’avoir les
-permissions d’écriture sur la base de données</li>
-</ol>
-<hr>
-</div>
-<div class="section level2">
-<h2 id="avancé-correspondance-programmatique-des-colonnes">Avancé : Correspondance Programmatique des Colonnes<a class="anchor" aria-label="anchor" href="#avanc%C3%A9-correspondance-programmatique-des-colonnes"></a>
-</h2>
-<p>Pour des imports répétés avec des formats de données cohérents, vous
-pouvez utiliser des synonymes pour automatiser la correspondance :</p>
-<div class="sourceCode" id="cb32"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Définir des synonymes personnalisés</span></span>
-<span><span class="va">custom_synonyms</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  tag <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"TreeID"</span>, <span class="st">"Tree_Number"</span>, <span class="st">"Individual_ID"</span><span class="op">)</span>,</span>
-<span>  stem_diameter <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"DBH"</span>, <span class="st">"Diameter"</span>, <span class="st">"dbh_cm"</span><span class="op">)</span>,</span>
-<span>  tree_height <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Height"</span>, <span class="st">"H"</span>, <span class="st">"height_m"</span><span class="op">)</span></span>
+<div class="section level3">
+<h3 id="avancé-mapping-personnalisé-des-colonnes">Avancé : Mapping Personnalisé des Colonnes<a class="anchor" aria-label="anchor" href="#avanc%C3%A9-mapping-personnalis%C3%A9-des-colonnes"></a>
+</h3>
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Définir des synonymes personnalisés pour des imports répétés</span></span>
+<span><span class="va">synonymes_personnalises</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  tag <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"IDArbre"</span>, <span class="st">"Numero_Arbre"</span>, <span class="st">"ID_Individuel"</span><span class="op">)</span>,</span>
+<span>  stem_diameter <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"DBH"</span>, <span class="st">"Diametre"</span>, <span class="st">"dbh_cm"</span><span class="op">)</span>,</span>
+<span>  tree_height <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Hauteur"</span>, <span class="st">"H"</span>, <span class="st">"hauteur_m"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Mapper avec des synonymes personnalisés</span></span>
-<span><span class="va">mapped</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/map_individual_columns.html">map_individual_columns</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">my_data</span>,</span>
+<span><span class="co"># Mapper avec synonymes personnalisés (non-interactif)</span></span>
+<span><span class="va">donnees_mappees</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/map_individual_columns.html">map_individual_columns</a></span><span class="op">(</span></span>
+<span>  data <span class="op">=</span> <span class="va">mes_donnees</span>,</span>
 <span>  interactive <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  use_synonyms <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  custom_synonyms <span class="op">=</span> <span class="va">custom_synonyms</span>,</span>
+<span>  custom_synonyms <span class="op">=</span> <span class="va">synonymes_personnalises</span>,</span>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
-<div class="section level2">
-<h2 id="ressources-supplémentaires">Ressources Supplémentaires<a class="anchor" aria-label="anchor" href="#ressources-suppl%C3%A9mentaires"></a>
-</h2>
-<ul>
-<li>
-<strong>Correspondance taxonomique</strong> : Voir
-<code><a href="../articles/taxonomic-app-fr.html">vignette("taxonomic-app-fr")</a></code>
-</li>
-<li>
-<strong>Interrogation des données</strong> : Voir
-<code><a href="../articles/using-query-plots-fr.html">vignette("using-query-plots-fr")</a></code>
-</li>
-<li>
-<strong>Fonctions de modèles</strong> :
-<code><a href="../reference/get_individual_template.html">?get_individual_template</a></code>,
-<code><a href="../reference/print_individual_template_info.html">?print_individual_template_info</a></code>
-</li>
-<li>
-<strong>Fonctions de validation</strong> :
-<code><a href="../reference/validate_individual_data.html">?validate_individual_data</a></code>,
-<code><a href="../reference/print_individual_validation_results.html">?print_individual_validation_results</a></code>
-</li>
-<li>
-<strong>Fonctions d’import</strong> :
-<code><a href="../reference/import_individual_data.html">?import_individual_data</a></code>
-</li>
-<li>
-<strong>Correspondance de colonnes</strong> :
-<code><a href="../reference/map_individual_columns.html">?map_individual_columns</a></code>
-</li>
-</ul>
+<div class="section level3">
+<h3 id="bonnes-pratiques">Bonnes Pratiques<a class="anchor" aria-label="anchor" href="#bonnes-pratiques"></a>
+</h3>
+<ol style="list-style-type: decimal">
+<li>✅ <strong>Toujours valider d’abord</strong> - Détecter les erreurs
+tôt</li>
+<li>✅ <strong>Utiliser l’essai à blanc</strong> - Aperçu avant
+engagement</li>
+<li>✅ <strong>Standardiser la taxonomie</strong> - Faire correspondre
+les noms avant l’import</li>
+<li>✅ <strong>Importer d’abord les parcelles</strong> - Métadonnées
+avant individus</li>
+<li>✅ <strong>Utiliser les transactions</strong> - Annulation
+automatique en cas d’erreur</li>
+<li>✅ <strong>Conserver des sauvegardes</strong> - Sauvegardes
+régulières de la base</li>
+<li>✅ <strong>Documenter les changements</strong> - Suivre ce qui a été
+importé</li>
+<li>✅ <strong>Vérifier les permissions</strong> - Assurer l’accès en
+écriture</li>
+</ol>
 <hr>
+</div>
+</details>
 </div>
 <div class="section level2">
 <h2 id="résumé">Résumé<a class="anchor" aria-label="anchor" href="#r%C3%A9sum%C3%A9"></a>
 </h2>
-<p>Le flux de travail complet pour importer des données de parcelles
-:</p>
+<div class="section level3">
+<h3 id="flux-de-travail-recommandé-application-shiny">Flux de Travail Recommandé (Application Shiny)<a class="anchor" aria-label="anchor" href="#flux-de-travail-recommand%C3%A9-application-shiny"></a>
+</h3>
 <ol style="list-style-type: decimal">
-<li>✅ <strong>Importer les métadonnées de parcelles</strong>
-(localisation, dates de recensement, etc.)</li>
-<li>✅ <strong>Standardiser la taxonomie</strong> en utilisant
-<code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>
+<li>✨ <strong>Lancer l’Assistant d’Import</strong> -
+<code>launch_import_wizard()</code>
 </li>
-<li>✅ <strong>Mapper les colonnes</strong> en utilisant
-<code><a href="../reference/map_individual_columns.html">map_individual_columns()</a></code>
-</li>
-<li>✅ <strong>Valider les données</strong> en utilisant
-<code><a href="../reference/validate_individual_data.html">validate_individual_data()</a></code>
-</li>
-<li>✅ <strong>Prévisualiser l’import</strong> avec
-<code>dry_run = TRUE</code>
-</li>
-<li>✅ <strong>Importer les données</strong> avec
-<code>dry_run = FALSE</code>
-</li>
-<li>✅ <strong>Vérifier l’import</strong> en utilisant
-<code><a href="../reference/query_plots.html">query_plots()</a></code>
-</li>
+<li>📤 <strong>Télécharger vos données</strong> - Excel ou CSV</li>
+<li>🔗 <strong>Mapper les colonnes</strong> - Automatique avec
+correspondance floue</li>
+<li>🔍 <strong>Faire correspondre les références</strong> -
+Correspondance interactive des valeurs</li>
+<li>✅ <strong>Valider</strong> - Vérifications complètes + détection de
+doublons</li>
+<li>🗺️ <strong>Prévisualiser</strong> - Confirmation visuelle avec
+carte</li>
+<li>💾 <strong>Importer</strong> - Exécuter avec sécurité
+transactionnelle</li>
 </ol>
-<p>Tous les imports utilisent une <strong>sécurité basée sur les
-transactions</strong> avec annulation automatique en cas d’erreur,
-assurant que votre base de données reste cohérente même si quelque chose
-se passe mal.</p>
+</div>
+<div class="section level3">
+<h3 id="flux-avancé-programmatique">Flux Avancé (Programmatique)<a class="anchor" aria-label="anchor" href="#flux-avanc%C3%A9-programmatique"></a>
+</h3>
+<p>Pour l’automatisation et les flux personnalisés : -
+<code><a href="../reference/map_user_columns.html">map_user_columns()</a></code> - Mapping de colonnes -
+<code><a href="../reference/validate_plot_metadata.html">validate_plot_metadata()</a></code> - Validation des données -
+<code><a href="../reference/import_plot_metadata.html">import_plot_metadata()</a></code> - Import de parcelles -
+<code><a href="../reference/map_individual_columns.html">map_individual_columns()</a></code> - Mapping des données d’arbres -
+<code><a href="../reference/validate_individual_data.html">validate_individual_data()</a></code> - Validation des arbres -
+<code><a href="../reference/import_individual_data.html">import_individual_data()</a></code> - Import d’arbres</p>
+<hr>
+</div>
+</div>
+<div class="section level2">
+<h2 id="ressources-additionnelles">Ressources Additionnelles<a class="anchor" aria-label="anchor" href="#ressources-additionnelles"></a>
+</h2>
+<ul>
+<li>
+<strong>Correspondance taxonomique</strong> :
+<code><a href="../articles/taxonomic-app.html">vignette("taxonomic-app")</a></code>
+</li>
+<li>
+<strong>Interrogation des données</strong> :
+<code><a href="../articles/using-query-plots.html">vignette("using-query-plots")</a></code>
+</li>
+<li>
+<strong>Fonctions de modèles</strong> :
+<code><a href="../reference/get_plot_metadata_template.html">?get_plot_metadata_template</a></code>,
+<code><a href="../reference/get_individual_template.html">?get_individual_template</a></code>
+</li>
+<li>
+<strong>Validation</strong> : <code><a href="../reference/validate_plot_metadata.html">?validate_plot_metadata</a></code>,
+<code><a href="../reference/validate_individual_data.html">?validate_individual_data</a></code>
+</li>
+<li>
+<strong>Assistant d’Import</strong> :
+<code>?launch_import_wizard</code>
+</li>
+</ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

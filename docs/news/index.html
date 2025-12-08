@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.7.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,6 +35,76 @@
 <div class="section level4">
 <h4 id="new-features-1-7-2">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-7-2"></a></h4>
 <ul><li>
+<strong>Import Wizard: Duplicate plot detection during validation</strong>
+<ul><li>New validation step checks for potential duplicate plots in database</li>
+<li>Matches on method, country, and coordinates (rounded to 3 decimals ≈ 111m precision)</li>
+<li>Prevents re-importing existing plots with different names (e.g., “FND32” vs “Releve32”)</li>
+<li>Returns warnings (not errors) with existing plot names for user awareness</li>
+<li>Respects row-level security (only checks plots user can access)</li>
+</ul></li>
+<li>
+<strong>Import Wizard: UTM coordinate detection and conversion</strong>
+<ul><li>Two-stage detection system for UTM coordinates:
+<ul><li>
+<strong>Stage 1 (Validation)</strong>: Detects coordinates &gt; 1000 with specific error message</li>
+<li>
+<strong>Stage 2 (Preview)</strong>: Interactive converter with zone and hemisphere inputs</li>
+</ul></li>
+<li>Uses sf package for coordinate transformation (EPSG 326XX/327XX → 4326)</li>
+<li>Converts in-place and updates preview map automatically</li>
+<li>Guides users to convert rather than rejecting data</li>
+</ul></li>
+<li>
+<strong>Import Wizard: Interactive map preview in Step 6</strong>
+<ul><li>Leaflet map displays plot locations with marker clustering</li>
+<li>Auto-zoom to plot extent</li>
+<li>Clickable popups show plot details (name, coordinates, method, country)</li>
+<li>Warnings for invalid coordinates and unusual ranges</li>
+<li>Info box guides users to fix reversed lat/lon by switching column mappings</li>
+<li>Helps catch common errors: reversed coordinates, wrong coordinate system</li>
+</ul></li>
+<li>
+<strong>Interactive Import Wizard Shiny App for Plot Metadata</strong>
+<ul><li>New <code>launch_import_wizard()</code> function provides comprehensive 7-step workflow for importing plot metadata</li>
+<li>
+<strong>Step 1: Choose Type</strong> - Select import type (plots or individuals)</li>
+<li>
+<strong>Step 2: Upload Data</strong> - Upload Excel/CSV files or download template</li>
+<li>
+<strong>Step 3: Map Columns</strong> - Intelligent fuzzy column mapping with confidence scores and descriptions</li>
+<li>
+<strong>Step 4: Match Lookups</strong> - Proactive lookup matching before validation
+<ul><li>Analyzes all lookup columns (method, country, people fields)</li>
+<li>Identifies exact matches vs. values needing matching</li>
+<li>Interactive fuzzy matching with similarity scores for all possibilities</li>
+<li>Displays method descriptions when selecting matches</li>
+<li>Supports comma-separated people values (e.g., “Gilles Dauby, Hugo Leblanc”)</li>
+<li>Each person matched individually and aggregated back</li>
+</ul></li>
+<li>
+<strong>Step 5: Validate</strong> - Comprehensive data validation using matched values
+<ul><li>Validates both IDs (after matching) and names (before matching)</li>
+<li>Clear error reporting with actionable messages</li>
+</ul></li>
+<li>
+<strong>Step 6: Preview</strong> - Preview cleaned data with readable names
+<ul><li>Displays lookup names instead of IDs for user-friendly preview</li>
+<li>Handles comma-separated people fields (shows aggregated names)</li>
+<li>Download enriched data as Excel or CSV with human-readable values</li>
+</ul></li>
+<li>
+<strong>Step 7: Execute Import</strong> - Live import with transaction support
+<ul><li>Dry run mode for testing without database changes</li>
+<li>Uses existing <code><a href="../reference/import_plot_metadata.html">import_plot_metadata()</a></code> function</li>
+<li>Displays admin code for row-level security access</li>
+<li>Copy to clipboard and download as .R file options</li>
+</ul></li>
+<li>New module files: <code>R/mod_step1_choose_type.R</code>, <code>R/mod_step2_upload.R</code>, <code>R/mod_step3_mapping.R</code>, <code>R/mod_step4_lookup_matching.R</code>, <code>R/mod_step5_validation.R</code>, <code>R/mod_step6_preview.R</code>, <code>R/mod_step7_import.R</code>, <code>R/mod_lookup_matcher.R</code>
+</li>
+<li>Reuses existing validation and import functions for consistency</li>
+<li>Full connection pool support with proper cleanup</li>
+</ul></li>
+<li>
 <strong>Plot Statistics &amp; Visualizations module for Query Plots Shiny App</strong>
 <ul><li>New “Statistics” tab in <code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code> displays comprehensive plot statistics</li>
 <li>Smart column mapping system automatically adapts to different output styles (<code>minimal</code>, <code>standard</code>, <code>permanent_plot</code>, etc.)</li>
@@ -84,6 +154,58 @@
 <div class="section level4">
 <h4 id="bug-fixes-1-7-2">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-7-2"></a></h4>
 <ul><li>
+<strong>Import Wizard: Fixed mixed IDs and names in people column preview</strong>
+<ul><li>Preview was showing mix of numeric IDs (169, 85) and text names (Théophile Ayol)</li>
+<li>Now processes each value individually in comma-separated lists</li>
+<li>Converts numeric IDs to names, keeps text names as-is</li>
+<li>Applies to all lookup columns (method, country, people fields)</li>
+</ul></li>
+<li>
+<strong>Import Wizard: Fixed skipped columns still appearing in preview</strong>
+<ul><li>Columns set to “skip” in column mapping were still appearing in data preview</li>
+<li>Now properly filters out NA mappings in both validation and preview steps</li>
+<li>Removed skipped columns from data before processing</li>
+</ul></li>
+<li>
+<strong>Import Wizard: Fixed mapping state not persisting on navigation</strong>
+<ul><li>Manual changes (e.g., skipping columns) were lost when navigating back</li>
+<li>Added persistent <code>user_modified_mappings</code> ReactiveVal to track changes</li>
+<li>Observers now track dropdown changes without cascade triggering</li>
+<li>Returns both <code>mappings</code> (no NAs) and <code>mappings_with_skips</code> (includes NAs)</li>
+</ul></li>
+<li>
+<strong>Fixed import failing with unmapped columns</strong>
+<ul><li>Import now filters out columns that were skipped during column mapping</li>
+<li>Prevents “ERROR: column ‘X’ of relation ‘data_liste_plots’ does not exist”</li>
+<li>Only mapped columns are included in database insertion</li>
+</ul></li>
+<li>
+<strong>Fixed type mismatch error when joining subplot features</strong>
+<ul><li>Added explicit character type conversion for <code>plot_name</code> before joins</li>
+<li>Prevents “Can’t join due to incompatible types” errors</li>
+<li>Applies to both people features and other subplot features</li>
+</ul></li>
+<li>
+<strong>Fixed <code>poolWithTransaction()</code> warning in Shiny app imports</strong>
+<ul><li>Import now properly handles connection pools by checking out dedicated connections</li>
+<li>Uses <code><a href="http://rstudio.github.io/pool/reference/poolCheckout.html" class="external-link">pool::poolCheckout()</a></code> and <code><a href="http://rstudio.github.io/pool/reference/poolCheckout.html" class="external-link">pool::poolReturn()</a></code> for proper pool management</li>
+<li>Eliminates “Please use <code>poolWithTransaction()</code> instead” warnings</li>
+</ul></li>
+<li>
+<strong>Fixed validation errors after lookup matching</strong>
+<ul><li>Validation now correctly handles both IDs (after Step 4 matching) and names (before matching)</li>
+<li>Detects if values are numeric (IDs) or character (names) and validates accordingly</li>
+<li>Applies to method, country, and people column validation</li>
+</ul></li>
+<li>
+<strong>Fixed preview and downloads showing IDs instead of names</strong>
+<ul><li>Preview now enriches lookup columns by replacing IDs with readable names</li>
+<li>Method IDs → Method names (e.g., 18 → “Plot_40x40”)</li>
+<li>Country IDs → Country names (e.g., 5 → “Cameroon”)</li>
+<li>People IDs → People names with comma-separated aggregation</li>
+<li>Excel and CSV downloads export enriched data with names</li>
+</ul></li>
+<li>
 <strong>Fixed <code><a href="../reference/query_individual_features.html">query_individual_features()</a></code> ignoring <code>trait_ids</code> parameter with large datasets</strong>
 <ul><li>When querying more than 1000 individuals, the chunking mechanism was not passing <code>trait_ids</code> filter</li>
 <li>This caused all traits to be returned instead of only the requested ones</li>
