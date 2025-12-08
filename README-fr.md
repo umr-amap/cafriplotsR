@@ -113,7 +113,7 @@ Voir [NEWS.md](NEWS.md) pour les derniers changements, incluant :
 
 ## Métadonnées du Package
 
-- **Auteurs :** Gilles Dauby, Hugo Leblanc
+- **Auteurs :** Gilles Dauby, Hugo Leblanc, Pierre Ploton
 - **Mainteneur :** Gilles Dauby (gilles.dauby@ird.fr)
 - **Licence :** GPL-2
 - **Version R minimum :** 4.0
@@ -129,3 +129,27 @@ Ce package suit un workflow de branches git :
 ## Support
 
 Pour les problèmes, questions ou demandes de fonctionnalités, contactez le mainteneur du package.
+
+## Citation
+
+Pour citer CafriplotsR dans vos publications, utilisez :
+
+```r
+citation("CafriplotsR")
+```
+
+Ou manuellement :
+
+> Dauby, G., Leblanc, H., & Ploton, P. (2024). CafriplotsR: Tools for Exploring, Managing and Standardizing Vegetation Inventories in Central Africa. R package version 1.8.0. https://umr-amap.github.io/cafriplotsR/
+
+Entrée BibTeX :
+
+```bibtex
+@Manual{cafriplotsr,
+  title = {CafriplotsR: Tools for Exploring, Managing and Standardizing Vegetation Inventories in Central Africa},
+  author = {Gilles Dauby and Hugo Leblanc and Pierre Ploton},
+  year = {2024},
+  note = {R package version 1.8.0},
+  url = {https://umr-amap.github.io/cafriplotsR/}
+}
+```
