@@ -15,6 +15,10 @@ Export_OVFI/
 /*.Rmd
 R/*.Rmd
 
+# Ignore R Markdown generated files and cache
+*_cache/
+*_files/
+
 # Ignore data files
 *.xlsx
 *.csv
