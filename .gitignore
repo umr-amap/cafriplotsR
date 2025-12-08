@@ -19,6 +19,9 @@ R/*.Rmd
 *_cache/
 *_files/
 
+# Ignore RStudio Connect deployment files
+rsconnect/
+
 # Ignore data files
 *.xlsx
 *.csv
