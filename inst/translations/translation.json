@@ -2196,6 +2196,158 @@
     {
       "en": "match",
       "fr": "correspondance"
+    },
+    {
+      "en": "Create New Feature/Attribute",
+      "fr": "Créer un nouveau trait/attribut"
+    },
+    {
+      "en": "Click if you have a column that doesn't match any existing feature",
+      "fr": "Cliquez si vous avez une colonne qui ne correspond à aucun trait existant"
+    },
+    {
+      "en": "Create a new feature/attribute that can be linked to individual stems/trees.",
+      "fr": "Créer un nouveau trait/attribut qui peut être lié aux tiges/arbres individuels."
+    },
+    {
+      "en": "Feature Name *",
+      "fr": "Nom du trait *"
+    },
+    {
+      "en": "e.g., crown_diameter, bark_thickness",
+      "fr": "p.ex., diametre_couronne, epaisseur_ecorce"
+    },
+    {
+      "en": "Use lowercase, underscores (not spaces), no special characters",
+      "fr": "Utiliser des minuscules, traits de soulignement (pas d'espaces), pas de caractères spéciaux"
+    },
+    {
+      "en": "Value Type *",
+      "fr": "Type de valeur *"
+    },
+    {
+      "en": "Numeric (measurements)",
+      "fr": "Numérique (mesures)"
+    },
+    {
+      "en": "Integer (counts)",
+      "fr": "Entier (comptages)"
+    },
+    {
+      "en": "Categorical (categories)",
+      "fr": "Catégoriel (catégories)"
+    },
+    {
+      "en": "Character (text)",
+      "fr": "Caractère (texte)"
+    },
+    {
+      "en": "Logical (yes/no)",
+      "fr": "Logique (oui/non)"
+    },
+    {
+      "en": "Ordinal (ordered categories)",
+      "fr": "Ordinal (catégories ordonnées)"
+    },
+    {
+      "en": "Expected Unit (optional)",
+      "fr": "Unité attendue (optionnel)"
+    },
+    {
+      "en": "e.g., cm, m, kg, %",
+      "fr": "p.ex., cm, m, kg, %"
+    },
+    {
+      "en": "Description *",
+      "fr": "Description *"
+    },
+    {
+      "en": "Describe what this feature measures or represents",
+      "fr": "Décrire ce que mesure ou représente ce trait"
+    },
+    {
+      "en": "Minimum Allowed Value (optional)",
+      "fr": "Valeur minimale autorisée (optionnel)"
+    },
+    {
+      "en": "e.g., 0",
+      "fr": "p.ex., 0"
+    },
+    {
+      "en": "Maximum Allowed Value (optional)",
+      "fr": "Valeur maximale autorisée (optionnel)"
+    },
+    {
+      "en": "e.g., 100",
+      "fr": "p.ex., 100"
+    },
+    {
+      "en": "Factor Levels (comma-separated)",
+      "fr": "Niveaux de facteur (séparés par des virgules)"
+    },
+    {
+      "en": "e.g., small, medium, large",
+      "fr": "p.ex., petit, moyen, grand"
+    },
+    {
+      "en": "Create Feature",
+      "fr": "Créer le trait"
+    },
+    {
+      "en": "Important: Skip Plot Metadata Columns",
+      "fr": "Important : Ignorer les colonnes de métadonnées de parcelle"
+    },
+    {
+      "en": "If your dataset contains plot-level information (country, coordinates, elevation, dates, etc.), ",
+      "fr": "Si votre jeu de données contient des informations au niveau de la parcelle (pays, coordonnées, élévation, dates, etc.), "
+    },
+    {
+      "en": "do NOT map these columns here.",
+      "fr": "ne mappez PAS ces colonnes ici."
+    },
+    {
+      "en": " These should be imported separately using ",
+      "fr": " Celles-ci doivent être importées séparément en utilisant "
+    },
+    {
+      "en": " import.",
+      "fr": " import."
+    },
+    {
+      "en": " Only map: individual tree data (plot_name, tag, species) and measurements (DBH, height, etc.)",
+      "fr": " Mapper uniquement : données d'arbres individuels (plot_name, tag, espèce) et mesures (DHP, hauteur, etc.)"
+    },
+    {
+      "en": "Feature name and description are required",
+      "fr": "Le nom et la description du trait sont requis"
+    },
+    {
+      "en": "Feature name auto-corrected: '%s' → '%s'",
+      "fr": "Nom du trait auto-corrigé : '%s' → '%s'"
+    },
+    {
+      "en": "Feature name contains only invalid characters. Please use letters, numbers, and underscores.",
+      "fr": "Le nom du trait ne contient que des caractères invalides. Veuillez utiliser des lettres, chiffres et traits de soulignement."
+    },
+    {
+      "en": "Creating new feature...",
+      "fr": "Création d'un nouveau trait..."
+    },
+    {
+      "en": "Feature '%s' added to available features",
+      "fr": "Trait '%s' ajouté aux traits disponibles"
+    },
+    {
+      "en": "Feature '%s' created successfully! It's now available in the dropdown.",
+      "fr": "Trait '%s' créé avec succès ! Il est maintenant disponible dans la liste déroulante."
+    },
+    {
+      "en": "Error creating feature:",
+      "fr": "Erreur lors de la création du trait :"
+    },
+    {
+      "en": "No lookup matching needed for this import type. You can proceed to validation.",
+      "fr": "Aucun appariement de référence nécessaire pour ce type d'import. Vous pouvez passer à la validation."
     }
   ]
 }

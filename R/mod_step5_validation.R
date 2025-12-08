@@ -60,17 +60,85 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
 
         cli::cli_alert_info("Running validation on {nrow(data())} rows...")
 
+        # Check import type and call appropriate validation function
+        is_individuals <- "idtax_n" %in% config()$import_config$required_columns
+
         # Run validation (non-interactive for Shiny)
         result <- tryCatch({
-          validate_plot_metadata(
-            data = data(),
-            column_mappings = mappings(),
-            config = config(),
-            con = con(),
-            strict = FALSE,
-            interactive = FALSE,
-            fix_on_fly = TRUE
-          )
+          if (is_individuals) {
+            # For individuals: need to rename columns and separate direct from features
+            cli::cli_alert_info("Validating individuals data...")
+
+            # Step 1: Rename columns according to mappings (user col -> db col)
+            # Filter out NA mappings (skipped columns)
+            valid_mappings <- mappings()[!is.na(mappings())]
+
+            renamed_data <- data()
+            reverse_mappings <- setNames(names(valid_mappings), unlist(valid_mappings))
+
+            for (db_col in names(reverse_mappings)) {
+              user_col <- reverse_mappings[[db_col]]
+              if (user_col %in% names(renamed_data) && db_col != user_col) {
+                names(renamed_data)[names(renamed_data) == user_col] <- db_col
+              }
+            }
+
+            # Remove any columns that were not mapped (skipped columns)
+            skipped_cols <- names(mappings())[is.na(mappings())]
+            if (length(skipped_cols) > 0) {
+              renamed_data <- renamed_data[, !(names(renamed_data) %in% skipped_cols), drop = FALSE]
+              cli::cli_alert_info("Removed {length(skipped_cols)} skipped column(s) from individuals data")
+            }
+
+            # Step 2: Add missing required/recommended columns as NA
+            all_expected_cols <- c(config()$direct_columns, config()$feature_columns)
+            missing_cols <- setdiff(all_expected_cols, names(renamed_data))
+
+            for (col in missing_cols) {
+              renamed_data[[col]] <- NA
+            }
+
+            # Step 3: Separate direct columns from features
+            direct_cols <- config()$direct_columns
+            individuals_cols <- intersect(names(renamed_data), direct_cols)
+            individuals_data <- renamed_data[, individuals_cols, drop = FALSE]
+
+            # Step 4: Build features_data if there are any feature columns
+            feature_cols_all <- config()$feature_columns
+            feature_cols <- intersect(names(renamed_data), feature_cols_all)
+
+            features_data <- if (length(feature_cols) > 0) {
+              # Features need linking columns (plot_name, tag) plus feature values
+              linking_cols <- c("plot_name", "tag")
+              linking_present <- intersect(linking_cols, names(renamed_data))
+              feature_data_cols <- unique(c(linking_present, feature_cols))
+              renamed_data[, feature_data_cols, drop = FALSE]
+            } else {
+              NULL
+            }
+
+            validate_individual_data(
+              individuals_data = individuals_data,
+              features_data = features_data,
+              method = NULL,
+              con = con(),
+              strict = FALSE,
+              interactive = FALSE,
+              fix_on_fly = TRUE
+            )
+          } else {
+            # For plots: use plot validation
+            cli::cli_alert_info("Validating plot metadata...")
+            validate_plot_metadata(
+              data = data(),
+              column_mappings = mappings(),
+              config = config(),
+              con = con(),
+              strict = FALSE,
+              interactive = FALSE,
+              fix_on_fly = TRUE
+            )
+          }
         }, error = function(e) {
           cli::cli_alert_danger("Validation failed: {e$message}")
           shiny::showNotification(

@@ -11,6 +11,9 @@
 #' @param output_file Path where the Excel template should be saved.
 #'   Default: "individual_template.xlsx"
 #' @param con Database connection. If NULL, creates temporary connection.
+#' @param return_data Logical. If TRUE, returns the template data structure
+#'   without writing to file or printing messages. Useful for Shiny apps.
+#'   Default FALSE.
 #'
 #' @return Invisibly returns the template data structure. Main effect is
 #'   creating the Excel file.
@@ -63,7 +66,8 @@
 get_individual_template <- function(method = NULL,
                                     include_features = TRUE,
                                     output_file = "individual_template.xlsx",
-                                    con = NULL) {
+                                    con = NULL,
+                                    return_data = FALSE) {
 
   # Create connection if not provided
   if (is.null(con)) {
@@ -71,49 +75,59 @@ get_individual_template <- function(method = NULL,
     on.exit(DBI::dbDisconnect(con), add = TRUE)
   }
 
-  cli::cli_h1("Generating Individual Data Import Template")
+  if (!return_data) {
+    cli::cli_h1("Generating Individual Data Import Template")
+  }
 
   # Get column definitions
-  cli::cli_alert_info("Fetching column definitions from database...")
+  if (!return_data) {
+    cli::cli_alert_info("Fetching column definitions from database...")
+  }
 
   individual_cols <- .get_individual_columns_from_db(con, method)
 
   # Build individuals sheet
-  cli::cli_alert_info("Building 'individuals' sheet...")
+  if (!return_data) {
+    cli::cli_alert_info("Building 'individuals' sheet...")
+  }
   individuals_sheet <- .build_individuals_sheet(individual_cols, method)
 
   # Build features sheet if requested
   sheets <- list(individuals = individuals_sheet)
 
   if (include_features) {
-    cli::cli_alert_info("Building 'features' sheet...")
+    if (!return_data) {
+      cli::cli_alert_info("Building 'features' sheet...")
+    }
     features_sheet <- .build_features_sheet(con)
     sheets$features <- features_sheet
   }
 
-  # Write to Excel
-  cli::cli_alert_info("Writing template to: {output_file}")
-  writexl::write_xlsx(sheets, path = output_file)
+  # Write to Excel only if not returning data
+  if (!return_data) {
+    cli::cli_alert_info("Writing template to: {output_file}")
+    writexl::write_xlsx(sheets, path = output_file)
 
-  cli::cli_alert_success("Template created successfully!")
-  cat("\n")
-  cli::cli_rule("Important Notes")
-  cat("\n")
-  cli::cli_alert_warning("Before filling the template:")
-  cli::cli_ul(c(
-    "Standardize taxonomic names using {.fn match_taxonomic_names} or the Shiny app {.fn launch_taxonomic_match_app()}",
-    "Ensure {.field idtax_n} column has values for ALL individuals",
-    "Keep {.field original_tax_name} for traceability"
-  ))
-  cat("\n")
-  cli::cli_alert_info("Next steps:")
-  cli::cli_ol(c(
-    "Fill in the template with your data",
-    "Use {.fn map_individual_columns} to map columns",
-    "Use {.fn validate_individual_data} to check data quality",
-    "Use {.fn import_individual_data} to import to database"
-  ))
-  cat("\n")
+    cli::cli_alert_success("Template created successfully!")
+    cat("\n")
+    cli::cli_rule("Important Notes")
+    cat("\n")
+    cli::cli_alert_warning("Before filling the template:")
+    cli::cli_ul(c(
+      "Standardize taxonomic names using {.fn match_taxonomic_names} or the Shiny app {.fn launch_taxonomic_match_app()}",
+      "Ensure {.field idtax_n} column has values for ALL individuals",
+      "Keep {.field original_tax_name} for traceability"
+    ))
+    cat("\n")
+    cli::cli_alert_info("Next steps:")
+    cli::cli_ol(c(
+      "Fill in the template with your data",
+      "Use {.fn map_individual_columns} to map columns",
+      "Use {.fn validate_individual_data} to check data quality",
+      "Use {.fn import_individual_data} to import to database"
+    ))
+    cat("\n")
+  }
 
   invisible(sheets)
 }
