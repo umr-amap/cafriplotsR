@@ -585,9 +585,67 @@ session$onSessionEnded(function() {
 - Ensures clean state for subsequent R console usage
 - Provides consistent user experience across all apps
 
+**6. Internationalization (i18n) with shiny.i18n:**
+
+**Translation File Management:**
+- All translations are stored in `inst/translations/translation.json`
+- The file has structure: `{"languages": ["en", "fr"], "translation": [{"en": "...", "fr": "..."}]}`
+- **CRITICAL: Always check for duplicates before adding new translations**
+
+**Adding New Translations - MANDATORY PATTERN:**
+```r
+library(jsonlite)
+
+# Read current translations
+translation_file <- "inst/translations/translation.json"
+translations <- fromJSON(translation_file, simplifyDataFrame = FALSE)
+
+# New translations to add
+new_translations <- list(
+  list(en = "Your English text", fr = "Votre texte français")
+)
+
+# Check for existing translations and add only new ones
+existing_en <- sapply(translations$translation, function(x) x$en)
+for (new_trans in new_translations) {
+  if (!new_trans$en %in% existing_en) {
+    translations$translation[[length(translations$translation) + 1]] <- new_trans
+    cat("Added:", new_trans$en, "\n")
+  } else {
+    cat("Skipped (already exists):", new_trans$en, "\n")
+  }
+}
+
+# Write back to file with pretty formatting
+write(toJSON(translations, pretty = TRUE, auto_unbox = TRUE), translation_file)
+```
+
+**i18n Usage Patterns:**
+- In **UI functions**: Use `i18n$t("text")` - i18n is passed as a direct parameter
+- In **server functions**: Use `i18n()$t("text")` - i18n is passed as a reactive
+- **Wrong pattern** in server: `i18n$t()` will cause "objet de type 'closure' non indiçable" error
+
+**Example:**
+```r
+# UI function - correct
+mod_step1_ui <- function(id, i18n) {
+  shiny::h3(i18n$t("Step 1: Choose Import Type"))
+}
+
+# Server function - correct
+mod_step1_server <- function(id, i18n) {
+  shiny::moduleServer(id, function(input, output, session) {
+    output$message <- shiny::renderUI({
+      shiny::div(i18n()$t("Welcome message"))  # Note: i18n()$t() not i18n$t()
+    })
+  })
+}
+```
+
 **Reference Implementations:**
 - `R/shiny_app_query_plots.R` - Query plots interactive app
 - `R/shiny_app_taxonomic_match.R` - Taxonomic name standardization app
+- `R/shiny_app_import_wizard.R` - Import wizard with full i18n support
 
 ## Important Notes
 
