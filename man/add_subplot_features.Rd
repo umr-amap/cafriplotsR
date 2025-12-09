@@ -15,6 +15,7 @@ add_subplot_features(
   features_field = NULL,
   add_data = FALSE,
   ask_before_update = TRUE,
+  interactive = TRUE,
   verbose = TRUE,
   check_existing_data = TRUE,
   con = NULL
@@ -36,6 +37,8 @@ add_subplot_features(
 \item{add_data}{logical whether or not data should be added - by default FALSE}
 
 \item{ask_before_update}{logical ask before adding}
+
+\item{interactive}{logical whether to use interactive prompts (default TRUE)}
 
 \item{verbose}{logical}
 

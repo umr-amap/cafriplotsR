@@ -34,7 +34,7 @@ validate_plot_metadata(
 List with validation results:
   \item{valid}{Logical: TRUE if no errors (warnings allowed)}
   \item{errors}{Data frame of error messages}
-  \item{warnings}{Data frame of warning messages}
+  \item{warnings}{Data frame of warning messages (includes duplicate plot warnings)}
   \item{summary}{Summary statistics}
   \item{original_data}{Original input data (unchanged)}
   \item{cleaned_data}{Data with interactive fixes applied (if any)}
@@ -43,7 +43,8 @@ List with validation results:
 \description{
 Comprehensive validation of plot metadata using database rules and lookup
 tables. Returns structured results with severity levels (error vs warning).
-Can interactively fix lookup mismatches using fuzzy matching.
+Can interactively fix lookup mismatches using fuzzy matching. Also checks
+for potential duplicate plots by matching method, country, and coordinates.
 }
 \examples{
 \dontrun{
