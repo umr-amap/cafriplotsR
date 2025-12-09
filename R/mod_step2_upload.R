@@ -207,9 +207,9 @@ mod_step2_upload_server <- function(id, import_type, config, con, i18n) {
         }
       },
       content = function(file) {
-        shiny::withProgress(message = i18n$t('Generating template...'), value = 0, {
+        shiny::withProgress(message = i18n()$t('Generating template...'), value = 0, {
 
-          shiny::incProgress(0.3, detail = i18n$t("Creating structure..."))
+          shiny::incProgress(0.3, detail = i18n()$t("Creating structure..."))
 
           # Generate template based on import type
           template <- tryCatch({
@@ -234,7 +234,7 @@ mod_step2_upload_server <- function(id, import_type, config, con, i18n) {
             }
           }, error = function(e) {
             shiny::showNotification(
-              paste(i18n$t("Error generating template:"), e$message),
+              paste(i18n()$t("Error generating template:"), e$message),
               type = "error",
               duration = NULL
             )
@@ -243,19 +243,19 @@ mod_step2_upload_server <- function(id, import_type, config, con, i18n) {
 
           # Check if template was generated
           if (is.null(template)) {
-            stop(i18n$t("Template generation failed"))
+            stop(i18n()$t("Template generation failed"))
           }
 
-          shiny::incProgress(0.6, detail = i18n$t("Writing Excel file..."))
+          shiny::incProgress(0.6, detail = i18n()$t("Writing Excel file..."))
 
           # Write to Excel
           writexl::write_xlsx(template, file)
 
-          shiny::incProgress(1, detail = i18n$t("Complete!"))
+          shiny::incProgress(1, detail = i18n()$t("Complete!"))
         })
 
         shiny::showNotification(
-          i18n$t("Template downloaded successfully!"),
+          i18n()$t("Template downloaded successfully!"),
           type = "message",
           duration = 3
         )
@@ -271,30 +271,30 @@ mod_step2_upload_server <- function(id, import_type, config, con, i18n) {
 
       # Load data based on file type
       data <- tryCatch({
-        shiny::withProgress(message = i18n$t('Loading file...'), value = 0, {
+        shiny::withProgress(message = i18n()$t('Loading file...'), value = 0, {
 
-          shiny::incProgress(0.3, detail = i18n$t("Reading file..."))
+          shiny::incProgress(0.3, detail = i18n()$t("Reading file..."))
 
           result <- if (file_ext %in% c("xlsx", "xls")) {
             readxl::read_excel(file_path)
           } else if (file_ext == "csv") {
             read.csv(file_path, stringsAsFactors = FALSE)
           } else {
-            stop(sprintf(i18n$t("Unsupported file format: %s"), file_ext))
+            stop(sprintf(i18n()$t("Unsupported file format: %s"), file_ext))
           }
 
-          shiny::incProgress(0.8, detail = i18n$t("Validating structure..."))
+          shiny::incProgress(0.8, detail = i18n()$t("Validating structure..."))
 
           # Convert to data frame (in case it's a tibble)
           result <- as.data.frame(result)
 
-          shiny::incProgress(1, detail = i18n$t("Complete!"))
+          shiny::incProgress(1, detail = i18n()$t("Complete!"))
 
           result
         })
       }, error = function(e) {
         shiny::showNotification(
-          paste(i18n$t("Error loading file:"), e$message),
+          paste(i18n()$t("Error loading file:"), e$message),
           type = "error",
           duration = NULL
         )
@@ -305,7 +305,7 @@ mod_step2_upload_server <- function(id, import_type, config, con, i18n) {
         uploaded_data(data)
 
         shiny::showNotification(
-          sprintf(i18n$t("File loaded: %d rows, %d columns"), nrow(data), ncol(data)),
+          sprintf(i18n()$t("File loaded: %d rows, %d columns"), nrow(data), ncol(data)),
           type = "message",
           duration = 4
         )
