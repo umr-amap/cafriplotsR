@@ -4,7 +4,7 @@
 \alias{mod_step2_upload_server}
 \title{Step 2 Module: Upload Data - Server}
 \usage{
-mod_step2_upload_server(id, import_type, config, con)
+mod_step2_upload_server(id, import_type, config, con, i18n)
 }
 \arguments{
 \item{id}{Module namespace ID}
@@ -14,6 +14,8 @@ mod_step2_upload_server(id, import_type, config, con)
 \item{config}{Reactive value containing import configuration}
 
 \item{con}{Reactive database connection pool}
+
+\item{i18n}{Translator object from shiny.i18n}
 }
 \value{
 Reactive value containing uploaded data (data frame)
