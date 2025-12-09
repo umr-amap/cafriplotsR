@@ -4,10 +4,12 @@
 \alias{mod_step1_choose_type_server}
 \title{Step 1 Module: Choose Import Type - Server}
 \usage{
-mod_step1_choose_type_server(id)
+mod_step1_choose_type_server(id, i18n)
 }
 \arguments{
 \item{id}{Module namespace ID}
+
+\item{i18n}{Translator object from shiny.i18n}
 }
 \value{
 Reactive value containing selected import type ("plots" or "individuals")

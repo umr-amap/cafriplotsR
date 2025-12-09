@@ -180,9 +180,10 @@ mod_step1_choose_type_ui <- function(id, i18n) {
 #' Step 1 Module: Choose Import Type - Server
 #'
 #' @param id Module namespace ID
+#' @param i18n Translator object from shiny.i18n
 #' @return Reactive value containing selected import type ("plots" or "individuals")
 #' @keywords internal
-mod_step1_choose_type_server <- function(id) {
+mod_step1_choose_type_server <- function(id, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Selected import type
@@ -200,13 +201,13 @@ mod_step1_choose_type_server <- function(id) {
 
       # Show notification
       type_label <- if (input$import_type_click == "plots") {
-        "Plot Metadata"
+        i18n$t("Plot Metadata")
       } else {
-        "Individual Trees"
+        i18n$t("Individual Trees")
       }
 
       shiny::showNotification(
-        paste("Selected:", type_label),
+        paste(i18n$t("Selected:"), type_label),
         type = "message",
         duration = 2
       )
@@ -234,13 +235,13 @@ mod_step1_choose_type_server <- function(id) {
       type_info <- if (selected_type() == "plots") {
         list(
           icon = "map-marked-alt",
-          label = "Plot Metadata",
+          label = i18n$t("Plot Metadata"),
           color = "#007bff"
         )
       } else {
         list(
           icon = "tree",
-          label = "Individual Trees",
+          label = i18n$t("Individual Trees"),
           color = "#28a745"
         )
       }
@@ -254,7 +255,7 @@ mod_step1_choose_type_server <- function(id) {
         ),
         shiny::h4(
           shiny::icon(type_info$icon),
-          sprintf(" Selected: %s", type_info$label),
+          sprintf(" %s %s", i18n$t("Selected:"), type_info$label),
           style = "margin: 0;"
         )
       )
@@ -271,16 +272,16 @@ mod_step1_choose_type_server <- function(id) {
             class = "alert alert-danger",
             style = "margin-top: 20px;",
             shiny::icon("exclamation-circle"),
-            shiny::strong(" Action Required: "),
-            "Please confirm that you have read and understood both requirements above by checking the boxes before proceeding."
+            shiny::strong(paste0(" ", i18n$t("Action Required:"), " ")),
+            i18n$t("Please confirm that you have read and understood both requirements above by checking the boxes before proceeding.")
           )
         } else {
           shiny::div(
             class = "alert alert-success",
             style = "margin-top: 20px;",
             shiny::icon("check-circle"),
-            shiny::strong(" Requirements Confirmed: "),
-            "You may now proceed to the next step."
+            shiny::strong(paste0(" ", i18n$t("Requirements Confirmed:"), " ")),
+            i18n$t("You may now proceed to the next step.")
           )
         }
       }
