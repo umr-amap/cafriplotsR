@@ -497,7 +497,8 @@ import_wizard_server <- function(input, output, session, translator) {
       "step2",
       import_type = reactive(rv$import_type),
       config = reactive(rv$config),
-      con = pool_main_reactive
+      con = pool_main_reactive,
+      i18n = i18n
     )
 
     observeEvent(step2_result(), {
