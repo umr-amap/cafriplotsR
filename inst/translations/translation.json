@@ -1,5 +1,8 @@
 {
-  "languages": ["en", "fr"],
+  "languages": [
+    "en",
+    "fr"
+  ],
   "translation": [
     {
       "en": "Taxonomic Name Standardization for Tropical African Plants",
@@ -2348,6 +2351,214 @@
     {
       "en": "No lookup matching needed for this import type. You can proceed to validation.",
       "fr": "Aucun appariement de référence nécessaire pour ce type d'import. Vous pouvez passer à la validation."
+    },
+    {
+      "en": "Include features sheet (traits/measurements)",
+      "fr": "Inclure la feuille des attributs (traits/mesures)"
+    },
+    {
+      "en": "Note:",
+      "fr": "Remarque :"
+    },
+    {
+      "en": "Individual template includes all possible columns.",
+      "fr": "Le modèle individuel inclut toutes les colonnes possibles."
+    },
+    {
+      "en": "Features sheet contains trait measurements (DBH, height, etc.).",
+      "fr": "La feuille des attributs contient les mesures de traits (DHP, hauteur, etc.)."
+    },
+    {
+      "en": "Error generating template:",
+      "fr": "Erreur lors de la génération du modèle :"
+    },
+    {
+      "en": "Template generation failed",
+      "fr": "Échec de la génération du modèle"
+    },
+    {
+      "en": " Samples:",
+      "fr": " Exemples :"
+    },
+    {
+      "en": " Expected values:",
+      "fr": " Valeurs attendues :"
+    },
+    {
+      "en": " Unit:",
+      "fr": " Unité :"
+    },
+    {
+      "en": "You must map the following required columns: %s",
+      "fr": "Vous devez mapper les colonnes obligatoires suivantes : %s"
+    },
+    {
+      "en": "Warning - Tag Column Not Mapped:",
+      "fr": "Avertissement - Colonne tag non mappée :"
+    },
+    {
+      "en": " Create New Feature/Attribute",
+      "fr": " Créer un nouvel attribut/caractéristique"
+    },
+    {
+      "en": "Analysis error:",
+      "fr": "Erreur d'analyse :"
+    },
+    {
+      "en": " Interactive Lookup Matching",
+      "fr": " Correspondance interactive de référence"
+    },
+    {
+      "en": " Apply Matches",
+      "fr": " Appliquer les correspondances"
+    },
+    {
+      "en": " Skip (Keep as Errors)",
+      "fr": " Ignorer (conserver comme erreurs)"
+    },
+    {
+      "en": " All values match! No manual matching needed.",
+      "fr": " Toutes les valeurs correspondent ! Aucune correspondance manuelle nécessaire."
+    },
+    {
+      "en": " Add New Method",
+      "fr": " Ajouter une nouvelle méthode"
+    },
+    {
+      "en": "Add a new method for: '%s'",
+      "fr": "Ajouter une nouvelle méthode pour : '%s'"
+    },
+    {
+      "en": " Add New Person",
+      "fr": " Ajouter une nouvelle personne"
+    },
+    {
+      "en": "Add a new person for: '%s'",
+      "fr": "Ajouter une nouvelle personne pour : '%s'"
+    },
+    {
+      "en": "Added new method: %s",
+      "fr": "Nouvelle méthode ajoutée : %s"
+    },
+    {
+      "en": "Added new person: %s %s",
+      "fr": "Nouvelle personne ajoutée : %s %s"
+    },
+    {
+      "en": " Errors",
+      "fr": " Erreurs"
+    },
+    {
+      "en": " Auto-Applied Fixes",
+      "fr": " Corrections auto-appliquées"
+    },
+    {
+      "en": "Preview of your cleaned data (showing first 100 rows):",
+      "fr": "Aperçu de vos données nettoyées (affichage des 100 premières lignes) :"
+    },
+    {
+      "en": "UTM Coordinates Detected?",
+      "fr": "Coordonnées UTM détectées ?"
+    },
+    {
+      "en": "UTM Zone (1-60):",
+      "fr": "Zone UTM (1-60) :"
+    },
+    {
+      "en": "Hemisphere:",
+      "fr": "Hémisphère :"
+    },
+    {
+      "en": "North",
+      "fr": "Nord"
+    },
+    {
+      "en": "South",
+      "fr": "Sud"
+    },
+    {
+      "en": "Convert to Geographic",
+      "fr": "Convertir en géographique"
+    },
+    {
+      "en": "Note: Conversion requires the 'sf' package. The conversion will update your data before import.",
+      "fr": "Remarque : La conversion nécessite le package 'sf'. La conversion mettra à jour vos données avant l'importation."
+    },
+    {
+      "en": "Invalid Coordinates Detected!",
+      "fr": "Coordonnées non valides détectées !"
+    },
+    {
+      "en": "Unusual Coordinates - Possible Lat/Lon Reversal?",
+      "fr": "Coordonnées inhabituelles - Inversion Lat/Lon possible ?"
+    },
+    {
+      "en": " Plot Locations Preview",
+      "fr": " Aperçu des emplacements des placettes"
+    },
+    {
+      "en": "Showing %d plot location(s) on the map. Verify that locations match your expectations.",
+      "fr": "Affichage de %d emplacement(s) de placette sur la carte. Vérifiez que les emplacements correspondent à vos attentes."
+    },
+    {
+      "en": "Plots not where you expected?",
+      "fr": "Les placettes ne sont pas là où vous les attendiez ?"
+    },
+    {
+      "en": " Run Dry Run",
+      "fr": " Exécuter la simulation"
+    },
+    {
+      "en": " Execute Import",
+      "fr": " Exécuter l'importation"
+    },
+    {
+      "en": " Confirm Import",
+      "fr": " Confirmer l'importation"
+    },
+    {
+      "en": " Dry Run Completed: %d plots would be imported",
+      "fr": " Simulation terminée : %d placettes seraient importées"
+    },
+    {
+      "en": " Import Successful: %d plots imported!",
+      "fr": " Importation réussie : %d placettes importées !"
+    },
+    {
+      "en": " Important: Row-Level Security",
+      "fr": " Important : Sécurité au niveau des lignes"
+    },
+    {
+      "en": "Imported plots: %s",
+      "fr": "Parcelles importées : %s"
+    },
+    {
+      "en": " Admin Access Code",
+      "fr": " Code d'accès administrateur"
+    },
+    {
+      "en": " Copy to Clipboard",
+      "fr": " Copier dans le presse-papiers"
+    },
+    {
+      "en": " Import Failed",
+      "fr": " Échec de l'importation"
+    },
+    {
+      "en": "Data loaded: %d rows, %d columns",
+      "fr": "Données chargées : %d lignes, %d colonnes"
+    },
+    {
+      "en": "Column mapping complete: %d columns mapped",
+      "fr": "Mappage de colonnes terminé : %d colonnes mappées"
+    },
+    {
+      "en": "Error converting coordinates:",
+      "fr": "Erreur lors de la conversion des coordonnées :"
+    },
+    {
+      "en": "No valid coordinates to convert.",
+      "fr": "Aucune coordonnée valide à convertir."
     }
   ]
 }
