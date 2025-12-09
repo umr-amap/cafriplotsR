@@ -28,6 +28,7 @@ Imports:
     RecordLinkage,
     foreign,
     stringr,
+    stringdist,
     writexl,
     kableExtra,
     shinybusy,

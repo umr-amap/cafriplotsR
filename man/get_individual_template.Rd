@@ -8,7 +8,8 @@ get_individual_template(
   method = NULL,
   include_features = TRUE,
   output_file = "individual_template.xlsx",
-  con = NULL
+  con = NULL,
+  return_data = FALSE
 )
 }
 \arguments{
@@ -22,6 +23,10 @@ individual features (traits). Default TRUE.}
 Default: "individual_template.xlsx"}
 
 \item{con}{Database connection. If NULL, creates temporary connection.}
+
+\item{return_data}{Logical. If TRUE, returns the template data structure
+without writing to file or printing messages. Useful for Shiny apps.
+Default FALSE.}
 }
 \value{
 Invisibly returns the template data structure. Main effect is
