@@ -31,11 +31,11 @@ mod_step2_upload_ui <- function(id, i18n) {
 
           shiny::h4(
             shiny::icon("file-download", style = "color: #007bff;"),
-            paste0(" ", i18n$t("Option 1: Download Template"))
+            paste0(" ", i18n$t("Option 1: Download Template (Optional)"))
           ),
 
           shiny::p(
-            i18n$t("Start with a pre-formatted template to ensure your data matches the required structure."),
+            i18n$t("Templates provide an example of the expected data structure and column names."),
             style = "color: #6c757d;"
           ),
 
@@ -55,7 +55,7 @@ mod_step2_upload_ui <- function(id, i18n) {
             style = "margin-top: 15px; padding: 10px; background: white; border-radius: 4px;",
             shiny::icon("lightbulb", style = "color: #ffc107;"),
             shiny::tags$small(
-              paste0(" ", i18n$t("Tip: The template includes column descriptions and validation rules.")),
+              paste0(" ", i18n$t("Tip: Templates are optional! You can upload your data as-is and map columns in the next step.")),
               style = "color: #6c757d;"
             )
           )
@@ -75,7 +75,7 @@ mod_step2_upload_ui <- function(id, i18n) {
           ),
 
           shiny::p(
-            i18n$t("Upload an existing Excel or CSV file with your data."),
+            i18n$t("Upload your Excel or CSV file with its original column names. You'll map columns in the next step."),
             style = "color: #6c757d;"
           ),
 
@@ -92,8 +92,16 @@ mod_step2_upload_ui <- function(id, i18n) {
           ),
 
           shiny::div(
-            class = "alert alert-secondary",
+            class = "alert alert-info",
             style = "font-size: 14px;",
+            shiny::icon("info-circle"),
+            shiny::strong(paste0(" ", i18n$t("No need to rename columns!"), " ")),
+            i18n$t("The wizard will help you match your column names to the database in Step 3.")
+          ),
+
+          shiny::div(
+            class = "alert alert-secondary",
+            style = "font-size: 14px; margin-top: 10px;",
             shiny::strong(paste0(i18n$t("Supported formats"), ":")),
             shiny::tags$ul(
               style = "margin-bottom: 0;",
@@ -104,7 +112,7 @@ mod_step2_upload_ui <- function(id, i18n) {
 
           shiny::div(
             class = "alert alert-warning",
-            style = "font-size: 14px;",
+            style = "font-size: 14px; margin-top: 10px;",
             shiny::icon("exclamation-triangle"),
             shiny::strong(paste0(" ", i18n$t("Maximum file size"), ": ")),
             "100 MB"

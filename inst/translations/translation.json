@@ -2592,6 +2592,38 @@
     {
       "en": "Auto-generated tags cannot be matched to future census data",
       "fr": "Les tags générés automatiquement ne peuvent pas être associés aux données de recensement futures"
+    },
+    {
+      "en": "Inventory Metadata",
+      "fr": "Métadonnées d'inventaire"
+    },
+    {
+      "en": "Import metadata for your forest inventories (plots): locations, census dates, methods, and associated information.",
+      "fr": "Importez les métadonnées de vos inventaires forestiers (placettes) : localisations, dates de recensement, méthodes et informations associées."
+    },
+    {
+      "en": "Option 1: Download Template (Optional)",
+      "fr": "Option 1 : Télécharger un modèle (optionnel)"
+    },
+    {
+      "en": "Templates provide an example of the expected data structure and column names.",
+      "fr": "Les modèles fournissent un exemple de la structure de données attendue et des noms de colonnes."
+    },
+    {
+      "en": "Tip: Templates are optional! You can upload your data as-is and map columns in the next step.",
+      "fr": "Conseil : Les modèles sont optionnels ! Vous pouvez télécharger vos données telles quelles et mapper les colonnes à l'étape suivante."
+    },
+    {
+      "en": "Upload your Excel or CSV file with its original column names. You'll map columns in the next step.",
+      "fr": "Téléchargez votre fichier Excel ou CSV avec ses noms de colonnes d'origine. Vous mapperez les colonnes à l'étape suivante."
+    },
+    {
+      "en": "No need to rename columns!",
+      "fr": "Pas besoin de renommer les colonnes !"
+    },
+    {
+      "en": "The wizard will help you match your column names to the database in Step 3.",
+      "fr": "L'assistant vous aidera à faire correspondre vos noms de colonnes à la base de données à l'étape 3."
     }
   ]
 }

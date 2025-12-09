@@ -110,11 +110,11 @@ mod_step1_choose_type_ui <- function(id, i18n) {
           shiny::h4(
             shiny::icon("map-marked-alt", style = "color: #007bff; font-size: 32px;"),
             br(),
-            i18n$t("Plot Metadata")
+            i18n$t("Inventory Metadata")
           ),
 
           shiny::p(
-            i18n$t("Import plot locations, census dates, methods, and associated metadata."),
+            i18n$t("Import metadata for your forest inventories (plots): locations, census dates, methods, and associated information."),
             style = "color: #6c757d;"
           ),
 
@@ -201,7 +201,7 @@ mod_step1_choose_type_server <- function(id, i18n) {
 
       # Show notification
       type_label <- if (input$import_type_click == "plots") {
-        i18n()$t("Plot Metadata")
+        i18n()$t("Inventory Metadata")
       } else {
         i18n()$t("Individual Trees")
       }
@@ -235,7 +235,7 @@ mod_step1_choose_type_server <- function(id, i18n) {
       type_info <- if (selected_type() == "plots") {
         list(
           icon = "map-marked-alt",
-          label = i18n()$t("Plot Metadata"),
+          label = i18n()$t("Inventory Metadata"),
           color = "#007bff"
         )
       } else {
