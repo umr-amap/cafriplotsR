@@ -10,6 +10,9 @@
 mod_step2_upload_ui <- function(id, i18n) {
   ns <- shiny::NS(id)
 
+  # Get translator function
+  tr <- function(text) i18n$t(text)
+
   shiny::tagList(
     shiny::h3(
       shiny::icon("cloud-upload-alt"),
@@ -94,8 +97,8 @@ mod_step2_upload_ui <- function(id, i18n) {
             shiny::strong(paste0(i18n$t("Supported formats"), ":")),
             shiny::tags$ul(
               style = "margin-bottom: 0;",
-              shiny::tags$li("Excel: .xlsx, .xls"),
-              shiny::tags$li("CSV: .csv (UTF-8 encoding)")
+              shiny::tags$li(i18n$t("Excel: .xlsx, .xls")),
+              shiny::tags$li(i18n$t("CSV: .csv (UTF-8 encoding)"))
             )
           ),
 
@@ -122,9 +125,10 @@ mod_step2_upload_ui <- function(id, i18n) {
 #' @param import_type Reactive value containing import type ("plots" or "individuals")
 #' @param config Reactive value containing import configuration
 #' @param con Reactive database connection pool
+#' @param i18n Translator object from shiny.i18n
 #' @return Reactive value containing uploaded data (data frame)
 #' @keywords internal
-mod_step2_upload_server <- function(id, import_type, config, con) {
+mod_step2_upload_server <- function(id, import_type, config, con, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Store uploaded data
@@ -136,39 +140,49 @@ mod_step2_upload_server <- function(id, import_type, config, con) {
 
       if (import_type() == "plots") {
         # Plot metadata template options
+        # Get translator function from parent scope
+        tr <- shiny::isolate(i18n()$t)
+
         shiny::tagList(
           shiny::radioButtons(
             session$ns("template_type"),
-            "Template Type:",
-            choices = c(
-              "Minimal (Required fields only)" = "minimal",
-              "Permanent Plot (Recommended)" = "permanent_plot",
-              "Transect Survey" = "transect",
-              "Full (All optional fields)" = "full"
+            tr("Template Type:"),
+            choices = stats::setNames(
+              c("minimal", "permanent_plot", "transect", "full"),
+              c(
+                tr("Minimal (Required fields only)"),
+                tr("Permanent Plot (Recommended)"),
+                tr("Transect Survey"),
+                tr("Full (All optional fields)")
+              )
             ),
             selected = "permanent_plot"
           ),
           shiny::checkboxInput(
             session$ns("with_examples"),
-            "Include example data",
+            tr("Include example data"),
             value = TRUE
           )
         )
       } else {
         # Individual tree template options
+        # Get translator function from parent scope
+        tr <- shiny::isolate(i18n()$t)
+
         shiny::tagList(
           shiny::checkboxInput(
             session$ns("with_examples"),
-            "Include features sheet (traits/measurements)",
+            tr("Include features sheet (traits/measurements)"),
             value = TRUE
           ),
           shiny::div(
             class = "alert alert-info",
             style = "font-size: 14px; margin-top: 15px;",
             shiny::icon("info-circle"),
-            shiny::strong(" Note: "),
-            "Individual template includes all possible columns. ",
-            "Features sheet contains trait measurements (DBH, height, etc.)."
+            shiny::strong(paste0(" ", tr("Note:"), " ")),
+            tr("Individual template includes all possible columns."),
+            " ",
+            tr("Features sheet contains trait measurements (DBH, height, etc.).")
           ),
           # Hidden field for template_type to satisfy download handler
           shiny::tags$input(
@@ -193,9 +207,9 @@ mod_step2_upload_server <- function(id, import_type, config, con) {
         }
       },
       content = function(file) {
-        shiny::withProgress(message = 'Generating template...', value = 0, {
+        shiny::withProgress(message = i18n$t('Generating template...'), value = 0, {
 
-          shiny::incProgress(0.3, detail = "Creating structure...")
+          shiny::incProgress(0.3, detail = i18n$t("Creating structure..."))
 
           # Generate template based on import type
           template <- tryCatch({
@@ -220,7 +234,7 @@ mod_step2_upload_server <- function(id, import_type, config, con) {
             }
           }, error = function(e) {
             shiny::showNotification(
-              paste("Error generating template:", e$message),
+              paste(i18n$t("Error generating template:"), e$message),
               type = "error",
               duration = NULL
             )
@@ -229,19 +243,19 @@ mod_step2_upload_server <- function(id, import_type, config, con) {
 
           # Check if template was generated
           if (is.null(template)) {
-            stop("Template generation failed")
+            stop(i18n$t("Template generation failed"))
           }
 
-          shiny::incProgress(0.6, detail = "Writing Excel file...")
+          shiny::incProgress(0.6, detail = i18n$t("Writing Excel file..."))
 
           # Write to Excel
           writexl::write_xlsx(template, file)
 
-          shiny::incProgress(1, detail = "Complete!")
+          shiny::incProgress(1, detail = i18n$t("Complete!"))
         })
 
         shiny::showNotification(
-          "Template downloaded successfully!",
+          i18n$t("Template downloaded successfully!"),
           type = "message",
           duration = 3
         )
@@ -257,30 +271,30 @@ mod_step2_upload_server <- function(id, import_type, config, con) {
 
       # Load data based on file type
       data <- tryCatch({
-        shiny::withProgress(message = 'Loading file...', value = 0, {
+        shiny::withProgress(message = i18n$t('Loading file...'), value = 0, {
 
-          shiny::incProgress(0.3, detail = "Reading file...")
+          shiny::incProgress(0.3, detail = i18n$t("Reading file..."))
 
           result <- if (file_ext %in% c("xlsx", "xls")) {
             readxl::read_excel(file_path)
           } else if (file_ext == "csv") {
             read.csv(file_path, stringsAsFactors = FALSE)
           } else {
-            stop("Unsupported file format: ", file_ext)
+            stop(sprintf(i18n$t("Unsupported file format: %s"), file_ext))
           }
 
-          shiny::incProgress(0.8, detail = "Validating structure...")
+          shiny::incProgress(0.8, detail = i18n$t("Validating structure..."))
 
           # Convert to data frame (in case it's a tibble)
           result <- as.data.frame(result)
 
-          shiny::incProgress(1, detail = "Complete!")
+          shiny::incProgress(1, detail = i18n$t("Complete!"))
 
           result
         })
       }, error = function(e) {
         shiny::showNotification(
-          paste("Error loading file:", e$message),
+          paste(i18n$t("Error loading file:"), e$message),
           type = "error",
           duration = NULL
         )
@@ -291,7 +305,7 @@ mod_step2_upload_server <- function(id, import_type, config, con) {
         uploaded_data(data)
 
         shiny::showNotification(
-          sprintf("File loaded: %d rows, %d columns", nrow(data), ncol(data)),
+          sprintf(i18n$t("File loaded: %d rows, %d columns"), nrow(data), ncol(data)),
           type = "message",
           duration = 4
         )
