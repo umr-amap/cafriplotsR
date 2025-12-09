@@ -448,7 +448,7 @@ import_wizard_server <- function(input, output, session, translator) {
     cli::cli_alert_info("Initializing import wizard modules...")
 
     # Step 1: Choose import type
-    step1_result <- mod_step1_choose_type_server("step1")
+    step1_result <- mod_step1_choose_type_server("step1", i18n)
 
     observeEvent(step1_result(), {
       req(step1_result())
