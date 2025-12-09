@@ -1,8 +1,5 @@
 {
-  "languages": [
-    "en",
-    "fr"
-  ],
+  "languages": ["en", "fr"],
   "translation": [
     {
       "en": "Taxonomic Name Standardization for Tropical African Plants",
@@ -2389,10 +2386,6 @@
       "fr": " Unité :"
     },
     {
-      "en": "You must map the following required columns: %s",
-      "fr": "Vous devez mapper les colonnes obligatoires suivantes : %s"
-    },
-    {
       "en": "Warning - Tag Column Not Mapped:",
       "fr": "Avertissement - Colonne tag non mappée :"
     },
@@ -2559,6 +2552,46 @@
     {
       "en": "No valid coordinates to convert.",
       "fr": "Aucune coordonnée valide à convertir."
+    },
+    {
+      "en": "Duplicate Column Mapping Detected:",
+      "fr": "Mappage de colonne en double détecté :"
+    },
+    {
+      "en": "The following column(s) have been mapped more than once:",
+      "fr": "La ou les colonnes suivantes ont été mappées plus d'une fois :"
+    },
+    {
+      "en": "Each column from your data can only be mapped to one database column. Please review your mappings and ensure no column is selected multiple times.",
+      "fr": "Chaque colonne de vos données ne peut être mappée qu'à une seule colonne de base de données. Veuillez vérifier vos mappages et vous assurer qu'aucune colonne n'est sélectionnée plusieurs fois."
+    },
+    {
+      "en": "The",
+      "fr": "La"
+    },
+    {
+      "en": "column is",
+      "fr": "colonne est"
+    },
+    {
+      "en": "strongly recommended",
+      "fr": "fortement recommandée"
+    },
+    {
+      "en": "especially for permanent plots.",
+      "fr": "en particulier pour les placettes permanentes."
+    },
+    {
+      "en": "Tags allow tracking individuals across multiple censuses",
+      "fr": "Les tags permettent de suivre les individus à travers plusieurs recensements"
+    },
+    {
+      "en": "If not provided, tags will be auto-generated as incremental integers",
+      "fr": "S'ils ne sont pas fournis, les tags seront générés automatiquement sous forme d'entiers incrémentaux"
+    },
+    {
+      "en": "Auto-generated tags cannot be matched to future census data",
+      "fr": "Les tags générés automatiquement ne peuvent pas être associés aux données de recensement futures"
     }
   ]
 }

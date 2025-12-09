@@ -156,21 +156,21 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
           class = "alert alert-warning",
           style = "background-color: #fff3cd; border-left: 4px solid #ffc107; margin-bottom: 20px;",
           shiny::icon("info-circle", style = "color: #856404;"),
-          shiny::strong(paste0(" ", i18n$t("Important: Skip Plot Metadata Columns")), style = "color: #856404;"),
+          shiny::strong(paste0(" ", i18n()$t("Important: Skip Plot Metadata Columns")), style = "color: #856404;"),
           shiny::br(),
           shiny::br(),
           shiny::p(
-            i18n$t("If your dataset contains plot-level information (country, coordinates, elevation, dates, etc.), "),
-            shiny::strong(i18n$t("do NOT map these columns here.")),
-            i18n$t(" These should be imported separately using "),
-            shiny::tags$code(i18n$t("Plot Metadata")),
-            i18n$t(" import."),
+            i18n()$t("If your dataset contains plot-level information (country, coordinates, elevation, dates, etc.), "),
+            shiny::strong(i18n()$t("do NOT map these columns here.")),
+            i18n()$t(" These should be imported separately using "),
+            shiny::tags$code(i18n()$t("Plot Metadata")),
+            i18n()$t(" import."),
             style = "margin: 0; color: #856404;"
           ),
           shiny::br(),
           shiny::p(
             shiny::icon("check", style = "color: #28a745;"),
-            i18n$t(" Only map: individual tree data (plot_name, tag, species) and measurements (DBH, height, etc.)"),
+            i18n()$t(" Only map: individual tree data (plot_name, tag, species) and measurements (DBH, height, etc.)"),
             style = "margin: 0; color: #856404;"
           )
         )
@@ -426,10 +426,18 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
 
       missing_required <- setdiff(required_cols, mapped_db_cols)
 
+      # Check for duplicate source columns (same user column mapped multiple times)
+      user_cols <- unlist(current_mappings())
+      user_cols_no_na <- user_cols[!is.na(user_cols)]
+      duplicate_user_cols <- user_cols_no_na[duplicated(user_cols_no_na)]
+      has_duplicates <- length(duplicate_user_cols) > 0
+
       list(
-        valid = length(missing_required) == 0,
+        valid = length(missing_required) == 0 && !has_duplicates,
         missing_required = missing_required,
-        n_mapped = length(current_mappings())
+        n_mapped = length(current_mappings()),
+        duplicate_columns = unique(duplicate_user_cols),
+        has_duplicates = has_duplicates
       )
     })
 
@@ -450,49 +458,86 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
       ui_elements <- list()
 
       # Main validation message (required columns)
-      if (val$valid) {
+      if (val$valid && !val$has_duplicates) {
         ui_elements[[1]] <- shiny::div(
           class = "alert alert-success",
           style = "margin-top: 30px;",
           shiny::icon("check-circle"),
-          shiny::strong(" Mapping Complete: "),
+          shiny::strong(paste0(" ", i18n()$t("Mapping Complete:"), " ")),
           sprintf(
-            "All %d required columns are mapped. You have mapped %d columns total.",
+            i18n()$t("All %d required columns are mapped. You have mapped %d columns total."),
             length(config()$required_columns),
             val$n_mapped
           )
         )
-      } else {
+      } else if (!val$valid) {
+        # Build list of missing columns with code tags and commas
+        missing_cols_tags <- list()
+        for (i in seq_along(val$missing_required)) {
+          missing_cols_tags[[length(missing_cols_tags) + 1]] <- shiny::tags$code(val$missing_required[i])
+          if (i < length(val$missing_required)) {
+            missing_cols_tags[[length(missing_cols_tags) + 1]] <- ", "
+          }
+        }
+
         ui_elements[[1]] <- shiny::div(
           class = "alert alert-danger",
           style = "margin-top: 30px;",
           shiny::icon("exclamation-circle"),
-          shiny::strong(" Missing Required Columns: "),
-          sprintf(
-            "You must map the following required columns: %s",
-            paste(shiny::tags$code(val$missing_required), collapse = ", ")
-          )
+          shiny::strong(paste0(" ", i18n()$t("Missing Required Columns:"), " ")),
+          shiny::br(),
+          shiny::br(),
+          i18n()$t("You must map the following required columns:"),
+          " ",
+          shiny::tagList(missing_cols_tags)
+        )
+      }
+
+      # Error for duplicate column mappings
+      if (val$has_duplicates) {
+        # Build list of duplicate columns with code tags and commas
+        dup_cols_tags <- list()
+        for (i in seq_along(val$duplicate_columns)) {
+          dup_cols_tags[[length(dup_cols_tags) + 1]] <- shiny::tags$code(val$duplicate_columns[i])
+          if (i < length(val$duplicate_columns)) {
+            dup_cols_tags[[length(dup_cols_tags) + 1]] <- ", "
+          }
+        }
+
+        ui_elements[[length(ui_elements) + 1]] <- shiny::div(
+          class = "alert alert-danger",
+          style = "margin-top: 15px;",
+          shiny::icon("exclamation-circle"),
+          shiny::strong(paste0(" ", i18n()$t("Duplicate Column Mapping Detected:"), " ")),
+          shiny::br(),
+          shiny::br(),
+          i18n()$t("The following column(s) have been mapped more than once:"),
+          " ",
+          shiny::tagList(dup_cols_tags),
+          shiny::br(),
+          shiny::br(),
+          i18n()$t("Each column from your data can only be mapped to one database column. Please review your mappings and ensure no column is selected multiple times.")
         )
       }
 
       # Warning for missing tag (individuals only)
       if (is_individuals && !tag_mapped) {
-        ui_elements[[2]] <- shiny::div(
+        ui_elements[[length(ui_elements) + 1]] <- shiny::div(
           class = "alert alert-warning",
           style = "margin-top: 15px;",
           shiny::icon("exclamation-triangle"),
-          shiny::strong(" Warning - Tag Column Not Mapped: "),
+          shiny::strong(paste0(" ", i18n()$t("Warning - Tag Column Not Mapped:"), " ")),
           shiny::br(),
           shiny::br(),
-          "The ", shiny::tags$code("tag"), " column is ", shiny::strong("strongly recommended"),
-          ", especially for permanent plots.",
+          i18n()$t("The"), " ", shiny::tags$code("tag"), " ", i18n()$t("column is"), " ", shiny::strong(i18n()$t("strongly recommended")),
+          ", ", i18n()$t("especially for permanent plots."),
           shiny::br(),
           shiny::br(),
           shiny::tags$ul(
             style = "margin-bottom: 5px;",
-            shiny::tags$li("Tags allow tracking individuals across multiple censuses"),
-            shiny::tags$li("If not provided, tags will be auto-generated as incremental integers"),
-            shiny::tags$li("Auto-generated tags cannot be matched to future census data")
+            shiny::tags$li(i18n()$t("Tags allow tracking individuals across multiple censuses")),
+            shiny::tags$li(i18n()$t("If not provided, tags will be auto-generated as incremental integers")),
+            shiny::tags$li(i18n()$t("Auto-generated tags cannot be matched to future census data"))
           )
         )
       }
@@ -512,11 +557,11 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
           style = "margin-bottom: 15px;",
           shiny::actionButton(
             session$ns("show_create_feature"),
-            shiny::tagList(shiny::icon("plus"), paste0(" ", i18n$t("Create New Feature/Attribute"))),
+            shiny::tagList(shiny::icon("plus"), paste0(" ", i18n()$t("Create New Feature/Attribute"))),
             class = "btn-success btn-sm"
           ),
           shiny::tags$small(
-            paste0(" ", i18n$t("Click if you have a column that doesn't match any existing feature")),
+            paste0(" ", i18n()$t("Click if you have a column that doesn't match any existing feature")),
             style = "color: #6c757d; margin-left: 10px;"
           )
         )
@@ -534,11 +579,11 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
 
       if (is_individuals && !is.null(input$show_create_feature) && input$show_create_feature > 0) {
         shiny::modalDialog(
-          title = shiny::tagList(shiny::icon("plus-circle"), paste0(" ", i18n$t("Create New Feature/Attribute"))),
+          title = shiny::tagList(shiny::icon("plus-circle"), paste0(" ", i18n()$t("Create New Feature/Attribute"))),
           size = "l",
 
           shiny::p(
-            i18n$t("Create a new feature/attribute that can be linked to individual stems/trees."),
+            i18n()$t("Create a new feature/attribute that can be linked to individual stems/trees."),
             style = "color: #6c757d; margin-bottom: 20px;"
           ),
 
@@ -547,51 +592,51 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
               6,
               shiny::textInput(
                 session$ns("new_feature_name"),
-                i18n$t("Feature Name *"),
-                placeholder = i18n$t("e.g., crown_diameter, bark_thickness")
+                i18n()$t("Feature Name *"),
+                placeholder = i18n()$t("e.g., crown_diameter, bark_thickness")
               ),
               shiny::tags$small(
                 shiny::icon("info-circle", style = "color: #007bff;"),
-                paste0(" ", i18n$t("Use lowercase, underscores (not spaces), no special characters")),
+                paste0(" ", i18n()$t("Use lowercase, underscores (not spaces), no special characters")),
                 style = "color: #6c757d; display: block; margin-top: -10px; margin-bottom: 10px;"
               ),
               shiny::selectInput(
                 session$ns("new_feature_valuetype"),
-                i18n$t("Value Type *"),
+                i18n()$t("Value Type *"),
                 choices = setNames(
                   c("numeric", "integer", "categorical", "character", "logical", "ordinal"),
-                  c(i18n$t("Numeric (measurements)"),
-                    i18n$t("Integer (counts)"),
-                    i18n$t("Categorical (categories)"),
-                    i18n$t("Character (text)"),
-                    i18n$t("Logical (yes/no)"),
-                    i18n$t("Ordinal (ordered categories)"))
+                  c(i18n()$t("Numeric (measurements)"),
+                    i18n()$t("Integer (counts)"),
+                    i18n()$t("Categorical (categories)"),
+                    i18n()$t("Character (text)"),
+                    i18n()$t("Logical (yes/no)"),
+                    i18n()$t("Ordinal (ordered categories)"))
                 ),
                 selected = "numeric"
               ),
               shiny::textInput(
                 session$ns("new_feature_unit"),
-                i18n$t("Expected Unit (optional)"),
-                placeholder = i18n$t("e.g., cm, m, kg, %")
+                i18n()$t("Expected Unit (optional)"),
+                placeholder = i18n()$t("e.g., cm, m, kg, %")
               )
             ),
             shiny::column(
               6,
               shiny::textAreaInput(
                 session$ns("new_feature_description"),
-                i18n$t("Description *"),
-                placeholder = i18n$t("Describe what this feature measures or represents"),
+                i18n()$t("Description *"),
+                placeholder = i18n()$t("Describe what this feature measures or represents"),
                 rows = 3
               ),
               shiny::textInput(
                 session$ns("new_feature_min"),
-                i18n$t("Minimum Allowed Value (optional)"),
-                placeholder = i18n$t("e.g., 0")
+                i18n()$t("Minimum Allowed Value (optional)"),
+                placeholder = i18n()$t("e.g., 0")
               ),
               shiny::textInput(
                 session$ns("new_feature_max"),
-                i18n$t("Maximum Allowed Value (optional)"),
-                placeholder = i18n$t("e.g., 100")
+                i18n()$t("Maximum Allowed Value (optional)"),
+                placeholder = i18n()$t("e.g., 100")
               )
             )
           ),
@@ -602,16 +647,16 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
                                session$ns("new_feature_valuetype")),
             shiny::textInput(
               session$ns("new_feature_levels"),
-              i18n$t("Factor Levels (comma-separated)"),
-              placeholder = i18n$t("e.g., small, medium, large")
+              i18n()$t("Factor Levels (comma-separated)"),
+              placeholder = i18n()$t("e.g., small, medium, large")
             )
           ),
 
           footer = shiny::tagList(
-            shiny::modalButton(i18n$t("Cancel")),
+            shiny::modalButton(i18n()$t("Cancel")),
             shiny::actionButton(
               session$ns("create_feature_confirm"),
-              shiny::tagList(shiny::icon("check"), paste0(" ", i18n$t("Create Feature"))),
+              shiny::tagList(shiny::icon("check"), paste0(" ", i18n()$t("Create Feature"))),
               class = "btn-primary"
             )
           ),
@@ -637,51 +682,51 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
               6,
               shiny::textInput(
                 session$ns("new_feature_name"),
-                i18n$t("Feature Name *"),
-                placeholder = i18n$t("e.g., crown_diameter, bark_thickness")
+                i18n()$t("Feature Name *"),
+                placeholder = i18n()$t("e.g., crown_diameter, bark_thickness")
               ),
               shiny::tags$small(
                 shiny::icon("info-circle", style = "color: #007bff;"),
-                paste0(" ", i18n$t("Use lowercase, underscores (not spaces), no special characters")),
+                paste0(" ", i18n()$t("Use lowercase, underscores (not spaces), no special characters")),
                 style = "color: #6c757d; display: block; margin-top: -10px; margin-bottom: 10px;"
               ),
               shiny::selectInput(
                 session$ns("new_feature_valuetype"),
-                i18n$t("Value Type *"),
+                i18n()$t("Value Type *"),
                 choices = setNames(
                   c("numeric", "integer", "categorical", "character", "logical", "ordinal"),
-                  c(i18n$t("Numeric (measurements)"),
-                    i18n$t("Integer (counts)"),
-                    i18n$t("Categorical (categories)"),
-                    i18n$t("Character (text)"),
-                    i18n$t("Logical (yes/no)"),
-                    i18n$t("Ordinal (ordered categories)"))
+                  c(i18n()$t("Numeric (measurements)"),
+                    i18n()$t("Integer (counts)"),
+                    i18n()$t("Categorical (categories)"),
+                    i18n()$t("Character (text)"),
+                    i18n()$t("Logical (yes/no)"),
+                    i18n()$t("Ordinal (ordered categories)"))
                 ),
                 selected = "numeric"
               ),
               shiny::textInput(
                 session$ns("new_feature_unit"),
-                i18n$t("Expected Unit (optional)"),
-                placeholder = i18n$t("e.g., cm, m, kg, %")
+                i18n()$t("Expected Unit (optional)"),
+                placeholder = i18n()$t("e.g., cm, m, kg, %")
               )
             ),
             shiny::column(
               6,
               shiny::textAreaInput(
                 session$ns("new_feature_description"),
-                i18n$t("Description *"),
-                placeholder = i18n$t("Describe what this feature measures or represents"),
+                i18n()$t("Description *"),
+                placeholder = i18n()$t("Describe what this feature measures or represents"),
                 rows = 3
               ),
               shiny::textInput(
                 session$ns("new_feature_min"),
-                i18n$t("Minimum Allowed Value (optional)"),
-                placeholder = i18n$t("e.g., 0")
+                i18n()$t("Minimum Allowed Value (optional)"),
+                placeholder = i18n()$t("e.g., 0")
               ),
               shiny::textInput(
                 session$ns("new_feature_max"),
-                i18n$t("Maximum Allowed Value (optional)"),
-                placeholder = i18n$t("e.g., 100")
+                i18n()$t("Maximum Allowed Value (optional)"),
+                placeholder = i18n()$t("e.g., 100")
               )
             )
           ),
@@ -692,16 +737,16 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
                                session$ns("new_feature_valuetype")),
             shiny::textInput(
               session$ns("new_feature_levels"),
-              i18n$t("Factor Levels (comma-separated)"),
-              placeholder = i18n$t("e.g., small, medium, large")
+              i18n()$t("Factor Levels (comma-separated)"),
+              placeholder = i18n()$t("e.g., small, medium, large")
             )
           ),
 
           footer = shiny::tagList(
-            shiny::modalButton(i18n$t("Cancel")),
+            shiny::modalButton(i18n()$t("Cancel")),
             shiny::actionButton(
               session$ns("create_feature_confirm"),
-              shiny::tagList(shiny::icon("check"), paste0(" ", i18n$t("Create Feature"))),
+              shiny::tagList(shiny::icon("check"), paste0(" ", i18n()$t("Create Feature"))),
               class = "btn-primary"
             )
           ),
@@ -717,7 +762,7 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
       # Validate inputs
       if (trimws(input$new_feature_name) == "" || trimws(input$new_feature_description) == "") {
         shiny::showNotification(
-          i18n$t("Feature name and description are required"),
+          i18n()$t("Feature name and description are required"),
           type = "error",
           duration = 5
         )
@@ -734,7 +779,7 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
       # Warn if name was changed
       if (sanitized_name != original_name) {
         shiny::showNotification(
-          sprintf(i18n$t("Feature name auto-corrected: '%s' → '%s'"), original_name, sanitized_name),
+          sprintf(i18n()$t("Feature name auto-corrected: '%s' → '%s'"), original_name, sanitized_name),
           type = "warning",
           duration = 5
         )
@@ -743,14 +788,14 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
       # Check if name is empty after sanitization
       if (sanitized_name == "") {
         shiny::showNotification(
-          i18n$t("Feature name contains only invalid characters. Please use letters, numbers, and underscores."),
+          i18n()$t("Feature name contains only invalid characters. Please use letters, numbers, and underscores."),
           type = "error",
           duration = 5
         )
         return()
       }
 
-      shiny::withProgress(message = i18n$t("Creating new feature..."), {
+      shiny::withProgress(message = i18n()$t("Creating new feature..."), {
         tryCatch({
           # Prepare parameters
           new_min <- if (!is.null(input$new_feature_min) && trimws(input$new_feature_min) != "") {
@@ -793,10 +838,10 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
           updated_cols <- sort(unique(c(current_cols, sanitized_name)))
           schema_columns(updated_cols)
 
-          cli::cli_alert_success(sprintf(i18n$t("Feature '%s' added to available features"), sanitized_name))
+          cli::cli_alert_success(sprintf(i18n()$t("Feature '%s' added to available features"), sanitized_name))
 
           shiny::showNotification(
-            sprintf(i18n$t("Feature '%s' created successfully! It's now available in the dropdown."), sanitized_name),
+            sprintf(i18n()$t("Feature '%s' created successfully! It's now available in the dropdown."), sanitized_name),
             type = "message",
             duration = 5
           )
@@ -806,7 +851,7 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
 
         }, error = function(e) {
           shiny::showNotification(
-            paste(i18n$t("Error creating feature:"), e$message),
+            paste(i18n()$t("Error creating feature:"), e$message),
             type = "error",
             duration = 10
           )
