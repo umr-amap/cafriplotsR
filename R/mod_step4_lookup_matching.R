@@ -124,13 +124,22 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, config, con, i1
           )
 
           if (total_non_exact == 0) {
+            # All values matched - convert exact matches to IDs
+            cli::cli_alert_info("All values matched exactly - converting to IDs...")
+            updated_data <- .convert_and_clean_lookup_values(
+              data = data(),
+              exact_matches = result$exact_matches,
+              mappings = mappings(),
+              con = con()
+            )
+            matched_data(updated_data)
+            matching_complete(TRUE)
+
             shiny::showNotification(
               "Great! All lookup values match exactly. You can proceed to validation.",
               type = "message",
               duration = 5
             )
-            matched_data(data())  # No changes needed
-            matching_complete(TRUE)
           } else {
             shiny::showNotification(
               sprintf("Found %d lookup value(s) that need matching.", total_non_exact),
@@ -311,7 +320,16 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, config, con, i1
           }
         }
 
-        matched_data(updated_data)
+        # Also convert exact matches to IDs and clean up any remaining unmatched values
+        cli::cli_alert_info("Converting exact matches and cleaning up...")
+        final_data <- .convert_and_clean_lookup_values(
+          data = updated_data,
+          exact_matches = analysis_result()$exact_matches,
+          mappings = mappings(),
+          con = con()
+        )
+
+        matched_data(final_data)
         matching_complete(TRUE)
 
         shiny::showNotification(
@@ -321,12 +339,20 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, config, con, i1
         )
 
       } else {
-        # User skipped matching
-        matched_data(data())
+        # User skipped matching - still convert exact matches and discard unmatched
+        cli::cli_alert_info("User skipped matching - converting exact matches only...")
+        updated_data <- .convert_and_clean_lookup_values(
+          data = data(),
+          exact_matches = analysis_result()$exact_matches,
+          mappings = mappings(),
+          con = con()
+        )
+
+        matched_data(updated_data)
         matching_complete(TRUE)
 
         shiny::showNotification(
-          "Skipped matching. Original data will be used for validation.",
+          "Converted exact matches to IDs. Unmatched values were discarded.",
           type = "warning",
           duration = 5
         )
@@ -549,4 +575,163 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, config, con, i1
       non_exact = total_values - total_exact
     )
   )
+}
+
+
+#' Convert matched lookup names to IDs and discard unmatched values
+#'
+#' Converts exact-matched names to their database IDs and removes any unmatched
+#' values to ensure data contains ONLY numeric IDs (no mix of IDs and text names).
+#'
+#' @param data Data frame with user data
+#' @param exact_matches List of exact-matched values (output from .analyze_lookup_columns)
+#' @param mappings Column mappings (user_col -> db_col)
+#' @param con Database connection pool
+#' @return Updated data frame with names replaced by IDs and unmatched values removed
+#' @keywords internal
+.convert_and_clean_lookup_values <- function(data, exact_matches, mappings, con) {
+
+  if (is.null(exact_matches) || length(exact_matches) == 0) {
+    cli::cli_alert_info("No exact matches to convert")
+    return(data)
+  }
+
+  cli::cli_alert_info("Converting exact matches to IDs and discarding unmatched values...")
+
+  updated_data <- data
+
+  # Get reverse mappings (db_col -> user_col)
+  reverse_mappings <- setNames(names(mappings), unlist(mappings))
+
+  for (col_name in names(exact_matches)) {
+    exact_values <- exact_matches[[col_name]]
+
+    if (length(exact_values) == 0) next
+
+    # Get user column name
+    user_col <- reverse_mappings[[col_name]]
+
+    if (is.null(user_col) || !user_col %in% names(updated_data)) {
+      cli::cli_alert_warning("Skipping {col_name} - column not found in data")
+      next
+    }
+
+    cli::cli_alert_info("Processing {col_name}: {length(exact_values)} exact match(es)")
+
+    # Get lookup info
+    lookup_info <- .get_lookup_info(col_name, con)
+
+    # Query database for name -> ID mapping
+    if (is.null(lookup_info$function_name)) {
+      # People columns: query table_colnam
+      db_lookup <- DBI::dbGetQuery(con, "
+        SELECT id_table_colnam AS id, colnam AS name
+        FROM table_colnam
+      ")
+    } else if (col_name == "method") {
+      db_lookup <- DBI::dbGetQuery(con, "
+        SELECT id_method AS id, method AS name
+        FROM methodslist
+      ")
+    } else if (col_name == "country") {
+      db_lookup <- DBI::dbGetQuery(con, "
+        SELECT id_country AS id, country AS name
+        FROM table_countries
+      ")
+    } else {
+      cli::cli_alert_warning("Unknown lookup type for {col_name}")
+      next
+    }
+
+    # Create normalized name -> ID mapping (case-insensitive)
+    name_to_id <- setNames(
+      db_lookup$id,
+      tolower(trimws(db_lookup$name))
+    )
+
+    # Check if this is a people column (can have comma-separated values)
+    is_people_column <- tryCatch({
+      subplot_info <- subplot_list(con)
+      if (!is.null(subplot_info) && "type" %in% names(subplot_info) && "valuetype" %in% names(subplot_info)) {
+        people_cols <- subplot_info$type[!is.na(subplot_info$valuetype) & subplot_info$valuetype == "table_colnam"]
+        people_cols <- people_cols[!is.na(people_cols)]
+        col_name %in% people_cols
+      } else {
+        FALSE
+      }
+    }, error = function(e) {
+      # Fallback: check against known people columns
+      col_name %in% c("principal_investigator", "data_manager", "additional_people", "team_leader")
+    })
+
+    if (is_people_column) {
+      # Handle comma-separated values for people columns
+      cli::cli_alert_info("  People column: converting and cleaning")
+
+      discarded_count <- 0
+
+      for (i in seq_len(nrow(updated_data))) {
+        cell_value <- updated_data[[user_col]][i]
+
+        if (!is.na(cell_value) && trimws(cell_value) != "") {
+          # Split by comma
+          names_list <- strsplit(as.character(cell_value), ",")[[1]]
+          names_list <- trimws(names_list)
+
+          # Convert names to IDs, discard unmatched
+          matched_ids <- c()
+          for (name in names_list) {
+            name_lower <- tolower(trimws(name))
+
+            # Check if it's already a numeric ID
+            if (suppressWarnings(!is.na(as.numeric(name)))) {
+              # Already an ID - keep it
+              matched_ids <- c(matched_ids, name)
+            } else if (name_lower %in% names(name_to_id)) {
+              # Matched name - convert to ID
+              matched_ids <- c(matched_ids, as.character(name_to_id[[name_lower]]))
+            } else {
+              # Unmatched - discard
+              cli::cli_alert_info("  Discarding unmatched value: '{name}' in row {i}")
+              discarded_count <- discarded_count + 1
+            }
+          }
+
+          # Update cell with matched IDs only
+          if (length(matched_ids) > 0) {
+            updated_data[[user_col]][i] <- paste(matched_ids, collapse = ", ")
+          } else {
+            # All values were unmatched - set to NA
+            updated_data[[user_col]][i] <- NA
+          }
+        }
+      }
+
+      if (discarded_count > 0) {
+        cli::cli_alert_warning("  Discarded {discarded_count} unmatched value(s) from {col_name}")
+      }
+
+    } else {
+      # Simple replacement for non-people columns (method, country)
+      cli::cli_alert_info("  Simple column: converting to IDs")
+
+      for (exact_value in exact_values) {
+        value_lower <- tolower(trimws(exact_value))
+
+        if (value_lower %in% names(name_to_id)) {
+          matched_id <- name_to_id[[value_lower]]
+
+          # Replace all occurrences (case-insensitive)
+          mask <- tolower(trimws(updated_data[[user_col]])) == value_lower
+          updated_data[[user_col]][mask] <- as.character(matched_id)
+
+          cli::cli_alert_success("  '{exact_value}' → {matched_id}")
+        }
+      }
+    }
+
+    cli::cli_alert_success("Converted {col_name} - data now contains only IDs")
+  }
+
+  return(updated_data)
 }
