@@ -734,12 +734,14 @@ define_user_policy <- function(con, user, ids,
       cli::cli_alert_success("Policy '{policy_name}_insert' created for INSERT operations (unrestricted)")
 
       # Policy for SELECT, UPDATE, DELETE: Restricted to specific plot IDs
+      # Note: WITH CHECK (true) allows RETURNING clause in INSERT to work
       sql_create_select <- glue::glue("
         CREATE POLICY {DBI::dbQuoteIdentifier(con, paste0(policy_name, '_select'))}
         ON {DBI::dbQuoteIdentifier(con, table)}
         FOR SELECT
         TO {DBI::dbQuoteIdentifier(con, user)}
-        USING (id_liste_plots IN ({id_list}));
+        USING (id_liste_plots IN ({id_list}))
+        WITH CHECK (true);
       ")
       DBI::dbExecute(con, sql_create_select)
 
