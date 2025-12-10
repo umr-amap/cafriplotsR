@@ -18,7 +18,8 @@ mod_lookup_matcher_ui <- function(id) {
 
     shiny::p(
       "Some values in your data don't exactly match the database. ",
-      "Please review and select the correct match for each value, or add new entries.",
+      "Suggestions are sorted by similarity (best matches first). ",
+      "Select the correct match from the dropdown, or create a new entry if needed.",
       style = "color: #6c757d; margin-bottom: 20px;"
     ),
 
@@ -138,6 +139,16 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
           shiny::p(
             sprintf("Found %d unique value(s) that need matching:", length(values_to_match)),
             style = "color: #6c757d;"
+          ),
+          shiny::div(
+            class = "alert alert-info",
+            style = "font-size: 14px; margin-bottom: 20px;",
+            shiny::icon("info-circle"),
+            shiny::strong(" How matching works: "),
+            "Suggestions are sorted by similarity (most likely matches first). ",
+            "If none of the suggestions match, scroll to the bottom of each dropdown and select ",
+            shiny::tags$strong("\u2795 Create New Entry"),
+            " to add a new person/method."
           ),
           matching_rows,
           shiny::hr()
@@ -339,12 +350,40 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
 
         shiny::textInput(
           session$ns("new_person_first_name"),
-          "First Name:"
+          "First Name: *",
+          placeholder = "e.g., John"
         ),
 
         shiny::textInput(
           session$ns("new_person_last_name"),
-          "Last Name:"
+          "Last Name: *",
+          placeholder = "e.g., Smith"
+        ),
+
+        shiny::textInput(
+          session$ns("new_person_nationality"),
+          "Nationality:",
+          placeholder = "e.g., France, USA (optional)"
+        ),
+
+        shiny::textInput(
+          session$ns("new_person_institute"),
+          "Institute:",
+          placeholder = "e.g., University of Example (optional)"
+        ),
+
+        shiny::textInput(
+          session$ns("new_person_contact"),
+          "Contact:",
+          placeholder = "e.g., email, phone (optional)"
+        ),
+
+        shiny::p(
+          shiny::tags$small(
+            shiny::icon("info-circle"),
+            " Fields marked with * are required",
+            style = "color: #6c757d;"
+          )
         ),
 
         footer = shiny::tagList(
@@ -409,19 +448,45 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
 
         cli::cli_alert_success("Added new method: {method_name} (ID: {new_id})")
 
-        # Update the dropdown with the new ID
+        # Get context before resetting it
         ctx <- add_new_context()
-        shinyjs::runjs(sprintf("
-          $('#%s').val('%s').trigger('change');
-        ", session$ns(ctx$input_id), new_id))
 
-        shiny::showNotification(
-          sprintf("Added new method: %s", method_name),
-          type = "message"
-        )
+        # Get cached data before closing modal
+        cached <- lookup_data_cache()[[ctx$input_id]]
 
+        # Close modal and reset context immediately
         shiny::removeModal()
         add_new_context(NULL)
+
+        # Build new choices
+        new_choices <- c(
+          "(Select a match)" = "",
+          structure(new_id, names = method_name),
+          structure(
+            cached$suggestions$id,
+            names = cached$suggestions$label
+          )
+        )
+
+        # Simple synchronous delay - let Shiny process modal closure
+        Sys.sleep(0.2)
+
+        # Update dropdown directly
+        shiny::updateSelectInput(
+          session = session,
+          inputId = ctx$input_id,
+          choices = new_choices,
+          selected = new_id
+        )
+
+        # Show success notification
+        shiny::showNotification(
+          sprintf("Successfully added and selected: %s", method_name),
+          type = "message",
+          duration = 5
+        )
+
+        cli::cli_alert_success("Method added and dropdown updated!")
 
       }, error = function(e) {
         cli::cli_alert_danger("Failed to add method: {e$message}")
@@ -439,6 +504,9 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
 
       first_name <- input$new_person_first_name
       last_name <- input$new_person_last_name
+      nationality <- input$new_person_nationality
+      institute <- input$new_person_institute
+      contact <- input$new_person_contact
 
       if (is.null(first_name) || trimws(first_name) == "" ||
           is.null(last_name) || trimws(last_name) == "") {
@@ -454,33 +522,82 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
         # Construct full name (colnam = surname + " " + family_name)
         full_name <- paste(first_name, last_name)
 
-        # Build SQL query using parameterized approach
+        # Prepare optional fields (NULL if empty)
+        nationality_val <- if (!is.null(nationality) && trimws(nationality) != "") {
+          DBI::dbQuoteLiteral(con(), trimws(nationality))
+        } else {
+          "NULL"
+        }
+
+        institute_val <- if (!is.null(institute) && trimws(institute) != "") {
+          DBI::dbQuoteLiteral(con(), trimws(institute))
+        } else {
+          "NULL"
+        }
+
+        contact_val <- if (!is.null(contact) && trimws(contact) != "") {
+          DBI::dbQuoteLiteral(con(), trimws(contact))
+        } else {
+          "NULL"
+        }
+
+        # Build SQL query with all fields
         query <- sprintf("
-          INSERT INTO table_colnam (surname, family_name, colnam)
-          VALUES (%s, %s, %s)
+          INSERT INTO table_colnam (surname, family_name, colnam, nationality, institute, contact)
+          VALUES (%s, %s, %s, %s, %s, %s)
           RETURNING id_table_colnam
         ",
         DBI::dbQuoteLiteral(con(), first_name),
         DBI::dbQuoteLiteral(con(), last_name),
-        DBI::dbQuoteLiteral(con(), full_name))
+        DBI::dbQuoteLiteral(con(), full_name),
+        nationality_val,
+        institute_val,
+        contact_val)
 
         new_id <- DBI::dbGetQuery(con(), query)$id_table_colnam
-
         cli::cli_alert_success("Added new person: {first_name} {last_name} (ID: {new_id})")
 
-        # Update the dropdown with the new ID
+        # Get context before resetting it
         ctx <- add_new_context()
-        shinyjs::runjs(sprintf("
-          $('#%s').val('%s').trigger('change');
-        ", session$ns(ctx$input_id), new_id))
 
-        shiny::showNotification(
-          sprintf("Added new person: %s %s", first_name, last_name),
-          type = "message"
-        )
+        # Get cached data before closing modal
+        cached <- lookup_data_cache()[[ctx$input_id]]
 
+        # Close modal and reset context immediately
         shiny::removeModal()
         add_new_context(NULL)
+
+        # Build new choices
+        new_choices <- c(
+          "(Select a match)" = "",
+          structure(new_id, names = full_name),
+          structure(
+            cached$suggestions$id,
+            names = cached$suggestions$label
+          )
+        )
+
+        # Simple synchronous delay - let Shiny process modal closure
+        Sys.sleep(0.2)
+
+        # Update dropdown directly
+        shiny::updateSelectInput(
+          session = session,
+          inputId = ctx$input_id,
+          choices = new_choices,
+          selected = new_id
+        )
+
+        # Show success notification
+        shiny::showNotification(
+          paste0(
+            "Successfully added and selected: ", first_name, " ", last_name
+          ),
+          type = "message",
+          duration = 5
+        )
+
+        cli::cli_alert_success("Person added and dropdown updated!")
 
       }, error = function(e) {
         cli::cli_alert_danger("Failed to add person: {e$message}")
@@ -661,7 +778,7 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
   if (!is.null(lookup_info$allow_add_new) && lookup_info$allow_add_new) {
     choices <- c(
       choices,
-      "--- Add New Value ---" = "ADD_NEW"
+      "\u2795 Create New Entry (if not found above)" = "ADD_NEW"
     )
   }
 
@@ -743,15 +860,44 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
     }
   }
 
-  # Calculate string distances
-  distances <- stringdist::stringdist(
-    tolower(trimws(user_value)),
-    tolower(trimws(lookup_data[[lookup_info$value_col]])),
-    method = "jw"  # Jaro-Winkler distance
-  )
+  # Check if this is a people column (from table_colnam)
+  is_people_column <- !is.null(lookup_info$table) && lookup_info$table == "table_colnam"
 
-  # Get similarities (1 - distance)
-  similarities <- 1 - distances
+  if (is_people_column) {
+    # For people names, use token-based similarity to handle word order
+    # This improves matching for "First Last" vs "Last First"
+    similarities <- sapply(lookup_data[[lookup_info$value_col]], function(db_value) {
+      # Tokenize both strings
+      user_tokens <- tolower(trimws(unlist(strsplit(user_value, "\\s+"))))
+      db_tokens <- tolower(trimws(unlist(strsplit(db_value, "\\s+"))))
+
+      # Calculate Jaro-Winkler for each token pair
+      if (length(user_tokens) == 0 || length(db_tokens) == 0) {
+        return(0)
+      }
+
+      # Create similarity matrix for all token pairs
+      token_sims <- outer(user_tokens, db_tokens, function(x, y) {
+        1 - stringdist::stringdist(x, y, method = "jw")
+      })
+
+      # For each user token, find best matching db token
+      best_matches <- apply(token_sims, 1, max)
+
+      # Average similarity across all user tokens
+      mean(best_matches)
+    })
+  } else {
+    # For non-people columns, use standard Jaro-Winkler
+    distances <- stringdist::stringdist(
+      tolower(trimws(user_value)),
+      tolower(trimws(lookup_data[[lookup_info$value_col]])),
+      method = "jw"  # Jaro-Winkler distance
+    )
+
+    # Get similarities (1 - distance)
+    similarities <- 1 - distances
+  }
 
   # Get all matches sorted by similarity (or top N if specified)
   ordered_indices <- order(similarities, decreasing = TRUE)
