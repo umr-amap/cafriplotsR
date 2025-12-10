@@ -78,9 +78,10 @@ mod_step7_import_ui <- function(id, i18n) {
 #' @param mappings Reactive containing column mappings
 #' @param config Reactive containing import configuration
 #' @param con Reactive containing database connection pool
+#' @param i18n Reactive translator object from shiny.i18n
 #' @return Reactive containing import result
 #' @keywords internal
-mod_step7_import_server <- function(id, validation_result, mappings, config, con) {
+mod_step7_import_server <- function(id, validation_result, mappings, config, con, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Storage for import result
@@ -236,6 +237,9 @@ mod_step7_import_server <- function(id, validation_result, mappings, config, con
           ),
 
           if (!result$dry_run) {
+            # Get i18n translator
+            tr <- shiny::isolate(i18n()$t)
+
             # Show admin code for row-level security
             shiny::tagList(
               shiny::hr(),
@@ -243,26 +247,42 @@ mod_step7_import_server <- function(id, validation_result, mappings, config, con
               shiny::div(
                 class = "alert alert-warning",
                 shiny::icon("exclamation-triangle"),
-                shiny::strong(" Important: Row-Level Security"),
+                shiny::strong(paste0(" ", tr("Important: Row-Level Security"))),
                 shiny::br(),
                 shiny::p(
-                  "You may not have access to these plots yet due to row-level security policies.",
-                  style = "margin-top: 10px; margin-bottom: 10px;"
+                  tr("You do not have access to these plots yet due to row-level security policies."),
+                  style = "margin-top: 10px; margin-bottom: 5px;"
                 ),
                 shiny::p(
-                  sprintf("Imported plots: %s", paste(result$plot_names, collapse = ", ")),
+                  tr("You must send the admin code below to the database administrator to grant you access."),
+                  style = "margin-bottom: 10px;"
+                ),
+                shiny::p(
+                  sprintf("%s %s", paste0(tr("Imported plots:"), ":"), paste(result$plot_names, collapse = ", ")),
                   style = "font-weight: bold;"
+                )
+              ),
+
+              shiny::div(
+                class = "alert alert-info",
+                style = "margin-top: 15px;",
+                shiny::icon("user-shield"),
+                shiny::strong(paste0(" ", tr("Database Administrator:"))),
+                shiny::br(),
+                shiny::p(
+                  "Gilles Dauby - gilles.dauby@ird.fr",
+                  style = "margin-top: 5px; font-family: monospace; font-size: 14px;"
                 )
               ),
 
               shiny::h4(
                 shiny::icon("code"),
-                " Admin Access Code",
+                paste0(" ", tr("Admin Access Code")),
                 style = "margin-top: 30px; margin-bottom: 15px;"
               ),
 
               shiny::p(
-                "Send the following R code to your database administrator to grant you access:",
+                tr("Send the following R code to the administrator:"),
                 style = "color: #6c757d;"
               ),
 

@@ -2624,6 +2624,22 @@
     {
       "en": "The wizard will help you match your column names to the database in Step 3.",
       "fr": "L'assistant vous aidera à faire correspondre vos noms de colonnes à la base de données à l'étape 3."
+    },
+    {
+      "en": "You do not have access to these plots yet due to row-level security policies.",
+      "fr": "Vous n'avez pas encore accès à ces parcelles en raison des politiques de sécurité au niveau des lignes."
+    },
+    {
+      "en": "You must send the admin code below to the database administrator to grant you access.",
+      "fr": "Vous devez envoyer le code admin ci-dessous à l'administrateur de base de données pour obtenir l'accès."
+    },
+    {
+      "en": "Database Administrator:",
+      "fr": "Administrateur de base de données :"
+    },
+    {
+      "en": "Send the following R code to the administrator:",
+      "fr": "Envoyez le code R suivant à l'administrateur :"
     }
   ]
 }
