@@ -33,7 +33,7 @@ Imports:
     kableExtra,
     shinybusy,
     tidyselect,
-    BIOMASS,
+    BIOMASS (>= 2.2.4),
     date,
     glue,
     ggpubr,
