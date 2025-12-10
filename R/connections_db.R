@@ -601,6 +601,10 @@ db_diagnostic <- function() {
 #'   - "replace" (default): Replace existing access with new IDs
 #'   - "add": Add new IDs to existing access
 #'   - "remove": Remove specified IDs from existing access
+#' @param grant_table_privileges Logical. Whether to automatically grant table-level
+#'   SELECT, INSERT, UPDATE, DELETE privileges to the user. Default TRUE. These are
+#'   required for the RLS policies to work - RLS controls which rows, table privileges
+#'   control which operations. Without these privileges, RLS policies have no effect.
 #'
 #' @returns Invisibly returns TRUE on success, FALSE on failure.
 #'
@@ -624,7 +628,8 @@ define_user_policy <- function(con, user, ids,
                                policy_name = NULL,
                                operations = "SELECT",
                                drop_existing = TRUE,
-                               mode = c("replace", "add", "remove")) {
+                               mode = c("replace", "add", "remove"),
+                               grant_table_privileges = TRUE) {
 
   valid_ops <- c("SELECT", "INSERT", "UPDATE", "DELETE", "ALL")
   mode <- match.arg(mode)
@@ -690,6 +695,18 @@ define_user_policy <- function(con, user, ids,
   tryCatch({
     sql_enable_rls <- glue::glue("ALTER TABLE {DBI::dbQuoteIdentifier(con, table)} ENABLE ROW LEVEL SECURITY;")
     DBI::dbExecute(con, sql_enable_rls)
+
+    # Grant table-level privileges if requested
+    if (grant_table_privileges) {
+      sql_grant <- glue::glue("GRANT SELECT, INSERT, UPDATE, DELETE ON {DBI::dbQuoteIdentifier(con, table)} TO {DBI::dbQuoteIdentifier(con, user)};")
+      tryCatch({
+        DBI::dbExecute(con, sql_grant)
+        cli::cli_alert_success("Granted SELECT, INSERT, UPDATE, DELETE privileges on '{table}' to user '{user}'")
+      }, error = function(e) {
+        cli::cli_alert_warning("Could not grant table privileges to '{user}': {e$message}")
+        cli::cli_alert_info("User may need to request these privileges from database admin")
+      })
+    }
 
     if (drop_existing) {
       existing_policies <- list_user_policies(con, user = user, table = table)
