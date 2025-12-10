@@ -242,12 +242,43 @@ import_plot_metadata <- function(data,
 
       if (progress) cli::cli_alert_success("{nrow(plot_data)} plots inserted")
 
-      # Query back the inserted plot IDs using plot_name
+      # Query back the inserted plot IDs using multiple columns for precision
       # Use the original 'con' which may have higher privileges (admin) to bypass RLS
-      plot_names_str <- paste(sprintf("'%s'", gsub("'", "''", plot_data$plot_name)), collapse = ", ")
+      # Build WHERE clause with plot_name + id_country + id_method + coordinates to uniquely identify plots
+
+      # Build individual WHERE conditions for each row
+      where_conditions <- sapply(seq_len(nrow(plot_data)), function(i) {
+        row <- plot_data[i, ]
+
+        # Start with plot_name (mandatory)
+        conditions <- sprintf("plot_name = '%s'", gsub("'", "''", as.character(row$plot_name)))
+
+        # Add id_country if available
+        if ("id_country" %in% names(row) && !is.na(row$id_country)) {
+          conditions <- c(conditions, sprintf("id_country = %d", row$id_country))
+        }
+
+        # Add id_method if available
+        if ("id_method" %in% names(row) && !is.na(row$id_method)) {
+          conditions <- c(conditions, sprintf("id_method = %d", row$id_method))
+        }
+
+        # Add coordinates if available (helps ensure uniqueness)
+        if ("ddlat" %in% names(row) && !is.na(row$ddlat)) {
+          conditions <- c(conditions, sprintf("ddlat = %f", row$ddlat))
+        }
+        if ("ddlon" %in% names(row) && !is.na(row$ddlon)) {
+          conditions <- c(conditions, sprintf("ddlon = %f", row$ddlon))
+        }
+
+        # Combine with AND
+        sprintf("(%s)", paste(conditions, collapse = " AND "))
+      })
+
+      # Combine all row conditions with OR
       query_sql <- sprintf(
-        "SELECT id_liste_plots, plot_name FROM data_liste_plots WHERE plot_name IN (%s)",
-        plot_names_str
+        "SELECT id_liste_plots, plot_name FROM data_liste_plots WHERE %s",
+        paste(where_conditions, collapse = " OR ")
       )
 
       # Get connection for query (handle pool)
