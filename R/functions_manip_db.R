@@ -401,15 +401,34 @@ query_plots <- function(plot_name = NULL,
                    "Esri.WorldImagery",
                    "Esri.WorldPhysical")
 
-    outputmap <-  mapview::mapview(data_sf, map.types = map_types)
-    
-    if(show_all_coordinates) {
-      if(!is.null(unlist(coordinates_subplots_plot_sf)))
-        outputmap <- outputmap +
-          mapview::mapview(coordinates_subplots_plot_sf, map.types = map_types)
-    }
+    # Wrap map creation in tryCatch to handle graphics parameter errors
+    tryCatch({
+      outputmap <-  mapview::mapview(data_sf, map.types = map_types)
 
-    print(outputmap)
+      if(show_all_coordinates) {
+        if(!is.null(unlist(coordinates_subplots_plot_sf)))
+          outputmap <- outputmap +
+            mapview::mapview(coordinates_subplots_plot_sf, map.types = map_types)
+      }
+
+      print(outputmap)
+    }, error = function(e) {
+      # Check if it's the graphics parameter error
+      if (grepl("par.*pin|graphique.*pin", e$message, ignore.case = TRUE)) {
+        cli::cli_alert_warning("Cannot create interactive map due to graphics device issue")
+        cli::cli_alert_info("This is often caused by RStudio plot window size or display settings")
+        cli::cli_alert_info("Workarounds:")
+        cli::cli_alert_info("  1. Try resizing your RStudio Plots pane")
+        cli::cli_alert_info("  2. Run: dev.new() to create a new graphics device")
+        cli::cli_alert_info("  3. Run: options(device = 'RStudioGD') and restart R")
+        cli::cli_alert_info("  4. Use map = FALSE to skip map creation")
+        cli::cli_alert_info("Map creation skipped - data returned without visualization")
+      } else {
+        # Re-throw other errors
+        cli::cli_alert_danger("Error creating map: {e$message}")
+        stop(e)
+      }
+    })
 
   }
 
