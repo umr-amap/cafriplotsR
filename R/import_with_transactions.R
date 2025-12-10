@@ -216,14 +216,13 @@ import_plot_metadata <- function(data,
     } else {
       if (progress) cli::cli_h2("Step 5: Inserting into data_liste_plots")
 
-      # Use INSERT ... RETURNING to get IDs during insert (bypasses RLS SELECT restriction)
-      # Build column names and placeholders
+      # Build column names and placeholders for INSERT
       cols <- names(plot_data)
       col_names <- paste(cols, collapse = ", ")
 
-      # Build INSERT with RETURNING clause
+      # Build INSERT without RETURNING (to avoid RLS SELECT restriction)
       insert_sql <- sprintf(
-        "INSERT INTO data_liste_plots (%s) VALUES %s RETURNING id_liste_plots, plot_name",
+        "INSERT INTO data_liste_plots (%s) VALUES %s",
         col_names,
         paste(
           apply(plot_data, 1, function(row) {
@@ -238,13 +237,35 @@ import_plot_metadata <- function(data,
         )
       )
 
-      # Execute and get returned IDs
-      plot_id_data <- DBI::dbGetQuery(actual_con, insert_sql)
-
-      # Ensure plot_name is character type to avoid join type mismatches
-      plot_id_data$plot_name <- as.character(plot_id_data$plot_name)
+      # Execute INSERT
+      DBI::dbExecute(actual_con, insert_sql)
 
       if (progress) cli::cli_alert_success("{nrow(plot_data)} plots inserted")
+
+      # Query back the inserted plot IDs using plot_name
+      # Use the original 'con' which may have higher privileges (admin) to bypass RLS
+      plot_names_str <- paste(sprintf("'%s'", gsub("'", "''", plot_data$plot_name)), collapse = ", ")
+      query_sql <- sprintf(
+        "SELECT id_liste_plots, plot_name FROM data_liste_plots WHERE plot_name IN (%s)",
+        plot_names_str
+      )
+
+      # Get connection for query (handle pool)
+      query_con <- if (inherits(con, "Pool")) {
+        pool::poolCheckout(con)
+      } else {
+        con
+      }
+
+      plot_id_data <- tryCatch({
+        result <- DBI::dbGetQuery(query_con, query_sql)
+        result$plot_name <- as.character(result$plot_name)
+        result
+      }, finally = {
+        if (inherits(con, "Pool") && !identical(query_con, con)) {
+          pool::poolReturn(query_con)
+        }
+      })
     }
 
     # Step 6: Preview or insert subplot features (people + other features)
