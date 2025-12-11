@@ -620,7 +620,8 @@ add_subplot_features <- function(new_data,
     ## adding subplot id and adding potential issues based on subplot
     data_subplottype <-
       .link_subplotype(data_stand = data_subplottype,
-                       subplotype = subplottype)
+                       subplotype = subplottype,
+                       con = mydb)
     
     # subplottype_name <-
     #   "subplottype"
@@ -906,7 +907,7 @@ add_subplot_observations_feat <- function(new_data,
     if(nrow(data_feat) > 0) {
       ## adding trait id and adding potential issues based on trait
       data_feat <-
-        .link_subplotype(data_stand = data_feat, subplotype = feat)
+        .link_subplotype(data_stand = data_feat, subplotype = feat, con = mydb)
       
       # see what type of value numeric of character
       valuetype <-

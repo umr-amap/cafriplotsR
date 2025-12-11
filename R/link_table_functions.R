@@ -278,17 +278,24 @@
 #' @param data_stand tibble
 #' @param subplotype string vector
 #'
+#' @param con Database connection (required)
 #' @export
-.link_subplotype <- function(data_stand, subplotype) {
+.link_subplotype <- function(data_stand, subplotype, con = NULL) {
+
+  # Require connection to be passed
+
+  if (is.null(con)) {
+    stop("Database connection 'con' must be provided to .link_subplotype()")
+  }
 
   subplotype_newnames <- "subplotype"
-  
+
   data_stand <- data_stand %>%
     dplyr::rename_with(.cols = dplyr::all_of(subplotype),
                        .fn = ~ subplotype_newnames)
-  
+
   all_subplotype <-
-    try_open_postgres_table(table = "subplotype_list", con = mydb) %>%
+    try_open_postgres_table(table = "subplotype_list", con = con) %>%
     dplyr::collect()
   
   
