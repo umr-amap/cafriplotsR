@@ -579,22 +579,22 @@ db_diagnostic <- function() {
 #' Creates or updates row-level security policies for a user on a specified table.
 #' Supports different modes for managing plot access: replace (default), add, or remove.
 #'
-#' **Important behavior change**: INSERT operations are always unrestricted to allow users
-#' to import their own data. The plot ID restrictions only apply to SELECT, UPDATE, and
-#' DELETE operations. This means:
-#' - Users can INSERT any plot (e.g., via import wizard)
-#' - Users can only SELECT/UPDATE/DELETE plots in their authorized ID list
-#' - After importing, users must request access (via admin code) to SELECT their new plots
+#' **Access model**: Users have access to plots through two mechanisms:
+#' 1. **Creator access** (automatic): Users can always access plots they created
+#'    (via global `creator_access_*` policies using the `created_by` column)
+#' 2. **Explicit grants** (via this function): Admin grants access to other users' plots
+#'
+#' This function creates per-user policies for explicit grants. The global policies
+#' handle INSERT (open to all) and creator access (automatic).
 #'
 #' @param con A database connection object.
 #' @param user Character. The username to create the policy for.
-#' @param ids Integer vector. Plot IDs to grant SELECT/UPDATE/DELETE access to.
-#'   Does NOT restrict INSERT operations.
+#' @param ids Integer vector. Plot IDs to grant additional SELECT/UPDATE/DELETE access to.
+#'   These are plots created by OTHER users that this user should also access.
 #' @param table Character. The table to apply the policy to. Default is "data_liste_plots".
 #' @param policy_name Character. Custom policy name (optional). If NULL, generates from username.
 #' @param operations Character vector. Operations to allow: "SELECT", "INSERT", "UPDATE",
-#'   "DELETE", or "ALL". Default is "SELECT". Note: INSERT is always unrestricted regardless
-#'   of this parameter.
+#'   "DELETE", or "ALL". Default is "SELECT". Note: INSERT is handled globally and skipped.
 #' @param drop_existing Logical. Whether to drop existing policies before creating new ones.
 #'   Default TRUE. Ignored when mode is "add" or "remove".
 #' @param mode Character. How to handle existing plot access:
@@ -720,20 +720,11 @@ define_user_policy <- function(con, user, ids,
     }
 
     if (length(operations) == 1 && operations == "ALL") {
-      # Split into INSERT (unrestricted) and SELECT/UPDATE/DELETE (restricted to plot IDs)
+      # Create SELECT/UPDATE/DELETE policies restricted to plot IDs
+      # Note: INSERT is handled by global 'insert_open' policy (from migration)
+      # Note: Creator access is handled by global 'creator_access_*' policies
 
-      # Policy for INSERT: Allow any insert (will be restricted by SELECT after)
-      sql_create_insert <- glue::glue("
-        CREATE POLICY {DBI::dbQuoteIdentifier(con, paste0(policy_name, '_insert'))}
-        ON {DBI::dbQuoteIdentifier(con, table)}
-        FOR INSERT
-        TO {DBI::dbQuoteIdentifier(con, user)}
-        WITH CHECK (true);
-      ")
-      DBI::dbExecute(con, sql_create_insert)
-      cli::cli_alert_success("Policy '{policy_name}_insert' created for INSERT operations (unrestricted)")
-
-      # Policy for SELECT: Restricted to specific plot IDs
+      # Policy for SELECT: Restricted to specific plot IDs (adds to creator access)
       sql_create_select <- glue::glue("
         CREATE POLICY {DBI::dbQuoteIdentifier(con, paste0(policy_name, '_select'))}
         ON {DBI::dbQuoteIdentifier(con, table)}
@@ -761,41 +752,37 @@ define_user_policy <- function(con, user, ids,
       ")
       DBI::dbExecute(con, sql_create_delete)
 
-      cli::cli_alert_success("Policy '{policy_name}_select/update/delete' created for SELECT/UPDATE/DELETE operations (plot IDs: {paste(ids, collapse = ', ')})")
+      cli::cli_alert_success("Policy '{policy_name}_select/update/delete' created for SELECT/UPDATE/DELETE operations")
+      cli::cli_alert_info("User can access plot IDs: {paste(ids, collapse = ', ')} (plus any plots they created)")
 
     } else {
-      # Handle specific operations - separate INSERT from others
-      for (i in seq_along(operations)) {
-        op <- operations[i]
-        current_policy_name <- if (length(operations) > 1) {
+      # Handle specific operations
+      # Note: INSERT is skipped - handled by global 'insert_open' policy
+      # Note: Creator access is handled by global 'creator_access_*' policies
+      ops_to_create <- setdiff(operations, "INSERT")
+
+      if ("INSERT" %in% operations) {
+        cli::cli_alert_info("INSERT skipped - handled by global 'insert_open' policy")
+      }
+
+      for (i in seq_along(ops_to_create)) {
+        op <- ops_to_create[i]
+        current_policy_name <- if (length(ops_to_create) > 1) {
           paste0(policy_name, "_", tolower(op))
         } else {
           policy_name
         }
 
-        if (op == "INSERT") {
-          # INSERT policy: Allow unrestricted insert
-          sql_create <- glue::glue("
-            CREATE POLICY {DBI::dbQuoteIdentifier(con, current_policy_name)}
-            ON {DBI::dbQuoteIdentifier(con, table)}
-            FOR INSERT
-            TO {DBI::dbQuoteIdentifier(con, user)}
-            WITH CHECK (true);
-          ")
-          DBI::dbExecute(con, sql_create)
-          cli::cli_alert_success("Policy '{current_policy_name}' created for INSERT operations (unrestricted)")
-        } else {
-          # SELECT/UPDATE/DELETE policies: Restricted to plot IDs
-          sql_create <- glue::glue("
-            CREATE POLICY {DBI::dbQuoteIdentifier(con, current_policy_name)}
-            ON {DBI::dbQuoteIdentifier(con, table)}
-            FOR {op}
-            TO {DBI::dbQuoteIdentifier(con, user)}
-            USING (id_liste_plots IN ({id_list}));
-          ")
-          DBI::dbExecute(con, sql_create)
-          cli::cli_alert_success("Policy '{current_policy_name}' created for {op} operations")
-        }
+        # SELECT/UPDATE/DELETE policies: Restricted to plot IDs
+        sql_create <- glue::glue("
+          CREATE POLICY {DBI::dbQuoteIdentifier(con, current_policy_name)}
+          ON {DBI::dbQuoteIdentifier(con, table)}
+          FOR {op}
+          TO {DBI::dbQuoteIdentifier(con, user)}
+          USING (id_liste_plots IN ({id_list}));
+        ")
+        DBI::dbExecute(con, sql_create)
+        cli::cli_alert_success("Policy '{current_policy_name}' created for {op} operations")
       }
     }
     
