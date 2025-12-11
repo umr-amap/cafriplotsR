@@ -42,7 +42,8 @@ Imports:
     data.table,
     zoo,
     pool,
-    leaflet
+    leaflet,
+    rappdirs
 Suggests:
     getPass,
     dm,

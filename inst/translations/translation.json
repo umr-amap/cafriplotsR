@@ -114,12 +114,12 @@
       "fr": "Nécessitant une révision :"
     },
     {
-      "en": "Minimum similarity:",
-      "fr": "Similarité minimale :"
+      "en": "Minimum similarity (%):",
+      "fr": "Similarité minimum (%) :"
     },
     {
-      "en": "Threshold for fuzzy matching (0-1, higher = stricter)",
-      "fr": "Seuil pour l'appariement approximatif (0-1, plus élevé = plus strict)"
+      "en": "Minimum similarity percentage for fuzzy matching. Names with similarity below this threshold will not be matched. Higher values = more strict matching (fewer but more accurate matches).",
+      "fr": "Pourcentage de similarité minimum pour la correspondance floue. Les noms avec une similarité inférieure à ce seuil ne seront pas appariés. Valeurs plus élevées = appariement plus strict (moins de correspondances mais plus précises)."
     },
     {
       "en": "Progress Summary",
@@ -2660,6 +2660,90 @@
     {
       "en": "Admin Code to Grant Access",
       "fr": "Code admin pour accorder l'accès"
+    },
+    {
+      "en": "Taxonomic Backbone Source",
+      "fr": "Source du référentiel taxonomique"
+    },
+    {
+      "en": "A cached version of the taxonomic backbone is available.",
+      "fr": "Une version en cache du référentiel taxonomique est disponible."
+    },
+    {
+      "en": "Downloaded:",
+      "fr": "Téléchargé :"
+    },
+    {
+      "en": "Size:",
+      "fr": "Taille :"
+    },
+    {
+      "en": "Records:",
+      "fr": "Enregistrements :"
+    },
+    {
+      "en": "Would you like to use the cached backbone or download a fresh copy?",
+      "fr": "Souhaitez-vous utiliser le référentiel en cache ou télécharger une nouvelle copie ?"
+    },
+    {
+      "en": "Use Cached Backbone",
+      "fr": "Utiliser le référentiel en cache"
+    },
+    {
+      "en": "Download Fresh Backbone",
+      "fr": "Télécharger un nouveau référentiel"
+    },
+    {
+      "en": "Loading taxonomic backbone from cache...",
+      "fr": "Chargement du référentiel taxonomique depuis le cache..."
+    },
+    {
+      "en": "Cache load failed, downloading fresh backbone...",
+      "fr": "Échec du chargement du cache, téléchargement d'un nouveau référentiel..."
+    },
+    {
+      "en": "Loaded backbone from cache successfully!",
+      "fr": "Référentiel chargé depuis le cache avec succès !"
+    },
+    {
+      "en": "Downloading taxonomic backbone from database... This may take a moment.",
+      "fr": "Téléchargement du référentiel taxonomique depuis la base de données... Cela peut prendre un moment."
+    },
+    {
+      "en": "Caching backbone for future use...",
+      "fr": "Mise en cache du référentiel pour une utilisation future..."
+    },
+    {
+      "en": "Backbone cached successfully!",
+      "fr": "Référentiel mis en cache avec succès !"
+    },
+    {
+      "en": "Today",
+      "fr": "Aujourd'hui"
+    },
+    {
+      "en": "Yesterday",
+      "fr": "Hier"
+    },
+    {
+      "en": "days ago",
+      "fr": "jours"
+    },
+    {
+      "en": "weeks ago",
+      "fr": "semaines"
+    },
+    {
+      "en": "months ago",
+      "fr": "mois"
+    },
+    {
+      "en": "years ago",
+      "fr": "ans"
+    },
+    {
+      "en": "Manually reviewed:",
+      "fr": "Révisés manuellement :"
     }
   ]
 }
