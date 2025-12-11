@@ -86,7 +86,31 @@
   - Language toggle located in top-right corner of app
   - Set via `launch_taxonomic_match_app(language = "fr")` or `language = "en"`
 
+* **Taxonomic Matching: Backbone caching system for improved performance**
+  - Added local caching for taxonomic backbone to dramatically improve performance with slow internet connections
+  - After first download, subsequent app uses load backbone from local cache (~1 second) instead of downloading from database (5-30 seconds)
+  - Performance improvement: 10-70x faster on subsequent runs
+  - Users can choose between cached or fresh backbone via modal dialog
+  - Cache displays age (e.g., "3 days ago") and file size for informed decision-making
+  - Cache location: `rappdirs::user_cache_dir('CafriplotsR')` (platform-appropriate)
+  - New exported function `delete_backbone_cache()` allows manual cache clearing
+  - Added `rappdirs` package dependency
+
+* **Taxonomic Matching: Improved similarity threshold UI**
+  - Similarity threshold now displays as percentage (0-100%) instead of decimal (0-1)
+  - Default value: 60% (previously 0.6)
+  - More explicit help text: "Minimum similarity percentage for fuzzy matching. Names with similarity below this threshold will not be matched. Higher values = more strict matching (fewer but more accurate matches)."
+  - Label updated to "Minimum similarity (%)" for clarity
+  - Internal calculations still use decimal format (0-1) for compatibility with matching algorithms
+
 ### Bug Fixes
+
+* **Taxonomic Matching: Fixed progress bar not updating after manual review**
+  - Progress bar calculation now correctly includes manually reviewed names in completion percentage
+  - Previously only counted automatically matched names (exact/genus/fuzzy), causing progress to appear stuck at ~60% even after reviewing all remaining names
+  - Connected progress tracker to review module results instead of auto-matching results
+  - Added "Manually reviewed" line (displayed in green) to progress breakdown when manual reviews are performed
+  - Progress now correctly shows 100% when all names are either auto-matched or manually reviewed
 
 * **Import Wizard: Fixed mixed IDs and names in people column preview**
   - Preview was showing mix of numeric IDs (169, 85) and text names (Théophile Ayol)

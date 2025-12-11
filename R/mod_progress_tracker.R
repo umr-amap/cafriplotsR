@@ -47,9 +47,11 @@ mod_progress_tracker_server <- function(id, match_results, i18n) {
       n_exact <- results$stats$n_exact %||% 0
       n_genus <- results$stats$n_genus %||% 0
       n_fuzzy <- results$stats$n_fuzzy %||% 0
+      n_reviewed <- results$stats$n_reviewed %||% 0
       n_unmatched <- results$stats$n_unmatched %||% 0
 
-      matched <- n_exact + n_genus + n_fuzzy
+      # Include manually reviewed names in the matched count
+      matched <- n_exact + n_genus + n_fuzzy + n_reviewed
       percent_complete <- if (total_names > 0) {
         round((matched / total_names) * 100)
       } else {
@@ -79,6 +81,13 @@ mod_progress_tracker_server <- function(id, match_results, i18n) {
             paste(i18n()$t("Fuzzy matches:"), n_fuzzy,
                   paste0("(", round(n_fuzzy/total_names*100, 1), "%)"))
           ),
+          if (n_reviewed > 0) {
+            shiny::tags$li(
+              style = "color: green;",
+              paste(i18n()$t("Manually reviewed:"), n_reviewed,
+                    paste0("(", round(n_reviewed/total_names*100, 1), "%)"))
+            )
+          },
           shiny::tags$li(
             style = if (n_unmatched > 0) "color: orange; font-weight: bold;" else "",
             paste(i18n()$t("Requiring review:"), n_unmatched,

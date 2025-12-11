@@ -319,13 +319,6 @@ app_taxonomic_match <- function(
         i18n = i18n
       )
 
-      # Progress tracker module
-      mod_progress_tracker_server(
-        "progress",
-        match_results = match_results,
-        i18n = i18n
-      )
-
       # Manual review module
       reviewed_results <- mod_name_review_server(
         "review",
@@ -333,6 +326,13 @@ app_taxonomic_match <- function(
         mode = mode,
         max_suggestions = max_suggestions,
         min_similarity = min_similarity,
+        i18n = i18n
+      )
+
+      # Progress tracker module (uses reviewed_results to include manual reviews)
+      mod_progress_tracker_server(
+        "progress",
+        match_results = reviewed_results,
         i18n = i18n
       )
 

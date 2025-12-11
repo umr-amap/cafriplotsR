@@ -21,10 +21,10 @@ mod_auto_matching_ui <- function(id) {
         shiny::numericInput(
           inputId = ns("min_similarity"),
           label = shiny::textOutput(ns("min_sim_label")),
-          value = 0.6,
+          value = 60,
           min = 0,
-          max = 1,
-          step = 0.05
+          max = 100,
+          step = 5
         ),
         shiny::helpText(shiny::textOutput(ns("min_sim_help")))
       ),
@@ -49,7 +49,8 @@ mod_auto_matching_ui <- function(id) {
 #' @param data Reactive data.frame from data input module
 #' @param column_name Reactive character, name of column to match
 #' @param include_authors Reactive logical, whether to include author names
-#' @param min_similarity Numeric, minimum similarity threshold (default: 0.3)
+#' @param min_similarity Numeric (0-1), minimum similarity threshold for fallback.
+#'   Note: UI displays as percentage (0-100) but parameter uses decimal (default: 0.3 = 30%)
 #' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return Reactive list containing:
@@ -66,6 +67,13 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
     matched_data <- shiny::reactiveVal(NULL)
     match_stats <- shiny::reactiveVal(NULL)
     matching_in_progress <- shiny::reactiveVal(FALSE)
+
+    # Cache selection module
+    cache_choice <- mod_backbone_cache_selection_server(
+      id = "backbone_cache",
+      i18n = i18n,
+      trigger = shiny::reactive(input$start_matching)
+    )
 
     # Reset results when data changes
     shiny::observe({
@@ -84,11 +92,11 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
 
     # Labels
     output$min_sim_label <- shiny::renderText({
-      i18n()$t("Minimum similarity:")
+      i18n()$t("Minimum similarity (%):")
     })
 
     output$min_sim_help <- shiny::renderText({
-      i18n()$t("Threshold for fuzzy matching (0-1, higher = stricter)")
+      i18n()$t("Minimum similarity percentage for fuzzy matching. Names with similarity below this threshold will not be matched. Higher values = more strict matching (fewer but more accurate matches).")
     })
 
     # Start button
@@ -113,21 +121,133 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       }
     })
 
-    # Matching logic
+    # Matching logic - Button click handler
+    # This just sets the progress flag and shows spinner
+    # The cache module (initialized above) handles the modal
+    # All matching logic is in observeEvent(cache_choice()) below
     shiny::observeEvent(input$start_matching, {
-
       req(data())
       req(column_name())
 
       matching_in_progress(TRUE)
       shinybusy::show_spinner()
+    })
+
+    # Cache-based matching logic
+    # Triggered after user chooses cache or download in the modal
+    shiny::observeEvent(cache_choice(), {
+      req(cache_choice())
+
+      choice <- cache_choice()
+
+      # Handle backbone loading based on user choice
+      backbone <- NULL
+
+      if (choice == "cache") {
+        # Load from cache
+        shiny::showNotification(
+          i18n()$t("Loading taxonomic backbone from cache..."),
+          duration = 3,
+          id = "loading_cache",
+          type = "message"
+        )
+
+        backbone <- load_backbone_cache()
+
+        if (is.null(backbone)) {
+          # Cache load failed, fall back to download
+          shiny::removeNotification("loading_cache")
+          shiny::showNotification(
+            i18n()$t("Cache load failed, downloading fresh backbone..."),
+            duration = 5,
+            type = "warning"
+          )
+          choice <- "download"
+        } else {
+          shiny::removeNotification("loading_cache")
+          shiny::showNotification(
+            i18n()$t("Loaded backbone from cache successfully!"),
+            duration = 3,
+            type = "message"
+          )
+        }
+      }
+
+      if (choice == "download") {
+        # Download fresh backbone
+        shiny::showNotification(
+          i18n()$t("Downloading taxonomic backbone from database... This may take a moment."),
+          duration = NULL,
+          closeButton = FALSE,
+          id = "download_backbone",
+          type = "message"
+        )
+
+        mydb_taxa <- call.mydb.taxa()
+
+        backbone <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa) %>%
+          dplyr::select(
+            idtax_n,
+            idtax_good_n,
+            tax_fam,
+            tax_famclass,
+            tax_gen,
+            tax_esp,
+            tax_rank01,
+            tax_nam01,
+            tax_rank02,
+            tax_nam02,
+            tax_level,
+            author1
+          ) %>%
+          dplyr::collect() %>%
+          dplyr::filter(author1 != "ZZ auct.")
+
+        shiny::removeNotification("download_backbone")
+
+        # Add formatted name columns
+        backbone <- backbone %>%
+          dplyr::mutate(
+            # Full species-level name (genus + species + infraspecific)
+            tax_sp_level = dplyr::case_when(
+              !is.na(tax_nam01) & tax_nam01 != "" ~ paste(tax_gen, tax_esp, tax_rank01, tax_nam01),
+              !is.na(tax_esp) & tax_esp != "" ~ paste(tax_gen, tax_esp),
+              TRUE ~ NA_character_
+            ),
+            # Genus-level name (just genus)
+            tax_gen_level = tax_gen,
+            # Family-level name (just family)
+            tax_fam_level = tax_fam,
+            # Class-level name (just class)
+            tax_class_level = tax_famclass
+          )
+
+        # Cache the backbone for future use
+        shiny::showNotification(
+          i18n()$t("Caching backbone for future use..."),
+          duration = 2,
+          type = "message"
+        )
+        save_backbone_cache(backbone)
+        shiny::showNotification(
+          i18n()$t("Backbone cached successfully!"),
+          duration = 2,
+          type = "message"
+        )
+      }
 
       tryCatch({
         # Get user data
         user_df <- data()
         col_name <- column_name()
         incl_authors <- include_authors() %||% FALSE
-        min_sim <- input$min_similarity %||% min_similarity
+        # Convert percentage (0-100) from UI to decimal (0-1) for internal use
+        # If input$min_similarity is NULL, use the default min_similarity parameter (already in 0-1 range)
+        min_sim <- if (!is.null(input$min_similarity)) {
+          input$min_similarity / 100
+        } else {
+          min_similarity
+        }
 
         # Extract unique names from selected column
         # Convert actual NA values to string "NA" so they can be reviewed and assigned taxonomy
@@ -150,59 +270,11 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
           )
           matching_in_progress(FALSE)
           shinybusy::hide_spinner()
+          cache_choice(NULL)
           return(NULL)
         }
 
-        # STEP 1: Download entire taxonomic backbone once
-        mydb_taxa <- call.mydb.taxa()
-
-        # Show message about downloading backbone (can be slow)
-        shiny::showNotification(
-          "Downloading taxonomic backbone from database... This may take a moment, especially with slow internet connection.",
-          duration = NULL,  # Stays until dismissed
-          closeButton = FALSE,
-          id = "download_backbone",
-          type = "message"
-        )
-
-        backbone <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa) %>%
-          dplyr::select(
-            idtax_n,
-            idtax_good_n,
-            tax_fam,
-            tax_famclass,  # Added for class level matching
-            tax_gen,
-            tax_esp,
-            tax_rank01,
-            tax_nam01,
-            tax_rank02,
-            tax_nam02,
-            tax_level,
-            author1
-          ) %>%
-          dplyr::collect() %>% 
-          dplyr::filter(author1 != "ZZ auct.")
-
-        # Remove the download notification
-        shiny::removeNotification("download_backbone")
-
-        # Create formatted name columns for matching
-        backbone <- backbone %>%
-          dplyr::mutate(
-            # Full species-level name (genus + species + infraspecific)
-            tax_sp_level = dplyr::case_when(
-              !is.na(tax_nam01) & tax_nam01 != "" ~ paste(tax_gen, tax_esp, tax_rank01, tax_nam01),
-              !is.na(tax_esp) & tax_esp != "" ~ paste(tax_gen, tax_esp),
-              TRUE ~ NA_character_
-            ),
-            # Genus-level name (just genus)
-            tax_gen_level = tax_gen,
-            # Family-level name (just family)
-            tax_fam_level = tax_fam,
-            # Class-level name (just class)
-            tax_class_level = tax_famclass
-          )
-
+        # Backbone already loaded above (from cache or fresh download)
         # STEP 2: Clean input names before matching (remove sp., cf., etc.)
         # Store both original and cleaned names for mapping back later
         # Only clean names that are not NA
@@ -531,6 +603,9 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         shinybusy::hide_spinner()
         matching_in_progress(FALSE)
 
+        # Reset cache choice for next run
+        cache_choice(NULL)
+
         shiny::showNotification(
           i18n()$t("Matching complete!"),
           type = "message",
@@ -540,6 +615,9 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       }, error = function(e) {
         shinybusy::hide_spinner()
         matching_in_progress(FALSE)
+
+        # Reset cache choice for next run
+        cache_choice(NULL)
 
         shiny::showNotification(
           paste(i18n()$t("Error:"), e$message),
