@@ -330,6 +330,7 @@ import_plot_metadata <- function(data,
     if (!dry_run) {
       admin_code <- .generate_admin_access_code(
         username = username,
+        plot_ids = plot_id_data$id_liste_plots,
         plot_names = plot_names
       )
     } else {
@@ -433,24 +434,24 @@ import_plot_metadata <- function(data,
 #'
 #' @return Character string with R code
 #' @keywords internal
-.generate_admin_access_code <- function(username, plot_names) {
+.generate_admin_access_code <- function(username, plot_ids, plot_names) {
 
-  # Format plot names for SQL IN clause
-  plot_names_sql <- paste0("'", plot_names, "'", collapse = ", ")
+  # Format plot IDs for R vector
+  plot_ids_str <- paste0("c(", paste(plot_ids, collapse = ", "), ")")
 
   # Generate R code
   admin_code <- sprintf(
 '# ══════════════════════════════════════════════════════════════════════
-# ROW-LEVEL SECURITY: Grant Access to User
+# ROW-LEVEL SECURITY: Grant Access to Other Users
 # ══════════════════════════════════════════════════════════════════════
 #
-# User: %s
-# Plots: %s
+# Plots: %s (IDs: %s)
+# These plots were imported by: %s
 #
 # Instructions for Admin:
 # 1. Run this code with ADMIN credentials
-# 2. Verify the plots exist in the database
-# 3. Adjust operations if needed (SELECT, UPDATE, INSERT, DELETE, or ALL)
+# 2. Specify which OTHER user(s) need access
+# 3. Adjust operations if needed (SELECT, UPDATE, DELETE)
 # ══════════════════════════════════════════════════════════════════════
 
 library(CafriplotsR)
@@ -458,41 +459,35 @@ library(CafriplotsR)
 # Connect as admin
 con <- call.mydb()  # Use admin credentials
 
-# Get plot IDs from plot names
-plot_ids <- DBI::dbGetQuery(con,
-  "SELECT id_liste_plots FROM data_liste_plots
-   WHERE plot_name IN (%s)")$id_liste_plots
+# Plot IDs to grant access to
+plot_ids <- %s
 
-# Verify plots found
-cat(sprintf("Found %%d plots for user: %s\\n", length(plot_ids)))
-cat("Plot IDs:", paste(plot_ids, collapse = ", "), "\\n\\n")
+# !! SPECIFY THE USER WHO NEEDS ACCESS !!
+target_user <- "username_here"  # Replace with actual username
 
 # Grant access with row-level security policy
 define_user_policy(
   con = con,
-  user = "%s",
+  user = target_user,
   ids = plot_ids,
   table = "data_liste_plots",
   operations = c("SELECT", "UPDATE"),  # Adjust as needed
-  drop_existing = TRUE  # Replace any existing policies for this user
+  mode = "add"  # Add to existing access (use "replace" to replace)
 )
 
 # Verify policy was created
-policies <- list_user_policies(con, user = "%s", table = "data_liste_plots")
+policies <- list_user_policies(con, user = target_user, table = "data_liste_plots")
 print(policies)
 
-cat("\\n✓ Access granted to user: %s\\n")
+cat("\\n✓ Access granted to user:", target_user, "\\n")
 
 # Clean up
 DBI::dbDisconnect(con)
 ',
-    username,
     paste(plot_names, collapse = ", "),
-    plot_names_sql,
+    paste(plot_ids, collapse = ", "),
     username,
-    username,
-    username,
-    username
+    plot_ids_str
   )
 
   return(admin_code)
