@@ -4,7 +4,7 @@
 \alias{mod_step7_import_server}
 \title{Step 7 Module: Execute Import - Server}
 \usage{
-mod_step7_import_server(id, validation_result, mappings, config, con)
+mod_step7_import_server(id, validation_result, mappings, config, con, i18n)
 }
 \arguments{
 \item{id}{Module namespace ID}
@@ -16,6 +16,8 @@ mod_step7_import_server(id, validation_result, mappings, config, con)
 \item{config}{Reactive containing import configuration}
 
 \item{con}{Reactive containing database connection pool}
+
+\item{i18n}{Reactive translator object from shiny.i18n}
 }
 \value{
 Reactive containing import result

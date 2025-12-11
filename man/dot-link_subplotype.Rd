@@ -4,12 +4,14 @@
 \alias{.link_subplotype}
 \title{Internal function}
 \usage{
-.link_subplotype(data_stand, subplotype)
+.link_subplotype(data_stand, subplotype, con = NULL)
 }
 \arguments{
 \item{data_stand}{tibble}
 
 \item{subplotype}{string vector}
+
+\item{con}{Database connection (required)}
 }
 \value{
 vector

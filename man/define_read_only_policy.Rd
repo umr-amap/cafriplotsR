@@ -17,7 +17,8 @@ define_read_only_policy(
 
 \item{user}{Character. The username to create the policy for.}
 
-\item{ids}{Integer vector. Plot IDs to grant access to.}
+\item{ids}{Integer vector. Plot IDs to grant additional SELECT/UPDATE/DELETE access to.
+These are plots created by OTHER users that this user should also access.}
 
 \item{table}{Character. The table to apply the policy to. Default is "data_liste_plots".}
 

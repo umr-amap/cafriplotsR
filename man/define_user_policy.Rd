@@ -12,7 +12,8 @@ define_user_policy(
   policy_name = NULL,
   operations = "SELECT",
   drop_existing = TRUE,
-  mode = c("replace", "add", "remove")
+  mode = c("replace", "add", "remove"),
+  grant_table_privileges = TRUE
 )
 }
 \arguments{
@@ -20,14 +21,15 @@ define_user_policy(
 
 \item{user}{Character. The username to create the policy for.}
 
-\item{ids}{Integer vector. Plot IDs to grant access to.}
+\item{ids}{Integer vector. Plot IDs to grant additional SELECT/UPDATE/DELETE access to.
+These are plots created by OTHER users that this user should also access.}
 
 \item{table}{Character. The table to apply the policy to. Default is "data_liste_plots".}
 
 \item{policy_name}{Character. Custom policy name (optional). If NULL, generates from username.}
 
 \item{operations}{Character vector. Operations to allow: "SELECT", "INSERT", "UPDATE",
-"DELETE", or "ALL". Default is "SELECT".}
+"DELETE", or "ALL". Default is "SELECT". Note: INSERT is handled globally and skipped.}
 
 \item{drop_existing}{Logical. Whether to drop existing policies before creating new ones.
 Default TRUE. Ignored when mode is "add" or "remove".}
@@ -36,6 +38,11 @@ Default TRUE. Ignored when mode is "add" or "remove".}
 - "replace" (default): Replace existing access with new IDs
 - "add": Add new IDs to existing access
 - "remove": Remove specified IDs from existing access}
+
+\item{grant_table_privileges}{Logical. Whether to automatically grant table-level
+SELECT, INSERT, UPDATE, DELETE privileges to the user. Default TRUE. These are
+required for the RLS policies to work - RLS controls which rows, table privileges
+control which operations. Without these privileges, RLS policies have no effect.}
 }
 \value{
 Invisibly returns TRUE on success, FALSE on failure.
@@ -43,6 +50,14 @@ Invisibly returns TRUE on success, FALSE on failure.
 \description{
 Creates or updates row-level security policies for a user on a specified table.
 Supports different modes for managing plot access: replace (default), add, or remove.
+
+**Access model**: Users have access to plots through two mechanisms:
+1. **Creator access** (automatic): Users can always access plots they created
+   (via global `creator_access_*` policies using the `created_by` column)
+2. **Explicit grants** (via this function): Admin grants access to other users' plots
+
+This function creates per-user policies for explicit grants. The global policies
+handle INSERT (open to all) and creator access (automatic).
 }
 \examples{
 \dontrun{
