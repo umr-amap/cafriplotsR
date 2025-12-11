@@ -34,7 +34,8 @@ query_plots(
   census_strategy = c("last", "first", "mean"),
   output_style = c("auto", "minimal", "standard", "permanent_plot",
     "permanent_plot_multi_census", "transect", "full"),
-  con = NULL
+  con = NULL,
+  con.taxa = NULL
 )
 }
 \arguments{
@@ -96,7 +97,11 @@ will have NA values, reflecting biological reality.}
 \item{output_style}{Character. Output formatting style. Options: "auto", "minimal", "standard",
 "permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.}
 
-\item{con}{Optional database connection. If NULL, will call call.mydb() to establish connection.}
+\item{con}{Optional database connection to main database. If NULL, will call call.mydb() to establish connection.
+If you've already connected with `mydb <- call.mydb()`, pass `con = mydb` to avoid re-prompting.}
+
+\item{con.taxa}{Optional database connection to taxa database. If NULL, will check for `mydb.taxa` in calling environment,
+otherwise will call call.mydb.taxa() to establish connection. Pass explicitly to avoid credential prompts.}
 }
 \value{
 A list or data frame containing plot data and associated information. When multiple 

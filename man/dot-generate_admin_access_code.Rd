@@ -4,7 +4,7 @@
 \alias{.generate_admin_access_code}
 \title{Generate Admin Access Code}
 \usage{
-.generate_admin_access_code(username, plot_names)
+.generate_admin_access_code(username, plot_ids, plot_names)
 }
 \arguments{
 \item{username}{Username who imported the plots}
