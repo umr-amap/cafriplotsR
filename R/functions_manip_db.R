@@ -88,7 +88,10 @@ method_list <- function() {
 #' @param include_measurement_ids Logical. Whether to include measurement IDs in aggregated output. Optional.
 #' @param output_style Character. Output formatting style. Options: "auto", "minimal", "standard",
 #'   "permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.
-#' @param con Optional database connection. If NULL, will call call.mydb() to establish connection.
+#' @param con Optional database connection to main database. If NULL, will call call.mydb() to establish connection.
+#'   If you've already connected with `mydb <- call.mydb()`, pass `con = mydb` to avoid re-prompting.
+#' @param con.taxa Optional database connection to taxa database. If NULL, will check for `mydb.taxa` in calling environment,
+#'   otherwise will call call.mydb.taxa() to establish connection. Pass explicitly to avoid credential prompts.
 #'
 #' @returns 
 #' A list or data frame containing plot data and associated information. When multiple 
@@ -144,7 +147,8 @@ query_plots <- function(plot_name = NULL,
                         census_strategy = c("last", "first", "mean"),
                         output_style = c("auto", "minimal", "standard",
                                          "permanent_plot", "permanent_plot_multi_census", "transect", "full"),
-                        con = NULL) {
+                        con = NULL,
+                        con.taxa = NULL) {
 
   # Match arguments
   census_strategy <- match.arg(census_strategy)
@@ -152,7 +156,15 @@ query_plots <- function(plot_name = NULL,
 
   # Use provided connection or create new one
   mydb <- if (!is.null(con)) con else call.mydb()
-  mydb.taxa <- call.mydb.taxa()
+
+  # Use provided taxa connection or check environment, else create new one
+  if (!is.null(con.taxa)) {
+    mydb.taxa <- con.taxa
+  } else if (exists("mydb.taxa", envir = parent.frame()) && test_connection(get("mydb.taxa", envir = parent.frame()))) {
+    mydb.taxa <- get("mydb.taxa", envir = parent.frame())
+  } else {
+    mydb.taxa <- call.mydb.taxa()
+  }
   
   if (show_multiple_census && remove_obs_with_issue)
     cli::cli_alert_info("Disabling `remove_obs_with_issue` because multiple censuses are shown")
