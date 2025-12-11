@@ -245,45 +245,44 @@ mod_step7_import_server <- function(id, validation_result, mappings, config, con
               shiny::hr(),
 
               shiny::div(
-                class = "alert alert-warning",
-                shiny::icon("exclamation-triangle"),
-                shiny::strong(paste0(" ", tr("Important: Row-Level Security"))),
+                class = "alert alert-success",
+                shiny::icon("check-circle"),
+                shiny::strong(paste0(" ", tr("You Have Access!"))),
                 shiny::br(),
                 shiny::p(
-                  tr("You do not have access to these plots yet due to row-level security policies."),
+                  tr("You now have automatic access to the plots you imported."),
                   style = "margin-top: 10px; margin-bottom: 5px;"
                 ),
                 shiny::p(
-                  tr("You must send the admin code below to the database administrator to grant you access."),
-                  style = "margin-bottom: 10px;"
-                ),
-                shiny::p(
                   sprintf("%s %s", paste0(tr("Imported plots:"), ":"), paste(result$plot_names, collapse = ", ")),
-                  style = "font-weight: bold;"
+                  style = "font-weight: bold; margin-bottom: 0;"
                 )
               ),
 
               shiny::div(
                 class = "alert alert-info",
                 style = "margin-top: 15px;",
-                shiny::icon("user-shield"),
-                shiny::strong(paste0(" ", tr("Database Administrator:"))),
+                shiny::icon("info-circle"),
+                shiny::strong(paste0(" ", tr("Granting Access to Other Users"))),
                 shiny::br(),
                 shiny::p(
+                  tr("To grant access to OTHER users, send the admin code below to the database administrator."),
+                  style = "margin-top: 10px; margin-bottom: 10px;"
+                ),
+                shiny::p(
+                  shiny::icon("user-shield"),
+                  " ",
+                  shiny::strong(tr("Database Administrator:")),
+                  shiny::br(),
                   "Gilles Dauby - gilles.dauby@ird.fr",
-                  style = "margin-top: 5px; font-family: monospace; font-size: 14px;"
+                  style = "margin-bottom: 0; font-family: monospace; font-size: 14px;"
                 )
               ),
 
               shiny::h4(
                 shiny::icon("code"),
-                paste0(" ", tr("Admin Access Code")),
+                paste0(" ", tr("Admin Code to Grant Access")),
                 style = "margin-top: 30px; margin-bottom: 15px;"
-              ),
-
-              shiny::p(
-                tr("Send the following R code to the administrator:"),
-                style = "color: #6c757d;"
               ),
 
               shiny::div(

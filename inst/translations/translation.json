@@ -2640,6 +2640,26 @@
     {
       "en": "Send the following R code to the administrator:",
       "fr": "Envoyez le code R suivant à l'administrateur :"
+    },
+    {
+      "en": "You Have Access!",
+      "fr": "Vous avez l'accès !"
+    },
+    {
+      "en": "You now have automatic access to the plots you imported.",
+      "fr": "Vous avez maintenant un accès automatique aux parcelles que vous avez importées."
+    },
+    {
+      "en": "Granting Access to Other Users",
+      "fr": "Accorder l'accès à d'autres utilisateurs"
+    },
+    {
+      "en": "To grant access to OTHER users, send the admin code below to the database administrator.",
+      "fr": "Pour accorder l'accès à d'AUTRES utilisateurs, envoyez le code admin ci-dessous à l'administrateur de base de données."
+    },
+    {
+      "en": "Admin Code to Grant Access",
+      "fr": "Code admin pour accorder l'accès"
     }
   ]
 }
