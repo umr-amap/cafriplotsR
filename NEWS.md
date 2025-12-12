@@ -1,4 +1,158 @@
-# CafriplotsR 1.7.2 (Development)
+# CafriplotsR 1.8.1 (2025-12-12)
+
+### New Features
+
+* **Taxonomic backbone caching system for improved performance**
+  - Local caching for taxonomic backbone dramatically improves performance with slow internet
+  - After first download, subsequent app launches load backbone from cache (~1 second vs 5-30 seconds)
+  - Performance improvement: 10-70x faster on subsequent runs
+  - Interactive modal allows choosing between cached or fresh backbone
+  - Cache displays age and file size for informed decision-making
+  - Cache location: platform-appropriate user cache directory via `rappdirs`
+  - New exported function `delete_backbone_cache()` for manual cache clearing
+  - Added `rappdirs` package dependency
+
+* **Row-level security improvements with `created_by` migration**
+  - New `created_by` column tracks which user created each plot
+  - Migration function `migrate_add_created_by()` safely adds column and updates policies
+  - Simplified import function: automatic privilege management
+  - Users automatically get access to plots they create
+  - Function `check_created_by_migration()` checks migration status
+
+* **Enhanced `define_user_policy()` with automatic privilege grants**
+  - Automatically grants necessary table privileges (SELECT, INSERT, UPDATE) when creating policies
+  - Eliminates manual privilege management for administrators
+  - Covers all relevant tables: plots, subplots, individuals, features, traits
+
+* **Improved plot ID query with multi-column matching**
+  - Plot retrieval now matches on multiple identifying columns beyond just `id_table_liste_plots`
+  - Handles `admin_code`, `plot_code`, and `plot_name` for flexible querying
+  - Reduces need to know exact internal IDs
+
+### Bug Fixes
+
+* **Fixed `query_plots()` ignoring provided database connections**
+  - Function now properly respects `con` parameter when provided
+  - Prevents unnecessary connection creation when using connection pools
+  - Critical for Shiny apps using reactive database connections
+
+* **Fixed `.link_subplotype()` missing connection parameter**
+  - Function now accepts and uses provided database connection
+  - Ensures transaction consistency during imports
+  - Prevents connection errors in multi-step workflows
+
+* **Fixed multiple RLS policy issues preventing imports**
+  - INSERT operations now work correctly for non-admin users
+  - RETURNING clause properly returns inserted plot IDs despite RLS restrictions
+  - SELECT policy adjusted to allow RETURNING without exposing other users' data
+  - All users can now import plots regardless of RLS configuration
+
+* **Fixed Import Wizard lookup matcher performance issues**
+  - Eliminated UI freeze when matching large lookup tables
+  - Enhanced name matching with better fuzzy algorithms
+  - Improved responsiveness during interactive matching
+
+* **Fixed Import Wizard validation and conversion issues**
+  - Exact-matched lookup values now properly converted to IDs before validation
+  - Prevents validation errors for values that were successfully matched
+  - Duplicate column mapping now detected and prevented in Step 3
+
+* **Fixed multiple i18n reactive call errors in Import Wizard**
+  - Corrected reactive i18n calls in Step 1, Step 2, and other modules
+  - Fixed missing i18n parameters in module calls
+  - Removed duplicate translations from translation.json
+
+* **Fixed graphics parameter error in mapview map creation**
+  - Added error handling for graphics device issues
+  - Required BIOMASS >= 2.2.4 to prevent `par()` parameter errors
+  - Graceful fallback when map creation fails
+
+### Documentation
+
+* **Added critical security warnings for database credentials**
+  - CLAUDE.md now includes prominent warnings about credential management
+  - Clear guidelines for using placeholder credentials in examples
+  - Instructions for credential leak response
+
+* **Updated Import Wizard documentation**
+  - Vignettes restructured to feature Shiny Import Wizard prominently
+  - Added i18n and translation management guidelines to CLAUDE.md
+
+* **Added package citation information**
+  - Citation section added to README files (EN and FR)
+  - Updated DESCRIPTION with proper author roles and ORCID
+  - Package now citable via `citation("CafriplotsR")`
+
+### Infrastructure
+
+* **Cleaned up version control**
+  - Removed xlsx, csv, gpkg data files from tracking
+  - Removed geospatial temporary and KML files
+  - Removed R Markdown cache and generated files
+  - Removed RStudio Connect deployment files
+  - Added working .Rmd files to .gitignore to prevent credential leaks
+  - Added .Rprofile to .gitignore
+
+* **GitHub Actions workflows**
+  - Added Claude Code Review workflow for automated code review
+  - Added Claude PR Assistant workflow for pull request automation
+
+### Code Refactoring
+
+* **Improved Step 7 messaging in Import Wizard**
+  - Clearer explanations of row-level security and access models
+  - Better guidance on admin contact for access grants
+  - Updated UI based on user feedback
+
+---
+
+# CafriplotsR 1.8.0 (2025-01-15)
+
+### New Features
+
+* **Interactive Import Wizard Shiny App - Complete 7-Step Workflow**
+  - New `launch_import_wizard()` function provides comprehensive plot metadata import interface
+  - Full internationalization support (English/French)
+  - Reuses existing validation and import functions for consistency
+  - See version 1.7.2 entries below for detailed step-by-step feature descriptions
+
+* **Plot Statistics & Visualizations module**
+  - New "Statistics" tab in `launch_query_plots_app()` with comprehensive summaries
+  - Summary statistics: number of plots, individuals, species, families
+  - Diameter statistics: mean, median, min, max
+  - Interactive visualizations with ggplot2 + plotly:
+    - Diameter distribution histogram with hover tooltips
+    - Top N species composition bar chart (adjustable slider: 5-30 species)
+  - Download summary statistics as CSV
+  - Fully bilingual (EN/FR) with i18n support
+  - Smart column mapping adapts to different output styles
+
+* **Code preview and export features**
+  - Query plots app now includes code preview for reproducibility
+  - Generated R code can be copied or downloaded
+  - Helps users transition from GUI to programmatic workflows
+
+### Bug Fixes
+
+* **Fixed census date parsing error with missing/invalid data**
+  - Gracefully handles missing year/month values in census dates
+  - Prevents errors when date components are NA or invalid
+  - Returns NA for unparseable dates instead of crashing
+
+### Infrastructure
+
+* **Added stringdist package dependency**
+  - Required for fuzzy string matching in import wizard
+  - Fixes import wizard initialization errors
+
+* **Updated pkgdown website**
+  - Documentation website updated with latest function references
+  - Added logo to package site
+  - All vignettes updated with new features
+
+---
+
+# CafriplotsR 1.7.2 (2024-12-15)
 
 ### New Features
 

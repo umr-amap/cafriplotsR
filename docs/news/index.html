@@ -31,7 +31,194 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.7.2" id="cafriplotsr-172-development">CafriplotsR 1.7.2 (Development)<a class="anchor" aria-label="anchor" href="#cafriplotsr-172-development"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.8.1" id="cafriplotsr-181-2025-12-12">CafriplotsR 1.8.1 (2025-12-12)<a class="anchor" aria-label="anchor" href="#cafriplotsr-181-2025-12-12"></a></h2>
+<div class="section level4">
+<h4 id="new-features-1-8-1">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-8-1"></a></h4>
+<ul><li>
+<strong>Taxonomic backbone caching system for improved performance</strong>
+<ul><li>Local caching for taxonomic backbone dramatically improves performance with slow internet</li>
+<li>After first download, subsequent app launches load backbone from cache (~1 second vs 5-30 seconds)</li>
+<li>Performance improvement: 10-70x faster on subsequent runs</li>
+<li>Interactive modal allows choosing between cached or fresh backbone</li>
+<li>Cache displays age and file size for informed decision-making</li>
+<li>Cache location: platform-appropriate user cache directory via <code>rappdirs</code>
+</li>
+<li>New exported function <code><a href="../reference/delete_backbone_cache.html">delete_backbone_cache()</a></code> for manual cache clearing</li>
+<li>Added <code>rappdirs</code> package dependency</li>
+</ul></li>
+<li>
+<strong>Row-level security improvements with <code>created_by</code> migration</strong>
+<ul><li>New <code>created_by</code> column tracks which user created each plot</li>
+<li>Migration function <code><a href="../reference/migrate_add_created_by.html">migrate_add_created_by()</a></code> safely adds column and updates policies</li>
+<li>Simplified import function: automatic privilege management</li>
+<li>Users automatically get access to plots they create</li>
+<li>Function <code><a href="../reference/check_created_by_migration.html">check_created_by_migration()</a></code> checks migration status</li>
+</ul></li>
+<li>
+<strong>Enhanced <code><a href="../reference/define_user_policy.html">define_user_policy()</a></code> with automatic privilege grants</strong>
+<ul><li>Automatically grants necessary table privileges (SELECT, INSERT, UPDATE) when creating policies</li>
+<li>Eliminates manual privilege management for administrators</li>
+<li>Covers all relevant tables: plots, subplots, individuals, features, traits</li>
+</ul></li>
+<li>
+<strong>Improved plot ID query with multi-column matching</strong>
+<ul><li>Plot retrieval now matches on multiple identifying columns beyond just <code>id_table_liste_plots</code>
+</li>
+<li>Handles <code>admin_code</code>, <code>plot_code</code>, and <code>plot_name</code> for flexible querying</li>
+<li>Reduces need to know exact internal IDs</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-8-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-8-1"></a></h4>
+<ul><li>
+<strong>Fixed <code><a href="../reference/query_plots.html">query_plots()</a></code> ignoring provided database connections</strong>
+<ul><li>Function now properly respects <code>con</code> parameter when provided</li>
+<li>Prevents unnecessary connection creation when using connection pools</li>
+<li>Critical for Shiny apps using reactive database connections</li>
+</ul></li>
+<li>
+<strong>Fixed <code><a href="../reference/dot-link_subplotype.html">.link_subplotype()</a></code> missing connection parameter</strong>
+<ul><li>Function now accepts and uses provided database connection</li>
+<li>Ensures transaction consistency during imports</li>
+<li>Prevents connection errors in multi-step workflows</li>
+</ul></li>
+<li>
+<strong>Fixed multiple RLS policy issues preventing imports</strong>
+<ul><li>INSERT operations now work correctly for non-admin users</li>
+<li>RETURNING clause properly returns inserted plot IDs despite RLS restrictions</li>
+<li>SELECT policy adjusted to allow RETURNING without exposing other users’ data</li>
+<li>All users can now import plots regardless of RLS configuration</li>
+</ul></li>
+<li>
+<strong>Fixed Import Wizard lookup matcher performance issues</strong>
+<ul><li>Eliminated UI freeze when matching large lookup tables</li>
+<li>Enhanced name matching with better fuzzy algorithms</li>
+<li>Improved responsiveness during interactive matching</li>
+</ul></li>
+<li>
+<strong>Fixed Import Wizard validation and conversion issues</strong>
+<ul><li>Exact-matched lookup values now properly converted to IDs before validation</li>
+<li>Prevents validation errors for values that were successfully matched</li>
+<li>Duplicate column mapping now detected and prevented in Step 3</li>
+</ul></li>
+<li>
+<strong>Fixed multiple i18n reactive call errors in Import Wizard</strong>
+<ul><li>Corrected reactive i18n calls in Step 1, Step 2, and other modules</li>
+<li>Fixed missing i18n parameters in module calls</li>
+<li>Removed duplicate translations from translation.json</li>
+</ul></li>
+<li>
+<strong>Fixed graphics parameter error in mapview map creation</strong>
+<ul><li>Added error handling for graphics device issues</li>
+<li>Required BIOMASS &gt;= 2.2.4 to prevent <code><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par()</a></code> parameter errors</li>
+<li>Graceful fallback when map creation fails</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="documentation-1-8-1">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-8-1"></a></h4>
+<ul><li>
+<strong>Added critical security warnings for database credentials</strong>
+<ul><li>CLAUDE.md now includes prominent warnings about credential management</li>
+<li>Clear guidelines for using placeholder credentials in examples</li>
+<li>Instructions for credential leak response</li>
+</ul></li>
+<li>
+<strong>Updated Import Wizard documentation</strong>
+<ul><li>Vignettes restructured to feature Shiny Import Wizard prominently</li>
+<li>Added i18n and translation management guidelines to CLAUDE.md</li>
+</ul></li>
+<li>
+<strong>Added package citation information</strong>
+<ul><li>Citation section added to README files (EN and FR)</li>
+<li>Updated DESCRIPTION with proper author roles and ORCID</li>
+<li>Package now citable via <code>citation("CafriplotsR")</code>
+</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="infrastructure-1-8-1">Infrastructure<a class="anchor" aria-label="anchor" href="#infrastructure-1-8-1"></a></h4>
+<ul><li>
+<strong>Cleaned up version control</strong>
+<ul><li>Removed xlsx, csv, gpkg data files from tracking</li>
+<li>Removed geospatial temporary and KML files</li>
+<li>Removed R Markdown cache and generated files</li>
+<li>Removed RStudio Connect deployment files</li>
+<li>Added working .Rmd files to .gitignore to prevent credential leaks</li>
+<li>Added .Rprofile to .gitignore</li>
+</ul></li>
+<li>
+<strong>GitHub Actions workflows</strong>
+<ul><li>Added Claude Code Review workflow for automated code review</li>
+<li>Added Claude PR Assistant workflow for pull request automation</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="code-refactoring-1-8-1">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-8-1"></a></h4>
+<ul><li>
+<strong>Improved Step 7 messaging in Import Wizard</strong>
+<ul><li>Clearer explanations of row-level security and access models</li>
+<li>Better guidance on admin contact for access grants</li>
+<li>Updated UI based on user feedback</li>
+</ul></li>
+</ul><hr></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.8.0" id="cafriplotsr-180-2025-01-15">CafriplotsR 1.8.0 (2025-01-15)<a class="anchor" aria-label="anchor" href="#cafriplotsr-180-2025-01-15"></a></h2>
+<div class="section level4">
+<h4 id="new-features-1-8-0">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-8-0"></a></h4>
+<ul><li>
+<strong>Interactive Import Wizard Shiny App - Complete 7-Step Workflow</strong>
+<ul><li>New <code><a href="../reference/launch_import_wizard.html">launch_import_wizard()</a></code> function provides comprehensive plot metadata import interface</li>
+<li>Full internationalization support (English/French)</li>
+<li>Reuses existing validation and import functions for consistency</li>
+<li>See version 1.7.2 entries below for detailed step-by-step feature descriptions</li>
+</ul></li>
+<li>
+<strong>Plot Statistics &amp; Visualizations module</strong>
+<ul><li>New “Statistics” tab in <code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code> with comprehensive summaries</li>
+<li>Summary statistics: number of plots, individuals, species, families</li>
+<li>Diameter statistics: mean, median, min, max</li>
+<li>Interactive visualizations with ggplot2 + plotly:
+<ul><li>Diameter distribution histogram with hover tooltips</li>
+<li>Top N species composition bar chart (adjustable slider: 5-30 species)</li>
+</ul></li>
+<li>Download summary statistics as CSV</li>
+<li>Fully bilingual (EN/FR) with i18n support</li>
+<li>Smart column mapping adapts to different output styles</li>
+</ul></li>
+<li>
+<strong>Code preview and export features</strong>
+<ul><li>Query plots app now includes code preview for reproducibility</li>
+<li>Generated R code can be copied or downloaded</li>
+<li>Helps users transition from GUI to programmatic workflows</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-8-0">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-8-0"></a></h4>
+<ul><li>
+<strong>Fixed census date parsing error with missing/invalid data</strong>
+<ul><li>Gracefully handles missing year/month values in census dates</li>
+<li>Prevents errors when date components are NA or invalid</li>
+<li>Returns NA for unparseable dates instead of crashing</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="infrastructure-1-8-0">Infrastructure<a class="anchor" aria-label="anchor" href="#infrastructure-1-8-0"></a></h4>
+<ul><li>
+<strong>Added stringdist package dependency</strong>
+<ul><li>Required for fuzzy string matching in import wizard</li>
+<li>Fixes import wizard initialization errors</li>
+</ul></li>
+<li>
+<strong>Updated pkgdown website</strong>
+<ul><li>Documentation website updated with latest function references</li>
+<li>Added logo to package site</li>
+<li>All vignettes updated with new features</li>
+</ul></li>
+</ul><hr></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.7.2" id="cafriplotsr-172-2024-12-15">CafriplotsR 1.7.2 (2024-12-15)<a class="anchor" aria-label="anchor" href="#cafriplotsr-172-2024-12-15"></a></h2>
 <div class="section level4">
 <h4 id="new-features-1-7-2">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-7-2"></a></h4>
 <ul><li>
