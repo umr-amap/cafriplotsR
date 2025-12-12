@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -353,7 +353,7 @@
 <span>  <span class="op">}</span><span class="op">)</span></span>
 <span><span class="op">}</span></span></code></pre></div>
 <p><strong>Key principles:</strong> - Use <code><a href="https://rdrr.io/r/base/message.html" class="external-link">message()</a></code> for debug logging, NOT <code>cli::cli_alert_*()</code> or <code><a href="https://rdrr.io/pkg/shiny/man/showNotification.html" class="external-link">shiny::showNotification()</a></code> - Always provide fallback values (empty lists, character vectors, or minimal defaults) - Handle pool connections explicitly with checkout/return - Never let configuration errors crash the app</p>
-<p><strong>Functions implementing this pattern:</strong> - <code>get_table_columns()</code> - Returns fallback columns on error - <code>get_metadata_mappings_plots()</code> - Returns basic lookups only on error - <code>get_available_subplot_types()</code> - Returns empty vector on error - <code>get_available_individual_features()</code> - Returns empty vector on error - <code>.get_column_descriptions()</code> - Skips feature descriptions on error</p>
+<p><strong>Functions implementing this pattern:</strong> - <code>get_table_columns()</code> - Returns fallback columns on error - <code>get_metadata_mappings_plots()</code> - Returns basic lookups only on error - <code>get_available_subplot_types()</code> - Returns empty vector on error - <code>get_available_individual_features()</code> - Returns empty vector on error - <code><a href="reference/dot-get_column_descriptions.html">.get_column_descriptions()</a></code> - Skips feature descriptions on error</p>
 <p><strong>Standard R Package Structure:</strong> - Documentation lives in <code>man/</code> (generated, not manually edited) - Source code lives in <code>R/</code> - No <code>tests/</code> directory present (consider adding for production robustness) - No <code>vignettes/</code> directory (tutorials are in root as <code>.Rmd</code> files)</p>
 </div>
 <div class="section level3">
@@ -408,7 +408,51 @@
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/quit.html" class="external-link">q</a></span><span class="op">(</span><span class="st">"no"</span><span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
 <p><strong>5. Why This Matters:</strong> - Prevents “SSL SYSCALL error: EOF detected” when users run queries after closing app - Prevents “Checked-out object deleted before being returned” warnings - Ensures clean state for subsequent R console usage - Provides consistent user experience across all apps</p>
-<p><strong>Reference Implementations:</strong> - <code>R/shiny_app_query_plots.R</code> - Query plots interactive app - <code>R/shiny_app_taxonomic_match.R</code> - Taxonomic name standardization app</p>
+<p><strong>6. Internationalization (i18n) with shiny.i18n:</strong></p>
+<p><strong>Translation File Management:</strong> - All translations are stored in <code>inst/translations/translation.json</code> - The file has structure: <code>{"languages": ["en", "fr"], "translation": [{"en": "...", "fr": "..."}]}</code> - <strong>CRITICAL: Always check for duplicates before adding new translations</strong></p>
+<p><strong>Adding New Translations - MANDATORY PATTERN:</strong></p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://jeroen.r-universe.dev/jsonlite" class="external-link">jsonlite</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Read current translations</span></span>
+<span><span class="va">translation_file</span> <span class="op">&lt;-</span> <span class="st">"inst/translations/translation.json"</span></span>
+<span><span class="va">translations</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://jeroen.r-universe.dev/jsonlite/reference/fromJSON.html" class="external-link">fromJSON</a></span><span class="op">(</span><span class="va">translation_file</span>, simplifyDataFrame <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># New translations to add</span></span>
+<span><span class="va">new_translations</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>en <span class="op">=</span> <span class="st">"Your English text"</span>, fr <span class="op">=</span> <span class="st">"Votre texte français"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Check for existing translations and add only new ones</span></span>
+<span><span class="va">existing_en</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">sapply</a></span><span class="op">(</span><span class="va">translations</span><span class="op">$</span><span class="va">translation</span>, <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="va">x</span><span class="op">$</span><span class="va">en</span><span class="op">)</span></span>
+<span><span class="kw">for</span> <span class="op">(</span><span class="va">new_trans</span> <span class="kw">in</span> <span class="va">new_translations</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="va">new_trans</span><span class="op">$</span><span class="va">en</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">existing_en</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">translations</span><span class="op">$</span><span class="va">translation</span><span class="op">[[</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">translations</span><span class="op">$</span><span class="va">translation</span><span class="op">)</span> <span class="op">+</span> <span class="fl">1</span><span class="op">]</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="va">new_trans</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Added:"</span>, <span class="va">new_trans</span><span class="op">$</span><span class="va">en</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span>  <span class="op">}</span> <span class="kw">else</span> <span class="op">{</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="st">"Skipped (already exists):"</span>, <span class="va">new_trans</span><span class="op">$</span><span class="va">en</span>, <span class="st">"\n"</span><span class="op">)</span></span>
+<span>  <span class="op">}</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="co"># Write back to file with pretty formatting</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/write.html" class="external-link">write</a></span><span class="op">(</span><span class="fu"><a href="https://jeroen.r-universe.dev/jsonlite/reference/fromJSON.html" class="external-link">toJSON</a></span><span class="op">(</span><span class="va">translations</span>, pretty <span class="op">=</span> <span class="cn">TRUE</span>, auto_unbox <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>, <span class="va">translation_file</span><span class="op">)</span></span></code></pre></div>
+<p><strong>i18n Usage Patterns:</strong> - In <strong>UI functions</strong>: Use <code>i18n$t("text")</code> - i18n is passed as a direct parameter - In <strong>server functions</strong>: Use <code>i18n()$t("text")</code> - i18n is passed as a reactive - <strong>Wrong pattern</strong> in server: <code>i18n$t()</code> will cause “objet de type ‘closure’ non indiçable” error</p>
+<p><strong>Example:</strong></p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># UI function - correct</span></span>
+<span><span class="va">mod_step1_ui</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">i18n</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/htmltools/reference/builder.html" class="external-link">h3</a></span><span class="op">(</span><span class="va">i18n</span><span class="op">$</span><span class="fu">t</span><span class="op">(</span><span class="st">"Step 1: Choose Import Type"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="co"># Server function - correct</span></span>
+<span><span class="va">mod_step1_server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">id</span>, <span class="va">i18n</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">moduleServer</a></span><span class="op">(</span><span class="va">id</span>, <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">output</span><span class="op">$</span><span class="va">message</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/renderUI.html" class="external-link">renderUI</a></span><span class="op">(</span><span class="op">{</span></span>
+<span>      <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/htmltools/reference/builder.html" class="external-link">div</a></span><span class="op">(</span><span class="fu">i18n</span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="fu">t</span><span class="op">(</span><span class="st">"Welcome message"</span><span class="op">)</span><span class="op">)</span>  <span class="co"># Note: i18n()$t() not i18n$t()</span></span>
+<span>    <span class="op">}</span><span class="op">)</span></span>
+<span>  <span class="op">}</span><span class="op">)</span></span>
+<span><span class="op">}</span></span></code></pre></div>
+<p><strong>Reference Implementations:</strong> - <code>R/shiny_app_query_plots.R</code> - Query plots interactive app - <code>R/shiny_app_taxonomic_match.R</code> - Taxonomic name standardization app - <code>R/shiny_app_import_wizard.R</code> - Import wizard with full i18n support</p>
 </div>
 </div>
 <div class="section level2">

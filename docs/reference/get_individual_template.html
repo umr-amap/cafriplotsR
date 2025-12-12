@@ -11,7 +11,7 @@ two sheets: core individual data and optional individual features."><meta proper
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -47,7 +47,8 @@ two sheets: core individual data and optional individual features.</p>
 <span>  method <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  include_features <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  output_file <span class="op">=</span> <span class="st">"individual_template.xlsx"</span>,</span>
-<span>  con <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  con <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  return_data <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -72,6 +73,12 @@ Default: "individual_template.xlsx"</p></dd>
 
 <dt id="arg-con">con<a class="anchor" aria-label="anchor" href="#arg-con"></a></dt>
 <dd><p>Database connection. If NULL, creates temporary connection.</p></dd>
+
+
+<dt id="arg-return-data">return_data<a class="anchor" aria-label="anchor" href="#arg-return-data"></a></dt>
+<dd><p>Logical. If TRUE, returns the template data structure
+without writing to file or printing messages. Useful for Shiny apps.
+Default FALSE.</p></dd>
 
 </dl></div>
     <div class="section level2">

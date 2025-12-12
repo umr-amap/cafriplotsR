@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -83,7 +83,7 @@
 <div class="section level3">
 <h3 id="id_1-rmod_step4_lookup_matchingr-new">1. <strong>R/mod_step4_lookup_matching.R</strong> (NEW)<a class="anchor" aria-label="anchor" href="#id_1-rmod_step4_lookup_matchingr-new"></a></h3>
 <p><strong>Purpose</strong>: Proactive lookup matching before validation</p>
-<p><strong>Key Functions</strong>: - <code>mod_step4_lookup_matching_ui()</code> - UI with analyze button and matching interface - <code>mod_step4_lookup_matching_server()</code> - Server logic - <code>.analyze_lookup_columns()</code> - Analyzes data to find non-exact matches</p>
+<p><strong>Key Functions</strong>: - <code><a href="reference/mod_step4_lookup_matching_ui.html">mod_step4_lookup_matching_ui()</a></code> - UI with analyze button and matching interface - <code><a href="reference/mod_step4_lookup_matching_server.html">mod_step4_lookup_matching_server()</a></code> - Server logic - <code><a href="reference/dot-analyze_lookup_columns.html">.analyze_lookup_columns()</a></code> - Analyzes data to find non-exact matches</p>
 <p><strong>Workflow</strong>: 1. User clicks “Analyze Lookup Values” 2. System checks each lookup column against database 3. Identifies exact matches vs. values needing matching 4. Shows summary cards (total, exact matches, need matching) 5. If non-exact matches found, shows interactive matcher 6. User resolves matches or adds new values 7. Applies matches to data 8. Returns matched data for validation</p>
 <p><strong>Features</strong>: - Fuzzy matching with similarity scores - Add new methods/people (NOT countries) - Clear analysis summary - Optional skip if user wants to handle errors later</p>
 </div>
@@ -162,7 +162,7 @@ System: "Validation passed!" (or only non-lookup errors shown)</code></pre>
 <h3 id="main-wizard-integration">Main Wizard Integration<a class="anchor" aria-label="anchor" href="#main-wizard-integration"></a></h3>
 <p><strong>Step 4 Initialization</strong>:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">step4_result</span> <span class="op">&lt;-</span> <span class="fu">mod_step4_lookup_matching_server</span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">step4_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mod_step4_lookup_matching_server.html">mod_step4_lookup_matching_server</a></span><span class="op">(</span></span>
 <span>  <span class="st">"step4"</span>,</span>
 <span>  data <span class="op">=</span> <span class="fu">reactive</span><span class="op">(</span><span class="va">rv</span><span class="op">$</span><span class="va">data</span><span class="op">)</span>,</span>
 <span>  mappings <span class="op">=</span> <span class="fu">reactive</span><span class="op">(</span><span class="va">rv</span><span class="op">$</span><span class="va">mappings</span><span class="op">)</span>,</span>
@@ -175,7 +175,7 @@ System: "Validation passed!" (or only non-lookup errors shown)</code></pre>
 <span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
 <p><strong>Step 5 Validation (uses matched data)</strong>:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">step5_result</span> <span class="op">&lt;-</span> <span class="fu">mod_step5_validation_server</span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">step5_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mod_step5_validation_server.html">mod_step5_validation_server</a></span><span class="op">(</span></span>
 <span>  <span class="st">"step5"</span>,</span>
 <span>  data <span class="op">=</span> <span class="fu">reactive</span><span class="op">(</span><span class="op">{</span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NULL.html" class="external-link">is.null</a></span><span class="op">(</span><span class="va">rv</span><span class="op">$</span><span class="va">matched_data</span><span class="op">)</span><span class="op">)</span> <span class="va">rv</span><span class="op">$</span><span class="va">matched_data</span> <span class="kw">else</span> <span class="va">rv</span><span class="op">$</span><span class="va">data</span></span>
