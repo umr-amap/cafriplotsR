@@ -621,7 +621,7 @@
       column_name = column_name,
       id_field = id_field,
       id_table_name = id_table_name,
-      db_connection = db_connection,
+      db_connection = mydb,
       table_name = table_name,
       keep_original_value = TRUE,
       field_label = field_label

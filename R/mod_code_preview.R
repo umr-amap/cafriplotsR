@@ -112,7 +112,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
     }
 
     # Generate code for individual extraction
-    generate_individuals_code <- function(plot_ids, options, use_metadata_ref = FALSE) {
+    generate_individuals_code <- function(plot_ids, options, filters = NULL, use_metadata_ref = FALSE) {
       args <- c()
 
       # Plot IDs - use metadata reference if available and multiple plots
@@ -123,6 +123,11 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
         args <- c(args, sprintf('  id_plot = %s', plot_ids))
       } else {
         args <- c(args, sprintf('  id_plot = c(%s)', paste(plot_ids, collapse = ", ")))
+      }
+
+      # Tag filter (if provided)
+      if (!is.null(filters$tag) && nzchar(filters$tag)) {
+        args <- c(args, sprintf('  tag = "%s"', filters$tag))
       }
 
       # Always extracting individuals
@@ -221,7 +226,8 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
       if (has_individuals) {
         current_plots <- selected_plots()
         current_options <- extraction_options()
-        individuals_code <- generate_individuals_code(current_plots, current_options, use_metadata_ref = has_metadata)
+        current_filters <- filters()
+        individuals_code <- generate_individuals_code(current_plots, current_options, current_filters, use_metadata_ref = has_metadata)
         code_sections$individuals <- individuals_code
       }
 

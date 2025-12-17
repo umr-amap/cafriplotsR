@@ -487,6 +487,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
 
             result <- query_plots(
               id_plot = selected_plots(),
+              tag = filters$tag,
               extract_individuals = TRUE,
               extract_traits = options$extract_traits,
               extract_individual_features = options$extract_individual_features,
