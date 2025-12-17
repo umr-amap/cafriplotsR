@@ -39,18 +39,22 @@ mod_plot_filters_ui <- function(id) {
     shiny::fluidRow(
       shiny::column(
         6,
-        shiny::textInput(
+        shiny::selectInput(
           ns("plot_name"),
           label = NULL,  # Label set dynamically
-          placeholder = ""
+          choices = NULL,
+          selected = NULL,
+          multiple = TRUE
         )
       ),
       shiny::column(
         6,
-        shiny::textInput(
+        shiny::selectInput(
           ns("locality"),
           label = NULL,  # Label set dynamically
-          placeholder = ""
+          choices = NULL,
+          selected = NULL,
+          multiple = TRUE
         )
       )
     ),
@@ -119,15 +123,13 @@ mod_plot_filters_server <- function(id, pool, i18n) {
         session, "method",
         label = i18n()$t("Method")
       )
-      shiny::updateTextInput(
+      shiny::updateSelectInput(
         session, "plot_name",
-        label = i18n()$t("Plot Name(s)"),
-        placeholder = i18n()$t("e.g., bouamir001, mbalmayo001 (comma-separated)")
+        label = i18n()$t("Plot Name(s)")
       )
-      shiny::updateTextInput(
+      shiny::updateSelectInput(
         session, "locality",
-        label = i18n()$t("Locality"),
-        placeholder = i18n()$t("e.g., Lope")
+        label = i18n()$t("Locality")
       )
       shiny::updateTextInput(
         session, "tag",
@@ -223,7 +225,7 @@ mod_plot_filters_server <- function(id, pool, i18n) {
       pool_val
     })
 
-    # Populate country choices (only once, using observeEvent with once=TRUE)
+    # Populate filter choices (only once, using observeEvent with once=TRUE)
     shiny::observeEvent(con(), {
       pool_conn <- con()
       shiny::req(pool_conn)
@@ -251,9 +253,27 @@ mod_plot_filters_server <- function(id, pool, i18n) {
            ORDER BY m.method"
         )
 
-        cli::cli_alert_success("Loaded {nrow(countries)} accessible countries and {nrow(methods)} accessible methods")
+        # Get distinct plot names
+        plot_names <- DBI::dbGetQuery(
+          pool_conn,
+          "SELECT DISTINCT plot_name
+           FROM data_liste_plots
+           WHERE plot_name IS NOT NULL
+           ORDER BY plot_name"
+        )
 
-        # Update both select inputs WITHOUT resetting selection
+        # Get distinct locality names
+        localities <- DBI::dbGetQuery(
+          pool_conn,
+          "SELECT DISTINCT locality_name
+           FROM data_liste_plots
+           WHERE locality_name IS NOT NULL
+           ORDER BY locality_name"
+        )
+
+        cli::cli_alert_success("Loaded {nrow(countries)} accessible countries, {nrow(methods)} accessible methods, {nrow(plot_names)} plot names, and {nrow(localities)} localities")
+
+        # Update all select inputs WITHOUT resetting selection
         shiny::updateSelectInput(
           session,
           "country",
@@ -264,6 +284,18 @@ mod_plot_filters_server <- function(id, pool, i18n) {
           session,
           "method",
           choices = methods$method
+        )
+
+        shiny::updateSelectInput(
+          session,
+          "plot_name",
+          choices = plot_names$plot_name
+        )
+
+        shiny::updateSelectInput(
+          session,
+          "locality",
+          choices = localities$locality_name
         )
 
         choices_loaded(TRUE)
@@ -282,19 +314,11 @@ mod_plot_filters_server <- function(id, pool, i18n) {
 
     # Build filter list
     filters <- shiny::reactive({
-      # Parse comma-separated plot names
-      plot_names <- NULL
-      if (nzchar(input$plot_name)) {
-        plot_names <- trimws(unlist(strsplit(input$plot_name, ",")))
-        plot_names <- plot_names[nzchar(plot_names)]  # Remove empty strings
-        if (length(plot_names) == 0) plot_names <- NULL
-      }
-
       list(
         # Basic filters
         country = if (length(input$country) > 0 && !all(input$country == "")) input$country else NULL,
-        plot_name = plot_names,
-        locality_name = if (nzchar(input$locality)) input$locality else NULL,
+        plot_name = if (length(input$plot_name) > 0 && !all(input$plot_name == "")) input$plot_name else NULL,
+        locality_name = if (length(input$locality) > 0 && !all(input$locality == "")) input$locality else NULL,
         method = if (length(input$method) > 0 && !all(input$method == "")) input$method else NULL,
         tag = if (nzchar(input$tag)) input$tag else NULL,
 

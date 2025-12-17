@@ -2119,7 +2119,7 @@ query_specimens <- function(collector = NULL,
 
     if (is.null(id_colnam)) {
 
-      id_colnam <- .link_colnam(data_stand = tibble(colnam = collector),column_searched = "colnam")$id_colnam
+      id_colnam <- .link_colnam(data_stand = tibble(colnam = collector), column_searched = "colnam")$id_colnam
 
     }
 
