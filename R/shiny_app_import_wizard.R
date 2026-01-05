@@ -586,7 +586,8 @@ import_wizard_server <- function(input, output, session, translator) {
     # Step 6: Preview
     step6_result <- mod_step6_preview_server(
       "step6",
-      validation_result = reactive(rv$validation)
+      validation_result = reactive(rv$validation),
+      i18n = i18n
     )
 
     # Step 7: Import execution
