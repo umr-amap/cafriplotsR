@@ -2752,6 +2752,22 @@
     {
       "en": "Validating plot metadata...",
       "fr": "Validation des métadonnées des placettes..."
+    },
+    {
+      "en": "Validate data integrity and constraints",
+      "fr": "Valider l'intégrité et les contraintes des données"
+    },
+    {
+      "en": "Insert data into database tables",
+      "fr": "Insérer les données dans les tables de la base de données"
+    },
+    {
+      "en": "Link to existing database references (plots, taxonomy)",
+      "fr": "Lier aux références existantes (placettes, taxonomie)"
+    },
+    {
+      "en": "Automatic access to imported data",
+      "fr": "Accès automatique aux données importées"
     }
   ]
 }
