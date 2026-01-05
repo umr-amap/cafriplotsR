@@ -43,7 +43,8 @@ Imports:
     zoo,
     pool,
     leaflet,
-    rappdirs
+    rappdirs,
+    plotly
 Suggests:
     getPass,
     dm,
