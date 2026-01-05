@@ -24,11 +24,11 @@ mod_step7_import_ui <- function(id, i18n) {
 
     shiny::tags$ul(
       style = "color: #6c757d; font-size: 15px; margin-bottom: 30px;",
-      shiny::tags$li("Link methods and countries to database references"),
-      shiny::tags$li("Insert plot metadata into data_liste_plots"),
-      shiny::tags$li("Insert subplot features (people, census info, etc.)"),
-      shiny::tags$li("Use database transactions (rollback on error)"),
-      shiny::tags$li("Generate admin code for row-level security access")
+      shiny::tags$li(i18n$t("Validate data integrity and constraints")),
+      shiny::tags$li(i18n$t("Link to existing database references (plots, taxonomy)")),
+      shiny::tags$li(i18n$t("Insert data into database tables")),
+      shiny::tags$li(i18n$t("Use database transactions (rollback on error)")),
+      shiny::tags$li(i18n$t("Automatic access to imported data"))
     ),
 
     # Import controls
@@ -38,11 +38,11 @@ mod_step7_import_ui <- function(id, i18n) {
         shiny::div(
           class = "card",
           style = "padding: 20px; background-color: #fff3cd; border-left: 4px solid #ffc107;",
-          shiny::h5(shiny::icon("exclamation-triangle"), " Dry Run (Preview)", style = "margin-top: 0; color: #856404;"),
-          shiny::p("Preview the import without making changes to the database.", style = "color: #856404; margin-bottom: 15px;"),
+          shiny::h5(shiny::icon("exclamation-triangle"), paste0(" ", i18n$t("Dry Run (Preview)")), style = "margin-top: 0; color: #856404;"),
+          shiny::p(i18n$t("Preview the import without making changes to the database."), style = "color: #856404; margin-bottom: 15px;"),
           shiny::actionButton(
             ns("btn_dry_run"),
-            shiny::tagList(shiny::icon("eye"), " Run Dry Run"),
+            shiny::tagList(shiny::icon("eye"), paste0(" ", i18n$t("Run Dry Run"))),
             class = "btn-warning btn-lg btn-block"
           )
         )
@@ -52,11 +52,11 @@ mod_step7_import_ui <- function(id, i18n) {
         shiny::div(
           class = "card",
           style = "padding: 20px; background-color: #d4edda; border-left: 4px solid #28a745;",
-          shiny::h5(shiny::icon("database"), " Live Import", style = "margin-top: 0; color: #155724;"),
-          shiny::p("Execute the actual import to the database.", style = "color: #155724; margin-bottom: 15px;"),
+          shiny::h5(shiny::icon("database"), paste0(" ", i18n$t("Live Import")), style = "margin-top: 0; color: #155724;"),
+          shiny::p(i18n$t("Execute the actual import to the database."), style = "color: #155724; margin-bottom: 15px;"),
           shiny::actionButton(
             ns("btn_import"),
-            shiny::tagList(shiny::icon("check"), " Execute Import"),
+            shiny::tagList(shiny::icon("check"), paste0(" ", i18n$t("Execute Import"))),
             class = "btn-success btn-lg btn-block"
           )
         )
