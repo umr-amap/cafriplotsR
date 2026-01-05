@@ -1010,3 +1010,582 @@ add_taxa_table_taxa <- function(ids = NULL) {
 
   return(table_taxa)
 }
+
+
+# ============================================================================
+# Hierarchy Navigation Functions (using id_parent)
+# ============================================================================
+
+#' Get All Children of a Taxon
+#'
+#' Returns all taxa that have the specified taxon as their parent (directly or recursively).
+#' Uses the id_parent column for hierarchy traversal.
+#'
+#' @param idtax_n The taxon ID to find children for
+#' @param con Database connection (optional, will create if NULL)
+#' @param recursive If TRUE (default), get all descendants; if FALSE, only direct children
+#' @param include_self If TRUE, include the taxon itself in results
+#' @param collect If TRUE (default), collect results to data frame
+#'
+#' @return Data frame of child taxa
+#' @export
+get_taxon_children <- function(idtax_n, con = NULL, recursive = TRUE,
+                               include_self = FALSE, collect = TRUE) {
+  if (is.null(con)) {
+    con <- call.mydb.taxa()
+  }
+
+  # Handle pool connections
+  actual_con <- if (inherits(con, "Pool")) {
+    pool::poolCheckout(con)
+  } else {
+    con
+  }
+
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) {
+      pool::poolReturn(actual_con)
+    }
+  }, add = TRUE)
+
+  if (recursive) {
+    # Use recursive CTE for all descendants
+    sql <- glue::glue_sql("
+      WITH RECURSIVE descendants AS (
+        -- Base case: direct children
+        SELECT * FROM table_taxa WHERE id_parent = {idtax}
+        UNION ALL
+        -- Recursive case: children of children
+        SELECT t.* FROM table_taxa t
+        INNER JOIN descendants d ON t.id_parent = d.idtax_n
+      )
+      SELECT * FROM descendants
+    ", idtax = idtax_n, .con = actual_con)
+
+    if (include_self) {
+      sql <- glue::glue_sql("
+        WITH RECURSIVE descendants AS (
+          -- Include self
+          SELECT * FROM table_taxa WHERE idtax_n = {idtax}
+          UNION ALL
+          -- Recursive children
+          SELECT t.* FROM table_taxa t
+          INNER JOIN descendants d ON t.id_parent = d.idtax_n
+        )
+        SELECT * FROM descendants
+      ", idtax = idtax_n, .con = actual_con)
+    }
+
+    result <- func_try_fetch(con = actual_con, sql = sql)
+
+  } else {
+    # Just direct children
+    result <- dplyr::tbl(actual_con, "table_taxa") %>%
+      dplyr::filter(id_parent == !!idtax_n)
+
+    if (include_self) {
+      self <- dplyr::tbl(actual_con, "table_taxa") %>%
+        dplyr::filter(idtax_n == !!idtax_n)
+      result <- dplyr::union_all(self, result)
+    }
+
+    if (collect) {
+      result <- dplyr::collect(result)
+    }
+  }
+
+  return(result)
+}
+
+
+#' Get All Ancestors of a Taxon
+#'
+#' Walks up the id_parent chain to return all ancestor taxa from the given
+#' taxon up to the root (class level).
+#'
+#' @param idtax_n The taxon ID to find ancestors for
+#' @param con Database connection (optional, will create if NULL)
+#' @param include_self If TRUE, include the taxon itself in results
+#'
+#' @return Data frame of ancestor taxa, ordered from root to taxon
+#' @export
+get_taxon_ancestors <- function(idtax_n, con = NULL, include_self = TRUE) {
+  if (is.null(con)) {
+    con <- call.mydb.taxa()
+  }
+
+  # Handle pool connections
+  actual_con <- if (inherits(con, "Pool")) {
+    pool::poolCheckout(con)
+  } else {
+    con
+  }
+
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) {
+      pool::poolReturn(actual_con)
+    }
+  }, add = TRUE)
+
+  # Use recursive CTE to walk up the hierarchy
+  sql <- glue::glue_sql("
+    WITH RECURSIVE ancestors AS (
+      -- Base case: the taxon itself
+      SELECT *, 0 as depth FROM table_taxa WHERE idtax_n = {idtax}
+      UNION ALL
+      -- Recursive case: parent of current
+      SELECT t.*, a.depth + 1 FROM table_taxa t
+      INNER JOIN ancestors a ON t.idtax_n = a.id_parent
+    )
+    SELECT * FROM ancestors ORDER BY depth DESC
+  ", idtax = idtax_n, .con = actual_con)
+
+  result <- func_try_fetch(con = actual_con, sql = sql)
+
+  if (!include_self && nrow(result) > 0) {
+    # Remove the last row (self)
+    result <- result[-nrow(result), ]
+  }
+
+  # Remove depth column
+  if ("depth" %in% names(result)) {
+    result <- result %>% dplyr::select(-depth)
+  }
+
+  return(result)
+}
+
+
+#' Get Full Taxonomy Hierarchy for a Taxon
+#'
+#' Returns a structured list containing the full hierarchical path from
+#' class to the given taxon, with each level's information.
+#'
+#' @param idtax_n The taxon ID to get hierarchy for
+#' @param con Database connection (optional, will create if NULL)
+#'
+#' @return List with hierarchy levels: class, order, family, genus, species, infraspecific
+#' @export
+get_taxon_hierarchy <- function(idtax_n, con = NULL) {
+  if (is.null(con)) {
+    con <- call.mydb.taxa()
+  }
+
+  # Handle pool connections
+  actual_con <- if (inherits(con, "Pool")) {
+    pool::poolCheckout(con)
+  } else {
+    con
+  }
+
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) {
+      pool::poolReturn(actual_con)
+    }
+  }, add = TRUE)
+
+  # Get all ancestors including self
+  ancestors <- get_taxon_ancestors(idtax_n, con = actual_con, include_self = TRUE)
+
+  if (is.null(ancestors) || nrow(ancestors) == 0) {
+    return(NULL)
+  }
+
+  # Build hierarchy structure
+  hierarchy <- list(
+    class = NULL,
+    order = NULL,
+    family = NULL,
+    genus = NULL,
+    species = NULL,
+    infraspecific = NULL,
+    current_level = NULL,
+    current_taxon = NULL
+  )
+
+  for (i in seq_len(nrow(ancestors))) {
+    row <- ancestors[i, ]
+
+    # Determine level using tax_level column (preferred) or fallback to inference
+    if ("tax_level" %in% names(row) && !is.na(row$tax_level) && nchar(row$tax_level) > 0) {
+      # Use tax_level column directly
+      level <- row$tax_level
+      # Map "higher" to "class" for consistency
+      if (level == "higher") level <- "class"
+    } else {
+      # Fallback: infer level based on what's populated
+      if (!is.na(row$tax_nam01) && nchar(row$tax_nam01) > 0) {
+        level <- "infraspecific"
+      } else if (!is.na(row$tax_esp) && nchar(row$tax_esp) > 0) {
+        level <- "species"
+      } else if (!is.na(row$tax_gen) && nchar(row$tax_gen) > 0) {
+        level <- "genus"
+      } else if (!is.na(row$tax_fam) && nchar(row$tax_fam) > 0) {
+        level <- "family"
+      } else if (!is.na(row$tax_order) && nchar(row$tax_order) > 0) {
+        level <- "order"
+      } else {
+        level <- "class"
+      }
+    }
+
+    # Create entry for this level
+    entry <- list(
+      idtax_n = row$idtax_n,
+      name = switch(
+        level,
+        "class" = row$tax_famclass,
+        "order" = row$tax_order,
+        "family" = row$tax_fam,
+        "genus" = row$tax_gen,
+        "species" = paste(row$tax_gen, row$tax_esp),
+        "infraspecific" = paste(row$tax_gen, row$tax_esp, row$tax_rank01, row$tax_nam01)
+      ),
+      full_row = row
+    )
+
+    hierarchy[[level]] <- entry
+
+    # Track the current (target) taxon
+    if (row$idtax_n == idtax_n) {
+      hierarchy$current_level <- level
+      hierarchy$current_taxon <- entry
+    }
+  }
+
+  return(hierarchy)
+}
+
+
+#' Find Parent Entry for a Given Taxonomic Level
+#'
+#' Finds the parent entry for a taxon at a specific level. Used when inserting
+#' new taxa to find or create the appropriate parent.
+#'
+#' Uses the tax_level column to identify parent entries.
+#'
+#' @param con Database connection
+#' @param tax_gen Genus name
+#' @param tax_fam Family name
+#' @param tax_order Order name
+#' @param tax_famclass Class name
+#' @param tax_esp Species epithet (for infraspecific taxa)
+#' @param level The level of the taxon being inserted ("species", "genus", "family", "order")
+#'
+#' @return Parent taxon ID (idtax_n) or NULL if not found
+#' @keywords internal
+.find_parent_entry <- function(con, tax_gen = NULL, tax_fam = NULL,
+                               tax_order = NULL, tax_famclass = NULL,
+                               tax_esp = NULL, level = "species") {
+
+  # Handle pool connections
+  actual_con <- if (inherits(con, "Pool")) {
+    pool::poolCheckout(con)
+  } else {
+    con
+  }
+
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) {
+      pool::poolReturn(actual_con)
+    }
+  }, add = TRUE)
+
+  parent_query <- dplyr::tbl(actual_con, "table_taxa")
+
+  if (level == "infraspecific") {
+    # Parent is species (tax_level = "species")
+    parent_query <- parent_query %>%
+      dplyr::filter(
+        tax_gen == !!tax_gen,
+        tax_fam == !!tax_fam,
+        tax_esp == !!tax_esp,
+        tax_level == "species"
+      )
+  } else if (level == "species") {
+    # Parent is genus (tax_level = "genus")
+    parent_query <- parent_query %>%
+      dplyr::filter(
+        tax_gen == !!tax_gen,
+        tax_fam == !!tax_fam,
+        tax_level == "genus"
+      )
+  } else if (level == "genus") {
+    # Parent is family (tax_level = "family")
+    parent_query <- parent_query %>%
+      dplyr::filter(
+        tax_fam == !!tax_fam,
+        tax_level == "family"
+      )
+  } else if (level == "family") {
+    # Parent is order (tax_level = "order")
+    parent_query <- parent_query %>%
+      dplyr::filter(
+        tax_order == !!tax_order,
+        tax_level == "order"
+      )
+  } else if (level == "order") {
+    # Parent is class (tax_level IN ("class", "higher"))
+    parent_query <- parent_query %>%
+      dplyr::filter(
+        tax_famclass == !!tax_famclass,
+        tax_level %in% c("class", "higher")
+      )
+  } else {
+    # Class level has no parent
+    return(NULL)
+  }
+
+  result <- parent_query %>%
+    dplyr::select(idtax_n) %>%
+    dplyr::collect()
+
+  if (nrow(result) > 0) {
+    return(result$idtax_n[1])
+  }
+
+  return(NULL)
+}
+
+
+#' Find or Create Parent Entry
+#'
+#' Finds the parent entry for a taxon, creating it if it doesn't exist.
+#' Recursively ensures the full hierarchy exists.
+#'
+#' @param con Database connection
+#' @param tax_gen Genus name
+#' @param tax_fam Family name
+#' @param tax_order Order name
+#' @param tax_famclass Class name
+#' @param tax_esp Species epithet (for infraspecific taxa)
+#' @param level The level of the taxon being inserted
+#'
+#' @return Parent taxon ID (idtax_n)
+#' @keywords internal
+.find_or_create_parent_entry <- function(con, tax_gen = NULL, tax_fam = NULL,
+                                         tax_order = NULL, tax_famclass = NULL,
+                                         tax_esp = NULL, level = "species") {
+
+  # First try to find existing parent
+  parent_id <- .find_parent_entry(
+    con, tax_gen, tax_fam, tax_order, tax_famclass, tax_esp, level
+  )
+
+  if (!is.null(parent_id)) {
+    return(parent_id)
+  }
+
+  # Need to create parent - first ensure parent's parent exists
+  parent_level <- switch(
+    level,
+    "infraspecific" = "species",
+    "species" = "genus",
+    "genus" = "family",
+    "family" = "order",
+    "order" = "class",
+    NULL
+  )
+
+  if (is.null(parent_level)) {
+    return(NULL)  # Class has no parent
+  }
+
+  # Recursively ensure grandparent exists
+  grandparent_id <- NULL
+  if (parent_level != "class") {
+    grandparent_id <- .find_or_create_parent_entry(
+      con, tax_gen, tax_fam, tax_order, tax_famclass, NULL,
+      level = parent_level
+    )
+  }
+
+  # Now create the parent entry
+  parent_id <- .create_hierarchy_entry_for_parent(
+    con,
+    tax_gen = if (parent_level %in% c("genus", "species", "infraspecific")) tax_gen else NA,
+    tax_esp = if (parent_level == "species") tax_esp else NA,
+    tax_fam = if (parent_level %in% c("family", "genus", "species", "infraspecific")) tax_fam else NA,
+    tax_order = if (parent_level %in% c("order", "family", "genus", "species", "infraspecific")) tax_order else NA,
+    tax_famclass = tax_famclass,
+    tax_level = parent_level,  # Use tax_level column
+    id_parent = grandparent_id
+  )
+
+  return(parent_id)
+}
+
+
+#' Create a Hierarchy Entry for Parent (internal helper)
+#'
+#' Creates a new entry at the specified taxonomic level with proper id_parent.
+#' Uses tax_level column to indicate the taxonomic rank.
+#'
+#' @param con Database connection
+#' @param tax_gen Genus name
+#' @param tax_esp Species epithet
+#' @param tax_fam Family name
+#' @param tax_order Order name
+#' @param tax_famclass Class name
+#' @param tax_level Taxonomic level: "class", "order", "family", "genus", "species"
+#' @param id_parent Parent taxon ID
+#'
+#' @keywords internal
+.create_hierarchy_entry_for_parent <- function(con, tax_gen = NA, tax_esp = NA,
+                                               tax_fam = NA, tax_order = NA,
+                                               tax_famclass = NA, tax_level = NA,
+                                               id_parent = NA) {
+  # Handle pool connections
+  actual_con <- if (inherits(con, "Pool")) {
+    pool::poolCheckout(con)
+  } else {
+    con
+  }
+
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) {
+      pool::poolReturn(actual_con)
+    }
+  }, add = TRUE)
+
+  # Get id_tax_famclass if needed (for backward compatibility)
+  id_tax_famclass <- NA
+  if (!is.na(tax_famclass)) {
+    class_row <- tryCatch({
+      DBI::dbGetQuery(
+        actual_con,
+        "SELECT id_tax_famclass FROM table_tax_famclass WHERE tax_famclass = $1",
+        params = list(tax_famclass)
+      )
+    }, error = function(e) data.frame())
+    if (nrow(class_row) > 0) {
+      id_tax_famclass <- class_row$id_tax_famclass[1]
+    }
+  }
+
+  new_entry <- tibble::tibble(
+    tax_gen = if (is.na(tax_gen)) NA_character_ else tax_gen,
+    tax_esp = if (is.na(tax_esp)) NA_character_ else tax_esp,
+    tax_fam = if (is.na(tax_fam)) NA_character_ else tax_fam,
+    tax_order = if (is.na(tax_order)) NA_character_ else tax_order,
+    tax_famclass = if (is.na(tax_famclass)) NA_character_ else tax_famclass,
+    tax_rank01 = NA_character_,
+    tax_nam01 = NA_character_,
+    tax_rank02 = NA_character_,
+    tax_nam02 = NA_character_,
+    tax_source = "AUTO_HIERARCHY",
+    tax_level = if (is.na(tax_level)) NA_character_ else tax_level,
+    idtax_good_n = NA_integer_,
+    id_tax_famclass = id_tax_famclass,
+    morpho_species = FALSE,
+    id_parent = if (is.na(id_parent)) NA_integer_ else as.integer(id_parent)
+  )
+
+  # Add modification fields
+  new_entry <- .add_modif_field(new_entry)
+  new_entry <- new_entry %>%
+    dplyr::rename(
+      data_modif_m = date_modif_m,
+      data_modif_y = date_modif_y,
+      data_modif_d = date_modif_d
+    )
+
+  DBI::dbWriteTable(actual_con, "table_taxa", new_entry, append = TRUE, row.names = FALSE)
+
+  # Get the new ID
+  rs <- DBI::dbSendQuery(actual_con, "SELECT MAX(idtax_n) FROM table_taxa")
+  lastval <- DBI::dbFetch(rs)
+  DBI::dbClearResult(rs)
+
+  cli::cli_alert_info("Created {tax_level} entry: {coalesce(tax_gen, tax_fam, tax_order, tax_famclass)} (ID: {lastval$max})")
+
+  return(lastval$max)
+}
+
+
+#' Count Children at Each Level
+#'
+#' Returns counts of children taxa at each hierarchical level for a given taxon.
+#' Uses tax_level column to identify levels.
+#'
+#' @param idtax_n The taxon ID to count children for
+#' @param con Database connection (optional)
+#'
+#' @return Named vector with counts per level
+#' @export
+count_taxon_children <- function(idtax_n, con = NULL) {
+  if (is.null(con)) {
+    con <- call.mydb.taxa()
+  }
+
+  # Handle pool connections
+  actual_con <- if (inherits(con, "Pool")) {
+    pool::poolCheckout(con)
+  } else {
+    con
+  }
+
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) {
+      pool::poolReturn(actual_con)
+    }
+  }, add = TRUE)
+
+  # Get all descendants
+  children <- get_taxon_children(idtax_n, con = actual_con, recursive = TRUE)
+
+  if (is.null(children) || nrow(children) == 0) {
+    return(c(
+      total = 0,
+      orders = 0,
+      families = 0,
+      genera = 0,
+      species = 0,
+      infraspecific = 0
+    ))
+  }
+
+  # Count by tax_level column (preferred) or fallback to inference
+  if ("tax_level" %in% names(children)) {
+    counts <- children %>%
+      dplyr::mutate(
+        level = dplyr::case_when(
+          tax_level == "infraspecific" ~ "infraspecific",
+          tax_level == "species" ~ "species",
+          tax_level == "genus" ~ "genera",
+          tax_level == "family" ~ "families",
+          tax_level == "order" ~ "orders",
+          tax_level %in% c("class", "higher") ~ "classes",
+          TRUE ~ "other"
+        )
+      ) %>%
+      dplyr::count(level) %>%
+      tibble::deframe()
+  } else {
+    # Fallback: infer from NULL fields
+    counts <- children %>%
+      dplyr::mutate(
+        level = dplyr::case_when(
+          !is.na(tax_nam01) ~ "infraspecific",
+          !is.na(tax_esp) ~ "species",
+          !is.na(tax_gen) ~ "genera",
+          !is.na(tax_fam) ~ "families",
+          !is.na(tax_order) ~ "orders",
+          TRUE ~ "other"
+        )
+      ) %>%
+      dplyr::count(level) %>%
+      tibble::deframe()
+  }
+
+  result <- c(
+    total = nrow(children),
+    orders = counts["orders"] %||% 0,
+    families = counts["families"] %||% 0,
+    genera = counts["genera"] %||% 0,
+    species = counts["species"] %||% 0,
+    infraspecific = counts["infraspecific"] %||% 0
+  )
+
+  return(result)
+}

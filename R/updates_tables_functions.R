@@ -2353,7 +2353,9 @@ update_dico_name <- function(genus_searched = NULL,
                              synonym_of = NULL,
                              exact_match = FALSE) {
 
-  if (!exists("mydb_taxa")) call.mydb.taxa()
+  # Ensure fresh connection in global environment
+  if (exists("mydb_taxa", envir = .GlobalEnv)) rm(mydb_taxa, envir = .GlobalEnv)
+  assign("mydb_taxa", call.mydb.taxa(), envir = .GlobalEnv)
 
   if(all(is.null(c(genus_searched, tax_esp_searched,
                    tax_fam_searched, synonym_of,
