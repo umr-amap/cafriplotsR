@@ -2744,6 +2744,14 @@
     {
       "en": "Manually reviewed:",
       "fr": "Révisés manuellement :"
+    },
+    {
+      "en": "Validating individuals data...",
+      "fr": "Validation des données d'individus..."
+    },
+    {
+      "en": "Validating plot metadata...",
+      "fr": "Validation des métadonnées des placettes..."
     }
   ]
 }

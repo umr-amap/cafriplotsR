@@ -565,7 +565,8 @@ import_wizard_server <- function(input, output, session, translator) {
       }),
       mappings = reactive(rv$mappings),
       config = reactive(rv$config),
-      con = pool_main_reactive
+      con = pool_main_reactive,
+      i18n = i18n
     )
 
     observeEvent(step5_result(), {
