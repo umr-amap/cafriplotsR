@@ -50,7 +50,7 @@ mod_step4_lookup_matching_ui <- function(id, i18n) {
 #' @param mappings Reactive containing column mappings
 #' @param config Reactive containing import configuration
 #' @param con Reactive containing database connection pool
-#' @param i18n Translator object from shiny.i18n
+#' @param i18n Reactive returning translator object from shiny.i18n
 #' @return Reactive containing matched/updated data
 #' @keywords internal
 mod_step4_lookup_matching_server <- function(id, data, mappings, config, con, i18n) {
@@ -76,7 +76,7 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, config, con, i1
         matching_complete(TRUE)
 
         shiny::showNotification(
-          i18n$t("No lookup matching needed for this import type. You can proceed to validation."),
+          i18n()$t("No lookup matching needed for this import type. You can proceed to validation."),
           type = "message",
           duration = 5
         )
