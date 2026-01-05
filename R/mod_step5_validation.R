@@ -43,9 +43,10 @@ mod_step5_validation_ui <- function(id, i18n) {
 #' @param mappings Reactive containing column mappings
 #' @param config Reactive containing import configuration
 #' @param con Reactive containing database connection pool
+#' @param i18n Reactive returning translator object from shiny.i18n
 #' @return Reactive containing validation results
 #' @keywords internal
-mod_step5_validation_server <- function(id, data, mappings, config, con) {
+mod_step5_validation_server <- function(id, data, mappings, config, con, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Validation results storage
@@ -56,7 +57,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
       shiny::req(data(), mappings(), config(), con())
 
       shiny::withProgress({
-        shiny::setProgress(0.3, message = "Validating data...")
+        shiny::setProgress(0.3, message = i18n()$t("Validating data..."))
 
         cli::cli_alert_info("Running validation on {nrow(data())} rows...")
 
@@ -67,7 +68,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
         result <- tryCatch({
           if (is_individuals) {
             # For individuals: need to rename columns and separate direct from features
-            cli::cli_alert_info("Validating individuals data...")
+            cli::cli_alert_info(i18n()$t("Validating individuals data..."))
 
             # Step 1: Rename columns according to mappings (user col -> db col)
             # Filter out NA mappings (skipped columns)
@@ -128,7 +129,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
             )
           } else {
             # For plots: use plot validation
-            cli::cli_alert_info("Validating plot metadata...")
+            cli::cli_alert_info(i18n()$t("Validating plot metadata..."))
             validate_plot_metadata(
               data = data(),
               column_mappings = mappings(),
@@ -142,14 +143,14 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
         }, error = function(e) {
           cli::cli_alert_danger("Validation failed: {e$message}")
           shiny::showNotification(
-            paste("Validation error:", e$message),
+            paste(i18n()$t("Validation error:"), e$message),
             type = "error",
             duration = 10
           )
           return(NULL)
         })
 
-        shiny::setProgress(1, message = "Validation complete!")
+        shiny::setProgress(1, message = i18n()$t("Validation complete!"))
 
         if (!is.null(result)) {
           validation_result(result)
@@ -158,7 +159,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
 
           if (result$valid) {
             shiny::showNotification(
-              "Validation passed! Your data is ready to import.",
+              i18n()$t("Validation passed! Your data is ready to import."),
               type = "message",
               duration = 5
             )
@@ -171,7 +172,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
           }
         }
 
-      }, message = "Running validation...")
+      }, message = i18n()$t("Running validation..."))
     })
 
     # Render validation results
@@ -189,7 +190,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
               class = "card",
               style = "padding: 20px; background-color: #f8f9fa; border-left: 4px solid #007bff; text-align: center;",
               shiny::h3(result$summary$total_rows, style = "margin: 0; color: #007bff;"),
-              shiny::p("Total Rows", style = "margin: 5px 0 0 0; color: #6c757d;")
+              shiny::p(i18n()$t("Total Rows"), style = "margin: 5px 0 0 0; color: #6c757d;")
             )
           ),
           shiny::column(
@@ -201,7 +202,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
                 if (result$summary$errors == 0) "#28a745" else "#dc3545"
               ),
               shiny::h3(result$summary$errors, style = sprintf("margin: 0; color: %s;", if (result$summary$errors == 0) "#28a745" else "#dc3545")),
-              shiny::p("Errors", style = "margin: 5px 0 0 0; color: #6c757d;")
+              shiny::p(i18n()$t("Errors"), style = "margin: 5px 0 0 0; color: #6c757d;")
             )
           ),
           shiny::column(
@@ -210,7 +211,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
               class = "card",
               style = "padding: 20px; background-color: #f8f9fa; border-left: 4px solid #ffc107; text-align: center;",
               shiny::h3(result$summary$warnings, style = "margin: 0; color: #ffc107;"),
-              shiny::p("Warnings", style = "margin: 5px 0 0 0; color: #6c757d;")
+              shiny::p(i18n()$t("Warnings"), style = "margin: 5px 0 0 0; color: #6c757d;")
             )
           ),
           shiny::column(
@@ -219,7 +220,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
               class = "card",
               style = "padding: 20px; background-color: #f8f9fa; border-left: 4px solid #17a2b8; text-align: center;",
               shiny::h3(result$summary$changes_applied, style = "margin: 0; color: #17a2b8;"),
-              shiny::p("Auto-Fixed", style = "margin: 5px 0 0 0; color: #6c757d;")
+              shiny::p(i18n()$t("Auto-Fixed"), style = "margin: 5px 0 0 0; color: #6c757d;")
             )
           )
         ),
@@ -232,8 +233,8 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
             class = "alert alert-success",
             style = "font-size: 16px;",
             shiny::icon("check-circle", style = "font-size: 24px;"),
-            shiny::strong(" Validation Passed! "),
-            "Your data meets all requirements and is ready to import.",
+            shiny::strong(paste0(" ", i18n()$t("Validation Passed!"), " ")),
+            i18n()$t("Your data meets all requirements and is ready to import."),
             if (result$summary$warnings > 0) {
               shiny::tagList(
                 shiny::br(),
@@ -249,7 +250,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
             class = "alert alert-danger",
             style = "font-size: 16px;",
             shiny::icon("exclamation-circle", style = "font-size: 24px;"),
-            shiny::strong(" Validation Failed "),
+            shiny::strong(paste0(" ", i18n()$t("Validation Failed"), " ")),
             sprintf("Found %d error(s) that must be fixed before import.", result$summary$errors)
           )
         },
@@ -283,11 +284,11 @@ mod_step5_validation_server <- function(id, data, mappings, config, con) {
           shiny::tagList(
             shiny::h4(
               shiny::icon("wrench", style = "color: #17a2b8;"),
-              " Auto-Applied Fixes",
+              paste0(" ", i18n()$t("Auto-Applied Fixes")),
               style = "color: #17a2b8; margin-top: 30px;"
             ),
             shiny::p(
-              "The following values were automatically corrected during validation:",
+              i18n()$t("The following values were automatically corrected during validation:"),
               style = "color: #6c757d;"
             ),
             DT::DTOutput(session$ns("changes_table"))
