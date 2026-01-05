@@ -11,6 +11,30 @@ mod_code_preview_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
+    # Add custom JavaScript for clipboard functionality
+    shiny::tags$script(shiny::HTML(sprintf("
+      function copyCodeToClipboard_%s(elementId) {
+        var codeText = document.getElementById(elementId).textContent;
+        navigator.clipboard.writeText(codeText).then(function() {
+          alert('Code copied to clipboard!');
+        }).catch(function(err) {
+          // Fallback for older browsers
+          var textarea = document.createElement('textarea');
+          textarea.value = codeText;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          try {
+            document.execCommand('copy');
+            alert('Code copied to clipboard!');
+          } catch(err) {
+            alert('Failed to copy code: ' + err);
+          }
+          document.body.removeChild(textarea);
+        });
+      }
+    ", gsub("-", "_", id)))),
     shiny::uiOutput(ns("code_preview_panel"))
   )
 }
@@ -261,6 +285,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
             shiny::tags$pre(
               style = "background-color: #282c34; color: #abb2bf; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.85em;",
               shiny::tags$code(
+                id = ns("code_metadata"),
                 code_sections$metadata
               )
             ),
@@ -270,9 +295,9 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
               icon = shiny::icon("copy"),
               class = "btn-sm btn-outline-secondary",
               onclick = sprintf(
-                "navigator.clipboard.writeText(`%s`).then(function() { alert('%s'); });",
-                gsub("`", "\\`", code_sections$metadata),
-                i18n()$t("Code copied!")
+                "copyCodeToClipboard_%s('%s')",
+                gsub("-", "_", id),
+                ns("code_metadata")
               )
             ),
             shiny::br(),
@@ -291,6 +316,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
             shiny::tags$pre(
               style = "background-color: #282c34; color: #abb2bf; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.85em;",
               shiny::tags$code(
+                id = ns("code_individuals"),
                 code_sections$individuals
               )
             ),
@@ -300,9 +326,9 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
               icon = shiny::icon("copy"),
               class = "btn-sm btn-outline-secondary",
               onclick = sprintf(
-                "navigator.clipboard.writeText(`%s`).then(function() { alert('%s'); });",
-                gsub("`", "\\`", code_sections$individuals),
-                i18n()$t("Code copied!")
+                "copyCodeToClipboard_%s('%s')",
+                gsub("-", "_", id),
+                ns("code_individuals")
               )
             )
           )
@@ -341,6 +367,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
             shiny::tags$pre(
               style = "background-color: #282c34; color: #abb2bf; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.85em; max-height: 400px;",
               shiny::tags$code(
+                id = ns("code_combined"),
                 combined_code
               )
             ),
@@ -350,9 +377,9 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
               icon = shiny::icon("copy"),
               class = "btn-sm btn-outline-secondary",
               onclick = sprintf(
-                "navigator.clipboard.writeText(`%s`).then(function() { alert('%s'); });",
-                gsub("`", "\\`", combined_code),
-                i18n()$t("Code copied!")
+                "copyCodeToClipboard_%s('%s')",
+                gsub("-", "_", id),
+                ns("code_combined")
               )
             )
           )

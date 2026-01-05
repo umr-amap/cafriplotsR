@@ -840,6 +840,199 @@ add_entry_taxa <- function(search_name_tps = NULL,
 }
 
 
+#' Add taxa to database (non-interactive, for Shiny)
+#'
+#' Non-interactive version of add_entry_taxa for use in Shiny applications.
+#' Inserts taxonomic data directly without prompts.
+#'
+#' @param tax_gen Genus name (required)
+#' @param tax_esp Species epithet (optional)
+#' @param tax_fam Family name (required)
+#' @param tax_order Order name (optional)
+#' @param tax_famclass Class name (optional)
+#' @param tax_rank1 Infraspecific rank (optional)
+#' @param tax_name1 Infraspecific name (optional)
+#' @param author1 Author 1 (optional)
+#' @param author2 Author 2 (optional)
+#' @param author3 Author 3 (optional)
+#' @param year_description Year of description (optional)
+#' @param morpho_species Logical, is this a morphotaxon (default FALSE)
+#' @param tax_tax Full name with authors (optional)
+#' @param con Database connection (optional, will create if NULL)
+#'
+#' @return The new taxon ID (idtax_n)
+#' @keywords internal
+#' @export
+.add_taxa_noninteractive <- function(
+    tax_gen = NULL,
+    tax_esp = NULL,
+    tax_fam = NULL,
+    tax_order = NULL,
+    tax_famclass = NULL,
+    tax_rank1 = NULL,
+    tax_name1 = NULL,
+    author1 = NULL,
+    author2 = NULL,
+    author3 = NULL,
+    year_description = NULL,
+    morpho_species = FALSE,
+    tax_tax = NULL,
+    con = NULL
+) {
+  
+  # Validate required fields
+  if (is.null(tax_gen) || nchar(trimws(tax_gen)) == 0) {
+    stop("tax_gen (genus) is required")
+  }
+  if (is.null(tax_fam) || nchar(trimws(tax_fam)) == 0) {
+    stop("tax_fam (family) is required")
+  }
+  
+  # Get connection
+  if (is.null(con)) {
+    con <- call.mydb.taxa()
+  }
+  
+  # Handle pool connections
+  actual_con <- if (inherits(con, "Pool")) {
+    pool::poolCheckout(con)
+  } else {
+    con
+  }
+  
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) {
+      pool::poolReturn(actual_con)
+    }
+  }, add = TRUE)
+  
+  # Prepare new record
+  new_rec <- tibble::tibble(
+    tax_gen = tax_gen,
+    tax_esp = if (!is.null(tax_esp) && nchar(trimws(tax_esp)) > 0) tax_esp else NA_character_,
+    tax_fam = tax_fam,
+    tax_order = if (!is.null(tax_order) && nchar(trimws(tax_order)) > 0) tax_order else NA_character_,
+    tax_famclass = if (!is.null(tax_famclass) && nchar(trimws(tax_famclass)) > 0) tax_famclass else NA_character_,
+    tax_rank01 = if (!is.null(tax_rank1) && nchar(tax_rank1) > 0) tax_rank1 else NA_character_,
+    tax_nam01 = if (!is.null(tax_name1) && nchar(trimws(tax_name1)) > 0) tax_name1 else NA_character_,
+    author1 = if (!is.null(author1) && nchar(trimws(author1)) > 0) author1 else NA_character_,
+    author2 = if (!is.null(author2) && nchar(trimws(author2)) > 0) author2 else NA_character_,
+    author3 = if (!is.null(author3) && nchar(trimws(author3)) > 0) author3 else NA_character_,
+    year_description = if (!is.null(year_description)) year_description else NA_integer_,
+    morpho_species = if (morpho_species) TRUE else FALSE,
+    tax_tax = if (!is.null(tax_tax) && nchar(trimws(tax_tax)) > 0) tax_tax else NA_character_,
+    tax_rank02 = NA_character_,
+    tax_nam02 = NA_character_
+  )
+  
+  # Check for duplicates
+  seek_dup <- dplyr::tbl(actual_con, "table_taxa") %>%
+    dplyr::filter(tax_fam == !!new_rec$tax_fam)
+  
+  if (!is.na(new_rec$tax_gen)) {
+    seek_dup <- seek_dup %>% dplyr::filter(tax_gen == !!new_rec$tax_gen)
+  } else {
+    seek_dup <- seek_dup %>% dplyr::filter(is.na(tax_gen))
+  }
+  
+  if (!is.na(new_rec$tax_esp)) {
+    seek_dup <- seek_dup %>% dplyr::filter(tax_esp == !!new_rec$tax_esp)
+  } else {
+    seek_dup <- seek_dup %>% dplyr::filter(is.na(tax_esp))
+  }
+  
+  if (!is.na(new_rec$tax_rank01)) {
+    seek_dup <- seek_dup %>% dplyr::filter(tax_rank01 == !!new_rec$tax_rank01)
+  } else {
+    seek_dup <- seek_dup %>% dplyr::filter(is.na(tax_rank01))
+  }
+  
+  if (!is.na(new_rec$tax_nam01)) {
+    seek_dup <- seek_dup %>% dplyr::filter(tax_nam01 == !!new_rec$tax_nam01)
+  } else {
+    seek_dup <- seek_dup %>% dplyr::filter(is.na(tax_nam01))
+  }
+  
+  seek_dup <- seek_dup %>% dplyr::collect()
+  
+  if (nrow(seek_dup) > 0) {
+    stop("Taxon already exists in database (ID: ", seek_dup$idtax_n[1], ")")
+  }
+  
+  # Add modification fields
+  new_rec <- .add_modif_field(new_rec)
+
+  # Rename date fields
+  new_rec <- new_rec %>%
+    dplyr::rename(
+      data_modif_m = date_modif_m,
+      data_modif_y = date_modif_y,
+      data_modif_d = date_modif_d
+    )
+
+  # Determine taxonomic level and find/create parent entry for id_parent
+  taxon_level <- if (!is.na(new_rec$tax_nam01)) {
+    "infraspecific"
+  } else if (!is.na(new_rec$tax_esp)) {
+    "species"
+  } else if (!is.na(new_rec$tax_gen)) {
+    "genus"
+  } else if (!is.na(new_rec$tax_fam)) {
+    "family"
+  } else if (!is.na(new_rec$tax_order)) {
+    "order"
+  } else {
+    "class"  # No parent for class level
+  }
+
+  # Find or create parent entry (uses hierarchy helper functions)
+  parent_id <- tryCatch({
+    if (taxon_level != "class") {
+      .find_or_create_parent_entry(
+        con = actual_con,
+        tax_gen = new_rec$tax_gen,
+        tax_fam = new_rec$tax_fam,
+        tax_order = new_rec$tax_order,
+        tax_famclass = new_rec$tax_famclass,
+        tax_esp = new_rec$tax_esp,
+        level = taxon_level
+      )
+    } else {
+      NA_integer_
+    }
+  }, error = function(e) {
+    cli::cli_alert_warning("Could not determine parent: {e$message}. Setting id_parent to NULL.")
+    NA_integer_
+  })
+
+  # Add id_parent to record
+  new_rec$id_parent <- if (!is.null(parent_id) && !is.na(parent_id)) {
+    as.integer(parent_id)
+  } else {
+    NA_integer_
+  }
+
+  if (!is.na(new_rec$id_parent)) {
+    cli::cli_alert_info("Linked to parent ID: {new_rec$id_parent}")
+  }
+
+  # Insert into database
+  cli::cli_alert_info("Inserting new taxon: {tax_gen} {tax_esp}")
+  DBI::dbWriteTable(actual_con, "table_taxa", new_rec, append = TRUE, row.names = FALSE)
+  
+  # Get the new ID
+  rs <- DBI::dbSendQuery(actual_con, "SELECT MAX(idtax_n) FROM table_taxa")
+  lastval <- DBI::dbFetch(rs)
+  DBI::dbClearResult(rs)
+  
+  new_id <- lastval$max
+  cli::cli_alert_success("Taxon added with ID: {new_id}")
+  
+  return(new_id)
+}
+
+
+
 
 
 

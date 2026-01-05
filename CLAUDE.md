@@ -575,7 +575,6 @@ session$onSessionEnded(function() {
     cli::cli_alert_warning("Failed to cleanup connections: {e$message}")
   })
   shiny::stopApp()
-  q("no")
 })
 ```
 

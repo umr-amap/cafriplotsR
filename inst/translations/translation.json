@@ -2744,6 +2744,978 @@
     {
       "en": "Manually reviewed:",
       "fr": "Révisés manuellement :"
+    },
+    {
+      "en": "Download Plot Metadata",
+      "fr": "Télécharger les métadonnées des placettes"
+    },
+    {
+      "en": "Taxonomic Backbone Management",
+      "fr": "Gestion du référentiel taxonomique"
+    },
+    {
+      "en": "Write Access Enabled",
+      "fr": "Accès en écriture activé"
+    },
+    {
+      "en": "Read-Only Mode",
+      "fr": "Mode lecture seule"
+    },
+    {
+      "en": "Browse & Search",
+      "fr": "Parcourir et rechercher"
+    },
+    {
+      "en": "Browse & Search Taxonomy",
+      "fr": "Parcourir et rechercher la taxonomie"
+    },
+    {
+      "en": "Search and explore the taxonomic backbone database",
+      "fr": "Rechercher et explorer la base de données taxonomique"
+    },
+    {
+      "en": "Search Taxonomy",
+      "fr": "Rechercher dans la taxonomie"
+    },
+    {
+      "en": "Genus",
+      "fr": "Genre"
+    },
+    {
+      "en": "Family",
+      "fr": "Famille"
+    },
+    {
+      "en": "Exact match",
+      "fr": "Correspondance exacte"
+    },
+    {
+      "en": "Synonymy filter",
+      "fr": "Filtre de synonymie"
+    },
+    {
+      "en": "All taxa",
+      "fr": "Tous les taxons"
+    },
+    {
+      "en": "Accepted names only",
+      "fr": "Noms acceptés seulement"
+    },
+    {
+      "en": "Synonyms only",
+      "fr": "Synonymes seulement"
+    },
+    {
+      "en": "Search",
+      "fr": "Rechercher"
+    },
+    {
+      "en": "Database Statistics",
+      "fr": "Statistiques de la base"
+    },
+    {
+      "en": "Total taxa",
+      "fr": "Total taxons"
+    },
+    {
+      "en": "Genera",
+      "fr": "Genres"
+    },
+    {
+      "en": "Synonyms",
+      "fr": "Synonymes"
+    },
+    {
+      "en": "Accepted names",
+      "fr": "Noms acceptés"
+    },
+    {
+      "en": "Search Results",
+      "fr": "Résultats de recherche"
+    },
+    {
+      "en": "No taxa found matching criteria",
+      "fr": "Aucun taxon trouvé correspondant aux critères"
+    },
+    {
+      "en": "Found %d taxa",
+      "fr": "%d taxons trouvés"
+    },
+    {
+      "en": "Use the search filters above and click Search to browse taxa",
+      "fr": "Utilisez les filtres ci-dessus et cliquez sur Rechercher pour parcourir les taxons"
+    },
+    {
+      "en": "Results",
+      "fr": "Résultats"
+    },
+    {
+      "en": "Selected Taxon",
+      "fr": "Taxon sélectionné"
+    },
+    {
+      "en": "Author",
+      "fr": "Auteur"
+    },
+    {
+      "en": "Rank",
+      "fr": "Rang"
+    },
+    {
+      "en": "Status",
+      "fr": "Statut"
+    },
+    {
+      "en": "Accepted name",
+      "fr": "Nom accepté"
+    },
+    {
+      "en": "Use Update Taxon or Synonymy Management tabs to modify this record",
+      "fr": "Utilisez les onglets Mise à jour ou Gestion des synonymies pour modifier cet enregistrement"
+    },
+    {
+      "en": "Could not load statistics",
+      "fr": "Impossible de charger les statistiques"
+    },
+    {
+      "en": "Search error:",
+      "fr": "Erreur de recherche :"
+    },
+    {
+      "en": "Add New Taxon",
+      "fr": "Ajouter un nouveau taxon"
+    },
+    {
+      "en": "Add New Taxonomic Entry",
+      "fr": "Ajouter une nouvelle entrée taxonomique"
+    },
+    {
+      "en": "Create new taxonomic names with optional Tropicos integration",
+      "fr": "Créer de nouveaux noms taxonomiques avec intégration Tropicos optionnelle"
+    },
+    {
+      "en": "Update Taxon",
+      "fr": "Mettre à jour le taxon"
+    },
+    {
+      "en": "Update Existing Taxon",
+      "fr": "Mettre à jour un taxon existant"
+    },
+    {
+      "en": "Modify taxonomic information for existing records",
+      "fr": "Modifier les informations taxonomiques des enregistrements existants"
+    },
+    {
+      "en": "Synonymy Management",
+      "fr": "Gestion des synonymies"
+    },
+    {
+      "en": "Manage Taxonomic Synonymy",
+      "fr": "Gérer les synonymies taxonomiques"
+    },
+    {
+      "en": "Set or cancel synonym relationships between taxa",
+      "fr": "Définir ou annuler les relations de synonymie entre taxons"
+    },
+    {
+      "en": "Hierarchy Viewer",
+      "fr": "Visualisation de la hiérarchie"
+    },
+    {
+      "en": "About Taxonomic Backbone Management",
+      "fr": "À propos de la gestion du référentiel taxonomique"
+    },
+    {
+      "en": "This tool provides a user-friendly interface for managing the taxonomic backbone database.",
+      "fr": "Cet outil fournit une interface conviviale pour gérer la base de données taxonomique."
+    },
+    {
+      "en": "It allows authorized users to add new taxa, update existing records, and manage synonymy relationships.",
+      "fr": "Il permet aux utilisateurs autorisés d'ajouter de nouveaux taxons, de mettre à jour les enregistrements existants et de gérer les relations de synonymie."
+    },
+    {
+      "en": "Search and browse taxonomic hierarchy",
+      "fr": "Rechercher et parcourir la hiérarchie taxonomique"
+    },
+    {
+      "en": "Add new taxonomic entries with Tropicos integration",
+      "fr": "Ajouter de nouvelles entrées taxonomiques avec intégration Tropicos"
+    },
+    {
+      "en": "Update existing taxonomic information",
+      "fr": "Mettre à jour les informations taxonomiques existantes"
+    },
+    {
+      "en": "Manage synonym relationships",
+      "fr": "Gérer les relations de synonymie"
+    },
+    {
+      "en": "Visualize taxonomic hierarchy",
+      "fr": "Visualiser la hiérarchie taxonomique"
+    },
+    {
+      "en": "Permission-based access control",
+      "fr": "Contrôle d'accès basé sur les permissions"
+    },
+    {
+      "en": "Database Permissions",
+      "fr": "Permissions de la base de données"
+    },
+    {
+      "en": "Read Access:",
+      "fr": "Accès en lecture :"
+    },
+    {
+      "en": "All authenticated users can browse and search",
+      "fr": "Tous les utilisateurs authentifiés peuvent parcourir et rechercher"
+    },
+    {
+      "en": "Write Access:",
+      "fr": "Accès en écriture :"
+    },
+    {
+      "en": "Only users with INSERT privileges can modify data",
+      "fr": "Seuls les utilisateurs avec privilèges INSERT peuvent modifier les données"
+    },
+    {
+      "en": "Backup:",
+      "fr": "Sauvegarde :"
+    },
+    {
+      "en": "All modifications are logged for audit trail",
+      "fr": "Toutes les modifications sont enregistrées pour traçabilité"
+    },
+    {
+      "en": "Tropicos Search",
+      "fr": "Recherche Tropicos"
+    },
+    {
+      "en": "Taxonomic Info",
+      "fr": "Info taxonomique"
+    },
+    {
+      "en": "Growth Form & Synonymy",
+      "fr": "Port et synonymie"
+    },
+    {
+      "en": "Review & Submit",
+      "fr": "Révision et soumission"
+    },
+    {
+      "en": "Next: Taxonomic Info",
+      "fr": "Suivant : Info taxonomique"
+    },
+    {
+      "en": "Next: Growth Form",
+      "fr": "Suivant : Port"
+    },
+    {
+      "en": "Next: Review",
+      "fr": "Suivant : Révision"
+    },
+    {
+      "en": "Step 1: Search Tropicos Database (Optional)",
+      "fr": "Étape 1 : Rechercher dans Tropicos (optionnel)"
+    },
+    {
+      "en": "Search Tropicos to auto-fill taxonomic information, or skip to manual entry",
+      "fr": "Rechercher dans Tropicos pour remplir automatiquement les informations taxonomiques, ou passer à la saisie manuelle"
+    },
+    {
+      "en": "Scientific name to search",
+      "fr": "Nom scientifique à rechercher"
+    },
+    {
+      "en": "Search Tropicos",
+      "fr": "Rechercher dans Tropicos"
+    },
+    {
+      "en": "Skip - Manual Entry",
+      "fr": "Passer - Saisie manuelle"
+    },
+    {
+      "en": "Please enter a name to search",
+      "fr": "Veuillez entrer un nom à rechercher"
+    },
+    {
+      "en": "No results found on Tropicos",
+      "fr": "Aucun résultat trouvé dans Tropicos"
+    },
+    {
+      "en": "Searching Tropicos...",
+      "fr": "Recherche dans Tropicos..."
+    },
+    {
+      "en": "No Tropicos results yet - enter a name and click Search",
+      "fr": "Pas encore de résultats Tropicos - entrez un nom et cliquez sur Rechercher"
+    },
+    {
+      "en": "Tropicos Results",
+      "fr": "Résultats Tropicos"
+    },
+    {
+      "en": "Use Selected Result",
+      "fr": "Utiliser le résultat sélectionné"
+    },
+    {
+      "en": "Please select a result from the table",
+      "fr": "Veuillez sélectionner un résultat dans le tableau"
+    },
+    {
+      "en": "Tropicos data loaded - proceed to next step",
+      "fr": "Données Tropicos chargées - passez à l étape suivante"
+    },
+    {
+      "en": "Step 2: Enter Taxonomic Information",
+      "fr": "Étape 2 : Entrer les informations taxonomiques"
+    },
+    {
+      "en": "Required Fields",
+      "fr": "Champs requis"
+    },
+    {
+      "en": "Species epithet",
+      "fr": "Épithète spécifique"
+    },
+    {
+      "en": "Higher Taxonomy (auto-filled if possible)",
+      "fr": "Taxonomie supérieure (remplie automatiquement si possible)"
+    },
+    {
+      "en": "Class",
+      "fr": "Classe"
+    },
+    {
+      "en": "Full name with authors",
+      "fr": "Nom complet avec auteurs"
+    },
+    {
+      "en": "Infraspecific (if applicable)",
+      "fr": "Infraspécifique (si applicable)"
+    },
+    {
+      "en": "Infraspecific rank",
+      "fr": "Rang infraspécifique"
+    },
+    {
+      "en": "Infraspecific name",
+      "fr": "Nom infraspécifique"
+    },
+    {
+      "en": "Authors & Year",
+      "fr": "Auteurs et année"
+    },
+    {
+      "en": "Author 1",
+      "fr": "Auteur 1"
+    },
+    {
+      "en": "Author 2",
+      "fr": "Auteur 2"
+    },
+    {
+      "en": "Author 3",
+      "fr": "Auteur 3"
+    },
+    {
+      "en": "This is a morphotaxon",
+      "fr": "Ceci est un morphotaxon"
+    },
+    {
+      "en": "Genus is required",
+      "fr": "Le genre est requis"
+    },
+    {
+      "en": "Family is required",
+      "fr": "La famille est requise"
+    },
+    {
+      "en": "Step 3: Growth Form & Synonymy (Optional)",
+      "fr": "Étape 3 : Port et synonymie (optionnel)"
+    },
+    {
+      "en": "Select growth form characteristics for this taxon",
+      "fr": "Sélectionner les caractéristiques de port pour ce taxon"
+    },
+    {
+      "en": "Growth form selection will be available in future update",
+      "fr": "La sélection du port sera disponible dans une future mise à jour"
+    },
+    {
+      "en": "This taxon is a synonym of another",
+      "fr": "Ce taxon est un synonyme d un autre"
+    },
+    {
+      "en": "Accepted genus",
+      "fr": "Genre accepté"
+    },
+    {
+      "en": "Accepted species",
+      "fr": "Espèce acceptée"
+    },
+    {
+      "en": "Or accepted taxon ID",
+      "fr": "Ou ID du taxon accepté"
+    },
+    {
+      "en": "Step 4: Review & Submit",
+      "fr": "Étape 4 : Révision et soumission"
+    },
+    {
+      "en": "Review New Taxon",
+      "fr": "Réviser le nouveau taxon"
+    },
+    {
+      "en": "Full name:",
+      "fr": "Nom complet :"
+    },
+    {
+      "en": "Morphotaxon:",
+      "fr": "Morphotaxon :"
+    },
+    {
+      "en": "Yes",
+      "fr": "Oui"
+    },
+    {
+      "en": "No",
+      "fr": "Non"
+    },
+    {
+      "en": "Synonym of:",
+      "fr": "Synonyme de :"
+    },
+    {
+      "en": "Please review carefully - this will add a new entry to the database",
+      "fr": "Veuillez réviser attentivement - ceci ajoutera une nouvelle entrée dans la base de données"
+    },
+    {
+      "en": "Submit - Add Taxon",
+      "fr": "Soumettre - Ajouter le taxon"
+    },
+    {
+      "en": "Taxon added successfully!",
+      "fr": "Taxon ajouté avec succès !"
+    },
+    {
+      "en": "Error adding taxon:",
+      "fr": "Erreur lors de l ajout du taxon :"
+    },
+    {
+      "en": "Adding taxon to database...",
+      "fr": "Ajout du taxon à la base de données..."
+    },
+    {
+      "en": "Please select a taxon from the Browse & Search tab first",
+      "fr": "Veuillez d'abord sélectionner un taxon dans l'onglet Parcourir et Rechercher"
+    },
+    {
+      "en": "Edit This Taxon",
+      "fr": "Modifier ce taxon"
+    },
+    {
+      "en": "Edit Taxonomic Fields",
+      "fr": "Modifier les champs taxonomiques"
+    },
+    {
+      "en": "Modify the fields you want to update. Leave others unchanged.",
+      "fr": "Modifiez les champs que vous souhaitez mettre à jour. Laissez les autres inchangés."
+    },
+    {
+      "en": "No changes yet - modify fields above to see changes",
+      "fr": "Aucun changement pour le moment - modifiez les champs ci-dessus pour voir les changements"
+    },
+    {
+      "en": "Modified Fields:",
+      "fr": "Champs modifiés :"
+    },
+    {
+      "en": "No changes to submit",
+      "fr": "Aucun changement à soumettre"
+    },
+    {
+      "en": "Error updating taxon:",
+      "fr": "Erreur lors de la mise à jour du taxon :"
+    },
+    {
+      "en": "Updating taxon...",
+      "fr": "Mise à jour du taxon en cours..."
+    },
+    {
+      "en": "Taxon updated successfully!",
+      "fr": "Taxon mis à jour avec succès !"
+    },
+    {
+      "en": "Submit Changes",
+      "fr": "Soumettre les modifications"
+    },
+    {
+      "en": "Set as Synonym",
+      "fr": "Définir comme synonyme"
+    },
+    {
+      "en": "Already a synonym",
+      "fr": "Déjà un synonyme"
+    },
+    {
+      "en": "Not a synonym",
+      "fr": "Pas un synonyme"
+    },
+    {
+      "en": "Accepted taxon ID:",
+      "fr": "ID du taxon accepté :"
+    },
+    {
+      "en": "Set Taxon as Synonym",
+      "fr": "Définir le taxon comme synonyme"
+    },
+    {
+      "en": "Provide information to identify the accepted taxon name",
+      "fr": "Fournissez des informations pour identifier le nom accepté"
+    },
+    {
+      "en": "This will mark the selected taxon as a synonym. All linked data will reference the accepted name.",
+      "fr": "Cela marquera le taxon sélectionné comme synonyme. Toutes les données liées référenceront le nom accepté."
+    },
+    {
+      "en": "Confirm - Set as Synonym",
+      "fr": "Confirmer - Définir comme synonyme"
+    },
+    {
+      "en": "Cancel Synonymy",
+      "fr": "Annuler la synonymie"
+    },
+    {
+      "en": "This will remove the synonym relationship and restore the taxon as an accepted name.",
+      "fr": "Cela supprimera la relation de synonymie et restaurera le taxon comme nom accepté."
+    },
+    {
+      "en": "Confirm - Cancel Synonymy",
+      "fr": "Confirmer - Annuler la synonymie"
+    },
+    {
+      "en": "Please provide at least genus, species, or taxon ID of the accepted name",
+      "fr": "Veuillez fournir au moins le genre, l'espèce ou l'ID du taxon accepté"
+    },
+    {
+      "en": "Synonym relationship set successfully!",
+      "fr": "Relation de synonymie définie avec succès !"
+    },
+    {
+      "en": "Error setting synonym:",
+      "fr": "Erreur lors de la définition de la synonymie :"
+    },
+    {
+      "en": "Setting synonym relationship...",
+      "fr": "Définition de la relation de synonymie en cours..."
+    },
+    {
+      "en": "Synonymy cancelled successfully!",
+      "fr": "Synonymie annulée avec succès !"
+    },
+    {
+      "en": "Error cancelling synonymy:",
+      "fr": "Erreur lors de l'annulation de la synonymie :"
+    },
+    {
+      "en": "Cancelling synonymy...",
+      "fr": "Annulation de la synonymie en cours..."
+    },
+    {
+      "en": "Growth Form",
+      "fr": "Forme de croissance"
+    },
+    {
+      "en": "Step 3: Growth Form (Optional)",
+      "fr": "Étape 3 : Forme de croissance (Optionnel)"
+    },
+    {
+      "en": "Set Synonymy (Optional)",
+      "fr": "Définir synonymie (Optionnel)"
+    },
+    {
+      "en": "Step 5: Set as Synonym (Optional)",
+      "fr": "Étape 5 : Définir comme synonyme (Optionnel)"
+    },
+    {
+      "en": "Taxon already exists as SYNONYM",
+      "fr": "Le taxon existe déjà comme SYNONYME"
+    },
+    {
+      "en": "ID: %s, Synonym of ID: %s",
+      "fr": "ID : %s, Synonyme de ID : %s"
+    },
+    {
+      "en": "This taxon is already in the database but marked as a synonym.",
+      "fr": "Ce taxon est déjà dans la base de données mais marqué comme synonyme."
+    },
+    {
+      "en": "Cancel its synonymy to make it an accepted name",
+      "fr": "Annuler sa synonymie pour en faire un nom accepté"
+    },
+    {
+      "en": "Taxon already exists as ACCEPTED name",
+      "fr": "Le taxon existe déjà comme nom ACCEPTÉ"
+    },
+    {
+      "en": "Cannot add duplicate. Please use the Update or Synonymy tabs to modify this taxon.",
+      "fr": "Impossible d'ajouter un doublon. Veuillez utiliser les onglets Mise à jour ou Synonymie pour modifier ce taxon."
+    },
+    {
+      "en": "Taxon does not exist in database - you can proceed with addition",
+      "fr": "Le taxon n'existe pas dans la base de données - vous pouvez procéder à l'ajout"
+    },
+    {
+      "en": "Synonymy cancelled! The taxon is now an accepted name.",
+      "fr": "Synonymie annulée ! Le taxon est maintenant un nom accepté."
+    },
+    {
+      "en": "Checking if taxon exists...",
+      "fr": "Vérification de l'existence du taxon..."
+    },
+    {
+      "en": "This taxon already exists as an accepted name. Cannot add duplicate.",
+      "fr": "Ce taxon existe déjà comme nom accepté. Impossible d'ajouter un doublon."
+    },
+    {
+      "en": "This taxon exists as a synonym. See options above.",
+      "fr": "Ce taxon existe comme synonyme. Voir les options ci-dessus."
+    },
+    {
+      "en": "After adding, you can optionally set this taxon as a synonym of another",
+      "fr": "Après ajout, vous pouvez éventuellement définir ce taxon comme synonyme d'un autre"
+    },
+    {
+      "en": "Taxon successfully added!",
+      "fr": "Taxon ajouté avec succès !"
+    },
+    {
+      "en": "New taxon ID: %s",
+      "fr": "ID du nouveau taxon : %s"
+    },
+    {
+      "en": "Do you want to set this taxon as a synonym?",
+      "fr": "Voulez-vous définir ce taxon comme synonyme ?"
+    },
+    {
+      "en": "If this taxon should be a synonym of another, provide the accepted taxon information below",
+      "fr": "Si ce taxon doit être un synonyme d'un autre, fournissez les informations du taxon accepté ci-dessous"
+    },
+    {
+      "en": "Finish - Start New Addition",
+      "fr": "Terminer - Commencer un nouvel ajout"
+    },
+    {
+      "en": "Error: Could not determine new taxon ID",
+      "fr": "Erreur : Impossible de déterminer l'ID du nouveau taxon"
+    },
+    {
+      "en": "Ready to add another taxon",
+      "fr": "Prêt à ajouter un autre taxon"
+    },
+    {
+      "en": "Growth Form Selection",
+      "fr": "Sélection de la forme de croissance"
+    },
+    {
+      "en": "Select growth forms hierarchically. You can add multiple growth forms.",
+      "fr": "Sélectionnez les formes de croissance de manière hiérarchique. Vous pouvez ajouter plusieurs formes de croissance."
+    },
+    {
+      "en": "Level 1: Primary Growth Form",
+      "fr": "Niveau 1 : Forme de croissance primaire"
+    },
+    {
+      "en": "Select primary growth form",
+      "fr": "Sélectionnez la forme de croissance primaire"
+    },
+    {
+      "en": "Level 2: Refine Growth Form",
+      "fr": "Niveau 2 : Affiner la forme de croissance"
+    },
+    {
+      "en": "Select specific form",
+      "fr": "Sélectionnez la forme spécifique"
+    },
+    {
+      "en": "Level 3: Final Specification",
+      "fr": "Niveau 3 : Spécification finale"
+    },
+    {
+      "en": "Select final form",
+      "fr": "Sélectionnez la forme finale"
+    },
+    {
+      "en": "Add This Growth Form",
+      "fr": "Ajouter cette forme de croissance"
+    },
+    {
+      "en": "No growth forms selected yet",
+      "fr": "Aucune forme de croissance sélectionnée pour le moment"
+    },
+    {
+      "en": "Selected Growth Forms:",
+      "fr": "Formes de croissance sélectionnées :"
+    },
+    {
+      "en": "Source Information",
+      "fr": "Informations sur la source"
+    },
+    {
+      "en": "Basis of Record",
+      "fr": "Base de l'enregistrement"
+    },
+    {
+      "en": "Living Specimen",
+      "fr": "Spécimen vivant"
+    },
+    {
+      "en": "Preserved Specimen",
+      "fr": "Spécimen préservé"
+    },
+    {
+      "en": "Fossil Specimen",
+      "fr": "Spécimen fossile"
+    },
+    {
+      "en": "Literature Data",
+      "fr": "Données de littérature"
+    },
+    {
+      "en": "Trait Database",
+      "fr": "Base de données de traits"
+    },
+    {
+      "en": "Expert Knowledge",
+      "fr": "Connaissance d'expert"
+    },
+    {
+      "en": "Measurement Remarks (optional)",
+      "fr": "Remarques sur les mesures (optionnel)"
+    },
+    {
+      "en": "Additional notes or references",
+      "fr": "Notes ou références additionnelles"
+    },
+    {
+      "en": "Growth form added!",
+      "fr": "Forme de croissance ajoutée !"
+    },
+    {
+      "en": "Select growth form characteristics for this taxon. You can skip this step if you do not have this information.",
+      "fr": "Sélectionnez les caractéristiques de forme de croissance pour ce taxon. Vous pouvez sauter cette étape si vous n avez pas cette information."
+    },
+    {
+      "en": "Warning: Growth forms not added:",
+      "fr": "Avertissement : Formes de croissance non ajoutées :"
+    },
+    {
+      "en": "Family not found. Did you mean:",
+      "fr": "Famille non trouvée. Vouliez-vous dire :"
+    },
+    {
+      "en": "Family not found in taxonomic backbone. Please enter Order and Class manually, or add the family to the backbone first.",
+      "fr": "Famille non trouvée dans le référentiel taxonomique. Veuillez entrer l Ordre et la Classe manuellement, ou ajouter d abord la famille au référentiel."
+    },
+    {
+      "en": "Order is required because the family was not found in the taxonomic backbone",
+      "fr": "L Ordre est obligatoire car la famille n a pas été trouvée dans le référentiel taxonomique"
+    },
+    {
+      "en": "Class is required because the family was not found in the taxonomic backbone",
+      "fr": "La Classe est obligatoire car la famille n a pas été trouvée dans le référentiel taxonomique"
+    },
+    {
+      "en": "Step 5: Manage Synonymy (Optional)",
+      "fr": "Étape 5 : Gérer la synonymie (Optionnel)"
+    },
+    {
+      "en": "Option 1: Set an existing taxon as synonym of this new entry",
+      "fr": "Option 1 : Définir un taxon existant comme synonyme de cette nouvelle entrée"
+    },
+    {
+      "en": "Existing genus (to become synonym)",
+      "fr": "Genre existant (à devenir synonyme)"
+    },
+    {
+      "en": "Set Existing as Synonym of New",
+      "fr": "Définir l existant comme synonyme du nouveau"
+    },
+    {
+      "en": "Existing taxon set as synonym of new entry!",
+      "fr": "Taxon existant défini comme synonyme de la nouvelle entrée !"
+    },
+    {
+      "en": "Existing species (to become synonym)",
+      "fr": "Espèce existante (à devenir synonyme)"
+    },
+    {
+      "en": "Or existing taxon ID",
+      "fr": "Ou ID du taxon existant"
+    },
+    {
+      "en": "Option 2: Set this new entry as synonym of an existing taxon",
+      "fr": "Option 2 : Définir cette nouvelle entrée comme synonyme d un taxon existant"
+    },
+    {
+      "en": "Set New as Synonym of Existing",
+      "fr": "Définir le nouveau comme synonyme de l existant"
+    },
+    {
+      "en": "Please provide at least genus, species, or taxon ID of the existing entry",
+      "fr": "Veuillez fournir au moins le genre, l espèce ou l ID du taxon existant"
+    },
+    {
+      "en": "Existing taxon not found",
+      "fr": "Taxon existant non trouvé"
+    },
+    {
+      "en": "Multiple taxa found. Please be more specific or use taxon ID",
+      "fr": "Plusieurs taxons trouvés. Veuillez être plus précis ou utiliser l ID du taxon"
+    },
+    {
+      "en": "Successfully updated %d synonyms to point to new taxon",
+      "fr": "%d synonymes mis à jour avec succès pour pointer vers le nouveau taxon"
+    },
+    {
+      "en": "Multiple taxa found - please select one:",
+      "fr": "Plusieurs taxons trouvés - veuillez en sélectionner un :"
+    },
+    {
+      "en": "Select taxon to set as synonym",
+      "fr": "Sélectionner le taxon à définir comme synonyme"
+    },
+    {
+      "en": "Select accepted taxon",
+      "fr": "Sélectionner le taxon accepté"
+    },
+    {
+      "en": "Multiple taxa found. Please select one from the dropdown above.",
+      "fr": "Plusieurs taxons trouvés. Veuillez en sélectionner un dans la liste déroulante ci-dessus."
+    },
+    {
+      "en": "Use Selected Result(s)",
+      "fr": "Utiliser le(s) résultat(s) sélectionné(s)"
+    },
+    {
+      "en": "Select one result to edit details, or select multiple results to add them all at once (without growth forms).",
+      "fr": "Sélectionnez un résultat pour modifier les détails, ou sélectionnez plusieurs résultats pour les ajouter tous en une fois (sans formes de croissance)."
+    },
+    {
+      "en": "Processing %d of %d",
+      "fr": "Traitement de %d sur %d"
+    },
+    {
+      "en": "Adding selected taxa...",
+      "fr": "Ajout des taxons sélectionnés..."
+    },
+    {
+      "en": "Batch addition complete: %d added, %d skipped, %d failed",
+      "fr": "Ajout en lot terminé : %d ajoutés, %d ignorés, %d échoués"
+    },
+    {
+      "en": "Batch Addition Summary",
+      "fr": "Résumé de l'ajout en lot"
+    },
+    {
+      "en": "Successfully added: %d",
+      "fr": "Ajoutés avec succès : %d"
+    },
+    {
+      "en": "Skipped: %d",
+      "fr": "Ignorés : %d"
+    },
+    {
+      "en": "Failed: %d",
+      "fr": "Échoués : %d"
+    },
+    {
+      "en": "Already exists (ID: %s)",
+      "fr": "Existe déjà (ID : %s)"
+    },
+    {
+      "en": "Structured search (separate fields)",
+      "fr": "Recherche structurée (champs séparés)"
+    },
+    {
+      "en": "Binomial search (e.g., Genus species)",
+      "fr": "Recherche binomiale (ex: Genre espèce)"
+    },
+    {
+      "en": "Binomial name (genus + species)",
+      "fr": "Nom binomial (genre + espèce)"
+    },
+    {
+      "en": "e.g., Gilbertiodendron dewevrei or gilbertiodendron dewevrei",
+      "fr": "ex: Gilbertiodendron dewevrei ou gilbertiodendron dewevrei"
+    },
+    {
+      "en": "Case-insensitive. Fuzzy search by default (uncheck 'Exact match' below for fuzzy matching).",
+      "fr": "Insensible à la casse. Recherche floue par défaut (décocher 'Correspondance exacte' ci-dessous pour la recherche floue)."
+    },
+    {
+      "en": "Search mode:",
+      "fr": "Mode de recherche :"
+    },
+    {
+      "en": "Advanced options",
+      "fr": "Options avancées"
+    },
+    {
+      "en": "Search by Taxon ID",
+      "fr": "Rechercher par ID de taxon"
+    },
+    {
+      "en": "Case-insensitive. Uncheck 'Exact match' below for fuzzy matching.",
+      "fr": "Insensible à la casse. Décocher 'Correspondance exacte' ci-dessous pour la recherche floue."
+    },
+    {
+      "en": "Hierarchy View",
+      "fr": "Vue hiérarchique"
+    },
+    {
+      "en": "Taxonomic Hierarchy View",
+      "fr": "Vue hiérarchique taxonomique"
+    },
+    {
+      "en": "Visualize the hierarchical structure of selected taxa",
+      "fr": "Visualiser la structure hiérarchique des taxons sélectionnés"
+    },
+    {
+      "en": "Taxonomic Hierarchy",
+      "fr": "Hiérarchie taxonomique"
+    },
+    {
+      "en": "Path: ",
+      "fr": "Chemin : "
+    },
+    {
+      "en": "Children Summary",
+      "fr": "Résumé des enfants"
+    },
+    {
+      "en": "Total children:",
+      "fr": "Total enfants :"
+    },
+    {
+      "en": "Genera:",
+      "fr": "Genres :"
+    },
+    {
+      "en": "Infraspecific:",
+      "fr": "Infra-spécifiques :"
+    },
+    {
+      "en": "Families:",
+      "fr": "Familles :"
+    },
+    {
+      "en": "Orders:",
+      "fr": "Ordres :"
+    },
+    {
+      "en": "Could not load hierarchy for this taxon. The id_parent column may not be populated yet.",
+      "fr": "Impossible de charger la hiérarchie pour ce taxon. La colonne id_parent n'est peut-être pas encore remplie."
     }
   ]
 }
