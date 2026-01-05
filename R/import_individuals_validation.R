@@ -271,7 +271,7 @@ validate_individual_data <- function(individuals_data,
   # 5. Tag uniqueness within plot (in import data)
   cli::cli_alert_info("Checking tag uniqueness within plots...")
   unique_check <- .validate_tag_uniqueness_import(validated_individuals)
-  errors <- c(errors, unique_check)
+  warnings <- c(warnings, unique_check)  # Warning only - duplicate tags may be intentional
 
   # 6. Tag conflicts with existing database
   cli::cli_alert_info("Checking for conflicts with existing individuals...")
@@ -596,7 +596,7 @@ validate_individual_data <- function(individuals_data,
 
   # Check which taxa exist (use dplyr to support both pools and regular connections)
   taxa_table <- tryCatch({
-    dplyr::tbl(con_taxa, "taxonomic_table") %>%
+    dplyr::tbl(con_taxa, "table_taxa") %>%
       dplyr::select(idtax_n) %>%
       dplyr::distinct() %>%
       dplyr::collect()
@@ -606,7 +606,7 @@ validate_individual_data <- function(individuals_data,
 
   if (is.null(taxa_table)) {
     warnings <- c(warnings, list(
-      "Could not read taxonomic_table - skipping taxonomy validation"
+      "Could not read table_taxa - skipping taxonomy validation"
     ))
     return(list(errors = errors, warnings = warnings))
   }
