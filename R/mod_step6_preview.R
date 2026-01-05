@@ -98,6 +98,20 @@ mod_step6_preview_server <- function(id, validation_result) {
       }
     })
 
+    # Helper: Extract displayable data frame (handles both plots and individuals import)
+    display_data <- shiny::reactive({
+      shiny::req(cleaned_data())
+      data <- cleaned_data()
+
+      # For individuals import (list with individuals + features)
+      if (is.list(data) && !is.data.frame(data) && "individuals" %in% names(data)) {
+        return(data$individuals)
+      }
+
+      # For plots import (single data frame)
+      return(data)
+    })
+
     # UTM to Geographic conversion
     shiny::observeEvent(input$convert_utm, {
       shiny::req(input$utm_zone, input$utm_hemisphere, cleaned_data())
@@ -237,9 +251,9 @@ mod_step6_preview_server <- function(id, validation_result) {
 
     # Map preview UI
     output$map_preview_ui <- shiny::renderUI({
-      shiny::req(cleaned_data())
+      shiny::req(display_data())
 
-      data <- cleaned_data()
+      data <- display_data()
 
       # Check if coordinates are available
       has_coords <- all(c("ddlat", "ddlon") %in% names(data))
@@ -475,10 +489,10 @@ mod_step6_preview_server <- function(id, validation_result) {
 
     # Data preview table
     output$data_preview <- DT::renderDT({
-      shiny::req(cleaned_data())
+      shiny::req(display_data())
 
       # Show first 100 rows
-      preview_data <- head(cleaned_data(), 100)
+      preview_data <- head(display_data(), 100)
 
       # Enrich lookup columns with readable names (replace IDs with names for display)
       preview_data_enriched <- .enrich_preview_with_lookup_names(preview_data)
@@ -499,7 +513,7 @@ mod_step6_preview_server <- function(id, validation_result) {
         caption = sprintf(
           "Showing %d of %d total rows",
           nrow(preview_data_enriched),
-          nrow(cleaned_data())
+          nrow(display_data())
         )
       ) %>%
         DT::formatStyle(
@@ -514,10 +528,10 @@ mod_step6_preview_server <- function(id, validation_result) {
         paste0("cleaned_data_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".xlsx")
       },
       content = function(file) {
-        shiny::req(cleaned_data())
+        shiny::req(display_data())
 
         # Enrich data with lookup names (same as preview display)
-        enriched_data <- .enrich_preview_with_lookup_names(cleaned_data())
+        enriched_data <- .enrich_preview_with_lookup_names(display_data())
 
         writexl::write_xlsx(enriched_data, file)
 
@@ -535,10 +549,10 @@ mod_step6_preview_server <- function(id, validation_result) {
         paste0("cleaned_data_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
       },
       content = function(file) {
-        shiny::req(cleaned_data())
+        shiny::req(display_data())
 
         # Enrich data with lookup names (same as preview display)
-        enriched_data <- .enrich_preview_with_lookup_names(cleaned_data())
+        enriched_data <- .enrich_preview_with_lookup_names(display_data())
 
         write.csv(enriched_data, file, row.names = FALSE)
 
