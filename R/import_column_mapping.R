@@ -21,7 +21,8 @@
       "site_id", "siteid", "site.id", 
       "plot no", "plot_no", "plotno", "plot number", "plot_number",
       "transect_id", "transect_name", "transect", "plot", "transect_num",
-      "transect num", "plot name", "nom du plot", "numéro du plot"
+      "transect num", "plot name", "nom du plot", "numéro du plot",
+      "transect_plot_name"
     ),
 
     # Survey method
@@ -166,7 +167,8 @@
       "tree_id", "treeid", "tree.id", "tree_number", "treenumber",
       "tree_tag", "treetag", "tree.tag", "tag_number", "tagnumber",
       "individual_id", "individualid", "individual.id",
-      "stem_id", "stemid", "stem.id", "id", "numero", "numero_arbre"
+      "stem_id", "stemid", "stem.id", "id", "numero", "numero_arbre",
+      "ind_num_sous_plot"
     ),
 
     # Taxonomy columns (for individuals import)
@@ -585,7 +587,8 @@ map_user_columns <- function(user_data,
   # Get all valid database columns
   schema_cols <- c(
     config$direct_columns,
-    if (!is.null(config$subplot_features)) config$subplot_features else character(0)
+    if (!is.null(config$subplot_features)) config$subplot_features else character(0),
+    if (!is.null(config$feature_columns)) config$feature_columns else character(0)
   )
 
   # Storage for mappings
