@@ -96,17 +96,37 @@ mod_step7_import_server <- function(id, validation_result, mappings, config, con
 
         cli::cli_h1("Starting Dry Run Import")
 
+        # Detect import type from cleaned_data structure
+        cleaned_data <- validation_result()$cleaned_data
+        is_individuals <- is.list(cleaned_data) && !is.data.frame(cleaned_data) &&
+                         "individuals" %in% names(cleaned_data)
+
         result <- tryCatch({
-          import_plot_metadata(
-            data = validation_result()$cleaned_data,
-            column_mappings = mappings(),
-            validation = validation_result(),
-            config = config(),
-            con = con(),
-            dry_run = TRUE,
-            interactive = FALSE,
-            progress = TRUE
-          )
+          if (is_individuals) {
+            # Import individuals with features
+            import_individual_data(
+              individuals_data = cleaned_data$individuals,
+              features_data = cleaned_data$features,
+              validation = validation_result(),
+              method = NULL,
+              con = con(),
+              dry_run = TRUE,
+              progress = TRUE,
+              ask_confirmation = FALSE
+            )
+          } else {
+            # Import plot metadata
+            import_plot_metadata(
+              data = cleaned_data,
+              column_mappings = mappings(),
+              validation = validation_result(),
+              config = config(),
+              con = con(),
+              dry_run = TRUE,
+              interactive = FALSE,
+              progress = TRUE
+            )
+          }
         }, error = function(e) {
           cli::cli_alert_danger("Dry run failed: {e$message}")
           list(
@@ -142,6 +162,11 @@ mod_step7_import_server <- function(id, validation_result, mappings, config, con
       shiny::req(validation_result(), mappings(), config(), con())
 
       # Confirm with user
+      cleaned_data <- validation_result()$cleaned_data
+      is_individuals <- is.list(cleaned_data) && !is.data.frame(cleaned_data) &&
+                       "individuals" %in% names(cleaned_data)
+      row_count <- if (is_individuals) nrow(cleaned_data$individuals) else nrow(cleaned_data)
+
       shiny::showModal(
         shiny::modalDialog(
           title = shiny::tagList(shiny::icon("exclamation-triangle"), " Confirm Import"),
@@ -150,7 +175,7 @@ mod_step7_import_server <- function(id, validation_result, mappings, config, con
             style = "font-size: 16px;"
           ),
           shiny::p(
-            sprintf("This will insert %d rows into the database.", nrow(validation_result()$cleaned_data)),
+            sprintf("This will insert %d rows into the database.", row_count),
             style = "color: #6c757d;"
           ),
           footer = shiny::tagList(
@@ -174,17 +199,37 @@ mod_step7_import_server <- function(id, validation_result, mappings, config, con
 
         cli::cli_h1("Starting Live Import")
 
+        # Detect import type from cleaned_data structure
+        cleaned_data <- validation_result()$cleaned_data
+        is_individuals <- is.list(cleaned_data) && !is.data.frame(cleaned_data) &&
+                         "individuals" %in% names(cleaned_data)
+
         result <- tryCatch({
-          import_plot_metadata(
-            data = validation_result()$cleaned_data,
-            column_mappings = mappings(),
-            validation = validation_result(),
-            config = config(),
-            con = con(),
-            dry_run = FALSE,
-            interactive = FALSE,
-            progress = TRUE
-          )
+          if (is_individuals) {
+            # Import individuals with features
+            import_individual_data(
+              individuals_data = cleaned_data$individuals,
+              features_data = cleaned_data$features,
+              validation = validation_result(),
+              method = NULL,
+              con = con(),
+              dry_run = FALSE,
+              progress = TRUE,
+              ask_confirmation = FALSE
+            )
+          } else {
+            # Import plot metadata
+            import_plot_metadata(
+              data = cleaned_data,
+              column_mappings = mappings(),
+              validation = validation_result(),
+              config = config(),
+              con = con(),
+              dry_run = FALSE,
+              interactive = FALSE,
+              progress = TRUE
+            )
+          }
         }, error = function(e) {
           cli::cli_alert_danger("Import failed: {e$message}")
           list(
