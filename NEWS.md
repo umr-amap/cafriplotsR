@@ -1,3 +1,40 @@
+# CafriplotsR 1.8.2 (2026-01-05)
+
+### Bug Fixes
+
+* **Fixed multiple Import Wizard issues for individuals import**
+  - Automatic column matching now includes trait/feature columns (stem_diameter, tree_height, etc.)
+  - Fixed "objet de type 'closure' non indiçable" i18n error in lookup matching step when no lookups needed
+  - Fixed "Not supported for pool objects" error in taxonomy validation by using dplyr instead of DBI::dbReadTable
+  - Fixed "nombre de dimensions incorrect" error in dry run by detecting import type and calling correct import function
+  - Fixed preview showing unmapped columns (like multi_tiges_id) - now only shows columns actually mapped by user
+  - Preview module now correctly handles individuals import list structure (individuals + features data frames)
+  - Import Step 7 now properly detects and handles both plots and individuals imports
+
+* **Fixed validation issues for flexible data import**
+  - Duplicate tags within plots now trigger warnings instead of errors (allows intentional duplicates)
+  - Fixed taxa table name from incorrect "taxonomic_table" to correct "table_taxa"
+  - Validation now only adds truly required columns, not all possible optional columns
+
+* **Improved database connection resilience for laptop sleep/wake cycles**
+  - Added connection validation every 60 seconds to detect stale connections
+  - Added onActivate callback to validate connections before use
+  - Prevents "SSL SYSCALL error: EOF detected" after laptop wakes from sleep
+  - Applied to both main and taxa database connection pools
+
+### New Features
+
+* **Added French translations for Import Wizard validation section**
+  - All validation messages, progress indicators, and UI labels now translated
+  - Includes error messages, summary cards, and alert messages
+  - Follows i18n best practices with i18n()$t() pattern in server functions
+
+### Dependencies
+
+* Added `plotly` to package Imports (required by plot statistics module in shiny_app_query_plots)
+
+---
+
 # CafriplotsR 1.8.1 (2025-12-12)
 
 ### New Features
