@@ -1454,7 +1454,7 @@ create_pool_main <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5,
     user <- credentials$user_db
   }
 
-  # Create pool
+  # Create pool with connection validation for resilience
   pool <- pool::dbPool(
     drv = RPostgres::Postgres(),
     dbname = db_name,
@@ -1463,7 +1463,19 @@ create_pool_main <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5,
     user = user,
     password = pass,
     minSize = minSize,
-    maxSize = maxSize
+    maxSize = maxSize,
+    # Validate connections every 60 seconds (helps detect stale connections after sleep)
+    validationInterval = 60,
+    # Validate each connection before use (important after laptop wake from sleep)
+    onActivate = function(conn) {
+      tryCatch({
+        DBI::dbGetQuery(conn, "SELECT 1")
+        TRUE
+      }, error = function(e) {
+        # Connection is stale, return FALSE to force pool to create new connection
+        FALSE
+      })
+    }
   )
 
   cli::cli_alert_success("Created connection pool for main database (size: {minSize}-{maxSize})")
@@ -1525,7 +1537,7 @@ create_pool_taxa <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5,
     user <- credentials$user_db
   }
 
-  # Create pool
+  # Create pool with connection validation for resilience
   pool <- pool::dbPool(
     drv = RPostgres::Postgres(),
     dbname = db_name_taxa,
@@ -1534,7 +1546,19 @@ create_pool_taxa <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5,
     user = user,
     password = pass,
     minSize = minSize,
-    maxSize = maxSize
+    maxSize = maxSize,
+    # Validate connections every 60 seconds (helps detect stale connections after sleep)
+    validationInterval = 60,
+    # Validate each connection before use (important after laptop wake from sleep)
+    onActivate = function(conn) {
+      tryCatch({
+        DBI::dbGetQuery(conn, "SELECT 1")
+        TRUE
+      }, error = function(e) {
+        # Connection is stale, return FALSE to force pool to create new connection
+        FALSE
+      })
+    }
   )
 
   cli::cli_alert_success("Created connection pool for taxa database (size: {minSize}-{maxSize})")
