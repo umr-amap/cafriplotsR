@@ -588,11 +588,18 @@ validate_individual_data <- function(individuals_data,
     return(list(errors = errors, warnings = warnings))
   }
 
-  on.exit(DBI::dbDisconnect(con_taxa), add = TRUE)
+  # Only disconnect if it's not a pool (pools are managed by the app)
+  is_pool <- inherits(con_taxa, "Pool")
+  if (!is_pool) {
+    on.exit(DBI::dbDisconnect(con_taxa), add = TRUE)
+  }
 
-  # Check which taxa exist
+  # Check which taxa exist (use dplyr to support both pools and regular connections)
   taxa_table <- tryCatch({
-    DBI::dbReadTable(con_taxa, "taxonomic_table")
+    dplyr::tbl(con_taxa, "taxonomic_table") %>%
+      dplyr::select(idtax_n) %>%
+      dplyr::distinct() %>%
+      dplyr::collect()
   }, error = function(e) {
     return(NULL)
   })
