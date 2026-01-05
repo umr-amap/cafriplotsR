@@ -36,11 +36,11 @@ mod_step6_preview_ui <- function(id, i18n) {
     # Data preview
     shiny::h4(
       shiny::icon("table"),
-      " Data Preview",
+      paste0(" ", i18n$t("Data Preview")),
       style = "margin-top: 30px; margin-bottom: 15px;"
     ),
     shiny::p(
-      "Preview of your cleaned data (showing first 100 rows):",
+      i18n$t("Preview of your cleaned data (showing first 100 rows):"),
       style = "color: #6c757d;"
     ),
     DT::DTOutput(ns("data_preview")),
@@ -49,11 +49,11 @@ mod_step6_preview_ui <- function(id, i18n) {
     shiny::hr(),
     shiny::h4(
       shiny::icon("download"),
-      " Download Cleaned Data",
+      paste0(" ", i18n$t("Download Cleaned Data")),
       style = "margin-top: 30px; margin-bottom: 15px;"
     ),
     shiny::p(
-      "Download your cleaned data for review or backup:",
+      i18n$t("Download your cleaned data for review or backup:"),
       style = "color: #6c757d;"
     ),
     shiny::fluidRow(
@@ -61,7 +61,7 @@ mod_step6_preview_ui <- function(id, i18n) {
         3,
         shiny::downloadButton(
           ns("download_excel"),
-          "Download Excel",
+          i18n$t("Download Excel"),
           class = "btn-primary btn-block"
         )
       ),
@@ -69,7 +69,7 @@ mod_step6_preview_ui <- function(id, i18n) {
         3,
         shiny::downloadButton(
           ns("download_csv"),
-          "Download CSV",
+          i18n$t("Download CSV"),
           class = "btn-secondary btn-block"
         )
       )
@@ -82,9 +82,10 @@ mod_step6_preview_ui <- function(id, i18n) {
 #'
 #' @param id Module namespace ID
 #' @param validation_result Reactive containing validation results
+#' @param i18n Reactive returning translator object from shiny.i18n
 #' @return Reactive indicating preview confirmed
 #' @keywords internal
-mod_step6_preview_server <- function(id, validation_result) {
+mod_step6_preview_server <- function(id, validation_result, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Get cleaned data (reactiveVal to allow modification)
@@ -213,7 +214,7 @@ mod_step6_preview_server <- function(id, validation_result) {
             class = "card",
             style = "padding: 20px; background-color: #f8f9fa; border-left: 4px solid #007bff; text-align: center;",
             shiny::h3(result$summary$total_rows, style = "margin: 0; color: #007bff;"),
-            shiny::p("Rows to Import", style = "margin: 5px 0 0 0; color: #6c757d;")
+            shiny::p(i18n()$t("Rows to Import"), style = "margin: 5px 0 0 0; color: #6c757d;")
           )
         ),
         shiny::column(
@@ -222,7 +223,7 @@ mod_step6_preview_server <- function(id, validation_result) {
             class = "card",
             style = "padding: 20px; background-color: #f8f9fa; border-left: 4px solid #28a745; text-align: center;",
             shiny::h3(result$summary$mapped_columns, style = "margin: 0; color: #28a745;"),
-            shiny::p("Columns Mapped", style = "margin: 5px 0 0 0; color: #6c757d;")
+            shiny::p(i18n()$t("Columns Mapped"), style = "margin: 5px 0 0 0; color: #6c757d;")
           )
         ),
         shiny::column(
@@ -231,7 +232,7 @@ mod_step6_preview_server <- function(id, validation_result) {
             class = "card",
             style = "padding: 20px; background-color: #f8f9fa; border-left: 4px solid #17a2b8; text-align: center;",
             shiny::h3(result$summary$changes_applied, style = "margin: 0; color: #17a2b8;"),
-            shiny::p("Values Auto-Fixed", style = "margin: 5px 0 0 0; color: #6c757d;")
+            shiny::p(i18n()$t("Values Auto-Fixed"), style = "margin: 5px 0 0 0; color: #6c757d;")
           )
         ),
         shiny::column(
@@ -243,7 +244,7 @@ mod_step6_preview_server <- function(id, validation_result) {
               shiny::icon("check-circle", style = "color: #28a745;"),
               style = "margin: 0;"
             ),
-            shiny::p("Ready to Import", style = "margin: 5px 0 0 0; color: #28a745; font-weight: bold;")
+            shiny::p(i18n()$t("Ready to Import"), style = "margin: 5px 0 0 0; color: #28a745; font-weight: bold;")
           )
         )
       )
