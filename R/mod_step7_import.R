@@ -267,6 +267,11 @@ mod_step7_import_server <- function(id, validation_result, mappings, config, con
       result <- import_result()
 
       if (result$success) {
+        # Detect import type and get count
+        is_individuals <- !is.null(result$n_individuals)
+        count <- if (is_individuals) result$n_individuals else result$n_plots
+        type_label <- if (is_individuals) "individuals" else "plots"
+
         # Success message
         shiny::tagList(
           shiny::div(
@@ -274,18 +279,24 @@ mod_step7_import_server <- function(id, validation_result, mappings, config, con
             shiny::icon(if (result$dry_run) "info-circle" else "check-circle"),
             shiny::strong(
               if (result$dry_run) {
-                sprintf(" Dry Run Completed: %d plots would be imported", result$n_plots)
+                sprintf(" Dry Run Completed: %d %s would be imported", count, type_label)
               } else {
-                sprintf(" Import Successful: %d plots imported!", result$n_plots)
+                sprintf(" Import Successful: %d %s imported!", count, type_label)
               }
-            )
+            ),
+            if (is_individuals && !is.null(result$n_features)) {
+              shiny::tagList(
+                shiny::br(),
+                sprintf("(%d trait measurements)", result$n_features)
+              )
+            }
           ),
 
-          if (!result$dry_run) {
+          if (!result$dry_run && !is.null(result$admin_code)) {
             # Get i18n translator
             tr <- shiny::isolate(i18n()$t)
 
-            # Show admin code for row-level security
+            # Show admin code for row-level security (plots only)
             shiny::tagList(
               shiny::hr(),
 
