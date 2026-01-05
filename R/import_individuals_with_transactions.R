@@ -86,11 +86,20 @@ import_individual_data <- function(individuals_data,
     stop("Data validation failed. Fix errors before importing. Use print_individual_validation_results(validation) to see issues.")
   }
 
-  # Initialize connection if needed
+  # Initialize connection if needed, or checkout from pool
   close_on_exit <- FALSE
+  is_pool <- FALSE
+  original_pool <- NULL
+
   if (is.null(con)) {
     con <- call.mydb()
     close_on_exit <- TRUE
+  } else if (inherits(con, "Pool")) {
+    # Checkout dedicated connection from pool for transaction support
+    original_pool <- con
+    con <- pool::poolCheckout(original_pool)
+    is_pool <- TRUE
+    if (progress) cli::cli_alert_info("Using connection pool (checked out dedicated connection)")
   }
 
   # Get current username
@@ -313,6 +322,10 @@ import_individual_data <- function(individuals_data,
   # Cleanup
   if (close_on_exit) {
     DBI::dbDisconnect(con)
+  } else if (is_pool && !is.null(original_pool)) {
+    # Return connection to pool
+    pool::poolReturn(con)
+    if (progress) cli::cli_alert_info("Connection returned to pool")
   }
 
   invisible(result)
