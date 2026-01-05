@@ -91,13 +91,18 @@ mod_step5_validation_server <- function(id, data, mappings, config, con, i18n) {
               cli::cli_alert_info("Removed {length(skipped_cols)} skipped column(s) from individuals data")
             }
 
-            # Step 2: Add missing required/recommended columns as NA
-            all_expected_cols <- c(config()$direct_columns, config()$feature_columns)
-            missing_cols <- setdiff(all_expected_cols, names(renamed_data))
+            # Step 2: Only add truly required columns if missing (not all possible columns)
+            # Required columns for individuals: plot_name, idtax_n, original_tax_name
+            required_cols <- config()$import_config$required_columns
+            missing_required <- setdiff(required_cols, names(renamed_data))
 
-            for (col in missing_cols) {
+            # Only add missing required columns as NA (they should trigger validation errors)
+            for (col in missing_required) {
               renamed_data[[col]] <- NA
             }
+
+            # Note: We do NOT add all possible columns (like multi_tiges_id, herbarium_nbe_char)
+            # Only columns that were actually mapped by the user should be present
 
             # Step 3: Separate direct columns from features
             direct_cols <- config()$direct_columns
