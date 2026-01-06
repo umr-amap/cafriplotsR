@@ -564,31 +564,64 @@ migration_link_hierarchy <- function(con = NULL, dry_run = FALSE, batch_size = 1
     if (verbose) cli::cli_alert_info("Would link {count} species to genera")
   }
 
-  # 5. Link infraspecific to species
+  # 5. Link infraspecific to species (batched to avoid timeout)
   cli::cli_h2("Step 5: Link infraspecific to species")
-  sql_infra_to_species <- "
-    UPDATE table_taxa child
-    SET id_parent = (
-      SELECT parent.idtax_n FROM table_taxa parent
-      WHERE parent.tax_gen = child.tax_gen
-        AND parent.tax_fam = child.tax_fam
-        AND parent.tax_esp = child.tax_esp
-        AND parent.tax_level = 'species'
-      LIMIT 1
-    )
-    WHERE child.tax_level = 'infraspecific'
-      AND child.id_parent IS NULL;
-  "
 
-  if (!dry_run) {
-    result <- DBI::dbExecute(actual_con, sql_infra_to_species)
-    linked_counts$infra_to_species <- result
-    if (verbose) cli::cli_alert_success("Linked {result} infraspecific taxa to species")
+  # Count how many need updating
+  count_sql <- "SELECT COUNT(*) as n FROM table_taxa WHERE tax_level = 'infraspecific' AND id_parent IS NULL;"
+  infra_count <- DBI::dbGetQuery(actual_con, count_sql)$n[1]
+
+  if (dry_run) {
+    linked_counts$infra_to_species <- infra_count
+    if (verbose) cli::cli_alert_info("Would link {infra_count} infraspecific taxa to species")
+  } else if (infra_count == 0) {
+    linked_counts$infra_to_species <- 0
+    if (verbose) cli::cli_alert_success("No infraspecific taxa to link")
   } else {
-    count_sql <- "SELECT COUNT(*) FROM table_taxa WHERE tax_level = 'infraspecific' AND id_parent IS NULL;"
-    count <- DBI::dbGetQuery(actual_con, count_sql)$count[1]
-    linked_counts$infra_to_species <- count
-    if (verbose) cli::cli_alert_info("Would link {count} infraspecific taxa to species")
+    if (verbose) cli::cli_alert_info("Found {infra_count} infraspecific taxa to link (processing in batches of {batch_size})")
+
+    # Get all infraspecific IDs that need updating
+    infra_ids <- DBI::dbGetQuery(actual_con,
+      "SELECT idtax_n FROM table_taxa WHERE tax_level = 'infraspecific' AND id_parent IS NULL ORDER BY idtax_n"
+    )$idtax_n
+
+    total_linked <- 0
+    n_batches <- ceiling(length(infra_ids) / batch_size)
+
+    for (batch_num in seq_len(n_batches)) {
+      start_idx <- (batch_num - 1) * batch_size + 1
+      end_idx <- min(batch_num * batch_size, length(infra_ids))
+      batch_ids <- infra_ids[start_idx:end_idx]
+
+      # Create comma-separated list of IDs for IN clause
+      ids_str <- paste(batch_ids, collapse = ", ")
+
+      sql_batch <- sprintf("
+        UPDATE table_taxa child
+        SET id_parent = (
+          SELECT parent.idtax_n FROM table_taxa parent
+          WHERE parent.tax_gen = child.tax_gen
+            AND parent.tax_fam = child.tax_fam
+            AND parent.tax_esp = child.tax_esp
+            AND parent.tax_level = 'species'
+          LIMIT 1
+        )
+        WHERE child.idtax_n IN (%s);
+      ", ids_str)
+
+      tryCatch({
+        result <- DBI::dbExecute(actual_con, sql_batch)
+        total_linked <- total_linked + result
+        if (verbose) cli::cli_alert_info("Batch {batch_num}/{n_batches}: linked {result} taxa (total: {total_linked})")
+      }, error = function(e) {
+        cli::cli_alert_danger("Batch {batch_num} failed: {e$message}")
+        cli::cli_alert_info("Progress saved. Re-run to continue from batch {batch_num}.")
+        stop(e)
+      })
+    }
+
+    linked_counts$infra_to_species <- total_linked
+    if (verbose) cli::cli_alert_success("Linked {total_linked} infraspecific taxa to species")
   }
 
   cli::cli_h2("Summary")
@@ -604,6 +637,99 @@ migration_link_hierarchy <- function(con = NULL, dry_run = FALSE, batch_size = 1
   ))
 
   return(as.data.frame(linked_counts))
+}
+
+
+#' Link Infraspecific Taxa to Species (Step 5 only)
+#'
+#' Standalone function to run only Step 5 of the hierarchy linking.
+#' Useful if the full migration timed out on this step.
+#'
+#' @param con Database connection to taxa database
+#' @param batch_size Number of records to update per batch (default: 500)
+#' @param dry_run If TRUE, only count what would be updated
+#' @param verbose If TRUE, show progress
+#'
+#' @return Number of taxa linked
+#' @export
+migration_link_infraspecific <- function(con = NULL, batch_size = 500, dry_run = FALSE, verbose = TRUE) {
+  if (is.null(con)) {
+    con <- call.mydb.taxa()
+  }
+
+  # Handle pool connections
+  actual_con <- if (inherits(con, "Pool")) {
+    pool::poolCheckout(con)
+  } else {
+    con
+  }
+
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) {
+      pool::poolReturn(actual_con)
+    }
+  }, add = TRUE)
+
+  cli::cli_h1("Migration: Link infraspecific taxa to species (batched)")
+
+  # Count how many need updating
+  count_sql <- "SELECT COUNT(*) as n FROM table_taxa WHERE tax_level = 'infraspecific' AND id_parent IS NULL;"
+  infra_count <- DBI::dbGetQuery(actual_con, count_sql)$n[1]
+
+  if (dry_run) {
+    cli::cli_alert_info("Would link {infra_count} infraspecific taxa to species")
+    return(infra_count)
+  }
+
+  if (infra_count == 0) {
+    cli::cli_alert_success("No infraspecific taxa to link - all already linked!")
+    return(0)
+  }
+
+  cli::cli_alert_info("Found {infra_count} infraspecific taxa to link (processing in batches of {batch_size})")
+
+  # Get all infraspecific IDs that need updating
+  infra_ids <- DBI::dbGetQuery(actual_con,
+    "SELECT idtax_n FROM table_taxa WHERE tax_level = 'infraspecific' AND id_parent IS NULL ORDER BY idtax_n"
+  )$idtax_n
+
+  total_linked <- 0
+  n_batches <- ceiling(length(infra_ids) / batch_size)
+
+  for (batch_num in seq_len(n_batches)) {
+    start_idx <- (batch_num - 1) * batch_size + 1
+    end_idx <- min(batch_num * batch_size, length(infra_ids))
+    batch_ids <- infra_ids[start_idx:end_idx]
+
+    # Create comma-separated list of IDs for IN clause
+    ids_str <- paste(batch_ids, collapse = ", ")
+
+    sql_batch <- sprintf("
+      UPDATE table_taxa child
+      SET id_parent = (
+        SELECT parent.idtax_n FROM table_taxa parent
+        WHERE parent.tax_gen = child.tax_gen
+          AND parent.tax_fam = child.tax_fam
+          AND parent.tax_esp = child.tax_esp
+          AND parent.tax_level = 'species'
+        LIMIT 1
+      )
+      WHERE child.idtax_n IN (%s);
+    ", ids_str)
+
+    tryCatch({
+      result <- DBI::dbExecute(actual_con, sql_batch)
+      total_linked <- total_linked + result
+      if (verbose) cli::cli_alert_info("Batch {batch_num}/{n_batches}: linked {result} taxa (total: {total_linked})")
+    }, error = function(e) {
+      cli::cli_alert_danger("Batch {batch_num} failed: {e$message}")
+      cli::cli_alert_info("Progress saved ({total_linked} already linked). Re-run to continue.")
+      stop(e)
+    })
+  }
+
+  cli::cli_alert_success("Linked {total_linked} infraspecific taxa to species")
+  return(total_linked)
 }
 
 
