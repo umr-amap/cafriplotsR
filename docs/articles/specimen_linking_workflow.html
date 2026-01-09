@@ -264,24 +264,29 @@ links created - Links are now permanent and queryable</p>
 <p>The system supports multiple link types to capture the nature of the
 relationship:</p>
 <div class="section level3">
-<h3 id="referenced_individual">
-<code>referenced_individual</code><a class="anchor" aria-label="anchor" href="#referenced_individual"></a>
-</h3>
-<p>The standard case: A specimen was collected from this individual tree
-during plot census. The specimen serves as a taxonomic voucher for the
-tree.</p>
-</div>
-<div class="section level3">
 <h3 id="type_individual">
 <code>type_individual</code><a class="anchor" aria-label="anchor" href="#type_individual"></a>
 </h3>
-<p>Special case: The individual is the actual <strong>type
-specimen</strong> (holotype, isotype, etc.) for a species description.
-This is rare but scientifically critical.</p>
+<p>Direct evidence: The herbarium specimen was physically collected
+<strong>from this specific tree</strong> during plot census. This
+provides the highest confidence link between the measured individual and
+its taxonomic identification.</p>
+</div>
+<div class="section level3">
+<h3 id="referenced_individual">
+<code>referenced_individual</code><a class="anchor" aria-label="anchor" href="#referenced_individual"></a>
+</h3>
+<p>Indirect evidence: This tree was field-identified as the <strong>same
+species</strong> as another tree from which a specimen was collected.
+The tree is linked to that specimen, but the specimen itself was not
+collected from this individual. This extends the taxonomic value of
+collected specimens to additional trees, though with lower confidence
+since it relies on field identification accuracy.</p>
 <p><strong>How it’s determined:</strong> - The app checks if
 <code>herbarium_nbe_type</code> column matches
 <code>herbarium_nbe_char</code> - If yes → <code>type_individual</code>
-- If no → <code>referenced_individual</code></p>
+(specimen collected from this tree) - If no →
+<code>referenced_individual</code> (tree identified as same species)</p>
 </div>
 </div>
 <div class="section level2">
@@ -355,7 +360,7 @@ during plot census.”</p>
 <pre><code>data_individuals
 ├─ id_n (PK)
 ├─ herbarium_nbe_char (specimen reference text)
-├─ herbarium_nbe_type (type specimen reference)
+├─ herbarium_nbe_type (reference for specimen collected from this tree)
 └─ idtax_n (field identification)
 
 specimens
@@ -419,7 +424,9 @@ Different families often indicate either:</p>
 </ul>
 </li>
 <li><p><strong>Document link types accurately</strong>: Distinguish
-between regular vouchers and type specimens.</p></li>
+between direct collection (<code>type_individual</code>) and
+field-identified references
+(<code>referenced_individual</code>).</p></li>
 <li><p><strong>Maintain audit trails</strong>: Never delete links; add
 new ones if corrections are needed.</p></li>
 <li><p><strong>Regular updates</strong>: Periodically query for new
