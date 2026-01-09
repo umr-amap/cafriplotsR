@@ -281,24 +281,31 @@ interrogeables</p>
 <p>Le système supporte plusieurs types de liens pour capturer la nature
 de la relation :</p>
 <div class="section level3">
-<h3 id="referenced_individual">
-<code>referenced_individual</code><a class="anchor" aria-label="anchor" href="#referenced_individual"></a>
-</h3>
-<p>Le cas standard : Un spécimen a été collecté sur cet arbre individuel
-pendant le recensement de parcelle. Le spécimen sert de témoin
-taxonomique pour l’arbre.</p>
-</div>
-<div class="section level3">
 <h3 id="type_individual">
 <code>type_individual</code><a class="anchor" aria-label="anchor" href="#type_individual"></a>
 </h3>
-<p>Cas spécial : L’individu est le <strong>spécimen type</strong> réel
-(holotype, isotype, etc.) pour une description d’espèce. C’est rare mais
-scientifiquement critique.</p>
+<p>Preuve directe : Le spécimen d’herbier a été physiquement collecté
+<strong>sur cet arbre spécifique</strong> pendant le recensement de
+parcelle. Cela fournit le lien de plus haute confiance entre l’individu
+mesuré et son identification taxonomique.</p>
+</div>
+<div class="section level3">
+<h3 id="referenced_individual">
+<code>referenced_individual</code><a class="anchor" aria-label="anchor" href="#referenced_individual"></a>
+</h3>
+<p>Preuve indirecte : Cet arbre a été identifié sur le terrain comme
+étant de la <strong>même espèce</strong> qu’un autre arbre sur lequel un
+spécimen a été collecté. L’arbre est lié à ce spécimen, mais le spécimen
+lui-même n’a pas été collecté sur cet individu. Cela étend la valeur
+taxonomique des spécimens collectés à des arbres supplémentaires, bien
+qu’avec une confiance moindre car cela repose sur la précision de
+l’identification de terrain.</p>
 <p><strong>Comment c’est déterminé :</strong> - L’application vérifie si
 la colonne <code>herbarium_nbe_type</code> correspond à
 <code>herbarium_nbe_char</code> - Si oui → <code>type_individual</code>
-- Si non → <code>referenced_individual</code></p>
+(spécimen collecté sur cet arbre) - Si non →
+<code>referenced_individual</code> (arbre identifié comme même
+espèce)</p>
 </div>
 </div>
 <div class="section level2">
@@ -375,7 +382,7 @@ individus pendant le recensement de parcelle.”</p>
 <pre><code>data_individuals
 ├─ id_n (PK)
 ├─ herbarium_nbe_char (texte de référence du spécimen)
-├─ herbarium_nbe_type (référence du spécimen type)
+├─ herbarium_nbe_type (référence pour spécimen collecté sur cet arbre)
 └─ idtax_n (identification de terrain)
 
 specimens
@@ -440,7 +447,9 @@ taxonomiques</strong> : Des familles différentes indiquent souvent :</p>
 </ul>
 </li>
 <li><p><strong>Documentez précisément les types de liens</strong> :
-Distinguez entre les témoins réguliers et les spécimens types.</p></li>
+Distinguez entre collection directe (<code>type_individual</code>) et
+références d’identification de terrain
+(<code>referenced_individual</code>).</p></li>
 <li><p><strong>Maintenez les pistes d’audit</strong> : Ne supprimez
 jamais les liens; ajoutez-en de nouveaux si des corrections sont
 nécessaires.</p></li>
