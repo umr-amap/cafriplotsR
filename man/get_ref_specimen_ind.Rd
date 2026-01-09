@@ -2,18 +2,25 @@
 % Please edit documentation in R/specimen_linking_functions.R
 \name{get_ref_specimen_ind}
 \alias{get_ref_specimen_ind}
-\title{Find unlinked individual}
+\title{Find Unlinked Individuals with Herbarium Information}
 \usage{
-get_ref_specimen_ind(collector = NULL, ids = NULL)
+get_ref_specimen_ind(collector = NULL, ids = NULL, con = NULL)
 }
 \arguments{
-\item{ids}{vector of id_n of individuals for which we want to explore links}
+\item{collector}{Character. Optional collector name to filter by.}
+
+\item{ids}{Integer vector. Optional individual IDs to check.}
+
+\item{con}{Database connection. If NULL, calls call.mydb()}
 }
 \value{
-list
+List with:
+  - all_herb_not_linked: Individuals with herbarium info but no links
+  - all_linked_individuals: IDs of individuals that ARE linked
 }
 \description{
-Extract individuals for which no links exist with herbarium specimens
+Extract individuals that have herbarium specimen references in their
+data but no formal links in data_link_specimens table.
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}

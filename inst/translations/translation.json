@@ -2768,6 +2768,978 @@
     {
       "en": "Automatic access to imported data",
       "fr": "Accès automatique aux données importées"
+    },
+    {
+      "en": "Specimen Linking",
+      "fr": "Liaison des spécimens"
+    },
+    {
+      "en": "Search Specimens",
+      "fr": "Rechercher des spécimens"
+    },
+    {
+      "en": "Add New Specimen",
+      "fr": "Ajouter un nouveau spécimen"
+    },
+    {
+      "en": "Search Individuals",
+      "fr": "Rechercher des individus"
+    },
+    {
+      "en": "Link Preview",
+      "fr": "Aperçu des liens"
+    },
+    {
+      "en": "Create Links",
+      "fr": "Créer des liens"
+    },
+    {
+      "en": "Collector",
+      "fr": "Collecteur"
+    },
+    {
+      "en": "Specimen Number",
+      "fr": "Numéro de spécimen"
+    },
+    {
+      "en": "Suffix",
+      "fr": "Suffixe"
+    },
+    {
+      "en": "Type to search...",
+      "fr": "Tapez pour rechercher..."
+    },
+    {
+      "en": "Filter by taxon name",
+      "fr": "Filtrer par nom de taxon"
+    },
+    {
+      "en": "Enter genus or species name...",
+      "fr": "Entrez un nom de genre ou espèce..."
+    },
+    {
+      "en": "Add selected to link list",
+      "fr": "Ajouter à la liste des liens"
+    },
+    {
+      "en": "specimens found",
+      "fr": "spécimens trouvés"
+    },
+    {
+      "en": "No specimens found matching criteria",
+      "fr": "Aucun spécimen trouvé"
+    },
+    {
+      "en": "Select a plot...",
+      "fr": "Sélectionner une placette..."
+    },
+    {
+      "en": "Tag",
+      "fr": "Étiquette"
+    },
+    {
+      "en": "Individual Code",
+      "fr": "Code individu"
+    },
+    {
+      "en": "Only show individuals without specimen links",
+      "fr": "Afficher uniquement les individus sans lien"
+    },
+    {
+      "en": "individuals found",
+      "fr": "individus trouvés"
+    },
+    {
+      "en": "No individuals found matching criteria",
+      "fr": "Aucun individu trouvé"
+    },
+    {
+      "en": "All matching individuals already have specimen links",
+      "fr": "Tous les individus ont déjà des liens"
+    },
+    {
+      "en": "links pending",
+      "fr": "liens en attente"
+    },
+    {
+      "en": "exact taxon match",
+      "fr": "correspondance exacte"
+    },
+    {
+      "en": "same genus",
+      "fr": "même genre"
+    },
+    {
+      "en": "different genus - review needed",
+      "fr": "genre différent - révision requise"
+    },
+    {
+      "en": "Some links have mismatched taxonomic identifications - review required",
+      "fr": "Certains liens ont des identifications différentes - révision requise"
+    },
+    {
+      "en": "Default Link Type",
+      "fr": "Type de lien par défaut"
+    },
+    {
+      "en": "Apply to all selected",
+      "fr": "Appliquer à la sélection"
+    },
+    {
+      "en": "Show only mismatched taxa",
+      "fr": "Afficher uniquement les différences"
+    },
+    {
+      "en": "Remove selected",
+      "fr": "Supprimer la sélection"
+    },
+    {
+      "en": "Clear all",
+      "fr": "Tout effacer"
+    },
+    {
+      "en": "Validate links",
+      "fr": "Valider les liens"
+    },
+    {
+      "en": "No links pending. Select specimens and individuals to create links.",
+      "fr": "Aucun lien en attente. Sélectionnez des spécimens et individus."
+    },
+    {
+      "en": "Link type updated for",
+      "fr": "Type de lien mis à jour pour"
+    },
+    {
+      "en": "links",
+      "fr": "liens"
+    },
+    {
+      "en": "links removed",
+      "fr": "liens supprimés"
+    },
+    {
+      "en": "All links cleared",
+      "fr": "Tous les liens supprimés"
+    },
+    {
+      "en": "Cannot validate:",
+      "fr": "Validation impossible :"
+    },
+    {
+      "en": "links are missing specimen or individual",
+      "fr": "liens sans spécimen ou individu"
+    },
+    {
+      "en": "links already exist in database",
+      "fr": "liens déjà présents dans la base"
+    },
+    {
+      "en": "Validation passed with warnings:",
+      "fr": "Validation réussie avec avertissements :"
+    },
+    {
+      "en": "links have different genus identification",
+      "fr": "liens avec identification de genre différente"
+    },
+    {
+      "en": "Review the mismatched identifications before proceeding.",
+      "fr": "Vérifiez les identifications différentes avant de continuer."
+    },
+    {
+      "en": "Validation passed:",
+      "fr": "Validation réussie :"
+    },
+    {
+      "en": "links ready to create",
+      "fr": "liens prêts à créer"
+    },
+    {
+      "en": "No valid links to create",
+      "fr": "Aucun lien valide à créer"
+    },
+    {
+      "en": "links created successfully",
+      "fr": "liens créés avec succès"
+    },
+    {
+      "en": "Error creating links:",
+      "fr": "Erreur lors de la création des liens :"
+    },
+    {
+      "en": "Determined by",
+      "fr": "Déterminé par"
+    },
+    {
+      "en": "Det. Year",
+      "fr": "Année dét."
+    },
+    {
+      "en": "Month",
+      "fr": "Mois"
+    },
+    {
+      "en": "Day",
+      "fr": "Jour"
+    },
+    {
+      "en": "Add specimen",
+      "fr": "Ajouter le spécimen"
+    },
+    {
+      "en": "Select collector...",
+      "fr": "Sélectionner le collecteur..."
+    },
+    {
+      "en": "Select determiner...",
+      "fr": "Sélectionner le déterminateur..."
+    },
+    {
+      "en": "Search taxon...",
+      "fr": "Rechercher un taxon..."
+    },
+    {
+      "en": "No taxa found matching search",
+      "fr": "Aucun taxon correspondant"
+    },
+    {
+      "en": "Collector is required",
+      "fr": "Le collecteur est requis"
+    },
+    {
+      "en": "Specimen number is required",
+      "fr": "Le numéro de spécimen est requis"
+    },
+    {
+      "en": "Please select a taxon",
+      "fr": "Veuillez sélectionner un taxon"
+    },
+    {
+      "en": "This specimen already exists in the database",
+      "fr": "Ce spécimen existe déjà dans la base"
+    },
+    {
+      "en": "Specimen added successfully:",
+      "fr": "Spécimen ajouté avec succès :"
+    },
+    {
+      "en": "Error adding specimen:",
+      "fr": "Erreur lors de l ajout du spécimen :"
+    },
+    {
+      "en": "Last added:",
+      "fr": "Dernier ajouté :"
+    },
+    {
+      "en": "specimens added to link list",
+      "fr": "spécimens ajoutés à la liste"
+    },
+    {
+      "en": "individuals added to link list",
+      "fr": "individus ajoutés à la liste"
+    },
+    {
+      "en": "Specimens",
+      "fr": "Spécimens"
+    },
+    {
+      "en": "Taxon name",
+      "fr": "Nom du taxon"
+    },
+    {
+      "en": "Specimen Management",
+      "fr": "Gestion des spécimens"
+    },
+    {
+      "en": "Import Specimens",
+      "fr": "Importer des spécimens"
+    },
+    {
+      "en": "Link Specimens",
+      "fr": "Lier des spécimens"
+    },
+    {
+      "en": "Import New Specimens",
+      "fr": "Importer de nouveaux spécimens"
+    },
+    {
+      "en": "Upload your specimen data and import it to the database in 4 easy steps.",
+      "fr": "Chargez vos données de spécimens et importez-les dans la base de données en 4 étapes simples."
+    },
+    {
+      "en": "Link Specimens to Individuals",
+      "fr": "Lier des spécimens aux individus"
+    },
+    {
+      "en": "Search for specimens and individuals, then create links between them.",
+      "fr": "Recherchez des spécimens et des individus, puis créez des liens entre eux."
+    },
+    {
+      "en": "Step 1: Upload Specimen Data",
+      "fr": "Étape 1 : Charger les données de spécimens"
+    },
+    {
+      "en": "Download a template with the expected column structure for specimen data.",
+      "fr": "Téléchargez un modèle avec la structure de colonnes attendue pour les données de spécimens."
+    },
+    {
+      "en": "Template columns:",
+      "fr": "Colonnes du modèle :"
+    },
+    {
+      "en": "Collector name",
+      "fr": "Nom du collecteur"
+    },
+    {
+      "en": "Suffix (optional: A, B, bis...)",
+      "fr": "Suffixe (optionnel : A, B, bis...)"
+    },
+    {
+      "en": "Species name",
+      "fr": "Nom d'espèce"
+    },
+    {
+      "en": "Determined by (optional)",
+      "fr": "Déterminé par (optionnel)"
+    },
+    {
+      "en": "Determination year (optional)",
+      "fr": "Année de détermination (optionnel)"
+    },
+    {
+      "en": "Determination month (optional)",
+      "fr": "Mois de détermination (optionnel)"
+    },
+    {
+      "en": "Determination day (optional)",
+      "fr": "Jour de détermination (optionnel)"
+    },
+    {
+      "en": "Upload your Excel or CSV file. You'll map columns in the next step.",
+      "fr": "Chargez votre fichier Excel ou CSV. Vous mapperez les colonnes à l'étape suivante."
+    },
+    {
+      "en": "The wizard will help you match your column names to the database.",
+      "fr": "L'assistant vous aidera à faire correspondre vos noms de colonnes à la base de données."
+    },
+    {
+      "en": "Step 2: Map Your Columns",
+      "fr": "Étape 2 : Mapper vos colonnes"
+    },
+    {
+      "en": "Match your data columns to the database fields. Required fields are marked with *",
+      "fr": "Faites correspondre vos colonnes aux champs de la base de données. Les champs requis sont marqués d'un *"
+    },
+    {
+      "en": "Auto-detect Columns",
+      "fr": "Détection automatique des colonnes"
+    },
+    {
+      "en": "Required Fields",
+      "fr": "Champs requis"
+    },
+    {
+      "en": "Taxon Name",
+      "fr": "Nom du taxon"
+    },
+    {
+      "en": "Optional Fields",
+      "fr": "Champs optionnels"
+    },
+    {
+      "en": "Determination Year",
+      "fr": "Année de détermination"
+    },
+    {
+      "en": "Determination Month",
+      "fr": "Mois de détermination"
+    },
+    {
+      "en": "Determination Day",
+      "fr": "Jour de détermination"
+    },
+    {
+      "en": "-- Not mapped --",
+      "fr": "-- Non mappé --"
+    },
+    {
+      "en": "All required fields are mapped. You can proceed to the next step.",
+      "fr": "Tous les champs requis sont mappés. Vous pouvez passer à l'étape suivante."
+    },
+    {
+      "en": "Please map all required fields:",
+      "fr": "Veuillez mapper tous les champs requis :"
+    },
+    {
+      "en": "Collector column is required",
+      "fr": "La colonne collecteur est requise"
+    },
+    {
+      "en": "Specimen number column is required",
+      "fr": "La colonne numéro de spécimen est requise"
+    },
+    {
+      "en": "Taxon name column is required",
+      "fr": "La colonne nom de taxon est requise"
+    },
+    {
+      "en": "Auto-detection complete. Please verify the mappings.",
+      "fr": "Détection automatique terminée. Veuillez vérifier les mappages."
+    },
+    {
+      "en": "Step 3: Match Lookup Values",
+      "fr": "Étape 3 : Apparier les valeurs de référence"
+    },
+    {
+      "en": "Match collector names and taxon names to the database. This ensures your data references the correct entries.",
+      "fr": "Appariez les noms de collecteurs et de taxons à la base de données. Cela garantit que vos données référencent les bonnes entrées."
+    },
+    {
+      "en": "Analysis Summary",
+      "fr": "Résumé de l'analyse"
+    },
+    {
+      "en": "Analyzing collectors...",
+      "fr": "Analyse des collecteurs..."
+    },
+    {
+      "en": "Analyzing determiners...",
+      "fr": "Analyse des déterminateurs..."
+    },
+    {
+      "en": "Analyzing taxon names...",
+      "fr": "Analyse des noms de taxons..."
+    },
+    {
+      "en": "Fuzzy Matches",
+      "fr": "Correspondances approximatives"
+    },
+    {
+      "en": "Unmatched",
+      "fr": "Non appariés"
+    },
+    {
+      "en": "All values matched successfully! You can proceed to the next step.",
+      "fr": "Toutes les valeurs ont été appariées avec succès ! Vous pouvez passer à l'étape suivante."
+    },
+    {
+      "en": "Some values need review. Please check the tabs below and resolve any issues.",
+      "fr": "Certaines valeurs nécessitent une vérification. Consultez les onglets ci-dessous et résolvez les problèmes."
+    },
+    {
+      "en": "Collectors",
+      "fr": "Collecteurs"
+    },
+    {
+      "en": "Fuzzy Matches - Please Confirm",
+      "fr": "Correspondances approximatives - Veuillez confirmer"
+    },
+    {
+      "en": "Fuzzy Matches - Please Review",
+      "fr": "Correspondances approximatives - Veuillez vérifier"
+    },
+    {
+      "en": "Unmatched Values",
+      "fr": "Valeurs non appariées"
+    },
+    {
+      "en": "These collector names were not found in the database:",
+      "fr": "Ces noms de collecteurs n'ont pas été trouvés dans la base de données :"
+    },
+    {
+      "en": "You may need to add these collectors to the database first, or check for typos.",
+      "fr": "Vous devrez peut-être d'abord ajouter ces collecteurs à la base de données, ou vérifier les fautes de frappe."
+    },
+    {
+      "en": "Unmatched Taxa",
+      "fr": "Taxons non appariés"
+    },
+    {
+      "en": "These taxon names were not found in the taxonomic backbone:",
+      "fr": "Ces noms de taxons n'ont pas été trouvés dans le référentiel taxonomique :"
+    },
+    {
+      "en": "Check spelling or use the taxonomic matching app to resolve these names first.",
+      "fr": "Vérifiez l'orthographe ou utilisez l'application d'appariement taxonomique pour résoudre ces noms d'abord."
+    },
+    {
+      "en": "Your Name",
+      "fr": "Votre nom"
+    },
+    {
+      "en": "Matched Name",
+      "fr": "Nom apparié"
+    },
+    {
+      "en": "Similarity %",
+      "fr": "Similarité %"
+    },
+    {
+      "en": "Analysis complete. Review the results below.",
+      "fr": "Analyse terminée. Examinez les résultats ci-dessous."
+    },
+    {
+      "en": "and",
+      "fr": "et"
+    },
+    {
+      "en": "more",
+      "fr": "de plus"
+    },
+    {
+      "en": "-- Select match --",
+      "fr": "-- Sélectionner une correspondance --"
+    },
+    {
+      "en": "Step 4: Preview & Import",
+      "fr": "Étape 4 : Aperçu & Import"
+    },
+    {
+      "en": "Review the specimens to be imported. All required fields must be matched before importing.",
+      "fr": "Examinez les spécimens à importer. Tous les champs requis doivent être appariés avant l'import."
+    },
+    {
+      "en": "Total Specimens",
+      "fr": "Total de spécimens"
+    },
+    {
+      "en": "Missing Data",
+      "fr": "Données manquantes"
+    },
+    {
+      "en": "Complete the previous steps to see the import preview.",
+      "fr": "Terminez les étapes précédentes pour voir l'aperçu de l'import."
+    },
+    {
+      "en": "Dry run (preview only, no database changes)",
+      "fr": "Essai à vide (aperçu uniquement, pas de modifications dans la base)"
+    },
+    {
+      "en": "Dry Run Results",
+      "fr": "Résultats de l'essai à vide"
+    },
+    {
+      "en": "%d specimens would be imported to the database.",
+      "fr": "%d spécimens seraient importés dans la base de données."
+    },
+    {
+      "en": "Uncheck 'Dry run' and click Import again to perform the actual import.",
+      "fr": "Décochez 'Essai à vide' et cliquez à nouveau sur Importer pour effectuer l'import réel."
+    },
+    {
+      "en": "Preview of data to import:",
+      "fr": "Aperçu des données à importer :"
+    },
+    {
+      "en": "Import Successful!",
+      "fr": "Import réussi !"
+    },
+    {
+      "en": "%d specimens have been added to the database.",
+      "fr": "%d spécimens ont été ajoutés à la base de données."
+    },
+    {
+      "en": "Specimen IDs:",
+      "fr": "IDs de spécimens :"
+    },
+    {
+      "en": "Preparing data...",
+      "fr": "Préparation des données..."
+    },
+    {
+      "en": "Inserting specimens...",
+      "fr": "Insertion des spécimens..."
+    },
+    {
+      "en": "Inserted %d of %d",
+      "fr": "Inséré %d sur %d"
+    },
+    {
+      "en": "Successfully imported %d specimens",
+      "fr": "Import réussi de %d spécimens"
+    },
+    {
+      "en": "%d specimens have unmatched collector names",
+      "fr": "%d spécimens ont des noms de collecteurs non appariés"
+    },
+    {
+      "en": "%d specimens have unmatched taxon names",
+      "fr": "%d spécimens ont des noms de taxons non appariés"
+    },
+    {
+      "en": "%d potential duplicate specimens detected",
+      "fr": "%d spécimens potentiellement en double détectés"
+    },
+    {
+      "en": "All specimens are valid and ready to import.",
+      "fr": "Tous les spécimens sont valides et prêts à importer."
+    },
+    {
+      "en": "Validation Warnings",
+      "fr": "Avertissements de validation"
+    },
+    {
+      "en": "Please upload a file first.",
+      "fr": "Veuillez d'abord charger un fichier."
+    },
+    {
+      "en": "Please map all required columns.",
+      "fr": "Veuillez mapper toutes les colonnes requises."
+    },
+    {
+      "en": "Please run the lookup analysis first.",
+      "fr": "Veuillez d'abord exécuter l'analyse des valeurs de référence."
+    },
+    {
+      "en": "Upload",
+      "fr": "Charger"
+    },
+    {
+      "en": "Match Values",
+      "fr": "Apparier les valeurs"
+    },
+    {
+      "en": "No valid specimens to import. Please complete the lookup matching step.",
+      "fr": "Aucun spécimen valide à importer. Veuillez compléter l'étape d'appariement."
+    },
+    {
+      "en": "Importing specimens...",
+      "fr": "Import des spécimens..."
+    },
+    {
+      "en": "Your columns",
+      "fr": "Vos colonnes"
+    },
+    {
+      "en": "Ready",
+      "fr": "Prêt"
+    },
+    {
+      "en": "File loaded: %d rows, %d columns",
+      "fr": "Fichier chargé : %d lignes, %d colonnes"
+    },
+    {
+      "en": "Taxonomic standardization required for specimens data:",
+      "fr": "Standardisation taxonomique requise pour les données de spécimens:"
+    },
+    {
+      "en": "Before importing specimen data, you must standardize taxonomic information and obtain idtax_n values. Use the interactive Shiny app for taxonomic matching (launch_taxonomic_match_app()) to standardize your species names. Your data must include an 'idtax_n' column with the standardized taxonomic IDs.",
+      "fr": "Avant d'importer des données de spécimens, vous devez standardiser les informations taxonomiques et obtenir les valeurs idtax_n. Utilisez l'application Shiny interactive pour la correspondance taxonomique (launch_taxonomic_match_app()) pour standardiser vos noms d'espèces. Vos données doivent inclure une colonne 'idtax_n' avec les identifiants taxonomiques standardisés."
+    },
+    {
+      "en": "Taxonomic ID (from taxonomic matching)",
+      "fr": "ID taxonomique (de la correspondance taxonomique)"
+    },
+    {
+      "en": "Taxonomic ID (idtax_n)",
+      "fr": "ID taxonomique (idtax_n)"
+    },
+    {
+      "en": "Taxonomic ID (idtax_n) column is required",
+      "fr": "La colonne ID taxonomique (idtax_n) est requise"
+    },
+    {
+      "en": "Step 3: Match Collector Names",
+      "fr": "Étape 3: Correspondance des collecteurs"
+    },
+    {
+      "en": "Match collector names to the database. Taxonomic IDs should already be standardized from the taxonomic matching app.",
+      "fr": "Faites correspondre les noms des collecteurs à la base de données. Les identifiants taxonomiques doivent déjà être standardisés depuis l'application de correspondance taxonomique."
+    },
+    {
+      "en": "Validating taxonomic IDs...",
+      "fr": "Validation des identifiants taxonomiques..."
+    },
+    {
+      "en": "%d rows have missing or invalid taxonomic IDs. Please ensure all specimens have valid idtax_n values from taxonomic matching.",
+      "fr": "%d lignes ont des identifiants taxonomiques manquants ou invalides. Veuillez vous assurer que tous les spécimens ont des valeurs idtax_n valides provenant de la correspondance taxonomique."
+    },
+    {
+      "en": "Collector Analysis",
+      "fr": "Analyse des collecteurs"
+    },
+    {
+      "en": "All collectors matched successfully! You can proceed to the next step.",
+      "fr": "Tous les collecteurs ont été appariés avec succès! Vous pouvez passer à l'étape suivante."
+    },
+    {
+      "en": "Some collectors need review. Please check below and resolve any issues.",
+      "fr": "Certains collecteurs nécessitent une révision. Veuillez vérifier ci-dessous et résoudre tout problème."
+    },
+    {
+      "en": "Collector Matching",
+      "fr": "Correspondance des collecteurs"
+    },
+    {
+      "en": "%d specimens have missing or invalid taxonomic IDs",
+      "fr": "%d spécimens ont des identifiants taxonomiques manquants ou invalides"
+    },
+    {
+      "en": "Individual-Specimen Linking",
+      "fr": "Liaison Individu-Spécimen"
+    },
+    {
+      "en": "Step 1: Select Individuals",
+      "fr": "Étape 1: Sélectionner les individus"
+    },
+    {
+      "en": "Filter and select individuals that have herbarium information to link to specimens.",
+      "fr": "Filtrer et sélectionner les individus qui ont des informations d herbier à lier aux spécimens."
+    },
+    {
+      "en": "Step 2: Parse Herbarium Information",
+      "fr": "Étape 2: Analyser les informations d herbier"
+    },
+    {
+      "en": "Extract collector names and specimen numbers from herbarium columns.",
+      "fr": "Extraire les noms des collecteurs et les numéros de spécimens des colonnes d herbier."
+    },
+    {
+      "en": "Step 3: Match Collectors",
+      "fr": "Étape 3: Apparier les collecteurs"
+    },
+    {
+      "en": "Step 4: Retrieve Matching Specimens",
+      "fr": "Étape 4: Récupérer les spécimens correspondants"
+    },
+    {
+      "en": "Query the database to find specimens matching the collector and number combinations.",
+      "fr": "Interroger la base de données pour trouver les spécimens correspondant aux combinaisons collecteur-numéro."
+    },
+    {
+      "en": "Step 5: Validate Taxonomic Matches",
+      "fr": "Étape 5: Valider les correspondances taxonomiques"
+    },
+    {
+      "en": "Step 6: Create Links",
+      "fr": "Étape 6: Créer les liens"
+    },
+    {
+      "en": "Parse",
+      "fr": "Analyser"
+    },
+    {
+      "en": "Match",
+      "fr": "Apparier"
+    },
+    {
+      "en": "Retrieve",
+      "fr": "Récupérer"
+    },
+    {
+      "en": "Create",
+      "fr": "Créer"
+    },
+    {
+      "en": "Parse Herbarium Data",
+      "fr": "Analyser les données d herbier"
+    },
+    {
+      "en": "Parsing Results",
+      "fr": "Résultats de l analyse"
+    },
+    {
+      "en": "Type Specimens",
+      "fr": "Spécimens types"
+    },
+    {
+      "en": "Reference Specimens",
+      "fr": "Spécimens de référence"
+    },
+    {
+      "en": "Unique Collectors",
+      "fr": "Collecteurs uniques"
+    },
+    {
+      "en": "Parsed Data Preview",
+      "fr": "Aperçu des données analysées"
+    },
+    {
+      "en": "Retrieve Specimens",
+      "fr": "Récupérer les spécimens"
+    },
+    {
+      "en": "Retrieval Results",
+      "fr": "Résultats de la récupération"
+    },
+    {
+      "en": "Potential Links",
+      "fr": "Liens potentiels"
+    },
+    {
+      "en": "Specimens Found",
+      "fr": "Spécimens trouvés"
+    },
+    {
+      "en": "Match Rate",
+      "fr": "Taux de correspondance"
+    },
+    {
+      "en": "Retrieved Specimens Preview",
+      "fr": "Aperçu des spécimens récupérés"
+    },
+    {
+      "en": "Validate Taxonomy",
+      "fr": "Valider la taxonomie"
+    },
+    {
+      "en": "Validation Results",
+      "fr": "Résultats de la validation"
+    },
+    {
+      "en": "Total Links",
+      "fr": "Total des liens"
+    },
+    {
+      "en": "Same Genus",
+      "fr": "Même genre"
+    },
+    {
+      "en": "Different Genus",
+      "fr": "Genre différent"
+    },
+    {
+      "en": "Filter Links",
+      "fr": "Filtrer les liens"
+    },
+    {
+      "en": "Taxonomic Match",
+      "fr": "Correspondance taxonomique"
+    },
+    {
+      "en": "Priority",
+      "fr": "Priorité"
+    },
+    {
+      "en": "Auto-approve",
+      "fr": "Approbation automatique"
+    },
+    {
+      "en": "Review Recommended",
+      "fr": "Révision recommandée"
+    },
+    {
+      "en": "Review Required",
+      "fr": "Révision requise"
+    },
+    {
+      "en": "Approve All Exact Matches",
+      "fr": "Approuver toutes les correspondances exactes"
+    },
+    {
+      "en": "Confirm Selection",
+      "fr": "Confirmer la sélection"
+    },
+    {
+      "en": "Review Links",
+      "fr": "Examiner les liens"
+    },
+    {
+      "en": "Links to Create",
+      "fr": "Liens à créer"
+    },
+    {
+      "en": "Type Individual",
+      "fr": "Individu type"
+    },
+    {
+      "en": "Referenced Individual",
+      "fr": "Individu de référence"
+    },
+    {
+      "en": "Herb. Reference",
+      "fr": "Ref. herbier"
+    },
+    {
+      "en": "Herb. Type",
+      "fr": "Type herbier"
+    },
+    {
+      "en": "Same Family",
+      "fr": "Même famille"
+    },
+    {
+      "en": "Different Family",
+      "fr": "Famille différente"
+    },
+    {
+      "en": "Diff. Family",
+      "fr": "Fam. diff."
+    },
+    {
+      "en": "Validation complete: %d exact, %d same genus, %d same family, %d different family",
+      "fr": "Validation terminée : %d exact, %d même genre, %d même famille, %d famille différente"
+    },
+    {
+      "en": "Review taxonomic matches between individuals and specimens. Links with different genus identifications require manual review.",
+      "fr": "Examinez les correspondances taxonomiques entre individus et spécimens. Les liens avec des identifications de genres différents nécessitent une révision manuelle."
+    },
+    {
+      "en": "No links selected. Please approve at least one link.",
+      "fr": "Aucun lien sélectionné. Veuillez approuver au moins un lien."
+    },
+    {
+      "en": "%d links confirmed and ready to create.",
+      "fr": "%d liens confirmés et prêts à créer."
+    },
+    {
+      "en": "All exact matches approved.",
+      "fr": "Toutes les correspondances exactes approuvées."
+    },
+    {
+      "en": "Prerequisites",
+      "fr": "Prérequis"
+    },
+    {
+      "en": "Before linking individuals to specimens, ensure that:",
+      "fr": "Avant de lier des individus aux spécimens, assurez-vous que :"
+    },
+    {
+      "en": "are already entered in the database with herbarium reference information in at least one of the following column",
+      "fr": "sont déjà saisis dans la base de données avec les informations de référence d'herbier dans une des colonnes suivantes"
+    },
+    {
+      "en": "or",
+      "fr": "ou"
+    },
+    {
+      "en": "are already entered in the herbarium database with collector names and specimen numbers",
+      "fr": "sont déjà saisis dans la base de données d'herbier avec les noms de collecteurs et numéros de spécimens"
+    },
+    {
+      "en": "Select All",
+      "fr": "Tout sélectionner"
+    },
+    {
+      "en": "Deselect All",
+      "fr": "Tout désélectionner"
+    },
+    {
+      "en": "Reject Different Family",
+      "fr": "Rejeter famille différente"
+    },
+    {
+      "en": "All links selected.",
+      "fr": "Tous les liens sélectionnés."
+    },
+    {
+      "en": "All links deselected.",
+      "fr": "Tous les liens désélectionnés."
+    },
+    {
+      "en": "%d links with different family rejected.",
+      "fr": "%d liens avec famille différente rejetés."
+    },
+    {
+      "en": "Understanding the two column types:",
+      "fr": "Comprendre les deux types de colonnes :"
+    },
+    {
+      "en": "The ACTUAL tree where the specimen was physically collected (high confidence)",
+      "fr": "L'arbre RÉEL où le spécimen a été physiquement collecté (haute confiance)"
+    },
+    {
+      "en": "Other trees field-identified as the SAME SPECIES as the specimen tree (lower confidence, extends specimen utility)",
+      "fr": "Autres arbres identifiés sur le terrain comme étant de la MÊME ESPÈCE que l'arbre du spécimen (confiance plus faible, étend l'utilité du spécimen)"
     }
   ]
 }
