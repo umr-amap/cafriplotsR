@@ -173,16 +173,16 @@ Une fois que vous avez approuvé les liens, l'application les écrit dans la bas
 
 Le système supporte plusieurs types de liens pour capturer la nature de la relation :
 
-### `referenced_individual`
-Le cas standard : Un spécimen a été collecté sur cet arbre individuel pendant le recensement de parcelle. Le spécimen sert de témoin taxonomique pour l'arbre.
-
 ### `type_individual`
-Cas spécial : L'individu est le **spécimen type** réel (holotype, isotype, etc.) pour une description d'espèce. C'est rare mais scientifiquement critique.
+Preuve directe : Le spécimen d'herbier a été physiquement collecté **sur cet arbre spécifique** pendant le recensement de parcelle. Cela fournit le lien de plus haute confiance entre l'individu mesuré et son identification taxonomique.
+
+### `referenced_individual`
+Preuve indirecte : Cet arbre a été identifié sur le terrain comme étant de la **même espèce** qu'un autre arbre sur lequel un spécimen a été collecté. L'arbre est lié à ce spécimen, mais le spécimen lui-même n'a pas été collecté sur cet individu. Cela étend la valeur taxonomique des spécimens collectés à des arbres supplémentaires, bien qu'avec une confiance moindre car cela repose sur la précision de l'identification de terrain.
 
 **Comment c'est déterminé :**
 - L'application vérifie si la colonne `herbarium_nbe_type` correspond à `herbarium_nbe_char`
-- Si oui → `type_individual`
-- Si non → `referenced_individual`
+- Si oui → `type_individual` (spécimen collecté sur cet arbre)
+- Si non → `referenced_individual` (arbre identifié comme même espèce)
 
 ## Interroger les spécimens liés
 
@@ -254,7 +254,7 @@ Le système de liaison utilise ces tables clés :
 data_individuals
 ├─ id_n (PK)
 ├─ herbarium_nbe_char (texte de référence du spécimen)
-├─ herbarium_nbe_type (référence du spécimen type)
+├─ herbarium_nbe_type (référence pour spécimen collecté sur cet arbre)
 └─ idtax_n (identification de terrain)
 
 specimens
@@ -308,7 +308,7 @@ link_individual_specimen
    - Mauvais spécimen lié (erreur de saisie)
    - Spécimen mal étiqueté (rare)
 
-3. **Documentez précisément les types de liens** : Distinguez entre les témoins réguliers et les spécimens types.
+3. **Documentez précisément les types de liens** : Distinguez entre collection directe (`type_individual`) et références d'identification de terrain (`referenced_individual`).
 
 4. **Maintenez les pistes d'audit** : Ne supprimez jamais les liens; ajoutez-en de nouveaux si des corrections sont nécessaires.
 

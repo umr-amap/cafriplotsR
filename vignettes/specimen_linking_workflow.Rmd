@@ -173,16 +173,16 @@ Once you've approved the links, the app writes them to the database.
 
 The system supports multiple link types to capture the nature of the relationship:
 
-### `referenced_individual`
-The standard case: A specimen was collected from this individual tree during plot census. The specimen serves as a taxonomic voucher for the tree.
-
 ### `type_individual`
-Special case: The individual is the actual **type specimen** (holotype, isotype, etc.) for a species description. This is rare but scientifically critical.
+Direct evidence: The herbarium specimen was physically collected **from this specific tree** during plot census. This provides the highest confidence link between the measured individual and its taxonomic identification.
+
+### `referenced_individual`
+Indirect evidence: This tree was field-identified as the **same species** as another tree from which a specimen was collected. The tree is linked to that specimen, but the specimen itself was not collected from this individual. This extends the taxonomic value of collected specimens to additional trees, though with lower confidence since it relies on field identification accuracy.
 
 **How it's determined:**
 - The app checks if `herbarium_nbe_type` column matches `herbarium_nbe_char`
-- If yes → `type_individual`
-- If no → `referenced_individual`
+- If yes → `type_individual` (specimen collected from this tree)
+- If no → `referenced_individual` (tree identified as same species)
 
 ## Querying Linked Specimens
 
@@ -254,7 +254,7 @@ The linking system uses these key tables:
 data_individuals
 ├─ id_n (PK)
 ├─ herbarium_nbe_char (specimen reference text)
-├─ herbarium_nbe_type (type specimen reference)
+├─ herbarium_nbe_type (reference for specimen collected from this tree)
 └─ idtax_n (field identification)
 
 specimens
@@ -308,7 +308,7 @@ link_individual_specimen
    - Wrong specimen linked (data entry error)
    - Mislabeled specimen (rare)
 
-3. **Document link types accurately**: Distinguish between regular vouchers and type specimens.
+3. **Document link types accurately**: Distinguish between direct collection (`type_individual`) and field-identified references (`referenced_individual`).
 
 4. **Maintain audit trails**: Never delete links; add new ones if corrections are needed.
 

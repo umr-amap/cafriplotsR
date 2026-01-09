@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions_manip_db.R
 \name{query_specimens}
 \alias{query_specimens}
-\title{Exploring specimens data}
+\title{Query Specimens}
 \usage{
 query_specimens(
   collector = NULL,
@@ -52,33 +52,12 @@ query_specimens(
 \item{con}{Database connection (if NULL, creates new connection)}
 
 \item{con.taxa}{Taxa database connection (if NULL, creates new connection)}
-
-\item{genus_searched}{string specimens of genus searched}
-
-\item{tax_esp_searched}{string specimens of species searched}
-
-\item{tax_fam_searched}{string specimens of family searched}
-
-\item{id_search}{integer id searched}
-
-\item{show_previous_modif}{logical if you want to see previous modification of the entry - useful to see previous identification for example}
-
-\item{generate_labels}{logical if labels should be produced}
-
-\item{project_title}{string if labels are produced title of the label}
-
-\item{file_labels}{string if labels are produced name of the rtf file}
 }
 \value{
-A tibble
-
 Data frame with specimen records, or list if extract_linked_individuals=TRUE
 }
 \description{
 Modern query interface for specimens with builder pattern support
-}
-\details{
-Exploring specimens data and if necessary export labels
 }
 \examples{
 \dontrun{
@@ -96,7 +75,4 @@ result <- query_specimens(collector = "Dauby", extract_linked_individuals = TRUE
 result$specimens  # Specimen records
 result$linked_individuals  # Linked individual records
 }
-}
-\author{
-Gilles Dauby, \email{gilles.dauby@ird.fr}
 }
