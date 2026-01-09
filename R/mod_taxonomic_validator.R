@@ -64,6 +64,8 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
     validated_data <- shiny::reactiveVal(NULL)
     user_decisions <- shiny::reactiveValues()
     validation_complete <- shiny::reactiveVal(FALSE)
+    # Trigger to force table re-render when decisions change
+    decisions_changed <- shiny::reactiveVal(0)
 
     # Validate taxonomy when button clicked
     shiny::observeEvent(input$validate_taxonomy, {
@@ -111,10 +113,16 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
 
           shiny::incProgress(0.9, detail = i18n()$t("Finalizing..."))
 
-          # Initialize user decisions (all accepted by default for opt-out approach)
+          # Initialize user decisions - reject different_family by default
           for (i in seq_len(nrow(links_validated))) {
             row_id <- paste0("row_", i)
-            user_decisions[[paste0(row_id, "_decision")]] <- "accept"
+            # Auto-reject links with different family
+            if (!is.na(links_validated$taxonomic_match[i]) &&
+                links_validated$taxonomic_match[i] == "different_family") {
+              user_decisions[[paste0(row_id, "_decision")]] <- "reject"
+            } else {
+              user_decisions[[paste0(row_id, "_decision")]] <- "accept"
+            }
           }
 
           validated_data(links_validated)
@@ -294,6 +302,9 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
         user_decisions[[paste0(row_id, "_decision")]] <- "accept"
       }
 
+      # Trigger table update
+      decisions_changed(decisions_changed() + 1)
+
       shiny::showNotification(
         i18n()$t("All links selected."),
         type = "message",
@@ -311,6 +322,9 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
         user_decisions[[paste0(row_id, "_decision")]] <- "reject"
       }
 
+      # Trigger table update
+      decisions_changed(decisions_changed() + 1)
+
       shiny::showNotification(
         i18n()$t("All links deselected."),
         type = "message",
@@ -325,12 +339,15 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
       validated <- validated_data()
       n_rejected <- 0
       for (i in seq_len(nrow(validated))) {
-        if (validated$taxonomic_match[i] == "different_family") {
+        if (!is.na(validated$taxonomic_match[i]) && validated$taxonomic_match[i] == "different_family") {
           row_id <- paste0("row_", i)
           user_decisions[[paste0(row_id, "_decision")]] <- "reject"
           n_rejected <- n_rejected + 1
         }
       }
+
+      # Trigger table update
+      decisions_changed(decisions_changed() + 1)
 
       shiny::showNotification(
         sprintf(i18n()$t("%d links with different family rejected."), n_rejected),
@@ -340,22 +357,45 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
     })
 
     # Watch for row clicks to toggle selection
+    # NOTE: This updates user_decisions but does NOT trigger table re-render
+    # to avoid infinite loops. The table shows selection via DT's built-in highlighting.
     shiny::observeEvent(input$review_table_rows_selected, {
       shiny::req(validated_data())
 
       validated <- validated_data()
+
+      # Add original row index before filtering
+      validated$original_row_index <- seq_len(nrow(validated))
+
+      # Apply same filters as displayed table
+      if (!is.null(input$filter_match) && input$filter_match != "all") {
+        validated <- validated %>%
+          dplyr::filter(taxonomic_match == input$filter_match)
+      }
+
+      if (!is.null(input$filter_priority) && input$filter_priority != "all") {
+        validated <- validated %>%
+          dplyr::filter(validation_status == input$filter_priority)
+      }
+
       selected_rows <- input$review_table_rows_selected
 
       # Update user_decisions based on DT selection
-      # DT rows are 1-indexed in input$review_table_rows_selected
+      # DT rows are 0-indexed in input$review_table_rows_selected
+      # Use original_row_index to map back to correct decision keys
       for (i in seq_len(nrow(validated))) {
-        row_id <- paste0("row_", i)
-        if (i %in% selected_rows) {
+        original_idx <- validated$original_row_index[i]
+        row_id <- paste0("row_", original_idx)
+        # Check if this row is in the selected rows (0-indexed)
+        if ((i - 1) %in% selected_rows) {
           user_decisions[[paste0(row_id, "_decision")]] <- "accept"
         } else {
           user_decisions[[paste0(row_id, "_decision")]] <- "reject"
         }
       }
+
+      # DO NOT trigger table re-render here to avoid infinite loop
+      # User can see selection via DT's built-in row highlighting
     }, ignoreNULL = FALSE, ignoreInit = TRUE)
 
     # Confirm selection
@@ -408,7 +448,13 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
     output$review_table <- DT::renderDataTable({
       shiny::req(validated_data())
 
+      # Depend on decisions_changed to trigger re-render
+      decisions_changed()
+
       validated <- validated_data()
+
+      # Add original row index before filtering
+      validated$original_row_index <- seq_len(nrow(validated))
 
       # Apply filters
       if (!is.null(input$filter_match) && input$filter_match != "all") {
@@ -421,10 +467,11 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
           dplyr::filter(validation_status == input$filter_priority)
       }
 
-      # Add selection status column based on user decisions
+      # Add selection status column based on user decisions using original row index
       display_data <- validated
       display_data$selection_status <- sapply(seq_len(nrow(validated)), function(i) {
-        row_id <- paste0("row_", i)
+        original_idx <- validated$original_row_index[i]
+        row_id <- paste0("row_", original_idx)
         decision <- user_decisions[[paste0(row_id, "_decision")]]
         if (is.null(decision) || decision == "accept") {
           "✓ Selected"
@@ -434,17 +481,28 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
       })
 
       # Select columns to display with all taxonomic details
+      # Use any_of() to handle missing columns gracefully
+      display_cols <- c(
+        "selection_status",
+        "id_n", "tag", "plot_name",
+        "collector_name", "extracted_number",
+        "individual_family", "individual_genus", "individual_species",
+        "specimen_family", "specimen_genus", "specimen_species",
+        "difference_indicator",
+        "taxonomic_match", "validation_status",
+        "link_type"
+      )
+
       display_data <- display_data %>%
-        dplyr::select(
-          selection_status,
-          id_n, tag, plot_name,
-          collector_name, extracted_number,
-          individual_family, individual_genus, individual_species,
-          specimen_family, specimen_genus, specimen_species,
-          difference_indicator,
-          taxonomic_match, validation_status,
-          link_type
-        )
+        dplyr::select(dplyr::any_of(display_cols))
+
+      # Check if display_data is empty
+      if (nrow(display_data) == 0) {
+        return(DT::datatable(data.frame(Message = "No data to display")))
+      }
+
+      # Calculate which rows should be pre-selected based on user_decisions
+      preselected_rows <- which(display_data$selection_status == "✓ Selected") - 1  # 0-indexed for DT
 
       DT::datatable(
         display_data,
@@ -462,7 +520,7 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
         ),
         rownames = FALSE,
         class = 'cell-border stripe compact hover',
-        selection = list(mode = 'multiple', selected = seq_len(nrow(display_data)) - 1)  # Pre-select all (0-indexed)
+        selection = list(mode = 'multiple', selected = preselected_rows)  # Pre-select based on decisions
       ) %>%
         # Style selection status column
         DT::formatStyle(
