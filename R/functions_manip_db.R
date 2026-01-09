@@ -2502,35 +2502,6 @@ explore_allometric_taxa <- function(genus_searched = NULL,
 
 
 
-
-
-
-
-#' Exploring specimens data
-#'
-#' Exploring specimens data and if necessary export labels
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param collector string collector name
-#' @param id_colnam integer id of collector
-#' @param number integer specimen number
-#' @param number_min integer minimum specimen number
-#' @param number_max integer maximum specimen number
-#' @param genus_searched string specimens of genus searched
-#' @param tax_esp_searched string specimens of species searched
-#' @param tax_fam_searched string specimens of family searched
-#' @param id_search integer id searched
-#' @param subset_columns logical if only a subset of columns should be provided
-#' @param show_previous_modif logical if you want to see previous modification of the entry - useful to see previous identification for example
-#' @param generate_labels logical if labels should be produced
-#' @param project_title string if labels are produced title of the label
-#' @param file_labels string if labels are produced name of the rtf file
-#' @param extract_linked_individuals logical extract individuals linked to selected specimens
-#'
-#' @return A tibble
-#' @export
 #' Query Specimens
 #'
 #' @description
