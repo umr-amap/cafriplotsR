@@ -102,6 +102,33 @@ plots <- query_plots(country = "GABON")
 get_database_fk(mydb)
 ```
 
+## Liaison de Spécimens d'Herbier : Améliorer la Qualité des Données dans le Temps
+
+**Une fonctionnalité unique pour améliorer la qualité des données dans le temps**
+
+Les identifications de terrain dans les inventaires forestiers, bien que précieuses, souffrent souvent d'incertitude taxonomique. Les spécimens botaniques collectés sur les mêmes individus et déposés dans les herbiers font l'objet de révisions taxonomiques expertes au fil du temps, aboutissant à des identifications plus précises. Cependant, ces connaissances améliorées restent généralement isolées dans les bases de données d'herbiers, déconnectées des données d'inventaires écologiques.
+
+**La solution CafriplotsR : Liens formels spécimen-individu**
+
+Ce package implémente un **système de liaison de spécimens** qui crée des connexions formelles et persistantes entre :
+
+- Les arbres individuels dans les inventaires forestiers (avec leurs mesures écologiques)
+- Les spécimens d'herbier collectés sur ces mêmes individus (avec leur taxonomie révisée par des experts)
+
+**Avantages clés :**
+
+1. **Mises à jour taxonomiques automatiques** : Lorsque l'identification d'un spécimen est révisée par des taxonomistes, l'individu d'inventaire lié hérite automatiquement de la taxonomie mise à jour. Aucune ré-identification manuelle nécessaire.
+
+2. **Amélioration de la qualité des données dans le temps** : Vos données d'inventaire deviennent progressivement plus précises au fur et à mesure que les identifications de spécimens sont affinées, sans nécessiter de revisites sur le terrain ou d'efforts supplémentaires.
+
+3. **Traçabilité** : Chaque enregistrement d'inventaire maintient un lien clair vers son spécimen de référence, fournissant une preuve scientifique et permettant la vérification.
+
+4. **Confiance taxonomique** : Distinguez entre les identifications de terrain (sujettes à incertitude) et les identifications basées sur des spécimens (vérifiées par des experts).
+
+5. **Longévité des données** : Les données d'inventaire restent connectées à l'évolution des connaissances taxonomiques, garantissant une valeur scientifique à long terme.
+
+📖 **Pour des instructions détaillées sur comment lier des spécimens aux individus**, consultez la vignette : [Liaison de spécimens d'herbier aux individus d'inventaire](specimen_linking_workflow-fr.html)
+
 ## Fonctions Principales
 
 ### Gestion des Connexions

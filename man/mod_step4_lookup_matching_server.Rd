@@ -17,7 +17,7 @@ mod_step4_lookup_matching_server(id, data, mappings, config, con, i18n)
 
 \item{con}{Reactive containing database connection pool}
 
-\item{i18n}{Translator object from shiny.i18n}
+\item{i18n}{Reactive returning translator object from shiny.i18n}
 }
 \value{
 Reactive containing matched/updated data

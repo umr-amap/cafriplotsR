@@ -1526,6 +1526,334 @@ PlotFetcher <- R6::R6Class(
 )
 
 
+#' Specimen Filter Builder
+#'
+#' @description
+#' R6 class for building SQL queries to filter specimens with a fluent API
+#'
+#' @export
+SpecimenFilterBuilder <- R6::R6Class(
+  "SpecimenFilterBuilder",
+
+  private = list(
+    con = NULL,
+    conditions = character(0),
+
+    # Internal method to add a condition
+    add_condition = function(condition) {
+      if (!is.null(condition) && nchar(condition) > 0) {
+        private$conditions <- c(private$conditions, condition)
+      }
+      invisible(self)
+    }
+  ),
+
+  public = list(
+    # Initialize the builder
+    initialize = function(connection) {
+      stopifnot("Connection must be provided" = !is.null(connection))
+      private$con <- connection
+    },
+
+    # Filter by collector name or ID
+    filter_collector = function(collector = NULL, id_colnam = NULL, interactive = FALSE) {
+      if (is.null(collector) && is.null(id_colnam)) return(self)
+
+      if (!is.null(id_colnam)) {
+        # Direct ID filtering (specimens table uses 'id_colnam' column)
+        condition <- glue::glue_sql(
+          "id_colnam IN ({ids*})",
+          ids = id_colnam,
+          .con = private$con
+        )
+        private$add_condition(condition)
+        return(self)
+      }
+
+      if (interactive) {
+        # Interactive mode with .link_table
+        data_with_collector <- tibble::tibble(colnam = collector)
+
+        linked_data <- .link_table(
+          data_stand = data_with_collector,
+          column_searched = "colnam",
+          column_name = "colnam",
+          id_field = "id_table_colnam",
+          id_table_name = "id_table_colnam",
+          db_connection = private$con,
+          table_name = "table_colnam"
+        )
+
+        collector_ids <- linked_data %>%
+          filter(!is.na(id_table_colnam), id_table_colnam != 0) %>%
+          pull(id_table_colnam)
+
+        if (length(collector_ids) == 0) {
+          cli::cli_alert_warning("No valid collectors selected")
+          return(self)
+        }
+
+      } else {
+        # Non-interactive: fuzzy match by name
+        collectors_tbl <- try_open_postgres_table("table_colnam", private$con) %>%
+          dplyr::collect() %>%
+          dplyr::filter(tolower(colnam) %in% tolower(!!collector))
+
+        if (nrow(collectors_tbl) == 0) {
+          cli::cli_alert_warning("No collectors found matching: {paste(collector, collapse = ', ')}")
+          cli::cli_alert_info("Tip: Use interactive = TRUE for fuzzy matching")
+          return(self)
+        }
+
+        collector_ids <- collectors_tbl$id_table_colnam
+      }
+
+      condition <- glue::glue_sql(
+        "id_colnam IN ({ids*})",
+        ids = collector_ids,
+        .con = private$con
+      )
+      private$add_condition(condition)
+
+      return(self)
+    },
+
+    # Filter by specimen number (exact or range)
+    filter_number = function(number = NULL, number_min = NULL, number_max = NULL) {
+      if (is.null(number) && is.null(number_min) && is.null(number_max)) return(self)
+
+      if (!is.null(number)) {
+        # Exact number(s)
+        condition <- glue::glue_sql(
+          "colnbr IN ({nums*})",
+          nums = number,
+          .con = private$con
+        )
+        private$add_condition(condition)
+      }
+
+      if (!is.null(number_min)) {
+        condition <- glue::glue_sql(
+          "colnbr >= {num}",
+          num = number_min,
+          .con = private$con
+        )
+        private$add_condition(condition)
+      }
+
+      if (!is.null(number_max)) {
+        condition <- glue::glue_sql(
+          "colnbr <= {num}",
+          num = number_max,
+          .con = private$con
+        )
+        private$add_condition(condition)
+      }
+
+      return(self)
+    },
+
+    # Filter by taxonomy
+    filter_taxonomy = function(genus = NULL, species = NULL, family = NULL, idtax_n = NULL) {
+      # Note: taxonomy filtering requires join with taxa info, handled in build()
+
+      if (!is.null(idtax_n)) {
+        condition <- glue::glue_sql(
+          "idtax_n IN ({ids*})",
+          ids = idtax_n,
+          .con = private$con
+        )
+        private$add_condition(condition)
+      }
+
+      # Store taxonomy filters for later use in join
+      if (!is.null(genus)) {
+        private$genus_filter <- genus
+      }
+      if (!is.null(species)) {
+        private$species_filter <- species
+      }
+      if (!is.null(family)) {
+        private$family_filter <- family
+      }
+
+      return(self)
+    },
+
+    # Filter by specimen ID (direct)
+    filter_by_ids = function(specimen_ids) {
+      if (is.null(specimen_ids) || length(specimen_ids) == 0) return(self)
+
+      condition <- glue::glue_sql(
+        "id_specimen IN ({ids*})",
+        ids = specimen_ids,
+        .con = private$con
+      )
+      private$add_condition(condition)
+
+      return(self)
+    },
+
+    # Build the final SQL query
+    build = function(operator = "AND") {
+      base_query <- "SELECT * FROM specimens"
+
+      if (length(private$conditions) > 0) {
+        # Validate operator
+        operator <- match.arg(toupper(operator), c("AND", "OR"))
+
+        where_clause <- paste(private$conditions, collapse = paste0(" ", operator, " "))
+        full_query <- glue::glue_sql(
+          "{DBI::SQL(base_query)} WHERE {DBI::SQL(where_clause)}",
+          .con = private$con
+        )
+
+        if (operator == "OR") {
+          cli::cli_alert_info("Using OR operator between filter conditions")
+        }
+      } else {
+        full_query <- glue::glue_sql("{DBI::SQL(base_query)}", .con = private$con)
+      }
+
+      return(full_query)
+    },
+
+    # Add a custom SQL condition
+    add_custom_condition = function(condition, wrap_parentheses = TRUE) {
+      if (!is.null(condition) && nchar(condition) > 0) {
+        if (wrap_parentheses) {
+          condition <- paste0("(", condition, ")")
+        }
+        private$add_condition(condition)
+      }
+      invisible(self)
+    },
+
+    # Display current filter conditions (for debugging)
+    print_conditions = function() {
+      if (length(private$conditions) == 0) {
+        cli::cli_alert_info("No filter conditions set")
+      } else {
+        cli::cli_h3("Current filter conditions:")
+        for (i in seq_along(private$conditions)) {
+          cli::cli_li("{private$conditions[i]}")
+        }
+      }
+      invisible(self)
+    }
+  )
+)
+
+
+#' Specimen Fetcher
+#'
+#' @description
+#' R6 class for fetching specimen data from database
+#'
+#' @export
+SpecimenFetcher <- R6::R6Class(
+  "SpecimenFetcher",
+
+  private = list(
+    con = NULL,
+
+    # Enrich with metadata (collector info, taxonomy)
+    enrich_metadata = function(specimens) {
+      # Join with collector names
+      collectors_tbl <- tryCatch({
+        try_open_postgres_table("table_colnam", private$con) %>%
+          dplyr::select(id_table_colnam, colnam, surname, family_name) %>%
+          dplyr::collect()
+      }, error = function(e) {
+        cli::cli_alert_warning("Could not fetch table_colnam: {e$message}")
+        return(NULL)
+      })
+
+      if (!is.null(collectors_tbl) && "id_colnam" %in% colnames(specimens)) {
+        specimens <- dplyr::left_join(
+          specimens,
+          collectors_tbl,
+          by = c("id_colnam" = "id_table_colnam")
+        )
+      }
+
+      return(specimens)
+    }
+  ),
+
+  public = list(
+    # Initialize the fetcher
+    initialize = function(connection) {
+      private$con <- connection
+    },
+
+    # Fetch specimens by IDs
+    fetch_by_ids = function(specimen_ids) {
+      if (is.null(specimen_ids) || length(specimen_ids) == 0) {
+        return(tibble::tibble())
+      }
+
+      cli::cli_alert_info("Fetching {length(specimen_ids)} specimens by ID")
+
+      sql <- glue::glue_sql(
+        "SELECT * FROM specimens WHERE id_specimen IN ({ids*})",
+        ids = specimen_ids,
+        .con = private$con
+      )
+
+      specimens <- func_try_fetch(con = private$con, sql = sql)
+
+      # Enrichment
+      specimens <- private$enrich_metadata(specimens)
+
+      return(specimens)
+    },
+
+    # Fetch specimens by collector and number (exact match)
+    fetch_by_collector_and_number = function(id_table_colnam, colnbr) {
+      if (is.null(id_table_colnam) || is.null(colnbr)) {
+        return(tibble::tibble())
+      }
+
+      cli::cli_alert_info("Fetching specimens for collector ID {id_table_colnam}, number(s) {paste(colnbr, collapse=', ')}")
+
+      sql <- glue::glue_sql(
+        "SELECT * FROM specimens WHERE id_colnam = {id} AND colnbr IN ({nums*})",
+        id = id_table_colnam,
+        nums = colnbr,
+        .con = private$con
+      )
+
+      specimens <- func_try_fetch(con = private$con, sql = sql)
+
+      # Enrichment
+      specimens <- private$enrich_metadata(specimens)
+
+      return(specimens)
+    },
+
+    # Fetch with filter (SQL query from builder)
+    fetch_with_filter = function(query) {
+      specimens <- func_try_fetch(con = private$con, sql = query)
+
+      if (nrow(specimens) == 0) {
+        cli::cli_alert_warning("No specimens found matching filter criteria")
+        return(specimens)
+      }
+
+      cli::cli_alert_success("Found {nrow(specimens)} specimens")
+
+      # Enrichment
+      specimens <- private$enrich_metadata(specimens)
+
+      return(specimens)
+    }
+  )
+)
+
+
+# Helper functions for specimen queries
+
 .extract_by_specimen <- function(id_specimen, con) {
   tbl <- "data_link_specimens"
   sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE id_specimen IN ({vals*})",
@@ -1533,6 +1861,166 @@ PlotFetcher <- R6::R6Class(
   res <- func_try_fetch(con = con, sql = sql)
   if (nrow(res) == 0) stop("No individuals linked to this specimen")
   return(res$id_n)
+}
+
+#' Enrich Specimens with Taxonomy
+#'
+#' @description
+#' Internal helper to add taxonomic information to specimens.
+#' Uses table_idtax from main database (con) for synonym resolution,
+#' then fetches full taxonomy from taxa database (con.taxa).
+#' Note: table_idtax must be updated via update_taxa_link_table() first.
+#'
+#' @param specimens Data frame with specimen data including idtax_n
+#' @param con Main database connection (for table_idtax)
+#' @param con.taxa Taxa database connection (for table_taxa)
+#'
+#' @return Data frame with taxonomy columns added
+#' @keywords internal
+.enrich_specimens_with_taxonomy <- function(specimens, con, con.taxa = NULL) {
+
+  if (nrow(specimens) == 0 || !"idtax_n" %in% names(specimens)) {
+    return(specimens)
+  }
+
+  # Check if taxa connection is provided and valid
+  if (is.null(con.taxa)) {
+    cli::cli_alert_info("Skipping taxonomy enrichment (no taxa database connection provided)")
+    return(specimens)
+  }
+
+  # Test the connection before using it
+  conn_valid <- tryCatch({
+    test_connection(con.taxa)
+  }, error = function(e) {
+    FALSE
+  })
+
+  if (!conn_valid) {
+    cli::cli_alert_warning("Taxa connection is not valid, skipping taxonomy enrichment")
+    return(specimens)
+  }
+
+  # Wrap entire enrichment process in error handler
+  tryCatch({
+    # Resolve synonyms from main database (table_idtax is in main DB, not taxa DB)
+    diconames_id <-
+      try_open_postgres_table(table = "table_idtax", con = con) %>%
+      dplyr::select(idtax_n, idtax_good_n) %>%
+      dplyr::mutate(idtax_f = ifelse(is.na(idtax_good_n), idtax_n, idtax_good_n)) %>%
+      dplyr::collect()
+
+    # Join with specimens
+    specimens <- specimens %>%
+      dplyr::left_join(
+        diconames_id %>% dplyr::select(-idtax_good_n),
+        by = "idtax_n"
+      )
+
+    # Get unique taxa IDs
+    unique_idtax <- unique(specimens$idtax_f)
+    unique_idtax <- unique_idtax[!is.na(unique_idtax)]
+
+    if (length(unique_idtax) == 0) {
+      return(specimens)
+    }
+
+    # Fetch taxonomy (add_taxa_table_taxa creates its own connection)
+    taxa_info <- add_taxa_table_taxa(ids = unique_idtax)
+
+    if (is.data.frame(taxa_info)) {
+      taxa_info <- taxa_info %>%
+        dplyr::collect() %>%
+        dplyr::select(-any_of(c("data_modif_d", "data_modif_m", "data_modif_y")))
+
+      specimens <- specimens %>%
+        dplyr::left_join(taxa_info, by = c("idtax_f" = "idtax_n"))
+    }
+
+    return(specimens)
+
+  }, error = function(e) {
+    cli::cli_alert_warning("Could not enrich specimens with taxonomy: {e$message}")
+    cli::cli_alert_info("Returning specimens without taxonomy enrichment")
+    return(specimens)
+  })
+}
+
+#' Extract Linked Individuals from Specimens
+#'
+#' @description
+#' Internal helper to get individuals linked to specimens
+#'
+#' @param specimen_ids Vector of specimen IDs
+#' @param con Database connection
+#'
+#' @return Data frame with linked individuals
+#' @keywords internal
+.extract_linked_individuals_from_specimens <- function(specimen_ids, con) {
+
+  if (is.null(specimen_ids) || length(specimen_ids) == 0) {
+    cli::cli_alert_warning("No specimen IDs provided")
+    return(tibble::tibble())
+  }
+
+  # Get links
+  linked_ind <-
+    dplyr::tbl(con, "data_link_specimens") %>%
+    dplyr::filter(id_specimen %in% !!specimen_ids) %>%
+    dplyr::select(id_n, id_specimen) %>%
+    dplyr::collect()
+
+  if (nrow(linked_ind) == 0) {
+    cli::cli_alert_info("No individuals linked to these specimens")
+    return(tibble::tibble())
+  }
+
+  # Get individual details
+  linked_ind_details <-
+    query_plots(
+      id_individual = linked_ind$id_n,
+      extract_individuals = TRUE,
+      remove_ids = FALSE,
+      output_style = "minimal",  # Force minimal output to get simple data frame
+      con = con
+    )
+
+  # Handle case where query_plots returns a list structure
+  if (is.list(linked_ind_details) && !is.data.frame(linked_ind_details)) {
+    # If it's a list, try to extract the main data
+    if ("individuals" %in% names(linked_ind_details)) {
+      linked_ind_details <- linked_ind_details$individuals
+    } else if ("data" %in% names(linked_ind_details)) {
+      linked_ind_details <- linked_ind_details$data
+    } else {
+      # If we can't find the data, return empty
+      cli::cli_alert_warning("Could not extract individual data from query_plots result")
+      return(tibble::tibble())
+    }
+  }
+
+  # Ensure it's a data frame
+  if (!is.data.frame(linked_ind_details)) {
+    cli::cli_alert_warning("query_plots did not return a data frame")
+    return(tibble::tibble())
+  }
+
+  # Now safe to check nrow
+  if (nrow(linked_ind_details) > 0) {
+    n_plots <- if ("plot_name" %in% names(linked_ind_details)) {
+      length(unique(linked_ind_details$plot_name))
+    } else {
+      "?"
+    }
+
+    cli::cli_alert_info(
+      "Found {nrow(linked_ind_details)} individuals from {n_plots} plot(s)"
+    )
+  } else {
+    cli::cli_alert_info("No individual details found")
+  }
+
+  return(linked_ind_details)
 }
 
 .traits_to_genera_aggreg <- function(dataset, wd_fam_level_add = wd_fam_level) {
@@ -2043,231 +2531,266 @@ explore_allometric_taxa <- function(genus_searched = NULL,
 #'
 #' @return A tibble
 #' @export
+#' Query Specimens
+#'
+#' @description
+#' Modern query interface for specimens with builder pattern support
+#'
+#' @param collector Character vector of collector names (fuzzy match)
+#' @param id_colnam Integer vector of collector IDs (exact match)
+#' @param number Integer vector of specimen numbers (exact match)
+#' @param number_min Minimum specimen number (range query)
+#' @param number_max Maximum specimen number (range query)
+#' @param genus Character vector of genus names to filter
+#' @param species Character vector of species names to filter
+#' @param family Character vector of family names to filter
+#' @param id_specimen Integer vector of specimen IDs (direct fetch)
+#' @param idtax_n Integer vector of taxonomy IDs
+#' @param interactive Logical, use interactive fuzzy matching for collectors
+#' @param extract_linked_individuals Logical, also fetch linked individuals
+#' @param subset_columns Logical, return subset of columns vs all columns
+#' @param con Database connection (if NULL, creates new connection)
+#' @param con.taxa Taxa database connection (if NULL, creates new connection)
+#'
+#' @return Data frame with specimen records, or list if extract_linked_individuals=TRUE
+#'
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' # Query by collector name
+#' query_specimens(collector = "Dauby")
+#'
+#' # Query by collector ID and number range
+#' query_specimens(id_colnam = 123, number_min = 1000, number_max = 2000)
+#'
+#' # Query by specimen IDs
+#' query_specimens(id_specimen = c(123, 456, 789))
+#'
+#' # Query with linked individuals
+#' result <- query_specimens(collector = "Dauby", extract_linked_individuals = TRUE)
+#' result$specimens  # Specimen records
+#' result$linked_individuals  # Linked individual records
+#' }
 query_specimens <- function(collector = NULL,
                             id_colnam = NULL,
                             number = NULL,
                             number_min = NULL,
                             number_max = NULL,
-                            genus_searched = NULL,
-                            tax_esp_searched = NULL,
-                            tax_fam_searched = NULL,
-                            id_search = NULL,
+                            genus = NULL,
+                            species = NULL,
+                            family = NULL,
+                            id_specimen = NULL,
+                            idtax_n = NULL,
+                            interactive = TRUE,
+                            extract_linked_individuals = FALSE,
                             subset_columns = TRUE,
-                            show_previous_modif = TRUE,
-                            generate_labels = FALSE,
-                            project_title = "Reference specimens collected in trees inventory",
-                            file_labels = "labels",
-                            extract_linked_individuals = FALSE) {
+                            con = NULL,
+                            con.taxa = NULL) {
 
-  mydb <- call.mydb()
-  
-  
+  # Use provided connection or create new one
+  mydb <- if (!is.null(con)) con else call.mydb()
 
-  diconames_id <-
-    try_open_postgres_table(table = "table_idtax", con = mydb) %>%
-    dplyr::select(idtax_n, idtax_good_n) %>%
-    dplyr::mutate(idtax_f = ifelse(is.na(idtax_good_n), idtax_n, idtax_good_n))
-  
-  
-  
-  query_speci <-
-    try_open_postgres_table(table = "specimens", con = mydb) %>%
-    dplyr::left_join(
-      diconames_id %>%
-        dplyr::select(-idtax_good_n),
-      by = c("idtax_n" = "idtax_n")
-    ) %>%
-    # left_join(add_taxa_table_taxa(),
-    #           by = c("idtax_f" = "idtax_n")) %>%
-    dplyr::left_join(dplyr::tbl(mydb, "table_colnam"),
-                     by = c("id_colnam" = "id_table_colnam"))
+  # Use provided taxa connection or check environment, else create new one
+  if (!is.null(con.taxa)) {
+    mydb.taxa <- con.taxa
+  } else if (exists("mydb.taxa", envir = parent.frame()) && test_connection(get("mydb.taxa", envir = parent.frame()))) {
+    mydb.taxa <- get("mydb.taxa", envir = parent.frame())
+  } else {
+    mydb.taxa <- call.mydb.taxa()
+  }
 
-  
-  # %>%
-  #   dplyr::select(-id_specimen_old, -id_diconame, -photo_tranche, -id_colnam, -id_good, -id, -id_good_n)
+  # Branch on whether direct ID fetch or filtered query
+  if (!is.null(id_specimen)) {
+    # Direct fetch by specimen IDs
+    cli::cli_rule(left = "Fetching specimens by ID")
 
-  if (subset_columns & !generate_labels)
-    query_speci <-
-    query_speci %>%
-    dplyr::select(
-      colnam,
-      colnbr,
-      suffix,
-      ddlat,
-      ddlon,
-      country,
-      locality,
-      detby,
-      detd,
-      detm,
-      dety,
-      add_col,
-      cold,
-      colm,
-      coly,
-      detvalue,
-      description,
-      id_specimen,
-      idtax_f,
-      id_tropicos,
-      id_colnam
+    fetcher <- SpecimenFetcher$new(mydb)
+    specimens <- fetcher$fetch_by_ids(id_specimen)
+
+  } else {
+    # Build filtered query
+    cli::cli_rule(left = "Building specimen filter query")
+
+    # Check if we need any filtering at all
+    needs_filtering <- !is.null(collector) || !is.null(id_colnam) ||
+                       !is.null(number) || !is.null(number_min) || !is.null(number_max) ||
+                       !is.null(genus) || !is.null(species) || !is.null(family) || !is.null(idtax_n)
+
+    if (!needs_filtering) {
+      # No filters - fetch all specimens (with warning)
+      cli::cli_alert_warning("No filters specified - fetching all specimens")
+      fetcher <- SpecimenFetcher$new(mydb)
+      specimens <- try_open_postgres_table("specimens", con = mydb) %>%
+        dplyr::collect()
+    } else {
+      # Build query with filters
+      query_builder <- SpecimenFilterBuilder$new(mydb)
+
+      # Apply collector filter
+      if (!is.null(collector) || !is.null(id_colnam)) {
+        query_builder <- query_builder$filter_collector(
+          collector = collector,
+          id_colnam = id_colnam,
+          interactive = interactive
+        )
+      }
+
+      # Apply number filters
+      if (!is.null(number) || !is.null(number_min) || !is.null(number_max)) {
+        query_builder <- query_builder$filter_number(
+          number = number,
+          number_min = number_min,
+          number_max = number_max
+        )
+      }
+
+      # Apply taxonomy filters
+      if (!is.null(genus) || !is.null(species) || !is.null(family) || !is.null(idtax_n)) {
+        query_builder <- query_builder$filter_taxonomy(
+          genus = genus,
+          species = species,
+          family = family,
+          idtax_n = idtax_n
+        )
+      }
+
+      # Build and execute query
+      query <- query_builder$build()
+      specimens <- func_try_fetch(con = mydb, sql = query)
+    }
+  }
+
+  # Check if we got any results
+  if (nrow(specimens) == 0) {
+    cli::cli_alert_warning("No specimens found matching the criteria")
+    if (extract_linked_individuals) {
+      return(list(specimens = specimens, linked_individuals = data.frame()))
+    } else {
+      return(specimens)
+    }
+  }
+
+  # Enrich with collector metadata (only if not already enriched)
+  if (!"colnam" %in% names(specimens)) {
+    cli::cli_alert_info("Enriching with collector information...")
+
+    collectors_tbl <- tryCatch({
+      try_open_postgres_table("table_colnam", mydb) %>%
+        dplyr::select(id_table_colnam, colnam, surname, family_name) %>%
+        dplyr::collect()
+    }, error = function(e) {
+      cli::cli_alert_warning("Could not fetch collector information: {e$message}")
+      NULL
+    })
+
+    if (!is.null(collectors_tbl) && nrow(collectors_tbl) > 0) {
+      specimens <- specimens %>%
+        dplyr::left_join(collectors_tbl, by = c("id_colnam" = "id_table_colnam"))
+    } else {
+      cli::cli_alert_warning("Collector information unavailable, continuing without it")
+    }
+  }
+
+  # Enrich with taxonomy
+  cli::cli_alert_info("Enriching with taxonomy information...")
+
+  # Debug: Check if taxa connection is valid
+  if (!is.null(mydb.taxa)) {
+    taxa_conn_test <- tryCatch({
+      test_connection(mydb.taxa)
+    }, error = function(e) {
+      cli::cli_alert_warning("Taxa connection test failed: {e$message}")
+      FALSE
+    })
+
+    if (!taxa_conn_test) {
+      cli::cli_alert_warning("Taxa connection is not valid, attempting to create new connection")
+      mydb.taxa <- tryCatch({
+        call.mydb.taxa()
+      }, error = function(e) {
+        cli::cli_alert_warning("Could not create taxa connection: {e$message}")
+        NULL
+      })
+    }
+  }
+
+  specimens <- .enrich_specimens_with_taxonomy(specimens, con = mydb, con.taxa = mydb.taxa)
+
+  # Subset columns if requested
+  if (subset_columns) {
+    # Select core columns that exist
+    core_columns <- c(
+      "id_specimen",
+      "colnam",
+      "colnbr",
+      "suffix",
+      "ddlat",
+      "ddlon",
+      "country",
+      "locality",
+      "detby",
+      "detd",
+      "detm",
+      "dety",
+      "add_col",
+      "cold",
+      "colm",
+      "coly",
+      "detvalue",
+      "description",
+      "idtax_n",
+      "idtax_f",
+      "tax_gen",
+      "tax_esp",
+      "tax_fam",
+      "tax_infra_level",
+      "tax_infra",
+      "surname",
+      "family_name",
+      "id_tropicos",
+      "id_colnam"
     )
 
-  ## filter by collector or id_colnam (id of people table)
-  if ((!is.null(collector) |
-       !is.null(id_colnam)) & is.null(id_search)) {
+    # Only select columns that actually exist
+    specimens <- specimens %>%
+      dplyr::select(dplyr::any_of(core_columns))
+  }
 
-    if (is.null(id_colnam)) {
+  # Extract linked individuals if requested
+  if (extract_linked_individuals) {
+    cli::cli_alert_info("Extracting linked individuals...")
 
-      id_colnam <- .link_colnam(data_stand = tibble(colnam = collector), column_searched = "colnam")$id_colnam
+    linked_individuals <- .extract_linked_individuals_from_specimens(
+      specimen_ids = specimens$id_specimen,
+      con = mydb
+    )
 
+    # Check if we have results (handle NULL and empty data frames)
+    has_results <- !is.null(linked_individuals) &&
+                   is.data.frame(linked_individuals) &&
+                   nrow(linked_individuals) > 0
+
+    if (has_results) {
+      cli::cli_alert_success(
+        "Found {nrow(linked_individuals)} linked individuals from {length(unique(linked_individuals$plot_name))} plot(s)"
+      )
+    } else {
+      cli::cli_alert_warning("No linked individuals found for these specimens")
+      # Ensure we return an empty data frame, not NULL
+      if (is.null(linked_individuals) || !is.data.frame(linked_individuals)) {
+        linked_individuals <- data.frame()
+      }
     }
 
-    query_speci <-
-      query_speci %>%
-      dplyr::filter(id_colnam == !!id_colnam)
-
+    return(list(
+      specimens = specimens,
+      linked_individuals = linked_individuals
+    ))
   }
 
-  if(!is.null(number) & is.null(id_search)) {
-
-    var <- rlang::enquo(number)
-
-    query_speci <-
-      query_speci %>%
-      dplyr::filter(colnbr %in% var)
-
-
-  }
-
-  if(!is.null(id_colnam) & is.null(id_search)) {
-
-    var <- rlang::enquo(id_colnam)
-
-    query_speci <-
-      query_speci %>%
-      dplyr::filter(id_colnam %in% var)
-  }
-
-
-
-  if(!is.null(number_min) & is.null(id_search)) {
-
-    var <- rlang::enquo(number_min)
-
-    query_speci <-
-      query_speci %>%
-      dplyr::filter(colnbr >= var)
-  }
-
-  if(!is.null(number_max) & is.null(id_search)) {
-
-    var <- rlang::enquo(number_max)
-
-    query_speci <-
-      query_speci %>%
-      dplyr::filter(colnbr<=var)
-  }
-
-  if(!is.null(genus_searched) & is.null(id_search)) {
-
-    var <- rlang::enquo(genus_searched)
-
-    query_speci <-
-      query_speci %>%
-      dplyr::filter(grepl(!!var, tax_gen))
-  }
-
-  if(!is.null(tax_fam_searched) & is.null(id_search)) {
-
-    var <- rlang::enquo(tax_fam_searched)
-
-    query_speci <-
-      query_speci %>%
-      dplyr::filter(grepl(!!var, tax_fam))
-  }
-
-  if(!is.null(tax_esp_searched) & is.null(id_search)) {
-
-    var <- rlang::enquo(tax_esp_searched)
-
-    query_speci <-
-      query_speci %>%
-      dplyr::filter(grepl(!!var, tax_esp))
-  }
-
-  if(!is.null(id_search)) {
-
-    var <- rlang::enquo(id_search)
-
-    query_speci <-
-      query_speci %>%
-      dplyr::filter(id_specimen %in% var)
-  }
-  query <-
-    query_speci %>%
-    dplyr::collect()
-
-
-  query_tax <- add_taxa_table_taxa(ids = unique(query$idtax_f))
-  query_tax <- query_tax %>% collect()
-
-  query <- left_join(
-    query,
-    query_tax %>%
-      dplyr::select(-data_modif_d,-data_modif_m,-data_modif_y),
-    by = c("idtax_f" = "idtax_n")
-  )
-
-  # print(query)
-
-  if(extract_linked_individuals) {
-
-    linked_ind <-
-      dplyr::tbl(mydb, "data_link_specimens") %>%
-      dplyr::filter(id_specimen == !!query$id_specimen) %>%
-      dplyr::select(id_n, id_specimen) %>%
-      dplyr::collect()
-
-    linked_ind <-
-      query_plots(
-        id_individual = linked_ind$id_n,
-        extract_individuals = TRUE,
-        remove_ids = FALSE
-      )
-
-    cli::cli_alert_info(
-      "This specimen is linked to {nrow(linked_ind)} individuals from {length(unique(linked_ind$plot_name))} plot(s)"
-    )
-
-  }
-
-  if (nrow(query) == 1 & show_previous_modif) {
-
-  }
-
-
-  nrow_query <-
-    nrow(query)
-
-  if(nrow(query) < 50)
-  {
-    res_html <-
-      tibble(columns = names(query), data.frame(t(query),
-                                                fix.empty.names = T)) %>%
-      mutate_all(~ tidyr::replace_na(., ""))
-
-
-    res_html %>%
-      kableExtra::kable(format = "html", escape = F) %>%
-      kableExtra::kable_styling("striped", full_width = F) %>%
-      print()
-  }
-
-  if(!extract_linked_individuals) return(query)
-
-  if(extract_linked_individuals) return(list(linked_ind = linked_ind,
-                                             query = query))
+  # Return specimens only
+  return(specimens)
 
 }
 

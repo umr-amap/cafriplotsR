@@ -4,12 +4,14 @@
 \alias{mod_step6_preview_server}
 \title{Step 6 Module: Preview Data - Server}
 \usage{
-mod_step6_preview_server(id, validation_result)
+mod_step6_preview_server(id, validation_result, i18n)
 }
 \arguments{
 \item{id}{Module namespace ID}
 
 \item{validation_result}{Reactive containing validation results}
+
+\item{i18n}{Reactive returning translator object from shiny.i18n}
 }
 \value{
 Reactive indicating preview confirmed

@@ -4,7 +4,7 @@
 \alias{mod_step5_validation_server}
 \title{Step 5 Module: Data Validation - Server}
 \usage{
-mod_step5_validation_server(id, data, mappings, config, con)
+mod_step5_validation_server(id, data, mappings, config, con, i18n)
 }
 \arguments{
 \item{id}{Module namespace ID}
@@ -16,6 +16,8 @@ mod_step5_validation_server(id, data, mappings, config, con)
 \item{config}{Reactive containing import configuration}
 
 \item{con}{Reactive containing database connection pool}
+
+\item{i18n}{Reactive returning translator object from shiny.i18n}
 }
 \value{
 Reactive containing validation results

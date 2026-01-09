@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,6 +30,48 @@
 
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.8.2" id="cafriplotsr-182-2026-01-05">CafriplotsR 1.8.2 (2026-01-05)<a class="anchor" aria-label="anchor" href="#cafriplotsr-182-2026-01-05"></a></h2>
+<div class="section level4">
+<h4 id="bug-fixes-1-8-2">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-8-2"></a></h4>
+<ul><li>
+<strong>Fixed multiple Import Wizard issues for individuals import</strong>
+<ul><li>Automatic column matching now includes trait/feature columns (stem_diameter, tree_height, etc.)</li>
+<li>Fixed “objet de type ‘closure’ non indiçable” i18n error in lookup matching step when no lookups needed</li>
+<li>Fixed “Not supported for pool objects” error in taxonomy validation by using dplyr instead of DBI::dbReadTable</li>
+<li>Fixed “nombre de dimensions incorrect” error in dry run by detecting import type and calling correct import function</li>
+<li>Fixed preview showing unmapped columns (like multi_tiges_id) - now only shows columns actually mapped by user</li>
+<li>Preview module now correctly handles individuals import list structure (individuals + features data frames)</li>
+<li>Import Step 7 now properly detects and handles both plots and individuals imports</li>
+</ul></li>
+<li>
+<strong>Fixed validation issues for flexible data import</strong>
+<ul><li>Duplicate tags within plots now trigger warnings instead of errors (allows intentional duplicates)</li>
+<li>Fixed taxa table name from incorrect “taxonomic_table” to correct “table_taxa”</li>
+<li>Validation now only adds truly required columns, not all possible optional columns</li>
+</ul></li>
+<li>
+<strong>Improved database connection resilience for laptop sleep/wake cycles</strong>
+<ul><li>Added connection validation every 60 seconds to detect stale connections</li>
+<li>Added onActivate callback to validate connections before use</li>
+<li>Prevents “SSL SYSCALL error: EOF detected” after laptop wakes from sleep</li>
+<li>Applied to both main and taxa database connection pools</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="new-features-1-8-2">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-8-2"></a></h4>
+<ul><li>
+<strong>Added French translations for Import Wizard validation section</strong>
+<ul><li>All validation messages, progress indicators, and UI labels now translated</li>
+<li>Includes error messages, summary cards, and alert messages</li>
+<li>Follows i18n best practices with i18n()$t() pattern in server functions</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="dependencies-1-8-2">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies-1-8-2"></a></h4>
+<ul><li>Added <code>plotly</code> to package Imports (required by plot statistics module in shiny_app_query_plots)</li>
+</ul><hr></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.8.1" id="cafriplotsr-181-2025-12-12">CafriplotsR 1.8.1 (2025-12-12)<a class="anchor" aria-label="anchor" href="#cafriplotsr-181-2025-12-12"></a></h2>
 <div class="section level4">

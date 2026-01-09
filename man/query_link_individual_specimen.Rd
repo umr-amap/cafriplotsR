@@ -2,20 +2,23 @@
 % Please edit documentation in R/specimen_linking_functions.R
 \name{query_link_individual_specimen}
 \alias{query_link_individual_specimen}
-\title{Query link between specimens and individuals}
+\title{Query Link Between Specimens and Individuals}
 \usage{
-query_link_individual_specimen(id_ind = NULL, id_specimen = NULL)
+query_link_individual_specimen(id_ind = NULL, id_specimen = NULL, con = NULL)
 }
 \arguments{
-\item{id_ind}{integer}
+\item{id_ind}{Integer vector of individual IDs to query}
 
-\item{id_specimen}{integer}
+\item{id_specimen}{Integer vector of specimen IDs to query}
+
+\item{con}{Database connection. If NULL, calls call.mydb()}
 }
 \value{
-No values
+Tibble with link information including link type
 }
 \description{
-Query links between specimens and individuals
+Query existing links between specimens and individuals. Returns link type
+information when available.
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}

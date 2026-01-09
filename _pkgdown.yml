@@ -22,6 +22,7 @@ articles:
   - title: "Tools"
     contents:
     - taxonomic-app
+    - specimen_linking_workflow
   - title: "Français - Démarrage"
     contents:
     - readme-fr
@@ -36,3 +37,4 @@ articles:
   - title: "Français - Outils"
     contents:
     - taxonomic-app-fr
+    - specimen_linking_workflow-fr
