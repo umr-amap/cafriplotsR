@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -64,59 +64,6 @@
 <p><code>CafriplotsR</code> provides tools for querying a PostgreSQL database containing forest inventories data from Tropical Africa. The package offers functions and shiny apps for (1) managing individual tree measurements on which either taxa or stem level traits <em>sensus largo</em> measurements (or observations) can be aggregated, (2) standardizing taxonomic information en enrich with taxa level traits.<br>
 The advantage of this package is allow managing inventories, traits and observations under the same taxonomic backbone, facilitating data integration, reproductibility in data analysis and manipulation, data reusability.</p>
 <p><strong>Key features:</strong> - Query plot data, individual tree measurements, and ecological features - Access and aggregate species-level traits <em>sensus largo</em> - Shiny app for standardize and correct your own list of taxonomic names</p>
-<hr>
-<p><strong><a href="README.fr.html">Version française disponible ici / French version available here</a></strong></p>
-<hr>
-</div>
-<div class="section level2">
-<h2 id="why-cafriplotsr">Why CafriplotsR?<a class="anchor" aria-label="anchor" href="#why-cafriplotsr"></a>
-</h2>
-<div class="section level3">
-<h3 id="the-challenge">The Challenge<a class="anchor" aria-label="anchor" href="#the-challenge"></a>
-</h3>
-<p>Many researchers inventory woody vegetation in Central African forests (CAF), targeting diverse objectives: dynamics (mortality and growth), floristic and functional diversity, resource assessment and management, effects of both historical and contemporary disturbances, fauna-flora interactions, and more.</p>
-<p>However, these initiatives and the research groups conducting them suffer from <strong>insufficient visibility</strong>:</p>
-<ul>
-<li><p><strong>Within the regional community</strong>: Limited visibility among scientists and managers working on these forests restricts collaboration opportunities, experience sharing, protocol harmonization, and identification of complementarities in data and expertise.</p></li>
-<li><p><strong>At the international level</strong>: This leads to the frequent claim that “we know almost nothing about Congo Basin forests.” While there are indeed knowledge gaps compared to other major tropical forest blocks, asserting that our understanding relies solely on a handful of visible international initiatives is reductive.</p></li>
-</ul>
-</div>
-<div class="section level3">
-<h3 id="the-data-accessibility-problem">The Data Accessibility Problem<a class="anchor" aria-label="anchor" href="#the-data-accessibility-problem"></a>
-</h3>
-<p>Unlike species occurrence data, which has become increasingly accessible (e.g., through GBIF), it remains difficult to get a comprehensive view of inventory data in Central Africa. This includes both recent inventories and ‘historical’ inventories dating back decades. These historical inventories sometimes exist only in paper format (when they haven’t disappeared entirely!), yet they document plant biodiversity in localities that may have become inaccessible.</p>
-<p><strong>Root causes include:</strong> 1. Poor data archiving practices 2. Lack of resources to maintain accessibility beyond project lifetimes 3. Insufficient willingness to make data accessible</p>
-</div>
-<div class="section level3">
-<h3 id="the-integration-challenge">The Integration Challenge<a class="anchor" aria-label="anchor" href="#the-integration-challenge"></a>
-</h3>
-<p>Another major difficulty is <strong>combining different data types</strong> (e.g., species conservation status, functional traits, etc.) with inventory data, even though this compilation is essential for investigating numerous research questions. These compilations are regularly performed, but the methods lack reproducibility. If 10 people were asked to perform such a compilation independently, we would likely get 10 different results, depending on:</p>
-<ul>
-<li>Data accessible at the time of compilation (which varies greatly with each person’s context)</li>
-<li>How taxonomy is standardized between databases</li>
-</ul>
-</div>
-<div class="section level3">
-<h3 id="the-cafriplotsr-solution">The CafriplotsR Solution<a class="anchor" aria-label="anchor" href="#the-cafriplotsr-solution"></a>
-</h3>
-<p>CafriplotsR addresses these challenges through <strong>shared infrastructure and inventory data management</strong> while <strong>guaranteeing data sovereignty</strong> for each user or research group.</p>
-<p><strong>The package aims to:</strong> - Improve visibility of fieldwork conducted by different teams in Central Africa - Facilitate data management (encoding, cleaning, consolidation, queries, etc.) - Improve documentation and reproducibility of data processing - Boost scientific collaborations in the region through controlled and deliberate data sharing</p>
-</div>
-<div class="section level3">
-<h3 id="how-cafriplotsr-differs-from-global-initiatives">How CafriplotsR Differs from Global Initiatives<a class="anchor" aria-label="anchor" href="#how-cafriplotsr-differs-from-global-initiatives"></a>
-</h3>
-<p>While comparable to other data ‘centralization’ initiatives with global approaches (e.g., ForestPlots.net), CafriplotsR distinguishes itself through:</p>
-<ol style="list-style-type: decimal">
-<li><p><strong>Regional, not global</strong>: Focuses on Central Africa—a geographic and human scale that enables interactions between actors involved in collecting, managing, and using this reference data</p></li>
-<li><p><strong>Transparent multi-data management</strong>: Manages different types of data associated with woody plant species (occurrences, traits, relevant attributes) in a transparent manner</p></li>
-<li><p><strong>Data sovereignty over strict centralization</strong>: Each user remains sovereign in managing their data. CafriplotsR aims to federate research groups involved in woody inventories in Central Africa, not to centralize control</p></li>
-</ol>
-</div>
-<div class="section level3">
-<h3 id="next-steps">Next Steps<a class="anchor" aria-label="anchor" href="#next-steps"></a>
-</h3>
-<p>With the goal of making data import, management, and standardization accessible through interactive and user-friendly applications, the next development steps involve <strong>co-construction</strong> to identify and respond to the concrete needs of potential users in Central Africa.</p>
-</div>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -197,6 +144,23 @@ The advantage of this package is allow managing inventories, traits and observat
 <span><span class="co"># Visualize database structure</span></span>
 <span><span class="fu"><a href="reference/get_database_fk.html">get_database_fk</a></span><span class="op">(</span><span class="va">mydb</span><span class="op">)</span></span></code></pre></div>
 </div>
+</div>
+<div class="section level2">
+<h2 id="herbarium-specimen-linking-improving-data-quality-through-time">Herbarium Specimen Linking: Improving Data Quality Through Time<a class="anchor" aria-label="anchor" href="#herbarium-specimen-linking-improving-data-quality-through-time"></a>
+</h2>
+<p><strong>A unique feature for long-term data quality improvement</strong></p>
+<p>Field identifications in forest inventories, while valuable, often suffer from taxonomic uncertainty. Botanical specimens collected from the same individual trees and deposited in herbaria undergo expert taxonomic revision over time, resulting in more accurate identifications. However, this improved knowledge typically remains isolated in herbarium databases, disconnected from the ecological inventory data.</p>
+<p><strong>The CafriplotsR solution: Formal specimen-individual links</strong></p>
+<p>This package implements a <strong>specimen linking system</strong> that creates formal, persistent connections between: - Individual trees in forest inventories (with their ecological measurements) - Herbarium specimens collected from those same individuals (with their expert-revised taxonomy)</p>
+<p><strong>Key advantages:</strong></p>
+<ol style="list-style-type: decimal">
+<li><p><strong>Automatic taxonomic updates</strong>: When a specimen’s identification is revised by taxonomists, the linked inventory individual automatically inherits the updated taxonomy. No manual re-identification needed.</p></li>
+<li><p><strong>Improved data quality over time</strong>: Your inventory data becomes progressively more accurate as specimen identifications are refined, without requiring field revisits or additional effort.</p></li>
+<li><p><strong>Traceability</strong>: Each inventory record maintains a clear link to its voucher specimen, providing scientific evidence and enabling verification.</p></li>
+<li><p><strong>Taxonomic confidence</strong>: Distinguish between field identifications (subject to uncertainty) and specimen-backed identifications (expert-verified).</p></li>
+<li><p><strong>Data longevity</strong>: Inventory data remains connected to the evolving taxonomic knowledge, ensuring long-term scientific value.</p></li>
+</ol>
+<p>📖 <strong>For detailed instructions on how to link specimens to individuals</strong>, see the vignette: <a href="vignettes/specimen_linking_workflow.Rmd">Linking Herbarium Specimens to Inventory Individuals</a></p>
 </div>
 <div class="section level2">
 <h2 id="core-functions">Core Functions<a class="anchor" aria-label="anchor" href="#core-functions"></a>

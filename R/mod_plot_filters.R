@@ -320,14 +320,14 @@ mod_plot_filters_server <- function(id, pool, i18n) {
         plot_name = if (length(input$plot_name) > 0 && !all(input$plot_name == "")) input$plot_name else NULL,
         locality_name = if (length(input$locality) > 0 && !all(input$locality == "")) input$locality else NULL,
         method = if (length(input$method) > 0 && !all(input$method == "")) input$method else NULL,
-        tag = if (nzchar(input$tag)) input$tag else NULL,
+        tag = if (!is.null(input$tag) && nzchar(input$tag)) input$tag else NULL,
 
-        # Advanced filters
-        id_plot = if (!is.na(input$id_plot)) input$id_plot else NULL,
-        id_individual = if (!is.na(input$id_individual)) input$id_individual else NULL,
-        id_tax = if (!is.na(input$id_tax)) input$id_tax else NULL,
-        id_specimen = if (!is.na(input$id_specimen)) input$id_specimen else NULL,
-        exact_match = input$exact_match
+        # Advanced filters (with NULL checks)
+        id_plot = if (!is.null(input$id_plot) && !is.na(input$id_plot)) input$id_plot else NULL,
+        id_individual = if (!is.null(input$id_individual) && !is.na(input$id_individual)) input$id_individual else NULL,
+        id_tax = if (!is.null(input$id_tax) && !is.na(input$id_tax)) input$id_tax else NULL,
+        id_specimen = if (!is.null(input$id_specimen) && !is.na(input$id_specimen)) input$id_specimen else NULL,
+        exact_match = if (!is.null(input$exact_match)) input$exact_match else FALSE
       )
     })
 

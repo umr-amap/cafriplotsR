@@ -1,3 +1,96 @@
+# CafriplotsR 1.9.0 (2026-01-09)
+
+### New Features
+
+* **Herbarium Specimen Linking System**
+  - New interactive Shiny app `launch_individual_specimen_linking_app()` for linking herbarium specimens to individual trees
+  - Creates formal database-level connections between inventory individuals and herbarium specimens
+  - Enables automatic taxonomic updates: when specimens are revised by taxonomists, linked individuals inherit updated taxonomy
+  - Supports two link types:
+    - `type_individual`: Direct evidence (specimen collected FROM this specific tree)
+    - `referenced_individual`: Indirect evidence (tree field-identified as same species as specimen tree)
+  - Extends specimen utility: one specimen can provide taxonomic updates to multiple field-identified trees
+  - Six-step workflow: Select individuals → Parse herbarium info → Match collectors → Retrieve specimens → Validate taxonomy → Create links
+  - Comprehensive taxonomic validation with family/genus/species comparison and visual indicators
+  - Full bilingual support (English/French) with shiny.i18n integration
+
+* **Specimen Linking Documentation**
+  - Comprehensive bilingual vignettes explaining specimen linking workflow and scientific rationale
+  - English: `vignettes/specimen_linking_workflow.Rmd`
+  - French: `vignettes/specimen_linking_workflow-fr.Rmd`
+  - README.md section highlighting specimen linking as key feature for long-term data quality
+  - French README vignette (`vignettes/readme-fr.Rmd`) updated with specimen linking section
+  - Clear explanation of the two-column system (`herbarium_nbe_type` vs `herbarium_nbe_char`)
+  - Rationale for extending specimen utility while acknowledging confidence trade-offs
+
+* **Modular Specimen Linking Architecture**
+  - New R6 classes for efficient batch querying:
+    - `SpecimenFilterBuilder`: Build complex specimen queries with multiple filters
+    - `SpecimenFetcher`: Execute batch specimen retrieval with connection pooling
+  - New Shiny modules for specimen linking workflow:
+    - `mod_herbarium_parser`: Parse herbarium references from text (collector names, specimen numbers)
+    - `mod_specimen_retriever`: Batch-retrieve specimens by collector and number ranges
+    - `mod_taxonomic_validator`: Validate taxonomic concordance with visual indicators
+    - `mod_individual_search`: Search individuals with herbarium information
+    - `mod_specimen_search`: Search specimens database
+    - `mod_link_preview`: Preview and review proposed links before creation
+    - `mod_link_executor`: Execute batch link creation with validation
+  - Reusable components support both individual-specimen and specimen-only workflows
+
+### Performance Improvements
+
+* **Optimized Batch Validation**
+  - Link validation now uses batch queries instead of row-by-row checks
+  - Performance improvement: ~200x faster (3 queries vs 639 queries for 213 links)
+  - Validates all specimen IDs, individual IDs, and link type IDs in parallel
+  - Eliminates app hanging during validation step
+
+* **Optimized Specimen Retrieval**
+  - Batch retrieval by collector with min/max specimen number ranges
+  - Instead of N individual queries (one per specimen), makes 1 query per collector
+  - Example: 222 specimens from 3 collectors = 3 queries instead of 222
+
+### Bug Fixes
+
+* **Fixed Taxonomic Match Classification**
+  - "Same Genus" and "Same Family" categories now correctly count links
+  - Previously, links where genus AND species matched were incorrectly classified as "same_genus"
+  - Now properly handles synonym cases: if genus+species both match even when idtax_n differs → classified as "exact"
+  - Categories are now mutually exclusive: exact → same_genus (species differs) → same_family (genus differs) → different_family
+
+* **Fixed Taxonomic Validation for Specimen Links**
+  - Dynamically constructs full taxonomic names (`full_name_no_auth`) from base columns (`tax_gen`, `tax_esp`, `tax_nam01`)
+  - Handles all taxonomic levels: infraspecific, species, genus
+  - Fixes "Missing columns in taxa_info" error in validation step
+
+### User Experience Improvements
+
+* **Opt-Out Selection System for Link Validation**
+  - All links now pre-selected by default (opt-out instead of opt-in)
+  - Users can uncheck links to reject rather than checking 200+ links individually
+  - New selection controls:
+    - "Select All" - Re-select all links
+    - "Deselect All" - Clear all selections
+    - "Reject Different Family" - Auto-reject links with taxonomic family mismatches
+  - Visual selection status column with ✓/✗ indicators and color coding
+  - Interactive table: click rows to toggle selection
+
+* **Prerequisites Information in Linking App**
+  - Prominent yellow warning box explaining prerequisites before starting
+  - Clear explanation of two column types (`herbarium_nbe_type` vs `herbarium_nbe_char`)
+  - Distinguishes direct evidence (high confidence) from indirect evidence (lower confidence)
+  - Explains rationale for extending specimen utility across multiple trees
+
+### Database Schema
+
+* **New Tables and Migrations**
+  - `link_individual_specimen`: Stores specimen-individual links with audit trails
+  - `linktypelist`: Lookup table for link types (type_individual, referenced_individual)
+  - Migration functions for adding audit columns and link type tracking
+  - Functions: `run_specimen_links_migration()`, `verify_specimen_links_migration()`
+
+---
+
 # CafriplotsR 1.8.2 (2026-01-05)
 
 ### Bug Fixes

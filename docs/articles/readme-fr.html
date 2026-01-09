@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -195,6 +195,57 @@ arbres individuels</li>
 <span><span class="co"># Visualiser la structure de la base de données</span></span>
 <span><span class="fu"><a href="../reference/get_database_fk.html">get_database_fk</a></span><span class="op">(</span><span class="va">mydb</span><span class="op">)</span></span></code></pre></div>
 </div>
+</div>
+<div class="section level3">
+<h3 id="liaison-de-spécimens-dherbier-améliorer-la-qualité-des-données-dans-le-temps">Liaison de Spécimens d’Herbier : Améliorer la Qualité des Données
+dans le Temps<a class="anchor" aria-label="anchor" href="#liaison-de-sp%C3%A9cimens-dherbier-am%C3%A9liorer-la-qualit%C3%A9-des-donn%C3%A9es-dans-le-temps"></a>
+</h3>
+<p><strong>Une fonctionnalité unique pour améliorer la qualité des
+données dans le temps</strong></p>
+<p>Les identifications de terrain dans les inventaires forestiers, bien
+que précieuses, souffrent souvent d’incertitude taxonomique. Les
+spécimens botaniques collectés sur les mêmes individus et déposés dans
+les herbiers font l’objet de révisions taxonomiques expertes au fil du
+temps, aboutissant à des identifications plus précises. Cependant, ces
+connaissances améliorées restent généralement isolées dans les bases de
+données d’herbiers, déconnectées des données d’inventaires
+écologiques.</p>
+<p><strong>La solution CafriplotsR : Liens formels
+spécimen-individu</strong></p>
+<p>Ce package implémente un <strong>système de liaison de
+spécimens</strong> qui crée des connexions formelles et persistantes
+entre :</p>
+<ul>
+<li>Les arbres individuels dans les inventaires forestiers (avec leurs
+mesures écologiques)</li>
+<li>Les spécimens d’herbier collectés sur ces mêmes individus (avec leur
+taxonomie révisée par des experts)</li>
+</ul>
+<p><strong>Avantages clés :</strong></p>
+<ol style="list-style-type: decimal">
+<li><p><strong>Mises à jour taxonomiques automatiques</strong> : Lorsque
+l’identification d’un spécimen est révisée par des taxonomistes,
+l’individu d’inventaire lié hérite automatiquement de la taxonomie mise
+à jour. Aucune ré-identification manuelle nécessaire.</p></li>
+<li><p><strong>Amélioration de la qualité des données dans le
+temps</strong> : Vos données d’inventaire deviennent progressivement
+plus précises au fur et à mesure que les identifications de spécimens
+sont affinées, sans nécessiter de revisites sur le terrain ou d’efforts
+supplémentaires.</p></li>
+<li><p><strong>Traçabilité</strong> : Chaque enregistrement d’inventaire
+maintient un lien clair vers son spécimen de référence, fournissant une
+preuve scientifique et permettant la vérification.</p></li>
+<li><p><strong>Confiance taxonomique</strong> : Distinguez entre les
+identifications de terrain (sujettes à incertitude) et les
+identifications basées sur des spécimens (vérifiées par des
+experts).</p></li>
+<li><p><strong>Longévité des données</strong> : Les données d’inventaire
+restent connectées à l’évolution des connaissances taxonomiques,
+garantissant une valeur scientifique à long terme.</p></li>
+</ol>
+<p>📖 <strong>Pour des instructions détaillées sur comment lier des
+spécimens aux individus</strong>, consultez la vignette : <a href="specimen_linking_workflow-fr.html">Liaison de spécimens d’herbier
+aux individus d’inventaire</a></p>
 </div>
 <div class="section level3">
 <h3 id="fonctions-principales">Fonctions Principales<a class="anchor" aria-label="anchor" href="#fonctions-principales"></a>

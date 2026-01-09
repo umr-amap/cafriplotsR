@@ -2,15 +2,18 @@
 % Please edit documentation in R/specimen_linking_functions.R
 \name{.query_unmatched_specimens}
 \alias{.query_unmatched_specimens}
-\title{Internal function}
+\title{Query Unmatched Specimens (Internal)}
 \usage{
-.query_unmatched_specimens()
+.query_unmatched_specimens(con = NULL)
+}
+\arguments{
+\item{con}{Database connection. If NULL, calls call.mydb()}
 }
 \value{
-vector
+List with problematic specimens
 }
 \description{
-Compute
+Find specimens that have taxonomic discrepancies or are not properly linked.
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}

@@ -64,7 +64,7 @@ to benefit from shared taxonomic and trait knowledge.
 
 ### Future Development
 
-- **Species occurrence data**: Open access to occurrence records across Central Africa 
+- **Species occurrence data**: Open access to occurrence records across Central Africa
 (not yet implemented). The RAINBIO database (only for shrub and trees) will be accessible and interoperable with inventories.
 
 ## Database Architecture
@@ -94,6 +94,32 @@ get_database_fk(mydb)
 
 
 ```
+
+## Herbarium Specimen Linking: Improving Data Quality Through Time
+
+**A unique feature for long-term data quality improvement**
+
+Field identifications in forest inventories, while valuable, often suffer from taxonomic uncertainty. Botanical specimens collected from the same individual trees and deposited in herbaria undergo expert taxonomic revision over time, resulting in more accurate identifications. However, this improved knowledge typically remains isolated in herbarium databases, disconnected from the ecological inventory data.
+
+**The CafriplotsR solution: Formal specimen-individual links**
+
+This package implements a **specimen linking system** that creates formal, persistent connections between:
+- Individual trees in forest inventories (with their ecological measurements)
+- Herbarium specimens collected from those same individuals (with their expert-revised taxonomy)
+
+**Key advantages:**
+
+1. **Automatic taxonomic updates**: When a specimen's identification is revised by taxonomists, the linked inventory individual automatically inherits the updated taxonomy. No manual re-identification needed.
+
+2. **Improved data quality over time**: Your inventory data becomes progressively more accurate as specimen identifications are refined, without requiring field revisits or additional effort.
+
+3. **Traceability**: Each inventory record maintains a clear link to its voucher specimen, providing scientific evidence and enabling verification.
+
+4. **Taxonomic confidence**: Distinguish between field identifications (subject to uncertainty) and specimen-backed identifications (expert-verified).
+
+5. **Data longevity**: Inventory data remains connected to the evolving taxonomic knowledge, ensuring long-term scientific value.
+
+📖 **For detailed instructions on how to link specimens to individuals**, see the vignette: [Linking Herbarium Specimens to Inventory Individuals](vignettes/specimen_linking_workflow.Rmd)
 
 ## Core Functions
 
