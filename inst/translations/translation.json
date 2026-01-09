@@ -3740,6 +3740,54 @@
     {
       "en": "Other trees field-identified as the SAME SPECIES as the specimen tree (lower confidence, extends specimen utility)",
       "fr": "Autres arbres identifiés sur le terrain comme étant de la MÊME ESPÈCE que l'arbre du spécimen (confiance plus faible, étend l'utilité du spécimen)"
+    },
+    {
+      "en": "Action",
+      "fr": "Action"
+    },
+    {
+      "en": "Status",
+      "fr": "Statut"
+    },
+    {
+      "en": "Ind. Family",
+      "fr": "Famille Ind."
+    },
+    {
+      "en": "Ind. Genus",
+      "fr": "Genre Ind."
+    },
+    {
+      "en": "Ind. Species",
+      "fr": "Espèce Ind."
+    },
+    {
+      "en": "Spec. Family",
+      "fr": "Famille Spéc."
+    },
+    {
+      "en": "Spec. Genus",
+      "fr": "Genre Spéc."
+    },
+    {
+      "en": "Spec. Species",
+      "fr": "Espèce Spéc."
+    },
+    {
+      "en": "Difference",
+      "fr": "Différence"
+    },
+    {
+      "en": "Match Type",
+      "fr": "Type de correspondance"
+    },
+    {
+      "en": "Validation",
+      "fr": "Validation"
+    },
+    {
+      "en": "Link Type",
+      "fr": "Type de lien"
     }
   ]
 }

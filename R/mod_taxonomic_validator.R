@@ -356,10 +356,24 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
       )
     })
 
-    # NOTE: Row click selection observer has been disabled to prevent issues with
-    # DT's initialization overwriting user_decisions. Users should use the buttons
-    # (Select All, Deselect All, Reject Different Family) to change selections.
-    # The selection_status column shows the current state clearly.
+    # Toggle individual row selection
+    shiny::observeEvent(input$toggle_row, {
+      shiny::req(validated_data(), input$toggle_row)
+
+      row_idx <- input$toggle_row
+      row_id <- paste0("row_", row_idx)
+
+      # Toggle the decision
+      current_decision <- user_decisions[[paste0(row_id, "_decision")]]
+      if (is.null(current_decision) || current_decision == "accept") {
+        user_decisions[[paste0(row_id, "_decision")]] <- "reject"
+      } else {
+        user_decisions[[paste0(row_id, "_decision")]] <- "accept"
+      }
+
+      # Trigger table re-render to update button
+      decisions_changed(decisions_changed() + 1)
+    })
 
     # Confirm selection
     shiny::observeEvent(input$confirm_selection, {
@@ -430,8 +444,25 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
           dplyr::filter(validation_status == input$filter_priority)
       }
 
-      # Add selection status column based on user decisions using original row index
+      # Add selection status and action buttons based on user decisions
       display_data <- validated
+      display_data$action <- sapply(seq_len(nrow(validated)), function(i) {
+        original_idx <- validated$original_row_index[i]
+        row_id <- paste0("row_", original_idx)
+        decision <- user_decisions[[paste0(row_id, "_decision")]]
+
+        # Create toggle button with current state
+        if (is.null(decision) || decision == "accept") {
+          # Currently selected - show button to reject
+          sprintf('<button class="btn btn-xs btn-warning" onclick="Shiny.setInputValue(\'validator-toggle_row\', %d, {priority: \'event\'})">✗ Reject</button>',
+                  original_idx)
+        } else {
+          # Currently rejected - show button to accept
+          sprintf('<button class="btn btn-xs btn-success" onclick="Shiny.setInputValue(\'validator-toggle_row\', %d, {priority: \'event\'})">✓ Accept</button>',
+                  original_idx)
+        }
+      })
+
       display_data$selection_status <- sapply(seq_len(nrow(validated)), function(i) {
         original_idx <- validated$original_row_index[i]
         row_id <- paste0("row_", original_idx)
@@ -446,6 +477,7 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
       # Select columns to display with all taxonomic details
       # Use any_of() to handle missing columns gracefully
       display_cols <- c(
+        "action",
         "selection_status",
         "id_n", "tag", "plot_name",
         "collector_name", "extracted_number",
@@ -464,6 +496,28 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
         return(DT::datatable(data.frame(Message = "No data to display")))
       }
 
+      # Rename columns for display with translations
+      colnames_translated <- colnames(display_data)
+      colnames_translated[colnames_translated == "action"] <- i18n()$t("Action")
+      colnames_translated[colnames_translated == "selection_status"] <- i18n()$t("Status")
+      colnames_translated[colnames_translated == "id_n"] <- "ID"
+      colnames_translated[colnames_translated == "tag"] <- i18n()$t("Tag")
+      colnames_translated[colnames_translated == "plot_name"] <- i18n()$t("Plot")
+      colnames_translated[colnames_translated == "collector_name"] <- i18n()$t("Collector")
+      colnames_translated[colnames_translated == "extracted_number"] <- i18n()$t("Number")
+      colnames_translated[colnames_translated == "individual_family"] <- i18n()$t("Ind. Family")
+      colnames_translated[colnames_translated == "individual_genus"] <- i18n()$t("Ind. Genus")
+      colnames_translated[colnames_translated == "individual_species"] <- i18n()$t("Ind. Species")
+      colnames_translated[colnames_translated == "specimen_family"] <- i18n()$t("Spec. Family")
+      colnames_translated[colnames_translated == "specimen_genus"] <- i18n()$t("Spec. Genus")
+      colnames_translated[colnames_translated == "specimen_species"] <- i18n()$t("Spec. Species")
+      colnames_translated[colnames_translated == "difference_indicator"] <- i18n()$t("Difference")
+      colnames_translated[colnames_translated == "taxonomic_match"] <- i18n()$t("Match Type")
+      colnames_translated[colnames_translated == "validation_status"] <- i18n()$t("Validation")
+      colnames_translated[colnames_translated == "link_type"] <- i18n()$t("Link Type")
+
+      colnames(display_data) <- colnames_translated
+
       DT::datatable(
         display_data,
         options = list(
@@ -471,20 +525,22 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
           scrollX = TRUE,
           dom = 'frtip',
           columnDefs = list(
-            list(width = '100px', targets = 0),  # selection_status
-            list(width = '80px', targets = 1),   # id_n
-            list(width = '100px', targets = c(2, 3)),  # tag, plot_name
-            list(width = '100px', targets = c(6, 7, 8, 9, 10, 11)),  # taxonomy columns
-            list(width = '200px', targets = 12)  # difference_indicator
+            list(width = '90px', targets = 0),   # action button
+            list(width = '100px', targets = 1),  # selection_status
+            list(width = '80px', targets = 2),   # id_n
+            list(width = '100px', targets = c(3, 4)),  # tag, plot_name
+            list(width = '100px', targets = c(7, 8, 9, 10, 11, 12)),  # taxonomy columns
+            list(width = '200px', targets = 13)  # difference_indicator
           )
         ),
         rownames = FALSE,
+        escape = FALSE,  # Allow HTML in action column
         class = 'cell-border stripe compact hover',
         selection = 'none'  # Disable row selection - use buttons instead
       ) %>%
-        # Style selection status column
+        # Style selection status column (using translated name)
         DT::formatStyle(
-          "selection_status",
+          i18n()$t("Status"),
           backgroundColor = DT::styleEqual(
             c("✓ Selected", "✗ Rejected"),
             c("#d4edda", "#f8d7da")
@@ -495,22 +551,22 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
             c("#155724", "#721c24")
           )
         ) %>%
-        # Style family columns
+        # Style family columns (using translated names)
         DT::formatStyle(
-          c("individual_family", "specimen_family"),
+          c(i18n()$t("Ind. Family"), i18n()$t("Spec. Family")),
           fontWeight = "bold"
         ) %>%
-        # Style taxonomic match column
+        # Style taxonomic match column (using translated name)
         DT::formatStyle(
-          "taxonomic_match",
+          i18n()$t("Match Type"),
           backgroundColor = DT::styleEqual(
             c("exact", "same_genus", "same_family", "different_family"),
             c("#d4edda", "#fff3cd", "#ffeaa7", "#f8d7da")
           )
         ) %>%
-        # Style validation status column
+        # Style validation status column (using translated name)
         DT::formatStyle(
-          "validation_status",
+          i18n()$t("Validation"),
           backgroundColor = DT::styleEqual(
             c("auto_approve", "review_recommended", "review_required"),
             c("#d4edda", "#fff3cd", "#f8d7da")
