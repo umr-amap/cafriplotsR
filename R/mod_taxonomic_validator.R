@@ -356,47 +356,10 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
       )
     })
 
-    # Watch for row clicks to toggle selection
-    # NOTE: This updates user_decisions but does NOT trigger table re-render
-    # to avoid infinite loops. The table shows selection via DT's built-in highlighting.
-    shiny::observeEvent(input$review_table_rows_selected, {
-      shiny::req(validated_data())
-
-      validated <- validated_data()
-
-      # Add original row index before filtering
-      validated$original_row_index <- seq_len(nrow(validated))
-
-      # Apply same filters as displayed table
-      if (!is.null(input$filter_match) && input$filter_match != "all") {
-        validated <- validated %>%
-          dplyr::filter(taxonomic_match == input$filter_match)
-      }
-
-      if (!is.null(input$filter_priority) && input$filter_priority != "all") {
-        validated <- validated %>%
-          dplyr::filter(validation_status == input$filter_priority)
-      }
-
-      selected_rows <- input$review_table_rows_selected
-
-      # Update user_decisions based on DT selection
-      # DT rows are 0-indexed in input$review_table_rows_selected
-      # Use original_row_index to map back to correct decision keys
-      for (i in seq_len(nrow(validated))) {
-        original_idx <- validated$original_row_index[i]
-        row_id <- paste0("row_", original_idx)
-        # Check if this row is in the selected rows (0-indexed)
-        if ((i - 1) %in% selected_rows) {
-          user_decisions[[paste0(row_id, "_decision")]] <- "accept"
-        } else {
-          user_decisions[[paste0(row_id, "_decision")]] <- "reject"
-        }
-      }
-
-      # DO NOT trigger table re-render here to avoid infinite loop
-      # User can see selection via DT's built-in row highlighting
-    }, ignoreNULL = FALSE, ignoreInit = TRUE)
+    # NOTE: Row click selection observer has been disabled to prevent issues with
+    # DT's initialization overwriting user_decisions. Users should use the buttons
+    # (Select All, Deselect All, Reject Different Family) to change selections.
+    # The selection_status column shows the current state clearly.
 
     # Confirm selection
     shiny::observeEvent(input$confirm_selection, {
@@ -501,9 +464,6 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
         return(DT::datatable(data.frame(Message = "No data to display")))
       }
 
-      # Calculate which rows should be pre-selected based on user_decisions
-      preselected_rows <- which(display_data$selection_status == "✓ Selected") - 1  # 0-indexed for DT
-
       DT::datatable(
         display_data,
         options = list(
@@ -520,7 +480,7 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
         ),
         rownames = FALSE,
         class = 'cell-border stripe compact hover',
-        selection = list(mode = 'multiple', selected = preselected_rows)  # Pre-select based on decisions
+        selection = 'none'  # Disable row selection - use buttons instead
       ) %>%
         # Style selection status column
         DT::formatStyle(
