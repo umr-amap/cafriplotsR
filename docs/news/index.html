@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,6 +30,133 @@
 
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.9.0" id="cafriplotsr-190-2026-01-09">CafriplotsR 1.9.0 (2026-01-09)<a class="anchor" aria-label="anchor" href="#cafriplotsr-190-2026-01-09"></a></h2>
+<div class="section level4">
+<h4 id="new-features-1-9-0">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-0"></a></h4>
+<ul><li>
+<strong>Herbarium Specimen Linking System</strong>
+<ul><li>New interactive Shiny app <code><a href="../reference/launch_individual_specimen_linking_app.html">launch_individual_specimen_linking_app()</a></code> for linking herbarium specimens to individual trees</li>
+<li>Creates formal database-level connections between inventory individuals and herbarium specimens</li>
+<li>Enables automatic taxonomic updates: when specimens are revised by taxonomists, linked individuals inherit updated taxonomy</li>
+<li>Supports two link types:
+<ul><li>
+<code>type_individual</code>: Direct evidence (specimen collected FROM this specific tree)</li>
+<li>
+<code>referenced_individual</code>: Indirect evidence (tree field-identified as same species as specimen tree)</li>
+</ul></li>
+<li>Extends specimen utility: one specimen can provide taxonomic updates to multiple field-identified trees</li>
+<li>Six-step workflow: Select individuals → Parse herbarium info → Match collectors → Retrieve specimens → Validate taxonomy → Create links</li>
+<li>Comprehensive taxonomic validation with family/genus/species comparison and visual indicators</li>
+<li>Full bilingual support (English/French) with shiny.i18n integration</li>
+</ul></li>
+<li>
+<strong>Specimen Linking Documentation</strong>
+<ul><li>Comprehensive bilingual vignettes explaining specimen linking workflow and scientific rationale</li>
+<li>English: <code>vignettes/specimen_linking_workflow.Rmd</code>
+</li>
+<li>French: <code>vignettes/specimen_linking_workflow-fr.Rmd</code>
+</li>
+<li>README.md section highlighting specimen linking as key feature for long-term data quality</li>
+<li>French README vignette (<code>vignettes/readme-fr.Rmd</code>) updated with specimen linking section</li>
+<li>Clear explanation of the two-column system (<code>herbarium_nbe_type</code> vs <code>herbarium_nbe_char</code>)</li>
+<li>Rationale for extending specimen utility while acknowledging confidence trade-offs</li>
+</ul></li>
+<li>
+<strong>Modular Specimen Linking Architecture</strong>
+<ul><li>New R6 classes for efficient batch querying:
+<ul><li>
+<code>SpecimenFilterBuilder</code>: Build complex specimen queries with multiple filters</li>
+<li>
+<code>SpecimenFetcher</code>: Execute batch specimen retrieval with connection pooling</li>
+</ul></li>
+<li>New Shiny modules for specimen linking workflow:
+<ul><li>
+<code>mod_herbarium_parser</code>: Parse herbarium references from text (collector names, specimen numbers)</li>
+<li>
+<code>mod_specimen_retriever</code>: Batch-retrieve specimens by collector and number ranges</li>
+<li>
+<code>mod_taxonomic_validator</code>: Validate taxonomic concordance with visual indicators</li>
+<li>
+<code>mod_individual_search</code>: Search individuals with herbarium information</li>
+<li>
+<code>mod_specimen_search</code>: Search specimens database</li>
+<li>
+<code>mod_link_preview</code>: Preview and review proposed links before creation</li>
+<li>
+<code>mod_link_executor</code>: Execute batch link creation with validation</li>
+</ul></li>
+<li>Reusable components support both individual-specimen and specimen-only workflows</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="performance-improvements-1-9-0">Performance Improvements<a class="anchor" aria-label="anchor" href="#performance-improvements-1-9-0"></a></h4>
+<ul><li>
+<strong>Optimized Batch Validation</strong>
+<ul><li>Link validation now uses batch queries instead of row-by-row checks</li>
+<li>Performance improvement: ~200x faster (3 queries vs 639 queries for 213 links)</li>
+<li>Validates all specimen IDs, individual IDs, and link type IDs in parallel</li>
+<li>Eliminates app hanging during validation step</li>
+</ul></li>
+<li>
+<strong>Optimized Specimen Retrieval</strong>
+<ul><li>Batch retrieval by collector with min/max specimen number ranges</li>
+<li>Instead of N individual queries (one per specimen), makes 1 query per collector</li>
+<li>Example: 222 specimens from 3 collectors = 3 queries instead of 222</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-9-0">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-0"></a></h4>
+<ul><li>
+<strong>Fixed Taxonomic Match Classification</strong>
+<ul><li>“Same Genus” and “Same Family” categories now correctly count links</li>
+<li>Previously, links where genus AND species matched were incorrectly classified as “same_genus”</li>
+<li>Now properly handles synonym cases: if genus+species both match even when idtax_n differs → classified as “exact”</li>
+<li>Categories are now mutually exclusive: exact → same_genus (species differs) → same_family (genus differs) → different_family</li>
+</ul></li>
+<li>
+<strong>Fixed Taxonomic Validation for Specimen Links</strong>
+<ul><li>Dynamically constructs full taxonomic names (<code>full_name_no_auth</code>) from base columns (<code>tax_gen</code>, <code>tax_esp</code>, <code>tax_nam01</code>)</li>
+<li>Handles all taxonomic levels: infraspecific, species, genus</li>
+<li>Fixes “Missing columns in taxa_info” error in validation step</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="user-experience-improvements-1-9-0">User Experience Improvements<a class="anchor" aria-label="anchor" href="#user-experience-improvements-1-9-0"></a></h4>
+<ul><li>
+<strong>Opt-Out Selection System for Link Validation</strong>
+<ul><li>All links now pre-selected by default (opt-out instead of opt-in)</li>
+<li>Users can uncheck links to reject rather than checking 200+ links individually</li>
+<li>New selection controls:
+<ul><li>“Select All” - Re-select all links</li>
+<li>“Deselect All” - Clear all selections</li>
+<li>“Reject Different Family” - Auto-reject links with taxonomic family mismatches</li>
+</ul></li>
+<li>Visual selection status column with ✓/✗ indicators and color coding</li>
+<li>Interactive table: click rows to toggle selection</li>
+</ul></li>
+<li>
+<strong>Prerequisites Information in Linking App</strong>
+<ul><li>Prominent yellow warning box explaining prerequisites before starting</li>
+<li>Clear explanation of two column types (<code>herbarium_nbe_type</code> vs <code>herbarium_nbe_char</code>)</li>
+<li>Distinguishes direct evidence (high confidence) from indirect evidence (lower confidence)</li>
+<li>Explains rationale for extending specimen utility across multiple trees</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="database-schema-1-9-0">Database Schema<a class="anchor" aria-label="anchor" href="#database-schema-1-9-0"></a></h4>
+<ul><li>
+<strong>New Tables and Migrations</strong>
+<ul><li>
+<code>link_individual_specimen</code>: Stores specimen-individual links with audit trails</li>
+<li>
+<code>linktypelist</code>: Lookup table for link types (type_individual, referenced_individual)</li>
+<li>Migration functions for adding audit columns and link type tracking</li>
+<li>Functions: <code><a href="../reference/run_specimen_links_migration.html">run_specimen_links_migration()</a></code>, <code><a href="../reference/verify_specimen_links_migration.html">verify_specimen_links_migration()</a></code>
+</li>
+</ul></li>
+</ul><hr></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.8.2" id="cafriplotsr-182-2026-01-05">CafriplotsR 1.8.2 (2026-01-05)<a class="anchor" aria-label="anchor" href="#cafriplotsr-182-2026-01-05"></a></h2>
 <div class="section level4">
