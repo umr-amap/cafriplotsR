@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.8.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -273,7 +273,7 @@
           <code><a href="dot-add_link_specimens.html">.add_link_specimens()</a></code>
 
         </dt>
-        <dd>Add link between specimen and individual</dd>
+        <dd>Add Link Between Specimen and Individual</dd>
       </dl><dl><dt>
 
           <code><a href="dot-add_modif_field.html">.add_modif_field()</a></code>
@@ -429,7 +429,7 @@
           <code><a href="dot-query_unmatched_specimens.html">.query_unmatched_specimens()</a></code>
 
         </dt>
-        <dd>Internal function</dd>
+        <dd>Query Unmatched Specimens (Internal)</dd>
       </dl><dl><dt>
 
           <code><a href="dot-rename_data.html">.rename_data()</a></code>
@@ -498,6 +498,12 @@
         <dd>Generate Individual Data Import Template</dd>
       </dl><dl><dt>
 
+          <code><a href="get_linktypes.html">get_linktypes()</a></code>
+
+        </dt>
+        <dd>Get Link Types from Lookup Table</dd>
+      </dl><dl><dt>
+
           <code><a href="get_plot_metadata_template.html">get_plot_metadata_template()</a></code>
 
         </dt>
@@ -510,10 +516,16 @@
         <dd>Project stems in geographical space</dd>
       </dl><dl><dt>
 
+          <code><a href="get_primary_specimen_link.html">get_primary_specimen_link()</a></code>
+
+        </dt>
+        <dd>Get Primary Specimen for Individuals</dd>
+      </dl><dl><dt>
+
           <code><a href="get_ref_specimen_ind.html">get_ref_specimen_ind()</a></code>
 
         </dt>
-        <dd>Find unlinked individual</dd>
+        <dd>Find Unlinked Individuals with Herbarium Information</dd>
       </dl><dl><dt>
 
           <code><a href="get_updates_diconame.html">get_updates_diconame()</a></code>
@@ -552,10 +564,22 @@
         <dd>Launch Import Wizard Shiny App</dd>
       </dl><dl><dt>
 
+          <code><a href="launch_individual_specimen_linking_app.html">launch_individual_specimen_linking_app()</a></code>
+
+        </dt>
+        <dd>Launch Individual-Specimen Linking App</dd>
+      </dl><dl><dt>
+
           <code><a href="launch_query_plots_app.html">launch_query_plots_app()</a></code>
 
         </dt>
         <dd>Launch Query Plots Interactive App</dd>
+      </dl><dl><dt>
+
+          <code><a href="launch_specimen_linking_app.html">launch_specimen_linking_app()</a></code>
+
+        </dt>
+        <dd>Launch Specimen Linking App</dd>
       </dl><dl><dt>
 
           <code><a href="launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>
@@ -624,6 +648,24 @@
         <dd>Migration: Add created_by Column for Row-Level Security</dd>
       </dl><dl><dt>
 
+          <code><a href="migration_add_audit_columns.html">migration_add_audit_columns()</a></code>
+
+        </dt>
+        <dd>Add Audit Columns to data_link_specimens</dd>
+      </dl><dl><dt>
+
+          <code><a href="migration_add_linktype_column.html">migration_add_linktype_column()</a></code>
+
+        </dt>
+        <dd>Add id_linktype Column to data_link_specimens</dd>
+      </dl><dl><dt>
+
+          <code><a href="migration_create_linktypelist.html">migration_create_linktypelist()</a></code>
+
+        </dt>
+        <dd>Create linktypelist Lookup Table</dd>
+      </dl><dl><dt>
+
           <code><a href="model_wd_1.html">model_wd_2</a></code>
 
         </dt>
@@ -640,6 +682,54 @@
 
         </dt>
         <dd>Auto Matching Module - Server</dd>
+      </dl><dl><dt>
+
+          <code><a href="mod_individual_search_server.html">mod_individual_search_server()</a></code>
+
+        </dt>
+        <dd>Individual Search Module - Server</dd>
+      </dl><dl><dt>
+
+          <code><a href="mod_individual_search_ui.html">mod_individual_search_ui()</a></code>
+
+        </dt>
+        <dd>Individual Search Module - UI</dd>
+      </dl><dl><dt>
+
+          <code><a href="mod_link_preview_server.html">mod_link_preview_server()</a></code>
+
+        </dt>
+        <dd>Link Preview Module - Server</dd>
+      </dl><dl><dt>
+
+          <code><a href="mod_link_preview_ui.html">mod_link_preview_ui()</a></code>
+
+        </dt>
+        <dd>Link Preview Module - UI</dd>
+      </dl><dl><dt>
+
+          <code><a href="mod_specimen_add_server.html">mod_specimen_add_server()</a></code>
+
+        </dt>
+        <dd>Specimen Add Module - Server</dd>
+      </dl><dl><dt>
+
+          <code><a href="mod_specimen_add_ui.html">mod_specimen_add_ui()</a></code>
+
+        </dt>
+        <dd>Specimen Add Module - UI</dd>
+      </dl><dl><dt>
+
+          <code><a href="mod_specimen_search_server.html">mod_specimen_search_server()</a></code>
+
+        </dt>
+        <dd>Specimen Search Module - Server</dd>
+      </dl><dl><dt>
+
+          <code><a href="mod_specimen_search_ui.html">mod_specimen_search_ui()</a></code>
+
+        </dt>
+        <dd>Specimen Search Module - UI</dd>
       </dl><dl><dt>
 
           <code><a href="phylo_tree.html">phylo_tree</a></code>
@@ -756,6 +846,12 @@
         <dd>Project stems in geographical space</dd>
       </dl><dl><dt>
 
+          <code><a href="query_all_specimen_links.html">query_all_specimen_links()</a></code>
+
+        </dt>
+        <dd>Query All Specimen Links for Individuals</dd>
+      </dl><dl><dt>
+
           <code><a href="query_colnam.html">query_colnam()</a></code>
 
         </dt>
@@ -771,7 +867,7 @@
           <code><a href="query_link_individual_specimen.html">query_link_individual_specimen()</a></code>
 
         </dt>
-        <dd>Query link between specimens and individuals</dd>
+        <dd>Query Link Between Specimens and Individuals</dd>
       </dl><dl><dt>
 
           <code><a href="query_plots.html">query_plots()</a></code>
@@ -828,6 +924,12 @@
         <dd>Replace or restore missing values in a data frame</dd>
       </dl><dl><dt>
 
+          <code><a href="run_specimen_links_migration.html">run_specimen_links_migration()</a></code>
+
+        </dt>
+        <dd>Run Full Specimen Links Migration</dd>
+      </dl><dl><dt>
+
           <code><a href="setup_db_credentials.html">setup_db_credentials()</a></code>
 
         </dt>
@@ -838,6 +940,18 @@
 
         </dt>
         <dd>Get species-plot data frame</dd>
+      </dl><dl><dt>
+
+          <code><a href="SpecimenFetcher.html">SpecimenFetcher</a></code>
+
+        </dt>
+        <dd>Specimen Fetcher</dd>
+      </dl><dl><dt>
+
+          <code><a href="SpecimenFilterBuilder.html">SpecimenFilterBuilder</a></code>
+
+        </dt>
+        <dd>Specimen Filter Builder</dd>
       </dl><dl><dt>
 
           <code><a href="standardize_taxonomic_batch.html">standardize_taxonomic_batch()</a></code>
@@ -940,6 +1054,12 @@
 
         </dt>
         <dd>Validate Plot Metadata Before Import</dd>
+      </dl><dl><dt>
+
+          <code><a href="verify_specimen_links_migration.html">verify_specimen_links_migration()</a></code>
+
+        </dt>
+        <dd>Verify Specimen Links Migration</dd>
       </dl></div>
   </main></div>
 

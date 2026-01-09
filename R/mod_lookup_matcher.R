@@ -318,19 +318,28 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
       shiny::req(add_new_context(), con())
       ctx <- add_new_context()
 
-      # Check if this is a people column (dynamically detect from database)
-      is_people_column <- tryCatch({
-        subplot_info <- subplot_list(con())
-        if (!is.null(subplot_info) && "type" %in% names(subplot_info) && "valuetype" %in% names(subplot_info)) {
-          people_cols <- subplot_info$type[!is.na(subplot_info$valuetype) & subplot_info$valuetype == "table_colnam"]
-          people_cols <- people_cols[!is.na(people_cols)]
-          ctx$column %in% people_cols
-        } else {
+      # Check if this is a people column
+      # First check hardcoded special columns
+      special_people_cols <- c("principal_investigator", "data_manager",
+                              "additional_people", "team_leader", "collector")
+
+      is_people_column <- ctx$column %in% special_people_cols
+
+      if (!is_people_column) {
+        # Check dynamic people columns from database
+        is_people_column <- tryCatch({
+          subplot_info <- subplot_list(con())
+          if (!is.null(subplot_info) && "type" %in% names(subplot_info) && "valuetype" %in% names(subplot_info)) {
+            people_cols <- subplot_info$type[!is.na(subplot_info$valuetype) & subplot_info$valuetype == "table_colnam"]
+            people_cols <- people_cols[!is.na(people_cols)]
+            ctx$column %in% people_cols
+          } else {
+            FALSE
+          }
+        }, error = function(e) {
           FALSE
-        }
-      }, error = function(e) {
-        FALSE
-      })
+        })
+      }
 
       if (!is_people_column) {
         return(NULL)
@@ -402,19 +411,28 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
       shiny::req(add_new_context(), con())
       ctx <- add_new_context()
 
-      # Dynamically detect if this is a people column
-      is_people_column <- tryCatch({
-        subplot_info <- subplot_list(con())
-        if (!is.null(subplot_info) && "type" %in% names(subplot_info) && "valuetype" %in% names(subplot_info)) {
-          people_cols <- subplot_info$type[!is.na(subplot_info$valuetype) & subplot_info$valuetype == "table_colnam"]
-          people_cols <- people_cols[!is.na(people_cols)]
-          ctx$column %in% people_cols
-        } else {
+      # Check if this is a people column
+      # First check hardcoded special columns
+      special_people_cols <- c("principal_investigator", "data_manager",
+                              "additional_people", "team_leader", "collector")
+
+      is_people_column <- ctx$column %in% special_people_cols
+
+      if (!is_people_column) {
+        # Check dynamic people columns from database
+        is_people_column <- tryCatch({
+          subplot_info <- subplot_list(con())
+          if (!is.null(subplot_info) && "type" %in% names(subplot_info) && "valuetype" %in% names(subplot_info)) {
+            people_cols <- subplot_info$type[!is.na(subplot_info$valuetype) & subplot_info$valuetype == "table_colnam"]
+            people_cols <- people_cols[!is.na(people_cols)]
+            ctx$column %in% people_cols
+          } else {
+            FALSE
+          }
+        }, error = function(e) {
           FALSE
-        }
-      }, error = function(e) {
-        FALSE
-      })
+        })
+      }
 
       if (ctx$column == "method") {
         shiny::showModal(shiny::uiOutput(session$ns("add_method_modal")))
@@ -661,27 +679,35 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
 .get_lookup_info <- function(column_name, con) {
 
   # Check if this is a people column (feature with valuetype == table_colnam)
+  # OR a special hardcoded people column (like "collector")
   is_people_column <- FALSE
-  tryCatch({
-    subplot_info <- subplot_list(con)
 
-    # Ensure subplot_info has the required columns
-    if (!is.null(subplot_info) && "type" %in% names(subplot_info) && "valuetype" %in% names(subplot_info)) {
-      # Filter for table_colnam types and remove NAs
-      people_cols <- subplot_info$type[!is.na(subplot_info$valuetype) & subplot_info$valuetype == "table_colnam"]
-      people_cols <- people_cols[!is.na(people_cols)]
-      is_people_column <- column_name %in% people_cols
-    } else {
-      # Fallback if columns don't exist
-      is_people_column <- column_name %in% c("principal_investigator", "data_manager",
-                                             "additional_people", "team_leader")
-    }
-  }, error = function(e) {
-    cli::cli_alert_warning("Could not check people columns: {e$message}")
-    # If can't fetch, check against known people columns
-    is_people_column <- column_name %in% c("principal_investigator", "data_manager",
-                                           "additional_people", "team_leader")
-  })
+  # First check hardcoded special columns that are always people columns
+  special_people_cols <- c("principal_investigator", "data_manager",
+                          "additional_people", "team_leader", "collector")
+
+  if (column_name %in% special_people_cols) {
+    is_people_column <- TRUE
+    cli::cli_alert_info("Column '{column_name}' recognized as hardcoded people column")
+  } else {
+    # Check dynamic people columns from database
+    tryCatch({
+      subplot_info <- subplot_list(con)
+
+      # Ensure subplot_info has the required columns
+      if (!is.null(subplot_info) && "type" %in% names(subplot_info) && "valuetype" %in% names(subplot_info)) {
+        # Filter for table_colnam types and remove NAs
+        people_cols <- subplot_info$type[!is.na(subplot_info$valuetype) & subplot_info$valuetype == "table_colnam"]
+        people_cols <- people_cols[!is.na(people_cols)]
+        is_people_column <- column_name %in% people_cols
+        if (is_people_column) {
+          cli::cli_alert_info("Column '{column_name}' found in subplot_list people columns")
+        }
+      }
+    }, error = function(e) {
+      cli::cli_alert_warning("Could not check people columns from subplot_list: {e$message}")
+    })
+  }
 
   # Return configuration based on column type
   if (column_name == "method") {
@@ -730,6 +756,7 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
 
   if (!is.null(lookup_info$function_name)) {
     # Fetch lookup table using function
+    cli::cli_alert_info("Fetching {column_name} using function: {lookup_info$function_name}")
     lookup_info$data <- tryCatch({
       do.call(lookup_info$function_name, list())
     }, error = function(e) {
@@ -738,16 +765,28 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
     })
   } else if (!is.null(lookup_info$table) && lookup_info$table == "table_colnam") {
     # Fetch people data directly from database
+    cli::cli_alert_info("Fetching {column_name} from table_colnam (table: {lookup_info$table})")
     lookup_info$data <- tryCatch({
-      DBI::dbGetQuery(con, "
+      result <- DBI::dbGetQuery(con, "
         SELECT id_table_colnam, colnam
         FROM table_colnam
         ORDER BY colnam
       ")
+      cli::cli_alert_success("Fetched {nrow(result)} rows from table_colnam")
+      result
     }, error = function(e) {
       cli::cli_alert_warning("Failed to fetch {column_name} lookup table: {e$message}")
       NULL
     })
+  } else {
+    cli::cli_alert_warning("No fetch method for column {column_name} (table: {lookup_info$table %||% 'NULL'}, function: {lookup_info$function_name %||% 'NULL'})")
+  }
+
+  # Debug: Check if data was fetched
+  if (is.null(lookup_info$data)) {
+    cli::cli_alert_danger("lookup_info$data is NULL for column {column_name}!")
+  } else {
+    cli::cli_alert_info("lookup_info$data has {nrow(lookup_info$data)} rows for column {column_name}")
   }
 
   lookup_info
@@ -765,6 +804,8 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
     suggestions <- .get_fuzzy_matches(user_value, lookup_info)
   }
 
+  cli::cli_alert_info(".create_matching_row: user_value='{user_value}', suggestions has {nrow(suggestions)} rows")
+
   # Create choices (conditionally include "Add New Value")
   choices <- c(
     "(Select a match)" = "",
@@ -774,12 +815,20 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
     )
   )
 
+  cli::cli_alert_info("  Initial choices: {length(choices)} items")
+
   # Add "Add New Value" option if allowed
   if (!is.null(lookup_info$allow_add_new) && lookup_info$allow_add_new) {
     choices <- c(
       choices,
       "\u2795 Create New Entry (if not found above)" = "ADD_NEW"
     )
+    cli::cli_alert_info("  Added 'Create New Entry' option, total choices: {length(choices)}")
+  }
+
+  cli::cli_alert_success("  Final choices for selectInput: {length(choices)} items")
+  if (length(choices) > 1) {
+    cli::cli_alert_info("  Choice names: {paste(head(names(choices), 5), collapse=', ')}")
   }
 
   # Create input ID
@@ -830,7 +879,10 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
 #' @keywords internal
 .get_fuzzy_matches <- function(user_value, lookup_info, n = NULL) {
 
+  cli::cli_alert_info(".get_fuzzy_matches called for user_value: '{user_value}'")
+
   if (is.null(lookup_info$data)) {
+    cli::cli_alert_danger("lookup_info$data is NULL! Returning empty suggestions.")
     return(data.frame(
       id = character(),
       value = character(),
@@ -841,6 +893,7 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
   }
 
   lookup_data <- lookup_info$data
+  cli::cli_alert_info("lookup_data has {nrow(lookup_data)} rows, columns: {paste(names(lookup_data), collapse=', ')}")
 
   # Debug: Check source data for duplicates and remove them
   if (!is.null(lookup_info$value_col) && lookup_info$value_col %in% names(lookup_data)) {
@@ -937,6 +990,11 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
       cli::cli_alert_warning("Found {sum(dup_ids)} duplicate ID(s) in suggestions!")
       cli::cli_alert_warning("  Duplicate IDs: {paste(suggestions$id[dup_ids], collapse=', ')}")
     }
+  }
+
+  cli::cli_alert_success("Returning {nrow(suggestions)} suggestions for '{user_value}'")
+  if (nrow(suggestions) > 0) {
+    cli::cli_alert_info("  Top 3 suggestions: {paste(head(suggestions$label, 3), collapse=', ')}")
   }
 
   suggestions

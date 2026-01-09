@@ -82,12 +82,55 @@ merge_individuals_taxa <- function(id_individual = NULL,
       dplyr::filter(id_table_liste_plots_n %in% !!id_plot)
   }
 
-  # Liens individus-spécimens (max pour garder le comportement actuel)
-  links_specimens <- try_open_postgres_table(table = "data_link_specimens", con = con) %>%
-    dplyr::select(id_n, id_specimen) %>%
-    dplyr::group_by(id_n) %>%
-    dplyr::summarise(id_specimen = max(id_specimen, na.rm = TRUE), .groups = "drop") %>%
+  # Liens individus-spécimens (priorité: type_individual > referenced_individual, puis date détermination)
+  # Get links with priority from linktypelist
+  links_raw <- try_open_postgres_table(table = "data_link_specimens", con = con)
+
+  # Try to join with linktypelist for priority (table may not exist yet)
+  links_with_priority <- tryCatch({
+    links_raw %>%
+      dplyr::left_join(
+        dplyr::tbl(con, "linktypelist") %>%
+          dplyr::select(id_linktype, priority),
+        by = "id_linktype"
+      )
+  }, error = function(e) {
+    # linktypelist doesn't exist yet - use default priority 0
+    links_raw %>%
+      dplyr::mutate(priority = 0L)
+  })
+
+  # Join specimen determination date for tie-breaking
+  links_with_dates <- links_with_priority %>%
+    dplyr::left_join(
+      try_open_postgres_table(table = "specimens", con = con) %>%
+        dplyr::select(id_specimen, dety, detm, detd),
+      by = "id_specimen"
+    ) %>%
+    dplyr::select(id_n, id_specimen, priority, dety, detm, detd) %>%
     dplyr::collect()
+
+  # Handle NULL priority values
+  links_with_dates <- links_with_dates %>%
+    dplyr::mutate(priority = dplyr::coalesce(priority, 0L))
+
+  # Create determination date for sorting (higher = more recent)
+  links_with_dates <- links_with_dates %>%
+    dplyr::mutate(
+      det_date = lubridate::make_date(
+        dplyr::coalesce(dety, 1900L),
+        dplyr::coalesce(detm, 1L),
+        dplyr::coalesce(detd, 1L)
+      )
+    )
+
+  # Sort by priority (desc), then determination date (desc), take first per individual
+  links_specimens <- links_with_dates %>%
+    dplyr::arrange(id_n, dplyr::desc(priority), dplyr::desc(det_date)) %>%
+    dplyr::group_by(id_n) %>%
+    dplyr::slice(1) %>%
+    dplyr::ungroup() %>%
+    dplyr::select(id_n, id_specimen)
 
   # Assemblage
   res_individuals_full <- res_individuals_full %>%

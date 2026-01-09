@@ -10,28 +10,48 @@ query_specimens(
   number = NULL,
   number_min = NULL,
   number_max = NULL,
-  genus_searched = NULL,
-  tax_esp_searched = NULL,
-  tax_fam_searched = NULL,
-  id_search = NULL,
+  genus = NULL,
+  species = NULL,
+  family = NULL,
+  id_specimen = NULL,
+  idtax_n = NULL,
+  interactive = TRUE,
+  extract_linked_individuals = FALSE,
   subset_columns = TRUE,
-  show_previous_modif = TRUE,
-  generate_labels = FALSE,
-  project_title = "Reference specimens collected in trees inventory",
-  file_labels = "labels",
-  extract_linked_individuals = FALSE
+  con = NULL,
+  con.taxa = NULL
 )
 }
 \arguments{
-\item{collector}{string collector name}
+\item{collector}{Character vector of collector names (fuzzy match)}
 
-\item{id_colnam}{integer id of collector}
+\item{id_colnam}{Integer vector of collector IDs (exact match)}
 
-\item{number}{integer specimen number}
+\item{number}{Integer vector of specimen numbers (exact match)}
 
-\item{number_min}{integer minimum specimen number}
+\item{number_min}{Minimum specimen number (range query)}
 
-\item{number_max}{integer maximum specimen number}
+\item{number_max}{Maximum specimen number (range query)}
+
+\item{genus}{Character vector of genus names to filter}
+
+\item{species}{Character vector of species names to filter}
+
+\item{family}{Character vector of family names to filter}
+
+\item{id_specimen}{Integer vector of specimen IDs (direct fetch)}
+
+\item{idtax_n}{Integer vector of taxonomy IDs}
+
+\item{interactive}{Logical, use interactive fuzzy matching for collectors}
+
+\item{extract_linked_individuals}{Logical, also fetch linked individuals}
+
+\item{subset_columns}{Logical, return subset of columns vs all columns}
+
+\item{con}{Database connection (if NULL, creates new connection)}
+
+\item{con.taxa}{Taxa database connection (if NULL, creates new connection)}
 
 \item{genus_searched}{string specimens of genus searched}
 
@@ -41,8 +61,6 @@ query_specimens(
 
 \item{id_search}{integer id searched}
 
-\item{subset_columns}{logical if only a subset of columns should be provided}
-
 \item{show_previous_modif}{logical if you want to see previous modification of the entry - useful to see previous identification for example}
 
 \item{generate_labels}{logical if labels should be produced}
@@ -50,14 +68,34 @@ query_specimens(
 \item{project_title}{string if labels are produced title of the label}
 
 \item{file_labels}{string if labels are produced name of the rtf file}
-
-\item{extract_linked_individuals}{logical extract individuals linked to selected specimens}
 }
 \value{
 A tibble
+
+Data frame with specimen records, or list if extract_linked_individuals=TRUE
 }
 \description{
+Modern query interface for specimens with builder pattern support
+}
+\details{
 Exploring specimens data and if necessary export labels
+}
+\examples{
+\dontrun{
+# Query by collector name
+query_specimens(collector = "Dauby")
+
+# Query by collector ID and number range
+query_specimens(id_colnam = 123, number_min = 1000, number_max = 2000)
+
+# Query by specimen IDs
+query_specimens(id_specimen = c(123, 456, 789))
+
+# Query with linked individuals
+result <- query_specimens(collector = "Dauby", extract_linked_individuals = TRUE)
+result$specimens  # Specimen records
+result$linked_individuals  # Linked individual records
+}
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}

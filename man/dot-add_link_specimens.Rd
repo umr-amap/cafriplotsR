@@ -2,29 +2,52 @@
 % Please edit documentation in R/specimen_linking_functions.R
 \name{.add_link_specimens}
 \alias{.add_link_specimens}
-\title{Add link between specimen and individual}
+\title{Add Link Between Specimen and Individual}
 \usage{
 .add_link_specimens(
   new_data,
   col_names_select = NULL,
-  col_names_corresp = c("id_specimen", "id_n", "type"),
-  launch_adding_data = FALSE
+  col_names_corresp = c("id_specimen", "id_n", "id_linktype"),
+  launch_adding_data = FALSE,
+  validate = TRUE,
+  con = NULL
 )
 }
 \arguments{
-\item{new_data}{tibble fuzzy person name to look for}
+\item{new_data}{Tibble with columns: id_specimen, id_n, and either id_linktype or type}
 
-\item{col_names_select}{a vector of string that select columns of new_data to consider, it must be 3 columns}
+\item{col_names_select}{Character vector of column names in new_data to use.
+If NULL, uses all columns of new_data.}
 
-\item{col_names_corresp}{a vector of string of same length of col_names_select, should not be changed}
+\item{col_names_corresp}{Character vector of target column names.
+Default: c("id_specimen", "id_n", "id_linktype")}
 
-\item{launch_adding_data}{logical, if TRUE links are added, by default it is FALSE for security}
+\item{launch_adding_data}{Logical. If TRUE, links are actually added to database.
+Default FALSE for safety.}
+
+\item{validate}{Logical. If TRUE, validates FK references before adding.
+Default TRUE.}
+
+\item{con}{Database connection. If NULL, calls call.mydb()}
 }
 \value{
-A tibble of all subplots
+Invisibly returns the data that was (or would be) added
 }
 \description{
-Generate link between individual and specimens
+Creates links between herbarium specimens and individual trees in the database.
+Includes validation to ensure foreign key references exist.
+}
+\details{
+Link types:
+- type_individual (id_linktype=1): Specimen collected from this specific individual
+- referenced_individual (id_linktype=2): Specimen represents same species but from different individual
+
+The function:
+1. Renames columns to standard names
+2. Checks for duplicate links (same id_specimen + id_n already in database)
+3. Validates FK references if validate=TRUE
+4. Sets audit columns (created_by, created_at)
+5. Adds links if launch_adding_data=TRUE
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}
