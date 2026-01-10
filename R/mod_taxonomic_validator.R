@@ -113,12 +113,14 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
 
           shiny::incProgress(0.9, detail = i18n()$t("Finalizing..."))
 
-          # Initialize user decisions - reject different_family by default
+          # Initialize user decisions - reject different_family and duplicate type links by default
           for (i in seq_len(nrow(links_validated))) {
             row_id <- paste0("row_", i)
-            # Auto-reject links with different family
-            if (!is.na(links_validated$taxonomic_match[i]) &&
-                links_validated$taxonomic_match[i] == "different_family") {
+            # Auto-reject links with different family or duplicate type_individual
+            if ((!is.na(links_validated$taxonomic_match[i]) &&
+                 links_validated$taxonomic_match[i] == "different_family") ||
+                (!is.na(links_validated$has_duplicate_type[i]) &&
+                 links_validated$has_duplicate_type[i] == TRUE)) {
               user_decisions[[paste0(row_id, "_decision")]] <- "reject"
             } else {
               user_decisions[[paste0(row_id, "_decision")]] <- "accept"
@@ -134,14 +136,25 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
           n_genus <- sum(links_validated$taxonomic_match == "same_genus", na.rm = TRUE)
           n_family <- sum(links_validated$taxonomic_match == "same_family", na.rm = TRUE)
           n_diff <- sum(links_validated$taxonomic_match == "different_family", na.rm = TRUE)
+          n_duplicates <- sum(links_validated$has_duplicate_type, na.rm = TRUE)
+
+          # Build notification message
+          notif_msg <- sprintf(
+            i18n()$t("Validation complete: %d exact, %d same genus, %d same family, %d different family"),
+            n_exact, n_genus, n_family, n_diff
+          )
+
+          if (n_duplicates > 0) {
+            notif_msg <- paste0(
+              notif_msg,
+              sprintf(i18n()$t("\n⚠️ WARNING: %d duplicate type_individual links found and auto-rejected!"), n_duplicates)
+            )
+          }
 
           shiny::showNotification(
-            sprintf(
-              i18n()$t("Validation complete: %d exact, %d same genus, %d same family, %d different family"),
-              n_exact, n_genus, n_family, n_diff
-            ),
-            type = "message",
-            duration = 5
+            notif_msg,
+            type = if (n_duplicates > 0) "warning" else "message",
+            duration = if (n_duplicates > 0) 10 else 5
           )
 
         }, error = function(e) {
@@ -788,10 +801,32 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
 .validate_taxonomic_matches <- function(links_with_taxonomy) {
 
   tryCatch({
+    cli::cli_alert_info("  Checking for duplicate type_individual links...")
+
+    # Step 0: Check for duplicate type_individual links per specimen
+    # A specimen can only be collected from ONE tree
+    duplicate_type_specimens <- links_with_taxonomy %>%
+      dplyr::filter(link_type == "type_individual") %>%
+      dplyr::group_by(id_specimen) %>%
+      dplyr::summarise(n_type_links = dplyr::n(), .groups = "drop") %>%
+      dplyr::filter(n_type_links > 1) %>%
+      dplyr::pull(id_specimen)
+
+    if (length(duplicate_type_specimens) > 0) {
+      cli::cli_alert_warning("Found {length(duplicate_type_specimens)} specimens with duplicate type_individual links!")
+      cli::cli_alert_warning("Specimen IDs: {paste(duplicate_type_specimens, collapse=', ')}")
+    }
+
+    # Add duplicate flag
+    links_step0 <- links_with_taxonomy %>%
+      dplyr::mutate(
+        has_duplicate_type = id_specimen %in% duplicate_type_specimens & link_type == "type_individual"
+      )
+
     cli::cli_alert_info("  Checking family matches...")
 
     # Step 1: Check family match
-    links_step1 <- links_with_taxonomy %>%
+    links_step1 <- links_step0 %>%
       dplyr::mutate(
         family_match = dplyr::case_when(
           is.na(individual_family) | is.na(specimen_family) ~ NA_character_,
@@ -851,6 +886,9 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
     links_step5 <- links_step4 %>%
       dplyr::mutate(
         difference_indicator = dplyr::case_when(
+          # CRITICAL: Duplicate type_individual links
+          has_duplicate_type ~ paste0("🚨 ERROR: Duplicate type_individual link for specimen ID ", id_specimen),
+          # Normal taxonomy checks
           taxonomic_match == "exact" ~ "✓ Exact match",
           !is.na(family_match) & family_match == "differ" ~
             paste0("⚠ FAMILY DIFFERS: ",
@@ -874,6 +912,9 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
     links_validated <- links_step5 %>%
       dplyr::mutate(
         validation_status = dplyr::case_when(
+          # CRITICAL: Duplicate type links must be reviewed and rejected
+          has_duplicate_type ~ "review_required",
+          # Normal validation status
           taxonomic_match == "exact" ~ "auto_approve",
           taxonomic_match == "same_genus" ~ "review_recommended",
           taxonomic_match == "same_family" ~ "review_required",

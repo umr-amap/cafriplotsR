@@ -3788,6 +3788,10 @@
     {
       "en": "Link Type",
       "fr": "Type de lien"
+    },
+    {
+      "en": "\n⚠️ WARNING: %d duplicate type_individual links found and auto-rejected!",
+      "fr": "\n⚠️ ATTENTION: %d liens type_individual en double trouvés et auto-rejetés!"
     }
   ]
 }
