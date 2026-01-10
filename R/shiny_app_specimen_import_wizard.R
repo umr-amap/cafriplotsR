@@ -1,57 +1,46 @@
-# Shiny App: Specimen Linking
+# Shiny App: Specimen Import Wizard
 #
-# Interactive application for:
-# 1. Importing new herbarium specimens to the database (wizard-style)
-# 2. Linking specimens to individual trees in plots
+# Interactive wizard application for importing new herbarium specimens to the database.
 #
 # Features:
 # - Upload specimen data (Excel/CSV)
 # - Map columns to database fields
 # - Match collectors and taxa to database
 # - Preview and import specimens
-# - Search and link specimens to individuals
-# - Taxonomic validation for links
 #
-# Main function: launch_specimen_linking_app()
+# Main function: launch_specimen_import_wizard()
 
-#' Launch Specimen Linking App
+#' Launch Specimen Import Wizard
 #'
-#' Launches the interactive Shiny application for managing herbarium specimens
-#' and their links to individual trees. The app has two main sections:
+#' Launches an interactive wizard-style Shiny application for importing
+#' new herbarium specimens to the database from Excel/CSV files.
 #'
-#' **Section 1: Import Specimens**
-#' A wizard-style interface to import new specimens from Excel/CSV files:
+#' **Wizard Steps:**
 #' - Step 1: Upload your data file
 #' - Step 2: Map your columns to database fields
 #' - Step 3: Match collector names and taxa to the database
 #' - Step 4: Preview and import to the specimens table
-#'
-#' **Section 2: Link Specimens to Individuals**
-#' - Search existing specimens by collector, number, or taxonomy
-#' - Search individuals by plot, tag, or species
-#' - Create links with taxonomic validation (same genus check)
 #'
 #' @param lang Character, initial language ("en" or "fr"). Default "en".
 #'
 #' @return Launches Shiny app (does not return until app closes)
 #'
 #' @details
-#' When creating links, the app validates that specimens and individuals have
-#' compatible taxonomic identifications. Links between specimens and individuals
-#' with different genus identifications are flagged for manual review.
+#' The wizard guides you through the entire import process with validation
+#' at each step. Collector names are matched to the `table_colnam` lookup table,
+#' and taxonomic identifications are validated against the taxa database.
 #'
-#' Link types:
-#' - type_individual: Specimen collected from this specific individual
-#' - referenced_individual: Specimen represents same species but from different individual
+#' For creating links between specimens and individuals, use the separate
+#' `launch_individual_specimen_linking_app()` function.
 #'
 #' @examples
 #' \dontrun{
-#' launch_specimen_linking_app()
-#' launch_specimen_linking_app(lang = "fr")
+#' launch_specimen_import_wizard()
+#' launch_specimen_import_wizard(lang = "fr")
 #' }
 #'
 #' @export
-launch_specimen_linking_app <- function(lang = "en") {
+launch_specimen_import_wizard <- function(lang = "en") {
   # Load i18n translations
   i18n <- shiny.i18n::Translator$new(
     translation_json_path = system.file(
@@ -198,50 +187,6 @@ launch_specimen_linking_app <- function(lang = "en") {
               )
             )
           )
-        ),
-
-        # ===== SECTION 2: LINK SPECIMENS =====
-        shiny::tabPanel(
-          title = shiny::uiOutput("section_link_title"),
-          value = "link",
-          icon = shiny::icon("link"),
-          shiny::br(),
-
-          # Section header
-          shiny::div(
-            class = "section-header",
-            shiny::h3(shiny::icon("link"), " ", shiny::textOutput("link_header_title", inline = TRUE)),
-            shiny::p(shiny::textOutput("link_header_desc"))
-          ),
-
-          shiny::fluidRow(
-            # Left: Specimen search
-            shiny::column(
-              width = 6,
-              shiny::wellPanel(
-                shiny::h4(shiny::textOutput("search_specimens_title")),
-                mod_specimen_search_ui("specimen_search", i18n)
-              )
-            ),
-
-            # Right: Individual search
-            shiny::column(
-              width = 6,
-              shiny::wellPanel(
-                shiny::h4(shiny::textOutput("search_individuals_title")),
-                mod_individual_search_ui("individual_search", i18n)
-              )
-            )
-          ),
-
-          # Link preview panel
-          shiny::div(
-            style = "margin-top: 20px;",
-            shiny::wellPanel(
-              shiny::h4(shiny::textOutput("link_preview_title")),
-              mod_link_preview_ui("link_preview", i18n)
-            )
-          )
         )
       )
     )
@@ -290,10 +235,6 @@ launch_specimen_linking_app <- function(lang = "en") {
       i18n_reactive()$t("Import Specimens")
     })
 
-    output$section_link_title <- shiny::renderUI({
-      i18n_reactive()$t("Link Specimens")
-    })
-
     # Header titles
     output$import_header_title <- shiny::renderText({
       i18n_reactive()$t("Import New Specimens")
@@ -301,26 +242,6 @@ launch_specimen_linking_app <- function(lang = "en") {
 
     output$import_header_desc <- shiny::renderText({
       i18n_reactive()$t("Upload your specimen data and import it to the database in 4 easy steps.")
-    })
-
-    output$link_header_title <- shiny::renderText({
-      i18n_reactive()$t("Link Specimens to Individuals")
-    })
-
-    output$link_header_desc <- shiny::renderText({
-      i18n_reactive()$t("Search for specimens and individuals, then create links between them.")
-    })
-
-    output$search_specimens_title <- shiny::renderText({
-      i18n_reactive()$t("Search Specimens")
-    })
-
-    output$search_individuals_title <- shiny::renderText({
-      i18n_reactive()$t("Search Individuals")
-    })
-
-    output$link_preview_title <- shiny::renderText({
-      i18n_reactive()$t("Link Preview")
     })
 
     # ===== WIZARD PROGRESS INDICATOR =====
@@ -414,32 +335,6 @@ launch_specimen_linking_app <- function(lang = "en") {
         con = pool_main,
         i18n = i18n_reactive
       )
-
-      # ===== LINK SECTION MODULES =====
-      # Specimen search module
-      selected_specimens <- mod_specimen_search_server(
-        "specimen_search",
-        pool_main = pool_main,
-        pool_taxa = pool_taxa,
-        i18n = i18n_reactive
-      )
-
-      # Individual search module
-      selected_individuals <- mod_individual_search_server(
-        "individual_search",
-        pool_main = pool_main,
-        pool_taxa = pool_taxa,
-        i18n = i18n_reactive
-      )
-
-      # Link preview module
-      link_result <- mod_link_preview_server(
-        "link_preview",
-        pool_main = pool_main,
-        selected_specimens = selected_specimens,
-        selected_individuals = selected_individuals,
-        i18n = i18n_reactive
-      )
     })
 
     # ===== WIZARD NAVIGATION =====
@@ -523,7 +418,7 @@ launch_specimen_linking_app <- function(lang = "en") {
 }
 
 
-#' Specimen Linking App (Internal Function)
+#' Specimen Import Wizard (Internal Function)
 #'
 #' Internal function that creates the Shiny app object without launching it.
 #' Useful for testing or embedding in other applications.
@@ -532,6 +427,6 @@ launch_specimen_linking_app <- function(lang = "en") {
 #'
 #' @return Shiny app object
 #' @keywords internal
-shiny_app_specimen_linking <- function(lang = "en") {
-  launch_specimen_linking_app(lang = lang)
+shiny_app_specimen_import_wizard <- function(lang = "en") {
+  launch_specimen_import_wizard(lang = lang)
 }
