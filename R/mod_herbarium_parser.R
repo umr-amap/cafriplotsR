@@ -251,16 +251,12 @@ mod_herbarium_parser_server <- function(id, individuals_data, i18n) {
       next
     }
 
-    # Parse herbarium_nbe_char
+    # Parse herbarium_nbe_char - ALWAYS referenced_individual
+    # This column indicates trees field-identified as same species as the specimen tree
     if (!is.na(herb_nbe_char) && herb_nbe_char != "") {
       parsed_nbe <- .extract_collector_and_number(herb_nbe_char)
 
       if (!is.null(parsed_nbe)) {
-        # Check if herbarium_nbe_type is identical (type specimen)
-        # Must check both are not NA before comparing
-        is_type <- !is.na(herb_type) && herb_type != "" &&
-                   !is.na(herb_nbe_char) && herb_type == herb_nbe_char
-
         parsed_list[[length(parsed_list) + 1]] <- data.frame(
           id_n = row$id_n,
           tag = row$tag,
@@ -269,7 +265,7 @@ mod_herbarium_parser_server <- function(id, individuals_data, i18n) {
           idtax_n = row$idtax_n,
           extracted_collector = parsed_nbe$collector,
           extracted_number = parsed_nbe$number,
-          link_type = if (is_type) "type_individual" else "referenced_individual",
+          link_type = "referenced_individual",
           source_column = "herbarium_nbe_char",
           original_value = herb_nbe_char,
           stringsAsFactors = FALSE
@@ -277,10 +273,9 @@ mod_herbarium_parser_server <- function(id, individuals_data, i18n) {
       }
     }
 
-    # Parse herbarium_nbe_type if different from herbarium_nbe_char
-    # Must check if herb_nbe_char is NA OR different from herb_type
-    if (!is.na(herb_type) && herb_type != "" &&
-        (is.na(herb_nbe_char) || herb_nbe_char == "" || herb_type != herb_nbe_char)) {
+    # Parse herbarium_nbe_type - ALWAYS type_individual
+    # This column indicates the ACTUAL tree where the specimen was collected
+    if (!is.na(herb_type) && herb_type != "") {
       parsed_type <- .extract_collector_and_number(herb_type)
 
       if (!is.null(parsed_type)) {
