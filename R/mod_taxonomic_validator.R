@@ -66,6 +66,8 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
     validation_complete <- shiny::reactiveVal(FALSE)
     # Trigger to force table re-render when decisions change
     decisions_changed <- shiny::reactiveVal(0)
+    # Track current page to preserve position when table re-renders
+    current_page_start <- shiny::reactiveVal(0)
 
     # Validate taxonomy when button clicked
     shiny::observeEvent(input$validate_taxonomy, {
@@ -315,6 +317,11 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
         user_decisions[[paste0(row_id, "_decision")]] <- "accept"
       }
 
+      # Save current page position before re-render
+      if (!is.null(input$review_table_state)) {
+        current_page_start(input$review_table_state$start)
+      }
+
       # Trigger table update
       decisions_changed(decisions_changed() + 1)
 
@@ -333,6 +340,11 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
       for (i in seq_len(nrow(validated))) {
         row_id <- paste0("row_", i)
         user_decisions[[paste0(row_id, "_decision")]] <- "reject"
+      }
+
+      # Save current page position before re-render
+      if (!is.null(input$review_table_state)) {
+        current_page_start(input$review_table_state$start)
       }
 
       # Trigger table update
@@ -359,6 +371,11 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
         }
       }
 
+      # Save current page position before re-render
+      if (!is.null(input$review_table_state)) {
+        current_page_start(input$review_table_state$start)
+      }
+
       # Trigger table update
       decisions_changed(decisions_changed() + 1)
 
@@ -382,6 +399,11 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
         user_decisions[[paste0(row_id, "_decision")]] <- "reject"
       } else {
         user_decisions[[paste0(row_id, "_decision")]] <- "accept"
+      }
+
+      # Save current page position before re-render
+      if (!is.null(input$review_table_state)) {
+        current_page_start(input$review_table_state$start)
       }
 
       # Trigger table re-render to update button
@@ -534,7 +556,8 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
       DT::datatable(
         display_data,
         options = list(
-          pageLength = 20,
+          pageLength = 10,
+          displayStart = current_page_start(),  # Preserve page position
           scrollX = TRUE,
           dom = 'frtip',
           columnDefs = list(
