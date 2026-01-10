@@ -776,7 +776,7 @@ launch_individual_specimen_linking_app <- function(lang = "en") {
     # Filter by locality name (direct column)
     if (!is.null(filters$locality_name) && length(filters$locality_name) > 0) {
       query <- query %>%
-        dplyr::filter(locality %in% !!filters$locality_name)
+        dplyr::filter(locality_name %in% !!filters$locality_name)
     }
   }
 
