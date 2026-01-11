@@ -546,6 +546,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
       mod_plot_statistics_server(
         "statistics",
         results = shiny::reactive(rv$individuals),
+        pool_reactive = pool_reactive,
         i18n = i18n
       )
 

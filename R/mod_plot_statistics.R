@@ -161,6 +161,64 @@ mod_plot_statistics_ui <- function(id) {
 
       shiny::hr(),
 
+      # Specimen Statistics (if available)
+      shiny::conditionalPanel(
+        condition = sprintf("output['%s']", ns("has_specimens")),
+        shiny::fluidRow(
+          shiny::column(12,
+            shiny::div(
+              class = "well",
+              style = "background-color: #ede7f6; border-left: 4px solid #673AB7;",
+              shiny::h4(shiny::icon("leaf"), " ", shiny::textOutput(ns("specimen_stats_title"), inline = TRUE)),
+
+              # Row 1: Individuals and Species Coverage
+              shiny::fluidRow(
+                shiny::column(3,
+                  shiny::div(
+                    class = "well",
+                    style = "background-color: #e1bee7; border-left: 3px solid #9C27B0;",
+                    shiny::h5(shiny::textOutput(ns("prop_individuals_species_level"), inline = TRUE)),
+                    shiny::p(shiny::textOutput(ns("label_individuals_species_level"), inline = TRUE), style = "margin: 0; font-size: 0.9em;")
+                  )
+                ),
+                shiny::column(3,
+                  shiny::div(
+                    class = "well",
+                    style = "background-color: #f3e5f5; border-left: 3px solid #9C27B0;",
+                    shiny::h5(shiny::textOutput(ns("prop_species_with_specimen"), inline = TRUE)),
+                    shiny::p(shiny::textOutput(ns("label_species_with_specimen"), inline = TRUE), style = "margin: 0; font-size: 0.9em;")
+                  )
+                ),
+                shiny::column(3,
+                  shiny::div(
+                    class = "well",
+                    style = "background-color: #e8eaf6; border-left: 3px solid #3F51B5;",
+                    shiny::h5(shiny::textOutput(ns("n_unique_taxa_unidentified"), inline = TRUE)),
+                    shiny::p(shiny::textOutput(ns("label_unique_taxa_unidentified"), inline = TRUE), style = "margin: 0; font-size: 0.9em;")
+                  )
+                ),
+                shiny::column(3,
+                  shiny::div(
+                    class = "well",
+                    style = "background-color: #e0f2f1; border-left: 3px solid #009688;",
+                    shiny::h5(shiny::textOutput(ns("n_specimens"), inline = TRUE)),
+                    shiny::p(shiny::textOutput(ns("label_specimens"), inline = TRUE), style = "margin: 0; font-size: 0.9em;")
+                  )
+                )
+              ),
+
+              # Row 2: Determination Years Distribution
+              shiny::br(),
+              shiny::h5(shiny::icon("calendar"), " ", shiny::textOutput(ns("dety_plot_title"), inline = TRUE)),
+              plotly::plotlyOutput(ns("dety_distribution_plot"), height = "250px")
+            )
+          )
+        ),
+        shiny::br()
+      ),
+
+      shiny::hr(),
+
       # Download section
       shiny::fluidRow(
         shiny::column(12,
@@ -185,7 +243,7 @@ mod_plot_statistics_ui <- function(id) {
 #' @return None (module handles its own outputs)
 #' @keywords internal
 #' @export
-mod_plot_statistics_server <- function(id, results, i18n) {
+mod_plot_statistics_server <- function(id, results, pool_reactive, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # ---- Reactive: Extract individuals data ----
@@ -231,10 +289,26 @@ mod_plot_statistics_server <- function(id, results, i18n) {
     })
     shiny::outputOptions(output, "has_species", suspendWhenHidden = FALSE)
 
+    output$has_specimens <- shiny::reactive({
+      req(individuals_data())
+      .has_specimen_data(individuals_data())
+    })
+    shiny::outputOptions(output, "has_specimens", suspendWhenHidden = FALSE)
+
     # ---- Reactive: Compute statistics ----
     stats <- shiny::reactive({
       req(individuals_data(), col_map())
       .compute_basic_statistics(individuals_data(), col_map())
+    })
+
+    # ---- Reactive: Compute specimen statistics ----
+    specimen_stats <- shiny::reactive({
+      req(individuals_data(), pool_reactive())
+      if (.has_specimen_data(individuals_data())) {
+        .compute_specimen_statistics(individuals_data(), col_map(), pool_reactive())
+      } else {
+        NULL
+      }
     })
 
     # ---- Translations ----
@@ -282,6 +356,30 @@ mod_plot_statistics_server <- function(id, results, i18n) {
 
     output$download_button_label <- shiny::renderText({
       i18n()$t("Download Summary (.csv)")
+    })
+
+    output$specimen_stats_title <- shiny::renderText({
+      i18n()$t("Herbarium Specimen Statistics")
+    })
+
+    output$label_individuals_species_level <- shiny::renderText({
+      i18n()$t("Individuals at Species Level")
+    })
+
+    output$label_species_with_specimen <- shiny::renderText({
+      i18n()$t("Species with Specimens")
+    })
+
+    output$label_unique_taxa_unidentified <- shiny::renderText({
+      i18n()$t("Unique Taxa (Unidentified)")
+    })
+
+    output$label_specimens <- shiny::renderText({
+      i18n()$t("Unique Specimens Linked")
+    })
+
+    output$dety_plot_title <- shiny::renderText({
+      i18n()$t("Distribution of Determination Years")
     })
 
     # ---- Summary Statistics Outputs ----
@@ -339,6 +437,81 @@ mod_plot_statistics_server <- function(id, results, i18n) {
         "N/A"
       } else {
         paste(round(stats()$max_dbh, 2), "cm")
+      }
+    })
+
+    # ---- Specimen Statistics Outputs ----
+    output$prop_individuals_species_level <- shiny::renderText({
+      req(specimen_stats())
+      if (is.na(specimen_stats()$prop_individuals_species_level)) {
+        "N/A"
+      } else {
+        n_indiv <- specimen_stats()$n_individuals_species_level
+        paste0(round(specimen_stats()$prop_individuals_species_level * 100, 1), "% (", format(n_indiv, big.mark = ","), ")")
+      }
+    })
+
+    output$prop_species_with_specimen <- shiny::renderText({
+      req(specimen_stats())
+      if (is.na(specimen_stats()$prop_species_with_specimen)) {
+        "N/A"
+      } else {
+        n_sp <- specimen_stats()$n_species_with_specimen
+        paste0(round(specimen_stats()$prop_species_with_specimen * 100, 1), "% (", format(n_sp, big.mark = ","), ")")
+      }
+    })
+
+    output$n_unique_taxa_unidentified <- shiny::renderText({
+      req(specimen_stats())
+      format(specimen_stats()$n_unique_taxa_unidentified, big.mark = ",")
+    })
+
+    output$n_specimens <- shiny::renderText({
+      req(specimen_stats())
+      format(specimen_stats()$n_specimens, big.mark = ",")
+    })
+
+    output$dety_distribution_plot <- plotly::renderPlotly({
+      req(specimen_stats())
+      dety_data <- specimen_stats()$dety_distribution
+
+      if (is.null(dety_data) || nrow(dety_data) == 0) {
+        # Return empty plot with message
+        plotly::plot_ly() %>%
+          plotly::add_annotations(
+            text = i18n()$t("No determination year data available"),
+            xref = "paper",
+            yref = "paper",
+            x = 0.5,
+            y = 0.5,
+            showarrow = FALSE,
+            font = list(size = 14, color = "gray")
+          ) %>%
+          plotly::layout(
+            xaxis = list(showgrid = FALSE, showticklabels = FALSE, zeroline = FALSE),
+            yaxis = list(showgrid = FALSE, showticklabels = FALSE, zeroline = FALSE)
+          )
+      } else {
+        # Create bar plot
+        plotly::plot_ly(
+          data = dety_data,
+          x = ~dety,
+          y = ~count,
+          type = "bar",
+          marker = list(color = "#673AB7")
+        ) %>%
+          plotly::layout(
+            xaxis = list(
+              title = i18n()$t("Determination Year"),
+              type = "category"
+            ),
+            yaxis = list(
+              title = i18n()$t("Number of Specimens")
+            ),
+            margin = list(l = 50, r = 20, t = 20, b = 50),
+            hovermode = "closest"
+          ) %>%
+          plotly::config(displayModeBar = FALSE)
       }
     })
 
@@ -539,6 +712,180 @@ mod_plot_statistics_server <- function(id, results, i18n) {
       stats$median_dbh <- median(diam_data, na.rm = TRUE)
       stats$min_dbh <- min(diam_data, na.rm = TRUE)
       stats$max_dbh <- max(diam_data, na.rm = TRUE)
+    }
+  }
+
+  return(stats)
+}
+
+
+#' Check if specimen data is available
+#'
+#' @description
+#' Determines if the individuals data contains specimen linkage information.
+#' Looks for columns that indicate specimen links exist.
+#'
+#' @param data Data frame with individuals
+#'
+#' @return Logical - TRUE if specimen data is available
+#' @keywords internal
+#' @noRd
+.has_specimen_data <- function(data) {
+  # Simply check if data has id_n column (required to query specimen links)
+  return("id_n" %in% names(data) && any(!is.na(data$id_n)))
+}
+
+
+#' Compute specimen-related statistics
+#'
+#' @description
+#' Calculates statistics related to herbarium specimen linkages by querying
+#' the data_link_specimens table for the individuals in the dataset:
+#' - Number of unique specimens linked
+#' - Proportion of taxa with specimen links
+#' - Proportion/number of specimens identified to species level
+#' - Range of determination years
+#'
+#' @param data Data frame with individuals (must have id_n column)
+#' @param col_map Column mapping from .detect_column_names()
+#' @param con Database connection (pool)
+#'
+#' @return Named list with specimen statistics
+#' @keywords internal
+#' @noRd
+.compute_specimen_statistics <- function(data, col_map, con) {
+
+  # Initialize statistics
+  stats <- list(
+    n_individuals_species_level = 0,
+    prop_individuals_species_level = NA_real_,
+    n_species_with_specimen = 0,
+    prop_species_with_specimen = NA_real_,
+    n_unique_taxa_unidentified = 0,
+    n_specimens = 0,
+    dety_distribution = NULL
+  )
+
+  # Get unique individual IDs from the data
+  individual_ids <- unique(data$id_n[!is.na(data$id_n)])
+
+  if (length(individual_ids) == 0) {
+    return(stats)
+  }
+
+  # 1. Proportion and number of individuals identified to species level
+  if (!is.null(col_map$species)) {
+    total_individuals <- nrow(data)
+    individuals_with_species <- data %>%
+      dplyr::filter(!is.na(.data[[col_map$species]])) %>%
+      nrow()
+
+    stats$n_individuals_species_level <- individuals_with_species
+    if (total_individuals > 0) {
+      stats$prop_individuals_species_level <- individuals_with_species / total_individuals
+    }
+  }
+
+  # Query specimen links for these individuals
+  specimen_links <- tryCatch({
+    query_all_specimen_links(
+      id_ind = individual_ids,
+      include_specimen_info = TRUE,
+      include_linktype_info = TRUE,
+      con = con
+    )
+  }, error = function(e) {
+    message("Could not query specimen links: ", e$message)
+    return(NULL)
+  })
+
+  if (is.null(specimen_links) || nrow(specimen_links) == 0) {
+    # Still compute unique taxa for unidentified individuals
+    if (!is.null(col_map$species)) {
+      # Find individuals without species-level ID
+      unidentified <- data %>%
+        dplyr::filter(is.na(.data[[col_map$species]]))
+
+      # Check if idtax_individual_f exists (or similar column for taxon ID)
+      idtax_col <- NULL
+      if ("idtax_individual_f" %in% names(unidentified)) {
+        idtax_col <- "idtax_individual_f"
+      } else if ("idtax_n" %in% names(unidentified)) {
+        idtax_col <- "idtax_n"
+      }
+
+      if (!is.null(idtax_col)) {
+        stats$n_unique_taxa_unidentified <- unidentified %>%
+          dplyr::filter(!is.na(.data[[idtax_col]])) %>%
+          dplyr::distinct(.data[[idtax_col]]) %>%
+          nrow()
+      }
+    }
+    return(stats)
+  }
+
+  # Number of unique specimens
+  stats$n_specimens <- dplyr::n_distinct(specimen_links$id_specimen, na.rm = TRUE)
+
+  # 2. Proportion and number of species (not all taxa) with at least one specimen linked
+  if (!is.null(col_map$species)) {
+    # Total number of unique species in the extract
+    total_species <- data %>%
+      dplyr::filter(!is.na(.data[[col_map$species]])) %>%
+      dplyr::distinct(.data[[col_map$species]]) %>%
+      nrow()
+
+    # Species with at least one specimen
+    # Join specimen_links with data using id_n to get species names
+    data_with_specimens <- data %>%
+      dplyr::inner_join(
+        specimen_links %>% dplyr::select(id_n, id_specimen) %>% dplyr::distinct(),
+        by = "id_n"
+      )
+
+    species_with_specimen <- data_with_specimens %>%
+      dplyr::filter(!is.na(.data[[col_map$species]])) %>%
+      dplyr::distinct(.data[[col_map$species]]) %>%
+      nrow()
+
+    stats$n_species_with_specimen <- species_with_specimen
+    if (total_species > 0) {
+      stats$prop_species_with_specimen <- species_with_specimen / total_species
+    }
+  }
+
+  # 3. Among unidentified individuals, how many unique taxa (unique idtax)
+  if (!is.null(col_map$species)) {
+    # Find individuals without species-level ID
+    unidentified <- data %>%
+      dplyr::filter(is.na(.data[[col_map$species]]))
+
+    # Check if idtax_individual_f exists (or similar column for taxon ID)
+    idtax_col <- NULL
+    if ("idtax_individual_f" %in% names(unidentified)) {
+      idtax_col <- "idtax_individual_f"
+    } else if ("idtax_n" %in% names(unidentified)) {
+      idtax_col <- "idtax_n"
+    }
+
+    if (!is.null(idtax_col)) {
+      stats$n_unique_taxa_unidentified <- unidentified %>%
+        dplyr::filter(!is.na(.data[[idtax_col]])) %>%
+        dplyr::distinct(.data[[idtax_col]]) %>%
+        nrow()
+    }
+  }
+
+  # 4. Distribution of determination years (dety) - as data for barplot
+  if ("dety" %in% names(specimen_links)) {
+    dety_dist <- specimen_links %>%
+      dplyr::filter(!is.na(dety)) %>%
+      dplyr::group_by(dety) %>%
+      dplyr::summarise(count = dplyr::n(), .groups = "drop") %>%
+      dplyr::arrange(dety)
+
+    if (nrow(dety_dist) > 0) {
+      stats$dety_distribution <- dety_dist
     }
   }
 

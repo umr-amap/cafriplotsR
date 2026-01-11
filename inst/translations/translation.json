@@ -3792,6 +3792,58 @@
     {
       "en": "\n⚠️ WARNING: %d duplicate type_individual links found and auto-rejected!",
       "fr": "\n⚠️ ATTENTION: %d liens type_individual en double trouvés et auto-rejetés!"
+    },
+    {
+      "en": "Herbarium Specimen Statistics",
+      "fr": "Statistiques des Spécimens d'Herbier"
+    },
+    {
+      "en": "Unique Specimens Linked",
+      "fr": "Spécimens Uniques Liés"
+    },
+    {
+      "en": "Taxa with Specimens",
+      "fr": "Taxa avec Spécimens"
+    },
+    {
+      "en": "Specimens at Species Level",
+      "fr": "Spécimens au Niveau Espèce"
+    },
+    {
+      "en": "Determination Years",
+      "fr": "Années de Détermination"
+    },
+    {
+      "en": "Include herbarium specimen links",
+      "fr": "Inclure les liens vers les spécimens d'herbier"
+    },
+    {
+      "en": "Add columns with specimen determination data (collector, year, taxonomy)",
+      "fr": "Ajouter des colonnes avec les données de détermination des spécimens (collecteur, année, taxonomie)"
+    },
+    {
+      "en": "Individuals at Species Level",
+      "fr": "Individus Identifiés au Niveau Espèce"
+    },
+    {
+      "en": "Species with Specimens",
+      "fr": "Espèces avec Spécimens"
+    },
+    {
+      "en": "Unique Taxa (Unidentified)",
+      "fr": "Taxa Uniques (Non Identifiés)"
+    },
+    {
+      "en": "Distribution of Determination Years",
+      "fr": "Distribution des Années de Détermination"
+    },
+    {
+      "en": "Number of Specimens",
+      "fr": "Nombre de Spécimens"
+    },
+    {
+      "en": "No determination year data available",
+      "fr": "Aucune donnée d'année de détermination disponible"
     }
   ]
 }
