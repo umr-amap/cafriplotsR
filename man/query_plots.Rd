@@ -30,6 +30,7 @@ query_plots(
   remove_obs_with_issue = TRUE,
   include_issue = FALSE,
   include_measurement_ids = FALSE,
+  include_specimen_links = FALSE,
   exact_match = FALSE,
   census_strategy = c("last", "first", "mean"),
   output_style = c("auto", "minimal", "standard", "permanent_plot",

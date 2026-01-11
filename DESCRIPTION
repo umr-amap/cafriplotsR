@@ -44,7 +44,8 @@ Imports:
     pool,
     leaflet,
     rappdirs,
-    plotly
+    plotly,
+    rclipboard
 Suggests:
     getPass,
     dm,

@@ -724,7 +724,7 @@ enrich_with_traits <- function(individuals, con,
   if (traits_to_genera) {
     individuals <- aggregate_traits_to_genus(individuals, wd_fam_level)
   }
-  
+
   return(individuals)
 }
 

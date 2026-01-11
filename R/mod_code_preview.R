@@ -11,6 +11,8 @@ mod_code_preview_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
+    # Add rclipboard dependency
+    rclipboard::rclipboardSetup(),
     shiny::uiOutput(ns("code_preview_panel"))
   )
 }
@@ -264,16 +266,12 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
                 code_sections$metadata
               )
             ),
-            shiny::actionButton(
+            rclipboard::rclipButton(
               ns("copy_metadata"),
               i18n()$t("Copy to clipboard"),
+              code_sections$metadata,
               icon = shiny::icon("copy"),
-              class = "btn-sm btn-outline-secondary",
-              onclick = sprintf(
-                "navigator.clipboard.writeText(`%s`).then(function() { alert('%s'); });",
-                gsub("`", "\\`", code_sections$metadata),
-                i18n()$t("Code copied!")
-              )
+              class = "btn-sm btn-outline-secondary"
             ),
             shiny::br(),
             shiny::br()
@@ -294,16 +292,12 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
                 code_sections$individuals
               )
             ),
-            shiny::actionButton(
+            rclipboard::rclipButton(
               ns("copy_individuals"),
               i18n()$t("Copy to clipboard"),
+              code_sections$individuals,
               icon = shiny::icon("copy"),
-              class = "btn-sm btn-outline-secondary",
-              onclick = sprintf(
-                "navigator.clipboard.writeText(`%s`).then(function() { alert('%s'); });",
-                gsub("`", "\\`", code_sections$individuals),
-                i18n()$t("Code copied!")
-              )
+              class = "btn-sm btn-outline-secondary"
             )
           )
         },
@@ -344,16 +338,12 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
                 combined_code
               )
             ),
-            shiny::actionButton(
+            rclipboard::rclipButton(
               ns("copy_combined"),
               i18n()$t("Copy complete script"),
+              combined_code,
               icon = shiny::icon("copy"),
-              class = "btn-sm btn-outline-secondary",
-              onclick = sprintf(
-                "navigator.clipboard.writeText(`%s`).then(function() { alert('%s'); });",
-                gsub("`", "\\`", combined_code),
-                i18n()$t("Code copied!")
-              )
+              class = "btn-sm btn-outline-secondary"
             )
           )
         }
