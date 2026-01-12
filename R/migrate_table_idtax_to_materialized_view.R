@@ -462,23 +462,8 @@ $$;
   )
 
   exec_sql(
-    "GRANT SELECT ON table_idtax TO data_manager_role;",
-    "Grant SELECT on table_idtax to data_manager_role"
-  )
-
-  exec_sql(
     "GRANT SELECT ON table_idtax_metadata TO public;",
     "Grant SELECT on metadata table to public"
-  )
-
-  exec_sql(
-    "GRANT INSERT, UPDATE ON table_idtax_metadata TO data_manager_role;",
-    "Grant INSERT, UPDATE on metadata table to data_manager_role"
-  )
-
-  exec_sql(
-    "GRANT EXECUTE ON FUNCTION refresh_table_idtax() TO data_manager_role;",
-    "Grant EXECUTE on refresh function to data_manager_role"
   )
 
   exec_sql(
@@ -486,30 +471,75 @@ $$;
     "Grant EXECUTE on staleness check function to public"
   )
 
+  # Check if role was created successfully
+  role_exists <- exec_query(
+    "SELECT COUNT(*) as n FROM pg_roles WHERE rolname = 'data_manager_role';",
+    "Check if data_manager_role exists"
+  )
+
+  if (!dry_run && nrow(role_exists) > 0 && role_exists$n[1] > 0) {
+    cli::cli_alert_success("data_manager_role exists - granting permissions")
+
+    exec_sql(
+      "GRANT SELECT ON table_idtax TO data_manager_role;",
+      "Grant SELECT on table_idtax to data_manager_role",
+      critical = FALSE
+    )
+
+    exec_sql(
+      "GRANT INSERT, UPDATE ON table_idtax_metadata TO data_manager_role;",
+      "Grant INSERT, UPDATE on metadata table to data_manager_role",
+      critical = FALSE
+    )
+
+    exec_sql(
+      "GRANT EXECUTE ON FUNCTION refresh_table_idtax() TO data_manager_role;",
+      "Grant EXECUTE on refresh function to data_manager_role",
+      critical = FALSE
+    )
+  } else {
+    cli::cli_alert_warning("data_manager_role does not exist - skipping role grants")
+    cli::cli_alert_info("You'll need to create the role manually with superuser privileges:")
+    cli::cli_alert_info("  CREATE ROLE data_manager_role;")
+    cli::cli_alert_info("  GRANT SELECT ON table_idtax TO data_manager_role;")
+    cli::cli_alert_info("  GRANT INSERT, UPDATE ON table_idtax_metadata TO data_manager_role;")
+    cli::cli_alert_info("  GRANT EXECUTE ON FUNCTION refresh_table_idtax() TO data_manager_role;")
+    results$warnings <<- c(results$warnings, "data_manager_role not created - insufficient privileges")
+  }
+
 
   # =========================================================================
   # STEP 7: Grant Role to Specific Users
   # =========================================================================
   cli::cli_h2("Step 7: Grant Role to Users")
 
-  for (username in data_manager_users) {
-    # Check if user exists first
-    user_exists <- exec_query(
-      sprintf("SELECT COUNT(*) as n FROM pg_roles WHERE rolname = '%s';", username),
-      sprintf("Check if user '%s' exists", username)
-    )
+  # Only try to grant if role exists
+  if (!dry_run && nrow(role_exists) > 0 && role_exists$n[1] > 0) {
+    for (username in data_manager_users) {
+      # Check if user exists first
+      user_exists <- exec_query(
+        sprintf("SELECT COUNT(*) as n FROM pg_roles WHERE rolname = '%s';", username),
+        sprintf("Check if user '%s' exists", username)
+      )
 
-    if (!dry_run && nrow(user_exists) > 0 && user_exists$n[1] == 0) {
-      cli::cli_alert_warning("User '{username}' does not exist in database - skipping")
-      results$warnings <- c(results$warnings, paste0("User not found: ", username))
-      next
+      if (!dry_run && nrow(user_exists) > 0 && user_exists$n[1] == 0) {
+        cli::cli_alert_warning("User '{username}' does not exist in database - skipping")
+        results$warnings <- c(results$warnings, paste0("User not found: ", username))
+        next
+      }
+
+      exec_sql(
+        sprintf("GRANT data_manager_role TO %s;", username),
+        sprintf("Grant data_manager_role to user '%s'", username),
+        critical = FALSE
+      )
     }
-
-    exec_sql(
-      sprintf("GRANT data_manager_role TO %s;", username),
-      sprintf("Grant data_manager_role to user '%s'", username),
-      critical = FALSE
-    )
+  } else {
+    cli::cli_alert_warning("Skipping user grants (data_manager_role doesn't exist)")
+    cli::cli_alert_info("After creating the role, run these commands:")
+    for (username in data_manager_users) {
+      cli::cli_alert_info("  GRANT data_manager_role TO {username};")
+    }
   }
 
 
