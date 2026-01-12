@@ -15,7 +15,6 @@ enrich_with_traits(
   remove_obs_with_issue = TRUE,
   include_issue = FALSE,
   include_measurement_ids = FALSE,
-  include_specimen_links = FALSE,
   census_strategy = c("last", "first", "mean")
 )
 }

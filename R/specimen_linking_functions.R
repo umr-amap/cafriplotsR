@@ -6,8 +6,7 @@
 #
 # Main functions:
 # - .add_link_specimens(): Add links between individuals and herbarium specimens
-# - query_link_individual_specimen(): Query existing links
-# - query_all_specimen_links(): Get all links with link type info
+# - query_all_specimen_links(): Query links with optional specimen and linktype info
 # - get_linktypes(): Get available link types from lookup table
 # - get_ref_specimen_ind(): Find reference specimen for individuals by collector
 #
@@ -452,77 +451,6 @@ query_all_specimen_links <- function(id_ind = NULL,
   }
 
   return(tibble::as_tibble(links))
-}
-
-
-#' Query Link Between Specimens and Individuals
-#'
-#' Query existing links between specimens and individuals. Returns link type
-#' information when available.
-#'
-#' @param id_ind Integer vector of individual IDs to query
-#' @param id_specimen Integer vector of specimen IDs to query
-#' @param con Database connection. If NULL, calls call.mydb()
-#'
-#' @return Tibble with link information including link type
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @export
-query_link_individual_specimen <- function(id_ind = NULL,
-                                           id_specimen = NULL,
-                                           con = NULL) {
-
-  if (is.null(con)) {
-    con <- call.mydb()
-  }
-
-  # Handle pool connections
-  actual_con <- if (inherits(con, "Pool")) {
-    pool::poolCheckout(con)
-  } else {
-    con
-  }
-
-  on.exit({
-    if (inherits(con, "Pool") && !is.null(actual_con)) {
-      pool::poolReturn(actual_con)
-    }
-  }, add = TRUE)
-
-  # Start query
-  links <- dplyr::tbl(actual_con, "data_link_specimens")
-
-  # Filter by individual
-  if (!is.null(id_ind)) {
-    links <- links %>%
-      dplyr::filter(id_n %in% !!id_ind)
-  }
-
-  # Filter by specimen
-  if (!is.null(id_specimen)) {
-    links <- links %>%
-      dplyr::filter(id_specimen %in% !!id_specimen)
-  }
-
-  # Try to join link type info
-  links <- tryCatch({
-    links %>%
-      dplyr::left_join(
-        dplyr::tbl(actual_con, "linktypelist") %>%
-          dplyr::select(id_linktype, linktype, priority),
-        by = "id_linktype"
-      )
-  }, error = function(e) {
-    # Table might not exist yet
-    links
-  })
-
-  result <- links %>%
-    dplyr::collect() %>%
-    tibble::as_tibble()
-
-  return(result)
 }
 
 

@@ -946,7 +946,12 @@
 .get_linked_individuals_summary <- function(id_specimen, con) {
 
   # Get linked individuals
-  linked_inds <- query_link_individual_specimen(id_specimen = id_specimen)
+  linked_inds <- query_all_specimen_links(
+    id_specimen = id_specimen,
+    include_specimen_info = FALSE,
+    include_linktype_info = TRUE,
+    con = con
+  )
 
   if (is.null(linked_inds) || nrow(linked_inds) == 0) {
     return(NULL)

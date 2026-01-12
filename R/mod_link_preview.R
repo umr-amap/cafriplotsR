@@ -503,8 +503,10 @@ mod_link_preview_server <- function(id, pool_main, selected_specimens,
       con <- pool_main()
 
       existing <- tryCatch({
-        query_link_individual_specimen(
+        query_all_specimen_links(
           id_specimen = unique(links$id_specimen),
+          include_specimen_info = FALSE,
+          include_linktype_info = TRUE,
           con = con
         )
       }, error = function(e) {
