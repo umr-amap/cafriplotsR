@@ -261,7 +261,7 @@ mod_link_executor_server <- function(id, validated_links, con, i18n) {
           shiny::p(
             shiny::tags$strong(i18n()$t("What's next?")),
             shiny::br(),
-            i18n()$t("The links are now stored in the data_link_specimens table and can be queried using query_link_individual_specimen().")
+            i18n()$t("The links are now stored in the data_link_specimens table and can be queried using query_all_specimen_links().")
           )
         )
 

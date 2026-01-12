@@ -4,7 +4,7 @@
 \alias{mod_plot_statistics_server}
 \title{Plot Statistics Module - Server}
 \usage{
-mod_plot_statistics_server(id, results, i18n)
+mod_plot_statistics_server(id, results, pool_reactive, i18n)
 }
 \arguments{
 \item{id}{Namespace ID}
