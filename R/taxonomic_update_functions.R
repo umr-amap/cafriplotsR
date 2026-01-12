@@ -188,7 +188,8 @@ update_taxa_link_table <- function() {
 
 #' Add new entry to taxonomic table
 #'
-#' Add new entry to taxonomic table
+#' Add new entry to taxonomic table. Automatically determines and sets the
+#' tax_level field for hierarchical linking.
 #'
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
@@ -637,6 +638,23 @@ add_entry_taxa <- function(search_name_tps = NULL,
     if(!is.na(tax_fam) & !is.na(tax_gen) & !is.na(tax_esp))
       tax_rankesp <- "ESP"
 
+    # Determine tax_level for hierarchy (lowercase, standardized format)
+    tax_level <- if (!is.na(tax_name1) && tax_name1 != "") {
+      "infraspecific"
+    } else if (!is.na(tax_esp) && tax_esp != "") {
+      "species"
+    } else if (!is.na(tax_gen) && tax_gen != "") {
+      "genus"
+    } else if (!is.na(tax_fam) && tax_fam != "") {
+      "family"
+    } else if (!is.na(tax_order) && tax_order != "") {
+      "order"
+    } else if (!is.null(tax_famclass) && !is.na(tax_famclass) && tax_famclass != "") {
+      "class"
+    } else {
+      NA_character_
+    }
+
     ## get id of class
     id_tax_fam_class <-
       try_open_postgres_table(table = "table_tax_famclass", con = mydb_taxa) %>%
@@ -659,6 +677,7 @@ add_entry_taxa <- function(search_name_tps = NULL,
         tax_rank = tax_rank,
         tax_rankinf = tax_rankinf,
         tax_rankesp = tax_rankesp,
+        tax_level = tax_level,
         fktax = NA,
         author1 = author1,
         author2 = author2,
@@ -843,7 +862,8 @@ add_entry_taxa <- function(search_name_tps = NULL,
 #' Add taxa to database (non-interactive, for Shiny)
 #'
 #' Non-interactive version of add_entry_taxa for use in Shiny applications.
-#' Inserts taxonomic data directly without prompts.
+#' Inserts taxonomic data directly without prompts. Automatically determines
+#' tax_level and id_parent for hierarchical linking.
 #'
 #' @param tax_gen Genus name (required)
 #' @param tax_esp Species epithet (optional)
@@ -1015,6 +1035,9 @@ add_entry_taxa <- function(search_name_tps = NULL,
   if (!is.na(new_rec$id_parent)) {
     cli::cli_alert_info("Linked to parent ID: {new_rec$id_parent}")
   }
+
+  # Add tax_level to record (IMPORTANT: needed for hierarchy migration)
+  new_rec$tax_level <- taxon_level
 
   # Insert into database
   cli::cli_alert_info("Inserting new taxon: {tax_gen} {tax_esp}")
