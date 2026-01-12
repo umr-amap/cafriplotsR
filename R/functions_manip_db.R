@@ -1928,14 +1928,14 @@ SpecimenFetcher <- R6::R6Class(
     # Fetch taxonomy (add_taxa_table_taxa creates its own connection)
     taxa_info <- add_taxa_table_taxa(ids = unique_idtax)
 
-    if (is.data.frame(taxa_info)) {
+    # if (is.data.frame(taxa_info)) {
       taxa_info <- taxa_info %>%
         dplyr::collect() %>%
         dplyr::select(-any_of(c("data_modif_d", "data_modif_m", "data_modif_y")))
 
       specimens <- specimens %>%
         dplyr::left_join(taxa_info, by = c("idtax_f" = "idtax_n"))
-    }
+    # }
 
     return(specimens)
 
