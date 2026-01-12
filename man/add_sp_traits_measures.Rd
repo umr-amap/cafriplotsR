@@ -13,7 +13,10 @@ add_sp_traits_measures(
   idtax = NULL,
   features_field = NULL,
   add_data = FALSE,
-  ask_before_update = TRUE
+  ask_before_update = TRUE,
+  basisofrecord = NULL,
+  measurementremarks = NULL,
+  interactive = TRUE
 )
 }
 \arguments{

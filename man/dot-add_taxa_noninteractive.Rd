@@ -55,6 +55,7 @@ The new taxon ID (idtax_n)
 }
 \description{
 Non-interactive version of add_entry_taxa for use in Shiny applications.
-Inserts taxonomic data directly without prompts.
+Inserts taxonomic data directly without prompts. Automatically determines
+tax_level and id_parent for hierarchical linking.
 }
 \keyword{internal}

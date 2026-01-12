@@ -48,7 +48,8 @@ add_entry_taxa(
 A tibble
 }
 \description{
-Add new entry to taxonomic table
+Add new entry to taxonomic table. Automatically determines and sets the
+tax_level field for hierarchical linking.
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}
