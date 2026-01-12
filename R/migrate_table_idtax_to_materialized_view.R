@@ -296,7 +296,7 @@ migrate_table_idtax_to_materialized_view <- function(
   # Insert initial metadata
   if (!dry_run) {
     record_count <- exec_query("SELECT COUNT(*) as n FROM table_idtax;", "Get record count")
-    count_val <- if (nrow(record_count) > 0) record_count$n[1] else 0
+    count_val <- if (nrow(record_count) > 0) as.integer(record_count$n[1]) else 0L
 
     exec_sql(
       sprintf("INSERT INTO table_idtax_metadata
