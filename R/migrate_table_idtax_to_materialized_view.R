@@ -504,7 +504,7 @@ $$;
     cli::cli_alert_info("  GRANT SELECT ON table_idtax TO data_manager_role;")
     cli::cli_alert_info("  GRANT INSERT, UPDATE ON table_idtax_metadata TO data_manager_role;")
     cli::cli_alert_info("  GRANT EXECUTE ON FUNCTION refresh_table_idtax() TO data_manager_role;")
-    results$warnings <<- c(results$warnings, "data_manager_role not created - insufficient privileges")
+    results$warnings <- c(results$warnings, "data_manager_role not created - insufficient privileges")
   }
 
 
