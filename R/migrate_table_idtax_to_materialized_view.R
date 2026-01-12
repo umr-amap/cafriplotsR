@@ -298,19 +298,20 @@ migrate_table_idtax_to_materialized_view <- function(
     record_count <- exec_query("SELECT COUNT(*) as n FROM table_idtax;", "Get record count")
     count_val <- if (nrow(record_count) > 0) as.integer(record_count$n[1]) else 0L
 
-    exec_sql(
-      sprintf("INSERT INTO table_idtax_metadata
-               (table_name, last_updated, updated_by, record_count, source_info)
-               VALUES ('table_idtax', CURRENT_TIMESTAMP, '%s', %d,
-                       'Initial migration from table to materialized view')
-               ON CONFLICT (table_name) DO UPDATE SET
-                 last_updated = CURRENT_TIMESTAMP,
-                 updated_by = '%s',
-                 record_count = %d,
-                 source_info = 'Initial migration from table to materialized view';",
-              Sys.info()["user"], count_val, Sys.info()["user"], count_val),
-      "Insert initial metadata"
+    # Use paste0 instead of sprintf to avoid format issues
+    metadata_sql <- paste0(
+      "INSERT INTO table_idtax_metadata ",
+      "(table_name, last_updated, updated_by, record_count, source_info) ",
+      "VALUES ('table_idtax', CURRENT_TIMESTAMP, '", Sys.info()["user"], "', ", count_val, ", ",
+      "'Initial migration from table to materialized view') ",
+      "ON CONFLICT (table_name) DO UPDATE SET ",
+      "last_updated = CURRENT_TIMESTAMP, ",
+      "updated_by = '", Sys.info()["user"], "', ",
+      "record_count = ", count_val, ", ",
+      "source_info = 'Initial migration from table to materialized view';"
     )
+
+    exec_sql(metadata_sql, "Insert initial metadata")
   }
 
 
