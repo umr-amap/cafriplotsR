@@ -184,7 +184,11 @@ check_hierarchy_consistency <- function(con = NULL, fix = FALSE, limit = 100) {
   }
 
   # Summary
-  total_issues <- sum(sapply(inconsistencies, nrow))
+  if (length(inconsistencies) == 0) {
+    total_issues <- 0
+  } else {
+    total_issues <- sum(sapply(inconsistencies, function(x) if (is.data.frame(x)) nrow(x) else 0))
+  }
 
   cli::cli_h2("Summary")
   if (total_issues == 0) {
