@@ -3,7 +3,7 @@
 
 library(CafriplotsR)
 
-con <- call.mydb.taxa()
+con <- call.mydb.taxa(use_env_credentials = T)
 
 cat("\n========================================\n")
 cat("FIX 1: ASSIGN TAX_LEVEL TO NA TAXA\n")
