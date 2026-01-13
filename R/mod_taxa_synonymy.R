@@ -172,26 +172,22 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
 
             shiny::fluidRow(
               shiny::column(
-                4,
+                6,
                 shiny::textInput(
-                  ns("accepted_genus"),
-                  i18n()$t("Accepted genus")
-                )
+                  ns("accepted_binomial"),
+                  i18n()$t("Accepted name (binomial)"),
+                  placeholder = "Genus species"
+                ),
+                shiny::helpText(i18n()$t("Enter genus and species separated by space (e.g., 'Pinus alba')"))
               ),
               shiny::column(
-                4,
-                shiny::textInput(
-                  ns("accepted_species"),
-                  i18n()$t("Accepted species")
-                )
-              ),
-              shiny::column(
-                4,
+                6,
                 shiny::numericInput(
                   ns("accepted_id"),
                   i18n()$t("Or accepted taxon ID"),
                   value = NA
-                )
+                ),
+                shiny::helpText(i18n()$t("Directly enter the taxon ID if known"))
               )
             ),
 
@@ -288,8 +284,7 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
     # Cancel set synonym
     shiny::observeEvent(input$btn_cancel_set, {
       rv$show_set_synonym_form <- FALSE
-      shiny::updateTextInput(session, "accepted_genus", value = "")
-      shiny::updateTextInput(session, "accepted_species", value = "")
+      shiny::updateTextInput(session, "accepted_binomial", value = "")
       shiny::updateNumericInput(session, "accepted_id", value = NA)
     })
 
@@ -309,13 +304,12 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
       taxon <- selected_taxon()
 
       # Validate inputs
-      has_genus <- !is.null(input$accepted_genus) && nchar(trimws(input$accepted_genus)) > 0
-      has_species <- !is.null(input$accepted_species) && nchar(trimws(input$accepted_species)) > 0
+      has_binomial <- !is.null(input$accepted_binomial) && nchar(trimws(input$accepted_binomial)) > 0
       has_id <- !is.null(input$accepted_id) && !is.na(input$accepted_id)
 
-      if (!has_genus && !has_species && !has_id) {
+      if (!has_binomial && !has_id) {
         shiny::showNotification(
-          i18n()$t("Please provide at least genus, species, or taxon ID of the accepted name"),
+          i18n()$t("Please provide binomial name or taxon ID of the accepted name"),
           type = "error"
         )
         return()
@@ -325,13 +319,54 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
         tryCatch({
           cli::cli_alert_info("Setting taxon ID {taxon$idtax_n} as synonym...")
 
+          # Parse binomial if provided
+          genus <- NULL
+          species <- NULL
+          if (has_binomial) {
+            binomial_parts <- trimws(strsplit(trimws(input$accepted_binomial), "\\s+")[[1]])
+            if (length(binomial_parts) >= 1) {
+              genus <- binomial_parts[1]
+            }
+            if (length(binomial_parts) >= 2) {
+              species <- binomial_parts[2]
+            }
+          }
+
           # Build synonym_of list
           synonym_of <- list()
-          if (has_genus) synonym_of$genus <- trimws(input$accepted_genus)
-          if (has_species) synonym_of$species <- trimws(input$accepted_species)
+          if (!is.null(genus)) synonym_of$genus <- genus
+          if (!is.null(species)) synonym_of$species <- species
           if (has_id) synonym_of$id <- input$accepted_id
 
+          # Get pool connection and checkout
+          pool_conn <- pool()
+          actual_con <- pool::poolCheckout(pool_conn)
+
+          # Ensure connection is returned
+          on.exit({
+            pool::poolReturn(actual_con)
+          }, add = TRUE)
+
           # Call update_dico_name with synonym_of
+          # Note: This function creates its own connection internally
+          # We temporarily set the global connection to our pool connection
+          old_mydb_taxa <- NULL
+          if (exists("mydb_taxa", envir = .GlobalEnv)) {
+            old_mydb_taxa <- get("mydb_taxa", envir = .GlobalEnv)
+          }
+          assign("mydb_taxa", actual_con, envir = .GlobalEnv)
+
+          on.exit({
+            # Restore old connection
+            if (!is.null(old_mydb_taxa)) {
+              assign("mydb_taxa", old_mydb_taxa, envir = .GlobalEnv)
+            } else {
+              if (exists("mydb_taxa", envir = .GlobalEnv)) {
+                rm("mydb_taxa", envir = .GlobalEnv)
+              }
+            }
+          }, add = TRUE)
+
           update_dico_name(
             id_searched = taxon$idtax_n,
             synonym_of = synonym_of,
@@ -348,8 +383,7 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
 
           # Reset form
           rv$show_set_synonym_form <- FALSE
-          shiny::updateTextInput(session, "accepted_genus", value = "")
-          shiny::updateTextInput(session, "accepted_species", value = "")
+          shiny::updateTextInput(session, "accepted_binomial", value = "")
           shiny::updateNumericInput(session, "accepted_id", value = NA)
 
         }, error = function(e) {
@@ -371,7 +405,34 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
         tryCatch({
           cli::cli_alert_info("Canceling synonymy for taxon ID {taxon$idtax_n}...")
 
+          # Get pool connection and checkout
+          pool_conn <- pool()
+          actual_con <- pool::poolCheckout(pool_conn)
+
+          # Ensure connection is returned
+          on.exit({
+            pool::poolReturn(actual_con)
+          }, add = TRUE)
+
           # Call update_dico_name with cancel_synonymy
+          # Temporarily set the global connection to our pool connection
+          old_mydb_taxa <- NULL
+          if (exists("mydb_taxa", envir = .GlobalEnv)) {
+            old_mydb_taxa <- get("mydb_taxa", envir = .GlobalEnv)
+          }
+          assign("mydb_taxa", actual_con, envir = .GlobalEnv)
+
+          on.exit({
+            # Restore old connection
+            if (!is.null(old_mydb_taxa)) {
+              assign("mydb_taxa", old_mydb_taxa, envir = .GlobalEnv)
+            } else {
+              if (exists("mydb_taxa", envir = .GlobalEnv)) {
+                rm("mydb_taxa", envir = .GlobalEnv)
+              }
+            }
+          }, add = TRUE)
+
           update_dico_name(
             id_searched = taxon$idtax_n,
             cancel_synonymy = TRUE,
