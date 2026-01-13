@@ -3716,6 +3716,22 @@
     {
       "en": "Could not load hierarchy for this taxon. The id_parent column may not be populated yet.",
       "fr": "Impossible de charger la hiérarchie pour ce taxon. La colonne id_parent n'est peut-être pas encore remplie."
+    },
+    {
+      "en": "Accepted name (binomial)",
+      "fr": "Nom accepté (binomial)"
+    },
+    {
+      "en": "Enter genus and species separated by space (e.g., 'Pinus alba')",
+      "fr": "Entrez le genre et l'espèce séparés par un espace (ex: 'Pinus alba')"
+    },
+    {
+      "en": "Directly enter the taxon ID if known",
+      "fr": "Entrez directement l'ID du taxon si connu"
+    },
+    {
+      "en": "Please provide binomial name or taxon ID of the accepted name",
+      "fr": "Veuillez fournir le nom binomial ou l'ID du taxon accepté"
     }
   ]
 }
