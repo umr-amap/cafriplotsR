@@ -139,6 +139,14 @@ mod_taxa_search_server <- function(id, pool, i18n) {
             ),
             shiny::column(
               3,
+              shiny::checkboxInput(
+                ns("include_synonyms"),
+                i18n()$t("Include synonyms of queried taxa"),
+                value = FALSE
+              )
+            ),
+            shiny::column(
+              3,
               shiny::selectInput(
                 ns("synonymy_filter"),
                 i18n()$t("Synonymy filter"),
@@ -195,7 +203,15 @@ mod_taxa_search_server <- function(id, pool, i18n) {
         shiny::br(),
 
         # Selected taxon info
-        shiny::uiOutput(ns("selected_info"))
+        shiny::uiOutput(ns("selected_info")),
+
+        shiny::br(),
+
+        # Traits explanation
+        shiny::uiOutput(ns("traits_explanation")),
+
+        # Selected taxon traits
+        shiny::uiOutput(ns("selected_traits"))
       )
     })
 
@@ -264,7 +280,7 @@ mod_taxa_search_server <- function(id, pool, i18n) {
             ids = ids,
             exact_match = input$exact_match,
             check_synonymy = FALSE,
-            extract_traits = FALSE,
+            extract_traits = TRUE,
             verbose = FALSE
           )
 
@@ -286,6 +302,124 @@ mod_taxa_search_server <- function(id, pool, i18n) {
             dplyr::arrange(tax_fam, tax_gen, tax_esp) %>%
             dplyr::collect() %>%
             dplyr::slice(1:min(1000, dplyr::n()))
+
+          # Add traits to browse results if any taxa were found
+          if (!is.null(results) && nrow(results) > 0) {
+            tryCatch({
+              traits_result <- query_taxa_traits(
+                idtax = results$idtax_n,
+                format = "wide",
+                add_taxa_info = FALSE,
+                include_synonyms = TRUE,
+                categorical_mode = "mode",
+                con_taxa = actual_con
+              )
+
+              # Join numeric traits if available
+              has_numeric <- !is.null(traits_result$traits_numeric) &&
+                             !inherits(traits_result$traits_numeric, "logical")
+              if (has_numeric && nrow(traits_result$traits_numeric) > 0) {
+                results <- results %>%
+                  dplyr::left_join(
+                    traits_result$traits_numeric,
+                    by = c("idtax_n" = "idtax")
+                  )
+              }
+
+              # Join categorical traits if available
+              has_categorical <- !is.null(traits_result$traits_categorical) &&
+                                 !inherits(traits_result$traits_categorical, "logical")
+              if (has_categorical && nrow(traits_result$traits_categorical) > 0) {
+                results <- results %>%
+                  dplyr::left_join(
+                    traits_result$traits_categorical,
+                    by = c("idtax_n" = "idtax")
+                  )
+              }
+            }, error = function(e) {
+              cli::cli_alert_warning("Could not fetch traits for browse mode: {e$message}")
+            })
+          }
+        }
+
+        # Include synonyms if requested
+        if (!is.null(results) && nrow(results) > 0 && input$include_synonyms) {
+          tryCatch({
+            cli::cli_alert_info("Including synonyms of queried taxa...")
+
+            # Get connection
+            actual_con <- if (inherits(pool(), "Pool")) {
+              pool::poolCheckout(pool())
+            } else {
+              pool()
+            }
+
+            on.exit({
+              if (inherits(pool(), "Pool") && !is.null(actual_con)) {
+                pool::poolReturn(actual_con)
+              }
+            }, add = TRUE)
+
+            # Get IDs of accepted taxa from results (those without idtax_good_n)
+            accepted_ids <- results %>%
+              dplyr::filter(is.na(idtax_good_n)) %>%
+              dplyr::pull(idtax_n)
+
+            if (length(accepted_ids) > 0) {
+              # Find all synonyms pointing to these accepted taxa
+              synonyms <- dplyr::tbl(actual_con, "table_taxa") %>%
+                dplyr::filter(idtax_good_n %in% !!accepted_ids) %>%
+                dplyr::collect()
+
+              if (nrow(synonyms) > 0) {
+                cli::cli_alert_success("Found {nrow(synonyms)} synonym{?s}")
+
+                # Add traits to synonyms if results have trait columns
+                trait_cols <- names(results)[grepl("^taxa_", names(results))]
+                if (length(trait_cols) > 0) {
+                  tryCatch({
+                    traits_result <- query_taxa_traits(
+                      idtax = synonyms$idtax_n,
+                      format = "wide",
+                      add_taxa_info = FALSE,
+                      include_synonyms = TRUE,
+                      categorical_mode = "mode",
+                      con_taxa = actual_con
+                    )
+
+                    # Join numeric traits
+                    has_numeric <- !is.null(traits_result$traits_numeric) &&
+                                   !inherits(traits_result$traits_numeric, "logical")
+                    if (has_numeric && nrow(traits_result$traits_numeric) > 0) {
+                      synonyms <- synonyms %>%
+                        dplyr::left_join(
+                          traits_result$traits_numeric,
+                          by = c("idtax_n" = "idtax")
+                        )
+                    }
+
+                    # Join categorical traits
+                    has_categorical <- !is.null(traits_result$traits_categorical) &&
+                                       !inherits(traits_result$traits_categorical, "logical")
+                    if (has_categorical && nrow(traits_result$traits_categorical) > 0) {
+                      synonyms <- synonyms %>%
+                        dplyr::left_join(
+                          traits_result$traits_categorical,
+                          by = c("idtax_n" = "idtax")
+                        )
+                    }
+                  }, error = function(e) {
+                    cli::cli_alert_warning("Could not fetch traits for synonyms: {e$message}")
+                  })
+                }
+
+                # Combine results with synonyms
+                results <- dplyr::bind_rows(results, synonyms)
+              }
+            }
+          }, error = function(e) {
+            cli::cli_alert_warning("Could not include synonyms: {e$message}")
+          })
         }
 
         # Apply synonymy filter
@@ -351,18 +485,25 @@ mod_taxa_search_server <- function(id, pool, i18n) {
     output$results_table <- DT::renderDT({
       shiny::req(rv$search_results)
 
-      # Select key columns to display
-      display_cols <- c(
+      # Define core taxonomic columns (in display order)
+      core_cols <- c(
         "idtax_n", "tax_famclass", "tax_order", "tax_fam", "tax_gen", "tax_esp",
         "tax_rank01", "tax_nam01", "author1", "tax_rankinf", "idtax_good_n"
       )
 
-      # Keep only existing columns
-      display_cols <- intersect(display_cols, names(rv$search_results))
+      # Keep only existing core columns
+      core_cols_present <- intersect(core_cols, names(rv$search_results))
+
+      # Identify trait columns (all columns not in core set)
+      all_cols <- names(rv$search_results)
+      trait_cols <- setdiff(all_cols, core_cols)
+
+      # Combine: core columns first, then trait columns
+      display_cols <- c(core_cols_present, trait_cols)
 
       results_display <- rv$search_results[, display_cols, drop = FALSE]
 
-      # Add synonym indicator column
+      # Add synonym indicator column at the beginning
       results_display <- results_display %>%
         dplyr::mutate(
           synonym_status = ifelse(
@@ -492,6 +633,157 @@ mod_taxa_search_server <- function(id, pool, i18n) {
           i18n()$t("Use 'Update Taxon' or 'Synonymy Management' tabs to modify this record")
         )
       )
+    })
+
+    # Traits explanation panel
+    output$traits_explanation <- shiny::renderUI({
+      # Only show explanation if a taxon is selected
+      shiny::req(rv$selected_row)
+
+      # Check if there are any taxa_ columns
+      all_cols <- names(rv$selected_row)
+      trait_cols <- all_cols[grepl("^taxa_", all_cols) & !grepl("id", all_cols, ignore.case = TRUE)]
+
+      # Only show explanation if traits exist
+      if (length(trait_cols) == 0) {
+        return(NULL)
+      }
+
+      shiny::div(
+        class = "alert alert-info",
+        style = "background-color: #d1ecf1; border-color: #bee5eb; color: #0c5460;",
+        shiny::h5(
+          shiny::icon("info-circle"),
+          " ",
+          i18n()$t("About Taxa-Level Traits"),
+          style = "color: #0c5460; margin-top: 0;"
+        ),
+        shiny::tags$ul(
+          style = "color: #0c5460; margin-bottom: 10px;",
+          shiny::tags$li(
+            shiny::tags$strong(i18n()$t("Numeric traits:")),
+            " ",
+            i18n()$t("Each numeric trait appears as three columns: _mean (average value), _sd (standard deviation), and _n (number of measurements). For example, 'wood_density' becomes 'wood_density_mean', 'wood_density_sd', and 'wood_density_n'.")
+          ),
+          shiny::tags$li(
+            shiny::tags$strong(i18n()$t("Categorical traits:")),
+            " ",
+            i18n()$t("For categorical traits (e.g., growth form, dispersal mode), you can choose to display either the most frequent value (mode) or all unique values concatenated.")
+          )
+        ),
+        shiny::p(
+          shiny::icon("link"),
+          " ",
+          i18n()$t("Synonym resolution: Trait data from taxonomic synonyms are automatically consolidated under the accepted taxon name."),
+          style = "color: #0c5460; font-style: italic; margin-bottom: 0;"
+        )
+      )
+    })
+
+    # Selected taxon traits
+    output$selected_traits <- shiny::renderUI({
+      shiny::req(rv$selected_row)
+
+      tryCatch({
+        taxon <- rv$selected_row
+
+        # Get all column names
+        all_cols <- names(taxon)
+
+        # Identify trait columns: only columns starting with "taxa_"
+        # Exclude any columns containing "id" in their name
+        trait_cols <- all_cols[grepl("^taxa_", all_cols) & !grepl("id", all_cols, ignore.case = TRUE)]
+
+        # If no trait columns, don't display anything
+        if (length(trait_cols) == 0) {
+          return(NULL)
+        }
+
+        # Filter out NA-only traits
+        trait_values <- taxon[, trait_cols, drop = FALSE]
+        has_value <- sapply(trait_values, function(x) !is.na(x))
+        trait_cols_with_values <- trait_cols[has_value]
+
+      # If no traits have values, don't display
+      if (length(trait_cols_with_values) == 0) {
+        return(
+          shiny::wellPanel(
+            style = "background-color: #d1ecf1; border-color: #bee5eb;",
+            shiny::h5(
+              shiny::icon("leaf"),
+              " ",
+              i18n()$t("Taxa-Level Traits")
+            ),
+            shiny::p(
+              class = "text-muted",
+              style = "margin-bottom: 0;",
+              shiny::icon("info-circle"),
+              " ",
+              i18n()$t("No trait data available for this taxon")
+            )
+          )
+        )
+      }
+
+      # Build trait display
+      # Organize traits into rows of 3 columns each
+      trait_items <- lapply(trait_cols_with_values, function(trait_name) {
+        trait_value <- trait_values[[trait_name]]
+
+        # Format value based on type
+        formatted_value <- if (is.numeric(trait_value)) {
+          if (is.na(trait_value)) {
+            "N/A"
+          } else {
+            format(round(trait_value, 3), nsmall = 1)
+          }
+        } else {
+          as.character(trait_value)
+        }
+
+        shiny::column(
+          4,
+          shiny::div(
+            style = "margin-bottom: 8px;",
+            shiny::strong(trait_name, ":"), " ", formatted_value
+          )
+        )
+      })
+
+      # Split into rows of 3
+      n_traits <- length(trait_items)
+      n_rows <- ceiling(n_traits / 3)
+
+      trait_rows <- lapply(1:n_rows, function(i) {
+        start_idx <- (i - 1) * 3 + 1
+        end_idx <- min(i * 3, n_traits)
+        shiny::fluidRow(
+          trait_items[start_idx:end_idx]
+        )
+      })
+
+      return(shiny::wellPanel(
+        style = "background-color: #d1ecf1; border-color: #bee5eb;",
+        shiny::h5(
+          shiny::icon("leaf"),
+          " ",
+          i18n()$t("Taxa-Level Traits")
+        ),
+        trait_rows,
+        shiny::hr(),
+        shiny::p(
+          class = "text-muted",
+          style = "font-size: 0.9em; margin-bottom: 0;",
+          shiny::icon("info-circle"),
+          " ",
+          sprintf(i18n()$t("Showing %d trait(s) for this taxon"), length(trait_cols_with_values))
+        )
+      ))
+      }, error = function(e) {
+        # If there's an error rendering traits, just don't show the panel
+        cli::cli_alert_warning("Could not render traits panel: {e$message}")
+        return(NULL)
+      })
     })
 
     # Return selected taxon data

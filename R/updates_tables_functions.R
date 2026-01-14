@@ -2351,11 +2351,43 @@ update_dico_name <- function(genus_searched = NULL,
                              show_results = TRUE,
                              cancel_synonymy= FALSE,
                              synonym_of = NULL,
-                             exact_match = FALSE) {
+                             exact_match = FALSE,
+                             con = NULL) {
 
-  # Ensure fresh connection in global environment
-  if (exists("mydb_taxa", envir = .GlobalEnv)) rm(mydb_taxa, envir = .GlobalEnv)
-  assign("mydb_taxa", call.mydb.taxa(), envir = .GlobalEnv)
+  # Connection management
+  # If con is provided, use it; otherwise create new connection
+  if (!is.null(con)) {
+    # Handle pool connections
+    if (inherits(con, "Pool")) {
+      actual_con <- pool::poolCheckout(con)
+      on.exit({
+        pool::poolReturn(actual_con)
+      }, add = TRUE)
+    } else {
+      actual_con <- con
+    }
+  } else {
+    # Old behavior: create new connection
+    actual_con <- call.mydb.taxa()
+  }
+
+  # Set connection in global environment for use throughout function
+  old_mydb_taxa <- NULL
+  if (exists("mydb_taxa", envir = .GlobalEnv)) {
+    old_mydb_taxa <- get("mydb_taxa", envir = .GlobalEnv)
+  }
+  assign("mydb_taxa", actual_con, envir = .GlobalEnv)
+
+  on.exit({
+    # Restore old connection
+    if (!is.null(old_mydb_taxa)) {
+      assign("mydb_taxa", old_mydb_taxa, envir = .GlobalEnv)
+    } else {
+      if (exists("mydb_taxa", envir = .GlobalEnv)) {
+        rm("mydb_taxa", envir = .GlobalEnv)
+      }
+    }
+  }, add = TRUE)
 
   if(all(is.null(c(genus_searched, tax_esp_searched,
                    tax_fam_searched, synonym_of,

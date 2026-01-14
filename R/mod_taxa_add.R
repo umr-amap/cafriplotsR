@@ -514,12 +514,16 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
         tryCatch({
           cli::cli_alert_info("Canceling synonymy for existing taxon ID {check$idtax_n}...")
 
+          # Get pool connection
+          pool_conn <- pool()
+
           update_dico_name(
             id_searched = check$idtax_n,
             cancel_synonymy = TRUE,
             ask_before_update = FALSE,
             add_backup = TRUE,
-            show_results = FALSE
+            show_results = FALSE,
+            con = pool_conn
           )
 
           shiny::showNotification(
@@ -1060,21 +1064,16 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
 
           shiny::fluidRow(
             shiny::column(
-              4,
+              6,
               shiny::textInput(
-                ns("existing_genus"),
-                i18n()$t("Existing genus (to become synonym)")
-              )
+                ns("existing_binomial"),
+                i18n()$t("Existing taxon (binomial)"),
+                placeholder = "Genus species"
+              ),
+              shiny::helpText(i18n()$t("Enter genus and species separated by space (e.g., 'Pinus alba')"))
             ),
             shiny::column(
-              4,
-              shiny::textInput(
-                ns("existing_species"),
-                i18n()$t("Existing species (to become synonym)")
-              )
-            ),
-            shiny::column(
-              4,
+              6,
               shiny::numericInput(
                 ns("existing_id"),
                 i18n()$t("Or existing taxon ID"),
@@ -1105,21 +1104,16 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
 
           shiny::fluidRow(
             shiny::column(
-              4,
+              6,
               shiny::textInput(
-                ns("accepted_genus"),
-                i18n()$t("Accepted genus")
-              )
+                ns("accepted_binomial"),
+                i18n()$t("Accepted name (binomial)"),
+                placeholder = "Genus species"
+              ),
+              shiny::helpText(i18n()$t("Enter genus and species separated by space (e.g., 'Pinus alba')"))
             ),
             shiny::column(
-              4,
-              shiny::textInput(
-                ns("accepted_species"),
-                i18n()$t("Accepted species")
-              )
-            ),
-            shiny::column(
-              4,
+              6,
               shiny::numericInput(
                 ns("accepted_id"),
                 i18n()$t("Or accepted taxon ID"),
@@ -1230,13 +1224,12 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
       }
 
       # Validate inputs
-      has_genus <- !is.null(input$existing_genus) && nchar(trimws(input$existing_genus)) > 0
-      has_species <- !is.null(input$existing_species) && nchar(trimws(input$existing_species)) > 0
+      has_binomial <- !is.null(input$existing_binomial) && nchar(trimws(input$existing_binomial)) > 0
       has_id <- !is.null(input$existing_id) && !is.na(input$existing_id)
 
-      if (!has_genus && !has_species && !has_id) {
+      if (!has_binomial && !has_id) {
         shiny::showNotification(
-          i18n()$t("Please provide at least genus, species, or taxon ID of the existing entry"),
+          i18n()$t("Please provide binomial name or taxon ID"),
           type = "error"
         )
         return()
@@ -1253,9 +1246,18 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
             # First, find the existing taxon
             cli::cli_alert_info("Finding existing taxon...")
 
+            # Parse binomial if provided
+            genus <- NULL
+            species <- NULL
+            if (has_binomial) {
+              binomial_parts <- trimws(strsplit(trimws(input$existing_binomial), "\\s+")[[1]])
+              if (length(binomial_parts) >= 1) genus <- binomial_parts[1]
+              if (length(binomial_parts) >= 2) species <- binomial_parts[2]
+            }
+
             search_params <- list()
-            if (has_genus) search_params$genus <- trimws(input$existing_genus)
-            if (has_species) search_params$species <- trimws(input$existing_species)
+            if (!is.null(genus)) search_params$genus <- genus
+            if (!is.null(species)) search_params$species <- species
             if (has_id) search_params$ids <- input$existing_id
 
             existing_taxon <- do.call(query_taxa, search_params)
@@ -1283,70 +1285,65 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
             cli::cli_alert_info("Found existing taxon ID {existing_id}")
           }
 
+          # Get pool connection
+          pool_conn <- pool()
+
           # Check if this existing taxon has other synonyms pointing to it
-          actual_con <- if (inherits(pool(), "Pool")) {
-            pool::poolCheckout(pool())
-          } else {
-            pool()
-          }
+          actual_con <- pool::poolCheckout(pool_conn)
 
           on.exit({
-            if (inherits(pool(), "Pool") && !is.null(actual_con)) {
-              pool::poolReturn(actual_con)
-            }
+            pool::poolReturn(actual_con)
           }, add = TRUE)
 
           synonyms_of_existing <- dplyr::tbl(actual_con, "table_taxa") %>%
             dplyr::filter(idtax_good_n == !!existing_id) %>%
-            dplyr::select(idtax_n, tax_gen, tax_sp, tax_fam, idtax_good_n) %>%
+            dplyr::select(idtax_n, tax_gen, tax_esp, tax_fam, idtax_good_n) %>%
             dplyr::collect()
 
-          # For now, automatically cascade all synonyms (as per update_dico_name behavior)
-          # TODO: Add modal dialog for user choice in future enhancement
-          cascade_synonyms <- TRUE
+          # Check if there are cascade synonyms to handle
+          # If yes, use direct SQL for EVERYTHING to avoid interactive prompts from update_dico_name()
+          # If no, use update_dico_name() which handles backups properly
           if (nrow(synonyms_of_existing) > 0) {
             cli::cli_alert_info("Found {nrow(synonyms_of_existing)} existing synonym(s) of taxon {existing_id}")
-            cli::cli_alert_info("These will also be updated to point to the new taxon")
-            print(synonyms_of_existing)
-          }
+            cli::cli_alert_info("Using direct SQL for main synonym and cascade synonyms to avoid prompts...")
 
-          # Set existing taxon as synonym of new
-          cli::cli_alert_info("Setting existing taxon ID {existing_id} as synonym of new taxon {rv$new_taxon_id}...")
+            # Build list of all IDs to update (main existing + its synonyms)
+            all_ids_to_update <- c(existing_id, synonyms_of_existing$idtax_n)
 
-          update_dico_name(
-            id_searched = existing_id,
-            synonym_of = list(id = rv$new_taxon_id),
-            ask_before_update = FALSE,
-            add_backup = TRUE,
-            show_results = FALSE
-          )
+            # Update all at once with single SQL statement
+            sql <- sprintf(
+              "UPDATE table_taxa SET idtax_good_n = %d WHERE idtax_n IN (%s)",
+              rv$new_taxon_id,
+              paste(all_ids_to_update, collapse = ", ")
+            )
 
-          # Update cascade synonyms if requested
-          if (cascade_synonyms && nrow(synonyms_of_existing) > 0) {
-            cli::cli_alert_info("Updating {nrow(synonyms_of_existing)} cascade synonym(s)...")
+            n_updated <- DBI::dbExecute(actual_con, sql)
 
-            for (i in 1:nrow(synonyms_of_existing)) {
-              syn_id <- synonyms_of_existing$idtax_n[i]
-              cli::cli_alert_info("Updating synonym ID {syn_id}...")
-
-              update_dico_name(
-                id_searched = syn_id,
-                synonym_of = list(id = rv$new_taxon_id),
-                ask_before_update = FALSE,
-                add_backup = TRUE,
-                show_results = FALSE
-              )
-            }
+            cli::cli_alert_success("Updated {n_updated} taxon/taxa (1 main + {nrow(synonyms_of_existing)} cascade)")
 
             shiny::showNotification(
               sprintf(
-                i18n()$t("Successfully updated %d synonyms to point to new taxon"),
-                nrow(synonyms_of_existing) + 1
+                i18n()$t("Successfully updated %d synonym(s) to point to new taxon"),
+                n_updated
               ),
               type = "message",
               duration = 5
             )
           } else {
+            # No cascade synonyms - use update_dico_name() which handles backups
+            cli::cli_alert_info("No cascade synonyms - using update_dico_name() with backups...")
+
+            update_dico_name(
+              id_searched = existing_id,
+              synonym_of = list(id = rv$new_taxon_id),
+              ask_before_update = FALSE,
+              add_backup = TRUE,
+              show_results = FALSE,
+              con = pool_conn
+            )
+
+            cli::cli_alert_success("Main synonym relationship set")
+
             shiny::showNotification(
               i18n()$t("Existing taxon set as synonym of new entry!"),
               type = "message",
@@ -1376,13 +1373,12 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
       }
 
       # Validate inputs
-      has_genus <- !is.null(input$accepted_genus) && nchar(trimws(input$accepted_genus)) > 0
-      has_species <- !is.null(input$accepted_species) && nchar(trimws(input$accepted_species)) > 0
+      has_binomial <- !is.null(input$accepted_binomial) && nchar(trimws(input$accepted_binomial)) > 0
       has_id <- !is.null(input$accepted_id) && !is.na(input$accepted_id)
 
-      if (!has_genus && !has_species && !has_id) {
+      if (!has_binomial && !has_id) {
         shiny::showNotification(
-          i18n()$t("Please provide at least genus, species, or taxon ID of the accepted name"),
+          i18n()$t("Please provide binomial name or taxon ID"),
           type = "error"
         )
         return()
@@ -1399,9 +1395,18 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
             # First, find the accepted taxon
             cli::cli_alert_info("Finding accepted taxon...")
 
+            # Parse binomial if provided
+            genus <- NULL
+            species <- NULL
+            if (has_binomial) {
+              binomial_parts <- trimws(strsplit(trimws(input$accepted_binomial), "\\s+")[[1]])
+              if (length(binomial_parts) >= 1) genus <- binomial_parts[1]
+              if (length(binomial_parts) >= 2) species <- binomial_parts[2]
+            }
+
             search_params <- list()
-            if (has_genus) search_params$genus <- trimws(input$accepted_genus)
-            if (has_species) search_params$species <- trimws(input$accepted_species)
+            if (!is.null(genus)) search_params$genus <- genus
+            if (!is.null(species)) search_params$species <- species
             if (has_id) search_params$ids <- input$accepted_id
 
             accepted_taxon <- do.call(query_taxa, search_params)
@@ -1431,13 +1436,17 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
 
           cli::cli_alert_info("Setting new taxon ID {rv$new_taxon_id} as synonym of {accepted_id}...")
 
+          # Get pool connection
+          pool_conn <- pool()
+
           # Call update_dico_name with the accepted taxon ID
           update_dico_name(
             id_searched = rv$new_taxon_id,
             synonym_of = list(id = accepted_id),
             ask_before_update = FALSE,
             add_backup = TRUE,
-            show_results = FALSE
+            show_results = FALSE,
+            con = pool_conn
           )
 
           shiny::showNotification(

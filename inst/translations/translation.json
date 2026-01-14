@@ -3732,6 +3732,50 @@
     {
       "en": "Please provide binomial name or taxon ID of the accepted name",
       "fr": "Veuillez fournir le nom binomial ou l'ID du taxon accepté"
+    },
+    {
+      "en": "Synonym relationship set successfully! %d existing synonym(s) redirected to prevent chains.",
+      "fr": "Relation de synonymie définie avec succès ! %d synonyme(s) existant(s) redirigé(s) pour éviter les chaînes."
+    },
+    {
+      "en": "Please search and select an accepted taxon first",
+      "fr": "Veuillez d'abord rechercher et sélectionner un taxon accepté"
+    },
+    {
+      "en": "Taxa-Level Traits",
+      "fr": "Traits taxonomiques"
+    },
+    {
+      "en": "No trait data available for this taxon",
+      "fr": "Aucune donnée de trait disponible pour ce taxon"
+    },
+    {
+      "en": "Showing %d trait(s) for this taxon",
+      "fr": "Affichage de %d trait(s) pour ce taxon"
+    },
+    {
+      "en": "About Taxa-Level Traits",
+      "fr": "À propos des traits taxonomiques"
+    },
+    {
+      "en": "Warning: Failed to redirect some existing synonyms. Please check manually.",
+      "fr": "Attention : Échec de la redirection de certains synonymes existants. Veuillez vérifier manuellement."
+    },
+    {
+      "en": "Include synonyms of queried taxa",
+      "fr": "Inclure les synonymes des taxons recherchés"
+    },
+    {
+      "en": "Warning: Main synonym set but failed to redirect cascade synonyms. Please check manually.",
+      "fr": "Attention : Synonymie principale définie mais échec de la redirection des synonymes en cascade. Veuillez vérifier manuellement."
+    },
+    {
+      "en": "Successfully updated %d synonym(s) to point to new taxon",
+      "fr": "Mise à jour réussie de %d synonyme(s) vers le nouveau taxon"
+    },
+    {
+      "en": "Existing taxon (binomial)",
+      "fr": "Taxon existant (binominal)"
     }
   ]
 }
