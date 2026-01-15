@@ -263,6 +263,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
             shiny::tags$pre(
               style = "background-color: #282c34; color: #abb2bf; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.85em;",
               shiny::tags$code(
+                id = ns("code_metadata"),
                 code_sections$metadata
               )
             ),
@@ -271,7 +272,12 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
               i18n()$t("Copy to clipboard"),
               code_sections$metadata,
               icon = shiny::icon("copy"),
-              class = "btn-sm btn-outline-secondary"
+              class = "btn-sm btn-outline-secondary",
+              onclick = sprintf(
+                "copyCodeToClipboard_%s('%s')",
+                gsub("-", "_", id),
+                ns("code_metadata")
+              )
             ),
             shiny::br(),
             shiny::br()
@@ -289,6 +295,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
             shiny::tags$pre(
               style = "background-color: #282c34; color: #abb2bf; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.85em;",
               shiny::tags$code(
+                id = ns("code_individuals"),
                 code_sections$individuals
               )
             ),
@@ -297,7 +304,12 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
               i18n()$t("Copy to clipboard"),
               code_sections$individuals,
               icon = shiny::icon("copy"),
-              class = "btn-sm btn-outline-secondary"
+              class = "btn-sm btn-outline-secondary",
+              onclick = sprintf(
+                "copyCodeToClipboard_%s('%s')",
+                gsub("-", "_", id),
+                ns("code_individuals")
+              )
             )
           )
         },
@@ -335,6 +347,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
             shiny::tags$pre(
               style = "background-color: #282c34; color: #abb2bf; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.85em; max-height: 400px;",
               shiny::tags$code(
+                id = ns("code_combined"),
                 combined_code
               )
             ),
@@ -343,7 +356,12 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
               i18n()$t("Copy complete script"),
               combined_code,
               icon = shiny::icon("copy"),
-              class = "btn-sm btn-outline-secondary"
+              class = "btn-sm btn-outline-secondary",
+              onclick = sprintf(
+                "copyCodeToClipboard_%s('%s')",
+                gsub("-", "_", id),
+                ns("code_combined")
+              )
             )
           )
         }
