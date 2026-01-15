@@ -25,7 +25,8 @@ update_dico_name(
   show_results = TRUE,
   cancel_synonymy = FALSE,
   synonym_of = NULL,
-  exact_match = FALSE
+  exact_match = FALSE,
+  con = NULL
 )
 }
 \arguments{

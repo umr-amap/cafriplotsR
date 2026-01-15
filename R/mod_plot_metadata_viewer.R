@@ -39,7 +39,32 @@ mod_plot_metadata_viewer_ui <- function(id) {
     shiny::br(),
 
     # Selection summary
-    shiny::uiOutput(ns("selection_summary"))
+    shiny::uiOutput(ns("selection_summary")),
+
+    shiny::br(),
+
+    # Metadata download panel
+    shiny::div(
+      id = ns("metadata_download_panel"),
+      style = "display: none;",
+      shiny::wellPanel(
+        shiny::uiOutput(ns("download_title_ui")),
+        shiny::fluidRow(
+          shiny::column(
+            4,
+            shiny::uiOutput(ns("download_excel_ui"))
+          ),
+          shiny::column(
+            4,
+            shiny::uiOutput(ns("download_csv_ui"))
+          ),
+          shiny::column(
+            4,
+            shiny::uiOutput(ns("download_rds_ui"))
+          )
+        )
+      )
+    )
   )
 }
 
@@ -327,6 +352,75 @@ mod_plot_metadata_viewer_server <- function(id, metadata, i18n) {
         shiny::tags$small(paste(selected_names, collapse = ", "))
       )
     })
+
+    # Show download panel when metadata available
+    shiny::observe({
+      shiny::req(metadata())
+      shinyjs::show("metadata_download_panel")
+    })
+
+    # Download panel title
+    output$download_title_ui <- shiny::renderUI({
+      shiny::h5(shiny::icon("download"), " ", i18n()$t("Download Plot Metadata"))
+    })
+
+    # Download button UIs
+    output$download_excel_ui <- shiny::renderUI({
+      shiny::downloadButton(
+        ns("download_metadata_excel"),
+        i18n()$t("Excel (.xlsx)"),
+        class = "btn-primary btn-block"
+      )
+    })
+
+    output$download_csv_ui <- shiny::renderUI({
+      shiny::downloadButton(
+        ns("download_metadata_csv"),
+        i18n()$t("CSV (.csv)"),
+        class = "btn-primary btn-block"
+      )
+    })
+
+    output$download_rds_ui <- shiny::renderUI({
+      shiny::downloadButton(
+        ns("download_metadata_rds"),
+        i18n()$t("R Object (.rds)"),
+        class = "btn-primary btn-block"
+      )
+    })
+
+    # Excel download handler
+    output$download_metadata_excel <- shiny::downloadHandler(
+      filename = function() {
+        paste0("plot_metadata_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
+      },
+      content = function(file) {
+        shiny::req(metadata())
+        writexl::write_xlsx(list(metadata = metadata()), path = file)
+      }
+    )
+
+    # CSV download handler
+    output$download_metadata_csv <- shiny::downloadHandler(
+      filename = function() {
+        paste0("plot_metadata_", format(Sys.Date(), "%Y%m%d"), ".csv")
+      },
+      content = function(file) {
+        shiny::req(metadata())
+        readr::write_csv(metadata(), file)
+      }
+    )
+
+    # RDS download handler
+    output$download_metadata_rds <- shiny::downloadHandler(
+      filename = function() {
+        paste0("plot_metadata_", format(Sys.Date(), "%Y%m%d"), ".rds")
+      },
+      content = function(file) {
+        shiny::req(metadata())
+        saveRDS(metadata(), file = file)
+      }
+    )
 
     # Return selected IDs
     return(selected_plot_ids)

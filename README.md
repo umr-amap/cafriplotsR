@@ -19,6 +19,64 @@ manipulation, data reusability.
 - Access and aggregate species-level traits _sensus largo_
 - Shiny app for standardize and correct your own list of taxonomic names
 
+---
+
+**[Version française disponible ici / French version available here](README.fr.md)**
+
+---
+
+## Why CafriplotsR?
+
+### The Challenge
+
+Many researchers inventory woody vegetation in Central African forests (CAF), targeting diverse objectives: dynamics (mortality and growth), floristic and functional diversity, resource assessment and management, effects of both historical and contemporary disturbances, fauna-flora interactions, and more.
+
+However, these initiatives and the research groups conducting them suffer from **insufficient visibility**:
+
+- **Within the regional community**: Limited visibility among scientists and managers working on these forests restricts collaboration opportunities, experience sharing, protocol harmonization, and identification of complementarities in data and expertise.
+
+- **At the international level**: This leads to the frequent claim that "we know almost nothing about Congo Basin forests." While there are indeed knowledge gaps compared to other major tropical forest blocks, asserting that our understanding relies solely on a handful of visible international initiatives is reductive.
+
+### The Data Accessibility Problem
+
+Unlike species occurrence data, which has become increasingly accessible (e.g., through GBIF), it remains difficult to get a comprehensive view of inventory data in Central Africa. This includes both recent inventories and 'historical' inventories dating back decades. These historical inventories sometimes exist only in paper format (when they haven't disappeared entirely!), yet they document plant biodiversity in localities that may have become inaccessible.
+
+**Root causes include:**
+1. Poor data archiving practices
+2. Lack of resources to maintain accessibility beyond project lifetimes
+3. Insufficient willingness to make data accessible
+
+### The Integration Challenge
+
+Another major difficulty is **combining different data types** (e.g., species conservation status, functional traits, etc.) with inventory data, even though this compilation is essential for investigating numerous research questions. These compilations are regularly performed, but the methods lack reproducibility. If 10 people were asked to perform such a compilation independently, we would likely get 10 different results, depending on:
+
+- Data accessible at the time of compilation (which varies greatly with each person's context)
+- How taxonomy is standardized between databases
+
+### The CafriplotsR Solution
+
+CafriplotsR addresses these challenges through **shared infrastructure and inventory data management** while **guaranteeing data sovereignty** for each user or research group.
+
+**The package aims to:**
+- Improve visibility of fieldwork conducted by different teams in Central Africa
+- Facilitate data management (encoding, cleaning, consolidation, queries, etc.)
+- Improve documentation and reproducibility of data processing
+- Boost scientific collaborations in the region through controlled and deliberate data sharing
+
+### How CafriplotsR Differs from Global Initiatives
+
+While comparable to other data 'centralization' initiatives with global approaches (e.g., ForestPlots.net), CafriplotsR distinguishes itself through:
+
+1. **Regional, not global**: Focuses on Central Africa—a geographic and human scale that enables interactions between actors involved in collecting, managing, and using this reference data
+
+2. **Transparent multi-data management**: Manages different types of data associated with woody plant species (occurrences, traits, relevant attributes) in a transparent manner
+
+3. **Data sovereignty over strict centralization**: Each user remains sovereign in managing their data. CafriplotsR aims to federate research groups involved in woody inventories in Central Africa, not to centralize control
+
+### Next Steps
+
+With the goal of making data import, management, and standardization accessible through interactive and user-friendly applications, the next development steps involve **co-construction** to identify and respond to the concrete needs of potential users in Central Africa.
+
 ## Installation
 
 ```r

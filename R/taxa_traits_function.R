@@ -10,8 +10,9 @@
 #' @export
 add_growth_form_taxa <- function(idtax) {
 
-  mydb_taxa <- 
-    call.mydb.taxa(pass = NULL, user = NULL, reset = TRUE)
+  # Ensure taxa database connection exists in global environment
+  if (exists("mydb_taxa", envir = .GlobalEnv)) rm(mydb_taxa, envir = .GlobalEnv)
+  assign("mydb_taxa", call.mydb.taxa(), envir = .GlobalEnv)
 
   if (length(idtax) > 1)
     stop("Only one taxa at the same time")
@@ -423,9 +424,9 @@ query_traits_measures <- function(
 choose_growth_form <- function() {
   
   growth_form_cat <- query_trait(pattern = "growth")
-  
+
   condition_hierarchical <- sapply(strsplit(growth_form_cat$traitdescription, 'if '), `[`, 2)
-  condition_hierarchical <- sapply(strsplit(unlist(condition_hierarchical), '[.]'), `[`, 1)
+  condition_hierarchical <- sapply(strsplit(condition_hierarchical, '[.]'), `[`, 1)
   
   growth_form_cat <-
     growth_form_cat %>%
@@ -567,8 +568,9 @@ choice_trait_cat <- function(id_trait) {
 #'
 #' @export
 query_trait <- function(id_trait = NULL, pattern = NULL) {
-  
-  mydb_taxa <- call.mydb.taxa()
+
+  if (!exists("mydb_taxa")) assign("mydb_taxa", call.mydb.taxa(), envir = .GlobalEnv)
+  mydb_taxa <- get("mydb_taxa", envir = .GlobalEnv)
   
   if (!is.null(id_trait)) {
     cli::cli_alert_info("query trait by id")

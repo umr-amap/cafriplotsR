@@ -3399,7 +3399,10 @@ add_sp_traits_measures <- function(new_data,
                                    idtax = NULL,
                                    features_field = NULL,
                                    add_data = FALSE,
-                                   ask_before_update = TRUE) {
+                                   ask_before_update = TRUE,
+                                   basisofrecord = NULL,
+                                   measurementremarks = NULL,
+                                   interactive = TRUE) {
   
   
   
@@ -3573,44 +3576,67 @@ add_sp_traits_measures <- function(new_data,
         TypeValue <- "numeric"
       
       ### choosing kind of measures
-      cli::cli_h3("basis")
       if (!any(colnames(data_trait) == "basisofrecord")) {
-        choices <-
-          dplyr::tibble(
-            basis =
-              c(
-                'LivingSpecimen',
-                'PreservedSpecimen',
-                'FossilSpecimen',
-                'literatureData',
-                'traitDatabase',
-                'expertKnowledge'
-              )
-          )
-        
-        print(choices)
-        selected_basisofrecord <-
-          readline(prompt = "Choose basisofrecord : ")
-        
-        data_trait <-
-          data_trait %>%
-          mutate(basisofrecord = rep(choices$basis[as.numeric(selected_basisofrecord)], nrow(.)))
+
+        # Use parameter if provided, otherwise prompt if interactive
+        if (!is.null(basisofrecord)) {
+          # Use provided basisofrecord
+          data_trait <-
+            data_trait %>%
+            mutate(basisofrecord = rep(basisofrecord, nrow(.)))
+
+        } else if (interactive) {
+          # Interactive prompt
+          cli::cli_h3("basis")
+          choices <-
+            dplyr::tibble(
+              basis =
+                c(
+                  'LivingSpecimen',
+                  'PreservedSpecimen',
+                  'FossilSpecimen',
+                  'literatureData',
+                  'traitDatabase',
+                  'expertKnowledge'
+                )
+            )
+
+          print(choices)
+          selected_basisofrecord <-
+            readline(prompt = "Choose basisofrecord : ")
+
+          data_trait <-
+            data_trait %>%
+            mutate(basisofrecord = rep(choices$basis[as.numeric(selected_basisofrecord)], nrow(.)))
+
+        } else {
+          stop("basisofrecord must be provided in non-interactive mode")
+        }
       }
       
       ### choosing measurementremarks if none
-      cli::cli_h3("basis")
       if (!any(colnames(data_trait) == "measurementremarks")) {
-        
-        selected_measurementremarks <-
-          readline(prompt = "Add measurementremarks ? 'enter if none : ")
-        
-        if (selected_measurementremarks != "") {
-          
+
+        # Use parameter if provided, otherwise prompt if interactive
+        if (!is.null(measurementremarks) && nchar(trimws(measurementremarks)) > 0) {
+          # Use provided measurementremarks
           data_trait <-
             data_trait %>%
-            mutate(measurementremarks = rep(selected_measurementremarks, nrow(.)))
-          
+            mutate(measurementremarks = rep(measurementremarks, nrow(.)))
+
+        } else if (interactive) {
+          # Interactive prompt
+          cli::cli_h3("remarks")
+          selected_measurementremarks <-
+            readline(prompt = "Add measurementremarks ? 'enter if none : ")
+
+          if (selected_measurementremarks != "") {
+            data_trait <-
+              data_trait %>%
+              mutate(measurementremarks = rep(selected_measurementremarks, nrow(.)))
+          }
         }
+        # If not provided and not interactive, leave as NA (optional field)
       }
       
       ### checking if any duplicates in data to add
