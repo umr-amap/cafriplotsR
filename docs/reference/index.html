@@ -156,6 +156,18 @@
         <dd>Check created_by Migration Status</dd>
       </dl><dl><dt>
 
+          <code><a href="check_hierarchy_consistency.html">check_hierarchy_consistency()</a></code>
+
+        </dt>
+        <dd>Check Hierarchy Consistency</dd>
+      </dl><dl><dt>
+
+          <code><a href="check_table_idtax_staleness.html">check_table_idtax_staleness()</a></code>
+
+        </dt>
+        <dd>Check table_idtax Staleness</dd>
+      </dl><dl><dt>
+
           <code><a href="check_taxa_permissions.html">check_taxa_permissions()</a></code>
 
         </dt>
@@ -202,6 +214,12 @@
 
         </dt>
         <dd>List of countries</dd>
+      </dl><dl><dt>
+
+          <code><a href="count_taxon_children.html">count_taxon_children()</a></code>
+
+        </dt>
+        <dd>Count Children at Each Level</dd>
       </dl><dl><dt>
 
           <code><a href="create_db_config.html">create_db_config()</a></code>
@@ -528,6 +546,30 @@
         <dd>Find Unlinked Individuals with Herbarium Information</dd>
       </dl><dl><dt>
 
+          <code><a href="get_table_idtax_metadata.html">get_table_idtax_metadata()</a></code>
+
+        </dt>
+        <dd>Get table_idtax Metadata</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_taxon_ancestors.html">get_taxon_ancestors()</a></code>
+
+        </dt>
+        <dd>Get All Ancestors of a Taxon</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_taxon_children.html">get_taxon_children()</a></code>
+
+        </dt>
+        <dd>Get All Children of a Taxon</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_taxon_hierarchy.html">get_taxon_hierarchy()</a></code>
+
+        </dt>
+        <dd>Get Full Taxonomy Hierarchy for a Taxon</dd>
+      </dl><dl><dt>
+
           <code><a href="get_updates_diconame.html">get_updates_diconame()</a></code>
 
         </dt>
@@ -576,16 +618,22 @@
         <dd>Launch Query Plots Interactive App</dd>
       </dl><dl><dt>
 
-          <code><a href="launch_specimen_linking_app.html">launch_specimen_linking_app()</a></code>
+          <code><a href="launch_specimen_import_wizard.html">launch_specimen_import_wizard()</a></code>
 
         </dt>
-        <dd>Launch Specimen Linking App</dd>
+        <dd>Launch Specimen Import Wizard</dd>
       </dl><dl><dt>
 
           <code><a href="launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>
 
         </dt>
         <dd>Launch Taxonomic Name Standardization App</dd>
+      </dl><dl><dt>
+
+          <code><a href="launch_taxo_backbone_app.html">launch_taxo_backbone_app()</a></code>
+
+        </dt>
+        <dd>Launch Taxonomic Backbone Management App</dd>
       </dl><dl><dt>
 
           <code><a href="list_database_users.html">list_database_users()</a></code>
@@ -648,10 +696,22 @@
         <dd>Migration: Add created_by Column for Row-Level Security</dd>
       </dl><dl><dt>
 
+          <code><a href="migrate_table_idtax_to_materialized_view.html">migrate_table_idtax_to_materialized_view()</a></code>
+
+        </dt>
+        <dd>Migrate table_idtax to Materialized View</dd>
+      </dl><dl><dt>
+
           <code><a href="migration_add_audit_columns.html">migration_add_audit_columns()</a></code>
 
         </dt>
         <dd>Add Audit Columns to data_link_specimens</dd>
+      </dl><dl><dt>
+
+          <code><a href="migration_add_id_parent_column.html">migration_add_id_parent_column()</a></code>
+
+        </dt>
+        <dd>Add id_parent Column to table_taxa</dd>
       </dl><dl><dt>
 
           <code><a href="migration_add_linktype_column.html">migration_add_linktype_column()</a></code>
@@ -660,10 +720,28 @@
         <dd>Add id_linktype Column to data_link_specimens</dd>
       </dl><dl><dt>
 
+          <code><a href="migration_create_hierarchy_entries.html">migration_create_hierarchy_entries()</a></code>
+
+        </dt>
+        <dd>Create Missing Hierarchy Entries</dd>
+      </dl><dl><dt>
+
           <code><a href="migration_create_linktypelist.html">migration_create_linktypelist()</a></code>
 
         </dt>
         <dd>Create linktypelist Lookup Table</dd>
+      </dl><dl><dt>
+
+          <code><a href="migration_link_hierarchy.html">migration_link_hierarchy()</a></code>
+
+        </dt>
+        <dd>Populate id_parent for Existing Entries</dd>
+      </dl><dl><dt>
+
+          <code><a href="migration_link_infraspecific.html">migration_link_infraspecific()</a></code>
+
+        </dt>
+        <dd>Link Infraspecific Taxa to Species (Step 5 only)</dd>
       </dl><dl><dt>
 
           <code><a href="model_wd_1.html">model_wd_2</a></code>
@@ -864,12 +942,6 @@
         <dd>Query individual features with improved architecture</dd>
       </dl><dl><dt>
 
-          <code><a href="query_link_individual_specimen.html">query_link_individual_specimen()</a></code>
-
-        </dt>
-        <dd>Query Link Between Specimens and Individuals</dd>
-      </dl><dl><dt>
-
           <code><a href="query_plots.html">query_plots()</a></code>
 
         </dt>
@@ -922,6 +994,18 @@
 
         </dt>
         <dd>Replace or restore missing values in a data frame</dd>
+      </dl><dl><dt>
+
+          <code><a href="rollback_table_idtax_migration.html">rollback_table_idtax_migration()</a></code>
+
+        </dt>
+        <dd>Rollback table_idtax Migration</dd>
+      </dl><dl><dt>
+
+          <code><a href="run_hierarchy_migration.html">run_hierarchy_migration()</a></code>
+
+        </dt>
+        <dd>Run Full Hierarchy Migration</dd>
       </dl><dl><dt>
 
           <code><a href="run_specimen_links_migration.html">run_specimen_links_migration()</a></code>
@@ -984,6 +1068,12 @@
         <dd>Test database connection</dd>
       </dl><dl><dt>
 
+          <code><a href="test_table_idtax_migration.html">test_table_idtax_migration()</a></code>
+
+        </dt>
+        <dd>Test table_idtax Materialized View Setup</dd>
+      </dl><dl><dt>
+
           <code><a href="traits_list.html">traits_list()</a></code>
 
         </dt>
@@ -1041,7 +1131,13 @@
           <code><a href="update_taxa_link_table.html">update_taxa_link_table()</a></code>
 
         </dt>
-        <dd>Update local taxonomy link table</dd>
+        <dd>Update table_idtax (Materialized View Version)</dd>
+      </dl><dl><dt>
+
+          <code><a href="update_taxon_parent.html">update_taxon_parent()</a></code>
+
+        </dt>
+        <dd>Update Taxon Parent (with consistency check)</dd>
       </dl><dl><dt>
 
           <code><a href="validate_individual_data.html">validate_individual_data()</a></code>
@@ -1054,6 +1150,12 @@
 
         </dt>
         <dd>Validate Plot Metadata Before Import</dd>
+      </dl><dl><dt>
+
+          <code><a href="verify_hierarchy_integrity.html">verify_hierarchy_integrity()</a></code>
+
+        </dt>
+        <dd>Verify Hierarchy Integrity</dd>
       </dl><dl><dt>
 
           <code><a href="verify_specimen_links_migration.html">verify_specimen_links_migration()</a></code>

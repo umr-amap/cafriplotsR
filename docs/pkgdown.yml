@@ -14,13 +14,16 @@ articles:
   readme-fr: readme-fr.html
   specimen_linking_workflow-fr: specimen_linking_workflow-fr.html
   specimen_linking_workflow: specimen_linking_workflow.html
+  table_idtax_materialized_view: table_idtax_materialized_view.html
   taxonomic-app-fr: taxonomic-app-fr.html
   taxonomic-app: taxonomic-app.html
+  taxonomic-backbone-app-fr: taxonomic-backbone-app-fr.html
+  taxonomic-backbone-app: taxonomic-backbone-app.html
   updating-data-fr: updating-data-fr.html
   updating-data: updating-data.html
   using-query-plots-fr: using-query-plots-fr.html
   using-query-plots: using-query-plots.html
-last_built: 2026-01-09T15:52Z
+last_built: 2026-01-18T18:14Z
 urls:
   reference: https://umr-amap.github.io/cafriplotsR/reference
   article: https://umr-amap.github.io/cafriplotsR/articles

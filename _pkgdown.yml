@@ -22,7 +22,9 @@ articles:
   - title: "Tools"
     contents:
     - taxonomic-app
+    - taxonomic-backbone-app
     - specimen_linking_workflow
+    - table_idtax_materialized_view
   - title: "Français - Démarrage"
     contents:
     - readme-fr
@@ -37,4 +39,5 @@ articles:
   - title: "Français - Outils"
     contents:
     - taxonomic-app-fr
+    - taxonomic-backbone-app-fr
     - specimen_linking_workflow-fr
