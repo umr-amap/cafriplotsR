@@ -2746,7 +2746,6 @@
       "fr": "Révisés manuellement :"
     },
     {
-<<<<<<< HEAD
       "en": "Validating individuals data...",
       "fr": "Validation des données d'individus..."
     },
@@ -3745,7 +3744,8 @@
     {
       "en": "Action",
       "fr": "Action"
-=======
+    },
+    {
       "en": "Download Plot Metadata",
       "fr": "Télécharger les métadonnées des placettes"
     },
@@ -3960,6 +3960,8 @@
     {
       "en": "No determination year data available",
       "fr": "Aucune donnée d'année de détermination disponible"
+    },
+    {
       "en": "Accepted name",
       "fr": "Nom accepté"
     },
@@ -4162,10 +4164,6 @@
     {
       "en": "Step 2: Enter Taxonomic Information",
       "fr": "Étape 2 : Entrer les informations taxonomiques"
-    },
-    {
-      "en": "Required Fields",
-      "fr": "Champs requis"
     },
     {
       "en": "Species epithet",
@@ -4870,7 +4868,118 @@
     {
       "en": "Existing taxon (binomial)",
       "fr": "Taxon existant (binominal)"
->>>>>>> feature/taxo-backbone-app
+    },
+    {
+      "en": "Case-insensitive. Uses fuzzy matching by default. Check 'Exact match' below for strict matching.",
+      "fr": "Insensible à la casse. Utilise la correspondance approximative par défaut. Cochez 'Correspondance exacte' ci-dessous pour une recherche stricte."
+    },
+    {
+      "en": "Reverse Synonym",
+      "fr": "Inverser la synonymie"
+    },
+    {
+      "en": "Reverse Synonym Relationship",
+      "fr": "Inverser la relation de synonymie"
+    },
+    {
+      "en": "This will make the selected taxon (currently a synonym) the accepted name, and the current accepted name will become its synonym.",
+      "fr": "Ceci fera du taxon sélectionné (actuellement un synonyme) le nom accepté, et le nom accepté actuel deviendra son synonyme."
+    },
+    {
+      "en": "Current accepted taxon (will become synonym):",
+      "fr": "Taxon accepté actuel (deviendra un synonyme) :"
+    },
+    {
+      "en": "Warning: Other synonyms will be redirected",
+      "fr": "Avertissement : Les autres synonymes seront redirigés"
+    },
+    {
+      "en": "There are",
+      "fr": "Il y a"
+    },
+    {
+      "en": "other synonym(s) currently pointing to the same accepted name.",
+      "fr": "autre(s) synonyme(s) pointant actuellement vers le même nom accepté."
+    },
+    {
+      "en": "All of these will be updated to point to the newly accepted name.",
+      "fr": "Tous seront mis à jour pour pointer vers le nouveau nom accepté."
+    },
+    {
+      "en": "Synonyms that will be redirected:",
+      "fr": "Synonymes qui seront redirigés :"
+    },
+    {
+      "en": "All taxa currently pointing to the old accepted name will be updated to point to the new accepted name.",
+      "fr": "Tous les taxons pointant actuellement vers l'ancien nom accepté seront mis à jour pour pointer vers le nouveau nom accepté."
+    },
+    {
+      "en": "Confirm - Reverse Relationship",
+      "fr": "Confirmer - Inverser la relation"
+    },
+    {
+      "en": "Error: Selected taxon is not a synonym",
+      "fr": "Erreur : Le taxon sélectionné n'est pas un synonyme"
+    },
+    {
+      "en": "Error: Reverse synonym information not available",
+      "fr": "Erreur : Informations de synonymie inversée non disponibles"
+    },
+    {
+      "en": "Synonym relationship reversed! %d taxon/taxa updated.",
+      "fr": "Relation de synonymie inversée ! %d taxon(s) mis à jour."
+    },
+    {
+      "en": "Error reversing synonym:",
+      "fr": "Erreur lors de l'inversion de synonymie :"
+    },
+    {
+      "en": "Reversing synonym relationship...",
+      "fr": "Inversion de la relation de synonymie..."
+    },
+    {
+      "en": "Include child taxa",
+      "fr": "Inclure les taxons descendants"
+    },
+    {
+      "en": "Show all descendant taxa (e.g., species within genus, infraspecific taxa)",
+      "fr": "Afficher tous les taxons descendants (par exemple, espèces d'un genre, taxons infraspécifiques)"
+    },
+    {
+      "en": "Name search (any taxonomic level)",
+      "fr": "Recherche par nom (tout niveau taxonomique)"
+    },
+    {
+      "en": "Taxon name (family, genus, or species)",
+      "fr": "Nom du taxon (famille, genre ou espèce)"
+    },
+    {
+      "en": "e.g., Fabaceae, Gilbertiodendron, or Gilbertiodendron dewevrei",
+      "fr": "par ex., Fabaceae, Gilbertiodendron, ou Gilbertiodendron dewevrei"
+    },
+    {
+      "en": "Warning: Cascade Update",
+      "fr": "Attention : Mise à jour en cascade"
+    },
+    {
+      "en": "This change will affect descendant taxa",
+      "fr": "Cette modification affectera les taxons descendants"
+    },
+    {
+      "en": "Modifying upper taxonomic fields will cascade to %d descendant taxon/taxa.",
+      "fr": "La modification des champs taxonomiques supérieurs se propagera à %d taxon(s) descendant(s)."
+    },
+    {
+      "en": "The following taxa will have their flat taxonomic columns updated to maintain consistency:",
+      "fr": "Les taxons suivants verront leurs colonnes taxonomiques mises à jour pour maintenir la cohérence :"
+    },
+    {
+      "en": "... and %d more taxa",
+      "fr": "... et %d taxons supplémentaires"
+    },
+    {
+      "en": "Confirm - Update %d Taxa",
+      "fr": "Confirmer - Mettre à jour %d taxons"
     }
   ]
 }

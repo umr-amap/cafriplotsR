@@ -1,3 +1,115 @@
+# CafriplotsR 1.9.1 (2026-01-18)
+
+### New Features
+
+* **Taxonomic Backbone Management App**
+  - New interactive Shiny app `launch_taxo_backbone_app()` for managing the taxonomic reference database
+  - Browse and search taxonomic entries at all hierarchical levels (family, genus, species, infraspecific)
+  - Visualize full taxonomic hierarchy using the hybrid system (flat columns + id_parent tree structure)
+  - Add new taxa with automatic parent linking and hierarchy validation
+  - Modify existing taxa with automatic cascade updates to maintain consistency
+  - Comprehensive synonymy management:
+    - Set new synonymy relationships
+    - Reverse synonymy (swap synonym with accepted name)
+    - Cancel synonymy (make taxon independent)
+  - Hierarchy consistency checking with automatic fixing of missing parent links
+  - Full bilingual support (English/French) with shiny.i18n integration
+
+* **Cascade Update System for Taxonomic Hierarchy**
+  - When modifying upper taxonomic fields (tax_fam, tax_order, tax_famclass), changes automatically cascade to all descendants
+  - Detects all affected taxa via id_parent relationships (recursive traversal)
+  - Shows warning modal with list of affected descendants before execution
+  - Automatically finds or creates upper taxon entries (e.g., creates "Asterales" order when referenced)
+  - Updates both flat taxonomic columns AND id_parent relationships atomically
+  - Maintains consistency between denormalized columns and hierarchical structure
+  - Transaction-safe with automatic rollback on errors
+
+* **Enhanced Hierarchy Consistency Checking**
+  - `check_hierarchy_consistency()` now detects taxa with missing parent links
+  - Six types of consistency checks:
+    1. Species → genus mismatch
+    2. Genus → family mismatch
+    3. Family → order mismatch
+    4. Order → class mismatch
+    5. Infraspecific → species mismatch
+    6. **NEW**: Missing parent links (taxa with upper fields but no id_parent)
+  - `fix = TRUE` parameter automatically resolves all detected issues
+  - Finds and links appropriate parent entries for orphaned taxa
+
+* **Search with Child Taxa Inclusion**
+  - New "Include child taxa" option in taxonomic search
+  - Recursively retrieves all descendants via id_parent relationships
+  - Example: Search "Fabaceae" → returns family + all genera + all species in that family
+  - Supports up to 10 levels of recursion for safety
+  - Automatically adds traits to all retrieved child taxa
+
+* **Comprehensive Vignettes for Backbone Management**
+  - Bilingual vignettes explaining the taxonomic backbone app:
+    - English: `vignettes/taxonomic-backbone-app.Rmd`
+    - French: `vignettes/taxonomic-backbone-app-fr.Rmd`
+  - Detailed documentation of:
+    - Hybrid taxonomic system architecture
+    - All app features with step-by-step workflows
+    - Cascade update examples with real scenarios
+    - Best practices for taxonomy management
+    - Troubleshooting common issues
+  - Added to pkgdown site under "Tools" section
+
+### Bug Fixes
+
+* **Fixed Exact Match Search Behavior**
+  - Removed automatic fuzzy fallback when `exact_match = TRUE`
+  - Now returns NULL when no exact match found instead of falling back to fuzzy matching
+  - Changed default to fuzzy matching (exact match checkbox unchecked by default)
+
+* **Fixed Synonym Priority in Search Results**
+  - When duplicates exist (e.g., multiple "Fabaceae" entries), accepted taxa now appear first
+  - SQL queries prioritize entries where `idtax_good_n IS NULL` (accepted names)
+  - Fixed PostgreSQL `SELECT DISTINCT` + `ORDER BY` compatibility issue using subqueries
+  - `check_synonymy = FALSE` now properly excludes synonyms instead of just skipping resolution
+
+* **Fixed Pool Connection Errors**
+  - Fixed "Not supported for pool objects" errors in multiple modules:
+    - Cancel synonymy operation
+    - Modify taxon operation
+    - Search with include children option
+  - Added proper `con` parameter passing to `update_dico_name()` calls
+  - Added `tryCatch` wrappers for `poolReturn()` to handle "already returned" errors gracefully
+
+* **Fixed NA Value Handling in Taxonomic Operations**
+  - Created `na_to_empty()` helper function for safe NA/NULL handling
+  - Fixed "valeur manquante là où TRUE / FALSE est requis" errors in:
+    - Taxon modification form prefill
+    - Taxon field change tracking
+    - Taxon display rendering
+  - Fixed hierarchy visualization crashes when viewing upper taxa (family, order, class)
+  - Added safe NA checks in hierarchy tree building and breadcrumb path generation
+  - Created `has_value()` helper for safe field validation with NA/NULL handling
+
+### Code Refactoring
+
+* **Improved Taxonomic Hierarchy Functions**
+  - `get_taxon_hierarchy()` now uses safe NA handling throughout
+  - `build_hierarchy_tree_html()` safely compares IDs with explicit NA checks
+  - `build_breadcrumb_path()` validates current level before comparisons
+
+* **Enhanced Synonym Management**
+  - Reverse synonym feature with automatic cascade to other synonyms
+  - Direct SQL updates for atomic synonym operations
+  - Warns about affected taxa before executing changes
+
+### Documentation
+
+* **Updated Search UI Labels**
+  - Changed "Binomial search" to "Name search (any taxonomic level)"
+  - Updated placeholders to show family/genus/species examples
+  - Clarified that search works for all taxonomic levels, not just binomials
+
+* **Enhanced CLAUDE.md Guidelines**
+  - Documented plot data storage architecture (flat columns vs lookup columns vs features)
+  - Clarified `subplotype_list` feature type categories
+  - Added examples for dynamic lookup feature identification
+
 # CafriplotsR 1.9.0 (2026-01-09)
 
 ### New Features

@@ -183,6 +183,96 @@ check_hierarchy_consistency <- function(con = NULL, fix = FALSE, limit = 100) {
     cli::cli_alert_success("All infraspecific taxa have consistent species")
   }
 
+  # 6. Check for missing parents: taxa with upper fields but no id_parent
+  cli::cli_h2("Checking for missing parent links (id_parent = NULL)")
+
+  # Species should have genus parent
+  species_missing_parent <- DBI::dbGetQuery(actual_con, sprintf("
+    SELECT
+      idtax_n,
+      tax_gen,
+      tax_esp,
+      tax_fam,
+      tax_order,
+      tax_famclass,
+      'species_missing_parent' as issue_type
+    FROM table_taxa
+    WHERE tax_level = 'species'
+      AND id_parent IS NULL
+      AND tax_gen IS NOT NULL
+    LIMIT %d
+  ", limit))
+
+  # Genus should have family parent
+  genus_missing_parent <- DBI::dbGetQuery(actual_con, sprintf("
+    SELECT
+      idtax_n,
+      tax_gen,
+      tax_fam,
+      tax_order,
+      tax_famclass,
+      'genus_missing_parent' as issue_type
+    FROM table_taxa
+    WHERE tax_level = 'genus'
+      AND id_parent IS NULL
+      AND tax_fam IS NOT NULL
+    LIMIT %d
+  ", limit))
+
+  # Family should have order parent
+  family_missing_parent <- DBI::dbGetQuery(actual_con, sprintf("
+    SELECT
+      idtax_n,
+      tax_fam,
+      tax_order,
+      tax_famclass,
+      'family_missing_parent' as issue_type
+    FROM table_taxa
+    WHERE tax_level = 'family'
+      AND id_parent IS NULL
+      AND tax_order IS NOT NULL
+    LIMIT %d
+  ", limit))
+
+  # Order should have class parent
+  order_missing_parent <- DBI::dbGetQuery(actual_con, sprintf("
+    SELECT
+      idtax_n,
+      tax_order,
+      tax_famclass,
+      'order_missing_parent' as issue_type
+    FROM table_taxa
+    WHERE tax_level = 'order'
+      AND id_parent IS NULL
+      AND tax_famclass IS NOT NULL
+    LIMIT %d
+  ", limit))
+
+  missing_parent_total <- nrow(species_missing_parent) + nrow(genus_missing_parent) +
+                          nrow(family_missing_parent) + nrow(order_missing_parent)
+
+  if (missing_parent_total > 0) {
+    cli::cli_alert_warning("Found {missing_parent_total} taxa with missing parent links:")
+    if (nrow(species_missing_parent) > 0) {
+      cli::cli_alert_info("  - {nrow(species_missing_parent)} species without genus parent")
+      inconsistencies$species_missing_parent <- species_missing_parent
+    }
+    if (nrow(genus_missing_parent) > 0) {
+      cli::cli_alert_info("  - {nrow(genus_missing_parent)} genera without family parent")
+      inconsistencies$genus_missing_parent <- genus_missing_parent
+    }
+    if (nrow(family_missing_parent) > 0) {
+      cli::cli_alert_info("  - {nrow(family_missing_parent)} families without order parent")
+      inconsistencies$family_missing_parent <- family_missing_parent
+    }
+    if (nrow(order_missing_parent) > 0) {
+      cli::cli_alert_info("  - {nrow(order_missing_parent)} orders without class parent")
+      inconsistencies$order_missing_parent <- order_missing_parent
+    }
+  } else {
+    cli::cli_alert_success("All taxa have appropriate parent links")
+  }
+
   # Summary
   if (length(inconsistencies) == 0) {
     total_issues <- 0
@@ -296,6 +386,91 @@ fix_hierarchy_inconsistencies <- function(con, inconsistencies) {
             AND (child.tax_gen != parent.tax_gen OR child.tax_esp != parent.tax_esp)
         ")
         fixed_count <- DBI::dbExecute(con, sql)
+
+      } else if (issue_type == "species_missing_parent") {
+        # Find and link genus parent for species
+        cli::cli_alert_info("Finding genus parents for species...")
+        for (i in 1:nrow(issues)) {
+          genus_name <- issues$tax_gen[i]
+          fam_name <- issues$tax_fam[i]
+          # Find genus entry
+          parent_query <- sprintf("
+            SELECT idtax_n FROM table_taxa
+            WHERE tax_level = 'genus' AND tax_gen = '%s'
+            LIMIT 1
+          ", gsub("'", "''", genus_name))
+          parent <- DBI::dbGetQuery(con, parent_query)
+          if (nrow(parent) > 0) {
+            DBI::dbExecute(con, sprintf(
+              "UPDATE table_taxa SET id_parent = %d WHERE idtax_n = %d",
+              parent$idtax_n, issues$idtax_n[i]
+            ))
+            fixed_count <- fixed_count + 1
+          }
+        }
+
+      } else if (issue_type == "genus_missing_parent") {
+        # Find and link family parent for genus
+        cli::cli_alert_info("Finding family parents for genera...")
+        for (i in 1:nrow(issues)) {
+          fam_name <- issues$tax_fam[i]
+          # Find family entry
+          parent_query <- sprintf("
+            SELECT idtax_n FROM table_taxa
+            WHERE tax_level = 'family' AND tax_fam = '%s'
+            LIMIT 1
+          ", gsub("'", "''", fam_name))
+          parent <- DBI::dbGetQuery(con, parent_query)
+          if (nrow(parent) > 0) {
+            DBI::dbExecute(con, sprintf(
+              "UPDATE table_taxa SET id_parent = %d WHERE idtax_n = %d",
+              parent$idtax_n, issues$idtax_n[i]
+            ))
+            fixed_count <- fixed_count + 1
+          }
+        }
+
+      } else if (issue_type == "family_missing_parent") {
+        # Find and link order parent for family
+        cli::cli_alert_info("Finding order parents for families...")
+        for (i in 1:nrow(issues)) {
+          order_name <- issues$tax_order[i]
+          # Find order entry
+          parent_query <- sprintf("
+            SELECT idtax_n FROM table_taxa
+            WHERE tax_level = 'order' AND tax_order = '%s'
+            LIMIT 1
+          ", gsub("'", "''", order_name))
+          parent <- DBI::dbGetQuery(con, parent_query)
+          if (nrow(parent) > 0) {
+            DBI::dbExecute(con, sprintf(
+              "UPDATE table_taxa SET id_parent = %d WHERE idtax_n = %d",
+              parent$idtax_n, issues$idtax_n[i]
+            ))
+            fixed_count <- fixed_count + 1
+          }
+        }
+
+      } else if (issue_type == "order_missing_parent") {
+        # Find and link class parent for order
+        cli::cli_alert_info("Finding class parents for orders...")
+        for (i in 1:nrow(issues)) {
+          class_name <- issues$tax_famclass[i]
+          # Find class entry
+          parent_query <- sprintf("
+            SELECT idtax_n FROM table_taxa
+            WHERE tax_level = 'class' AND tax_famclass = '%s'
+            LIMIT 1
+          ", gsub("'", "''", class_name))
+          parent <- DBI::dbGetQuery(con, parent_query)
+          if (nrow(parent) > 0) {
+            DBI::dbExecute(con, sprintf(
+              "UPDATE table_taxa SET id_parent = %d WHERE idtax_n = %d",
+              parent$idtax_n, issues$idtax_n[i]
+            ))
+            fixed_count <- fixed_count + 1
+          }
+        }
       }
 
       DBI::dbExecute(con, "COMMIT;")

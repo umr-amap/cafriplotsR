@@ -405,7 +405,6 @@
 <span>    <span class="fu">cli</span><span class="fu">::</span><span class="fu"><a href="https://cli.r-lib.org/reference/cli_alert.html" class="external-link">cli_alert_warning</a></span><span class="op">(</span><span class="st">"Failed to cleanup connections: {e$message}"</span><span class="op">)</span></span>
 <span>  <span class="op">}</span><span class="op">)</span></span>
 <span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/stopApp.html" class="external-link">stopApp</a></span><span class="op">(</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/quit.html" class="external-link">q</a></span><span class="op">(</span><span class="st">"no"</span><span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span></code></pre></div>
 <p><strong>5. Why This Matters:</strong> - Prevents “SSL SYSCALL error: EOF detected” when users run queries after closing app - Prevents “Checked-out object deleted before being returned” warnings - Ensures clean state for subsequent R console usage - Provides consistent user experience across all apps</p>
 <p><strong>6. Internationalization (i18n) with shiny.i18n:</strong></p>

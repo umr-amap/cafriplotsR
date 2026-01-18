@@ -37,9 +37,11 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
     rv <- shiny::reactiveValues(
       show_set_synonym_form = FALSE,
       show_cancel_form = FALSE,
+      show_reverse_form = FALSE,
       searched_accepted_taxa = NULL,
       selected_accepted_id = NULL,
-      existing_synonyms = NULL
+      existing_synonyms = NULL,
+      reverse_synonyms_info = NULL
     )
 
     # Main UI
@@ -118,7 +120,7 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
           # Action buttons
           shiny::fluidRow(
             shiny::column(
-              6,
+              4,
               if (!is_synonym) {
                 shiny::actionButton(
                   ns("btn_set_synonym"),
@@ -139,7 +141,28 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
               }
             ),
             shiny::column(
-              6,
+              4,
+              if (is_synonym) {
+                shiny::actionButton(
+                  ns("btn_reverse_synonym"),
+                  i18n()$t("Reverse Synonym"),
+                  icon = shiny::icon("exchange-alt"),
+                  class = "btn-info btn-block"
+                )
+              } else {
+                shiny::tags$button(
+                  id = ns("btn_reverse_disabled"),
+                  class = "btn btn-secondary btn-block",
+                  disabled = "disabled",
+                  style = "opacity: 0.6; cursor: not-allowed;",
+                  shiny::icon("exchange-alt"),
+                  " ",
+                  i18n()$t("Not a synonym")
+                )
+              }
+            ),
+            shiny::column(
+              4,
               if (is_synonym) {
                 shiny::actionButton(
                   ns("btn_cancel_synonym"),
@@ -280,6 +303,56 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
               )
             )
           )
+        ),
+
+        # Reverse synonym form (conditionally shown)
+        shiny::conditionalPanel(
+          condition = "output.show_reverse_form == true",
+          ns = ns,
+          shiny::wellPanel(
+            shiny::h5(i18n()$t("Reverse Synonym Relationship")),
+
+            shiny::p(
+              class = "text-muted",
+              i18n()$t("This will make the selected taxon (currently a synonym) the accepted name, and the current accepted name will become its synonym.")
+            ),
+
+            # Show info about current accepted taxon
+            shiny::uiOutput(ns("reverse_current_accepted_ui")),
+
+            # Show warning about other synonyms that will be redirected
+            shiny::uiOutput(ns("reverse_synonyms_warning_ui")),
+
+            shiny::div(
+              class = "alert alert-info",
+              shiny::icon("info-circle"),
+              " ",
+              i18n()$t("All taxa currently pointing to the old accepted name will be updated to point to the new accepted name.")
+            ),
+
+            shiny::hr(),
+
+            shiny::fluidRow(
+              shiny::column(
+                6,
+                shiny::actionButton(
+                  ns("btn_cancel_reverse"),
+                  i18n()$t("Cancel"),
+                  icon = shiny::icon("times"),
+                  class = "btn-secondary btn-block"
+                )
+              ),
+              shiny::column(
+                6,
+                shiny::actionButton(
+                  ns("btn_confirm_reverse_synonym"),
+                  i18n()$t("Confirm - Reverse Relationship"),
+                  icon = shiny::icon("exchange-alt"),
+                  class = "btn-info btn-block"
+                )
+              )
+            )
+          )
         )
       )
     })
@@ -295,10 +368,16 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
     })
     shiny::outputOptions(output, "show_cancel_form", suspendWhenHidden = FALSE)
 
+    output$show_reverse_form <- shiny::reactive({
+      rv$show_reverse_form
+    })
+    shiny::outputOptions(output, "show_reverse_form", suspendWhenHidden = FALSE)
+
     # Show set synonym form
     shiny::observeEvent(input$btn_set_synonym, {
       rv$show_set_synonym_form <- TRUE
       rv$show_cancel_form <- FALSE
+      rv$show_reverse_form <- FALSE
     })
 
     # Search for accepted taxon
@@ -497,6 +576,78 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
       )
     })
 
+    # Reverse synonym UI: Show current accepted taxon
+    output$reverse_current_accepted_ui <- shiny::renderUI({
+      if (is.null(rv$reverse_synonyms_info)) return(NULL)
+
+      info <- rv$reverse_synonyms_info
+      accepted <- info$accepted_taxon
+
+      if (nrow(accepted) == 0) return(NULL)
+
+      acc <- accepted[1, ]
+
+      shiny::div(
+        class = "alert alert-primary",
+        style = "margin-top: 15px;",
+        shiny::h6(
+          shiny::icon("arrow-right"),
+          " ",
+          i18n()$t("Current accepted taxon (will become synonym):")
+        ),
+        shiny::hr(),
+        shiny::strong("ID:"), " ", acc$idtax_n, shiny::br(),
+        shiny::strong(i18n()$t("Family:")), " ", if (is.na(acc$tax_fam)) "N/A" else acc$tax_fam, shiny::br(),
+        shiny::strong(i18n()$t("Genus:")), " ", if (is.na(acc$tax_gen)) "N/A" else acc$tax_gen, shiny::br(),
+        shiny::strong(i18n()$t("Species:")), " ", if (is.na(acc$tax_esp)) "N/A" else acc$tax_esp
+      )
+    })
+
+    # Reverse synonym UI: Show other synonyms warning
+    output$reverse_synonyms_warning_ui <- shiny::renderUI({
+      if (is.null(rv$reverse_synonyms_info)) return(NULL)
+
+      info <- rv$reverse_synonyms_info
+      other_syns <- info$other_synonyms
+
+      if (is.null(other_syns) || nrow(other_syns) == 0) return(NULL)
+
+      shiny::div(
+        class = "alert alert-warning",
+        style = "margin-top: 15px;",
+        shiny::h6(
+          shiny::icon("exclamation-triangle"),
+          " ",
+          i18n()$t("Warning: Other synonyms will be redirected")
+        ),
+        shiny::hr(),
+        shiny::p(
+          i18n()$t("There are"),
+          " ", shiny::strong(nrow(other_syns)), " ",
+          i18n()$t("other synonym(s) currently pointing to the same accepted name.")
+        ),
+        shiny::p(
+          i18n()$t("All of these will be updated to point to the newly accepted name.")
+        ),
+        shiny::h6(i18n()$t("Synonyms that will be redirected:")),
+        shiny::tags$ul(
+          lapply(1:min(nrow(other_syns), 10), function(i) {
+            syn <- other_syns[i, ]
+            shiny::tags$li(
+              sprintf("ID %d: %s %s",
+                      syn$idtax_n,
+                      if (is.na(syn$tax_gen)) "" else syn$tax_gen,
+                      if (is.na(syn$tax_esp)) "" else syn$tax_esp
+              )
+            )
+          })
+        ),
+        if (nrow(other_syns) > 10) {
+          shiny::p(shiny::em(sprintf(i18n()$t("... and %d more"), nrow(other_syns) - 10)))
+        }
+      )
+    })
+
     # Update selected ID when radio button changes
     shiny::observeEvent(input$selected_accepted_radio, {
       if (!is.null(input$selected_accepted_radio)) {
@@ -531,11 +682,60 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
     shiny::observeEvent(input$btn_cancel_synonym, {
       rv$show_cancel_form <- TRUE
       rv$show_set_synonym_form <- FALSE
+      rv$show_reverse_form <- FALSE
+    })
+
+    # Show reverse synonym form
+    shiny::observeEvent(input$btn_reverse_synonym, {
+      taxon <- selected_taxon()
+
+      if (is.null(taxon) || is.na(taxon$idtax_good_n)) {
+        shiny::showNotification(
+          i18n()$t("Error: Selected taxon is not a synonym"),
+          type = "error"
+        )
+        return()
+      }
+
+      # Get the current accepted taxon and all other synonyms
+      pool_conn <- pool()
+      actual_con <- pool::poolCheckout(pool_conn)
+      on.exit(pool::poolReturn(actual_con), add = TRUE)
+
+      current_accepted_id <- taxon$idtax_good_n
+
+      # Fetch the accepted taxon info
+      accepted_taxon <- dplyr::tbl(actual_con, "table_taxa") %>%
+        dplyr::filter(idtax_n == !!current_accepted_id) %>%
+        dplyr::collect()
+
+      # Find all synonyms pointing to this accepted taxon (excluding the selected one)
+      other_synonyms <- dplyr::tbl(actual_con, "table_taxa") %>%
+        dplyr::filter(idtax_good_n == !!current_accepted_id, idtax_n != !!taxon$idtax_n) %>%
+        dplyr::select(idtax_n, tax_gen, tax_esp, tax_fam) %>%
+        dplyr::collect()
+
+      rv$reverse_synonyms_info <- list(
+        accepted_taxon = accepted_taxon,
+        other_synonyms = other_synonyms,
+        selected_taxon_id = taxon$idtax_n,
+        current_accepted_id = current_accepted_id
+      )
+
+      rv$show_reverse_form <- TRUE
+      rv$show_set_synonym_form <- FALSE
+      rv$show_cancel_form <- FALSE
     })
 
     # Cancel cancel synonym
     shiny::observeEvent(input$btn_cancel_cancel, {
       rv$show_cancel_form <- FALSE
+    })
+
+    # Cancel reverse synonym
+    shiny::observeEvent(input$btn_cancel_reverse, {
+      rv$show_reverse_form <- FALSE
+      rv$reverse_synonyms_info <- NULL
     })
 
     # Confirm set synonym
@@ -670,6 +870,89 @@ mod_taxa_synonymy_server <- function(id, pool, selected_taxon, has_write_permiss
           )
         })
       }, message = i18n()$t("Cancelling synonymy..."))
+    })
+
+    # Confirm reverse synonym
+    shiny::observeEvent(input$btn_confirm_reverse_synonym, {
+      if (is.null(rv$reverse_synonyms_info)) {
+        shiny::showNotification(
+          i18n()$t("Error: Reverse synonym information not available"),
+          type = "error"
+        )
+        return()
+      }
+
+      shiny::withProgress({
+        tryCatch({
+          info <- rv$reverse_synonyms_info
+          selected_id <- info$selected_taxon_id
+          old_accepted_id <- info$current_accepted_id
+          other_synonyms <- info$other_synonyms
+
+          cli::cli_alert_info("Reversing synonym relationship...")
+          cli::cli_alert_info("  Selected taxon ID (will become accepted): {selected_id}")
+          cli::cli_alert_info("  Old accepted ID (will become synonym): {old_accepted_id}")
+          cli::cli_alert_info("  Other synonyms to redirect: {nrow(other_synonyms)}")
+
+          # Get pool connection
+          pool_conn <- pool()
+          actual_con <- pool::poolCheckout(pool_conn)
+
+          on.exit({
+            pool::poolReturn(actual_con)
+          }, add = TRUE)
+
+          # Build list of all IDs to update
+          # 1. The old accepted taxon needs to point to the selected taxon
+          # 2. All other synonyms need to point to the selected taxon
+          ids_to_update <- c(old_accepted_id)
+          if (!is.null(other_synonyms) && nrow(other_synonyms) > 0) {
+            ids_to_update <- c(ids_to_update, other_synonyms$idtax_n)
+          }
+
+          cli::cli_alert_info("Updating {length(ids_to_update)} taxa to point to new accepted taxon")
+
+          # Update all taxa to point to the new accepted name (selected taxon)
+          sql_update <- sprintf(
+            "UPDATE table_taxa SET idtax_good_n = %d WHERE idtax_n IN (%s)",
+            selected_id,
+            paste(ids_to_update, collapse = ", ")
+          )
+
+          n_updated <- DBI::dbExecute(actual_con, sql_update)
+          cli::cli_alert_success("Updated {n_updated} taxon/taxa to point to new accepted name")
+
+          # Make the selected taxon accepted (clear its idtax_good_n)
+          sql_clear <- sprintf(
+            "UPDATE table_taxa SET idtax_good_n = NULL WHERE idtax_n = %d",
+            selected_id
+          )
+
+          DBI::dbExecute(actual_con, sql_clear)
+          cli::cli_alert_success("Cleared synonym link for taxon {selected_id} - now accepted")
+
+          shiny::showNotification(
+            sprintf(
+              i18n()$t("Synonym relationship reversed! %d taxon/taxa updated."),
+              n_updated + 1
+            ),
+            type = "message",
+            duration = 5
+          )
+
+          # Reset form
+          rv$show_reverse_form <- FALSE
+          rv$reverse_synonyms_info <- NULL
+
+        }, error = function(e) {
+          cli::cli_alert_danger("Failed to reverse synonym: {e$message}")
+          shiny::showNotification(
+            paste(i18n()$t("Error reversing synonym:"), e$message),
+            type = "error",
+            duration = 10
+          )
+        })
+      }, message = i18n()$t("Reversing synonym relationship..."))
     })
 
     return(NULL)

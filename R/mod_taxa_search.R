@@ -52,7 +52,7 @@ mod_taxa_search_server <- function(id, pool, i18n) {
             choices = setNames(
               c("binomial", "structured"),
               c(
-                i18n()$t("Binomial search (e.g., Genus species)"),
+                i18n()$t("Name search (any taxonomic level)"),
                 i18n()$t("Structured search (separate fields)")
               )
             ),
@@ -72,14 +72,14 @@ mod_taxa_search_server <- function(id, pool, i18n) {
                 12,
                 shiny::textInput(
                   ns("binomial_input"),
-                  i18n()$t("Binomial name (genus + species)"),
-                  placeholder = i18n()$t("e.g., Gilbertiodendron dewevrei or gilbertiodendron dewevrei")
+                  i18n()$t("Taxon name (family, genus, or species)"),
+                  placeholder = i18n()$t("e.g., Fabaceae, Gilbertiodendron, or Gilbertiodendron dewevrei")
                 ),
                 shiny::div(
                   class = "text-muted small",
                   shiny::icon("info-circle"),
                   " ",
-                  i18n()$t("Case-insensitive. Uncheck 'Exact match' below for fuzzy matching.")
+                  i18n()$t("Case-insensitive. Uses fuzzy matching by default. Check 'Exact match' below for strict matching.")
                 )
               )
             )
@@ -134,7 +134,7 @@ mod_taxa_search_server <- function(id, pool, i18n) {
               shiny::checkboxInput(
                 ns("exact_match"),
                 i18n()$t("Exact match"),
-                value = TRUE
+                value = FALSE
               )
             ),
             shiny::column(
@@ -144,6 +144,15 @@ mod_taxa_search_server <- function(id, pool, i18n) {
                 i18n()$t("Include synonyms of queried taxa"),
                 value = FALSE
               )
+            ),
+            shiny::column(
+              3,
+              shiny::checkboxInput(
+                ns("include_children"),
+                i18n()$t("Include child taxa"),
+                value = FALSE
+              ),
+              shiny::helpText(i18n()$t("Show all descendant taxa (e.g., species within genus, infraspecific taxa)"))
             ),
             shiny::column(
               3,
@@ -356,7 +365,11 @@ mod_taxa_search_server <- function(id, pool, i18n) {
 
             on.exit({
               if (inherits(pool(), "Pool") && !is.null(actual_con)) {
-                pool::poolReturn(actual_con)
+                tryCatch({
+                  pool::poolReturn(actual_con)
+                }, error = function(e) {
+                  # Connection might already be returned, ignore
+                })
               }
             }, add = TRUE)
 
@@ -384,7 +397,7 @@ mod_taxa_search_server <- function(id, pool, i18n) {
                       add_taxa_info = FALSE,
                       include_synonyms = TRUE,
                       categorical_mode = "mode",
-                      con_taxa = actual_con
+                      con_taxa = NULL
                     )
 
                     # Join numeric traits
@@ -419,6 +432,121 @@ mod_taxa_search_server <- function(id, pool, i18n) {
             }
           }, error = function(e) {
             cli::cli_alert_warning("Could not include synonyms: {e$message}")
+          })
+        }
+
+        # Include child taxa if requested
+        if (!is.null(results) && nrow(results) > 0 && input$include_children) {
+          tryCatch({
+            cli::cli_alert_info("Including child taxa...")
+
+            # Get connection
+            actual_con <- if (inherits(pool(), "Pool")) {
+              pool::poolCheckout(pool())
+            } else {
+              pool()
+            }
+
+            on.exit({
+              if (inherits(pool(), "Pool") && !is.null(actual_con)) {
+                tryCatch({
+                  pool::poolReturn(actual_con)
+                }, error = function(e) {
+                  # Connection might already be returned, ignore
+                })
+              }
+            }, add = TRUE)
+
+            # Get all IDs from current results
+            parent_ids <- results %>% dplyr::pull(idtax_n)
+
+            # Recursively find all children
+            all_children <- data.frame()
+            current_parent_ids <- parent_ids
+            iteration <- 0
+            max_iterations <- 10  # Safety limit to prevent infinite loops
+
+            while (length(current_parent_ids) > 0 && iteration < max_iterations) {
+              iteration <- iteration + 1
+              cli::cli_alert_info("  Iteration {iteration}: Searching children of {length(current_parent_ids)} parent(s)...")
+
+              # Find direct children of current parents
+              children <- dplyr::tbl(actual_con, "table_taxa") %>%
+                dplyr::filter(id_parent %in% !!current_parent_ids) %>%
+                dplyr::collect()
+
+              if (nrow(children) == 0) {
+                cli::cli_alert_info("  No more children found")
+                break
+              }
+
+              cli::cli_alert_success("  Found {nrow(children)} child taxon/taxa")
+
+              # Add to all_children if not already there
+              if (nrow(all_children) == 0) {
+                all_children <- children
+              } else {
+                # Only add children not already in the collection
+                new_children <- children %>%
+                  dplyr::filter(!idtax_n %in% all_children$idtax_n)
+                if (nrow(new_children) > 0) {
+                  all_children <- dplyr::bind_rows(all_children, new_children)
+                }
+              }
+
+              # Set up next iteration: current children become parents to search
+              current_parent_ids <- children %>% dplyr::pull(idtax_n)
+            }
+
+            if (nrow(all_children) > 0) {
+              cli::cli_alert_success("Total children found: {nrow(all_children)}")
+
+              # Add traits to children if results have trait columns
+              trait_cols <- names(results)[grepl("^taxa_", names(results))]
+              if (length(trait_cols) > 0) {
+                tryCatch({
+                  traits_result <- query_taxa_traits(
+                    idtax = all_children$idtax_n,
+                    format = "wide",
+                    add_taxa_info = FALSE,
+                    include_synonyms = TRUE,
+                    categorical_mode = "mode",
+                    con_taxa = NULL
+                  )
+
+                  # Join numeric traits
+                  has_numeric <- !is.null(traits_result$traits_numeric) &&
+                                 !inherits(traits_result$traits_numeric, "logical")
+                  if (has_numeric && nrow(traits_result$traits_numeric) > 0) {
+                    all_children <- all_children %>%
+                      dplyr::left_join(
+                        traits_result$traits_numeric,
+                        by = c("idtax_n" = "idtax")
+                      )
+                  }
+
+                  # Join categorical traits
+                  has_categorical <- !is.null(traits_result$traits_categorical) &&
+                                     !inherits(traits_result$traits_categorical, "logical")
+                  if (has_categorical && nrow(traits_result$traits_categorical) > 0) {
+                    all_children <- all_children %>%
+                      dplyr::left_join(
+                        traits_result$traits_categorical,
+                        by = c("idtax_n" = "idtax")
+                      )
+                  }
+                }, error = function(e) {
+                  cli::cli_alert_warning("Could not fetch traits for children: {e$message}")
+                })
+              }
+
+              # Combine results with children
+              results <- dplyr::bind_rows(results, all_children)
+            } else {
+              cli::cli_alert_info("No child taxa found")
+            }
+          }, error = function(e) {
+            cli::cli_alert_warning("Could not include children: {e$message}")
           })
         }
 

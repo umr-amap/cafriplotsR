@@ -142,46 +142,15 @@ query_taxa <-
           pull(idtax_n) %>%
           unique()
       } else {
-        # If exact match failed and we were using exact matching, try fuzzy matching
-        if (exact_match) {
-          if (verbose) {
-            cli::cli_alert_warning("No exact match found for species")
-            cli::cli_alert_info("Attempting fuzzy matching...")
-          }
-
-          matches <- match_taxonomic_names(
-            names = species,
-            method = "hierarchical",
-            max_matches = 1,
-            min_similarity = min_similarity,
-            include_synonyms = FALSE,
-            return_scores = TRUE,
-            con = mydb_taxa,
-            verbose = verbose
-          )
-
-          if (nrow(matches) > 0 && any(!is.na(matches$idtax_n))) {
-            matched_ids <- matches %>%
-              filter(!is.na(idtax_n)) %>%
-              pull(idtax_n) %>%
-              unique()
-
-            if (verbose) {
-              best_score <- matches %>%
-                filter(!is.na(idtax_n)) %>%
-                slice(1) %>%
-                pull(match_score)
-              cli::cli_alert_success("Found fuzzy match (score: {round(best_score, 2)})")
-            }
+        # No match found
+        if (verbose) {
+          if (exact_match) {
+            cli::cli_alert_danger("No exact match found for species '{species}'")
           } else {
-            if (verbose) cli::cli_alert_danger("No match found for species (exact or fuzzy)")
-            return(NULL)
+            cli::cli_alert_danger("No match found for species '{species}'")
           }
-        } else {
-          # Already tried fuzzy matching, no results
-          if (verbose) cli::cli_alert_danger("No match for species")
-          return(NULL)
         }
+        return(NULL)
       }
     }
 
@@ -210,6 +179,17 @@ query_taxa <-
       return(NULL)
     }
 
+    # IMPORTANT: Prioritize accepted taxa (idtax_good_n IS NULL) over synonyms in results
+    # This ensures when duplicates exist (like multiple Fabaceae entries), the accepted one appears first
+    res <- res %>%
+      dplyr::arrange(
+        dplyr::case_when(
+          is.na(idtax_good_n) ~ 0,  # Accepted taxa first
+          TRUE ~ 1                   # Synonyms after
+        ),
+        idtax_n
+      )
+
     # Apply hierarchical filters using tax_level field
     if (only_genus) {
       res <- res %>% dplyr::filter(tax_level == "genus")
@@ -226,6 +206,12 @@ query_taxa <-
     # Handle synonymy resolution
     if (check_synonymy) {
       res <- .resolve_synonyms(res, mydb_taxa, verbose)
+    } else {
+      # When check_synonymy = FALSE, exclude synonyms (keep only accepted taxa)
+      res <- res %>% dplyr::filter(is.na(idtax_good_n))
+      if (verbose && nrow(res) > 0) {
+        cli::cli_alert_info("Filtered to {nrow(res)} accepted taxa (synonyms excluded)")
+      }
     }
 
     # Format taxonomic names
@@ -344,8 +330,15 @@ query_taxa <-
     # Use direct SQL for exact matching (faster)
     # Note: We don't filter by tax_level here to allow matching at any level
     # The only_genus/only_family filters are applied later
+    # IMPORTANT: Prioritize accepted taxa (idtax_good_n IS NULL) over synonyms
+    # Use subquery to handle DISTINCT + ORDER BY correctly in PostgreSQL
     sql <- glue::glue_sql(
-      "SELECT DISTINCT idtax_n FROM table_taxa WHERE lower({`field`}) IN ({vals*})",
+      "SELECT idtax_n FROM (
+         SELECT DISTINCT idtax_n, idtax_good_n
+         FROM table_taxa
+         WHERE lower({`field`}) IN ({vals*})
+       ) sub
+       ORDER BY CASE WHEN idtax_good_n IS NULL THEN 0 ELSE 1 END, idtax_n",
       vals = tolower(names), .con = mydb_taxa
     )
     res <- func_try_fetch(con = mydb_taxa, sql = sql)
@@ -366,13 +359,16 @@ query_taxa <-
     matched_ids <- c()
 
     for (name in names) {
+      # IMPORTANT: Prioritize accepted taxa (idtax_good_n IS NULL) over synonyms
+      # When sim_score is tied, put accepted taxa first
       sql <- glue::glue_sql("
         SELECT idtax_n,
                SIMILARITY(lower({`field`}), lower({search_name})) AS sim_score
         FROM table_taxa
         WHERE {`field`} IS NOT NULL
           AND SIMILARITY(lower({`field`}), lower({search_name})) >= {min_sim}
-        ORDER BY sim_score DESC
+        ORDER BY sim_score DESC,
+                 CASE WHEN idtax_good_n IS NULL THEN 0 ELSE 1 END
         LIMIT 5
       ", search_name = name, min_sim = min_similarity, .con = mydb_taxa)
 
@@ -1207,22 +1203,27 @@ get_taxon_hierarchy <- function(idtax_n, con = NULL) {
     row <- ancestors[i, ]
 
     # Determine level using tax_level column (preferred) or fallback to inference
-    if ("tax_level" %in% names(row) && !is.na(row$tax_level) && nchar(row$tax_level) > 0) {
+    # Helper to safely check if field has value
+    has_value <- function(x) {
+      !is.null(x) && !is.na(x) && length(x) > 0 && nchar(as.character(x)) > 0
+    }
+
+    if ("tax_level" %in% names(row) && has_value(row$tax_level)) {
       # Use tax_level column directly
-      level <- row$tax_level
+      level <- as.character(row$tax_level)
       # Map "higher" to "class" for consistency
-      if (level == "higher") level <- "class"
+      if (!is.na(level) && level == "higher") level <- "class"
     } else {
       # Fallback: infer level based on what's populated
-      if (!is.na(row$tax_nam01) && nchar(row$tax_nam01) > 0) {
+      if (has_value(row$tax_nam01)) {
         level <- "infraspecific"
-      } else if (!is.na(row$tax_esp) && nchar(row$tax_esp) > 0) {
+      } else if (has_value(row$tax_esp)) {
         level <- "species"
-      } else if (!is.na(row$tax_gen) && nchar(row$tax_gen) > 0) {
+      } else if (has_value(row$tax_gen)) {
         level <- "genus"
-      } else if (!is.na(row$tax_fam) && nchar(row$tax_fam) > 0) {
+      } else if (has_value(row$tax_fam)) {
         level <- "family"
-      } else if (!is.na(row$tax_order) && nchar(row$tax_order) > 0) {
+      } else if (has_value(row$tax_order)) {
         level <- "order"
       } else {
         level <- "class"

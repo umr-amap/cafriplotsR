@@ -249,7 +249,10 @@ build_breadcrumb_path <- function(hierarchy, i18n) {
   for (level in levels) {
     if (!is.null(hierarchy[[level]])) {
       entry <- hierarchy[[level]]
-      is_current <- !is.null(hierarchy$current_level) && hierarchy$current_level == level
+      # Safe NA handling for current level comparison
+      is_current <- !is.null(hierarchy$current_level) &&
+                    !is.na(hierarchy$current_level) &&
+                    hierarchy$current_level == level
 
       path_items[[length(path_items) + 1]] <- shiny::span(
         class = paste("path-item", if (is_current) "current" else ""),
@@ -307,7 +310,12 @@ build_hierarchy_tree_html <- function(hierarchy, current_id, i18n) {
       return(build_node(level_index + 1))
     }
 
-    is_current <- entry$idtax_n == current_id
+    # Safe NA handling for ID comparison
+    is_current <- !is.null(entry$idtax_n) &&
+                  !is.na(entry$idtax_n) &&
+                  !is.null(current_id) &&
+                  !is.na(current_id) &&
+                  entry$idtax_n == current_id
 
     # Build child content
     child_content <- build_node(level_index + 1)
