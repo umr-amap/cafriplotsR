@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -73,22 +73,18 @@ taxonomic backbone database. This application allows you to:</p>
 <li>
 <strong>Browse and search</strong> taxonomic entries at all levels
 (family, genus, species, etc.)</li>
+<li><strong>Visualize taxonomic hierarchy</strong></li>
 <li>
-<strong>Visualize hierarchy</strong> using the hybrid system (flat
-columns + id_parent tree structure)</li>
-<li>
-<strong>Add new taxa</strong> with automatic parent linking</li>
+<strong>Add new taxa</strong> either manually or by retrieving
+information from TROPICOS database</li>
 <li>
 <strong>Modify existing taxa</strong> with cascade updates to
-maintain consistency</li>
+maintain consistency in the hierarchy</li>
 <li>
 <strong>Manage synonymy</strong> including setting, reversing, and
 canceling synonym relationships</li>
 <li>
-<strong>Check consistency</strong> between flat taxonomic columns
-and hierarchical structure</li>
-<li>
-<strong>View and add traits</strong> at the taxon level</li>
+<strong>View traits</strong> at the taxon level</li>
 </ul>
 </div>
 <div class="section level2">
@@ -99,67 +95,8 @@ permissions</strong> on the taxa database. Regular users typically have
 <strong>read-only</strong> access. Contact your database administrator
 if you need to manage taxonomic data.</p>
 <p>Before launching the app, ensure you have:</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Database credentials</strong> with appropriate
-permissions</li>
-<li>
-<strong>Understanding of taxonomic hierarchy</strong> and
-nomenclatural rules</li>
-<li>
-<strong>Familiarity with the hybrid storage system</strong>
-(explained below)</li>
-</ol>
-</div>
-<div class="section level2">
-<h2 id="the-hybrid-taxonomic-system">The Hybrid Taxonomic System<a class="anchor" aria-label="anchor" href="#the-hybrid-taxonomic-system"></a>
-</h2>
-<p>CafriplotsR uses a <strong>HYBRID approach</strong> to store
-taxonomic data:</p>
-<div class="section level3">
-<h3 id="flat-columns-denormalized">Flat Columns (Denormalized)<a class="anchor" aria-label="anchor" href="#flat-columns-denormalized"></a>
-</h3>
-<ul>
-<li>
-<code>tax_gen</code> - Genus name</li>
-<li>
-<code>tax_fam</code> - Family name</li>
-<li>
-<code>tax_order</code> - Order name</li>
-<li>
-<code>tax_famclass</code> - Class name</li>
-</ul>
-<p>Used for <strong>fast querying</strong> and <strong>backward
-compatibility</strong>.</p>
-</div>
-<div class="section level3">
-<h3 id="hierarchical-structure">Hierarchical Structure<a class="anchor" aria-label="anchor" href="#hierarchical-structure"></a>
-</h3>
-<ul>
-<li>
-<code>id_parent</code> - Points to the parent taxon entry</li>
-<li>Enables <strong>tree navigation</strong> and <strong>hierarchy
-validation</strong>
-</li>
-</ul>
-</div>
-<div class="section level3">
-<h3 id="why-both">Why Both?<a class="anchor" aria-label="anchor" href="#why-both"></a>
-</h3>
-<ul>
-<li>
-<strong>Fast queries</strong>: Filter by family without joining
-tables</li>
-<li>
-<strong>Consistency validation</strong>: Check that species → genus
-→ family → order relationships are correct</li>
-<li>
-<strong>Flexible updates</strong>: Cascade changes when modifying
-upper taxa</li>
-</ul>
-<p><strong>The app automatically maintains synchronization between both
-systems.</strong></p>
-</div>
+<p><strong>Database credentials</strong> with appropriate
+permissions</p>
 </div>
 <div class="section level2">
 <h2 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
@@ -185,7 +122,7 @@ hardcode credentials in code</strong>:</p>
 </h3>
 <p>The search interface supports multiple modes:</p>
 <div class="section level4">
-<h4 id="name-search-any-level">Name Search (Any Level)<a class="anchor" aria-label="anchor" href="#name-search-any-level"></a>
+<h4 id="name-search-any-taxonomic-level">Name Search (any taxonomic level)<a class="anchor" aria-label="anchor" href="#name-search-any-taxonomic-level"></a>
 </h4>
 <p>Search for family, genus, or species names:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
@@ -245,6 +182,29 @@ infraspecific) 3. The app <strong>automatically</strong>: - Finds the
 appropriate parent taxon - Creates it if missing (e.g., creates genus
 entry when adding a species) - Links via id_parent - Validates the
 hierarchy</p>
+<p>The new entry can be filled based on a match in TROPICOS. If no match
+is found, the new entry can be filled manually.</p>
+<p><strong>Adding Morpho-taxa:</strong></p>
+<p>It is possible to add a morpho-taxon (provisional taxonomic name).
+This may be needed in several situations:</p>
+<ul>
+<li>A species considered new to science but not yet formally
+published</li>
+<li>A taxon for which the correct identification is pending (e.g.,
+sterile material without flowers or fruits)</li>
+<li>A taxon restricted to a specific locality or plot awaiting formal
+description</li>
+</ul>
+<p>We recommend following consistent naming conventions for morpho-taxa,
+as these will be visible to all users:</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>New species awaiting formal description</strong>: Include
+the (future) author name if known Example: <em>Strephonema sp.nov.
+Lachenaud O.</em> (where “sp.nov.” is the species epithet)</p></li>
+<li><p><strong>Locality-restricted morpho-taxon</strong>: Add the
+locality name in the species epithet Example: <em>Diospyros sp.nov. Sao
+Tomé Nguema</em></p></li>
+</ol>
 <p><strong>Example: Adding a New Species</strong></p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># In the app interface:</span></span>
@@ -261,7 +221,7 @@ hierarchy</p>
 <span><span class="co"># 3. Populate all flat columns (tax_gen, tax_fam, tax_order, tax_famclass)</span></span></code></pre></div>
 <p><strong>Important Notes:</strong> - Always provide complete upper
 taxonomy - Use correct spelling and nomenclatural authorities - Check
-for duplicates before adding</p>
+for duplicates before adding (this is checked in any case)</p>
 </div>
 <div class="section level3">
 <h3 id="modify-taxa">4. Modify Taxa<a class="anchor" aria-label="anchor" href="#modify-taxa"></a>
@@ -352,8 +312,7 @@ accepted name:</p>
 <span><span class="co"># 2. Click "Cancel Synonymy"</span></span>
 <span><span class="co"># 3. Sets idtax_good_n = NULL (becomes accepted/independent)</span></span></code></pre></div>
 <p><strong>Important:</strong> - Prevents synonym chains (A → B → C) -
-All synonyms must point directly to an accepted name - Uses direct SQL
-for atomic operations</p>
+All synonyms must point directly to an accepted name</p>
 </div>
 </div>
 <div class="section level3">
@@ -430,6 +389,56 @@ Preserves historical links - Can be reversed if needed</p>
 <span></span>
 <span><span class="co"># Update multiple taxa programmatically</span></span>
 <span><span class="co"># (Be very careful - test on a subset first!)</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="the-hybrid-taxonomic-system">The Hybrid Taxonomic System<a class="anchor" aria-label="anchor" href="#the-hybrid-taxonomic-system"></a>
+</h2>
+<p>CafriplotsR uses a <strong>HYBRID approach</strong> to store
+taxonomic data:</p>
+<div class="section level3">
+<h3 id="flat-columns-denormalized">Flat Columns (Denormalized)<a class="anchor" aria-label="anchor" href="#flat-columns-denormalized"></a>
+</h3>
+<ul>
+<li>
+<code>tax_gen</code> - Genus name</li>
+<li>
+<code>tax_fam</code> - Family name</li>
+<li>
+<code>tax_order</code> - Order name</li>
+<li>
+<code>tax_famclass</code> - Class name</li>
+</ul>
+<p>Used for <strong>fast querying</strong> and <strong>backward
+compatibility</strong>.</p>
+</div>
+<div class="section level3">
+<h3 id="hierarchical-structure">Hierarchical Structure<a class="anchor" aria-label="anchor" href="#hierarchical-structure"></a>
+</h3>
+<ul>
+<li>
+<code>id_parent</code> - Points to the parent taxon entry</li>
+<li>Enables <strong>tree navigation</strong> and <strong>hierarchy
+validation</strong>
+</li>
+</ul>
+</div>
+<div class="section level3">
+<h3 id="why-both">Why Both?<a class="anchor" aria-label="anchor" href="#why-both"></a>
+</h3>
+<ul>
+<li>
+<strong>Fast queries</strong>: Filter by family without joining
+tables</li>
+<li>
+<strong>Consistency validation</strong>: Check that species → genus
+→ family → order relationships are correct</li>
+<li>
+<strong>Flexible updates</strong>: Cascade changes when modifying
+upper taxa</li>
+</ul>
+<p><strong>The app automatically maintains synchronization between both
+systems.</strong></p>
 </div>
 </div>
 <div class="section level2">
