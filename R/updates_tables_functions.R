@@ -4829,14 +4829,18 @@ execute_direct_updates_batch <- function(changes, config, con) {
     }
 
     # PostgreSQL syntax: UPDATE ... SET ... FROM ... WHERE
+    # Build the SET clause with proper casting (avoid glue_sql escaping the cast)
     if (cast_type != "") {
+      # Use glue (not glue_sql) for the value expression to avoid escaping ::
+      value_expr <- glue::glue('tmp."{col}"{cast_type}')
       sql <- glue::glue_sql(
         "UPDATE {`config$table`} t
-         SET {`col`} = tmp.{`col`}{`cast_type`}
+         SET {`col`} = {`value_expr`}
          FROM {`temp_table`} tmp
          WHERE t.{`config$id_column`} = tmp.{`config$id_column`}
          AND tmp.{`col`} IS NOT NULL",
-        .con = con
+        .con = con,
+        value_expr = DBI::SQL(value_expr)  # Treat as literal SQL
       )
     } else {
       sql <- glue::glue_sql(
