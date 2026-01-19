@@ -4788,16 +4788,67 @@ execute_direct_updates_batch <- function(changes, config, con) {
 
   cols_to_update <- setdiff(names(update_data), config$id_column)
 
-  for (col in cols_to_update) {
-    # PostgreSQL syntax: UPDATE ... SET ... FROM ... WHERE
-    sql <- glue::glue_sql(
-      "UPDATE {`config$table`} t
-       SET {`col`} = tmp.{`col`}
-       FROM {`temp_table`} tmp
-       WHERE t.{`config$id_column`} = tmp.{`config$id_column`}
-       AND tmp.{`col`} IS NOT NULL",
+  # Get column types from the target table for proper casting
+  col_types <- tryCatch({
+    DBI::dbGetQuery(con, glue::glue_sql(
+      "SELECT column_name, data_type
+       FROM information_schema.columns
+       WHERE table_name = {config$table}",
       .con = con
-    )
+    ))
+  }, error = function(e) {
+    cli::cli_alert_warning("Could not fetch column types, updates may fail for type mismatches")
+    data.frame(column_name = character(), data_type = character())
+  })
+
+  for (col in cols_to_update) {
+    # Get the data type for this column
+    col_type <- col_types$data_type[col_types$column_name == col]
+
+    # Determine the cast type for PostgreSQL
+    cast_type <- if (length(col_type) > 0) {
+      # Map PostgreSQL types to cast syntax
+      if (col_type %in% c("integer", "bigint", "smallint")) {
+        "::integer"
+      } else if (col_type %in% c("numeric", "decimal", "real", "double precision")) {
+        "::numeric"
+      } else if (col_type %in% c("date")) {
+        "::date"
+      } else if (col_type %in% c("timestamp", "timestamp without time zone", "timestamp with time zone")) {
+        "::timestamp"
+      } else if (col_type %in% c("boolean")) {
+        "::boolean"
+      } else {
+        # Text types don't need casting
+        ""
+      }
+    } else {
+      # If type not found, try without casting
+      cli::cli_alert_warning("Column type for '{col}' not found, updating without cast")
+      ""
+    }
+
+    # PostgreSQL syntax: UPDATE ... SET ... FROM ... WHERE
+    if (cast_type != "") {
+      sql <- glue::glue_sql(
+        "UPDATE {`config$table`} t
+         SET {`col`} = tmp.{`col`}{`cast_type`}
+         FROM {`temp_table`} tmp
+         WHERE t.{`config$id_column`} = tmp.{`config$id_column`}
+         AND tmp.{`col`} IS NOT NULL",
+        .con = con
+      )
+    } else {
+      sql <- glue::glue_sql(
+        "UPDATE {`config$table`} t
+         SET {`col`} = tmp.{`col`}
+         FROM {`temp_table`} tmp
+         WHERE t.{`config$id_column`} = tmp.{`config$id_column`}
+         AND tmp.{`col`} IS NOT NULL",
+        .con = con
+      )
+    }
+
     n <- DBI::dbExecute(con, sql)
     cli::cli_alert_success("{col}: {n} updated")
   }
