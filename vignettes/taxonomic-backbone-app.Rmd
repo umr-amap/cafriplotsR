@@ -27,12 +27,11 @@ library(CafriplotsR)
 The `launch_taxo_backbone_app()` function provides an interactive Shiny application for managing the Central African plant taxonomic backbone database. This application allows you to:
 
 - **Browse and search** taxonomic entries at all levels (family, genus, species, etc.)
-- **Visualize hierarchy** using the hybrid system (flat columns + id_parent tree structure)
-- **Add new taxa** with automatic parent linking
-- **Modify existing taxa** with cascade updates to maintain consistency
+- **Visualize taxonomic hierarchy**
+- **Add new taxa** either manually or by retrieving information from TROPICOS database
+- **Modify existing taxa** with cascade updates to maintain consistency in the hierarchy
 - **Manage synonymy** including setting, reversing, and canceling synonym relationships
-- **Check consistency** between flat taxonomic columns and hierarchical structure
-- **View and add traits** at the taxon level
+- **View traits** at the taxon level
 
 ## Prerequisites
 
@@ -40,32 +39,7 @@ The `launch_taxo_backbone_app()` function provides an interactive Shiny applicat
 
 Before launching the app, ensure you have:
 
-1. **Database credentials** with appropriate permissions
-2. **Understanding of taxonomic hierarchy** and nomenclatural rules
-3. **Familiarity with the hybrid storage system** (explained below)
-
-## The Hybrid Taxonomic System
-
-CafriplotsR uses a **HYBRID approach** to store taxonomic data:
-
-### Flat Columns (Denormalized)
-- `tax_gen` - Genus name
-- `tax_fam` - Family name
-- `tax_order` - Order name
-- `tax_famclass` - Class name
-
-Used for **fast querying** and **backward compatibility**.
-
-### Hierarchical Structure
-- `id_parent` - Points to the parent taxon entry
-- Enables **tree navigation** and **hierarchy validation**
-
-### Why Both?
-- **Fast queries**: Filter by family without joining tables
-- **Consistency validation**: Check that species → genus → family → order relationships are correct
-- **Flexible updates**: Cascade changes when modifying upper taxa
-
-**The app automatically maintains synchronization between both systems.**
+**Database credentials** with appropriate permissions
 
 ## Quick Start
 
@@ -92,7 +66,7 @@ launch_taxo_backbone_app()
 
 The search interface supports multiple modes:
 
-#### Name Search (Any Level)
+#### Name Search (any taxonomic level)
 Search for family, genus, or species names:
 
 ```{r}
@@ -148,6 +122,24 @@ Add new taxonomic entries with automatic parent linking.
    - Creates it if missing (e.g., creates genus entry when adding a species)
    - Links via id_parent
    - Validates the hierarchy
+   
+The new entry can be filled based on a match in TROPICOS. If no match is found, the new entry can be filled manually.
+
+**Adding Morpho-taxa:**
+
+It is possible to add a morpho-taxon (provisional taxonomic name). This may be needed in several situations:
+
+- A species considered new to science but not yet formally published
+- A taxon for which the correct identification is pending (e.g., sterile material without flowers or fruits)
+- A taxon restricted to a specific locality or plot awaiting formal description
+
+We recommend following consistent naming conventions for morpho-taxa, as these will be visible to all users:
+
+1. **New species awaiting formal description**: Include the (future) author name if known
+   Example: _Strephonema sp.nov. Lachenaud O._ (where "sp.nov." is the species epithet)
+
+2. **Locality-restricted morpho-taxon**: Add the locality name in the species epithet
+   Example: _Diospyros sp.nov. Sao Tomé Nguema_
 
 **Example: Adding a New Species**
 
@@ -169,7 +161,7 @@ Add new taxonomic entries with automatic parent linking.
 **Important Notes:**
 - Always provide complete upper taxonomy
 - Use correct spelling and nomenclatural authorities
-- Check for duplicates before adding
+- Check for duplicates before adding (this is checked in any case)
 
 ### 4. Modify Taxa
 
@@ -261,7 +253,6 @@ Remove synonym status, making the taxon independent:
 **Important:**
 - Prevents synonym chains (A → B → C)
 - All synonyms must point directly to an accepted name
-- Uses direct SQL for atomic operations
 
 ### 6. Consistency Check
 
@@ -336,6 +327,32 @@ check_hierarchy_consistency(con, fix = TRUE)
 # Update multiple taxa programmatically
 # (Be very careful - test on a subset first!)
 ```
+
+
+## The Hybrid Taxonomic System
+
+CafriplotsR uses a **HYBRID approach** to store taxonomic data:
+
+### Flat Columns (Denormalized)
+- `tax_gen` - Genus name
+- `tax_fam` - Family name
+- `tax_order` - Order name
+- `tax_famclass` - Class name
+
+Used for **fast querying** and **backward compatibility**.
+
+### Hierarchical Structure
+- `id_parent` - Points to the parent taxon entry
+- Enables **tree navigation** and **hierarchy validation**
+
+### Why Both?
+- **Fast queries**: Filter by family without joining tables
+- **Consistency validation**: Check that species → genus → family → order relationships are correct
+- **Flexible updates**: Cascade changes when modifying upper taxa
+
+**The app automatically maintains synchronization between both systems.**
+
+
 
 ## Best Practices
 

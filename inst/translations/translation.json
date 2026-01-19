@@ -4980,6 +4980,66 @@
     {
       "en": "Confirm - Update %d Taxa",
       "fr": "Confirmer - Mettre à jour %d taxons"
+    },
+    {
+      "en": "Retrieving inserted IDs...",
+      "fr": "Récupération des IDs insérés..."
+    },
+    {
+      "en": "Retrieved %d of %d IDs",
+      "fr": "Récupéré %d de %d IDs"
+    },
+    {
+      "en": "Determination Information",
+      "fr": "Information de détermination"
+    },
+    {
+      "en": "Original Taxon Name",
+      "fr": "Nom taxonomique original"
+    },
+    {
+      "en": "Collection Information",
+      "fr": "Information de récolte"
+    },
+    {
+      "en": "Collection Year",
+      "fr": "Année de récolte"
+    },
+    {
+      "en": "Collection Month",
+      "fr": "Mois de récolte"
+    },
+    {
+      "en": "Collection Day",
+      "fr": "Jour de récolte"
+    },
+    {
+      "en": "Additional Collector(s)",
+      "fr": "Collecteur(s) supplémentaire(s)"
+    },
+    {
+      "en": "Location Information",
+      "fr": "Information géographique"
+    },
+    {
+      "en": "Latitude (ddlat)",
+      "fr": "Latitude (ddlat)"
+    },
+    {
+      "en": "Longitude (ddlon)",
+      "fr": "Longitude (ddlon)"
+    },
+    {
+      "en": "Other Information",
+      "fr": "Autres informations"
+    },
+    {
+      "en": "Description/Notes",
+      "fr": "Description/Notes"
+    },
+    {
+      "en": "Determined by (text)",
+      "fr": "Déterminé par (texte libre)"
     }
   ]
 }
