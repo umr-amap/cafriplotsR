@@ -8,7 +8,7 @@ update_records(
   data,
   table_type = c("individuals", "plots", "individual_features", "subplot_features",
     "individual_features_metadata", "methodslist", "table_colnam", "traitlist",
-    "subplotype_list"),
+    "subplotype_list", "specimens"),
   execute = FALSE,
   method = c("single", "batch"),
   con = NULL,
@@ -18,19 +18,21 @@ update_records(
 )
 }
 \arguments{
-\item{data}{Tibble with records to update}
+\item{data}{Tibble with records to update. Must include the ID column for the table type.}
 
-\item{table_type}{Character: type of table}
+\item{table_type}{Character: type of table. One of "individuals", "plots", "specimens",
+"individual_features", "subplot_features", "individual_features_metadata",
+"methodslist", "table_colnam", "traitlist", or "subplotype_list"}
 
-\item{execute}{Logical: if FALSE (default), dry run only}
+\item{execute}{Logical: if FALSE (default), dry run only - shows what would change}
 
-\item{method}{Character: "single" or "batch"}
+\item{method}{Character: "single" (row-by-row) or "batch" (bulk update via temp table)}
 
-\item{con}{Database connection}
+\item{con}{Database connection. If NULL, creates new connection}
 
-\item{interactive}{Logical: enable interactive prompts}
+\item{interactive}{Logical: enable interactive prompts for metadata matching}
 
-\item{similarity_threshold}{Numeric: threshold for metadata mapping}
+\item{similarity_threshold}{Numeric: threshold (0-1) for fuzzy matching in metadata mapping}
 
 \item{show_comparison}{Logical: if TRUE and method="single", display HTML comparison}
 }

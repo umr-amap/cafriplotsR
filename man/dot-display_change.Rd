@@ -4,7 +4,19 @@
 \alias{.display_change}
 \title{Display a single change with visual comparison}
 \usage{
-.display_change(id, column, old_value, new_value, id_column)
+.display_change(
+  id,
+  column,
+  old_value,
+  new_value,
+  id_column,
+  old_genus = NULL,
+  old_species = NULL,
+  old_family = NULL,
+  new_genus = NULL,
+  new_species = NULL,
+  new_family = NULL
+)
 }
 \arguments{
 \item{id}{Record ID}

@@ -3984,13 +3984,21 @@ get_column_routing <- function(table_type, con) {
       direct_columns = c("type", "maxallowedvalue", "minallowedvalue", "typedescription", "expectedunit", "comments"),
       feature_columns = c(),
       has_table_references = FALSE
+    ),
+    specimens = list(
+      table = "specimens",
+      id_column = "id_specimen",
+      backup_table = "followup_updates_specimens",
+      direct_columns = get_table_columns("specimens", con),
+      feature_columns = c(),
+      metadata_mappings = get_metadata_mappings_specimens(con)
     )
   )
-  
+
   if (!table_type %in% names(configs)) {
     cli::cli_abort("Unknown table_type: {.val {table_type}}")
   }
-  
+
   configs[[table_type]]
 }
 
@@ -4007,6 +4015,25 @@ get_table_columns <- function(table_name, con) {
       "herbarium_nbe_type",  # Herbarium specimen type (optional)
       "herbarium_nbe_char",  # Herbarium specimen number (optional)
       "multi_tiges_id"       # Multi-stem identifier (optional)
+    ))
+  }
+
+  # For specimens, define editable columns explicitly
+  if (table_name == "specimens") {
+    return(c(
+      "id_colnam",           # Collector ID (lookup via colnam)
+      "colnbr",              # Collection number
+      "suffix",              # Collection number suffix
+      "coly", "colm", "cold", # Collection date
+      "idtax_n",             # Taxonomy ID (from table_idtax/dico_name)
+      "original_tax_name",   # Original taxonomic name
+      "detby",               # Determiner name
+      "dety", "detm", "detd", # Determination date
+      "detvalue",            # Determination confidence/value
+      "country",             # Country
+      "locality",            # Locality description
+      "ddlat", "ddlon",      # Coordinates
+      "add_col"              # Additional collectors
     ))
   }
 
@@ -4159,6 +4186,29 @@ get_metadata_mappings_plots <- function(con) {
   return(mappings)
 }
 
+get_metadata_mappings_specimens <- function(con) {
+  # Specimens have lookup columns that need matching
+  # - id_colnam: collector (foreign key to table_colnam)
+  # - idtax_n: taxonomy ID (should already be resolved via taxonomic matching)
+  # - country, detby, original_tax_name: free text (no lookup needed)
+  # - colnbr, suffix, coly, colm, cold, dety, detm, detd, detvalue: direct values
+
+  mappings <- list(
+    colnam = list(
+      id_col = "id_colnam",
+      lookup_table = "table_colnam",
+      lookup_key = "id_table_colnam",
+      lookup_value = "colnam"
+    )
+  )
+
+  # Note: idtax_n is typically pre-resolved using taxonomic matching functions
+  # If users provide genus/species names, they should use match_tax() or query_taxa()
+  # to get idtax_n before calling update_records
+
+  return(mappings)
+}
+
 reverse_map_metadata <- function(data, config, con, interactive = TRUE, similarity_threshold = 0.6) {
   if (is.null(config$metadata_mappings)) return(data)
   
@@ -4244,8 +4294,10 @@ reverse_map_table_references <- function(data, con) {
 #' @param id_column Name of ID column
 #'
 #' @keywords internal
-.display_change <- function(id, column, old_value, new_value, id_column) {
-  
+.display_change <- function(id, column, old_value, new_value, id_column,
+                           old_genus = NULL, old_species = NULL, old_family = NULL,
+                           new_genus = NULL, new_species = NULL, new_family = NULL) {
+
   # Format values (handle NA, NULL, empty strings)
   format_value <- function(x) {
     if (is.na(x) || is.null(x) || x == "") {
@@ -4257,20 +4309,128 @@ reverse_map_table_references <- function(data, con) {
     }
     return(as.character(x))
   }
-  
+
   old_fmt <- format_value(old_value)
   new_fmt <- format_value(new_value)
-  
-  # Display with visual arrow
-  cli::cli_text(
-    "  {crayon::cyan(id_column)}: {crayon::bold(id)} | ",
-    "{crayon::yellow(column)}: ",
-    crayon::red(old_fmt),
-    " {crayon::silver('→')} ",
-    crayon::green(new_fmt)
-  )
+
+  # Special display for idtax_n with taxonomy
+  if (column == "idtax_n" && !is.null(old_genus)) {
+    # Build taxonomy strings
+    old_taxon <- paste(
+      if (!is.na(old_genus) && old_genus != "") old_genus else "",
+      if (!is.na(old_species) && old_species != "") old_species else ""
+    ) %>% trimws()
+    new_taxon <- paste(
+      if (!is.na(new_genus) && new_genus != "") new_genus else "",
+      if (!is.na(new_species) && new_species != "") new_species else ""
+    ) %>% trimws()
+
+    # Add family if available
+    if (!is.na(old_family) && old_family != "") {
+      old_taxon <- paste0(old_taxon, " (", old_family, ")")
+    }
+    if (!is.na(new_family) && new_family != "") {
+      new_taxon <- paste0(new_taxon, " (", new_family, ")")
+    }
+
+    # Display with taxonomy
+    cli::cli_text(
+      "  {crayon::cyan(id_column)}: {crayon::bold(id)} | ",
+      "{crayon::yellow('idtax_n')}: ",
+      crayon::red(old_fmt), " ", crayon::silver(old_taxon),
+      " {crayon::silver('→')} ",
+      crayon::green(new_fmt), " ", crayon::silver(new_taxon)
+    )
+  } else {
+    # Standard display
+    cli::cli_text(
+      "  {crayon::cyan(id_column)}: {crayon::bold(id)} | ",
+      "{crayon::yellow(column)}: ",
+      crayon::red(old_fmt),
+      " {crayon::silver('→')} ",
+      crayon::green(new_fmt)
+    )
+  }
 }
 
+
+#' Enrich idtax_n changes with taxonomic names
+#'
+#' Adds genus, species, and family columns for both old and new idtax_n values
+#' Uses the existing add_taxa_table_taxa() function to fetch taxonomy
+#'
+#' @param changes_df Dataframe with columns: column, old_value, new_value
+#'   where column may contain "idtax_n" and values are taxon IDs
+#'
+#' @return changes_df with added columns: old_genus, old_species, old_family,
+#'   new_genus, new_species, new_family (for idtax_n rows only)
+#'
+#' @keywords internal
+.enrich_idtax_n_changes_with_taxonomy <- function(changes_df) {
+
+  # Filter for idtax_n changes
+  idtax_changes <- changes_df %>% filter(column == "idtax_n")
+  other_changes <- changes_df %>% filter(column != "idtax_n")
+
+  if (nrow(idtax_changes) == 0) {
+    return(changes_df)
+  }
+
+  # Get unique taxon IDs (both old and new)
+  all_idtax <- unique(c(
+    as.integer(idtax_changes$old_value),
+    as.integer(idtax_changes$new_value)
+  ))
+  all_idtax <- all_idtax[!is.na(all_idtax)]
+
+  if (length(all_idtax) == 0) {
+    return(changes_df)
+  }
+
+  # Fetch taxonomy using existing function
+  # add_taxa_table_taxa() creates its own connection
+  taxa_info <- tryCatch({
+    add_taxa_table_taxa(ids = all_idtax) %>%
+      dplyr::collect() %>%
+      dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp)
+  }, error = function(e) {
+    cli::cli_alert_warning("Could not fetch taxonomy for idtax_n changes: {e$message}")
+    return(NULL)
+  })
+
+  if (is.null(taxa_info) || nrow(taxa_info) == 0) {
+    return(changes_df)
+  }
+
+  # Add old taxonomy
+  idtax_changes <- idtax_changes %>%
+    mutate(old_value_int = as.integer(old_value)) %>%
+    left_join(
+      taxa_info %>% rename(
+        old_family = tax_fam,
+        old_genus = tax_gen,
+        old_species = tax_esp
+      ),
+      by = c("old_value_int" = "idtax_n")
+    ) %>%
+    select(-old_value_int)
+
+  # Add new taxonomy
+  idtax_changes <- idtax_changes %>%
+    mutate(new_value_int = as.integer(new_value)) %>%
+    left_join(
+      taxa_info %>% rename(
+        new_family = tax_fam,
+        new_genus = tax_gen,
+        new_species = tax_esp
+      ),
+      by = c("new_value_int" = "idtax_n")
+    ) %>%
+    select(-new_value_int)
+
+  # Combine back with other changes (maintain original order)
+  bind_rows(idtax_changes, other_changes)
+}
 
 #' Display multiple changes grouped by column
 #'
@@ -4280,35 +4440,71 @@ reverse_map_table_references <- function(data, con) {
 #'
 #' @keywords internal
 .display_changes_grouped <- function(changes_df, id_column, max_display = 10) {
-  
+
   for (col in unique(changes_df$column)) {
     col_changes <- changes_df %>% filter(column == col)
     n_changes <- nrow(col_changes)
-    
+
     cli::cli_alert_success("{col}: {crayon::bold(n_changes)} change(s)")
-    
+
+    # Check if taxonomy columns are available (for idtax_n)
+    has_taxonomy <- col == "idtax_n" &&
+      all(c("old_genus", "new_genus") %in% names(col_changes))
+
     # Display individual changes
     if (n_changes <= max_display) {
       # Show all changes
       for (i in 1:n_changes) {
-        .display_change(
-          id = col_changes[[id_column]][i],
-          column = col,
-          old_value = col_changes$old_value[i],
-          new_value = col_changes$new_value[i],
-          id_column = id_column
-        )
+        if (has_taxonomy) {
+          .display_change(
+            id = col_changes[[id_column]][i],
+            column = col,
+            old_value = col_changes$old_value[i],
+            new_value = col_changes$new_value[i],
+            id_column = id_column,
+            old_genus = col_changes$old_genus[i],
+            old_species = col_changes$old_species[i],
+            old_family = col_changes$old_family[i],
+            new_genus = col_changes$new_genus[i],
+            new_species = col_changes$new_species[i],
+            new_family = col_changes$new_family[i]
+          )
+        } else {
+          .display_change(
+            id = col_changes[[id_column]][i],
+            column = col,
+            old_value = col_changes$old_value[i],
+            new_value = col_changes$new_value[i],
+            id_column = id_column
+          )
+        }
       }
     } else {
       # Show first few changes + summary
       for (i in 1:max_display) {
-        .display_change(
-          id = col_changes[[id_column]][i],
-          column = col,
-          old_value = col_changes$old_value[i],
-          new_value = col_changes$new_value[i],
-          id_column = id_column
-        )
+        if (has_taxonomy) {
+          .display_change(
+            id = col_changes[[id_column]][i],
+            column = col,
+            old_value = col_changes$old_value[i],
+            new_value = col_changes$new_value[i],
+            id_column = id_column,
+            old_genus = col_changes$old_genus[i],
+            old_species = col_changes$old_species[i],
+            old_family = col_changes$old_family[i],
+            new_genus = col_changes$new_genus[i],
+            new_species = col_changes$new_species[i],
+            new_family = col_changes$new_family[i]
+          )
+        } else {
+          .display_change(
+            id = col_changes[[id_column]][i],
+            column = col,
+            old_value = col_changes$old_value[i],
+            new_value = col_changes$new_value[i],
+            id_column = id_column
+          )
+        }
       }
       cli::cli_text(
         crayon::silver("  ... and {n_changes - max_display} more change(s)")
@@ -4381,14 +4577,19 @@ detect_direct_changes <- function(data, columns, config, con, max_display = 10) 
   
   # Combine all changes
   all_changes <- dplyr::bind_rows(changes_list)
-  
+
+  # Enrich idtax_n changes with taxonomic names (genus, species, family)
+  if ("idtax_n" %in% all_changes$column) {
+    all_changes <- .enrich_idtax_n_changes_with_taxonomy(all_changes)
+  }
+
   # Display changes grouped by column with visual comparison
   .display_changes_grouped(
     changes_df = all_changes,
     id_column = config$id_column,
     max_display = max_display
   )
-  
+
   # Return the changes dataframe
   return(all_changes)
 }
@@ -4619,26 +4820,28 @@ execute_feature_updates <- function(changes, config, table_type, con) {
 
 #' Update records with optional single-record comparison display
 #'
-#' @param data Tibble with records to update
-#' @param table_type Character: type of table
-#' @param execute Logical: if FALSE (default), dry run only
-#' @param method Character: "single" or "batch"
-#' @param con Database connection
-#' @param interactive Logical: enable interactive prompts
-#' @param similarity_threshold Numeric: threshold for metadata mapping
+#' @param data Tibble with records to update. Must include the ID column for the table type.
+#' @param table_type Character: type of table. One of "individuals", "plots", "specimens",
+#'   "individual_features", "subplot_features", "individual_features_metadata",
+#'   "methodslist", "table_colnam", "traitlist", or "subplotype_list"
+#' @param execute Logical: if FALSE (default), dry run only - shows what would change
+#' @param method Character: "single" (row-by-row) or "batch" (bulk update via temp table)
+#' @param con Database connection. If NULL, creates new connection
+#' @param interactive Logical: enable interactive prompts for metadata matching
+#' @param similarity_threshold Numeric: threshold (0-1) for fuzzy matching in metadata mapping
 #' @param show_comparison Logical: if TRUE and method="single", display HTML comparison
 #'
 #' @export
-update_records <- function(data, 
-                           table_type = c("individuals", "plots", "individual_features", 
+update_records <- function(data,
+                           table_type = c("individuals", "plots", "individual_features",
                                           "subplot_features", "individual_features_metadata",
                                           "methodslist", "table_colnam",
                                           "traitlist",
-                                          "subplotype_list"), 
-                           execute = FALSE, 
-                           method = c("single", "batch"), 
+                                          "subplotype_list", "specimens"),
+                           execute = FALSE,
+                           method = c("single", "batch"),
                            con = NULL,
-                           interactive = TRUE, 
+                           interactive = TRUE,
                            similarity_threshold = 0.6,
                            show_comparison = TRUE) {
   
