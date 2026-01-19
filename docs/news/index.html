@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,6 +30,152 @@
 
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.9.1" id="cafriplotsr-191-2026-01-18">CafriplotsR 1.9.1 (2026-01-18)<a class="anchor" aria-label="anchor" href="#cafriplotsr-191-2026-01-18"></a></h2>
+<div class="section level4">
+<h4 id="new-features-1-9-1">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-1"></a></h4>
+<ul><li>
+<strong>Taxonomic Backbone Management App</strong>
+<ul><li>New interactive Shiny app <code><a href="../reference/launch_taxo_backbone_app.html">launch_taxo_backbone_app()</a></code> for managing the taxonomic reference database</li>
+<li>Browse and search taxonomic entries at all hierarchical levels (family, genus, species, infraspecific)</li>
+<li>Visualize full taxonomic hierarchy using the hybrid system (flat columns + id_parent tree structure)</li>
+<li>Add new taxa with automatic parent linking and hierarchy validation</li>
+<li>Modify existing taxa with automatic cascade updates to maintain consistency</li>
+<li>Comprehensive synonymy management:
+<ul><li>Set new synonymy relationships</li>
+<li>Reverse synonymy (swap synonym with accepted name)</li>
+<li>Cancel synonymy (make taxon independent)</li>
+</ul></li>
+<li>Hierarchy consistency checking with automatic fixing of missing parent links</li>
+<li>Full bilingual support (English/French) with shiny.i18n integration</li>
+</ul></li>
+<li>
+<strong>Cascade Update System for Taxonomic Hierarchy</strong>
+<ul><li>When modifying upper taxonomic fields (tax_fam, tax_order, tax_famclass), changes automatically cascade to all descendants</li>
+<li>Detects all affected taxa via id_parent relationships (recursive traversal)</li>
+<li>Shows warning modal with list of affected descendants before execution</li>
+<li>Automatically finds or creates upper taxon entries (e.g., creates “Asterales” order when referenced)</li>
+<li>Updates both flat taxonomic columns AND id_parent relationships atomically</li>
+<li>Maintains consistency between denormalized columns and hierarchical structure</li>
+<li>Transaction-safe with automatic rollback on errors</li>
+</ul></li>
+<li>
+<strong>Enhanced Hierarchy Consistency Checking</strong>
+<ul><li>
+<code><a href="../reference/check_hierarchy_consistency.html">check_hierarchy_consistency()</a></code> now detects taxa with missing parent links</li>
+<li>Six types of consistency checks:
+<ol style="list-style-type: decimal"><li>Species → genus mismatch</li>
+<li>Genus → family mismatch</li>
+<li>Family → order mismatch</li>
+<li>Order → class mismatch</li>
+<li>Infraspecific → species mismatch</li>
+<li>
+<strong>NEW</strong>: Missing parent links (taxa with upper fields but no id_parent)</li>
+</ol></li>
+<li>
+<code>fix = TRUE</code> parameter automatically resolves all detected issues</li>
+<li>Finds and links appropriate parent entries for orphaned taxa</li>
+</ul></li>
+<li>
+<strong>Search with Child Taxa Inclusion</strong>
+<ul><li>New “Include child taxa” option in taxonomic search</li>
+<li>Recursively retrieves all descendants via id_parent relationships</li>
+<li>Example: Search “Fabaceae” → returns family + all genera + all species in that family</li>
+<li>Supports up to 10 levels of recursion for safety</li>
+<li>Automatically adds traits to all retrieved child taxa</li>
+</ul></li>
+<li>
+<strong>Comprehensive Vignettes for Backbone Management</strong>
+<ul><li>Bilingual vignettes explaining the taxonomic backbone app:
+<ul><li>English: <code>vignettes/taxonomic-backbone-app.Rmd</code>
+</li>
+<li>French: <code>vignettes/taxonomic-backbone-app-fr.Rmd</code>
+</li>
+</ul></li>
+<li>Detailed documentation of:
+<ul><li>Hybrid taxonomic system architecture</li>
+<li>All app features with step-by-step workflows</li>
+<li>Cascade update examples with real scenarios</li>
+<li>Best practices for taxonomy management</li>
+<li>Troubleshooting common issues</li>
+</ul></li>
+<li>Added to pkgdown site under “Tools” section</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-9-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-1"></a></h4>
+<ul><li>
+<strong>Fixed Exact Match Search Behavior</strong>
+<ul><li>Removed automatic fuzzy fallback when <code>exact_match = TRUE</code>
+</li>
+<li>Now returns NULL when no exact match found instead of falling back to fuzzy matching</li>
+<li>Changed default to fuzzy matching (exact match checkbox unchecked by default)</li>
+</ul></li>
+<li>
+<strong>Fixed Synonym Priority in Search Results</strong>
+<ul><li>When duplicates exist (e.g., multiple “Fabaceae” entries), accepted taxa now appear first</li>
+<li>SQL queries prioritize entries where <code>idtax_good_n IS NULL</code> (accepted names)</li>
+<li>Fixed PostgreSQL <code>SELECT DISTINCT</code> + <code>ORDER BY</code> compatibility issue using subqueries</li>
+<li>
+<code>check_synonymy = FALSE</code> now properly excludes synonyms instead of just skipping resolution</li>
+</ul></li>
+<li>
+<strong>Fixed Pool Connection Errors</strong>
+<ul><li>Fixed “Not supported for pool objects” errors in multiple modules:
+<ul><li>Cancel synonymy operation</li>
+<li>Modify taxon operation</li>
+<li>Search with include children option</li>
+</ul></li>
+<li>Added proper <code>con</code> parameter passing to <code><a href="../reference/update_dico_name.html">update_dico_name()</a></code> calls</li>
+<li>Added <code>tryCatch</code> wrappers for <code>poolReturn()</code> to handle “already returned” errors gracefully</li>
+</ul></li>
+<li>
+<strong>Fixed NA Value Handling in Taxonomic Operations</strong>
+<ul><li>Created <code>na_to_empty()</code> helper function for safe NA/NULL handling</li>
+<li>Fixed “valeur manquante là où TRUE / FALSE est requis” errors in:
+<ul><li>Taxon modification form prefill</li>
+<li>Taxon field change tracking</li>
+<li>Taxon display rendering</li>
+</ul></li>
+<li>Fixed hierarchy visualization crashes when viewing upper taxa (family, order, class)</li>
+<li>Added safe NA checks in hierarchy tree building and breadcrumb path generation</li>
+<li>Created <code>has_value()</code> helper for safe field validation with NA/NULL handling</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="code-refactoring-1-9-1">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-9-1"></a></h4>
+<ul><li>
+<strong>Improved Taxonomic Hierarchy Functions</strong>
+<ul><li>
+<code><a href="../reference/get_taxon_hierarchy.html">get_taxon_hierarchy()</a></code> now uses safe NA handling throughout</li>
+<li>
+<code><a href="../reference/build_hierarchy_tree_html.html">build_hierarchy_tree_html()</a></code> safely compares IDs with explicit NA checks</li>
+<li>
+<code><a href="../reference/build_breadcrumb_path.html">build_breadcrumb_path()</a></code> validates current level before comparisons</li>
+</ul></li>
+<li>
+<strong>Enhanced Synonym Management</strong>
+<ul><li>Reverse synonym feature with automatic cascade to other synonyms</li>
+<li>Direct SQL updates for atomic synonym operations</li>
+<li>Warns about affected taxa before executing changes</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="documentation-1-9-1">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-9-1"></a></h4>
+<ul><li>
+<strong>Updated Search UI Labels</strong>
+<ul><li>Changed “Binomial search” to “Name search (any taxonomic level)”</li>
+<li>Updated placeholders to show family/genus/species examples</li>
+<li>Clarified that search works for all taxonomic levels, not just binomials</li>
+</ul></li>
+<li>
+<strong>Enhanced CLAUDE.md Guidelines</strong>
+<ul><li>Documented plot data storage architecture (flat columns vs lookup columns vs features)</li>
+<li>Clarified <code>subplotype_list</code> feature type categories</li>
+<li>Added examples for dynamic lookup feature identification</li>
+</ul></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.9.0" id="cafriplotsr-190-2026-01-09">CafriplotsR 1.9.0 (2026-01-09)<a class="anchor" aria-label="anchor" href="#cafriplotsr-190-2026-01-09"></a></h2>
 <div class="section level4">

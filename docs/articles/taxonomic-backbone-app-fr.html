@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -74,23 +74,18 @@ application vous permet de :</p>
 <li>
 <strong>Parcourir et rechercher</strong> des entrées taxonomiques à
 tous les niveaux (famille, genre, espèce, etc.)</li>
+<li><strong>Visualiser la hiérarchie taxonomique</strong></li>
 <li>
-<strong>Visualiser la hiérarchie</strong> en utilisant le système
-hybride (colonnes plates + structure arborescente id_parent)</li>
-<li>
-<strong>Ajouter de nouveaux taxons</strong> avec liaison automatique
-aux parents</li>
+<strong>Ajouter de nouveaux taxons</strong> soit manuellement, soit
+en récupérant les informations depuis la base de données TROPICOS</li>
 <li>
 <strong>Modifier des taxons existants</strong> avec mises à jour en
-cascade pour maintenir la cohérence</li>
+cascade pour maintenir la cohérence dans la hiérarchie</li>
 <li>
 <strong>Gérer la synonymie</strong> incluant la définition,
 l’inversion et l’annulation de relations synonymiques</li>
 <li>
-<strong>Vérifier la cohérence</strong> entre les colonnes
-taxonomiques plates et la structure hiérarchique</li>
-<li>
-<strong>Voir et ajouter des traits</strong> au niveau du taxon</li>
+<strong>Voir les traits</strong> au niveau du taxon</li>
 </ul>
 </div>
 <div class="section level2">
@@ -102,67 +97,8 @@ taxonomique. Les utilisateurs réguliers ont généralement un accès en
 <strong>lecture seule</strong>. Contactez votre administrateur de base
 de données si vous avez besoin de gérer les données taxonomiques.</p>
 <p>Avant de lancer l’application, assurez-vous d’avoir :</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Identifiants de base de données</strong> avec les
-permissions appropriées</li>
-<li>
-<strong>Compréhension de la hiérarchie taxonomique</strong> et des
-règles nomenclaturales</li>
-<li>
-<strong>Familiarité avec le système de stockage hybride</strong>
-(expliqué ci-dessous)</li>
-</ol>
-</div>
-<div class="section level2">
-<h2 id="le-système-taxonomique-hybride">Le Système Taxonomique Hybride<a class="anchor" aria-label="anchor" href="#le-syst%C3%A8me-taxonomique-hybride"></a>
-</h2>
-<p>CafriplotsR utilise une approche <strong>HYBRIDE</strong> pour
-stocker les données taxonomiques :</p>
-<div class="section level3">
-<h3 id="colonnes-plates-dénormalisées">Colonnes Plates (Dénormalisées)<a class="anchor" aria-label="anchor" href="#colonnes-plates-d%C3%A9normalis%C3%A9es"></a>
-</h3>
-<ul>
-<li>
-<code>tax_gen</code> - Nom du genre</li>
-<li>
-<code>tax_fam</code> - Nom de la famille</li>
-<li>
-<code>tax_order</code> - Nom de l’ordre</li>
-<li>
-<code>tax_famclass</code> - Nom de la classe</li>
-</ul>
-<p>Utilisées pour des <strong>requêtes rapides</strong> et la
-<strong>compatibilité ascendante</strong>.</p>
-</div>
-<div class="section level3">
-<h3 id="structure-hiérarchique">Structure Hiérarchique<a class="anchor" aria-label="anchor" href="#structure-hi%C3%A9rarchique"></a>
-</h3>
-<ul>
-<li>
-<code>id_parent</code> - Pointe vers l’entrée du taxon parent</li>
-<li>Permet la <strong>navigation arborescente</strong> et la
-<strong>validation de hiérarchie</strong>
-</li>
-</ul>
-</div>
-<div class="section level3">
-<h3 id="pourquoi-les-deux">Pourquoi Les Deux ?<a class="anchor" aria-label="anchor" href="#pourquoi-les-deux"></a>
-</h3>
-<ul>
-<li>
-<strong>Requêtes rapides</strong> : Filtrer par famille sans
-jointures de tables</li>
-<li>
-<strong>Validation de cohérence</strong> : Vérifier que les
-relations espèce → genre → famille → ordre sont correctes</li>
-<li>
-<strong>Mises à jour flexibles</strong> : Propager les changements
-lors de modifications de taxons supérieurs</li>
-</ul>
-<p><strong>L’application maintient automatiquement la synchronisation
-entre les deux systèmes.</strong></p>
-</div>
+<p><strong>Identifiants de base de données</strong> avec les permissions
+appropriées</p>
 </div>
 <div class="section level2">
 <h2 id="démarrage-rapide">Démarrage Rapide<a class="anchor" aria-label="anchor" href="#d%C3%A9marrage-rapide"></a>
@@ -189,7 +125,7 @@ entre les deux systèmes.</strong></p>
 </h3>
 <p>L’interface de recherche supporte plusieurs modes :</p>
 <div class="section level4">
-<h4 id="recherche-par-nom-tous-niveaux">Recherche par Nom (Tous Niveaux)<a class="anchor" aria-label="anchor" href="#recherche-par-nom-tous-niveaux"></a>
+<h4 id="recherche-par-nom-tous-niveaux-taxonomiques">Recherche par Nom (tous niveaux taxonomiques)<a class="anchor" aria-label="anchor" href="#recherche-par-nom-tous-niveaux-taxonomiques"></a>
 </h4>
 <p>Rechercher des noms de famille, genre ou espèce :</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
@@ -256,6 +192,32 @@ taxonomique (famille, genre, espèce, infraspécifique) 3. L’application
 <strong>automatiquement</strong> : - Trouve le taxon parent approprié -
 Le crée s’il manque (ex : crée l’entrée genre lors de l’ajout d’une
 espèce) - Lie via id_parent - Valide la hiérarchie</p>
+<p>La nouvelle entrée peut être remplie à partir d’une correspondance
+dans TROPICOS. Si aucune correspondance n’est trouvée, la nouvelle
+entrée peut être remplie manuellement.</p>
+<p><strong>Ajout de Morpho-taxons :</strong></p>
+<p>Il est possible d’ajouter un morpho-taxon (nom taxonomique
+provisoire). Cela peut être nécessaire dans plusieurs situations :</p>
+<ul>
+<li>Une espèce considérée comme nouvelle pour la science mais pas encore
+formellement publiée</li>
+<li>Un taxon dont l’identification correcte est en attente (ex :
+matériel stérile sans fleurs ni fruits)</li>
+<li>Un taxon restreint à une localité ou une parcelle spécifique en
+attente de description formelle</li>
+</ul>
+<p>Nous recommandons de suivre des conventions de nommage cohérentes
+pour les morpho-taxons, car ceux-ci seront visibles par tous les
+utilisateurs :</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>Nouvelle espèce en attente de description
+formelle</strong> : Inclure le nom de l’auteur (futur) si connu Exemple
+: <em>Strephonema sp.nov. Lachenaud O.</em> (où “sp.nov.” est l’épithète
+spécifique)</p></li>
+<li><p><strong>Morpho-taxon restreint à une localité</strong> : Ajouter
+le nom de la localité dans l’épithète spécifique Exemple : <em>Diospyros
+sp.nov. Sao Tomé Nguema</em></p></li>
+</ol>
 <p><strong>Exemple : Ajout d’une Nouvelle Espèce</strong></p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Dans l'interface de l'application :</span></span>
@@ -272,7 +234,8 @@ espèce) - Lie via id_parent - Valide la hiérarchie</p>
 <span><span class="co"># 3. Remplir toutes les colonnes plates (tax_gen, tax_fam, tax_order, tax_famclass)</span></span></code></pre></div>
 <p><strong>Notes Importantes :</strong> - Toujours fournir la taxonomie
 supérieure complète - Utiliser l’orthographe correcte et les autorités
-nomenclaturales - Vérifier les doublons avant d’ajouter</p>
+nomenclaturales - Vérifier les doublons avant d’ajouter (ceci est
+vérifié dans tous les cas)</p>
 </div>
 <div class="section level3">
 <h3 id="modifier-des-taxons">4. Modifier des Taxons<a class="anchor" aria-label="anchor" href="#modifier-des-taxons"></a>
@@ -450,6 +413,56 @@ inversé si nécessaire</p>
 <span></span>
 <span><span class="co"># Mettre à jour plusieurs taxons programmatiquement</span></span>
 <span><span class="co"># (Soyez très prudent - testez d'abord sur un sous-ensemble !)</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="le-système-taxonomique-hybride">Le Système Taxonomique Hybride<a class="anchor" aria-label="anchor" href="#le-syst%C3%A8me-taxonomique-hybride"></a>
+</h2>
+<p>CafriplotsR utilise une approche <strong>HYBRIDE</strong> pour
+stocker les données taxonomiques :</p>
+<div class="section level3">
+<h3 id="colonnes-plates-dénormalisées">Colonnes Plates (Dénormalisées)<a class="anchor" aria-label="anchor" href="#colonnes-plates-d%C3%A9normalis%C3%A9es"></a>
+</h3>
+<ul>
+<li>
+<code>tax_gen</code> - Nom du genre</li>
+<li>
+<code>tax_fam</code> - Nom de la famille</li>
+<li>
+<code>tax_order</code> - Nom de l’ordre</li>
+<li>
+<code>tax_famclass</code> - Nom de la classe</li>
+</ul>
+<p>Utilisées pour des <strong>requêtes rapides</strong> et la
+<strong>compatibilité ascendante</strong>.</p>
+</div>
+<div class="section level3">
+<h3 id="structure-hiérarchique">Structure Hiérarchique<a class="anchor" aria-label="anchor" href="#structure-hi%C3%A9rarchique"></a>
+</h3>
+<ul>
+<li>
+<code>id_parent</code> - Pointe vers l’entrée du taxon parent</li>
+<li>Permet la <strong>navigation arborescente</strong> et la
+<strong>validation de hiérarchie</strong>
+</li>
+</ul>
+</div>
+<div class="section level3">
+<h3 id="pourquoi-les-deux">Pourquoi Les Deux ?<a class="anchor" aria-label="anchor" href="#pourquoi-les-deux"></a>
+</h3>
+<ul>
+<li>
+<strong>Requêtes rapides</strong> : Filtrer par famille sans
+jointures de tables</li>
+<li>
+<strong>Validation de cohérence</strong> : Vérifier que les
+relations espèce → genre → famille → ordre sont correctes</li>
+<li>
+<strong>Mises à jour flexibles</strong> : Propager les changements
+lors de modifications de taxons supérieurs</li>
+</ul>
+<p><strong>L’application maintient automatiquement la synchronisation
+entre les deux systèmes.</strong></p>
 </div>
 </div>
 <div class="section level2">
