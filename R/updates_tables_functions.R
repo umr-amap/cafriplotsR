@@ -4782,18 +4782,26 @@ execute_direct_updates_single <- function(changes, config, con) {
 execute_direct_updates_batch <- function(changes, config, con) {
   update_data <- changes %>%
     tidyr::pivot_wider(id_cols = !!sym(config$id_column), names_from = column, values_from = new_value)
-  
+
   temp_table <- paste0("temp_update_", format(Sys.time(), "%Y%m%d%H%M%S"))
   DBI::dbWriteTable(con, temp_table, update_data, temporary = TRUE)
-  
+
   cols_to_update <- setdiff(names(update_data), config$id_column)
-  
+
   for (col in cols_to_update) {
-    sql <- glue::glue_sql("UPDATE {`config$table`} t INNER JOIN {`temp_table`} tmp ON t.{`config$id_column`} = tmp.{`config$id_column`} SET t.{`col`} = tmp.{`col`} WHERE tmp.{`col`} IS NOT NULL", .con = con)
+    # PostgreSQL syntax: UPDATE ... SET ... FROM ... WHERE
+    sql <- glue::glue_sql(
+      "UPDATE {`config$table`} t
+       SET {`col`} = tmp.{`col`}
+       FROM {`temp_table`} tmp
+       WHERE t.{`config$id_column`} = tmp.{`config$id_column`}
+       AND tmp.{`col`} IS NOT NULL",
+      .con = con
+    )
     n <- DBI::dbExecute(con, sql)
     cli::cli_alert_success("{col}: {n} updated")
   }
-  
+
   DBI::dbRemoveTable(con, temp_table)
 }
 
