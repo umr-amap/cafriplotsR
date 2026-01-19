@@ -27,12 +27,11 @@ library(CafriplotsR)
 La fonction `launch_taxo_backbone_app()` fournit une application Shiny interactive pour gérer la base de données du référentiel taxonomique des plantes d'Afrique centrale. Cette application vous permet de :
 
 - **Parcourir et rechercher** des entrées taxonomiques à tous les niveaux (famille, genre, espèce, etc.)
-- **Visualiser la hiérarchie** en utilisant le système hybride (colonnes plates + structure arborescente id_parent)
-- **Ajouter de nouveaux taxons** avec liaison automatique aux parents
-- **Modifier des taxons existants** avec mises à jour en cascade pour maintenir la cohérence
+- **Visualiser la hiérarchie taxonomique**
+- **Ajouter de nouveaux taxons** soit manuellement, soit en récupérant les informations depuis la base de données TROPICOS
+- **Modifier des taxons existants** avec mises à jour en cascade pour maintenir la cohérence dans la hiérarchie
 - **Gérer la synonymie** incluant la définition, l'inversion et l'annulation de relations synonymiques
-- **Vérifier la cohérence** entre les colonnes taxonomiques plates et la structure hiérarchique
-- **Voir et ajouter des traits** au niveau du taxon
+- **Voir les traits** au niveau du taxon
 
 ## Prérequis
 
@@ -40,32 +39,7 @@ La fonction `launch_taxo_backbone_app()` fournit une application Shiny interacti
 
 Avant de lancer l'application, assurez-vous d'avoir :
 
-1. **Identifiants de base de données** avec les permissions appropriées
-2. **Compréhension de la hiérarchie taxonomique** et des règles nomenclaturales
-3. **Familiarité avec le système de stockage hybride** (expliqué ci-dessous)
-
-## Le Système Taxonomique Hybride
-
-CafriplotsR utilise une approche **HYBRIDE** pour stocker les données taxonomiques :
-
-### Colonnes Plates (Dénormalisées)
-- `tax_gen` - Nom du genre
-- `tax_fam` - Nom de la famille
-- `tax_order` - Nom de l'ordre
-- `tax_famclass` - Nom de la classe
-
-Utilisées pour des **requêtes rapides** et la **compatibilité ascendante**.
-
-### Structure Hiérarchique
-- `id_parent` - Pointe vers l'entrée du taxon parent
-- Permet la **navigation arborescente** et la **validation de hiérarchie**
-
-### Pourquoi Les Deux ?
-- **Requêtes rapides** : Filtrer par famille sans jointures de tables
-- **Validation de cohérence** : Vérifier que les relations espèce → genre → famille → ordre sont correctes
-- **Mises à jour flexibles** : Propager les changements lors de modifications de taxons supérieurs
-
-**L'application maintient automatiquement la synchronisation entre les deux systèmes.**
+**Identifiants de base de données** avec les permissions appropriées
 
 ## Démarrage Rapide
 
@@ -92,7 +66,7 @@ launch_taxo_backbone_app()
 
 L'interface de recherche supporte plusieurs modes :
 
-#### Recherche par Nom (Tous Niveaux)
+#### Recherche par Nom (tous niveaux taxonomiques)
 Rechercher des noms de famille, genre ou espèce :
 
 ```{r}
@@ -149,6 +123,24 @@ Ajoutez de nouvelles entrées taxonomiques avec liaison automatique aux parents.
    - Lie via id_parent
    - Valide la hiérarchie
 
+La nouvelle entrée peut être remplie à partir d'une correspondance dans TROPICOS. Si aucune correspondance n'est trouvée, la nouvelle entrée peut être remplie manuellement.
+
+**Ajout de Morpho-taxons :**
+
+Il est possible d'ajouter un morpho-taxon (nom taxonomique provisoire). Cela peut être nécessaire dans plusieurs situations :
+
+- Une espèce considérée comme nouvelle pour la science mais pas encore formellement publiée
+- Un taxon dont l'identification correcte est en attente (ex : matériel stérile sans fleurs ni fruits)
+- Un taxon restreint à une localité ou une parcelle spécifique en attente de description formelle
+
+Nous recommandons de suivre des conventions de nommage cohérentes pour les morpho-taxons, car ceux-ci seront visibles par tous les utilisateurs :
+
+1. **Nouvelle espèce en attente de description formelle** : Inclure le nom de l'auteur (futur) si connu
+   Exemple : _Strephonema sp.nov. Lachenaud O._ (où "sp.nov." est l'épithète spécifique)
+
+2. **Morpho-taxon restreint à une localité** : Ajouter le nom de la localité dans l'épithète spécifique
+   Exemple : _Diospyros sp.nov. Sao Tomé Nguema_
+
 **Exemple : Ajout d'une Nouvelle Espèce**
 
 ```{r}
@@ -169,7 +161,7 @@ Ajoutez de nouvelles entrées taxonomiques avec liaison automatique aux parents.
 **Notes Importantes :**
 - Toujours fournir la taxonomie supérieure complète
 - Utiliser l'orthographe correcte et les autorités nomenclaturales
-- Vérifier les doublons avant d'ajouter
+- Vérifier les doublons avant d'ajouter (ceci est vérifié dans tous les cas)
 
 ### 4. Modifier des Taxons
 
@@ -336,6 +328,29 @@ check_hierarchy_consistency(con, fix = TRUE)
 # Mettre à jour plusieurs taxons programmatiquement
 # (Soyez très prudent - testez d'abord sur un sous-ensemble !)
 ```
+
+## Le Système Taxonomique Hybride
+
+CafriplotsR utilise une approche **HYBRIDE** pour stocker les données taxonomiques :
+
+### Colonnes Plates (Dénormalisées)
+- `tax_gen` - Nom du genre
+- `tax_fam` - Nom de la famille
+- `tax_order` - Nom de l'ordre
+- `tax_famclass` - Nom de la classe
+
+Utilisées pour des **requêtes rapides** et la **compatibilité ascendante**.
+
+### Structure Hiérarchique
+- `id_parent` - Pointe vers l'entrée du taxon parent
+- Permet la **navigation arborescente** et la **validation de hiérarchie**
+
+### Pourquoi Les Deux ?
+- **Requêtes rapides** : Filtrer par famille sans jointures de tables
+- **Validation de cohérence** : Vérifier que les relations espèce → genre → famille → ordre sont correctes
+- **Mises à jour flexibles** : Propager les changements lors de modifications de taxons supérieurs
+
+**L'application maintient automatiquement la synchronisation entre les deux systèmes.**
 
 ## Bonnes Pratiques
 
