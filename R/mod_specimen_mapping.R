@@ -94,12 +94,14 @@ mod_specimen_mapping_ui <- function(id, i18n) {
         style = "margin-bottom: 15px;"
       ),
 
+      # Determination information
+      shiny::h5(i18n$t("Determination Information"), style = "color: #6c757d; margin-top: 15px;"),
       shiny::fluidRow(
         shiny::column(
           6,
           shiny::selectInput(
             ns("col_det_by"),
-            i18n$t("Determined by"),
+            i18n$t("Determined by (text)"),
             choices = NULL,
             width = "100%"
           )
@@ -107,8 +109,70 @@ mod_specimen_mapping_ui <- function(id, i18n) {
         shiny::column(
           6,
           shiny::selectInput(
+            ns("col_original_tax_name"),
+            i18n$t("Original Taxon Name"),
+            choices = NULL,
+            width = "100%"
+          )
+        )
+      ),
+
+      shiny::fluidRow(
+        shiny::column(
+          4,
+          shiny::selectInput(
             ns("col_det_year"),
             i18n$t("Determination Year"),
+            choices = NULL,
+            width = "100%"
+          )
+        ),
+        shiny::column(
+          4,
+          shiny::selectInput(
+            ns("col_det_month"),
+            i18n$t("Determination Month"),
+            choices = NULL,
+            width = "100%"
+          )
+        ),
+        shiny::column(
+          4,
+          shiny::selectInput(
+            ns("col_det_day"),
+            i18n$t("Determination Day"),
+            choices = NULL,
+            width = "100%"
+          )
+        )
+      ),
+
+      # Collection information
+      shiny::h5(i18n$t("Collection Information"), style = "color: #6c757d; margin-top: 15px;"),
+      shiny::fluidRow(
+        shiny::column(
+          4,
+          shiny::selectInput(
+            ns("col_col_year"),
+            i18n$t("Collection Year"),
+            choices = NULL,
+            width = "100%"
+          )
+        ),
+        shiny::column(
+          4,
+          shiny::selectInput(
+            ns("col_col_month"),
+            i18n$t("Collection Month"),
+            choices = NULL,
+            width = "100%"
+          )
+        ),
+        shiny::column(
+          4,
+          shiny::selectInput(
+            ns("col_col_day"),
+            i18n$t("Collection Day"),
             choices = NULL,
             width = "100%"
           )
@@ -119,8 +183,22 @@ mod_specimen_mapping_ui <- function(id, i18n) {
         shiny::column(
           6,
           shiny::selectInput(
-            ns("col_det_month"),
-            i18n$t("Determination Month"),
+            ns("col_add_col"),
+            i18n$t("Additional Collector(s)"),
+            choices = NULL,
+            width = "100%"
+          )
+        )
+      ),
+
+      # Location information
+      shiny::h5(i18n$t("Location Information"), style = "color: #6c757d; margin-top: 15px;"),
+      shiny::fluidRow(
+        shiny::column(
+          6,
+          shiny::selectInput(
+            ns("col_locality"),
+            i18n$t("Locality"),
             choices = NULL,
             width = "100%"
           )
@@ -128,8 +206,43 @@ mod_specimen_mapping_ui <- function(id, i18n) {
         shiny::column(
           6,
           shiny::selectInput(
-            ns("col_det_day"),
-            i18n$t("Determination Day"),
+            ns("col_country"),
+            i18n$t("Country"),
+            choices = NULL,
+            width = "100%"
+          )
+        )
+      ),
+
+      shiny::fluidRow(
+        shiny::column(
+          6,
+          shiny::selectInput(
+            ns("col_ddlat"),
+            i18n$t("Latitude (ddlat)"),
+            choices = NULL,
+            width = "100%"
+          )
+        ),
+        shiny::column(
+          6,
+          shiny::selectInput(
+            ns("col_ddlon"),
+            i18n$t("Longitude (ddlon)"),
+            choices = NULL,
+            width = "100%"
+          )
+        )
+      ),
+
+      # Other information
+      shiny::h5(i18n$t("Other Information"), style = "color: #6c757d; margin-top: 15px;"),
+      shiny::fluidRow(
+        shiny::column(
+          12,
+          shiny::selectInput(
+            ns("col_description"),
+            i18n$t("Description/Notes"),
             choices = NULL,
             width = "100%"
           )
@@ -176,10 +289,28 @@ mod_specimen_mapping_server <- function(id, data, con, i18n) {
       shiny::updateSelectInput(session, "col_colnbr", choices = choices)
       shiny::updateSelectInput(session, "col_idtax_n", choices = choices)
       shiny::updateSelectInput(session, "col_suffix", choices = choices)
+
+      # Determination fields
       shiny::updateSelectInput(session, "col_det_by", choices = choices)
+      shiny::updateSelectInput(session, "col_original_tax_name", choices = choices)
       shiny::updateSelectInput(session, "col_det_year", choices = choices)
       shiny::updateSelectInput(session, "col_det_month", choices = choices)
       shiny::updateSelectInput(session, "col_det_day", choices = choices)
+
+      # Collection fields
+      shiny::updateSelectInput(session, "col_col_year", choices = choices)
+      shiny::updateSelectInput(session, "col_col_month", choices = choices)
+      shiny::updateSelectInput(session, "col_col_day", choices = choices)
+      shiny::updateSelectInput(session, "col_add_col", choices = choices)
+
+      # Location fields
+      shiny::updateSelectInput(session, "col_locality", choices = choices)
+      shiny::updateSelectInput(session, "col_country", choices = choices)
+      shiny::updateSelectInput(session, "col_ddlat", choices = choices)
+      shiny::updateSelectInput(session, "col_ddlon", choices = choices)
+
+      # Other fields
+      shiny::updateSelectInput(session, "col_description", choices = choices)
     })
 
     # Auto-detect columns based on common naming patterns
@@ -238,11 +369,81 @@ mod_specimen_mapping_server <- function(id, data, con, i18n) {
         shiny::updateSelectInput(session, "col_det_month", selected = month_match)
       }
 
-      # Day patterns
+      # Determination day patterns
       day_patterns <- c("det_day", "detd", "day", "jour", "det_d")
       day_match <- .find_column_match(user_cols, user_cols_lower, day_patterns)
       if (!is.null(day_match)) {
         shiny::updateSelectInput(session, "col_det_day", selected = day_match)
+      }
+
+      # Original taxon name patterns
+      orig_tax_patterns <- c("original_tax_name", "original_name", "orig_tax", "tax_original")
+      orig_tax_match <- .find_column_match(user_cols, user_cols_lower, orig_tax_patterns)
+      if (!is.null(orig_tax_match)) {
+        shiny::updateSelectInput(session, "col_original_tax_name", selected = orig_tax_match)
+      }
+
+      # Collection year patterns
+      coly_patterns <- c("coly", "col_year", "collection_year", "year_coll", "annee_recolte")
+      coly_match <- .find_column_match(user_cols, user_cols_lower, coly_patterns)
+      if (!is.null(coly_match)) {
+        shiny::updateSelectInput(session, "col_col_year", selected = coly_match)
+      }
+
+      # Collection month patterns
+      colm_patterns <- c("colm", "col_month", "collection_month", "month_coll", "mois_recolte")
+      colm_match <- .find_column_match(user_cols, user_cols_lower, colm_patterns)
+      if (!is.null(colm_match)) {
+        shiny::updateSelectInput(session, "col_col_month", selected = colm_match)
+      }
+
+      # Collection day patterns
+      cold_patterns <- c("cold", "col_day", "collection_day", "day_coll", "jour_recolte")
+      cold_match <- .find_column_match(user_cols, user_cols_lower, cold_patterns)
+      if (!is.null(cold_match)) {
+        shiny::updateSelectInput(session, "col_col_day", selected = cold_match)
+      }
+
+      # Additional collector patterns
+      add_col_patterns <- c("add_col", "additional_collector", "addcol", "coll_add", "autres_collecteurs")
+      add_col_match <- .find_column_match(user_cols, user_cols_lower, add_col_patterns)
+      if (!is.null(add_col_match)) {
+        shiny::updateSelectInput(session, "col_add_col", selected = add_col_match)
+      }
+
+      # Locality patterns
+      locality_patterns <- c("locality", "localite", "loc", "location", "lieu")
+      locality_match <- .find_column_match(user_cols, user_cols_lower, locality_patterns)
+      if (!is.null(locality_match)) {
+        shiny::updateSelectInput(session, "col_locality", selected = locality_match)
+      }
+
+      # Country patterns
+      country_patterns <- c("country", "pays", "ctry")
+      country_match <- .find_column_match(user_cols, user_cols_lower, country_patterns)
+      if (!is.null(country_match)) {
+        shiny::updateSelectInput(session, "col_country", selected = country_match)
+      }
+
+      # Latitude patterns
+      lat_patterns <- c("ddlat", "latitude", "lat", "y")
+      lat_match <- .find_column_match(user_cols, user_cols_lower, lat_patterns)
+      if (!is.null(lat_match)) {
+        shiny::updateSelectInput(session, "col_ddlat", selected = lat_match)
+      }
+
+      # Longitude patterns
+      lon_patterns <- c("ddlon", "longitude", "lon", "long", "x")
+      lon_match <- .find_column_match(user_cols, user_cols_lower, lon_patterns)
+      if (!is.null(lon_match)) {
+        shiny::updateSelectInput(session, "col_ddlon", selected = lon_match)
+      }
+
+      # Description patterns
+      desc_patterns <- c("description", "desc", "notes", "note", "remarks", "remarques", "comment", "commentaire")
+      desc_match <- .find_column_match(user_cols, user_cols_lower, desc_patterns)
+      if (!is.null(desc_match)) {
+        shiny::updateSelectInput(session, "col_description", selected = desc_match)
       }
 
       shiny::showNotification(
@@ -265,14 +466,35 @@ mod_specimen_mapping_server <- function(id, data, con, i18n) {
       if (is_valid) {
         # Build mappings object
         current_mappings <- list(
+          # Required fields
           collector = input$col_collector,
           colnbr = input$col_colnbr,
           idtax_n = input$col_idtax_n,
+
+          # Optional fields
           suffix = if (!is.null(input$col_suffix) && input$col_suffix != "") input$col_suffix else NULL,
+
+          # Determination
           det_by = if (!is.null(input$col_det_by) && input$col_det_by != "") input$col_det_by else NULL,
+          original_tax_name = if (!is.null(input$col_original_tax_name) && input$col_original_tax_name != "") input$col_original_tax_name else NULL,
           det_year = if (!is.null(input$col_det_year) && input$col_det_year != "") input$col_det_year else NULL,
           det_month = if (!is.null(input$col_det_month) && input$col_det_month != "") input$col_det_month else NULL,
-          det_day = if (!is.null(input$col_det_day) && input$col_det_day != "") input$col_det_day else NULL
+          det_day = if (!is.null(input$col_det_day) && input$col_det_day != "") input$col_det_day else NULL,
+
+          # Collection
+          col_year = if (!is.null(input$col_col_year) && input$col_col_year != "") input$col_col_year else NULL,
+          col_month = if (!is.null(input$col_col_month) && input$col_col_month != "") input$col_col_month else NULL,
+          col_day = if (!is.null(input$col_col_day) && input$col_col_day != "") input$col_col_day else NULL,
+          add_col = if (!is.null(input$col_add_col) && input$col_add_col != "") input$col_add_col else NULL,
+
+          # Location
+          locality = if (!is.null(input$col_locality) && input$col_locality != "") input$col_locality else NULL,
+          country = if (!is.null(input$col_country) && input$col_country != "") input$col_country else NULL,
+          ddlat = if (!is.null(input$col_ddlat) && input$col_ddlat != "") input$col_ddlat else NULL,
+          ddlon = if (!is.null(input$col_ddlon) && input$col_ddlon != "") input$col_ddlon else NULL,
+
+          # Other
+          description = if (!is.null(input$col_description) && input$col_description != "") input$col_description else NULL
         )
         mappings(current_mappings)
       } else {

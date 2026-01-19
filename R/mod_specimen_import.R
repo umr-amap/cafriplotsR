@@ -267,20 +267,46 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
         # Prepare specimen records
         shiny::incProgress(0.2, detail = i18n()$t("Preparing data..."))
 
+        # Start with required fields
         specimens <- data.frame(
-          id_table_colnam = valid_data$id_colnam,
+          id_colnam = valid_data$id_colnam,
           colnbr = valid_data[[maps$colnbr]],
           suffix = if (!is.null(maps$suffix)) valid_data[[maps$suffix]] else NA_character_,
           idtax_n = valid_data$idtax_n,
-          detby = if (!is.null(valid_data$id_detby)) valid_data$id_detby else NA_integer_,
-          dety = if (!is.null(maps$det_year)) valid_data[[maps$det_year]] else NA_integer_,
-          detm = if (!is.null(maps$det_month)) valid_data[[maps$det_month]] else NA_integer_,
-          detd = if (!is.null(maps$det_day)) valid_data[[maps$det_day]] else NA_integer_,
           stringsAsFactors = FALSE
         )
 
-        # Clean up NA values for character columns
-        specimens$suffix[is.na(specimens$suffix)] <- ""
+        # Add determination fields
+        # Note: detby is stored as free text (not as ID reference to table_colnam)
+        specimens$detby <- if (!is.null(maps$det_by)) as.character(valid_data[[maps$det_by]]) else NA_character_
+        specimens$dety <- if (!is.null(maps$det_year)) as.integer(valid_data[[maps$det_year]]) else NA_integer_
+        specimens$detm <- if (!is.null(maps$det_month)) as.integer(valid_data[[maps$det_month]]) else NA_integer_
+        specimens$detd <- if (!is.null(maps$det_day)) as.integer(valid_data[[maps$det_day]]) else NA_integer_
+        specimens$original_tax_name <- if (!is.null(maps$original_tax_name)) as.character(valid_data[[maps$original_tax_name]]) else NA_character_
+
+        # Add collection date fields
+        specimens$coly <- if (!is.null(maps$col_year)) as.integer(valid_data[[maps$col_year]]) else NA_integer_
+        specimens$colm <- if (!is.null(maps$col_month)) as.integer(valid_data[[maps$col_month]]) else NA_integer_
+        specimens$cold <- if (!is.null(maps$col_day)) as.integer(valid_data[[maps$col_day]]) else NA_integer_
+
+        # Add location fields
+        specimens$locality <- if (!is.null(maps$locality)) as.character(valid_data[[maps$locality]]) else NA_character_
+        specimens$country <- if (!is.null(maps$country)) as.character(valid_data[[maps$country]]) else NA_character_
+        specimens$ddlat <- if (!is.null(maps$ddlat)) as.numeric(valid_data[[maps$ddlat]]) else NA_real_
+        specimens$ddlon <- if (!is.null(maps$ddlon)) as.numeric(valid_data[[maps$ddlon]]) else NA_real_
+
+        # Add other fields
+        specimens$add_col <- if (!is.null(maps$add_col)) as.character(valid_data[[maps$add_col]]) else NA_character_
+        specimens$description <- if (!is.null(maps$description)) as.character(valid_data[[maps$description]]) else NA_character_
+
+        # Add modification timestamp (as per add_specimens function)
+        specimens$data_modif_y <- as.integer(format(Sys.Date(), "%Y"))
+        specimens$data_modif_m <- as.integer(format(Sys.Date(), "%m"))
+        specimens$data_modif_d <- as.integer(format(Sys.Date(), "%d"))
+
+        # Note: Leave suffix, detby, and other optional text fields as NA (not empty strings)
+        # Only convert empty strings to NA if needed for database consistency
+        # The database accepts NULL/NA values for these optional fields
 
         if (dry_run) {
           # Dry run - just show what would be imported
@@ -312,32 +338,15 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
 
             shiny::incProgress(0.6, detail = i18n()$t("Inserting specimens..."))
 
-            # Insert specimens one by one to get IDs back
-            inserted_ids <- c()
-            for (i in seq_len(nrow(specimens))) {
-              sql <- sprintf(
-                "INSERT INTO specimens (id_table_colnam, colnbr, suffix, idtax_n, detby, dety, detm, detd)
-                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                 RETURNING id_specimen",
-                specimens$id_table_colnam[i],
-                specimens$colnbr[i],
-                DBI::dbQuoteString(actual_con, specimens$suffix[i]),
-                specimens$idtax_n[i],
-                ifelse(is.na(specimens$detby[i]), "NULL", specimens$detby[i]),
-                ifelse(is.na(specimens$dety[i]), "NULL", specimens$dety[i]),
-                ifelse(is.na(specimens$detm[i]), "NULL", specimens$detm[i]),
-                ifelse(is.na(specimens$detd[i]), "NULL", specimens$detd[i])
-              )
-
-              result <- DBI::dbGetQuery(actual_con, sql)
-              inserted_ids <- c(inserted_ids, result$id_specimen)
-
-              # Update progress
-              if (i %% 10 == 0) {
-                shiny::incProgress(0.3 * (i / nrow(specimens)),
-                                   detail = sprintf(i18n()$t("Inserted %d of %d"), i, nrow(specimens)))
-              }
-            }
+            # Use DBI::dbWriteTable for safe batch insert (prevents SQL injection)
+            # This is the same approach used in mod_specimen_add.R
+            DBI::dbWriteTable(
+              actual_con,
+              "specimens",
+              specimens,
+              append = TRUE,
+              row.names = FALSE
+            )
 
             # Commit transaction
             DBI::dbCommit(actual_con)
@@ -347,14 +356,13 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
             import_results(list(
               success = TRUE,
               dry_run = FALSE,
-              n_specimens = length(inserted_ids),
-              inserted_ids = inserted_ids
+              n_specimens = nrow(specimens)
             ))
 
             import_complete(TRUE)
 
             shiny::showNotification(
-              sprintf(i18n()$t("Successfully imported %d specimens"), length(inserted_ids)),
+              sprintf(i18n()$t("Successfully imported %d specimens"), nrow(specimens)),
               type = "message",
               duration = 5
             )
@@ -408,15 +416,7 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
           class = "alert alert-success",
           style = "margin-top: 30px;",
           shiny::h4(shiny::icon("check-circle"), " ", i18n()$t("Import Successful!")),
-          shiny::p(sprintf(i18n()$t("%d specimens have been added to the database."), results$n_specimens)),
-          if (!is.null(results$inserted_ids)) {
-            shiny::p(
-              i18n()$t("Specimen IDs:"),
-              " ",
-              paste(head(results$inserted_ids, 10), collapse = ", "),
-              if (length(results$inserted_ids) > 10) paste0("... (", length(results$inserted_ids) - 10, " more)")
-            )
-          }
+          shiny::p(sprintf(i18n()$t("%d specimens have been added to the database."), results$n_specimens))
         )
       } else {
         shiny::div(

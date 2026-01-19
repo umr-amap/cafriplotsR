@@ -97,21 +97,10 @@ mod_specimen_lookup_server <- function(id, data, mappings, con_main, con_taxa, i
         )
         collector_analysis(collector_matches)
 
-        # ===== ANALYZE DET_BY (if mapped) =====
-        if (!is.null(maps$det_by)) {
-          shiny::incProgress(0.1, detail = i18n()$t("Analyzing determiners..."))
-
-          det_by_col <- maps$det_by
-          unique_det_by <- unique(user_data[[det_by_col]])
-          unique_det_by <- unique_det_by[!is.na(unique_det_by) & unique_det_by != ""]
-
-          det_by_matches <- .match_lookup_values(
-            user_values = unique_det_by,
-            db_values = db_collectors$colnam,
-            db_ids = db_collectors$id_table_colnam
-          )
-          det_by_analysis(det_by_matches)
-        }
+        # ===== DET_BY is stored as free text (not matched to table_colnam) =====
+        # Note: detby field stores the determiner's name as text, not as an ID reference
+        # It is not linked to table_colnam
+        det_by_analysis(NULL)
 
         # ===== VALIDATE TAXONOMIC IDS =====
         shiny::incProgress(0.3, detail = i18n()$t("Validating taxonomic IDs..."))
@@ -359,16 +348,8 @@ mod_specimen_lookup_server <- function(id, data, mappings, con_main, con_taxa, i
         result$idtax_n <- as.integer(result[[idtax_col]])
       }
 
-      # Add det_by IDs if mapped
-      det_by <- det_by_analysis()
-      if (!is.null(det_by) && !is.null(maps$det_by)) {
-        det_by_col <- maps$det_by
-        result$id_detby <- sapply(result[[det_by_col]], function(val) {
-          if (is.na(val) || val == "") return(NA_integer_)
-          if (val %in% names(det_by$exact)) return(as.integer(det_by$exact[[val]]))
-          return(NA_integer_)
-        })
-      }
+      # Note: det_by is stored as free text, no matching needed
+      # The original text value will be used directly during import
 
       matched_data(result)
     }
