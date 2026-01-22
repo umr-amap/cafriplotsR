@@ -152,10 +152,11 @@ validate_plot_metadata <- function(data,
     all_changes <- rbind(all_changes, lookup_check$changes_made)
   }
 
-  # 5. Unique constraints
+  # 5. Unique constraints (pass connection for database checks)
   unique_check <- .validate_unique_constraints(
     validated_data,
-    config
+    config,
+    con
   )
   errors <- c(errors, unique_check)
 
@@ -1137,17 +1138,21 @@ validate_plot_metadata <- function(data,
 #' Validate Unique Constraints
 #'
 #' Checks for duplicate values in columns that should be unique.
+#' For plot_name, checks both within uploaded data AND against existing
+#' database plots (respects row-level security - only user's accessible plots).
 #'
 #' @param data Data frame with schema column names
 #' @param config Routing configuration
+#' @param con Database connection (optional, but needed for database uniqueness checks)
 #'
 #' @return List of error objects
 #' @keywords internal
-.validate_unique_constraints <- function(data, config) {
+.validate_unique_constraints <- function(data, config, con = NULL) {
   errors <- list()
 
   # plot_name should be unique
   if ("plot_name" %in% names(data)) {
+    # Check 1: Duplicates within uploaded data
     duplicated_values <- data$plot_name[duplicated(data$plot_name) & !is.na(data$plot_name)]
 
     if (length(duplicated_values) > 0) {
@@ -1164,6 +1169,44 @@ validate_plot_metadata <- function(data,
           value = as.character(dup_val)
         )))
       }
+    }
+
+    # Check 2: Duplicates against existing plots in database (respects RLS)
+    if (!is.null(con)) {
+      tryCatch({
+        # Get existing plot names from database
+        # RLS policies automatically filter to user's accessible plots
+        existing_plot_names <- DBI::dbGetQuery(con, "
+          SELECT plot_name
+          FROM data_liste_plots
+          WHERE plot_name IS NOT NULL
+        ")$plot_name
+
+        if (length(existing_plot_names) > 0) {
+          # Check each plot name in upload data
+          for (i in seq_len(nrow(data))) {
+            plot_name <- data$plot_name[i]
+
+            if (!is.na(plot_name) && trimws(plot_name) != "") {
+              # Check if this plot name already exists in user's accessible plots
+              if (plot_name %in% existing_plot_names) {
+                errors <- c(errors, list(list(
+                  column = "plot_name",
+                  row = i,
+                  message = sprintf(
+                    "Plot name '%s' already exists in your accessible plots. Plot names must be unique within your dataset.",
+                    plot_name
+                  ),
+                  value = as.character(plot_name)
+                )))
+              }
+            }
+          }
+        }
+      }, error = function(e) {
+        # Log error but don't fail validation
+        cli::cli_alert_warning("Could not check plot names against database: {e$message}")
+      })
     }
   }
 

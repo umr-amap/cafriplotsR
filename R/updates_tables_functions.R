@@ -4018,6 +4018,43 @@ get_table_columns <- function(table_name, con) {
     ))
   }
 
+  # For data_liste_plots, only specific columns are mappable during import
+  # Other columns are either:
+  # - ID columns (id_liste_plots, id_method, id_country) filled internally
+  # - Features stored in data_liste_sub_plots (team_leader, principal_investigator, etc.)
+  # - System columns (date_creation_*, date_modif_*, user_modif)
+  if (table_name == "data_liste_plots") {
+    return(c(
+      # Required columns
+      "plot_name",           # Plot identifier (required, unique)
+      "method",              # Survey method (required, lookup to methodslist)
+      "country",             # Country (required, lookup to table_countries)
+
+      # Recommended columns - geographic
+      "ddlat",               # Latitude in decimal degrees (recommended)
+      "ddlon",               # Longitude in decimal degrees (recommended)
+      "elevation",           # Elevation in meters (optional)
+      "locality_name",       # Locality name (recommended)
+      "province",            # Province/state (optional)
+
+      # Recommended columns - temporal
+      "date_y",              # Year of census/survey (recommended)
+      "date_m",              # Month of census/survey (optional)
+      "data_d",              # Day of census/survey (optional)
+
+      # Optional columns - plot characteristics
+      "subplot_shape"        # Shape of subplot (optional)
+
+      # Note: The following are NOT included because they are:
+      # - team_leader, principal_investigator, data_manager, additional_people,
+      #   data_provider → Features in data_liste_sub_plots
+      # - id_method, id_country → Internal IDs filled from lookup matching
+      # - id_liste_plots → Primary key, auto-generated
+      # - forest_type, area_plot, topo_comment, notes, co_authorship →
+      #   Either deprecated or handled separately
+    ))
+  }
+
   # For specimens, define editable columns explicitly
   if (table_name == "specimens") {
     return(c(
@@ -4055,27 +4092,20 @@ get_table_columns <- function(table_name, con) {
 
     cols <- DBI::dbListFields(actual_con, table_name)
 
+    # System columns to exclude (creation/modification metadata)
     system_cols <- c("date_creation_d", "date_creation_m", "date_creation_y",
                      "date_modif_d", "date_modif_m", "date_modif_y",
                      "user_modif")
 
-    if (table_name == "data_liste_plots") {
-      system_cols <- c(system_cols,
-                       "team_leader", "province",
-                       "additional_people", "data_provider", "co_authorship",
-                       "forest_type", "area_plot", "topo_comment", "notes")
-    }
+    # Note: data_liste_plots, data_individuals, and specimens are handled explicitly above
+    # This section is for other tables only
 
     setdiff(cols, system_cols)
   }, error = function(e) {
     # Fallback: return basic required columns if query fails
+    # Note: This should rarely be reached since main tables have explicit definitions above
     message("Note: Could not fetch table columns for ", table_name, " (", e$message, "). Using fallback columns.")
-    if (table_name == "data_liste_plots") {
-      c("plot_name", "ddlat", "ddlon", "elevation", "date_y", "date_m", "date_d",
-        "locality_name", "method", "country")
-    } else {
-      character(0)
-    }
+    character(0)
   })
 }
 

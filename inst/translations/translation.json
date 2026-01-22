@@ -5040,6 +5040,246 @@
     {
       "en": "Determined by (text)",
       "fr": "Déterminé par (texte libre)"
+    },
+    {
+      "en": "Required Columns (Mandatory)",
+      "fr": "Colonnes obligatoires (Mandatory)"
+    },
+    {
+      "en": "These columns MUST be mapped to proceed:",
+      "fr": "Ces colonnes DOIVENT être mappées pour continuer:"
+    },
+    {
+      "en": "Recommended Columns (Optional)",
+      "fr": "Colonnes recommandées (Optionnel)"
+    },
+    {
+      "en": "These columns are optional but strongly recommended:",
+      "fr": "Ces colonnes sont optionnelles mais fortement recommandées:"
+    },
+    {
+      "en": "All %d required columns are mapped:",
+      "fr": "Toutes les %d colonnes obligatoires sont mappées:"
+    },
+    {
+      "en": "Total columns mapped: %d",
+      "fr": "Total de colonnes mappées: %d"
+    },
+    {
+      "en": "User Modified",
+      "fr": "Modifié par l'utilisateur"
+    },
+    {
+      "en": "Create New Plot Feature",
+      "fr": "Créer une nouvelle caractéristique de parcelle"
+    },
+    {
+      "en": "Click if you have a column that doesn't match any existing plot feature",
+      "fr": "Cliquez si vous avez une colonne qui ne correspond à aucune caractéristique de parcelle existante"
+    },
+    {
+      "en": "Create a new feature that can be linked to plots (e.g., soil characteristics, additional census information).",
+      "fr": "Créez une nouvelle caractéristique qui peut être liée aux parcelles (ex: caractéristiques du sol, informations de recensement supplémentaires)."
+    },
+    {
+      "en": "e.g., soil_ph, canopy_height, soil_type",
+      "fr": "ex: ph_sol, hauteur_canopee, type_sol"
+    },
+    {
+      "en": "Reference to People (table_colnam)",
+      "fr": "Référence à des Personnes (table_colnam)"
+    },
+    {
+      "en": "About table_colnam type:",
+      "fr": "À propos du type table_colnam :"
+    },
+    {
+      "en": "This type is for features that reference people in the database",
+      "fr": "Ce type est pour les caractéristiques qui référencent des personnes dans la base de données"
+    },
+    {
+      "en": "Examples: field_coordinator, data_collector, project_lead",
+      "fr": "Exemples : coordinateur_terrain, collecteur_données, chef_projet"
+    },
+    {
+      "en": "Values will be matched to people names in the lookup step (Step 4)",
+      "fr": "Les valeurs seront associées aux noms de personnes dans l'étape de correspondance (Étape 4)"
+    },
+    {
+      "en": "The feature will store person IDs, not names directly",
+      "fr": "La caractéristique stockera les IDs de personnes, pas les noms directement"
+    },
+    {
+      "en": "Census Info",
+      "fr": "Info Recensement"
+    },
+    {
+      "en": "Next: Census Info (Optional)",
+      "fr": "Suivant : Info Recensement (Optionnel)"
+    },
+    {
+      "en": "Optional: Add Census Information",
+      "fr": "Optionnel : Ajouter les Informations de Recensement"
+    },
+    {
+      "en": "If your plots are permanent (tagged stems that will be recensused), you can add census information now.",
+      "fr": "Si vos placettes sont permanentes (tiges étiquetées qui seront recensées), vous pouvez ajouter les informations de recensement maintenant."
+    },
+    {
+      "en": "Are these plots permanent?",
+      "fr": "Ces placettes sont-elles permanentes ?"
+    },
+    {
+      "en": "Yes - stems are tagged and will be recensused",
+      "fr": "Oui - les tiges sont étiquetées et seront recensées"
+    },
+    {
+      "en": "No - temporary plots or non-tagged stems",
+      "fr": "Non - placettes temporaires ou tiges non étiquetées"
+    },
+    {
+      "en": "Census information will be added as subplot features. This helps track measurements across time.",
+      "fr": "Les informations de recensement seront ajoutées comme caractéristiques de sous-parcelle. Cela aide à suivre les mesures dans le temps."
+    },
+    {
+      "en": "Census Details",
+      "fr": "Détails du Recensement"
+    },
+    {
+      "en": "Census Number",
+      "fr": "Numéro de Recensement"
+    },
+    {
+      "en": "Year *",
+      "fr": "Année *"
+    },
+    {
+      "en": "Use date from plot metadata",
+      "fr": "Utiliser la date des métadonnées de placette"
+    },
+    {
+      "en": "This will fill the date fields with values from your uploaded plot data",
+      "fr": "Cela remplira les champs de date avec les valeurs de vos données de placette téléchargées"
+    },
+    {
+      "en": "Team Information",
+      "fr": "Informations sur l'Équipe"
+    },
+    {
+      "en": "Team Leader *",
+      "fr": "Chef d'Équipe *"
+    },
+    {
+      "en": "Enter team leader name",
+      "fr": "Entrer le nom du chef d'équipe"
+    },
+    {
+      "en": "Will be matched to people in the database (table_colnam)",
+      "fr": "Sera apparié aux personnes dans la base de données (table_colnam)"
+    },
+    {
+      "en": "Additional People",
+      "fr": "Personnes Supplémentaires"
+    },
+    {
+      "en": "Comma-separated names",
+      "fr": "Noms séparés par des virgules"
+    },
+    {
+      "en": "Example: John Doe, Jane Smith",
+      "fr": "Exemple : Jean Dupont, Marie Martin"
+    },
+    {
+      "en": "Census Data Preview",
+      "fr": "Aperçu des Données de Recensement"
+    },
+    {
+      "en": "Census information will be added for %d plot(s)",
+      "fr": "Les informations de recensement seront ajoutées pour %d placette(s)"
+    },
+    {
+      "en": "Add Census Information",
+      "fr": "Ajouter les Informations de Recensement"
+    },
+    {
+      "en": "Year is required",
+      "fr": "L'année est obligatoire"
+    },
+    {
+      "en": "Team leader is required",
+      "fr": "Le chef d'équipe est obligatoire"
+    },
+    {
+      "en": "Adding census information...",
+      "fr": "Ajout des informations de recensement..."
+    },
+    {
+      "en": "Date fields updated from plot metadata",
+      "fr": "Champs de date mis à jour à partir des métadonnées de placette"
+    },
+    {
+      "en": "Census information has been added to your plots!",
+      "fr": "Les informations de recensement ont été ajoutées à vos placettes !"
+    },
+    {
+      "en": "People from your uploaded metadata:",
+      "fr": "Personnes de vos métadonnées téléchargées :"
+    },
+    {
+      "en": "Principal Investigator",
+      "fr": "Chercheur Principal"
+    },
+    {
+      "en": "Data Manager",
+      "fr": "Gestionnaire de Données"
+    },
+    {
+      "en": "You can use these names below or enter different ones for the census.",
+      "fr": "Vous pouvez utiliser ces noms ci-dessous ou en entrer d'autres pour le recensement."
+    },
+    {
+      "en": "Fill date fields from your data",
+      "fr": "Remplir les champs de date à partir de vos données"
+    },
+    {
+      "en": "Use people from metadata",
+      "fr": "Utiliser les personnes des métadonnées"
+    },
+    {
+      "en": "Fill team fields from your data",
+      "fr": "Remplir les champs d'équipe à partir de vos données"
+    },
+    {
+      "en": "Team fields updated from plot metadata",
+      "fr": "Champs d'équipe mis à jour à partir des métadonnées de placette"
+    },
+    {
+      "en": "People Information from Metadata",
+      "fr": "Informations sur les personnes depuis les métadonnées"
+    },
+    {
+      "en": "No people information found in uploaded metadata.",
+      "fr": "Aucune information sur les personnes trouvée dans les métadonnées téléchargées."
+    },
+    {
+      "en": "The following people information from your metadata will be added to the census:",
+      "fr": "Les informations suivantes sur les personnes de vos métadonnées seront ajoutées au recensement :"
+    },
+    {
+      "en": "These values will be automatically added from your uploaded data.",
+      "fr": "Ces valeurs seront automatiquement ajoutées à partir de vos données téléchargées."
+    },
+    {
+      "en": "Census information added successfully for %d plot(s) with %d people feature(s)",
+      "fr": "Informations de recensement ajoutées avec succès pour %d placette(s) avec %d caractéristique(s) de personnes"
+    },
+    {
+      "en": "No date information found in database",
+      "fr": "Aucune information de date trouvée dans la base de données"
+    },
+    {
+      "en": "Error fetching date:",
+      "fr": "Erreur lors de la récupération de la date :"
     }
   ]
 }

@@ -22,6 +22,9 @@ mod_step3_mapping_ui <- function(id, i18n) {
       style = "color: #6c757d; font-size: 16px; margin-bottom: 30px;"
     ),
 
+    # Required columns info box
+    shiny::uiOutput(ns("required_columns_info")),
+
     # Import type-specific guidance (e.g., skip plot metadata for individuals)
     shiny::uiOutput(ns("import_guidance")),
 
@@ -52,11 +55,15 @@ mod_step3_mapping_ui <- function(id, i18n) {
 #' @param id Module namespace ID
 #' @param data Reactive containing uploaded user data
 #' @param config Reactive containing import configuration
+#' @param con Reactive containing database connection pool
 #' @param i18n Translator object from shiny.i18n
 #' @return Reactive list containing mappings and validation status
 #' @keywords internal
-mod_step3_mapping_server <- function(id, data, config, i18n) {
+mod_step3_mapping_server <- function(id, data, config, con, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
+
+    # Flag to trigger config refresh when table_colnam features are created
+    needs_config_refresh <- shiny::reactiveVal(FALSE)
 
     # Auto-generate initial mappings when data/config available
     auto_mappings <- shiny::reactive({
@@ -78,17 +85,36 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
     # Store user modifications (persists across navigation)
     user_modified_mappings <- shiny::reactiveVal(NULL)
 
-    # Initialize user_modified_mappings from auto_mappings (only once)
-    shiny::observe({
-      if (is.null(user_modified_mappings())) {
-        shiny::req(auto_mappings())
-        user_modified_mappings(auto_mappings()$mappings)
-        cli::cli_alert_info("Initialized user mappings from auto-mapping")
-      }
-    })
+    # Track the current auto_mappings to detect when data changes
+    last_auto_mapping_cols <- shiny::reactiveVal(NULL)
 
     # Track dropdown changes - create observeEvents once when mappings are initialized
     observers_created <- shiny::reactiveVal(FALSE)
+
+    # Initialize/reset user_modified_mappings from auto_mappings when data changes
+    shiny::observe({
+      shiny::req(auto_mappings())
+
+      current_cols <- names(auto_mappings()$mappings)
+
+      # Check if this is first initialization OR if columns have changed (new data uploaded)
+      if (is.null(user_modified_mappings()) ||
+          !identical(current_cols, last_auto_mapping_cols())) {
+
+        # Reset user mappings to new auto-mappings
+        user_modified_mappings(auto_mappings()$mappings)
+        last_auto_mapping_cols(current_cols)
+
+        # Also reset observers flag so dropdowns get recreated
+        observers_created(FALSE)
+
+        if (is.null(last_auto_mapping_cols())) {
+          cli::cli_alert_info("Initialized user mappings from auto-mapping")
+        } else {
+          cli::cli_alert_info("Reset user mappings due to data change")
+        }
+      }
+    })
 
     shiny::observe({
       if (!observers_created() && !is.null(user_modified_mappings())) {
@@ -144,6 +170,63 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
       }
     })
 
+    # Required columns info box
+    output$required_columns_info <- shiny::renderUI({
+      shiny::req(config())
+
+      required_cols <- config()$import_config$required_columns
+      recommended_cols <- config()$import_config$recommended_columns
+
+      # Build code tags for required columns
+      required_tags <- lapply(required_cols, function(col) {
+        shiny::tags$code(col, style = "background-color: #ffc107; color: #000; padding: 2px 6px; margin: 2px; border-radius: 3px; font-weight: bold;")
+      })
+
+      # Build code tags for recommended columns
+      recommended_tags <- lapply(recommended_cols, function(col) {
+        shiny::tags$code(col, style = "background-color: #e7f3ff; color: #007bff; padding: 2px 6px; margin: 2px; border-radius: 3px;")
+      })
+
+      shiny::div(
+        class = "alert",
+        style = "background-color: #fffacd; border-left: 4px solid #ffc107; margin-bottom: 20px;",
+        shiny::fluidRow(
+          shiny::column(
+            6,
+            shiny::h5(
+              shiny::icon("asterisk", style = "color: #ff0000;"),
+              shiny::strong(paste0(" ", i18n()$t("Required Columns (Mandatory)"))),
+              style = "margin-top: 0; color: #856404;"
+            ),
+            shiny::p(
+              i18n()$t("These columns MUST be mapped to proceed:"),
+              style = "color: #856404; margin-bottom: 10px;"
+            ),
+            shiny::div(
+              style = "line-height: 2;",
+              shiny::tagList(required_tags)
+            )
+          ),
+          shiny::column(
+            6,
+            shiny::h5(
+              shiny::icon("info-circle", style = "color: #007bff;"),
+              shiny::strong(paste0(" ", i18n()$t("Recommended Columns (Optional)"))),
+              style = "margin-top: 0; color: #004085;"
+            ),
+            shiny::p(
+              i18n()$t("These columns are optional but strongly recommended:"),
+              style = "color: #004085; margin-bottom: 10px;"
+            ),
+            shiny::div(
+              style = "line-height: 2;",
+              shiny::tagList(recommended_tags)
+            )
+          )
+        )
+      )
+    })
+
     # Import type-specific guidance
     output$import_guidance <- shiny::renderUI({
       shiny::req(config())
@@ -180,17 +263,39 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
       }
     })
 
-    # Mapping summary statistics
+    # Mapping summary statistics (REACTIVE to user changes)
     output$mapping_summary <- shiny::renderUI({
-      shiny::req(auto_mappings())
+      shiny::req(auto_mappings(), user_modified_mappings())
 
       am <- auto_mappings()
+      user_mods <- user_modified_mappings()
 
-      n_exact <- sum(am$methods == "exact", na.rm = TRUE)
-      n_synonym <- sum(am$methods == "synonym", na.rm = TRUE)
-      n_fuzzy <- sum(am$methods == "fuzzy", na.rm = TRUE)
-      n_unmapped <- length(am$unmapped)
-      n_total <- length(am$mappings)
+      # Calculate current state based on user modifications
+      n_mapped <- 0      # Successfully mapped (either auto or manual)
+      n_unmapped <- 0    # Still unmapped (NA)
+      n_modified <- 0    # User changed from auto-mapping
+      n_total <- length(user_mods)
+
+      for (col_name in names(user_mods)) {
+        current_mapping <- user_mods[[col_name]]
+        original_mapping <- am$mappings[[col_name]]
+
+        if (is.na(current_mapping)) {
+          # Still unmapped
+          n_unmapped <- n_unmapped + 1
+        } else {
+          # Mapped (either auto or manual)
+          n_mapped <- n_mapped + 1
+
+          # Check if user modified it
+          if (!identical(current_mapping, original_mapping)) {
+            n_modified <- n_modified + 1
+          }
+        }
+      }
+
+      # Calculate auto-mapped (mapped and not modified)
+      n_auto_mapped <- n_mapped - n_modified
 
       shiny::div(
         class = "alert alert-info",
@@ -201,16 +306,16 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
             3,
             shiny::div(
               style = "text-align: center;",
-              shiny::h3(n_exact + n_synonym, style = "color: #28a745; margin: 0;"),
-              shiny::p(shiny::icon("check-circle"), " Auto-Mapped", style = "margin: 5px 0 0 0; color: #28a745;")
+              shiny::h3(n_auto_mapped, style = "color: #28a745; margin: 0;"),
+              shiny::p(shiny::icon("check-circle"), paste0(" ", i18n()$t("Auto-Mapped")), style = "margin: 5px 0 0 0; color: #28a745;")
             )
           ),
           shiny::column(
             3,
             shiny::div(
               style = "text-align: center;",
-              shiny::h3(n_fuzzy, style = "color: #ffc107; margin: 0;"),
-              shiny::p(shiny::icon("question-circle"), " Review Suggested", style = "margin: 5px 0 0 0; color: #ffc107;")
+              shiny::h3(n_modified, style = "color: #007bff; margin: 0;"),
+              shiny::p(shiny::icon("edit"), paste0(" ", i18n()$t("User Modified")), style = "margin: 5px 0 0 0; color: #007bff;")
             )
           ),
           shiny::column(
@@ -218,7 +323,7 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
             shiny::div(
               style = "text-align: center;",
               shiny::h3(n_unmapped, style = "color: #dc3545; margin: 0;"),
-              shiny::p(shiny::icon("times-circle"), " Needs Mapping", style = "margin: 5px 0 0 0; color: #dc3545;")
+              shiny::p(shiny::icon("times-circle"), paste0(" ", i18n()$t("Needs Mapping")), style = "margin: 5px 0 0 0; color: #dc3545;")
             )
           ),
           shiny::column(
@@ -226,7 +331,7 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
             shiny::div(
               style = "text-align: center;",
               shiny::h3(n_total, style = "color: #6c757d; margin: 0;"),
-              shiny::p(shiny::icon("list"), " Total Columns", style = "margin: 5px 0 0 0; color: #6c757d;")
+              shiny::p(shiny::icon("list"), paste0(" ", i18n()$t("Total Columns")), style = "margin: 5px 0 0 0; color: #6c757d;")
             )
           )
         )
@@ -421,7 +526,7 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
     mapping_validation <- shiny::reactive({
       shiny::req(config(), current_mappings())
 
-      required_cols <- config()$required_columns
+      required_cols <- config()$import_config$required_columns
       mapped_db_cols <- unlist(current_mappings())
 
       missing_required <- setdiff(required_cols, mapped_db_cols)
@@ -459,15 +564,34 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
 
       # Main validation message (required columns)
       if (val$valid && !val$has_duplicates) {
+        # Build list of required columns with code tags
+        required_cols <- config()$import_config$required_columns
+        required_cols_tags <- list()
+        for (i in seq_along(required_cols)) {
+          required_cols_tags[[length(required_cols_tags) + 1]] <- shiny::tags$code(required_cols[i])
+          if (i < length(required_cols)) {
+            required_cols_tags[[length(required_cols_tags) + 1]] <- ", "
+          }
+        }
+
         ui_elements[[1]] <- shiny::div(
           class = "alert alert-success",
           style = "margin-top: 30px;",
           shiny::icon("check-circle"),
           shiny::strong(paste0(" ", i18n()$t("Mapping Complete:"), " ")),
+          shiny::br(),
+          shiny::br(),
           sprintf(
-            i18n()$t("All %d required columns are mapped. You have mapped %d columns total."),
-            length(config()$required_columns),
-            val$n_mapped
+            i18n()$t("All %d required columns are mapped:"),
+            length(required_cols)
+          ),
+          " ",
+          shiny::tagList(required_cols_tags),
+          shiny::br(),
+          shiny::br(),
+          shiny::tags$small(
+            sprintf(i18n()$t("Total columns mapped: %d"), val$n_mapped),
+            style = "color: #6c757d;"
           )
         )
       } else if (!val$valid) {
@@ -545,23 +669,38 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
       shiny::tagList(ui_elements)
     })
 
-    # Create new feature button (only for individuals import)
+    # Create new feature button (for both individuals and plots import)
     output$create_feature_button <- shiny::renderUI({
       shiny::req(config())
 
-      # Check if this is individuals import
+      # Check import type
       is_individuals <- "idtax_n" %in% config()$import_config$required_columns
+      is_plots <- "plot_name" %in% config()$import_config$required_columns && !is_individuals
 
-      if (is_individuals) {
+      # Show button for both import types
+      if (is_individuals || is_plots) {
+        # Customize label based on import type
+        button_label <- if (is_individuals) {
+          i18n()$t("Create New Feature/Attribute")
+        } else {
+          i18n()$t("Create New Plot Feature")
+        }
+
+        help_text <- if (is_individuals) {
+          i18n()$t("Click if you have a column that doesn't match any existing feature")
+        } else {
+          i18n()$t("Click if you have a column that doesn't match any existing plot feature")
+        }
+
         shiny::div(
           style = "margin-bottom: 15px;",
           shiny::actionButton(
             session$ns("show_create_feature"),
-            shiny::tagList(shiny::icon("plus"), paste0(" ", i18n()$t("Create New Feature/Attribute"))),
+            shiny::tagList(shiny::icon("plus"), paste0(" ", button_label)),
             class = "btn-success btn-sm"
           ),
           shiny::tags$small(
-            paste0(" ", i18n()$t("Click if you have a column that doesn't match any existing feature")),
+            paste0(" ", help_text),
             style = "color: #6c757d; margin-left: 10px;"
           )
         )
@@ -604,20 +743,42 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
                 session$ns("new_feature_valuetype"),
                 i18n()$t("Value Type *"),
                 choices = setNames(
-                  c("numeric", "integer", "categorical", "character", "logical", "ordinal"),
+                  c("numeric", "integer", "categorical", "character", "logical", "ordinal", "table_colnam"),
                   c(i18n()$t("Numeric (measurements)"),
                     i18n()$t("Integer (counts)"),
                     i18n()$t("Categorical (categories)"),
                     i18n()$t("Character (text)"),
                     i18n()$t("Logical (yes/no)"),
-                    i18n()$t("Ordinal (ordered categories)"))
+                    i18n()$t("Ordinal (ordered categories)"),
+                    i18n()$t("Reference to People (table_colnam)"))
                 ),
                 selected = "numeric"
               ),
-              shiny::textInput(
-                session$ns("new_feature_unit"),
-                i18n()$t("Expected Unit (optional)"),
-                placeholder = i18n()$t("e.g., cm, m, kg, %")
+              shiny::conditionalPanel(
+                condition = sprintf("input['%s'] == 'table_colnam'", session$ns("new_feature_valuetype")),
+                shiny::div(
+                  class = "alert alert-info",
+                  style = "background-color: #e7f3ff; border-left: 3px solid #007bff; padding: 10px; margin-top: 10px;",
+                  shiny::icon("info-circle", style = "color: #007bff;"),
+                  shiny::strong(paste0(" ", i18n()$t("About table_colnam type:"))),
+                  shiny::br(),
+                  shiny::br(),
+                  shiny::tags$ul(
+                    style = "margin-bottom: 0; padding-left: 20px;",
+                    shiny::tags$li(i18n()$t("This type is for features that reference people in the database")),
+                    shiny::tags$li(i18n()$t("Examples: field_coordinator, data_collector, project_lead")),
+                    shiny::tags$li(i18n()$t("Values will be matched to people names in the lookup step (Step 4)")),
+                    shiny::tags$li(i18n()$t("The feature will store person IDs, not names directly"))
+                  )
+                )
+              ),
+              shiny::conditionalPanel(
+                condition = sprintf("input['%s'] != 'table_colnam'", session$ns("new_feature_valuetype")),
+                shiny::textInput(
+                  session$ns("new_feature_unit"),
+                  i18n()$t("Expected Unit (optional)"),
+                  placeholder = i18n()$t("e.g., cm, m, kg, %")
+                )
               )
             ),
             shiny::column(
@@ -628,15 +789,21 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
                 placeholder = i18n()$t("Describe what this feature measures or represents"),
                 rows = 3
               ),
-              shiny::textInput(
-                session$ns("new_feature_min"),
-                i18n()$t("Minimum Allowed Value (optional)"),
-                placeholder = i18n()$t("e.g., 0")
-              ),
-              shiny::textInput(
-                session$ns("new_feature_max"),
-                i18n()$t("Maximum Allowed Value (optional)"),
-                placeholder = i18n()$t("e.g., 100")
+              shiny::conditionalPanel(
+                condition = sprintf("input['%s'] != 'table_colnam' && (input['%s'] == 'numeric' || input['%s'] == 'integer')",
+                                   session$ns("new_feature_valuetype"),
+                                   session$ns("new_feature_valuetype"),
+                                   session$ns("new_feature_valuetype")),
+                shiny::textInput(
+                  session$ns("new_feature_min"),
+                  i18n()$t("Minimum Allowed Value (optional)"),
+                  placeholder = i18n()$t("e.g., 0")
+                ),
+                shiny::textInput(
+                  session$ns("new_feature_max"),
+                  i18n()$t("Maximum Allowed Value (optional)"),
+                  placeholder = i18n()$t("e.g., 100")
+                )
               )
             )
           ),
@@ -667,13 +834,27 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
 
     # Show modal when button clicked
     shiny::observeEvent(input$show_create_feature, {
+      # Determine import type for appropriate labels
+      is_individuals <- "idtax_n" %in% config()$import_config$required_columns
+
+      # Customize modal content based on import type
+      if (is_individuals) {
+        modal_title <- i18n()$t("Create New Feature/Attribute")
+        modal_description <- i18n()$t("Create a new feature/attribute that can be linked to individual stems/trees.")
+        name_placeholder <- i18n()$t("e.g., crown_diameter, bark_thickness")
+      } else {
+        modal_title <- i18n()$t("Create New Plot Feature")
+        modal_description <- i18n()$t("Create a new feature that can be linked to plots (e.g., soil characteristics, additional census information).")
+        name_placeholder <- i18n()$t("e.g., soil_ph, canopy_height, soil_type")
+      }
+
       shiny::showModal(
         shiny::modalDialog(
-          title = shiny::tagList(shiny::icon("plus-circle"), " Create New Feature/Attribute"),
+          title = shiny::tagList(shiny::icon("plus-circle"), paste0(" ", modal_title)),
           size = "l",
 
           shiny::p(
-            "Create a new feature/attribute that can be linked to individual stems/trees.",
+            modal_description,
             style = "color: #6c757d; margin-bottom: 20px;"
           ),
 
@@ -683,7 +864,7 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
               shiny::textInput(
                 session$ns("new_feature_name"),
                 i18n()$t("Feature Name *"),
-                placeholder = i18n()$t("e.g., crown_diameter, bark_thickness")
+                placeholder = name_placeholder
               ),
               shiny::tags$small(
                 shiny::icon("info-circle", style = "color: #007bff;"),
@@ -694,20 +875,42 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
                 session$ns("new_feature_valuetype"),
                 i18n()$t("Value Type *"),
                 choices = setNames(
-                  c("numeric", "integer", "categorical", "character", "logical", "ordinal"),
+                  c("numeric", "integer", "categorical", "character", "logical", "ordinal", "table_colnam"),
                   c(i18n()$t("Numeric (measurements)"),
                     i18n()$t("Integer (counts)"),
                     i18n()$t("Categorical (categories)"),
                     i18n()$t("Character (text)"),
                     i18n()$t("Logical (yes/no)"),
-                    i18n()$t("Ordinal (ordered categories)"))
+                    i18n()$t("Ordinal (ordered categories)"),
+                    i18n()$t("Reference to People (table_colnam)"))
                 ),
                 selected = "numeric"
               ),
-              shiny::textInput(
-                session$ns("new_feature_unit"),
-                i18n()$t("Expected Unit (optional)"),
-                placeholder = i18n()$t("e.g., cm, m, kg, %")
+              shiny::conditionalPanel(
+                condition = sprintf("input['%s'] == 'table_colnam'", session$ns("new_feature_valuetype")),
+                shiny::div(
+                  class = "alert alert-info",
+                  style = "background-color: #e7f3ff; border-left: 3px solid #007bff; padding: 10px; margin-top: 10px;",
+                  shiny::icon("info-circle", style = "color: #007bff;"),
+                  shiny::strong(paste0(" ", i18n()$t("About table_colnam type:"))),
+                  shiny::br(),
+                  shiny::br(),
+                  shiny::tags$ul(
+                    style = "margin-bottom: 0; padding-left: 20px;",
+                    shiny::tags$li(i18n()$t("This type is for features that reference people in the database")),
+                    shiny::tags$li(i18n()$t("Examples: field_coordinator, data_collector, project_lead")),
+                    shiny::tags$li(i18n()$t("Values will be matched to people names in the lookup step (Step 4)")),
+                    shiny::tags$li(i18n()$t("The feature will store person IDs, not names directly"))
+                  )
+                )
+              ),
+              shiny::conditionalPanel(
+                condition = sprintf("input['%s'] != 'table_colnam'", session$ns("new_feature_valuetype")),
+                shiny::textInput(
+                  session$ns("new_feature_unit"),
+                  i18n()$t("Expected Unit (optional)"),
+                  placeholder = i18n()$t("e.g., cm, m, kg, %")
+                )
               )
             ),
             shiny::column(
@@ -718,15 +921,21 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
                 placeholder = i18n()$t("Describe what this feature measures or represents"),
                 rows = 3
               ),
-              shiny::textInput(
-                session$ns("new_feature_min"),
-                i18n()$t("Minimum Allowed Value (optional)"),
-                placeholder = i18n()$t("e.g., 0")
-              ),
-              shiny::textInput(
-                session$ns("new_feature_max"),
-                i18n()$t("Maximum Allowed Value (optional)"),
-                placeholder = i18n()$t("e.g., 100")
+              shiny::conditionalPanel(
+                condition = sprintf("input['%s'] != 'table_colnam' && (input['%s'] == 'numeric' || input['%s'] == 'integer')",
+                                   session$ns("new_feature_valuetype"),
+                                   session$ns("new_feature_valuetype"),
+                                   session$ns("new_feature_valuetype")),
+                shiny::textInput(
+                  session$ns("new_feature_min"),
+                  i18n()$t("Minimum Allowed Value (optional)"),
+                  placeholder = i18n()$t("e.g., 0")
+                ),
+                shiny::textInput(
+                  session$ns("new_feature_max"),
+                  i18n()$t("Maximum Allowed Value (optional)"),
+                  placeholder = i18n()$t("e.g., 100")
+                )
               )
             )
           ),
@@ -822,21 +1031,48 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
             NULL
           }
 
-          # Call add_trait to create the feature (using sanitized name)
-          add_trait(
-            new_trait = sanitized_name,
-            new_valuetype = input$new_feature_valuetype,
-            new_traitdescription = trimws(input$new_feature_description),
-            new_minallowedvalue = new_min,
-            new_maxallowedvalue = new_max,
-            new_expectedunit = new_unit,
-            new_factorlevels = new_levels
-          )
+          # Determine import type to call correct function
+          is_individuals <- "idtax_n" %in% config()$import_config$required_columns
+
+          if (is_individuals) {
+            # Call add_trait for individuals import (using sanitized name)
+            add_trait(
+              new_trait = sanitized_name,
+              new_valuetype = input$new_feature_valuetype,
+              new_traitdescription = trimws(input$new_feature_description),
+              new_minallowedvalue = new_min,
+              new_maxallowedvalue = new_max,
+              new_expectedunit = new_unit,
+              new_factorlevels = new_levels,
+              con = con(),              # Pass connection pool
+              interactive = FALSE       # Disable interactive prompts in Shiny
+            )
+          } else {
+            # Call add_subplottype for plots import (using sanitized name)
+            add_subplottype(
+              new_type = sanitized_name,
+              new_valuetype = input$new_feature_valuetype,
+              new_typedescription = trimws(input$new_feature_description),
+              new_minallowedvalue = new_min,
+              new_maxallowedvalue = new_max,
+              new_expectedunit = new_unit,
+              new_factorlevels = new_levels,
+              con = con(),              # Pass connection pool
+              interactive = FALSE       # Disable interactive prompts in Shiny
+            )
+          }
 
           # Add the new feature to schema_columns for immediate availability
           current_cols <- schema_columns()
           updated_cols <- sort(unique(c(current_cols, sanitized_name)))
           schema_columns(updated_cols)
+
+          # If this is a table_colnam feature, trigger config refresh for Step 4 lookup
+          if (!is_individuals && input$new_feature_valuetype == "table_colnam") {
+            cli::cli_alert_info("New table_colnam feature created - triggering config refresh for lookup step")
+            # Trigger will be handled by return value
+            needs_config_refresh(TRUE)
+          }
 
           cli::cli_alert_success(sprintf(i18n()$t("Feature '%s' added to available features"), sanitized_name))
 
@@ -865,7 +1101,8 @@ mod_step3_mapping_server <- function(id, data, config, i18n) {
         list(
           mappings = current_mappings(),
           mappings_with_skips = user_modified_mappings(),  # Includes NA for skipped columns
-          validation = mapping_validation()
+          validation = mapping_validation(),
+          needs_config_refresh = needs_config_refresh()  # Flag for when table_colnam features are created
         )
       })
     )
