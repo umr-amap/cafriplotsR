@@ -328,6 +328,9 @@ import_wizard_server <- function(input, output, session, translator) {
 
   # Step indicator UI
   output$step_indicator <- renderUI({
+    # Determine max steps based on import type
+    max_steps <- if (!is.null(rv$import_type) && rv$import_type == "plots") 8 else 7
+
     step_labels <- c(
       i18n()$t("Choose Type"),
       i18n()$t("Upload Data"),
@@ -335,12 +338,13 @@ import_wizard_server <- function(input, output, session, translator) {
       i18n()$t("Match Lookups"),
       i18n()$t("Validate"),
       i18n()$t("Preview"),
-      i18n()$t("Import")
+      i18n()$t("Import"),
+      i18n()$t("Census Info")  # Step 8 - only for plots
     )
 
     div(
       class = "step-indicator",
-      lapply(1:7, function(i) {
+      lapply(1:max_steps, function(i) {
         class_name <- if (i < rv$step) {
           "step completed"
         } else if (i == rv$step) {
@@ -373,7 +377,8 @@ import_wizard_server <- function(input, output, session, translator) {
       "4" = mod_step4_lookup_matching_ui("step4", i18n()),
       "5" = mod_step5_validation_ui("step5", i18n()),
       "6" = mod_step6_preview_ui("step6", i18n()),
-      "7" = mod_step7_import_ui("step7", i18n())
+      "7" = mod_step7_import_ui("step7", i18n()),
+      "8" = mod_census_information_ui("step8", i18n())
     )
   })
 
@@ -392,9 +397,19 @@ import_wizard_server <- function(input, output, session, translator) {
     # Disable if step not ready
     disabled <- !can_proceed_to_next_step()
 
-    # Change label on final step
-    label <- if (rv$step == 7) {
+    # Determine max steps based on import type
+    max_steps <- if (!is.null(rv$import_type) && rv$import_type == "plots") 8 else 7
+
+    # Hide next button on final step (Step 8 for plots, Step 7 for individuals)
+    if (rv$step >= max_steps) {
+      return(NULL)
+    }
+
+    # Change label based on step
+    label <- if (rv$step == 7 && rv$import_type == "individuals") {
       tagList(icon("check"), " ", i18n()$t("Execute Import"))
+    } else if (rv$step == 7 && rv$import_type == "plots") {
+      tagList(i18n()$t("Next: Census Info (Optional)"), " ", icon("arrow-right"))
     } else {
       tagList(i18n()$t("Next"), " ", icon("arrow-right"))
     }
@@ -417,7 +432,16 @@ import_wizard_server <- function(input, output, session, translator) {
       "4" = !is.null(rv$matched_data_result),  # Lookup matching complete
       "5" = !is.null(rv$validation) && rv$validation$valid,  # Validation passed
       "6" = !is.null(rv$validation) && rv$validation$valid,  # Preview (can proceed if validated)
-      "7" = FALSE  # Import step - different logic
+      "7" = {
+        # For individuals, Step 7 is final (no next button)
+        # For plots, can proceed to Step 8 if import was successful
+        if (rv$import_type == "plots") {
+          !is.null(rv$import_result) && rv$import_result$success && !rv$import_result$dry_run
+        } else {
+          FALSE  # Individuals end at Step 7
+        }
+      },
+      "8" = TRUE  # Census step is always optional, can always proceed (but no next button)
     )
   })
 
@@ -503,12 +527,23 @@ import_wizard_server <- function(input, output, session, translator) {
 
     observeEvent(step2_result(), {
       req(step2_result())
+
+      # Reset all downstream results when new data is uploaded
+      rv$mappings <- NULL
+      rv$mapping_result <- NULL
+      rv$validation <- NULL
+      rv$lookup_result <- NULL
+      rv$import_result <- NULL
+
+      # Update data
       rv$data <- step2_result()
 
       showNotification(
         sprintf("Data loaded: %d rows, %d columns", nrow(rv$data), ncol(rv$data)),
         type = "message"
       )
+
+      cli::cli_alert_info("New data uploaded - all downstream results reset")
     })
 
     # Step 3: Column mapping
@@ -516,6 +551,7 @@ import_wizard_server <- function(input, output, session, translator) {
       "step3",
       data = reactive(rv$data),
       config = reactive(rv$config),
+      con = pool_main_reactive,
       i18n = i18n
     )
 
@@ -524,6 +560,28 @@ import_wizard_server <- function(input, output, session, translator) {
 
       rv$mapping_result <- step3_result()
       rv$mappings <- step3_result()$mappings_with_skips  # Use full mappings including NA for skipped columns
+
+      # Check if config needs refresh (new table_colnam feature was created)
+      if (!is.null(step3_result()$needs_config_refresh) && step3_result()$needs_config_refresh) {
+        cli::cli_alert_info("Config refresh triggered - reloading metadata mappings for new table_colnam feature")
+
+        # Refresh only the metadata_mappings part of config
+        tryCatch({
+          pool <- pool_main_reactive()
+          updated_mappings <- get_metadata_mappings_plots(pool)
+          rv$config$metadata_mappings <- updated_mappings
+
+          cli::cli_alert_success("Config refreshed - new feature will be available in Step 4 lookup")
+
+          showNotification(
+            "New people feature created - it will be available for lookup matching in Step 4",
+            type = "message",
+            duration = 5
+          )
+        }, error = function(e) {
+          cli::cli_alert_warning("Failed to refresh config: {e$message}")
+        })
+      }
 
       if (step3_result()$validation$valid) {
         showNotification(
@@ -608,6 +666,42 @@ import_wizard_server <- function(input, output, session, translator) {
       if (result$success && !result$dry_run) {
         rv$import_result <- result
         cli::cli_alert_success("Import completed: {result$n_plots} plots imported")
+
+        # For plots, automatically move to census step after successful import
+        if (!is.null(rv$import_type) && rv$import_type == "plots") {
+          cli::cli_alert_info("Plot import successful - proceeding to optional census information step")
+          # User can click Next to go to Step 8 or finish here
+        }
+      }
+    })
+
+    # Step 8: Census Information (conditional - only for plots)
+    step8_result <- mod_census_information_server(
+      "step8",
+      imported_plots = reactive({
+        if (!is.null(rv$import_result) && !is.null(rv$import_result$imported_plots)) {
+          rv$import_result$imported_plots
+        } else {
+          NULL
+        }
+      }),
+      con = pool_main_reactive,
+      i18n = i18n
+    )
+
+    observeEvent(step8_result(), {
+      req(step8_result())
+
+      result <- step8_result()
+
+      if (!is.null(result) && result$success) {
+        cli::cli_alert_success("Census information added successfully")
+
+        showNotification(
+          i18n()$t("Census information has been added to your plots!"),
+          type = "message",
+          duration = 5
+        )
       }
     })
 

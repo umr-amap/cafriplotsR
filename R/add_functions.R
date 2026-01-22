@@ -779,8 +779,9 @@ add_subplot_features <- function(new_data,
         add_subplot_observations_feat(
           new_data = data_feats,
           id_sub_plots = "id_sub_plots",
-          features = features_field , #
-          add_data = T
+          features = features_field,
+          add_data = TRUE,
+          interactive = interactive  # Pass through interactive parameter
         )
         
       }
@@ -847,7 +848,8 @@ add_subplot_observations_feat <- function(new_data,
                                           id_sub_plots = "id_sub_plots",
                                           features,
                                           allow_multiple_value = FALSE,
-                                          add_data =FALSE) {
+                                          add_data = FALSE,
+                                          interactive = TRUE) {
   
   for (i in 1:length(features))
     if (!any(colnames(new_data) == features[i]))
@@ -942,15 +944,19 @@ add_subplot_observations_feat <- function(new_data,
       }
       
       if (any(data_feat$subplotype == 0)) {
-        
-        add_0 <-
-          choose_prompt(message = "Some value are equal to 0. Do you want to add these values anyway ??")
-        
+
+        if (interactive) {
+          add_0 <- choose_prompt(message = "Some value are equal to 0. Do you want to add these values anyway ??")
+        } else {
+          add_0 <- FALSE  # Auto-remove zeros in non-interactive mode
+          cli::cli_alert_warning("Removing {sum(data_feat$subplotype == 0)} zero values (non-interactive mode)")
+        }
+
         if(!add_0)
           data_feat <-
             data_feat %>%
             dplyr::filter(subplotype != 0)
-        
+
       }
       
       
@@ -1001,9 +1007,13 @@ add_subplot_observations_feat <- function(new_data,
         
         cli::cli_alert_warning("Duplicates in new data for {feat} concerning {length(duplicates_lg[duplicates_lg])} id(s)")
         
-        cf_merge <-
-          choose_prompt(message = "confirm merging duplicates ?")
-        
+        if (interactive) {
+          cf_merge <- choose_prompt(message = "confirm merging duplicates ?")
+        } else {
+          cf_merge <- TRUE  # Auto-merge duplicates in non-interactive mode
+          cli::cli_alert_info("Auto-merging duplicates (non-interactive mode)")
+        }
+
         if (cf_merge) {
           
           # issues_dup <- data_to_add %>%
@@ -1028,10 +1038,13 @@ add_subplot_observations_feat <- function(new_data,
         }
         
       }
-      
-      response <-
-        choose_prompt(message = "Confirm add these data to data_subplot_feat table?")
-      
+
+      if (interactive) {
+        response <- choose_prompt(message = "Confirm add these data to data_subplot_feat table?")
+      } else {
+        response <- TRUE  # Auto-confirm in non-interactive mode
+      }
+
       if(add_data & response) {
         
         DBI::dbWriteTable(mydb, "data_subplot_feat",

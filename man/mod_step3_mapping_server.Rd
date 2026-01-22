@@ -4,7 +4,7 @@
 \alias{mod_step3_mapping_server}
 \title{Step 3 Module: Column Mapping - Server}
 \usage{
-mod_step3_mapping_server(id, data, config, i18n)
+mod_step3_mapping_server(id, data, config, con, i18n)
 }
 \arguments{
 \item{id}{Module namespace ID}
@@ -12,6 +12,8 @@ mod_step3_mapping_server(id, data, config, i18n)
 \item{data}{Reactive containing uploaded user data}
 
 \item{config}{Reactive containing import configuration}
+
+\item{con}{Reactive containing database connection pool}
 
 \item{i18n}{Translator object from shiny.i18n}
 }

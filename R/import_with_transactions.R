@@ -345,6 +345,16 @@ import_plot_metadata <- function(data,
       username = username,
       admin_code = admin_code,
       dry_run = dry_run,
+      imported_plots = if (!dry_run) {
+        # Include plot_name and id_liste_plots for census module
+        data.frame(
+          plot_name = plot_id_data$plot_name,
+          id_liste_plots = plot_id_data$id_liste_plots,
+          stringsAsFactors = FALSE
+        )
+      } else {
+        NULL
+      },
       message = if (dry_run) {
         sprintf("Dry run completed. Would import %d plots.", nrow(plot_data))
       } else {

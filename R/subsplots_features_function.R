@@ -460,37 +460,39 @@ query_subplots <- function(
     method = NULL,
     subtype = NULL,
     verbose = TRUE,
-    extract_subplots_obs_features = FALSE
+    extract_subplots_obs_features = FALSE,
+    con = NULL
 ) {
-  
+
   if (verbose) {
     cli::cli_alert_info("Using legacy wrapper - consider migrating to query_plot_features()")
   }
-  
+
   # Handle plot filtering if needed
   if (is.null(ids_plots) && is.null(ids_subplots)) {
     # Build plot query based on filters
-    mydb <- call.mydb()
+    if (is.null(con)) con <- call.mydb()
     queried_plots_sql <- .build_plot_query(
-      con = mydb,
+      con = con,
       plot_name = plot_name,
       country = country,
       locality_name = locality_name,
       method = method
     )
-    queried_plots <- func_try_fetch(con = mydb, sql = queried_plots_sql)
+    queried_plots <- func_try_fetch(con = con, sql = queried_plots_sql)
     ids_plots <- queried_plots$id_liste_plots
   }
-  
+
   # Call new function
   result <- query_plot_features(
     plot_ids = ids_plots,
     subplot_ids = ids_subplots,
     subplot_type = subtype,
     format = "wide",
-    include_subplot_obs_features = extract_subplots_obs_features
+    include_subplot_obs_features = extract_subplots_obs_features,
+    con = con
   )
-  
+
   # Return in old format
   list(
     all_subplots = result$features_raw,
@@ -899,78 +901,112 @@ subplot_list <- function(con = NULL) {
 
 
 
-# # Add a type in subplot table
-# #
-# # Add feature and associated descriptors in subplot list table
-# #
-# # @return nothing
-# #
-# # @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-# # @param new_type string value with new type descritors - try to avoid space
-# # @param new_valuetype string one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character'
-# # @param new_maxallowedvalue numeric if valuetype is numeric, indicate the maximum allowed value
-# # @param new_minallowedvalue numeric if valuetype is numeric, indicate the minimum allowed value
-# # @param new_typedescription string full description of trait
-# # @param new_factorlevels string a vector of all possible value if valuetype is categorical or ordinal
-# # @param new_expectedunit string expected unit (unitless if none)
-# # @param new_comments string any comments
-# #
-# # @export
-# add_subplottype <- function(new_type = NULL,
-#                             new_valuetype = NULL,
-#                             new_maxallowedvalue = NULL,
-#                             new_minallowedvalue = NULL,
-#                             new_typedescription = NULL,
-#                             new_factorlevels = NULL,
-#                             new_expectedunit = NULL,
-#                             new_comments = NULL) {
-#   
-#   if(is.null(new_type)) stop("define new type")
-#   
-#   
-#   if(try_open_postgres_table(table = "subplotype_list", con = mydb) %>%
-#      dplyr::distinct(type) %>%
-#      dplyr::filter(type == !!new_type) %>%
-#      dplyr::collect() %>%
-#      nrow()>0)  stop("new type already in table")
-#   
-#   
-#   if (is.null(new_valuetype)) stop("define new_valuetype")
-#   
-#   if (!any(new_valuetype==c('numeric',
-#                             'integer',
-#                             'categorical',
-#                             'ordinal',
-#                             'logical',
-#                             'character',
-#                             'table_colnam'))) stop("valuetype should one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character' or 'table_colnam'")
-#   
-#   if (new_valuetype=="numeric" | new_valuetype=="integer")
-#     if (!is.numeric(new_maxallowedvalue) & !is.integer(new_maxallowedvalue)) stop("valuetype numeric of integer and max value not of this type")
-#   if (new_valuetype=="numeric" | new_valuetype=="integer")
-#     if (!is.numeric(new_minallowedvalue) & !is.integer(new_minallowedvalue)) stop("valuetype numeric of integer and min value not of this type")
-#   
-#   mydb <- call.mydb() 
-#   
-#   new_data_renamed <- tibble(type = new_type,
-#                              valuetype = new_valuetype,
-#                              maxallowedvalue = ifelse(is.null(new_maxallowedvalue), NA, new_maxallowedvalue),
-#                              minallowedvalue = ifelse(is.null(new_minallowedvalue), NA, new_minallowedvalue),
-#                              typedescription = ifelse(is.null(new_typedescription), NA, new_typedescription),
-#                              factorlevels = ifelse(is.null(new_factorlevels), NA, new_factorlevels),
-#                              expectedunit = ifelse(is.null(new_expectedunit), NA, new_expectedunit),
-#                              comments = ifelse(is.null(new_comments), NA, new_comments))
-#   
-#   print(new_data_renamed)
-#   
-#   Q <- choose_prompt(message = "confirm adding this type?")
-#   
-#   
-#   if(Q)
-#     DBI::dbWriteTable(mydb, "subplotype_list", new_data_renamed, append = TRUE, row.names = FALSE)
-#   
-#   
-# }
+#' Add a type in subplot table
+#'
+#' Add feature and associated descriptors in subplot list table
+#'
+#' @return Invisibly returns the new feature data (tibble)
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @param new_type string value with new type descriptors - try to avoid space
+#' @param new_valuetype string one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character', 'table_colnam'
+#' @param new_maxallowedvalue numeric if valuetype is numeric, indicate the maximum allowed value
+#' @param new_minallowedvalue numeric if valuetype is numeric, indicate the minimum allowed value
+#' @param new_typedescription string full description of type/feature
+#' @param new_factorlevels string a vector of all possible value if valuetype is categorical or ordinal
+#' @param new_expectedunit string expected unit (unitless if none)
+#' @param new_comments string any comments
+#' @param con Database connection (optional). If NULL, will create a new connection.
+#' @param interactive Logical. If TRUE (default), will ask for confirmation. Set to FALSE when calling from Shiny.
+#'
+#' @export
+add_subplottype <- function(new_type = NULL,
+                            new_valuetype = NULL,
+                            new_maxallowedvalue = NULL,
+                            new_minallowedvalue = NULL,
+                            new_typedescription = NULL,
+                            new_factorlevels = NULL,
+                            new_expectedunit = NULL,
+                            new_comments = NULL,
+                            con = NULL,
+                            interactive = TRUE) {
+
+  if(is.null(new_type)) stop("define new type")
+  if(is.null(new_valuetype)) stop("define new_valuetype")
+
+  # Use provided connection or create new one
+  if (is.null(con)) {
+    mydb <- call.mydb()
+    should_disconnect <- TRUE
+  } else {
+    mydb <- con
+    should_disconnect <- FALSE
+  }
+
+  # Handle pool connections
+  actual_con <- if (inherits(mydb, "Pool")) {
+    pool::poolCheckout(mydb)
+  } else {
+    mydb
+  }
+
+  # Ensure we return the connection to pool if needed
+  on.exit({
+    if (inherits(mydb, "Pool") && !is.null(actual_con)) {
+      pool::poolReturn(actual_con)
+    }
+  }, add = TRUE)
+
+  # Check if type already exists
+  if(try_open_postgres_table(table = "subplotype_list", con = actual_con) %>%
+     dplyr::distinct(type) %>%
+     dplyr::filter(type == !!new_type) %>%
+     dplyr::collect() %>%
+     nrow()>0)  stop("new type already in table")
+
+  # Validate valuetype
+  if (!any(new_valuetype==c('numeric',
+                            'integer',
+                            'categorical',
+                            'ordinal',
+                            'logical',
+                            'character',
+                            'table_colnam'))) stop("valuetype should one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character' or 'table_colnam'")
+
+  # Validate min/max for numeric types
+  if (new_valuetype=="numeric" | new_valuetype=="integer")
+    if (!is.null(new_maxallowedvalue) && !is.numeric(new_maxallowedvalue) & !is.integer(new_maxallowedvalue))
+      stop("valuetype numeric or integer and max value not of this type")
+  if (new_valuetype=="numeric" | new_valuetype=="integer")
+    if (!is.null(new_minallowedvalue) && !is.numeric(new_minallowedvalue) & !is.integer(new_minallowedvalue))
+      stop("valuetype numeric or integer and min value not of this type")
+
+  # Build new row
+  new_data_renamed <- tibble::tibble(
+    type = new_type,
+    valuetype = new_valuetype,
+    maxallowedvalue = ifelse(is.null(new_maxallowedvalue), NA, new_maxallowedvalue),
+    minallowedvalue = ifelse(is.null(new_minallowedvalue), NA, new_minallowedvalue),
+    typedescription = ifelse(is.null(new_typedescription), NA, new_typedescription),
+    factorlevels = ifelse(is.null(new_factorlevels), NA, new_factorlevels),
+    expectedunit = ifelse(is.null(new_expectedunit), NA, new_expectedunit),
+    comments = ifelse(is.null(new_comments), NA, new_comments)
+  )
+
+  # Only print and ask for confirmation if interactive
+  if (interactive) {
+    print(new_data_renamed)
+    Q <- choose_prompt(message = "confirm adding this type?")
+  } else {
+    Q <- TRUE  # Auto-confirm when non-interactive (e.g., from Shiny)
+  }
+
+  if(Q) {
+    DBI::dbWriteTable(actual_con, "subplotype_list", new_data_renamed, append = TRUE, row.names = FALSE)
+  }
+
+  invisible(new_data_renamed)
+}
 # 
 # 
 # 

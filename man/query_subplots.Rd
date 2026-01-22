@@ -13,7 +13,8 @@ query_subplots(
   method = NULL,
   subtype = NULL,
   verbose = TRUE,
-  extract_subplots_obs_features = FALSE
+  extract_subplots_obs_features = FALSE,
+  con = NULL
 )
 }
 \description{

@@ -4,17 +4,21 @@
 \alias{.validate_unique_constraints}
 \title{Validate Unique Constraints}
 \usage{
-.validate_unique_constraints(data, config)
+.validate_unique_constraints(data, config, con = NULL)
 }
 \arguments{
 \item{data}{Data frame with schema column names}
 
 \item{config}{Routing configuration}
+
+\item{con}{Database connection (optional, but needed for database uniqueness checks)}
 }
 \value{
 List of error objects
 }
 \description{
 Checks for duplicate values in columns that should be unique.
+For plot_name, checks both within uploaded data AND against existing
+database plots (respects row-level security - only user's accessible plots).
 }
 \keyword{internal}

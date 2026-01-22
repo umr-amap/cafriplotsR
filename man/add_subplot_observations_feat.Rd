@@ -9,7 +9,8 @@ add_subplot_observations_feat(
   id_sub_plots = "id_sub_plots",
   features,
   allow_multiple_value = FALSE,
-  add_data = FALSE
+  add_data = FALSE,
+  interactive = TRUE
 )
 }
 \arguments{
