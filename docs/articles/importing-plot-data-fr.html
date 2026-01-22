@@ -164,7 +164,39 @@ sélectionner quelle feuille importer)</p>
 <strong>Étape 3 : Mapper les Colonnes</strong><a class="anchor" aria-label="anchor" href="#%C3%A9tape-3-mapper-les-colonnes"></a>
 </h4>
 <p>L’assistant mappe automatiquement vos noms de colonnes au schéma de
-la base de données :</p>
+la base de données.</p>
+<p><strong>Colonnes Obligatoires vs Optionnelles :</strong></p>
+<p>En haut de cette étape, vous verrez clairement quelles colonnes sont
+<strong>obligatoires</strong> vs <strong>recommandées</strong> :</p>
+<ul>
+<li>
+<strong>📌 Colonnes Obligatoires (Mandatory)</strong> - Surlignées
+en jaune/or
+<ul>
+<li>Pour les <strong>Métadonnées de Parcelles</strong> :
+<code>plot_name</code>, <code>method</code>, <code>country</code>
+</li>
+<li>Pour les <strong>Arbres Individuels</strong> :
+<code>plot_name</code>, <code>idtax_n</code>,
+<code>original_tax_name</code>
+</li>
+<li>Vous <strong>ne pouvez pas continuer</strong> tant que toutes les
+colonnes obligatoires ne sont pas mappées</li>
+</ul>
+</li>
+<li>
+<strong>💡 Colonnes Recommandées (Optionnel)</strong> - Surlignées
+en bleu
+<ul>
+<li>Pour les parcelles : <code>ddlat</code>, <code>ddlon</code>,
+<code>date_y</code>, <code>locality_name</code>, etc.</li>
+<li>Ces colonnes améliorent la qualité des données mais ne sont pas
+obligatoires</li>
+<li>Vous pouvez les ignorer si vous n’avez pas ces données</li>
+</ul>
+</li>
+</ul>
+<p><strong>Mappage Automatique :</strong></p>
 <ul>
 <li>
 <strong>✅ Correspondances exactes</strong> - Surlignées en
@@ -177,10 +209,15 @@ de confiance</li>
 manuellement ou ignorer</li>
 </ul>
 <p><strong>Fonctionnalités intelligentes :</strong> - Reconnaît les
-synonymes (ex : <code>PI</code> → <code>principal_investigator</code>) -
-Fournit des descriptions de colonnes au survol - Permet d’ignorer les
-colonnes non désirées - Mémorise vos choix lors de la navigation
-arrière</p>
+synonymes (ex : <code>PI</code> → <code>principal_investigator</code>,
+<code>dbh</code> → <code>stem_diameter</code>) - Fournit des
+descriptions de colonnes au survol - Permet d’ignorer les colonnes non
+désirées - Affiche des exemples de valeurs de vos données pour le
+contexte - Mémorise vos choix lors de la navigation arrière</p>
+<p><strong>Validation :</strong> - L’assistant valide que toutes les
+colonnes obligatoires sont mappées - Affiche des messages d’erreur
+clairs si des colonnes obligatoires manquent - Empêche de passer à
+l’étape suivante tant que la validation n’a pas réussi</p>
 </div>
 <div class="section level4">
 <h4 id="étape-4-faire-correspondre-les-valeurs-de-référence">

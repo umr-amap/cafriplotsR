@@ -158,7 +158,37 @@ to import)</p>
 <strong>Step 3: Map Columns</strong><a class="anchor" aria-label="anchor" href="#step-3-map-columns"></a>
 </h4>
 <p>The wizard automatically maps your column names to the database
-schema:</p>
+schema.</p>
+<p><strong>Required vs Optional Columns:</strong></p>
+<p>At the top of this step, you’ll see clearly which columns are
+<strong>mandatory</strong> vs <strong>recommended</strong>:</p>
+<ul>
+<li>
+<strong>📌 Required Columns (Mandatory)</strong> - Highlighted in
+yellow/gold
+<ul>
+<li>For <strong>Plot Metadata</strong>: <code>plot_name</code>,
+<code>method</code>, <code>country</code>
+</li>
+<li>For <strong>Individual Trees</strong>: <code>plot_name</code>,
+<code>idtax_n</code>, <code>original_tax_name</code>
+</li>
+<li>You <strong>cannot proceed</strong> until all required columns are
+mapped</li>
+</ul>
+</li>
+<li>
+<strong>💡 Recommended Columns (Optional)</strong> - Highlighted in
+blue
+<ul>
+<li>For plots: <code>ddlat</code>, <code>ddlon</code>,
+<code>date_y</code>, <code>locality_name</code>, etc.</li>
+<li>These enhance data quality but are not mandatory</li>
+<li>You can skip these if you don’t have the data</li>
+</ul>
+</li>
+</ul>
+<p><strong>Automatic Mapping:</strong></p>
 <ul>
 <li>
 <strong>✅ Exact matches</strong> - Highlighted in green</li>
@@ -170,9 +200,14 @@ scores</li>
 skip</li>
 </ul>
 <p><strong>Smart features:</strong> - Recognizes synonyms (e.g.,
-<code>PI</code> → <code>principal_investigator</code>) - Provides column
-descriptions on hover - Allows you to skip unwanted columns - Remembers
-your choices when navigating back</p>
+<code>PI</code> → <code>principal_investigator</code>, <code>dbh</code>
+→ <code>stem_diameter</code>) - Provides column descriptions on hover -
+Allows you to skip unwanted columns - Shows sample values from your data
+for context - Remembers your choices when navigating back</p>
+<p><strong>Validation:</strong> - The wizard validates that all required
+columns are mapped - Shows clear error messages if required columns are
+missing - Prevents proceeding to the next step until validation
+passes</p>
 </div>
 <div class="section level4">
 <h4 id="step-4-match-lookup-values">

@@ -2,6 +2,15 @@
 
 ### New Features
 
+* **Census Information Module for Import Wizard**
+  - New Step 8 in plot metadata import wizard for adding first census information
+  - Automatically detects and displays people features (team_leader, principal_investigator, etc.) from imported plot metadata
+  - Auto-prefills census date fields from plot database
+  - Non-interactive census creation suitable for Shiny environment
+  - Directly inserts people features into `data_subplot_feat` bypassing string-to-ID conversion issues
+  - Shows read-only summary of people information that will be copied to census
+  - Full bilingual support (English/French) with 42 new translations
+
 * **Taxonomic Backbone Management App**
   - New interactive Shiny app `launch_taxo_backbone_app()` for managing the taxonomic reference database
   - Browse and search taxonomic entries at all hierarchical levels (family, genus, species, infraspecific)
@@ -57,6 +66,17 @@
 
 ### Bug Fixes
 
+* **Fixed Import Wizard Mapping Reset on New File Upload**
+  - Column mappings now properly reset when user uploads a new file mid-workflow
+  - Detects data changes by tracking column names between uploads
+  - Resets user_modified_mappings and recreates observers when data structure changes
+  - Prevents "indice hors limites" errors when old mappings reference non-existent columns
+
+* **Fixed Census Module Input Initialization Crash**
+  - Added proper NULL/length checks before comparing input values
+  - Uses `shiny::req()` to wait for UI inputs to initialize before accessing them
+  - Prevents "l'argument est de longueur nulle" (argument is of zero length) errors on module load
+
 * **Fixed Exact Match Search Behavior**
   - Removed automatic fuzzy fallback when `exact_match = TRUE`
   - Now returns NULL when no exact match found instead of falling back to fuzzy matching
@@ -87,6 +107,17 @@
   - Created `has_value()` helper for safe field validation with NA/NULL handling
 
 ### Code Refactoring
+
+* **Enhanced `query_subplots()` Pool Connection Support**
+  - Added `con` parameter to support pool connections in Shiny environments
+  - Passes connection through to `query_plot_features()` for consistent connection handling
+  - Prevents unnecessary connection creation when using connection pools
+
+* **Non-Interactive Census Creation**
+  - Refactored census addition to bypass `add_subplot_observations_feat()` string-to-ID conversion
+  - Two-step process: creates census records first, then directly inserts people features into `data_subplot_feat`
+  - Properly structures dataframe to match `data_subplot_feat` schema with all required columns
+  - Uses `typevalue` column for census number storage (not a dedicated `census` column)
 
 * **Improved Taxonomic Hierarchy Functions**
   - `get_taxon_hierarchy()` now uses safe NA handling throughout

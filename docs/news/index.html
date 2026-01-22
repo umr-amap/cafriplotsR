@@ -35,6 +35,16 @@
 <div class="section level4">
 <h4 id="new-features-1-9-1">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-1"></a></h4>
 <ul><li>
+<strong>Census Information Module for Import Wizard</strong>
+<ul><li>New Step 8 in plot metadata import wizard for adding first census information</li>
+<li>Automatically detects and displays people features (team_leader, principal_investigator, etc.) from imported plot metadata</li>
+<li>Auto-prefills census date fields from plot database</li>
+<li>Non-interactive census creation suitable for Shiny environment</li>
+<li>Directly inserts people features into <code>data_subplot_feat</code> bypassing string-to-ID conversion issues</li>
+<li>Shows read-only summary of people information that will be copied to census</li>
+<li>Full bilingual support (English/French) with 42 new translations</li>
+</ul></li>
+<li>
 <strong>Taxonomic Backbone Management App</strong>
 <ul><li>New interactive Shiny app <code><a href="../reference/launch_taxo_backbone_app.html">launch_taxo_backbone_app()</a></code> for managing the taxonomic reference database</li>
 <li>Browse and search taxonomic entries at all hierarchical levels (family, genus, species, infraspecific)</li>
@@ -105,6 +115,19 @@
 <div class="section level4">
 <h4 id="bug-fixes-1-9-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-1"></a></h4>
 <ul><li>
+<strong>Fixed Import Wizard Mapping Reset on New File Upload</strong>
+<ul><li>Column mappings now properly reset when user uploads a new file mid-workflow</li>
+<li>Detects data changes by tracking column names between uploads</li>
+<li>Resets user_modified_mappings and recreates observers when data structure changes</li>
+<li>Prevents “indice hors limites” errors when old mappings reference non-existent columns</li>
+</ul></li>
+<li>
+<strong>Fixed Census Module Input Initialization Crash</strong>
+<ul><li>Added proper NULL/length checks before comparing input values</li>
+<li>Uses <code><a href="https://rdrr.io/pkg/shiny/man/req.html" class="external-link">shiny::req()</a></code> to wait for UI inputs to initialize before accessing them</li>
+<li>Prevents “l’argument est de longueur nulle” (argument is of zero length) errors on module load</li>
+</ul></li>
+<li>
 <strong>Fixed Exact Match Search Behavior</strong>
 <ul><li>Removed automatic fuzzy fallback when <code>exact_match = TRUE</code>
 </li>
@@ -145,6 +168,20 @@
 <div class="section level4">
 <h4 id="code-refactoring-1-9-1">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-9-1"></a></h4>
 <ul><li>
+<strong>Enhanced <code><a href="../reference/query_subplots.html">query_subplots()</a></code> Pool Connection Support</strong>
+<ul><li>Added <code>con</code> parameter to support pool connections in Shiny environments</li>
+<li>Passes connection through to <code><a href="../reference/query_plot_features.html">query_plot_features()</a></code> for consistent connection handling</li>
+<li>Prevents unnecessary connection creation when using connection pools</li>
+</ul></li>
+<li>
+<strong>Non-Interactive Census Creation</strong>
+<ul><li>Refactored census addition to bypass <code><a href="../reference/add_subplot_observations_feat.html">add_subplot_observations_feat()</a></code> string-to-ID conversion</li>
+<li>Two-step process: creates census records first, then directly inserts people features into <code>data_subplot_feat</code>
+</li>
+<li>Properly structures dataframe to match <code>data_subplot_feat</code> schema with all required columns</li>
+<li>Uses <code>typevalue</code> column for census number storage (not a dedicated <code>census</code> column)</li>
+</ul></li>
+<li>
 <strong>Improved Taxonomic Hierarchy Functions</strong>
 <ul><li>
 <code><a href="../reference/get_taxon_hierarchy.html">get_taxon_hierarchy()</a></code> now uses safe NA handling throughout</li>
