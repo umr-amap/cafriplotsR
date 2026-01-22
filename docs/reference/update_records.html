@@ -41,7 +41,7 @@
 <span>  <span class="va">data</span>,</span>
 <span>  table_type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"individuals"</span>, <span class="st">"plots"</span>, <span class="st">"individual_features"</span>, <span class="st">"subplot_features"</span>,</span>
 <span>    <span class="st">"individual_features_metadata"</span>, <span class="st">"methodslist"</span>, <span class="st">"table_colnam"</span>, <span class="st">"traitlist"</span>,</span>
-<span>    <span class="st">"subplotype_list"</span><span class="op">)</span>,</span>
+<span>    <span class="st">"subplotype_list"</span>, <span class="st">"specimens"</span><span class="op">)</span>,</span>
 <span>  execute <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"single"</span>, <span class="st">"batch"</span><span class="op">)</span>,</span>
 <span>  con <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -56,31 +56,33 @@
 
 
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>Tibble with records to update</p></dd>
+<dd><p>Tibble with records to update. Must include the ID column for the table type.</p></dd>
 
 
 <dt id="arg-table-type">table_type<a class="anchor" aria-label="anchor" href="#arg-table-type"></a></dt>
-<dd><p>Character: type of table</p></dd>
+<dd><p>Character: type of table. One of "individuals", "plots", "specimens",
+"individual_features", "subplot_features", "individual_features_metadata",
+"methodslist", "table_colnam", "traitlist", or "subplotype_list"</p></dd>
 
 
 <dt id="arg-execute">execute<a class="anchor" aria-label="anchor" href="#arg-execute"></a></dt>
-<dd><p>Logical: if FALSE (default), dry run only</p></dd>
+<dd><p>Logical: if FALSE (default), dry run only - shows what would change</p></dd>
 
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
-<dd><p>Character: "single" or "batch"</p></dd>
+<dd><p>Character: "single" (row-by-row) or "batch" (bulk update via temp table)</p></dd>
 
 
 <dt id="arg-con">con<a class="anchor" aria-label="anchor" href="#arg-con"></a></dt>
-<dd><p>Database connection</p></dd>
+<dd><p>Database connection. If NULL, creates new connection</p></dd>
 
 
 <dt id="arg-interactive">interactive<a class="anchor" aria-label="anchor" href="#arg-interactive"></a></dt>
-<dd><p>Logical: enable interactive prompts</p></dd>
+<dd><p>Logical: enable interactive prompts for metadata matching</p></dd>
 
 
 <dt id="arg-similarity-threshold">similarity_threshold<a class="anchor" aria-label="anchor" href="#arg-similarity-threshold"></a></dt>
-<dd><p>Numeric: threshold for metadata mapping</p></dd>
+<dd><p>Numeric: threshold (0-1) for fuzzy matching in metadata mapping</p></dd>
 
 
 <dt id="arg-show-comparison">show_comparison<a class="anchor" aria-label="anchor" href="#arg-show-comparison"></a></dt>
