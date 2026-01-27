@@ -1942,11 +1942,10 @@ pivot_character_traits <- function(data, include_census) {
   # Pivot sans census
   if (nrow(data_no_subplot) > 0) {
     results$no_census <- data_no_subplot %>%
-      select(id_data_individuals, trait, traitvalue_char, id_trait_measures) %>%
+      select(id_data_individuals, trait, traitvalue_char) %>%
       group_by(id_data_individuals, trait) %>%
       summarise(
         value = paste(traitvalue_char[!is.na(traitvalue_char)], collapse = ", "),
-        id_measure = first(id_trait_measures),
         .groups = "drop"
       ) %>%
       pivot_wider(
@@ -1979,11 +1978,10 @@ pivot_character_traits <- function(data, include_census) {
     } else {
       # Aggregate by individual only (ignore subplot separation)
       results$with_census <- data_with_subplot %>%
-        select(id_data_individuals, trait, traitvalue_char, id_trait_measures) %>%
+        select(id_data_individuals, trait, traitvalue_char) %>%
         group_by(id_data_individuals, trait) %>%
         summarise(
           value = paste(traitvalue_char[!is.na(traitvalue_char)], collapse = ", "),
-          id_measure = first(id_trait_measures),
           .groups = "drop"
         ) %>%
         pivot_wider(
