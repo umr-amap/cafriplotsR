@@ -1864,23 +1864,43 @@ pivot_numeric_traits <- function(data, include_census) {
   }
   
   # Pivot avec census
-  if (include_census && nrow(data_with_subplot) > 0) {
-    results$with_census <- data_with_subplot %>%
-      select(id_data_individuals, id_sub_plots, trait, 
-             traitvalue, id_trait_measures, census_name) %>%
-      group_by(id_data_individuals, id_sub_plots, trait, census_name) %>%
-      summarise(
-        value = first(traitvalue),
-        id_measure = first(id_trait_measures),
-        .groups = "drop"
-      ) %>%
-      pivot_wider(
-        names_from = c(trait, census_name),
-        values_from = c(value, id_measure),
-        names_glue = "{.value}_{trait}_{census_name}"
-      ) %>%
-      rename_with(~str_remove(.x, "value_"), starts_with("value_")) %>%
-      select(-starts_with("id_measure_"))
+  if (nrow(data_with_subplot) > 0) {
+    if (include_census) {
+      # Keep separate rows for each subplot/census
+      results$with_census <- data_with_subplot %>%
+        select(id_data_individuals, id_sub_plots, trait,
+               traitvalue, id_trait_measures, census_name) %>%
+        group_by(id_data_individuals, id_sub_plots, trait, census_name) %>%
+        summarise(
+          value = first(traitvalue),
+          id_measure = first(id_trait_measures),
+          .groups = "drop"
+        ) %>%
+        pivot_wider(
+          names_from = c(trait, census_name),
+          values_from = c(value, id_measure),
+          names_glue = "{.value}_{trait}_{census_name}"
+        ) %>%
+        rename_with(~str_remove(.x, "value_"), starts_with("value_")) %>%
+        select(-starts_with("id_measure_"))
+    } else {
+      # Aggregate by individual only (ignore subplot separation)
+      results$with_census <- data_with_subplot %>%
+        select(id_data_individuals, trait, traitvalue, id_trait_measures) %>%
+        group_by(id_data_individuals, trait) %>%
+        summarise(
+          value = first(traitvalue),
+          id_measure = first(id_trait_measures),
+          .groups = "drop"
+        ) %>%
+        pivot_wider(
+          names_from = trait,
+          values_from = c(value, id_measure),
+          names_glue = "{.value}_{trait}"
+        ) %>%
+        rename_with(~str_remove(.x, "value_"), starts_with("value_")) %>%
+        select(-starts_with("id_measure_"))
+    }
   }
   
   if (length(results) > 0) {
@@ -1923,22 +1943,41 @@ pivot_character_traits <- function(data, include_census) {
   }
   
   # Pivot avec census
-  if (include_census && nrow(data_with_subplot) > 0) {
-    results$with_census <- data_with_subplot %>%
-      select(id_data_individuals, id_sub_plots, trait, 
-             traitvalue_char, id_trait_measures, census_name) %>%
-      group_by(id_data_individuals, id_sub_plots, trait, census_name) %>%
-      summarise(
-        value = paste(traitvalue_char[!is.na(traitvalue_char)], collapse = ", "),
-        id_measure = first(id_trait_measures),
-        .groups = "drop"
-      ) %>%
-      pivot_wider(
-        names_from = c(trait, census_name),
-        values_from = value,
-        names_glue = "char_{trait}_{census_name}"
-      ) %>%
-      mutate(across(starts_with("char_"), ~na_if(.x, "")))
+  if (nrow(data_with_subplot) > 0) {
+    if (include_census) {
+      # Keep separate rows for each subplot/census
+      results$with_census <- data_with_subplot %>%
+        select(id_data_individuals, id_sub_plots, trait,
+               traitvalue_char, id_trait_measures, census_name) %>%
+        group_by(id_data_individuals, id_sub_plots, trait, census_name) %>%
+        summarise(
+          value = paste(traitvalue_char[!is.na(traitvalue_char)], collapse = ", "),
+          id_measure = first(id_trait_measures),
+          .groups = "drop"
+        ) %>%
+        pivot_wider(
+          names_from = c(trait, census_name),
+          values_from = value,
+          names_glue = "char_{trait}_{census_name}"
+        ) %>%
+        mutate(across(starts_with("char_"), ~na_if(.x, "")))
+    } else {
+      # Aggregate by individual only (ignore subplot separation)
+      results$with_census <- data_with_subplot %>%
+        select(id_data_individuals, trait, traitvalue_char, id_trait_measures) %>%
+        group_by(id_data_individuals, trait) %>%
+        summarise(
+          value = paste(traitvalue_char[!is.na(traitvalue_char)], collapse = ", "),
+          id_measure = first(id_trait_measures),
+          .groups = "drop"
+        ) %>%
+        pivot_wider(
+          names_from = trait,
+          values_from = value,
+          names_prefix = "char_"
+        ) %>%
+        mutate(across(starts_with("char_"), ~na_if(.x, "")))
+    }
   }
   
   if (length(results) > 0) {

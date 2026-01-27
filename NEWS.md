@@ -1,5 +1,13 @@
 # CafriplotsR 1.9.2 (Development)
 
+### Bug Fixes
+
+* **Fixed census-linked measurements exclusion in `query_individual_features()`**
+  - When `include_multi_census = FALSE`, measurements linked to subplots/censuses (having `id_sub_plots`) were incorrectly excluded from results
+  - Now properly aggregates census-linked measurements by individual when `include_multi_census = FALSE`
+  - When `include_multi_census = TRUE`, still keeps separate rows for each subplot/census
+  - Affects both numeric and character trait pivoting
+
 ### New Features
 
 * **Individual Features Query in Plot Query App**
