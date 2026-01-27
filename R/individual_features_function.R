@@ -1902,12 +1902,27 @@ pivot_numeric_traits <- function(data, include_census) {
         select(-starts_with("id_measure_"))
     }
   }
-  
-  if (length(results) > 0) {
-    return(bind_rows(results))
+
+  # Combine results appropriately
+  if (length(results) == 0) {
+    return(tibble())
   }
-  
-  return(tibble())
+
+  # Filter out empty results
+  results <- results[which(unlist(lapply(results, nrow)) > 0)]
+
+  if (length(results) == 0) {
+    return(tibble())
+  }
+
+  # When include_census = FALSE, join by id_data_individuals (merge into single row per individual)
+  # When include_census = TRUE, bind rows (keep separate rows per subplot)
+  if (include_census) {
+    return(bind_rows(results))
+  } else {
+    # Use full_join to merge all measurements for same individual into one row
+    return(reduce(results, full_join, by = "id_data_individuals"))
+  }
 }
 
 #' Pivot character traits
@@ -1979,12 +1994,27 @@ pivot_character_traits <- function(data, include_census) {
         mutate(across(starts_with("char_"), ~na_if(.x, "")))
     }
   }
-  
-  if (length(results) > 0) {
-    return(bind_rows(results))
+
+  # Combine results appropriately
+  if (length(results) == 0) {
+    return(tibble())
   }
-  
-  return(tibble())
+
+  # Filter out empty results
+  results <- results[which(unlist(lapply(results, nrow)) > 0)]
+
+  if (length(results) == 0) {
+    return(tibble())
+  }
+
+  # When include_census = FALSE, join by id_data_individuals (merge into single row per individual)
+  # When include_census = TRUE, bind rows (keep separate rows per subplot)
+  if (include_census) {
+    return(bind_rows(results))
+  } else {
+    # Use full_join to merge all measurements for same individual into one row
+    return(reduce(results, full_join, by = "id_data_individuals"))
+  }
 }
 
 
