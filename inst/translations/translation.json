@@ -5280,6 +5280,142 @@
     {
       "en": "Error fetching date:",
       "fr": "Erreur lors de la récupération de la date :"
+    },
+    {
+      "en": "Query Individual Features Separately",
+      "fr": "Interroger les caractéristiques individuelles séparément"
+    },
+    {
+      "en": "Enable separate extraction of individual-level features using query_individual_features()",
+      "fr": "Activer l'extraction séparée des caractéristiques au niveau individuel avec query_individual_features()"
+    },
+    {
+      "en": "Individual Features Query Configuration",
+      "fr": "Configuration de l'interrogation des caractéristiques individuelles"
+    },
+    {
+      "en": "Trait Selection",
+      "fr": "Sélection des traits"
+    },
+    {
+      "en": "All available traits",
+      "fr": "Tous les traits disponibles"
+    },
+    {
+      "en": "Specific traits only",
+      "fr": "Traits spécifiques seulement"
+    },
+    {
+      "en": "Select trait IDs (comma-separated)",
+      "fr": "Sélectionner les IDs de traits (séparés par des virgules)"
+    },
+    {
+      "en": "Output Format",
+      "fr": "Format de sortie"
+    },
+    {
+      "en": "Wide format (one row per individual)",
+      "fr": "Format large (une ligne par individu)"
+    },
+    {
+      "en": "Long format (one row per measurement)",
+      "fr": "Format long (une ligne par mesure)"
+    },
+    {
+      "en": "Include multi-census data",
+      "fr": "Inclure les données multi-recensement"
+    },
+    {
+      "en": "Include measurement metadata",
+      "fr": "Inclure les métadonnées de mesure"
+    },
+    {
+      "en": "Include individual information",
+      "fr": "Inclure les informations sur les individus"
+    },
+    {
+      "en": "Query Individual Features",
+      "fr": "Interroger les caractéristiques individuelles"
+    },
+    {
+      "en": "Individual Features",
+      "fr": "Caractéristiques individuelles"
+    },
+    {
+      "en": "Querying individual features...",
+      "fr": "Interrogation des caractéristiques individuelles..."
+    },
+    {
+      "en": "Individual features extraction complete!",
+      "fr": "Extraction des caractéristiques individuelles terminée !"
+    },
+    {
+      "en": "Individual features query failed",
+      "fr": "Échec de l'interrogation des caractéristiques individuelles"
+    },
+    {
+      "en": "Example: 1,2,5,10",
+      "fr": "Exemple: 1,2,5,10"
+    },
+    {
+      "en": "Leave empty for all traits",
+      "fr": "Laisser vide pour tous les traits"
+    },
+    {
+      "en": "Separate query configuration for individual-level features",
+      "fr": "Configuration d'interrogation séparée pour les caractéristiques au niveau individuel"
+    },
+    {
+      "en": "Please select at least one plot before querying individual features",
+      "fr": "Veuillez sélectionner au moins un plot avant d'interroger les caractéristiques individuelles"
+    },
+    {
+      "en": "No individuals found in selected plots",
+      "fr": "Aucun individu trouvé dans les parcelles sélectionnées"
+    },
+    {
+      "en": "Please extract individuals first before querying individual features",
+      "fr": "Veuillez d'abord extraire les individus avant d'interroger les caractéristiques individuelles"
+    },
+    {
+      "en": "No individuals found in extracted data",
+      "fr": "Aucun individu trouvé dans les données extraites"
+    },
+    {
+      "en": "Individual Features Query",
+      "fr": "Requête de caractéristiques individuelles"
+    },
+    {
+      "en": "This optional step extracts all attributes linked to individuals, including trait measurements and observations.",
+      "fr": "Cette étape optionnelle extrait tous les attributs liés aux individus, incluant les mesures de traits et les observations."
+    },
+    {
+      "en": "Enable separate extraction of individual-level features",
+      "fr": "Activer l'extraction séparée des caractéristiques au niveau individuel"
+    },
+    {
+      "en": "Wide format (measurements as columns)",
+      "fr": "Format large (mesures en colonnes)"
+    },
+    {
+      "en": "Long format (measurements as rows)",
+      "fr": "Format long (mesures en lignes)"
+    },
+    {
+      "en": "Wide format:",
+      "fr": "Format large :"
+    },
+    {
+      "en": "Long format:",
+      "fr": "Format long :"
+    },
+    {
+      "en": "One row per individual, measurements as columns. Values are aggregated if multiple observations exist per individual.",
+      "fr": "Une ligne par individu, mesures en colonnes. Les valeurs sont agrégées s'il existe plusieurs observations par individu."
+    },
+    {
+      "en": "One row per measurement. More complete representation with no aggregation.",
+      "fr": "Une ligne par mesure. Représentation plus complète sans agrégation."
     }
   ]
 }

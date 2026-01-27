@@ -41,7 +41,7 @@ add_traits_measures(
 
 \item{traits_field}{string vector listing trait columns names in new_data}
 
-\item{features_field}{string vector listing features (column names) to link to measurementsin new_data}
+\item{features_field}{string vector listing features (column names) to link to measurements in new_data}
 
 \item{allow_multiple_value}{if multiple values linked to one individual can be uploaded at once}
 
@@ -52,6 +52,16 @@ list of tibbles that should be/have been added
 }
 \description{
 Add a trait measure in trait measurement table
+}
+\details{
+This function now uses database transactions to ensure atomic operations.
+When \code{features_field} is provided, both measurements and their features
+are added together in a single transaction. If any error occurs, all changes
+are rolled back automatically.
+
+The function uses PostgreSQL's RETURNING clause for efficient ID retrieval,
+eliminating the need for separate queries to fetch generated IDs. This improves
+reliability and prevents race conditions from concurrent operations.
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}
