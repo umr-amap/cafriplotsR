@@ -1,3 +1,26 @@
+# CafriplotsR 1.9.2 (Development)
+
+### New Features
+
+* **Individual Features Query in Plot Query App**
+  - Added optional individual-level features extraction to `launch_query_plots_app()`
+  - New collapsible configuration panel for querying individual features separately using `query_individual_features()`
+  - Extracts features from already-loaded individuals data (uses `id_n` column)
+  - Configurable parameters:
+    - Trait selection (all traits or specific trait IDs)
+    - Output format (wide with aggregation or long without aggregation)
+    - Multi-census data inclusion
+    - Measurement metadata inclusion
+    - Census strategy
+  - Results displayed in separate "Individual Features" tab
+  - Included in all export formats (Excel, CSV, RDS)
+  - Dynamic R code generation shows equivalent `query_individual_features()` call
+  - Format explanations:
+    - Wide format: one row per individual, measurements as columns (aggregated if multiple observations)
+    - Long format: one row per measurement (complete representation, no aggregation)
+  - Full bilingual support with 30+ new translations
+  - Positioned logically after individual extraction button for intuitive workflow
+
 # CafriplotsR 1.9.1 (2026-01-18)
 
 ### New Features

@@ -219,7 +219,7 @@ cat(sprintf("Construit %d modèles spécifiques par parcelle\n", length(hd_model
 
 ### Visualiser les Relations H-D
 
-```{r plot-hd-models, fig.width=8, fig.height=6, eval=T}
+```{r plot-hd-models, fig.width=8, fig.height=6, dpi=96, out.width="100%", eval=T}
 # Tracer les données hauteur-diamètre avec la courbe ajustée
 ggplot(plot_data$height_diameter, aes(x = D, y = H)) +
   geom_point(aes(color = plot_name), alpha = 0.6, size = 2) +

@@ -362,6 +362,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
     rv <- shiny::reactiveValues(
       metadata = NULL,
       individuals = NULL,
+      individual_features = NULL,
       modules_initialized = FALSE
     )
 
@@ -524,10 +525,128 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
         }, message = "Extracting individuals...")
       })
 
+      # Execute individual features query when requested
+      shiny::observeEvent(extraction_output$individual_features_trigger(), {
+        feat_opts <- extraction_output$individual_features_options()
+
+        # Only execute if enabled
+        if (!isTRUE(feat_opts$enabled)) {
+          return()
+        }
+
+        # Check that individuals data has been extracted first
+        if (is.null(rv$individuals)) {
+          cli::cli_alert_warning("Must extract individuals first before querying individual features")
+          shiny::showNotification(
+            i18n()$t("Please extract individuals first before querying individual features"),
+            type = "warning",
+            duration = 5
+          )
+          return()
+        }
+
+        shiny::withProgress({
+          tryCatch({
+            cli::cli_alert_info("Querying individual features from extracted individuals...")
+
+            # Extract individual IDs from the individuals data
+            individuals_data <- rv$individuals
+
+            # Handle different result structures
+            if (is.data.frame(individuals_data)) {
+              # Simple data.frame
+              if (!"id_n" %in% names(individuals_data)) {
+                stop("Column 'id_n' not found in individuals data")
+              }
+              individual_ids <- unique(individuals_data$id_n)
+            } else if (is.list(individuals_data)) {
+              # List of data.frames - look for 'extract' or 'individuals' table
+              if ("extract" %in% names(individuals_data) && is.data.frame(individuals_data$extract)) {
+                if (!"id_n" %in% names(individuals_data$extract)) {
+                  stop("Column 'id_n' not found in extract table")
+                }
+                individual_ids <- unique(individuals_data$extract$id_n)
+              } else if ("individuals" %in% names(individuals_data) && is.data.frame(individuals_data$individuals)) {
+                if (!"id_n" %in% names(individuals_data$individuals)) {
+                  stop("Column 'id_n' not found in individuals table")
+                }
+                individual_ids <- unique(individuals_data$individuals$id_n)
+              } else {
+                # Try to find any data.frame with id_n column
+                found <- FALSE
+                for (table_name in names(individuals_data)) {
+                  if (is.data.frame(individuals_data[[table_name]]) &&
+                      "id_n" %in% names(individuals_data[[table_name]])) {
+                    individual_ids <- unique(individuals_data[[table_name]]$id_n)
+                    found <- TRUE
+                    cli::cli_alert_info("Using 'id_n' from table: {table_name}")
+                    break
+                  }
+                }
+                if (!found) {
+                  stop("Could not find 'id_n' column in individuals data")
+                }
+              }
+            } else {
+              stop("Unexpected individuals data structure")
+            }
+
+            if (length(individual_ids) == 0) {
+              cli::cli_alert_warning("No individual IDs found in extracted data")
+              shiny::showNotification(
+                i18n()$t("No individuals found in extracted data"),
+                type = "warning",
+                duration = 5
+              )
+              return()
+            }
+
+            cli::cli_alert_info("Found {length(individual_ids)} individual ID(s) from extracted data")
+
+            # Query individual features
+            con <- pool_reactive()
+            result <- query_individual_features(
+              individual_ids = individual_ids,
+              trait_ids = feat_opts$trait_ids,
+              include_multi_census = feat_opts$include_multi_census,
+              format = feat_opts$format,
+              remove_issues = feat_opts$remove_issues,
+              include_metadata = feat_opts$include_metadata,
+              census_strategy = feat_opts$census_strategy,
+              con = con
+            )
+
+            # Store results
+            rv$individual_features <- result
+
+            # Show success notification
+            n_rows <- if (is.data.frame(result)) nrow(result) else 0
+            cli::cli_alert_success("Extracted {n_rows} individual feature record(s)")
+            shiny::showNotification(
+              sprintf("%s %d %s",
+                      i18n()$t("Individual features extraction complete!"),
+                      n_rows,
+                      i18n()$t("total records")),
+              type = "message",
+              duration = 5
+            )
+
+          }, error = function(e) {
+            cli::cli_alert_danger("Individual features query failed: {e$message}")
+            shiny::showNotification(
+              paste("Error:", e$message),
+              type = "error",
+              duration = 10
+            )
+          })
+        }, message = "Querying individual features...")
+      })
+
       # Module 4: Results Display
       mod_results_display_server(
         "results",
         results = shiny::reactive(rv$individuals),
+        individual_features_results = shiny::reactive(rv$individual_features),
         i18n = i18n
       )
 
@@ -539,7 +658,9 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
         extraction_options = extraction_output$options,
         metadata_available = shiny::reactive(!is.null(rv$metadata)),
         individuals_available = shiny::reactive(!is.null(rv$individuals)),
-        i18n = i18n
+        i18n = i18n,
+        individual_features_options = extraction_output$individual_features_options,
+        individual_features_available = shiny::reactive(!is.null(rv$individual_features))
       )
 
       # Module 6: Plot Statistics (new)
