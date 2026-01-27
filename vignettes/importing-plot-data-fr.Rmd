@@ -86,17 +86,39 @@ Sélectionnez ce que vous voulez importer :
 
 #### **Étape 3 : Mapper les Colonnes**
 
-L'assistant mappe automatiquement vos noms de colonnes au schéma de la base de données :
+L'assistant mappe automatiquement vos noms de colonnes au schéma de la base de données.
+
+**Colonnes Obligatoires vs Optionnelles :**
+
+En haut de cette étape, vous verrez clairement quelles colonnes sont **obligatoires** vs **recommandées** :
+
+- **📌 Colonnes Obligatoires (Mandatory)** - Surlignées en jaune/or
+  - Pour les **Métadonnées de Parcelles** : `plot_name`, `method`, `country`
+  - Pour les **Arbres Individuels** : `plot_name`, `idtax_n`, `original_tax_name`
+  - Vous **ne pouvez pas continuer** tant que toutes les colonnes obligatoires ne sont pas mappées
+
+- **💡 Colonnes Recommandées (Optionnel)** - Surlignées en bleu
+  - Pour les parcelles : `ddlat`, `ddlon`, `date_y`, `locality_name`, etc.
+  - Ces colonnes améliorent la qualité des données mais ne sont pas obligatoires
+  - Vous pouvez les ignorer si vous n'avez pas ces données
+
+**Mappage Automatique :**
 
 - **✅ Correspondances exactes** - Surlignées en vert
 - **🔍 Correspondances floues** - Suggérées avec scores de confiance
 - **❓ Colonnes non mappées** - Vous pouvez sélectionner manuellement ou ignorer
 
 **Fonctionnalités intelligentes :**
-- Reconnaît les synonymes (ex : `PI` → `principal_investigator`)
+- Reconnaît les synonymes (ex : `PI` → `principal_investigator`, `dbh` → `stem_diameter`)
 - Fournit des descriptions de colonnes au survol
 - Permet d'ignorer les colonnes non désirées
+- Affiche des exemples de valeurs de vos données pour le contexte
 - Mémorise vos choix lors de la navigation arrière
+
+**Validation :**
+- L'assistant valide que toutes les colonnes obligatoires sont mappées
+- Affiche des messages d'erreur clairs si des colonnes obligatoires manquent
+- Empêche de passer à l'étape suivante tant que la validation n'a pas réussi
 
 #### **Étape 4 : Faire Correspondre les Valeurs de Référence**
 

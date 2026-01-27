@@ -27,6 +27,8 @@ mod_code_preview_ui <- function(id) {
 #' @param extraction_options Reactive returning named list of extraction options
 #' @param metadata_available Reactive returning TRUE when metadata has been queried
 #' @param individuals_available Reactive returning TRUE when individuals have been extracted
+#' @param individual_features_options Reactive returning named list of individual features options (optional)
+#' @param individual_features_available Reactive returning TRUE when individual features have been queried (optional)
 #' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return NULL
@@ -34,7 +36,9 @@ mod_code_preview_ui <- function(id) {
 #' @keywords internal
 #' @export
 mod_code_preview_server <- function(id, filters, selected_plots, extraction_options,
-                                     metadata_available, individuals_available, i18n) {
+                                     metadata_available, individuals_available, i18n,
+                                     individual_features_options = NULL,
+                                     individual_features_available = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -204,13 +208,65 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
       return(code)
     }
 
+    # Generate code for individual features query
+    generate_individual_features_code <- function(feat_opts) {
+      args <- c()
+
+      # Individual IDs - reference to extracted data
+      args <- c(args, '  individual_ids = unique(individuals$extract$id_n)')
+
+      # Trait IDs
+      if (!is.null(feat_opts$trait_ids) && length(feat_opts$trait_ids) > 0) {
+        args <- c(args, sprintf('  trait_ids = c(%s)', paste(feat_opts$trait_ids, collapse = ", ")))
+      } else {
+        args <- c(args, '  trait_ids = NULL  # All traits')
+      }
+
+      # Format
+      if (!is.null(feat_opts$format) && feat_opts$format != "wide") {
+        args <- c(args, sprintf('  format = "%s"', feat_opts$format))
+      }
+
+      # Include multi census
+      if (isTRUE(feat_opts$include_multi_census)) {
+        args <- c(args, '  include_multi_census = TRUE')
+      }
+
+      # Census strategy (only if not default)
+      if (!is.null(feat_opts$census_strategy) && feat_opts$census_strategy != "last") {
+        args <- c(args, sprintf('  census_strategy = "%s"', feat_opts$census_strategy))
+      }
+
+      # Include metadata
+      if (isTRUE(feat_opts$include_metadata)) {
+        args <- c(args, '  include_metadata = TRUE')
+      }
+
+      # Remove issues
+      if (!isTRUE(feat_opts$remove_issues)) {
+        args <- c(args, '  remove_issues = FALSE')
+      }
+
+      # Build the code
+      code <- paste0(
+        "# Query individual-level features from extracted individuals\n",
+        "individual_features <- query_individual_features(\n",
+        paste(args, collapse = ",\n"),
+        "\n)"
+      )
+
+      return(code)
+    }
+
     # Render the code preview panel
     output$code_preview_panel <- shiny::renderUI({
       # Check if we have any data to show code for
       has_metadata <- isTRUE(metadata_available())
       has_individuals <- isTRUE(individuals_available())
+      has_individual_features <- !is.null(individual_features_available) &&
+                                 isTRUE(individual_features_available())
 
-      if (!has_metadata && !has_individuals) {
+      if (!has_metadata && !has_individuals && !has_individual_features) {
         return(NULL)
       }
 
@@ -231,6 +287,15 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
         current_filters <- filters()
         individuals_code <- generate_individuals_code(current_plots, current_options, current_filters, use_metadata_ref = has_metadata)
         code_sections$individuals <- individuals_code
+      }
+
+      # Individual features code
+      if (has_individual_features) {
+        current_feat_opts <- individual_features_options()
+        if (isTRUE(current_feat_opts$enabled)) {
+          individual_features_code <- generate_individual_features_code(current_feat_opts)
+          code_sections$individual_features <- individual_features_code
+        }
       }
 
       # Build UI
@@ -310,27 +375,76 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
                 gsub("-", "_", id),
                 ns("code_individuals")
               )
+            ),
+            shiny::br(),
+            shiny::br()
+          )
+        },
+
+        # Individual features code section
+        if (has_individual_features) {
+          shiny::tagList(
+            shiny::h6(
+              shiny::icon("microscope"),
+              " ",
+              i18n()$t("Individual Features Query")
+            ),
+            shiny::tags$pre(
+              style = "background-color: #282c34; color: #abb2bf; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.85em;",
+              shiny::tags$code(
+                id = ns("code_individual_features"),
+                code_sections$individual_features
+              )
+            ),
+            rclipboard::rclipButton(
+              ns("copy_individual_features"),
+              i18n()$t("Copy to clipboard"),
+              code_sections$individual_features,
+              icon = shiny::icon("copy"),
+              class = "btn-sm btn-outline-secondary",
+              onclick = sprintf(
+                "copyCodeToClipboard_%s('%s')",
+                gsub("-", "_", id),
+                ns("code_individual_features")
+              )
             )
           )
         },
 
         # Combined code for full workflow
         if (has_metadata && has_individuals) {
-          combined_code <- paste0(
-            "# Complete workflow: Query and extract forest plot data\n",
-            "library(CafriplotsR)\n\n",
-            "# Step 1: Connect to database\n",
-            "# (credentials will be requested interactively)\n\n",
+          # Build combined code with optional individual features
+          combined_parts <- c(
+            "# Complete workflow: Query and extract forest plot data",
+            "library(CafriplotsR)\n",
+            "# Step 1: Connect to database",
+            "# (credentials will be requested interactively)\n",
             code_sections$metadata,
-            "\n\n",
-            "# Step 2: Review metadata and select plots of interest\n",
-            "# View(metadata$metadata)  # Examine available plots\n\n",
-            code_sections$individuals,
-            "\n\n",
-            "# Step 3: Access results\n",
-            "# individuals$individuals  # Individual tree data\n",
-            "# individuals$metadata     # Plot metadata"
+            "\n# Step 2: Review metadata and select plots of interest",
+            "# View(metadata$metadata)  # Examine available plots\n",
+            code_sections$individuals
           )
+
+          if (has_individual_features) {
+            combined_parts <- c(
+              combined_parts,
+              "\n# Step 3: Query individual-level features (optional)",
+              code_sections$individual_features,
+              "\n# Step 4: Access results",
+              "# individuals$individuals     # Individual tree data",
+              "# individuals$metadata        # Plot metadata",
+              "# individual_features         # Individual-level feature measurements"
+            )
+          } else {
+            combined_parts <- c(
+              combined_parts,
+              "\n# Step 3: Access results",
+              "# individuals$individuals  # Individual tree data",
+              "# individuals$metadata     # Plot metadata"
+            )
+          }
+
+          combined_code <- paste(combined_parts, collapse = "\n")
 
           shiny::tagList(
             shiny::hr(),
