@@ -86,17 +86,39 @@ Select what you want to import:
 
 #### **Step 3: Map Columns**
 
-The wizard automatically maps your column names to the database schema:
+The wizard automatically maps your column names to the database schema.
+
+**Required vs Optional Columns:**
+
+At the top of this step, you'll see clearly which columns are **mandatory** vs **recommended**:
+
+- **📌 Required Columns (Mandatory)** - Highlighted in yellow/gold
+  - For **Plot Metadata**: `plot_name`, `method`, `country`
+  - For **Individual Trees**: `plot_name`, `idtax_n`, `original_tax_name`
+  - You **cannot proceed** until all required columns are mapped
+
+- **💡 Recommended Columns (Optional)** - Highlighted in blue
+  - For plots: `ddlat`, `ddlon`, `date_y`, `locality_name`, etc.
+  - These enhance data quality but are not mandatory
+  - You can skip these if you don't have the data
+
+**Automatic Mapping:**
 
 - **✅ Exact matches** - Highlighted in green
 - **🔍 Fuzzy matches** - Suggested with confidence scores
 - **❓ Unmapped columns** - You can manually select or skip
 
 **Smart features:**
-- Recognizes synonyms (e.g., `PI` → `principal_investigator`)
+- Recognizes synonyms (e.g., `PI` → `principal_investigator`, `dbh` → `stem_diameter`)
 - Provides column descriptions on hover
 - Allows you to skip unwanted columns
+- Shows sample values from your data for context
 - Remembers your choices when navigating back
+
+**Validation:**
+- The wizard validates that all required columns are mapped
+- Shows clear error messages if required columns are missing
+- Prevents proceeding to the next step until validation passes
 
 #### **Step 4: Match Lookup Values**
 

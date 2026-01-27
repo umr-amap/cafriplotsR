@@ -37,6 +37,7 @@ mod_extraction_config_server <- function(id, selected_plots, i18n) {
 
     # Reactive values
     execute_counter <- shiny::reactiveVal(0)
+    individual_features_counter <- shiny::reactiveVal(0)
 
     # Render the complete UI with translations
     output$config_ui <- shiny::renderUI({
@@ -173,8 +174,138 @@ mod_extraction_config_server <- function(id, selected_plots, i18n) {
           i18n()$t("Extract Individuals from Selected Plots"),
           icon = shiny::icon("download"),
           class = "btn-success btn-lg btn-block"
+        ),
+
+        # Individual Features Query Section (placed after extract button)
+        shiny::hr(),
+        shiny::wellPanel(
+          style = "background-color: #f8f9fa; border-left: 4px solid #17a2b8;",
+          shiny::h5(shiny::icon("microscope"), " ", i18n()$t("Query Individual Features Separately")),
+
+          shiny::p(
+            class = "text-muted",
+            style = "font-size: 0.95em;",
+            i18n()$t("This optional step extracts all attributes linked to individuals, including trait measurements and observations.")
+          ),
+
+          shiny::checkboxInput(
+            ns("enable_individual_features_query"),
+            i18n()$t("Enable separate extraction of individual-level features"),
+            value = FALSE
+          ),
+
+          # Hidden panel that shows when checkbox is enabled
+          shinyjs::hidden(
+            shiny::div(
+              id = ns("individual_features_config_panel"),
+              shiny::hr(),
+
+              # Trait Selection
+              shiny::radioButtons(
+                ns("trait_selection_mode"),
+                i18n()$t("Trait Selection"),
+                choices = stats::setNames(
+                  c("all", "specific"),
+                  c(i18n()$t("All available traits"),
+                    i18n()$t("Specific traits only"))
+                ),
+                selected = "all"
+              ),
+
+              # Trait IDs input (only shown when "specific" is selected)
+              shinyjs::hidden(
+                shiny::div(
+                  id = ns("trait_ids_input_panel"),
+                  shiny::textInput(
+                    ns("trait_ids_input"),
+                    i18n()$t("Select trait IDs (comma-separated)"),
+                    value = "",
+                    placeholder = i18n()$t("Example: 1,2,5,10")
+                  ),
+                  shiny::helpText(i18n()$t("Leave empty for all traits"))
+                )
+              ),
+
+              # Format selection with detailed explanation
+              shiny::h6(i18n()$t("Output Format")),
+              shiny::radioButtons(
+                ns("individual_features_format"),
+                NULL,
+                choices = stats::setNames(
+                  c("wide", "long"),
+                  c(i18n()$t("Wide format (measurements as columns)"),
+                    i18n()$t("Long format (measurements as rows)"))
+                ),
+                selected = "wide"
+              ),
+              shiny::div(
+                class = "alert alert-info",
+                style = "font-size: 0.85em; margin-top: -10px;",
+                shiny::uiOutput(ns("format_explanation"))
+              ),
+
+              # Additional options
+              shiny::checkboxInput(
+                ns("include_multi_census_features"),
+                i18n()$t("Include multi-census data"),
+                value = FALSE
+              ),
+
+              shiny::checkboxInput(
+                ns("include_metadata_features"),
+                i18n()$t("Include measurement metadata"),
+                value = FALSE
+              ),
+
+              # Query button
+              shiny::hr(),
+              shiny::actionButton(
+                ns("query_individual_features"),
+                i18n()$t("Query Individual Features"),
+                icon = shiny::icon("search"),
+                class = "btn-info btn-block"
+              )
+            )
+          )
         )
       )
+    })
+
+    # Toggle individual features config panel visibility
+    shiny::observeEvent(input$enable_individual_features_query, {
+      if (isTRUE(input$enable_individual_features_query)) {
+        shinyjs::show("individual_features_config_panel")
+      } else {
+        shinyjs::hide("individual_features_config_panel")
+      }
+    })
+
+    # Toggle trait IDs input visibility based on selection mode
+    shiny::observeEvent(input$trait_selection_mode, {
+      if (identical(input$trait_selection_mode, "specific")) {
+        shinyjs::show("trait_ids_input_panel")
+      } else {
+        shinyjs::hide("trait_ids_input_panel")
+      }
+    })
+
+    # Format explanation for individual features
+    output$format_explanation <- shiny::renderUI({
+      shiny::req(input$individual_features_format)
+
+      if (input$individual_features_format == "wide") {
+        shiny::tagList(
+          shiny::strong(i18n()$t("Wide format:")),
+          " ",
+          i18n()$t("One row per individual, measurements as columns. Values are aggregated if multiple observations exist per individual.")
+        )
+      } else {
+        shiny::tagList(
+          shiny::strong(i18n()$t("Long format:")),
+          " ",
+          i18n()$t("One row per measurement. More complete representation with no aggregation.")
+        )
+      }
     })
 
     # Style descriptions (translated)
@@ -226,6 +357,29 @@ mod_extraction_config_server <- function(id, selected_plots, i18n) {
       cli::cli_alert_success("Execute counter now at: {execute_counter()}")
     })
 
+    # Individual features query button handler
+    shiny::observeEvent(input$query_individual_features, {
+      cli::cli_alert_info("Query individual features button clicked!")
+
+      # Check selected plots
+      plots <- selected_plots()
+      cli::cli_alert_info("Selected plots: {if(is.null(plots)) 'NULL' else paste(length(plots), 'plots')}")
+
+      if (is.null(plots) || length(plots) == 0) {
+        cli::cli_alert_warning("No plots selected!")
+        shiny::showNotification(
+          i18n()$t("Please select at least one plot before querying individual features"),
+          type = "warning",
+          duration = 5
+        )
+        return()
+      }
+
+      cli::cli_alert_success("Incrementing individual features counter to {individual_features_counter() + 1}")
+      individual_features_counter(individual_features_counter() + 1)
+      cli::cli_alert_success("Individual features counter now at: {individual_features_counter()}")
+    })
+
     # Build options list
     options <- shiny::reactive({
       list(
@@ -250,11 +404,37 @@ mod_extraction_config_server <- function(id, selected_plots, i18n) {
       )
     })
 
+    # Build individual features options list
+    individual_features_options <- shiny::reactive({
+      # Parse trait IDs if specific mode selected
+      trait_ids <- NULL
+      if (identical(input$trait_selection_mode, "specific")) {
+        trait_ids_text <- input$trait_ids_input %||% ""
+        if (nzchar(trait_ids_text)) {
+          # Parse comma-separated IDs
+          trait_ids <- as.integer(strsplit(trait_ids_text, ",\\s*")[[1]])
+          trait_ids <- trait_ids[!is.na(trait_ids)]  # Remove NAs
+        }
+      }
+
+      list(
+        enabled = input$enable_individual_features_query %||% FALSE,
+        trait_ids = trait_ids,
+        format = input$individual_features_format %||% "wide",
+        include_multi_census = input$include_multi_census_features %||% FALSE,
+        census_strategy = input$census_strategy %||% "last",
+        include_metadata = input$include_metadata_features %||% FALSE,
+        remove_issues = input$remove_obs_with_issue %||% TRUE
+      )
+    })
+
     # Return reactive values
     return(
       list(
         options = options,
-        execute_trigger = shiny::reactive(execute_counter())
+        execute_trigger = shiny::reactive(execute_counter()),
+        individual_features_options = individual_features_options,
+        individual_features_trigger = shiny::reactive(individual_features_counter())
       )
     )
   })

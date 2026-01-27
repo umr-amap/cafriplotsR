@@ -1517,131 +1517,280 @@ add_traits_measures_features <- function(new_data,
                                          id_trait_measures = "id_trait_measures",
                                          features,
                                          allow_multiple_value = FALSE,
-                                         add_data =FALSE) {
-  
+                                         add_data = FALSE) {
+
+  # Get database connection
+  mydb <- call.mydb()
+
+  # Handle connection pool checkout
+  is_pool <- inherits(mydb, "Pool")
+  if (is_pool) {
+    actual_con <- pool::poolCheckout(mydb)
+    on.exit({
+      pool::poolReturn(actual_con)
+    }, add = TRUE)
+  } else {
+    actual_con <- mydb
+  }
+
+  # If add_data is TRUE, use transaction
+  if (add_data) {
+
+    DBI::dbBegin(actual_con)
+
+    tryCatch({
+
+      # Call internal helper with interactive mode
+      result <- .add_trait_features_internal(
+        new_data = new_data,
+        id_trait_measures = id_trait_measures,
+        features = features,
+        con = actual_con,
+        allow_multiple_value = allow_multiple_value,
+        interactive = TRUE  # Show prompts for backward compatibility
+      )
+
+      # Commit transaction
+      DBI::dbCommit(actual_con)
+      cli::cli_alert_success("Transaction committed - features added successfully")
+
+      return(result)
+
+    }, error = function(e) {
+      # Rollback on error
+      tryCatch({
+        DBI::dbRollback(actual_con)
+        cli::cli_alert_danger("Transaction rolled back due to error: {e$message}")
+      }, error = function(rollback_error) {
+        cli::cli_alert_danger("Error during rollback: {rollback_error$message}")
+      })
+      stop(e)
+    })
+
+  } else {
+
+    # Preview mode (add_data = FALSE) - no transaction needed
+    result <- .add_trait_features_internal(
+      new_data = new_data,
+      id_trait_measures = id_trait_measures,
+      features = features,
+      con = actual_con,
+      allow_multiple_value = allow_multiple_value,
+      interactive = TRUE
+    )
+
+    return(result)
+
+  }
+
+}
+
+
+
+
+#' Internal: Execute trait measurement insert with RETURNING clause
+#'
+#' @description
+#' Performs INSERT with RETURNING to get auto-generated IDs immediately.
+#' Uses safe value escaping for SQL injection prevention.
+#'
+#' @param data_to_add Data frame with trait measurement data to insert
+#' @param con Database connection (must be actual connection, not pool)
+#'
+#' @return Data frame with id_trait_measures and id_data_individuals columns
+#'
+#' @keywords internal
+#' @noRd
+.execute_trait_insert_with_returning <- function(data_to_add, con) {
+
+  # Build column list with proper quoting for reserved keywords
+  col_names <- paste(sprintf('"%s"', names(data_to_add)), collapse = ", ")
+
+  # Build VALUES clause with proper escaping
+  values_list <- apply(data_to_add, 1, function(row) {
+    values <- sapply(seq_along(row), function(i) {
+      val <- row[i]
+      col_name <- names(data_to_add)[i]
+
+      if (is.na(val)) {
+        "NULL"
+      } else if (is.numeric(val)) {
+        as.character(val)
+      } else {
+        # Escape single quotes for SQL safety
+        sprintf("'%s'", gsub("'", "''", as.character(val)))
+      }
+    })
+    sprintf("(%s)", paste(values, collapse = ", "))
+  })
+
+  values_clause <- paste(values_list, collapse = ", ")
+
+  # Build INSERT with RETURNING
+  insert_sql <- sprintf(
+    'INSERT INTO data_traits_measures (%s) VALUES %s RETURNING "id_trait_measures", "id_data_individuals"',
+    col_names,
+    values_clause
+  )
+
+  # Execute and return IDs
+  DBI::dbGetQuery(con, insert_sql)
+}
+
+
+
+#' Internal: Add trait features without prompts (for transactional use)
+#'
+#' @description
+#' Core logic for adding trait measurement features. Designed to be called
+#' within transactions without user prompts when interactive = FALSE.
+#'
+#' @param new_data Data frame with feature data
+#' @param id_trait_measures Column name containing trait measurement IDs
+#' @param features Character vector of feature column names
+#' @param con Database connection (must be actual connection, not pool)
+#' @param allow_multiple_value Logical, allow multiple values per measurement
+#' @param interactive Logical, whether to show prompts (default TRUE)
+#'
+#' @return List of data frames prepared for each feature
+#'
+#' @keywords internal
+#' @noRd
+.add_trait_features_internal <- function(new_data,
+                                         id_trait_measures = "id_trait_measures",
+                                         features,
+                                         con,
+                                         allow_multiple_value = FALSE,
+                                         interactive = TRUE) {
+
+  # Validate features exist in data
   for (i in 1:length(features))
     if (!any(colnames(new_data) == features[i]))
-      stop(paste("features field provide not found in new_data", features[i]))
-  
+      stop(paste("features field not found in new_data:", features[i]))
+
   new_data_renamed <- new_data
-  
-  ## removing entries with NA values for traits
+
+  # Remove entries with NA values for all features
   new_data_renamed <-
     new_data_renamed %>%
     dplyr::filter_at(dplyr::vars(!!features), dplyr::any_vars(!is.na(.)))
-  
+
   if (nrow(new_data_renamed) == 0)
     stop("no values for selected features(s)")
-  
+
   new_data_renamed <-
     new_data_renamed %>%
-    mutate(id_new_data = 1:nrow(.))
-  
+    dplyr::mutate(id_new_data = 1:nrow(.))
+
   new_data_renamed <-
     new_data_renamed %>%
-    rename(id_trait_measures := all_of(id_trait_measures))
-  
+    dplyr::rename(id_trait_measures := dplyr::all_of(id_trait_measures))
+
+  # Validate trait_measures exist in database
   link_trait_measures <-
     new_data_renamed %>%
     dplyr::left_join(
-      try_open_postgres_table(table = "data_traits_measures", con = mydb) %>%
+      try_open_postgres_table(table = "data_traits_measures", con = con) %>%
         dplyr::select(id_trait_measures) %>%
         dplyr::filter(id_trait_measures %in% !!unique(new_data_renamed$id_trait_measures)) %>%
         dplyr::collect() %>%
         dplyr::mutate(rrr = 1),
       by = c("id_trait_measures" = "id_trait_measures")
     )
-  
-  if (dplyr::filter(link_trait_measures, is.na(rrr)) %>%
-      nrow() > 0) {
+
+  if (dplyr::filter(link_trait_measures, is.na(rrr)) %>% nrow() > 0) {
     print(dplyr::filter(link_trait_measures, is.na(rrr)))
     stop("provided trait_measures not found in data_traits_measures")
   }
-  
-  
-  ### preparing dataset to add for each trait
+
+  # Prepare dataset to add for each feature
   list_add_data <- vector('list', length(features))
+
   for (i in 1:length(features)) {
-    
+
     feat <- features[i]
-    if(!any(colnames(new_data_renamed) == feat))
+    if (!any(colnames(new_data_renamed) == feat))
       stop(paste("feat field not found", feat))
-    
-    data_feat <-
-      new_data_renamed
-    
+
+    data_feat <- new_data_renamed
+
     data_feat <-
       data_feat %>%
-      dplyr::filter(!is.na(!!sym(feat)))
-    
-    if(nrow(data_feat) > 0) {
-      ### adding trait id and adding potential issues based on trait
+      dplyr::filter(!is.na(!!rlang::sym(feat)))
+
+    if (nrow(data_feat) > 0) {
+
+      # Link to trait definition
       data_feat <-
         .link_trait(data_stand = data_feat, trait = feat)
-      
-      ## see what type of value numeric of character
+
+      # Determine value type (numeric vs character)
       valuetype <-
         data_feat %>%
         dplyr::distinct(id_trait) %>%
         dplyr::left_join(
-          dplyr::tbl(mydb, "traitlist") %>%
+          dplyr::tbl(con, "traitlist") %>%
             dplyr::select(valuetype, id_trait) %>%
             dplyr::collect(),
           by = c("id_trait" = "id_trait")
         )
-      
-      if(valuetype$valuetype == "table_colnam") {
-        
+
+      # Handle table_colnam type (people references)
+      if (valuetype$valuetype == "table_colnam") {
+
         add_col_sep <-
           data_feat %>%
           tidyr::separate_rows(trait, sep = ",") %>%
-          mutate(trait = stringr::str_squish(trait))
-        
+          dplyr::mutate(trait = stringr::str_squish(trait))
+
         add_col_sep <- .link_colnam(
           data_stand = add_col_sep,
           column_searched = "trait",
           column_name = "colnam",
           id_field = "trait",
           id_table_name = "id_table_colnam",
-          db_connection = mydb,
+          db_connection = con,
           table_name = "table_colnam"
         )
-        
-        data_feat <-add_col_sep
-        
+
+        data_feat <- add_col_sep
+
       }
-      
-      if (any(data_feat$trait == 0)) {
-        
-        # add_0 <- utils::askYesNo("Some value are equal to 0. Do you want to add these values anyway ??")
-        
-        add_0 <- choose_prompt(message = "Some value are equal to 0. Do you want to add these values anyway ??")
-        
-        if(!add_0)
+
+      # Handle zero values
+      if (any(data_feat$trait == 0, na.rm = TRUE)) {
+
+        if (interactive) {
+          add_0 <- choose_prompt(message = "Some values are equal to 0. Do you want to add these values anyway?")
+        } else {
+          add_0 <- FALSE  # Skip zeros in non-interactive mode
+        }
+
+        if (!add_0)
           data_feat <-
             data_feat %>%
             dplyr::filter(trait != 0)
-        
+
       }
-      
-      
-      
-      cli::cli_h3(".add_modif_field")
+
+      # Add modification date fields
+      if (interactive) cli::cli_h3(".add_modif_field")
       data_feat <-
         .add_modif_field(dataset = data_feat)
-      
-      
-      if (valuetype$valuetype == "ordinal" |
-          valuetype$valuetype == "character")
+
+      # Determine storage column based on valuetype
+      if (valuetype$valuetype == "ordinal" | valuetype$valuetype == "character")
         val_type <- "character"
-      
+
       if (valuetype$valuetype == "numeric" | valuetype$valuetype == "table_colnam")
         val_type <- "numeric"
-      
+
       if (valuetype$valuetype == "integer")
         val_type <- "numeric"
-      
-      cli::cli_h3("data_to_add")
+
+      # Prepare data for insert
+      if (interactive) cli::cli_h3("data_to_add")
+
       data_to_add <-
         dplyr::tibble(
           id_trait_measures = data_feat$id_trait_measures,
@@ -1660,83 +1809,77 @@ add_traits_measures_features <- function(new_data,
           date_modif_m = data_feat$date_modif_m,
           date_modif_y = data_feat$date_modif_y
         )
-      
-      list_add_data[[i]] <-
-        data_to_add
-      
-      print(data_to_add)
-      
+
+      list_add_data[[i]] <- data_to_add
+
+      if (interactive) print(data_to_add)
+
+      # Handle duplicates
       if (data_to_add %>% dplyr::distinct() %>% nrow() != nrow(data_to_add)) {
-        
+
         duplicates_lg <- duplicated(data_to_add)
-        
+
         cli::cli_alert_warning("Duplicates in new data for {feat} concerning {length(duplicates_lg[duplicates_lg])} id(s)")
-        
-        # cf_merge <-
-        #   askYesNo(msg = "confirm merging duplicates?")
-        
-        cf_merge <- 
-          choose_prompt(message = "confirm merging duplicates ?")
-        
+
+        if (interactive) {
+          cf_merge <- choose_prompt(message = "confirm merging duplicates?")
+        } else {
+          cf_merge <- TRUE  # Auto-merge in non-interactive mode
+        }
+
         if (cf_merge) {
-          
-          # issues_dup <- data_to_add %>%
-          #   filter(id_trait_measures %in% data_to_add[duplicates_lg, "id_trait_measures"]) %>%
-          #   dplyr::select(issue, id_trait_measures)
-          
-          ## resetting issue
-          if(any(grepl("identical value", issues_dup$issue))) {
-            
-            issues_dup_modif_issue <-
-              issues_dup[grepl("identical value", issues_dup$issue),]
-            
-            data_to_add <-
-              data_to_add %>%
-              mutate(issue = replace(issue, id_trait_measures %in% issues_dup_modif_issue$id_trait_measures, NA))
-            
-          }
-          
           data_to_add <- data_to_add %>% dplyr::distinct()
         } else {
-          if (!allow_multiple_value) stop()
+          if (!allow_multiple_value) stop("Duplicates found and not allowed")
         }
-        
+
       }
-      
-      # response <-
-      #   utils::askYesNo("Confirm add these data to data_ind_measures_feat table?")
-      
-      response <- 
-        choose_prompt(message = "Confirm add these data to data_ind_measures_feat table ?")
-      
-      if(add_data & response) {
-        
-        DBI::dbWriteTable(mydb, "data_ind_measures_feat",
+
+      # Insert features (no prompt if non-interactive)
+      if (interactive) {
+        response <- choose_prompt(message = "Confirm add these data to data_ind_measures_feat table?")
+      } else {
+        response <- TRUE
+      }
+
+      if (response) {
+
+        DBI::dbWriteTable(con, "data_ind_measures_feat",
                           data_to_add,
                           append = TRUE,
                           row.names = FALSE)
-        
-        cli::cli_alert_success("Adding data : {nrow(data_to_add)} values added")
+
+        if (interactive) {
+          cli::cli_alert_success("Adding data: {nrow(data_to_add)} values added for feature {feat}")
+        }
       }
-      
-    } else{
-      
-      cli::cli_alert_info("no added data for {trait} - no values different of 0")
-      
+
+    } else {
+
+      if (interactive) cli::cli_alert_info("no added data for {feat} - no values different of 0")
+
     }
   }
-  
-  
-  return(list(list_features_add = list_add_data))
-  
-}
 
+  return(list(list_features_add = list_add_data))
+
+}
 
 
 
 #' Add an observation in trait measurement table
 #'
 #' Add a trait measure in trait measurement table
+#'
+#' @details
+#' This function now uses database transactions to ensure atomic operations.
+#' When \code{features_field} is provided, both measurements and their features
+#' are added together in a single transaction. If any error occurs, all changes
+#' are rolled back automatically.
+#'
+#' The function uses PostgreSQL's RETURNING clause for efficient ID retrieval,
+#' eliminating the need for separate queries to fetch generated IDs. This improves
+#' reliability and prevents race conditions from concurrent operations.
 #'
 #' @return list of tibbles that should be/have been added
 #'
@@ -1751,7 +1894,7 @@ add_traits_measures_features <- function(new_data,
 #' @param id_tag_plot string column name which contain the ID of individuals table
 #' @param id_specimen string column name which contain the ID of specimen
 #' @param traits_field string vector listing trait columns names in new_data
-#' @param features_field string vector listing features (column names) to link to measurementsin new_data
+#' @param features_field string vector listing features (column names) to link to measurements in new_data
 #' @param add_data logical whether or not data should be added - by default FALSE
 #' @param allow_multiple_value if multiple values linked to one individual can be uploaded at once
 #'
@@ -1933,17 +2076,19 @@ add_traits_measures <- function(new_data,
   }
   
   if (!is.null(id_plot_name)) {
-    id_plot_name <- "id_table_liste_plots_n"
-    
+    # Save user's input column name before overwriting
+    id_plot_name_col <- id_plot_name
+    id_plot_name_target <- "id_table_liste_plots_n"
+
     new_data_renamed <-
       new_data_renamed %>%
-      dplyr::rename_at(dplyr::vars(id_plot_name), ~ id_plot_name)
-    
+      dplyr::rename_at(dplyr::vars(dplyr::all_of(id_plot_name_col)), ~ id_plot_name_target)
+
     if (any(colnames(new_data_renamed) == "plot_name"))
       new_data_renamed <-
       new_data_renamed %>%
       dplyr::select(-plot_name)
-    
+
     link_plot <-
       new_data_renamed %>%
       dplyr::left_join(
@@ -1951,13 +2096,13 @@ add_traits_measures <- function(new_data,
           dplyr::select(plot_name, id_liste_plots) %>% dplyr::collect(),
         by = c("id_table_liste_plots_n" = "id_liste_plots")
       )
-    
+
     if (dplyr::filter(link_plot, is.na(plot_name)) %>%
         nrow() > 0) {
       print(dplyr::filter(link_plot, is.na(plot_name)))
       cli::cli_alert_danger("provided id plot not found in plot metadata")
     }
-    
+
     new_data_renamed <-
       new_data_renamed %>%
       dplyr::rename(id_liste_plots = id_table_liste_plots_n)
@@ -2881,49 +3026,90 @@ add_traits_measures <- function(new_data,
         
       }
       
-      
-      response <- 
-        choose_prompt(message = "Confirm add these data to data_traits_measures table?")
-      
+
+      # Enhanced preview showing both measurements and features
+      cli::cli_h2("Preview of data to add:")
+      cli::cli_h3("Trait measurements: {nrow(data_to_add)} rows for trait '{trait}'")
+      print(data_to_add)
+
+      if (!is.null(features_field)) {
+        cli::cli_h3("Features to add: {length(features_field)} feature type(s)")
+        cli::cli_ul(features_field)
+      }
+
+      # Single consolidated prompt for measurements and features
+      prompt_msg <- if (!is.null(features_field)) {
+        "Confirm add trait measurements and their features?"
+      } else {
+        "Confirm add trait measurements?"
+      }
+      response <- choose_prompt(message = prompt_msg)
+
       if (add_data & response) {
-        
-        DBI::dbWriteTable(mydb, "data_traits_measures",
-                          data_to_add,
-                          append = TRUE,
-                          row.names = FALSE)
-        
-        cli::cli_alert_success("Adding data : {nrow(data_to_add)} values added")
-        
-        if (!is.null(features_field)) {
-          
-          imported_data <- tbl(mydb, "data_traits_measures") %>%
-            filter(date_modif_d == !!data_to_add$date_modif_d[1],
-                   date_modif_m == !!data_to_add$date_modif_m[1],
-                   date_modif_y == !!data_to_add$date_modif_y[1]) %>%
-            select(id_trait_measures, id_data_individuals) %>%
-            collect() %>%
-            arrange(id_trait_measures)
-          
-          ids <- imported_data %>% slice((nrow(imported_data)-nrow(data_to_add)+1):nrow(imported_data))
-          
-          data_feats <-
-            data_trait %>% select(all_of(features_field), id_data_individuals) %>%
-            mutate(id_trait_measures = ids$id_trait_measures,
-                   id_data_individuals = ids$id_data_individuals)
-          
-          add_traits_measures_features(
-            new_data = data_feats,
-            id_trait_measures = "id_trait_measures",
-            features = features_field , #
-            add_data = T
-          )
-          
+
+        # Handle connection pool checkout
+        is_pool <- inherits(mydb, "Pool")
+        if (is_pool) {
+          actual_con <- pool::poolCheckout(mydb)
+          on.exit({
+            pool::poolReturn(actual_con)
+          }, add = TRUE)
+        } else {
+          actual_con <- mydb
         }
-        
-      } else{
-        
-        cli::cli_alert_danger("No added data for {trait} - add_data is FALSE")
-        
+
+        # Begin transaction
+        DBI::dbBegin(actual_con)
+
+        tryCatch({
+
+          # Insert measurements with RETURNING to get IDs
+          trait_ids <- .execute_trait_insert_with_returning(data_to_add, actual_con)
+
+          cli::cli_alert_success("Added {nrow(data_to_add)} trait measurements for '{trait}'")
+
+          # If features provided, add them in same transaction
+          if (!is.null(features_field)) {
+
+            # Link features to returned IDs
+            data_feats <-
+              data_trait %>%
+              dplyr::select(dplyr::all_of(features_field), id_data_individuals) %>%
+              dplyr::left_join(trait_ids, by = "id_data_individuals") %>%
+              dplyr::select(id_trait_measures, dplyr::all_of(features_field))
+
+            # Add features (calls internal helper without additional prompts)
+            .add_trait_features_internal(
+              new_data = data_feats,
+              id_trait_measures = "id_trait_measures",
+              features = features_field,
+              con = actual_con,
+              allow_multiple_value = allow_multiple_value,
+              interactive = FALSE  # Skip prompts - already confirmed above
+            )
+
+            cli::cli_alert_success("Added features for {nrow(data_feats)} measurements")
+          }
+
+          # Commit transaction
+          DBI::dbCommit(actual_con)
+          cli::cli_alert_success("Transaction committed - all data added successfully for '{trait}'")
+
+        }, error = function(e) {
+          # Rollback on error
+          tryCatch({
+            DBI::dbRollback(actual_con)
+            cli::cli_alert_danger("Transaction rolled back due to error: {e$message}")
+          }, error = function(rollback_error) {
+            cli::cli_alert_danger("Error during rollback: {rollback_error$message}")
+          })
+          stop(e)
+        })
+
+      } else {
+
+        cli::cli_alert_danger("No data added for '{trait}' - user cancelled or add_data is FALSE")
+
       }
       
     } else{

@@ -22,13 +22,14 @@ mod_results_display_ui <- function(id) {
 #'
 #' @param id Module namespace ID
 #' @param results Reactive containing query_plots() results
+#' @param individual_features_results Reactive containing query_individual_features() results (optional)
 #' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return NULL
 #'
 #' @keywords internal
 #' @export
-mod_results_display_server <- function(id, results, i18n) {
+mod_results_display_server <- function(id, results, individual_features_results = NULL, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -135,18 +136,33 @@ mod_results_display_server <- function(id, results, i18n) {
 
     # Get table names from results
     table_names <- shiny::reactive({
-      shiny::req(results())
+      table_list <- character()
 
-      res <- results()
+      # Add tables from main results
+      if (!is.null(results())) {
+        res <- results()
 
-      if (is.data.frame(res)) {
-        return("data")
-      } else if (is.list(res)) {
-        # Get names of data.frame components
-        names(Filter(is.data.frame, res))
-      } else {
-        NULL
+        if (is.data.frame(res)) {
+          table_list <- c(table_list, "data")
+        } else if (is.list(res)) {
+          # Get names of data.frame components
+          table_list <- c(table_list, names(Filter(is.data.frame, res)))
+        }
       }
+
+      # Add individual features if available (always a data.frame)
+      if (!is.null(individual_features_results) && !is.null(individual_features_results())) {
+        feat_res <- individual_features_results()
+        if (is.data.frame(feat_res)) {
+          table_list <- c(table_list, "individual_features")
+        }
+      }
+
+      if (length(table_list) == 0) {
+        return(NULL)
+      }
+
+      table_list
     })
 
     # Update table export checkboxes
@@ -194,15 +210,26 @@ mod_results_display_server <- function(id, results, i18n) {
 
     # Dynamically create result tabs
     output$results_tabs_ui <- shiny::renderUI({
-      shiny::req(results(), table_names())
+      shiny::req(table_names())
 
       res <- results()
+      feat_res <- individual_features_results()
+
       tabs <- lapply(table_names(), function(tab_name) {
-        # Get the data
-        tab_data <- if (is.data.frame(res)) res else res[[tab_name]]
+        # Get the data from appropriate source
+        if (tab_name == "individual_features") {
+          tab_data <- feat_res
+          title <- i18n()$t("Individual Features")
+        } else if (is.data.frame(res)) {
+          tab_data <- res
+          title <- gsub("_", " ", tools::toTitleCase(tab_name))
+        } else {
+          tab_data <- res[[tab_name]]
+          title <- gsub("_", " ", tools::toTitleCase(tab_name))
+        }
 
         shiny::tabPanel(
-          title = gsub("_", " ", tools::toTitleCase(tab_name)),
+          title = title,
           shiny::br(),
           DT::DTOutput(ns(paste0("table_", tab_name))),
           shiny::br(),
@@ -227,15 +254,23 @@ mod_results_display_server <- function(id, results, i18n) {
 
     # Render individual tables
     shiny::observe({
-      shiny::req(results(), table_names())
+      shiny::req(table_names())
 
       res <- results()
+      feat_res <- individual_features_results()
 
       lapply(table_names(), function(tab_name) {
         output_id <- paste0("table_", tab_name)
 
         output[[output_id]] <- DT::renderDT({
-          tab_data <- if (is.data.frame(res)) res else res[[tab_name]]
+          # Get the data from appropriate source
+          if (tab_name == "individual_features") {
+            tab_data <- feat_res
+          } else if (is.data.frame(res)) {
+            tab_data <- res
+          } else {
+            tab_data <- res[[tab_name]]
+          }
 
           DT::datatable(
             tab_data,
@@ -261,18 +296,30 @@ mod_results_display_server <- function(id, results, i18n) {
         paste0("query_plots_results_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
       },
       content = function(file) {
-        shiny::req(results())
-
         res <- results()
         tables_to_include <- input$tables_to_export
 
         # Prepare data for export
-        if (is.data.frame(res)) {
-          data_list <- list(data = res)
-        } else if (is.list(res)) {
-          data_list <- res[intersect(names(res), tables_to_include)]
-          # Keep only data.frames
-          data_list <- Filter(is.data.frame, data_list)
+        data_list <- list()
+
+        if (!is.null(res)) {
+          if (is.data.frame(res)) {
+            data_list$data <- res
+          } else if (is.list(res)) {
+            data_list <- res[intersect(names(res), tables_to_include)]
+            # Keep only data.frames
+            data_list <- Filter(is.data.frame, data_list)
+          }
+        }
+
+        # Add individual features if selected (always a data.frame)
+        if ("individual_features" %in% tables_to_include &&
+            !is.null(individual_features_results) &&
+            !is.null(individual_features_results())) {
+          feat_res <- individual_features_results()
+          if (is.data.frame(feat_res)) {
+            data_list$individual_features <- feat_res
+          }
         }
 
         # Write to Excel
@@ -286,17 +333,29 @@ mod_results_display_server <- function(id, results, i18n) {
         paste0("query_plots_results_", format(Sys.Date(), "%Y%m%d"), ".zip")
       },
       content = function(file) {
-        shiny::req(results())
-
         res <- results()
         tables_to_include <- input$tables_to_export
 
         # Prepare data for export
-        if (is.data.frame(res)) {
-          data_list <- list(data = res)
-        } else if (is.list(res)) {
-          data_list <- res[intersect(names(res), tables_to_include)]
-          data_list <- Filter(is.data.frame, data_list)
+        data_list <- list()
+
+        if (!is.null(res)) {
+          if (is.data.frame(res)) {
+            data_list$data <- res
+          } else if (is.list(res)) {
+            data_list <- res[intersect(names(res), tables_to_include)]
+            data_list <- Filter(is.data.frame, data_list)
+          }
+        }
+
+        # Add individual features if selected (always a data.frame)
+        if ("individual_features" %in% tables_to_include &&
+            !is.null(individual_features_results) &&
+            !is.null(individual_features_results())) {
+          feat_res <- individual_features_results()
+          if (is.data.frame(feat_res)) {
+            data_list$individual_features <- feat_res
+          }
         }
 
         # Create temp directory
@@ -325,16 +384,30 @@ mod_results_display_server <- function(id, results, i18n) {
         paste0("query_plots_results_", format(Sys.Date(), "%Y%m%d"), ".rds")
       },
       content = function(file) {
-        shiny::req(results())
-
         res <- results()
         tables_to_include <- input$tables_to_export
 
         # Prepare data for export
-        if (is.data.frame(res)) {
-          data_to_save <- res
-        } else if (is.list(res)) {
-          data_to_save <- res[intersect(names(res), tables_to_include)]
+        data_to_save <- list()
+
+        if (!is.null(res)) {
+          if (is.data.frame(res)) {
+            data_to_save$data <- res
+          } else if (is.list(res)) {
+            data_to_save <- res[intersect(names(res), tables_to_include)]
+          }
+        }
+
+        # Add individual features if selected
+        if ("individual_features" %in% tables_to_include &&
+            !is.null(individual_features_results) &&
+            !is.null(individual_features_results())) {
+          data_to_save$individual_features <- individual_features_results()
+        }
+
+        # If only one table, save as data.frame instead of list
+        if (length(data_to_save) == 1) {
+          data_to_save <- data_to_save[[1]]
         }
 
         saveRDS(data_to_save, file = file)
