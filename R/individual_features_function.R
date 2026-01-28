@@ -1860,7 +1860,8 @@ pivot_numeric_traits <- function(data, include_census) {
         names_glue = "{.value}_{trait}"
       ) %>%
       rename_with(~str_remove(.x, "value_"), starts_with("value_")) %>%
-      select(-starts_with("id_measure_"))
+      select(-starts_with("id_measure_")) %>%
+      distinct()
   }
   
   # Pivot avec census
@@ -1882,7 +1883,8 @@ pivot_numeric_traits <- function(data, include_census) {
           names_glue = "{.value}_{trait}_{census_name}"
         ) %>%
         rename_with(~str_remove(.x, "value_"), starts_with("value_")) %>%
-        select(-starts_with("id_measure_"))
+        select(-starts_with("id_measure_")) %>%
+        distinct()
     } else {
       # Aggregate by individual only (ignore subplot separation)
       results$with_census <- data_with_subplot %>%
@@ -1899,7 +1901,8 @@ pivot_numeric_traits <- function(data, include_census) {
           names_glue = "{.value}_{trait}"
         ) %>%
         rename_with(~str_remove(.x, "value_"), starts_with("value_")) %>%
-        select(-starts_with("id_measure_"))
+        select(-starts_with("id_measure_")) %>%
+        distinct()
     }
   }
 
@@ -1953,7 +1956,8 @@ pivot_character_traits <- function(data, include_census) {
         values_from = value,
         names_prefix = "char_"
       ) %>%
-      mutate(across(starts_with("char_"), ~na_if(.x, "")))
+      mutate(across(starts_with("char_"), ~na_if(.x, ""))) %>%
+      distinct()
   }
   
   # Pivot avec census
@@ -1974,7 +1978,8 @@ pivot_character_traits <- function(data, include_census) {
           values_from = value,
           names_glue = "char_{trait}_{census_name}"
         ) %>%
-        mutate(across(starts_with("char_"), ~na_if(.x, "")))
+        mutate(across(starts_with("char_"), ~na_if(.x, ""))) %>%
+        distinct()
     } else {
       # Aggregate by individual only (ignore subplot separation)
       results$with_census <- data_with_subplot %>%
@@ -1989,7 +1994,8 @@ pivot_character_traits <- function(data, include_census) {
           values_from = value,
           names_prefix = "char_"
         ) %>%
-        mutate(across(starts_with("char_"), ~na_if(.x, "")))
+        mutate(across(starts_with("char_"), ~na_if(.x, ""))) %>%
+        distinct()
     }
   }
 
