@@ -65,7 +65,8 @@
     keep_patterns = c("wood_density",
                       "stem_diameter",
                       "observations",
-                      "light"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
+                      "light",
+                      "position_"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n)", "^date_modif", "_census_\\d+$"),  # Remove census suffix columns
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,  # Features go to census table
@@ -94,7 +95,11 @@
       # Census-specific columns added dynamically (stem_diameter_census_1, etc.)
     ),
     keep_census_columns = TRUE,  # Keep all _census_N columns
-    keep_patterns = c(),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
+    keep_patterns = c("wood_density",
+                      "stem_diameter",
+                      "observations",
+                      "light",
+                      "position_"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n)", "^date_modif"),
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,
