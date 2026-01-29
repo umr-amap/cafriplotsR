@@ -612,12 +612,10 @@ get_table_idtax_metadata <- function(con = NULL) {
   cli::cli_alert_success("Adding new entry to table_taxa")
   DBI::dbWriteTable(mydb_taxa, "table_taxa", new_rec, append = TRUE, row.names = FALSE)
 
-  # Get the new ID
-  rs <- DBI::dbSendQuery(mydb_taxa, statement = "SELECT MAX(idtax_n) FROM table_taxa")
-  lastval <- DBI::dbFetch(rs)
-  DBI::dbClearResult(rs)
+  # Get the new ID (use dbGetQuery for pool compatibility)
+  lastval <- DBI::dbGetQuery(mydb_taxa, "SELECT MAX(idtax_n) AS max FROM table_taxa")
 
-  new_id <- lastval$max
+  new_id <- lastval$max[1]
   cli::cli_alert_success("New taxon added with idtax_n = {new_id}")
 
   return(new_id)
