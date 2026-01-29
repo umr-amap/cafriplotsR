@@ -291,10 +291,10 @@ query_taxa_traits <- function(
 #' Fetch raw trait measurements for taxa
 #' @keywords internal
 fetch_taxa_trait_measurements <- function(idtax, trait_ids = NULL, con) {
-  
+
   # Build query with explicit column selection to avoid duplicates
   query <- "
-    SELECT 
+    SELECT
       tm.id_trait_measures,
       tm.idtax,
       tm.traitvalue,
@@ -313,26 +313,27 @@ fetch_taxa_trait_measurements <- function(idtax, trait_ids = NULL, con) {
     LEFT JOIN table_traits tl ON tm.fk_id_trait = tl.id_trait
     WHERE 1=1
   "
-  
+
   conditions <- character()
-  
+
   if (!is.null(idtax)) {
     conditions <- c(conditions,
                     glue::glue_sql("tm.idtax IN ({idtax*})", idtax = idtax, .con = con)
     )
   }
-  
+
   if (!is.null(trait_ids)) {
     conditions <- c(conditions,
                     glue::glue_sql("tl.id_trait IN ({trait_ids*})", trait_ids = trait_ids, .con = con)
     )
   }
-  
+
   if (length(conditions) > 0) {
     query <- paste(query, "AND", paste(conditions, collapse = " AND "))
   }
-  
-  DBI::dbGetQuery(con, query)
+
+  # Use func_try_fetch for automatic retry on connection failures
+  func_try_fetch(con = con, sql = query, verbose = FALSE)
 }
 
 #' Enrich trait data with taxonomic information

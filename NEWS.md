@@ -2,6 +2,26 @@
 
 ### Bug Fixes
 
+* **Fixed connection retry logic for trait measurement features queries**
+  - Replaced direct `DBI::dbGetQuery()` calls with `func_try_fetch()` in measurement features functions
+  - Automatic retry (up to 10 attempts) when database connections are lost or timeout
+  - Affected functions: `count_measurement_features()`, `fetch_measurement_features_raw()`, `fetch_taxa_trait_measurements()`, `pivot_table_references()`
+  - Prevents "server closed the connection unexpectedly" errors in long-running Shiny sessions
+  - Users no longer need to manually rerun queries after connection failures
+
+* **Fixed duplicate rows when including measurement features**
+  - `query_taxa_traits()` and `query_individual_features()` with `include_measurement_features = TRUE` were creating duplicate rows for same `id_trait_measures`
+  - Root cause: Multiple feature records per measurement (e.g., separate records for `try_dataset_id` and `try_observation_id`) were being kept as separate rows
+  - Modified `pivot_features_by_type()` and `pivot_table_references()` to aggregate features by `id_trait_measures` only
+  - Multiple feature values are now properly concatenated with `|` separator in single row
+  - Added safety check in `pivot_measurement_features()` to ensure one row per measurement
+
+* **Fixed missing id_col in pivoted measurement features**
+  - `id_ind_meas_feat` (individuals) and `id_taxa_trait_feat` (taxa) columns were lost during pivot operations
+  - Modified `pivot_measurement_features()` to pre-aggregate feature IDs separately and join back after pivoting
+  - Feature IDs are now properly preserved and concatenated when multiple features exist per measurement
+  - Prevents "objet 'id_ind_meas_feat' introuvable" errors in downstream code
+
 * **Fixed census-linked measurements exclusion in `query_individual_features()`**
   - When `include_multi_census = FALSE`, measurements linked to subplots/censuses (having `id_sub_plots`) were incorrectly excluded from results
   - Now properly aggregates census-linked measurements by individual when `include_multi_census = FALSE`
@@ -9,6 +29,20 @@
   - Affects both numeric and character trait pivoting
 
 ### New Features
+
+* **Long format traits table in taxonomic match Shiny app**
+  - Added tabbed interface to traits enrichment module in `launch_taxonomic_match_app()`
+  - Two views now available after fetching traits:
+    - **Wide Format (Aggregated)**: One row per taxon with trait columns (existing functionality preserved)
+    - **Long Format (Detailed)**: One row per measurement with all metadata
+  - Long format automatically includes:
+    - Measurement remarks (`include_remarks = TRUE`)
+    - Measurement features (`include_measurement_features = TRUE`)
+    - Original input names, matched names, and corrected names for traceability
+    - All measurement metadata (basisofrecord, traitdescription, expectedunit, etc.)
+  - Separate download buttons for each format (`.xlsx` export)
+  - Full bilingual support (English/French) with 9 new translations
+  - Equivalent to calling `query_taxa_traits(format = "long", include_remarks = TRUE, include_measurement_features = TRUE)`
 
 * **Individual Features Query in Plot Query App**
   - Added optional individual-level features extraction to `launch_query_plots_app()`
