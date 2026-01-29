@@ -43,11 +43,11 @@ mod_traits_enrichment_ui <- function(id) {
     shiny::hr(),
 
     shiny::uiOutput(ns("enrich_button")),
-    shiny::uiOutput(ns("download_button")),
 
     shiny::hr(),
 
-    shiny::uiOutput(ns("preview"))
+    # Tabset for different format views
+    shiny::uiOutput(ns("results_tabs"))
   )
 }
 
@@ -67,6 +67,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
 
     # Reactive values
     enriched_data <- shiny::reactiveVal(NULL)
+    enriched_data_long <- shiny::reactiveVal(NULL)
     enrichment_in_progress <- shiny::reactiveVal(FALSE)
 
     # Module title
@@ -256,7 +257,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
           return(NULL)
         }
 
-        # Fetch traits using query_taxa_traits
+        # Fetch traits in WIDE format for aggregated view
         shiny::showNotification(
           paste0(i18n()$t("Fetching traits for"), " ", nrow(matched_taxa), " ", i18n()$t("taxa...")),
           duration = NULL,
@@ -264,24 +265,37 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
           type = "message"
         )
 
-        traits_result <- query_taxa_traits(
+        traits_result_wide <- query_taxa_traits(
           idtax = matched_taxa$idtax_n,
-          format = input$output_format %||% "wide",
+          format = "wide",
           add_taxa_info = FALSE,  # We already have taxa info
           include_synonyms = TRUE,
           categorical_mode = input$categorical_format %||% "mode",
+          include_remarks = FALSE,
+          include_measurement_features = FALSE,
+          con_taxa = NULL
+        )
+
+        # Fetch traits in LONG format for detailed measurements
+        traits_result_long <- query_taxa_traits(
+          idtax = matched_taxa$idtax_n,
+          format = "long",
+          add_taxa_info = FALSE,
+          include_synonyms = TRUE,
+          include_remarks = TRUE,
+          include_measurement_features = TRUE,
           con_taxa = NULL
         )
 
         shiny::removeNotification("fetch_traits")
 
-        # Check if we got results
-        has_numeric <- !is.null(traits_result$traits_numeric) &&
-                       !inherits(traits_result$traits_numeric, "logical")
-        has_categorical <- !is.null(traits_result$traits_categorical) &&
-                          !inherits(traits_result$traits_categorical, "logical")
+        # Check if we got results (wide format)
+        has_numeric <- !is.null(traits_result_wide$traits_numeric) &&
+                       !inherits(traits_result_wide$traits_numeric, "logical")
+        has_categorical <- !is.null(traits_result_wide$traits_categorical) &&
+                          !inherits(traits_result_wide$traits_categorical, "logical")
 
-        if (is.null(traits_result) || (!has_numeric && !has_categorical)) {
+        if (is.null(traits_result_wide) || (!has_numeric && !has_categorical)) {
           shiny::showNotification(
             i18n()$t("No trait data found for these taxa"),
             type = "warning",
@@ -339,11 +353,11 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
           ) %>%
           dplyr::ungroup()
 
-        # Join numeric traits if available
+        # Join numeric traits if available (WIDE format)
         # Note: query_taxa_traits returns column named "idtax", not "idtax_n"
-        if (has_numeric && nrow(traits_result$traits_numeric) > 0) {
+        if (has_numeric && nrow(traits_result_wide$traits_numeric) > 0) {
           # Remove id_trait_measures columns before joining
-          numeric_traits <- traits_result$traits_numeric %>%
+          numeric_traits <- traits_result_wide$traits_numeric %>%
             dplyr::select(-dplyr::starts_with("id_trait_measures"))
 
           enriched_result <- enriched_result %>%
@@ -353,10 +367,10 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
             )
         }
 
-        # Join categorical traits if available
-        if (has_categorical && nrow(traits_result$traits_categorical) > 0) {
+        # Join categorical traits if available (WIDE format)
+        if (has_categorical && nrow(traits_result_wide$traits_categorical) > 0) {
           # Remove id_trait_measures columns before joining
-          categorical_traits <- traits_result$traits_categorical %>%
+          categorical_traits <- traits_result_wide$traits_categorical %>%
             dplyr::select(-dplyr::starts_with("id_trait_measures"))
 
           enriched_result <- enriched_result %>%
@@ -397,8 +411,45 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
         enriched_result <- enriched_result %>%
           dplyr::select(dplyr::any_of(cols_to_keep))
 
-        # Store enriched data
+        # Store enriched data (wide format)
         enriched_data(enriched_result)
+
+        # Process LONG format data
+        # Combine traits_raw from long format with taxonomic information
+        if (!is.null(traits_result_long$traits_raw) && nrow(traits_result_long$traits_raw) > 0) {
+          enriched_long <- traits_result_long$traits_raw %>%
+            dplyr::left_join(
+              matched_taxa %>%
+                dplyr::select(idtax_n, matched_name, corrected_name),
+              by = c("idtax" = "idtax_n")
+            ) %>%
+            # Add input names by joining with the filtered data
+            dplyr::left_join(
+              enriched_filtered %>%
+                dplyr::group_by(idtax_n) %>%
+                dplyr::summarise(
+                  input_names = paste(unique(.data[[selected_col_name]]), collapse = " | "),
+                  .groups = "drop"
+                ),
+              by = c("idtax" = "idtax_n")
+            ) %>%
+            # Reorder columns: input names, matched/corrected names, then trait data
+            dplyr::select(
+              input_names,
+              matched_name,
+              corrected_name,
+              idtax,
+              trait,
+              traitvalue,
+              traitvalue_char,
+              valuetype,
+              dplyr::everything()
+            )
+
+          enriched_data_long(enriched_long)
+        } else {
+          enriched_data_long(NULL)
+        }
 
         shiny::showNotification(
           paste0(i18n()$t("Successfully enriched"), " ", nrow(enriched_result), " ", i18n()$t("unique taxa with trait data")),
@@ -420,26 +471,66 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
       })
     })
 
-    # Download button
-    output$download_button <- shiny::renderUI({
+    # Results tabs (wide and long format)
+    output$results_tabs <- shiny::renderUI({
       req(enriched_data())
 
       ns <- session$ns
 
-      shiny::div(
-        style = "margin-top: 20px;",
-        shiny::downloadButton(
-          outputId = ns("download_enriched"),
-          label = i18n()$t("Download Enriched Data"),
-          class = "btn-success"
+      shiny::tabsetPanel(
+        type = "tabs",
+
+        # Wide format tab
+        shiny::tabPanel(
+          title = i18n()$t("Wide Format (Aggregated)"),
+          icon = shiny::icon("table"),
+          shiny::br(),
+
+          shiny::div(
+            style = "margin-bottom: 15px;",
+            shiny::downloadButton(
+              outputId = ns("download_wide"),
+              label = i18n()$t("Download Wide Format"),
+              class = "btn-success"
+            )
+          ),
+
+          shiny::uiOutput(ns("preview_wide"))
+        ),
+
+        # Long format tab
+        shiny::tabPanel(
+          title = i18n()$t("Long Format (Detailed)"),
+          icon = shiny::icon("list"),
+          shiny::br(),
+
+          shiny::div(
+            style = "margin-bottom: 15px;",
+            shiny::conditionalPanel(
+              condition = paste0("output['", ns("has_long_data"), "']"),
+              shiny::downloadButton(
+                outputId = ns("download_long"),
+                label = i18n()$t("Download Long Format"),
+                class = "btn-success"
+              )
+            )
+          ),
+
+          shiny::uiOutput(ns("preview_long"))
         )
       )
     })
 
-    # Download handler
-    output$download_enriched <- shiny::downloadHandler(
+    # Check if long data exists
+    output$has_long_data <- shiny::reactive({
+      !is.null(enriched_data_long())
+    })
+    shiny::outputOptions(output, "has_long_data", suspendWhenHidden = FALSE)
+
+    # Download handler for wide format
+    output$download_wide <- shiny::downloadHandler(
       filename = function() {
-        paste0("taxa_traits_enriched_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
+        paste0("taxa_traits_wide_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
       },
 
       content = function(file) {
@@ -448,8 +539,20 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
       }
     )
 
-    # Preview
-    output$preview <- shiny::renderUI({
+    # Download handler for long format
+    output$download_long <- shiny::downloadHandler(
+      filename = function() {
+        paste0("taxa_traits_long_", format(Sys.Date(), "%Y%m%d"), ".xlsx")
+      },
+
+      content = function(file) {
+        req(enriched_data_long())
+        writexl::write_xlsx(enriched_data_long(), path = file)
+      }
+    )
+
+    # Preview wide format
+    output$preview_wide <- shiny::renderUI({
       req(enriched_data())
 
       data <- enriched_data()
@@ -457,7 +560,14 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
       n_cols <- ncol(data)
 
       shiny::div(
-        shiny::h4(paste0("Enriched Data Preview (", n_rows, " unique taxa, ", n_cols, " columns)")),
+        shiny::h4(paste0(
+          i18n()$t("Wide Format Preview"),
+          " (",
+          n_rows, " ", i18n()$t("unique taxa"),
+          ", ",
+          n_cols, " ", i18n()$t("columns"),
+          ")"
+        )),
         DT::renderDataTable({
           DT::datatable(
             data,
@@ -471,6 +581,52 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
           )
         })
       )
+    })
+
+    # Preview long format
+    output$preview_long <- shiny::renderUI({
+      if (is.null(enriched_data_long())) {
+        shiny::div(
+          style = "padding: 15px; background-color: #fff3cd; border-radius: 5px;",
+          shiny::p(
+            shiny::icon("info-circle"),
+            i18n()$t("No detailed measurements available for these taxa."),
+            style = "color: #856404; margin: 0;"
+          )
+        )
+      } else {
+        data <- enriched_data_long()
+        n_rows <- nrow(data)
+        n_cols <- ncol(data)
+
+        shiny::div(
+          shiny::h4(paste0(
+            i18n()$t("Long Format Preview"),
+            " (",
+            n_rows, " ", i18n()$t("measurements"),
+            ", ",
+            n_cols, " ", i18n()$t("columns"),
+            ")"
+          )),
+          shiny::p(
+            shiny::icon("info-circle"),
+            i18n()$t("This view shows individual trait measurements with remarks and measurement features included."),
+            style = "color: #6c757d; font-style: italic;"
+          ),
+          DT::renderDataTable({
+            DT::datatable(
+              data,
+              options = list(
+                scrollX = TRUE,
+                scrollY = "400px",
+                pageLength = 25,
+                lengthMenu = c(10, 25, 50, 100, -1),
+                lengthChange = TRUE
+              )
+            )
+          })
+        )
+      }
     })
 
     return(invisible(NULL))

@@ -5416,6 +5416,42 @@
     {
       "en": "One row per measurement. More complete representation with no aggregation.",
       "fr": "Une ligne par mesure. Représentation plus complète sans agrégation."
+    },
+    {
+      "en": "Wide Format (Aggregated)",
+      "fr": "Format large (agrégé)"
+    },
+    {
+      "en": "Long Format (Detailed)",
+      "fr": "Format long (détaillé)"
+    },
+    {
+      "en": "Download Wide Format",
+      "fr": "Télécharger format large"
+    },
+    {
+      "en": "Download Long Format",
+      "fr": "Télécharger format long"
+    },
+    {
+      "en": "Wide Format Preview",
+      "fr": "Aperçu format large"
+    },
+    {
+      "en": "Long Format Preview",
+      "fr": "Aperçu format long"
+    },
+    {
+      "en": "measurements",
+      "fr": "mesures"
+    },
+    {
+      "en": "This view shows individual trait measurements with remarks and measurement features included.",
+      "fr": "Cette vue affiche les mesures individuelles de traits avec remarques et caractéristiques de mesure incluses."
+    },
+    {
+      "en": "No detailed measurements available for these taxa.",
+      "fr": "Aucune mesure détaillée disponible pour ces taxons."
     }
   ]
 }

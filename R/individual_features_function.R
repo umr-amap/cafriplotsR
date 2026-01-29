@@ -1530,7 +1530,7 @@ query_traits_measures_features <- function(
   }
   
   # Pivot to wide format
-  pivoted <- pivot_measurement_features(raw_data, config)
+  pivoted <- pivot_measurement_features(data = raw_data, config)
   
   return(pivoted)
 }
@@ -1561,61 +1561,88 @@ get_measurement_features_config <- function(src) {
 #' Count measurement features
 #' @keywords internal
 count_measurement_features <- function(id_trait_measures, config, con) {
-  
+
   query <- glue::glue_sql("
-    SELECT COUNT(*) AS n 
-    FROM {`config$table_name`} 
+    SELECT COUNT(*) AS n
+    FROM {`config$table_name`}
     WHERE id_trait_measures IN ({id_trait_measures*})
   ", id_trait_measures = id_trait_measures, .con = con)
-  
-  result <- DBI::dbGetQuery(con, query)
+
+  # Use func_try_fetch for automatic retry on connection failures
+  result <- func_try_fetch(con = con, sql = query, verbose = FALSE)
   return(result$n)
 }
 
 #' Fetch raw measurement features data
 #' @keywords internal
 fetch_measurement_features_raw <- function(id_trait_measures, config, con) {
-  
-  # Get trait metadata
-  trait_meta <- DBI::dbGetQuery(con, glue::glue_sql("
+
+  # Get trait metadata with retry logic
+  trait_meta_query <- as.character(glue::glue_sql("
     SELECT id_trait, trait, valuetype, traitdescription
     FROM {`config$trait_table`}
   ", .con = con))
-  
-  # Get feature data
+
+  trait_meta <- func_try_fetch(con = con, sql = trait_meta_query, verbose = FALSE)
+
+  # Build feature query with explicit column name
+  # Convert config$id_col to SQL identifier
+  id_col_sql <- DBI::dbQuoteIdentifier(con, config$id_col)
+  table_name_sql <- DBI::dbQuoteIdentifier(con, config$table_name)
+
   feat_query <- glue::glue_sql("
-    SELECT 
+    SELECT
       id_trait_measures,
       id_trait,
-      {`config$id_col`},
+      {id_col_sql},
       typevalue,
       typevalue_char
-    FROM {`config$table_name`}
+    FROM {table_name_sql}
     WHERE id_trait_measures IN ({id_trait_measures*})
   ", id_trait_measures = id_trait_measures, .con = con)
-  
-  feat_data <- DBI::dbGetQuery(con, feat_query)
-  
-  # Join with metadata
+
+  feat_data <- func_try_fetch(con = con, sql = as.character(feat_query), verbose = FALSE)
+
+  # Check if id_col exists in feat_data
+  if (!config$id_col %in% names(feat_data)) {
+    cli::cli_alert_warning("Column {config$id_col} not found in feature data. Available columns: {paste(names(feat_data), collapse=', ')}")
+    # Try to continue without it
+    result <- feat_data %>%
+      distinct() %>%
+      left_join(trait_meta, by = "id_trait")
+    return(result)
+  }
+
+  # Join with metadata and convert id column to character
   result <- feat_data %>%
     distinct() %>%
     left_join(trait_meta, by = "id_trait") %>%
     mutate(!!sym(config$id_col) := as.character(!!sym(config$id_col)))
-  
+
   return(result)
 }
 
 #' Pivot measurement features to wide format
 #' @keywords internal
 pivot_measurement_features <- function(data, config) {
-  
+
   if (nrow(data) == 0) return(tibble())
-  
+
+  # Aggregate id_col separately (keep all unique IDs per id_trait_measures)
+  id_col_aggregated <- data %>%
+    select(id_trait_measures, !!sym(config$id_col)) %>%
+    distinct() %>%
+    group_by(id_trait_measures) %>%
+    summarise(
+      !!sym(config$id_col) := paste(unique(!!sym(config$id_col)), collapse = "|"),
+      .groups = "drop"
+    )
+
   # Separate by valuetype
   valuetypes <- unique(data$valuetype)
-  
+
   pivoted_list <- list()
-  
+
   # Handle character traits
   if (any(valuetypes == "character")) {
     pivoted_list$character <- pivot_features_by_type(
@@ -1625,7 +1652,7 @@ pivot_measurement_features <- function(data, config) {
       agg_fun = function(x) paste(na.omit(unique(x)), collapse = "|")
     )
   }
-  
+
   # Handle numeric traits
   if (any(valuetypes == "numeric")) {
     pivoted_list$numeric <- pivot_features_by_type(
@@ -1635,7 +1662,7 @@ pivot_measurement_features <- function(data, config) {
       agg_fun = function(x) mean(as.numeric(x), na.rm = TRUE)
     )
   }
-  
+
   # Handle ordinal traits
   if (any(valuetypes == "ordinal")) {
     pivoted_list$ordinal <- pivot_features_by_type(
@@ -1645,7 +1672,7 @@ pivot_measurement_features <- function(data, config) {
       agg_fun = function(x) paste(na.omit(unique(x)), collapse = "|")
     )
   }
-  
+
   # Handle table_* valuetypes (references to other tables)
   table_types <- valuetypes[grepl("^table_", valuetypes)]
   if (length(table_types) > 0) {
@@ -1654,29 +1681,49 @@ pivot_measurement_features <- function(data, config) {
       id_col = config$id_col
     )
   }
-  
+
   # Combine all pivoted data
   if (length(pivoted_list) == 0) {
     return(tibble())
   }
-  
+
   combined <- bind_rows(pivoted_list, .id = NULL)
-  
+
+  # Ensure one row per id_trait_measures by grouping and collapsing
+  # This handles cases where bind_rows created multiple rows for same id_trait_measures
+  if (nrow(combined) > 0 && "id_trait_measures" %in% names(combined)) {
+    combined <- combined %>%
+      group_by(id_trait_measures) %>%
+      summarise(across(everything(), ~{
+        # For each column, take first non-NA value or collapse unique values
+        vals <- na.omit(unique(.))
+        if (length(vals) == 0) return(NA)
+        if (length(vals) == 1) return(vals)
+        # Multiple values - collapse with separator
+        paste(vals, collapse = "|")
+      }), .groups = "drop")
+  }
+
+  # Add back the aggregated id_col
+  combined <- combined %>%
+    left_join(id_col_aggregated, by = "id_trait_measures")
+
   return(combined)
 }
 
 #' Pivot features by type with custom aggregation
 #' @keywords internal
 pivot_features_by_type <- function(data, value_col, id_col, agg_fun) {
-  
+
   if (nrow(data) == 0) return(NULL)
-  
+
   # Convert to data.table for efficient pivoting
   dt <- data.table::as.data.table(data)
-  
-  # Create formula for dcast
-  formula <- as.formula(paste("id_trait_measures +", id_col, "~ trait"))
-  
+
+  # Create formula for dcast - only use id_trait_measures to avoid duplicates
+  # Multiple feature records for same id_trait_measures will be aggregated by agg_fun
+  formula <- as.formula("id_trait_measures ~ trait")
+
   # Pivot
   pivoted <- data.table::dcast(
     dt,
@@ -1684,7 +1731,7 @@ pivot_features_by_type <- function(data, value_col, id_col, agg_fun) {
     value.var = value_col,
     fun.aggregate = agg_fun
   )
-  
+
   return(as_tibble(pivoted))
 }
 
@@ -1704,15 +1751,14 @@ pivot_table_references <- function(data, id_col) {
       next
     }
     
-    # Get lookup values
-    lookup_values <- DBI::dbGetQuery(
-      mydb,
-      glue::glue_sql("
-        SELECT {`lookup_info$id_col`}, {`lookup_info$value_col`}
-        FROM {`vt`}
-      ", .con = mydb)
-    )
-    
+    # Get lookup values with retry logic
+    lookup_query <- glue::glue_sql("
+      SELECT {`lookup_info$id_col`}, {`lookup_info$value_col`}
+      FROM {`vt`}
+    ", .con = mydb)
+
+    lookup_values <- func_try_fetch(con = mydb, sql = lookup_query, verbose = FALSE)
+
     # Join and pivot
     tmp <- data %>%
       filter(valuetype == vt) %>%
@@ -1721,14 +1767,15 @@ pivot_table_references <- function(data, id_col) {
         by = setNames(lookup_info$id_col, "typevalue")
       ) %>%
       mutate(typevalue_char = !!sym(lookup_info$value_col)) %>%
-      select(id_trait_measures, trait, typevalue_char, !!sym(id_col))
-    
+      select(id_trait_measures, trait, typevalue_char)  # Remove id_col to avoid duplicates
+
     if (nrow(tmp) > 0) {
       results[[vt]] <- tmp %>%
         pivot_wider(
+          id_cols = id_trait_measures,  # Explicitly specify ID column
           names_from = trait,
           values_from = typevalue_char,
-          values_fn = ~paste(., collapse = "|")
+          values_fn = ~paste(unique(.), collapse = "|")  # Use unique to handle duplicates
         )
     }
   }
