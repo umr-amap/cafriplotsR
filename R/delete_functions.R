@@ -187,21 +187,20 @@
   
   feats <- query_traits_measures_features(id_trait_measures = id)
   
-  if (!is.null(dim(feats$all_feat_pivot))) {
+  if (nrow(feats) > 0) {
     
-    feats$all_feat_pivot <-
-      test <-
-      feats$all_feat_pivot %>%
+    feat <-
+      feats %>%
       mutate(id_ind_meas_feat_n = str_extract_all(id_ind_meas_feat, "[[:digit:]]+"))
     
     
-    print(feats)
+    print(feat)
     
     # askYesNo(msg = "Remove associated features")
     rm_feats <- choose_prompt(message = "Remove associated features ?")
     
     if (rm_feats)
-      .delete_entry_trait_measure_features(id = as.numeric(unlist(feats$all_feat_pivot$id_ind_meas_feat_n)))
+      .delete_entry_trait_measure_features(id = as.numeric(unlist(feat$id_ind_meas_feat_n)))
     
   }
   
