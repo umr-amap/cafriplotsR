@@ -4,12 +4,19 @@
 \alias{mod_results_display_server}
 \title{Results Display Module - Server}
 \usage{
-mod_results_display_server(id, results, i18n)
+mod_results_display_server(
+  id,
+  results,
+  individual_features_results = NULL,
+  i18n
+)
 }
 \arguments{
 \item{id}{Module namespace ID}
 
 \item{results}{Reactive containing query_plots() results}
+
+\item{individual_features_results}{Reactive containing query_individual_features() results (optional)}
 
 \item{i18n}{Reactive returning shiny.i18n translator}
 }

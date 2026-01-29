@@ -1247,17 +1247,17 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
             cli::cli_alert_info("Finding existing taxon...")
 
             # Parse binomial if provided
-            genus <- NULL
-            species <- NULL
+            search_params <- list()
             if (has_binomial) {
               binomial_parts <- trimws(strsplit(trimws(input$existing_binomial), "\\s+")[[1]])
-              if (length(binomial_parts) >= 1) genus <- binomial_parts[1]
-              if (length(binomial_parts) >= 2) species <- binomial_parts[2]
+              if (length(binomial_parts) >= 2) {
+                # Full binomial provided - pass as species parameter (query_taxa expects full binomial)
+                search_params$species <- trimws(input$existing_binomial)
+              } else if (length(binomial_parts) == 1) {
+                # Only genus provided
+                search_params$genus <- binomial_parts[1]
+              }
             }
-
-            search_params <- list()
-            if (!is.null(genus)) search_params$genus <- genus
-            if (!is.null(species)) search_params$species <- species
             if (has_id) search_params$ids <- input$existing_id
 
             existing_taxon <- do.call(query_taxa, search_params)
@@ -1396,17 +1396,17 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
             cli::cli_alert_info("Finding accepted taxon...")
 
             # Parse binomial if provided
-            genus <- NULL
-            species <- NULL
+            search_params <- list()
             if (has_binomial) {
               binomial_parts <- trimws(strsplit(trimws(input$accepted_binomial), "\\s+")[[1]])
-              if (length(binomial_parts) >= 1) genus <- binomial_parts[1]
-              if (length(binomial_parts) >= 2) species <- binomial_parts[2]
+              if (length(binomial_parts) >= 2) {
+                # Full binomial provided - pass as species parameter (query_taxa expects full binomial)
+                search_params$species <- trimws(input$accepted_binomial)
+              } else if (length(binomial_parts) == 1) {
+                # Only genus provided
+                search_params$genus <- binomial_parts[1]
+              }
             }
-
-            search_params <- list()
-            if (!is.null(genus)) search_params$genus <- genus
-            if (!is.null(species)) search_params$species <- species
             if (has_id) search_params$ids <- input$accepted_id
 
             accepted_taxon <- do.call(query_taxa, search_params)

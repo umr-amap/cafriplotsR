@@ -11,7 +11,9 @@ mod_code_preview_server(
   extraction_options,
   metadata_available,
   individuals_available,
-  i18n
+  i18n,
+  individual_features_options = NULL,
+  individual_features_available = NULL
 )
 }
 \arguments{
@@ -28,6 +30,10 @@ mod_code_preview_server(
 \item{individuals_available}{Reactive returning TRUE when individuals have been extracted}
 
 \item{i18n}{Reactive returning shiny.i18n translator}
+
+\item{individual_features_options}{Reactive returning named list of individual features options (optional)}
+
+\item{individual_features_available}{Reactive returning TRUE when individual features have been queried (optional)}
 }
 \description{
 Server logic for generating and displaying equivalent R code
