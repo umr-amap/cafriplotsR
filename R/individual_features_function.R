@@ -1538,17 +1538,17 @@ query_traits_measures_features <- function(
 #' Get configuration for measurement features
 #' @keywords internal
 get_measurement_features_config <- function(src) {
-  
+
   if (src == "individuals") {
     list(
-      con = mydb,
+      con = call.mydb(),
       table_name = "data_ind_measures_feat",
       trait_table = "traitlist",
       id_col = "id_ind_meas_feat"
     )
   } else if (src == "taxa") {
     list(
-      con = mydb_taxa,
+      con = call.mydb.taxa(),
       table_name = "table_traits_measures_feat",
       trait_table = "table_traits",
       id_col = "id_taxa_trait_feat"
