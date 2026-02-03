@@ -194,7 +194,7 @@ mod_plot_filters_server <- function(id, pool, i18n) {
               shiny::checkboxInput(
                 ns("exact_match"),
                 i18n()$t("Exact match for text filters"),
-                value = FALSE
+                value = TRUE
               )
             )
           )
@@ -327,7 +327,7 @@ mod_plot_filters_server <- function(id, pool, i18n) {
         id_individual = if (!is.null(input$id_individual) && !is.na(input$id_individual)) input$id_individual else NULL,
         id_tax = if (!is.null(input$id_tax) && !is.na(input$id_tax)) input$id_tax else NULL,
         id_specimen = if (!is.null(input$id_specimen) && !is.na(input$id_specimen)) input$id_specimen else NULL,
-        exact_match = if (!is.null(input$exact_match)) input$exact_match else FALSE
+        exact_match = if (!is.null(input$exact_match)) input$exact_match else TRUE
       )
     })
 

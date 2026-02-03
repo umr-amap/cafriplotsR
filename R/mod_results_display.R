@@ -134,6 +134,70 @@ mod_results_display_server <- function(id, results, individual_features_results 
       )
     })
 
+    # Get trait metadata from individual features
+    features_metadata <- shiny::reactive({
+      if (is.null(individual_features_results) || is.null(individual_features_results())) {
+        return(NULL)
+      }
+
+      feat_res <- individual_features_results()
+      if (!is.data.frame(feat_res)) {
+        return(NULL)
+      }
+
+      tryCatch({
+        # Get all trait metadata
+        all_traits <- traits_list()
+
+        # Method 1: Extract trait IDs directly (for long format)
+        if ("id_trait" %in% names(feat_res)) {
+          trait_ids <- unique(feat_res$id_trait)
+          trait_ids <- trait_ids[!is.na(trait_ids)]
+
+          if (length(trait_ids) > 0) {
+            metadata <- all_traits %>%
+              dplyr::filter(id_trait %in% !!trait_ids) %>%
+              dplyr::arrange(trait)
+            return(metadata)
+          }
+        }
+
+        # Method 2: Extract trait names from column names (for wide format)
+        # Look for trait columns by matching against trait names in database
+        col_names <- names(feat_res)
+
+        # Get trait names from database
+        trait_names <- all_traits$trait
+
+        # Find which traits appear in column names
+        # Traits in wide format may have suffixes like _mean, _sd, _n or no suffix
+        matched_traits <- character()
+        for (trait_name in trait_names) {
+          # Check for exact match or with common suffixes
+          pattern <- paste0("^", trait_name, "(_mean|_sd|_n|_min|_max)?$")
+          if (any(grepl(pattern, col_names))) {
+            matched_traits <- c(matched_traits, trait_name)
+          }
+        }
+
+        if (length(matched_traits) > 0) {
+          metadata <- all_traits %>%
+            dplyr::filter(trait %in% !!matched_traits) %>%
+            dplyr::arrange(trait)
+
+          cli::cli_alert_success("Found metadata for {nrow(metadata)} trait(s)")
+          return(metadata)
+        }
+
+        cli::cli_alert_info("No trait metadata found")
+        return(NULL)
+
+      }, error = function(e) {
+        cli::cli_alert_warning("Could not fetch trait metadata: {e$message}")
+        return(NULL)
+      })
+    })
+
     # Get table names from results
     table_names <- shiny::reactive({
       table_list <- character()
@@ -155,6 +219,11 @@ mod_results_display_server <- function(id, results, individual_features_results 
         feat_res <- individual_features_results()
         if (is.data.frame(feat_res)) {
           table_list <- c(table_list, "individual_features")
+
+          # Add metadata table if available
+          if (!is.null(features_metadata())) {
+            table_list <- c(table_list, "features_metadata")
+          }
         }
       }
 
@@ -220,6 +289,9 @@ mod_results_display_server <- function(id, results, individual_features_results 
         if (tab_name == "individual_features") {
           tab_data <- feat_res
           title <- i18n()$t("Individual Features")
+        } else if (tab_name == "features_metadata") {
+          tab_data <- features_metadata()
+          title <- i18n()$t("Features Metadata")
         } else if (is.data.frame(res)) {
           tab_data <- res
           title <- gsub("_", " ", tools::toTitleCase(tab_name))
@@ -266,6 +338,8 @@ mod_results_display_server <- function(id, results, individual_features_results 
           # Get the data from appropriate source
           if (tab_name == "individual_features") {
             tab_data <- feat_res
+          } else if (tab_name == "features_metadata") {
+            tab_data <- features_metadata()
           } else if (is.data.frame(res)) {
             tab_data <- res
           } else {
@@ -322,6 +396,12 @@ mod_results_display_server <- function(id, results, individual_features_results 
           }
         }
 
+        # Add features metadata if selected
+        if ("features_metadata" %in% tables_to_include &&
+            !is.null(features_metadata())) {
+          data_list$features_metadata <- features_metadata()
+        }
+
         # Write to Excel
         writexl::write_xlsx(data_list, path = file)
       }
@@ -356,6 +436,12 @@ mod_results_display_server <- function(id, results, individual_features_results 
           if (is.data.frame(feat_res)) {
             data_list$individual_features <- feat_res
           }
+        }
+
+        # Add features metadata if selected
+        if ("features_metadata" %in% tables_to_include &&
+            !is.null(features_metadata())) {
+          data_list$features_metadata <- features_metadata()
         }
 
         # Create temp directory
@@ -403,6 +489,12 @@ mod_results_display_server <- function(id, results, individual_features_results 
             !is.null(individual_features_results) &&
             !is.null(individual_features_results())) {
           data_to_save$individual_features <- individual_features_results()
+        }
+
+        # Add features metadata if selected
+        if ("features_metadata" %in% tables_to_include &&
+            !is.null(features_metadata())) {
+          data_to_save$features_metadata <- features_metadata()
         }
 
         # If only one table, save as data.frame instead of list
