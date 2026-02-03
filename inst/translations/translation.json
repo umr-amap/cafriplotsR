@@ -5452,6 +5452,10 @@
     {
       "en": "No detailed measurements available for these taxa.",
       "fr": "Aucune mesure détaillée disponible pour ces taxons."
+    },
+    {
+      "en": "Features Metadata",
+      "fr": "Métadonnées des traits"
     }
   ]
 }
