@@ -37,54 +37,37 @@ merge_individuals_taxa <- function(id_individual = NULL,
 
   if (is.null(con_taxa)) con_taxa <- call.mydb.taxa()
   if (is.null(con)) con <- call.mydb()
-  
-  
-  # mydb.taxa <- call.mydb.taxa()
-  # mydb <- call.mydb()
 
-  # Table de résolution des synonymes (collectée une seule fois)
-  diconames_id <- try_open_postgres_table(table = "table_idtax", con = con) %>%
-    dplyr::select(idtax_n, idtax_good_n) %>%
-    dplyr::mutate(idtax_f = ifelse(is.na(idtax_good_n), idtax_n, idtax_good_n)) %>%
-    dplyr::collect()
+  # ===== STEP 1: Fetch individuals first =====
+  cli::cli_alert_info("Fetching individuals...")
 
-  # Récupération et traitement des spécimens
-  specimens <- try_open_postgres_table(table = "specimens", con = con)
-
-  specimens_id_diconame <- specimens %>%
-    dplyr::select(id_specimen, idtax_n, id_colnam, colnbr, suffix,
-                  id_tropicos, id_brlu) %>%
-    dplyr::collect()
-
-  # Résolution des synonymes pour les spécimens
-  specimens_linked <- specimens_id_diconame %>%
-    dplyr::left_join(diconames_id, by = c("idtax_n" = "idtax_n")) %>%
-    dplyr::rename(idtax_specimen_f = idtax_f) %>%
-    dplyr::left_join(
-      dplyr::tbl(con, "table_colnam") %>%
-        dplyr::select(id_table_colnam, colnam) %>%
-        dplyr::collect(),
-      by = c("id_colnam" = "id_table_colnam")
-    ) %>%
-    rename(colnam_specimen = colnam)
-
-  # Extraction des individus
   if (!is.null(id_individual)) {
-    res_individuals_full <- dplyr::tbl(con, "data_individuals") %>%
+    res_individuals_query <- dplyr::tbl(con, "data_individuals") %>%
       dplyr::filter(id_n %in% !!id_individual)
   } else {
-    res_individuals_full <- dplyr::tbl(con, "data_individuals")
+    res_individuals_query <- dplyr::tbl(con, "data_individuals")
   }
 
   # Filtrage par plot si demandé
   if (!is.null(id_plot)) {
-    res_individuals_full <- res_individuals_full %>%
+    res_individuals_query <- res_individuals_query %>%
       dplyr::filter(id_table_liste_plots_n %in% !!id_plot)
   }
 
+  # Collect individuals
+  res_individuals_full <- res_individuals_query %>% dplyr::collect()
+  individual_ids <- res_individuals_full$id_n
+  individual_taxa <- unique(res_individuals_full$idtax_n)
+
+  cli::cli_alert_success("Fetched {nrow(res_individuals_full)} individual(s)")
+
+  # ===== STEP 2: Get specimen links for these individuals only =====
+  cli::cli_alert_info("Loading specimen links...")
+
   # Liens individus-spécimens (priorité: type_individual > referenced_individual, puis date détermination)
   # Get links with priority from linktypelist
-  links_raw <- try_open_postgres_table(table = "data_link_specimens", con = con)
+  links_raw <- try_open_postgres_table(table = "data_link_specimens", con = con) %>%
+    dplyr::filter(id_n %in% !!individual_ids)
 
   # Try to join with linktypelist for priority (table may not exist yet)
   links_with_priority <- tryCatch({
@@ -132,9 +115,67 @@ merge_individuals_taxa <- function(id_individual = NULL,
     dplyr::ungroup() %>%
     dplyr::select(id_n, id_specimen)
 
-  # Assemblage
+  # ===== STEP 3: Fetch only the specimens we need =====
+  specimen_ids <- unique(links_specimens$id_specimen)
+
+  if (length(specimen_ids) > 0) {
+    cli::cli_alert_info("Loading {length(specimen_ids)} specimen(s)...")
+
+    specimens_id_diconame <- try_open_postgres_table(table = "specimens", con = con) %>%
+      dplyr::filter(id_specimen %in% !!specimen_ids) %>%
+      dplyr::select(id_specimen, idtax_n, id_colnam, colnbr, suffix,
+                    id_tropicos, id_brlu) %>%
+      dplyr::collect()
+
+    specimen_taxa <- unique(specimens_id_diconame$idtax_n)
+  } else {
+    cli::cli_alert_info("No specimens linked")
+    specimens_id_diconame <- tibble::tibble()
+    specimen_taxa <- integer()
+  }
+
+  # ===== STEP 4: Fetch ONLY the synonyms we need =====
+  all_taxa <- unique(c(individual_taxa, specimen_taxa))
+  all_taxa <- all_taxa[!is.na(all_taxa)]
+
+  cli::cli_alert_info("Loading synonyms for {length(all_taxa)} taxa...")
+
+  diconames_id <- try_open_postgres_table(table = "table_idtax", con = con) %>%
+    dplyr::filter(idtax_n %in% !!all_taxa) %>%
+    dplyr::select(idtax_n, idtax_good_n) %>%
+    dplyr::mutate(idtax_f = ifelse(is.na(idtax_good_n), idtax_n, idtax_good_n)) %>%
+    dplyr::collect()
+
+  cli::cli_alert_success("Loaded {nrow(diconames_id)} synonym record(s)")
+
+  # ===== STEP 5: Process specimens with synonyms =====
+  if (nrow(specimens_id_diconame) > 0) {
+    # Get unique collector IDs
+    collector_ids <- unique(specimens_id_diconame$id_colnam)
+    collector_ids <- collector_ids[!is.na(collector_ids)]
+
+    if (length(collector_ids) > 0) {
+      collectors <- dplyr::tbl(con, "table_colnam") %>%
+        dplyr::filter(id_table_colnam %in% !!collector_ids) %>%
+        dplyr::select(id_table_colnam, colnam) %>%
+        dplyr::collect()
+    } else {
+      collectors <- tibble::tibble(id_table_colnam = integer(), colnam = character())
+    }
+
+    specimens_linked <- specimens_id_diconame %>%
+      dplyr::left_join(diconames_id, by = c("idtax_n" = "idtax_n")) %>%
+      dplyr::rename(idtax_specimen_f = idtax_f) %>%
+      dplyr::left_join(collectors, by = c("id_colnam" = "id_table_colnam")) %>%
+      dplyr::rename(colnam_specimen = colnam)
+  } else {
+    specimens_linked <- tibble::tibble()
+  }
+
+  # ===== STEP 6: Assemble everything =====
+  cli::cli_alert_info("Assembling individual data...")
+
   res_individuals_full <- res_individuals_full %>%
-    dplyr::collect() %>%
     dplyr::select(-any_of("id_specimen")) %>%
     dplyr::left_join(links_specimens, by = c("id_n" = "id_n")) %>%
     dplyr::left_join(
@@ -170,6 +211,7 @@ merge_individuals_taxa <- function(id_individual = NULL,
   }
 
   # Enrichissement avec le backbone taxonomique
+  cli::cli_alert_info("Enriching with taxonomic backbone...")
   taxa_extract <- add_taxa_table_taxa(ids = res_individuals_full %>% pull(idtax_individual_f)) %>%
     collect()
 
@@ -184,6 +226,8 @@ merge_individuals_taxa <- function(id_individual = NULL,
     res_individuals_full <- res_individuals_full %>%
       filter(idtax_individual_f %in% id_tax)
   }
+
+  cli::cli_alert_success("Successfully fetched {nrow(res_individuals_full)} individual(s)")
 
   return(res_individuals_full)
 }

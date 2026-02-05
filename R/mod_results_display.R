@@ -303,6 +303,17 @@ mod_results_display_server <- function(id, results, individual_features_results 
         shiny::tabPanel(
           title = title,
           shiny::br(),
+          # Add informative note for individual features
+          if (tab_name == "individual_features") {
+            shiny::div(
+              class = "alert alert-info",
+              style = "font-size: 0.9em; padding: 10px; margin-bottom: 15px;",
+              shiny::HTML(paste0(
+                "<strong>", i18n()$t("Note"), ":</strong> ",
+                i18n()$t("Column 'id_data_individuals' corresponds to 'id_n' in the individuals table for joining.")
+              ))
+            )
+          },
           DT::DTOutput(ns(paste0("table_", tab_name))),
           shiny::br(),
           shiny::div(

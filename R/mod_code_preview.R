@@ -209,11 +209,16 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
     }
 
     # Generate code for individual features query
-    generate_individual_features_code <- function(feat_opts) {
+    generate_individual_features_code <- function(feat_opts, output_style = NULL) {
       args <- c()
 
       # Individual IDs - reference to extracted data
-      args <- c(args, '  individual_ids = unique(individuals$extract$id_n)')
+      # Path depends on output_style: 'full' uses $extract, others use $individuals
+      if (!is.null(output_style) && output_style == "full") {
+        args <- c(args, '  individual_ids = unique(individuals$extract$id_n)')
+      } else {
+        args <- c(args, '  individual_ids = unique(individuals$individuals$id_n)')
+      }
 
       # Trait IDs
       if (!is.null(feat_opts$trait_ids) && length(feat_opts$trait_ids) > 0) {
@@ -292,8 +297,12 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
       # Individual features code
       if (has_individual_features) {
         current_feat_opts <- individual_features_options()
+        current_options <- extraction_options()
         if (isTRUE(current_feat_opts$enabled)) {
-          individual_features_code <- generate_individual_features_code(current_feat_opts)
+          individual_features_code <- generate_individual_features_code(
+            current_feat_opts,
+            output_style = current_options$output_style
+          )
           code_sections$individual_features <- individual_features_code
         }
       }

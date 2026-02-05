@@ -1222,8 +1222,11 @@ query_individual_features <- function(
   if (include_metadata) {
     cli::cli_alert_info("Enriching with measurement metadata")
     raw_data <- enrich_measurement_features(data = raw_data, con)
+
+    # Remove internal aggregated ID column when metadata is included
+    raw_data <- raw_data %>% select(-any_of("id_ind_meas_feat"))
   }
-  
+
   # 5. Format output
   if (format == "wide") {
     cli::cli_h2("Pivoting to wide format")
@@ -1528,26 +1531,58 @@ query_traits_measures_features <- function(
     con <- if (src == "individuals") call.mydb() else call.mydb.taxa()
   }
   
-  # Quick count check
-  n_records <- count_measurement_features(
-    id_trait_measures = id_trait_measures,
-    config = config,
-    con = con
-  )
-  
-  if (n_records == 0) {
-    cli::cli_alert_info("No measurement features found")
-    return(tibble())
+  # Quick count check - skip for very large queries to avoid timeout
+  if (!is.null(id_trait_measures) && length(id_trait_measures) > 10000) {
+    cli::cli_alert_info("Large query detected ({length(id_trait_measures)} trait measurements)")
+    cli::cli_alert_info("Skipping count to avoid timeout - proceeding with fetch")
+    n_records <- NA
+  } else {
+    n_records <- count_measurement_features(
+      id_trait_measures = id_trait_measures,
+      config = config,
+      con = con
+    )
+
+    if (n_records == 0) {
+      cli::cli_alert_info("No measurement features found")
+      return(tibble())
+    }
+
+    cli::cli_alert_info("Found {n_records} measurement feature(s)")
   }
-  
-  cli::cli_alert_info("Found {n_records} measurement feature(s)")
-  
-  # Fetch raw data
-  raw_data <- fetch_measurement_features_raw(
-    id_trait_measures = id_trait_measures,
-    config = config,
-    con = con
-  )
+
+  # Fetch raw data with chunking for large queries
+  if (!is.null(id_trait_measures) && length(id_trait_measures) > 15000) {
+    cli::cli_alert_info("Large query detected - using chunked fetching")
+
+    # Chunk the IDs
+    chunks <- split(id_trait_measures, ceiling(seq_along(id_trait_measures) / 15000))
+    n_chunks <- length(chunks)
+
+    cli::cli_alert_info("Processing {n_chunks} chunk(s) for measurement features")
+
+    # Fetch each chunk
+    results <- lapply(seq_along(chunks), function(i) {
+      cli::cli_alert_info("Fetching chunk {i}/{n_chunks}...")
+      fetch_measurement_features_raw(
+        id_trait_measures = chunks[[i]],
+        config = config,
+        con = con
+      )
+    })
+
+    # Combine results
+    raw_data <- bind_rows(results)
+    cli::cli_alert_success("Fetched all {nrow(raw_data)} measurement feature(s)")
+
+  } else {
+    # Small query - fetch all at once
+    raw_data <- fetch_measurement_features_raw(
+      id_trait_measures = id_trait_measures,
+      config = config,
+      con = con
+    )
+  }
   
   # Return long format if requested
   if (format == "long") {
@@ -1555,8 +1590,8 @@ query_traits_measures_features <- function(
   }
   
   # Pivot to wide format
-  pivoted <- pivot_measurement_features(data = raw_data, config)
-  
+  pivoted <- pivot_measurement_features(data = raw_data, config, con = con)
+
   return(pivoted)
 }
 
@@ -1647,7 +1682,7 @@ fetch_measurement_features_raw <- function(id_trait_measures, config, con) {
 
 #' Pivot measurement features to wide format
 #' @keywords internal
-pivot_measurement_features <- function(data, config) {
+pivot_measurement_features <- function(data, config, con) {
 
   if (nrow(data) == 0) return(tibble())
 
@@ -1701,7 +1736,8 @@ pivot_measurement_features <- function(data, config) {
   if (length(table_types) > 0) {
     pivoted_list$tables <- pivot_table_references(
       data = data %>% filter(valuetype %in% table_types),
-      id_col = config$id_col
+      id_col = config$id_col,
+      con = con
     )
   }
 
@@ -1765,27 +1801,27 @@ pivot_features_by_type <- function(data, value_col, id_col, agg_fun) {
 
 #' Pivot table-referenced features
 #' @keywords internal
-pivot_table_references <- function(data, id_col) {
-  
+pivot_table_references <- function(data, id_col, con) {
+
   results <- list()
-  
+
   for (vt in unique(data$valuetype)) {
-    
+
     # Get lookup table info
     lookup_info <- get_lookup_table_info(vt)
-    
+
     if (is.null(lookup_info)) {
       cli::cli_alert_warning("Unknown table valuetype: {vt}")
       next
     }
-    
+
     # Get lookup values with retry logic
     lookup_query <- glue::glue_sql("
       SELECT {`lookup_info$id_col`}, {`lookup_info$value_col`}
       FROM {`vt`}
-    ", .con = mydb)
+    ", .con = con)
 
-    lookup_values <- func_try_fetch(con = mydb, sql = lookup_query, verbose = FALSE)
+    lookup_values <- func_try_fetch(con = con, sql = lookup_query, verbose = FALSE)
 
     # Join and pivot
     tmp <- data %>%
