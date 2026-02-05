@@ -4,7 +4,7 @@
 \alias{pivot_table_references}
 \title{Pivot table-referenced features}
 \usage{
-pivot_table_references(data, id_col)
+pivot_table_references(data, id_col, con)
 }
 \description{
 Pivot table-referenced features

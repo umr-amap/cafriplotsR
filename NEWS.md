@@ -28,7 +28,32 @@
   - When `include_multi_census = TRUE`, still keeps separate rows for each subplot/census
   - Affects both numeric and character trait pivoting
 
+* **Fixed R code generation bug in Shiny app for individual features**
+  - `mod_code_preview` was always generating `individuals$extract$id_n` regardless of `output_style`
+  - Now correctly generates `individuals$individuals$id_n` for standard output styles
+  - Only uses `individuals$extract$id_n` when `output_style = "full"`
+  - Prevents "Column 'id_n' not found" errors when copying generated code
+
+* **Optimized `merge_individuals_taxa()` performance**
+  - Was loading entire `table_idtax` synonym table (could be millions of rows) causing long delays
+  - Now fetches individuals first, then loads only the synonyms needed for those specific taxa
+  - Also optimized specimen and specimen-link queries to filter early
+  - Added detailed progress indicators at each step
+  - Dramatically improves query speed for large databases
+
+* **Fixed timeout errors for large individual features queries**
+  - Count query with huge IN clauses (>10,000 measurements) was causing "SSL SYSCALL error: EOF detected"
+  - Now skips count query for very large datasets to avoid timeout
+  - Reduced chunking threshold from 15,000 to 5,000 for more aggressive chunking
+  - Added better progress indicators throughout the query process
+
 ### New Features
+
+* **Improved user experience for individual features display**
+  - Removed internal `id_ind_meas_feat` column from results when metadata is included
+  - Added informative note in Shiny app explaining `id_data_individuals` corresponds to `id_n` in individuals table
+  - Helps users understand how to join individual features with individuals data
+  - Bilingual support (English/French)
 
 * **Long format traits table in taxonomic match Shiny app**
   - Added tabbed interface to traits enrichment module in `launch_taxonomic_match_app()`

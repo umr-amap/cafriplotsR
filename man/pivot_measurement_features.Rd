@@ -4,7 +4,7 @@
 \alias{pivot_measurement_features}
 \title{Pivot measurement features to wide format}
 \usage{
-pivot_measurement_features(data, config)
+pivot_measurement_features(data, config, con)
 }
 \description{
 Pivot measurement features to wide format

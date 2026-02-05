@@ -5456,6 +5456,14 @@
     {
       "en": "Features Metadata",
       "fr": "Métadonnées des traits"
+    },
+    {
+      "en": "Note",
+      "fr": "Note"
+    },
+    {
+      "en": "Column 'id_data_individuals' corresponds to 'id_n' in the individuals table for joining.",
+      "fr": "La colonne 'id_data_individuals' correspond à 'id_n' dans la table individuals pour les jointures."
     }
   ]
 }
