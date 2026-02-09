@@ -559,20 +559,60 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
           "NULL"
         }
 
-        # Build SQL query with all fields
-        query <- sprintf("
-          INSERT INTO table_colnam (surname, family_name, colnam, nationality, institute, contact)
-          VALUES (%s, %s, %s, %s, %s, %s)
-          RETURNING id_table_colnam
-        ",
-        DBI::dbQuoteLiteral(con(), first_name),
-        DBI::dbQuoteLiteral(con(), last_name),
-        DBI::dbQuoteLiteral(con(), full_name),
-        nationality_val,
-        institute_val,
-        contact_val)
+        # Try to add person using secure function first, fallback to direct INSERT
+        new_id <- tryCatch({
+          # Check if secure add_person() function exists
+          if (check_add_person_function_exists(con())) {
+            # Use secure function (works without INSERT permission)
+            cli::cli_alert_info("Using secure add_person() function")
+            add_person_to_db(
+              con = con(),
+              first_name = first_name,
+              last_name = last_name,
+              nationality = if (nzchar(nationality)) nationality else NULL,
+              institute = if (nzchar(institute)) institute else NULL,
+              contact = if (nzchar(contact)) contact else NULL
+            )
+          } else {
+            # Fallback to direct INSERT (requires INSERT permission)
+            cli::cli_alert_info("Using direct INSERT (secure function not available)")
 
-        new_id <- DBI::dbGetQuery(con(), query)$id_table_colnam
+            # Build values with proper NULL handling
+            nationality_val <- if (nzchar(nationality)) DBI::dbQuoteLiteral(con(), nationality) else "NULL"
+            institute_val <- if (nzchar(institute)) DBI::dbQuoteLiteral(con(), institute) else "NULL"
+            contact_val <- if (nzchar(contact)) DBI::dbQuoteLiteral(con(), contact) else "NULL"
+
+            query <- sprintf("
+              INSERT INTO table_colnam (surname, family_name, colnam, nationality, institute, contact)
+              VALUES (%s, %s, %s, %s, %s, %s)
+              RETURNING id_table_colnam
+            ",
+            DBI::dbQuoteLiteral(con(), first_name),
+            DBI::dbQuoteLiteral(con(), last_name),
+            DBI::dbQuoteLiteral(con(), full_name),
+            nationality_val,
+            institute_val,
+            contact_val)
+
+            DBI::dbGetQuery(con(), query)$id_table_colnam
+          }
+        }, error = function(e) {
+          # Improve error message for common permission issues
+          if (grepl("permission denied", e$message, ignore.case = TRUE)) {
+            stop(
+              "You don't have permission to add new people to the database.\n\n",
+              "Ask your database administrator to either:\n",
+              "  1. Run: setup_add_person_function(con)  [Recommended - allows all users]\n",
+              "  2. Grant you INSERT permission on table_colnam\n\n",
+              "Option 1 is preferred as it's secure and benefits all users.",
+              call. = FALSE
+            )
+          } else {
+            # Re-throw other errors as-is
+            stop(e$message, call. = FALSE)
+          }
+        })
+
         cli::cli_alert_success("Added new person: {first_name} {last_name} (ID: {new_id})")
 
         # Get context before resetting it
@@ -619,10 +659,22 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
 
       }, error = function(e) {
         cli::cli_alert_danger("Failed to add person: {e$message}")
+
+        # Provide more helpful error message to user
+        error_msg <- if (grepl("permission", e$message, ignore.case = TRUE)) {
+          paste0(
+            "Database Permission Error:\n\n",
+            e$message,
+            "\n\nNote: Only database administrators or users with specific permissions can add new people."
+          )
+        } else {
+          paste("Error adding person:", e$message)
+        }
+
         shiny::showNotification(
-          paste("Error adding person:", e$message),
+          error_msg,
           type = "error",
-          duration = 10
+          duration = 15
         )
       })
     })
