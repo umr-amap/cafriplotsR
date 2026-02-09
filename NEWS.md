@@ -49,6 +49,15 @@
 
 ### New Features
 
+* **Secure function for adding people without INSERT permissions**
+  - New `setup_add_person_function()` creates a PostgreSQL SECURITY DEFINER function
+  - Database administrators run this once to enable all users to add people to `table_colnam`
+  - Users without INSERT permission can now add people through the import wizard
+  - Automatic fallback: tries secure function first, then direct INSERT if available
+  - Improved error messages guide users to contact admin if permissions lacking
+  - New functions: `add_person_to_db()`, `grant_lookup_table_permissions()`
+  - See documentation: `?setup_add_person_function`
+
 * **Improved user experience for individual features display**
   - Removed internal `id_ind_meas_feat` column from results when metadata is included
   - Added informative note in Shiny app explaining `id_data_individuals` corresponds to `id_n` in individuals table
