@@ -562,10 +562,13 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
         # Try to add person using secure function first, fallback to direct INSERT
         new_id <- tryCatch({
           # Check if secure add_person() function exists
-          if (check_add_person_function_exists(con())) {
+          func_exists <- check_add_person_function_exists(con())
+          cli::cli_alert_info("Secure function exists: {func_exists}")
+
+          if (func_exists) {
             # Use secure function (works without INSERT permission)
-            cli::cli_alert_info("Using secure add_person() function")
-            add_person_to_db(
+            cli::cli_alert_info("Attempting to use secure add_person() function...")
+            result_id <- add_person_to_db(
               con = con(),
               first_name = first_name,
               last_name = last_name,
@@ -573,9 +576,11 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
               institute = if (nzchar(institute)) institute else NULL,
               contact = if (nzchar(contact)) contact else NULL
             )
+            cli::cli_alert_success("Successfully added person via secure function (ID: {result_id})")
+            result_id
           } else {
             # Fallback to direct INSERT (requires INSERT permission)
-            cli::cli_alert_info("Using direct INSERT (secure function not available)")
+            cli::cli_alert_warning("Secure function not found, attempting direct INSERT...")
 
             # Build values with proper NULL handling
             nationality_val <- if (nzchar(nationality)) DBI::dbQuoteLiteral(con(), nationality) else "NULL"
