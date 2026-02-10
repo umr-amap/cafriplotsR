@@ -364,7 +364,7 @@
   
   link_specimens <- 
     try_open_postgres_table(table = "data_link_specimens", con = mydb) %>% 
-    filter(id_n == !!id) %>% 
+    filter(id_n %in% !!id) %>% 
     collect()
   
   if (length(ind_feat$traits_char) > 0 | 

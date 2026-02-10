@@ -169,7 +169,14 @@ merge_individuals_taxa <- function(id_individual = NULL,
       dplyr::left_join(collectors, by = c("id_colnam" = "id_table_colnam")) %>%
       dplyr::rename(colnam_specimen = colnam)
   } else {
-    specimens_linked <- tibble::tibble()
+    # Create empty tibble with correct column structure for joining
+    specimens_linked <- tibble::tibble(
+      id_specimen = integer(),
+      idtax_specimen_f = integer(),
+      colnam_specimen = character(),
+      colnbr = character(),
+      suffix = character()
+    )
   }
 
   # ===== STEP 6: Assemble everything =====

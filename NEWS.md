@@ -2,6 +2,12 @@
 
 ### Bug Fixes
 
+* **Fixed empty specimen handling in `merge_individuals_taxa()`**
+  - When no specimens are linked to individuals, function was creating empty tibble without proper column structure
+  - Caused "Column 'id_specimen' doesn't exist" error in `dplyr::select()`
+  - Now creates empty tibble with correct column structure (id_specimen, idtax_specimen_f, colnam_specimen, colnbr, suffix)
+  - Fixes error in `query_plots()` with `extract_individuals = TRUE` when plots have no linked specimens
+
 * **Fixed connection retry logic for trait measurement features queries**
   - Replaced direct `DBI::dbGetQuery()` calls with `func_try_fetch()` in measurement features functions
   - Automatic retry (up to 10 attempts) when database connections are lost or timeout
@@ -48,6 +54,31 @@
   - Added better progress indicators throughout the query process
 
 ### New Features
+
+* **Comprehensive permission management for import wizard**
+  - New `setup_import_wizard_permissions()` - one-command setup for all import permissions
+  - New `grant_all_table_permissions()` - grant on ALL existing tables and sequences
+  - New `grant_plot_insert_permissions()` - grant specific table permissions
+  - New `diagnose_plot_permissions()` - diagnose permission issues
+  - New `diagnose_add_person_setup()` - check if secure functions are available
+  - Automatic sequence discovery - finds and grants permissions on all sequences for tables
+  - Handles missing tables gracefully - skips non-existent tables without failing
+  - Comprehensive error messages guide users through permission setup
+  - Supports granting to specific users or PUBLIC (all users)
+  - RLS policies remain intact - table permissions don't affect row-level security
+
+* **Safe plot deletion with transaction support**
+  - New `safe_delete_plot()` function for safely deleting plots and all related data
+  - **Dry-run mode by default** - preview what will be deleted before actually deleting
+  - Shows detailed counts: individuals, trait measurements, measurement features, subplots
+  - Requires explicit confirmation (can be bypassed with `force = TRUE`)
+  - Uses database transactions - rolls back all changes if any step fails
+  - Correct cascade deletion order respects foreign key constraints:
+    1. Measurement features → 2. Trait measurements → 3. Individuals → 4. Subplots → 5. Plot
+  - Detailed progress logging at each step
+  - Options to keep individuals or subplots if needed
+  - Returns deletion summary for verification
+  - See documentation: `?safe_delete_plot`
 
 * **Secure function for adding people without INSERT permissions**
   - New `setup_add_person_function()` creates a PostgreSQL SECURITY DEFINER function
