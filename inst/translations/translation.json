@@ -5464,6 +5464,34 @@
     {
       "en": "Column 'id_data_individuals' corresponds to 'id_n' in the individuals table for joining.",
       "fr": "La colonne 'id_data_individuals' correspond à 'id_n' dans la table individuals pour les jointures."
+    },
+    {
+      "en": "Auto-filled missing idtax_n with Magnoliopsida",
+      "fr": "idtax_n manquants remplis automatiquement avec Magnoliopsida"
+    },
+    {
+      "en": "This is a placeholder - please update with correct taxonomy if possible",
+      "fr": "Ceci est une valeur par défaut - veuillez mettre à jour avec la taxonomie correcte si possible"
+    },
+    {
+      "en": "Taxonomy Auto-Fill",
+      "fr": "Remplissage automatique de la taxonomie"
+    },
+    {
+      "en": "Missing idtax_n are considered to be unidentified stems and are set by default as belonging to this class",
+      "fr": "Les idtax_n manquants sont considérés comme des tiges non identifiées et sont définis par défaut comme appartenant à cette classe"
+    },
+    {
+      "en": "expected to be non-empty unless this represents unidentified stems",
+      "fr": "attendu non vide sauf si cela représente des tiges non identifiées"
+    },
+    {
+      "en": "missing idtax_n are considered to be unidentified stems",
+      "fr": "les idtax_n manquants sont considérés comme des tiges non identifiées"
+    },
+    {
+      "en": "considered unidentified stems",
+      "fr": "considérés comme des tiges non identifiées"
     }
   ]
 }

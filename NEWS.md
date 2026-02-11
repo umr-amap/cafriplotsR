@@ -1,3 +1,64 @@
+# CafriplotsR 1.9.3 (Development)
+
+### New Features
+
+* **Enhanced column mapping with pattern/substring synonym matching**
+  - Column mapping now recognizes synonyms embedded in larger strings (e.g., "DBH [cm]" matches "dbh" → `stem_diameter`)
+  - Normalizes both user columns and synonyms by removing special characters, brackets, spaces
+  - Minimum 3-character synonym length to avoid false positives
+  - Composite scoring: prioritizes longest synonym match (×100), then column similarity (×10) as tiebreaker
+  - Dynamic confidence scoring (0.80-0.90) based on similarity for pattern matches
+  - Works across all import types: plots, individuals, and traits
+  - Dramatically improves auto-mapping success rate for datasets with unit annotations
+
+* **Smart deduplication for duplicate column mappings**
+  - Automatically detects when multiple user columns map to the same database column
+  - Keeps only the best mapping based on priority: exact match > exact synonym > pattern synonym > fuzzy
+  - Unmaps lower-quality duplicates (sets to skip) to prevent data conflicts
+  - Console/log output shows which columns were kept and which were unmarked
+  - Example: "original_tax_name", "Espece", "Espece N" all mapping to `original_tax_name` → keeps exact match, skips others
+  - Prevents import errors from ambiguous column data sources
+
+* **Similarity-based dropdown sorting in column mapping UI**
+  - Import wizard dropdowns now show database columns sorted by similarity to user column name
+  - Each user column gets its own relevance-ranked dropdown (not global alphabetical)
+  - Most similar options appear first, making manual mapping intuitive
+  - Uses same string similarity algorithm as fuzzy matching
+  - Significantly improves UX for columns that weren't auto-mapped
+
+* **Auto-fill missing taxonomy with Magnoliopsida**
+  - Missing `idtax_n` values are automatically filled with 351190 (Magnoliopsida class)
+  - Converts taxonomy validation errors to warnings for missing `idtax_n` and `original_tax_name`
+  - Clear messaging: "Missing idtax_n are considered to be unidentified stems"
+  - Allows import to proceed for unidentified individuals while providing placeholder taxonomy
+  - Users can update taxonomy later when identification becomes available
+
+* **Enhanced validation error messages with expected units**
+  - Min/max range validation errors now include expected unit information
+  - Example: "Trait 'height_of_stem_diameter' has 5930 value(s) above maximum allowed (30) (expected unit: m)"
+  - Helps users quickly identify unit mismatches (cm vs m, mm vs cm, etc.)
+  - Only appends unit info when trait has `expectedunit` defined in database
+  - Reduces debugging time and prevents data import errors
+
+### Code Refactoring
+
+* **Refactored `generate_rmd_export_plot.R` script**
+  - Better structure with clear configuration, validation, and processing sections
+  - Comprehensive error handling for each quadrat and plot
+  - Improved user feedback with `cli` package progress messages
+  - Validates output directory and template existence before processing
+  - Tracks results and errors for each operation
+  - Final summary with counts of generated files and any errors
+  - Optional cleanup of individual PDFs after merging
+  - Remains as internal/non-exported script for user convenience
+
+### Documentation
+
+* **Added FUTURE_IMPROVEMENTS.md**
+  - Documents enhancement idea for database-backed synonym system for traits
+  - Currently trait synonyms are hardcoded in R; proposal to store in `table_traits` table
+  - Includes implementation roadmap and related files for future development
+
 # CafriplotsR 1.9.2 (Development)
 
 ### Bug Fixes

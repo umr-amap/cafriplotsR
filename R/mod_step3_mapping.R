@@ -345,7 +345,7 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
       am <- auto_mappings()
       user_mods <- user_modified_mappings()
       user_cols <- names(am$mappings)
-      schema_choices <- c("(Skip this column)" = "", schema_columns())
+      all_schema_cols <- schema_columns()
 
       # Get column descriptions from config
       column_descriptions <- config()$import_config$column_descriptions
@@ -363,6 +363,28 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
 
         # Get actual current mapping (includes user modifications)
         current_mapped_to <- user_mods[[user_col]]
+
+        # Create column-specific dropdown sorted by similarity
+        # This ensures most relevant options appear first in the dropdown,
+        # making manual mapping easier when auto-mapping doesn't find a match
+        user_col_clean <- tolower(trimws(user_col))
+
+        # Calculate similarity score (0-1) between user column and each schema column
+        similarities <- stringdist::stringsim(user_col_clean, tolower(all_schema_cols))
+
+        # Create data frame pairing columns with their similarity scores
+        col_similarity_df <- data.frame(
+          col = all_schema_cols,
+          sim = similarities,
+          stringsAsFactors = FALSE
+        )
+
+        # Sort by similarity (descending), then alphabetically for ties
+        # This puts most similar options at the top of the dropdown
+        col_similarity_df <- col_similarity_df[order(-col_similarity_df$sim, col_similarity_df$col), ]
+
+        # Build dropdown choices: skip option first, then sorted columns
+        schema_choices <- c("(Skip this column)" = "", setNames(col_similarity_df$col, col_similarity_df$col))
 
         # Determine status icon and color
         status_info <- if (method == "exact") {
