@@ -647,7 +647,7 @@ map_individual_columns <- function(data = NULL,
       next
     }
 
-    # PRIORITY 2: Try synonym match with INDIVIDUAL columns
+    # PRIORITY 2: Try exact synonym match with INDIVIDUAL columns
     individual_synonym_match <- NA_character_
     for (col_name in names(individual_synonyms)) {
       if (user_col_clean %in% tolower(individual_synonyms[[col_name]])) {
@@ -661,6 +661,61 @@ map_individual_columns <- function(data = NULL,
       column_classifications$type[i] <- "individual"
       column_classifications$method[i] <- "synonym"
       column_classifications$confidence[i] <- 0.9
+      next
+    }
+
+    # PRIORITY 2.5: Try pattern/substring synonym match with INDIVIDUAL columns
+    # This catches cases like "DBH [cm]" or "dbh_cm" matching "dbh" synonym
+    # Normalize by removing special characters, spaces, brackets, underscores
+    user_col_normalized <- gsub("[^a-z0-9]", "", user_col_clean)
+
+    individual_pattern_match <- NA_character_
+    best_pattern_score <- 0  # Composite score: length + similarity
+    best_pattern_length <- 0
+    best_pattern_similarity <- 0
+
+    for (col_name in names(individual_synonyms)) {
+      synonyms_for_col <- tolower(individual_synonyms[[col_name]])
+
+      for (synonym in synonyms_for_col) {
+        # Normalize synonym same way
+        synonym_normalized <- gsub("[^a-z0-9]", "", synonym)
+
+        # Skip very short synonyms to avoid false positives (e.g., "h", "d")
+        if (nchar(synonym_normalized) < 3) {
+          next
+        }
+
+        # Check if synonym is contained in user column name
+        if (grepl(synonym_normalized, user_col_normalized, fixed = TRUE)) {
+          # Calculate overall similarity for tiebreaking
+          similarity <- stringdist::stringsim(user_col_clean, col_name)
+
+          # Composite score: prioritize length, then similarity
+          # Length is weighted 100x more important than similarity
+          composite_score <- (nchar(synonym_normalized) * 100) + (similarity * 10)
+
+          # Pick best match based on:
+          # 1. Longest synonym (most specific)
+          # 2. Highest similarity to target column name (tiebreaker)
+          if (composite_score > best_pattern_score) {
+            individual_pattern_match <- col_name
+            best_pattern_score <- composite_score
+            best_pattern_length <- nchar(synonym_normalized)
+            best_pattern_similarity <- similarity
+          }
+        }
+      }
+    }
+
+    if (!is.na(individual_pattern_match)) {
+      # Use similarity-adjusted confidence (higher similarity = higher confidence)
+      adjusted_confidence <- 0.80 + (best_pattern_similarity * 0.1)  # 0.80-0.90 range
+
+      column_classifications$mapped_to[i] <- individual_pattern_match
+      column_classifications$type[i] <- "individual"
+      column_classifications$method[i] <- "synonym"
+      column_classifications$confidence[i] <- round(adjusted_confidence, 2)
       next
     }
 
@@ -690,7 +745,7 @@ map_individual_columns <- function(data = NULL,
       next
     }
 
-    # PRIORITY 5: Try synonym match with TRAIT columns
+    # PRIORITY 5: Try exact synonym match with TRAIT columns
     trait_synonym_match <- NA_character_
     for (col_name in names(trait_synonyms)) {
       if (user_col_clean %in% tolower(trait_synonyms[[col_name]])) {
@@ -704,6 +759,53 @@ map_individual_columns <- function(data = NULL,
       column_classifications$type[i] <- "feature"
       column_classifications$method[i] <- "synonym"
       column_classifications$confidence[i] <- 0.9
+      next
+    }
+
+    # PRIORITY 5.5: Try pattern/substring synonym match with TRAIT columns
+    # This catches cases like "DBH [cm]" or "height_m" matching trait synonyms
+    trait_pattern_match <- NA_character_
+    best_trait_pattern_score <- 0  # Composite score: length + similarity
+    best_trait_pattern_similarity <- 0
+
+    for (col_name in names(trait_synonyms)) {
+      synonyms_for_trait <- tolower(trait_synonyms[[col_name]])
+
+      for (synonym in synonyms_for_trait) {
+        # Normalize synonym same way as user column
+        synonym_normalized <- gsub("[^a-z0-9]", "", synonym)
+
+        # Skip very short synonyms to avoid false positives
+        if (nchar(synonym_normalized) < 3) {
+          next
+        }
+
+        # Check if synonym is contained in user column name
+        if (grepl(synonym_normalized, user_col_normalized, fixed = TRUE)) {
+          # Calculate overall similarity for tiebreaking
+          similarity <- stringdist::stringsim(user_col_clean, col_name)
+
+          # Composite score: prioritize length, then similarity
+          composite_score <- (nchar(synonym_normalized) * 100) + (similarity * 10)
+
+          # Pick best match
+          if (composite_score > best_trait_pattern_score) {
+            trait_pattern_match <- col_name
+            best_trait_pattern_score <- composite_score
+            best_trait_pattern_similarity <- similarity
+          }
+        }
+      }
+    }
+
+    if (!is.na(trait_pattern_match)) {
+      # Use similarity-adjusted confidence (0.80-0.90 range)
+      adjusted_confidence <- 0.80 + (best_trait_pattern_similarity * 0.1)
+
+      column_classifications$mapped_to[i] <- trait_pattern_match
+      column_classifications$type[i] <- "feature"
+      column_classifications$method[i] <- "synonym"
+      column_classifications$confidence[i] <- round(adjusted_confidence, 2)
       next
     }
 
@@ -721,6 +823,53 @@ map_individual_columns <- function(data = NULL,
         column_classifications$confidence[i] <- best_similarity_trait
         next
       }
+    }
+  }
+
+  # -------------------------------------------------------------------
+  # DEDUPLICATION: Handle multiple user columns mapping to same DB column
+  # -------------------------------------------------------------------
+
+  # Find duplicate target mappings (multiple user columns → same DB column)
+  mapped_rows <- which(!is.na(column_classifications$mapped_to))
+  if (length(mapped_rows) > 0) {
+    target_counts <- table(column_classifications$mapped_to[mapped_rows])
+    duplicated_targets <- names(target_counts[target_counts > 1])
+
+    if (length(duplicated_targets) > 0) {
+      cli::cli_alert_warning("Found {length(duplicated_targets)} database column(s) with multiple user column mappings")
+
+      for (target in duplicated_targets) {
+        # Find all user columns mapped to this target
+        duplicate_indices <- which(column_classifications$mapped_to == target)
+
+        # Create priority scores for each mapping:
+        # exact=4, synonym=3, fuzzy=2, interactive=1
+        priority_map <- c("exact" = 4, "synonym" = 3, "fuzzy" = 2, "interactive" = 1)
+        priorities <- priority_map[column_classifications$method[duplicate_indices]]
+
+        # Composite score: (priority * 100) + confidence
+        scores <- (priorities * 100) + (column_classifications$confidence[duplicate_indices] * 10)
+
+        # Find best mapping
+        best_idx <- duplicate_indices[which.max(scores)]
+        loser_indices <- setdiff(duplicate_indices, best_idx)
+
+        # Report what's being kept
+        best_col <- column_classifications$original_name[best_idx]
+        loser_cols <- column_classifications$original_name[loser_indices]
+
+        cli::cli_alert_info("Target '{target}': keeping '{best_col}' ({column_classifications$method[best_idx]}, conf={column_classifications$confidence[best_idx]})")
+        cli::cli_alert_info("  Unmarking: {paste(loser_cols, collapse = ', ')}")
+
+        # Unmap the losers (set to NA so they become unmapped)
+        column_classifications$mapped_to[loser_indices] <- NA
+        column_classifications$type[loser_indices] <- NA
+        column_classifications$method[loser_indices] <- NA
+        column_classifications$confidence[loser_indices] <- NA
+      }
+
+      cat("\n")
     }
   }
 

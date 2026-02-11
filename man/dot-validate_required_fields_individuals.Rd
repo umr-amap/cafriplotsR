@@ -4,15 +4,21 @@
 \alias{.validate_required_fields_individuals}
 \title{Validate Required Fields for Individuals (Internal)}
 \usage{
-.validate_required_fields_individuals(data, required_cols)
+.validate_required_fields_individuals(
+  data,
+  required_cols,
+  warning_only_cols = NULL
+)
 }
 \arguments{
 \item{data}{Data frame}
 
 \item{required_cols}{Required column names}
+
+\item{warning_only_cols}{Columns that should generate warnings instead of errors (optional)}
 }
 \value{
-List of error messages
+List with errors and warnings
 }
 \description{
 Validate Required Fields for Individuals (Internal)

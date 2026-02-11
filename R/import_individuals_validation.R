@@ -239,15 +239,55 @@ validate_individual_data <- function(individuals_data,
     cli::cli_alert_success("All individuals have tag values")
   }
 
-  # 1. Required fields (tag is now optional - handled above)
+  # 1a. Auto-fill missing idtax_n with Magnoliopsida (351190)
+  cli::cli_alert_info("Checking idtax_n column...")
+
+  if ("idtax_n" %in% names(validated_individuals)) {
+    missing_idtax <- is.na(validated_individuals$idtax_n) |
+                     (is.character(validated_individuals$idtax_n) &
+                      trimws(validated_individuals$idtax_n) == "")
+
+    n_missing <- sum(missing_idtax)
+
+    if (n_missing > 0) {
+      # Auto-fill with Magnoliopsida
+      validated_individuals$idtax_n[missing_idtax] <- 351190
+
+      # Track changes
+      all_changes <- rbind(all_changes, data.frame(
+        step = "Taxonomy Auto-Fill",
+        change = sprintf("Filled %d missing idtax_n value(s) with Magnoliopsida (idtax_n = 351190). Missing idtax_n are considered to be unidentified stems and are set by default as belonging to this class.", n_missing),
+        rows_affected = n_missing,
+        stringsAsFactors = FALSE
+      ))
+
+      # Add warning
+      warnings <- c(warnings, list(sprintf(
+        "Auto-filled %d missing idtax_n value(s) with Magnoliopsida (idtax_n = 351190). Missing idtax_n are considered to be unidentified stems and are set by default as belonging to this class.",
+        n_missing
+      )))
+
+      cli::cli_alert_warning("{n_missing} individual(s) had missing idtax_n - considered unidentified stems, auto-filled with Magnoliopsida (351190)")
+    }
+  }
+
+  # 1b. Required fields - with special handling for taxonomic fields
   cli::cli_alert_info("Checking required fields...")
   required_cols <- c("plot_name", "idtax_n", "original_tax_name")
+  warning_only_cols <- c("idtax_n", "original_tax_name")  # Convert errors to warnings for these
+
   required_check <- .validate_required_fields_individuals(
     validated_individuals,
-    required_cols
+    required_cols,
+    warning_only_cols = warning_only_cols
   )
-  if (length(required_check) > 0) {
-    errors <- c(errors, required_check)
+
+  # Separate errors and warnings
+  if (length(required_check$errors) > 0) {
+    errors <- c(errors, required_check$errors)
+  }
+  if (length(required_check$warnings) > 0) {
+    warnings <- c(warnings, required_check$warnings)
   }
 
   # 2. Tag validation (numeric, not 0, after auto-generation)
@@ -401,40 +441,81 @@ validate_individual_data <- function(individuals_data,
 #'
 #' @param data Data frame
 #' @param required_cols Required column names
-#' @return List of error messages
+#' @param warning_only_cols Columns that should generate warnings instead of errors (optional)
+#' @return List with errors and warnings
 #' @keywords internal
-.validate_required_fields_individuals <- function(data, required_cols) {
+.validate_required_fields_individuals <- function(data, required_cols, warning_only_cols = NULL) {
   errors <- list()
+  warnings <- list()
 
   for (col in required_cols) {
+    # Determine if this column should be warning-only
+    is_warning_only <- !is.null(warning_only_cols) && col %in% warning_only_cols
+
     if (!col %in% names(data)) {
-      errors <- c(errors, list(sprintf(
-        "Missing required column: %s", col
-      )))
+      msg <- sprintf("Missing required column: %s", col)
+      if (is_warning_only) {
+        warnings <- c(warnings, list(msg))
+      } else {
+        errors <- c(errors, list(msg))
+      }
     } else {
       # Check for NA values
       na_count <- sum(is.na(data[[col]]))
       if (na_count > 0) {
-        errors <- c(errors, list(sprintf(
-          "Column '%s' has %d NA value(s) (must not be empty)",
-          col, na_count
-        )))
+        # Customize message for taxonomic fields
+        if (col == "original_tax_name") {
+          msg <- sprintf(
+            "Column '%s' has %d NA value(s) (expected to be non-empty unless this represents unidentified stems)",
+            col, na_count
+          )
+        } else if (col == "idtax_n") {
+          msg <- sprintf(
+            "Column '%s' has %d NA value(s) (missing idtax_n are considered to be unidentified stems)",
+            col, na_count
+          )
+        } else {
+          msg <- sprintf(
+            "Column '%s' has %d NA value(s) (must not be empty)",
+            col, na_count
+          )
+        }
+
+        if (is_warning_only) {
+          warnings <- c(warnings, list(msg))
+        } else {
+          errors <- c(errors, list(msg))
+        }
       }
 
       # Check for empty strings (character columns)
       if (is.character(data[[col]])) {
         empty_count <- sum(data[[col]] == "" | trimws(data[[col]]) == "", na.rm = TRUE)
         if (empty_count > 0) {
-          errors <- c(errors, list(sprintf(
-            "Column '%s' has %d empty value(s) (must not be empty)",
-            col, empty_count
-          )))
+          # Customize message for taxonomic fields
+          if (col == "original_tax_name") {
+            msg <- sprintf(
+              "Column '%s' has %d empty value(s) (expected to be non-empty unless this represents unidentified stems)",
+              col, empty_count
+            )
+          } else {
+            msg <- sprintf(
+              "Column '%s' has %d empty value(s) (must not be empty)",
+              col, empty_count
+            )
+          }
+
+          if (is_warning_only) {
+            warnings <- c(warnings, list(msg))
+          } else {
+            errors <- c(errors, list(msg))
+          }
         }
       }
     }
   }
 
-  return(errors)
+  return(list(errors = errors, warnings = warnings))
 }
 
 
@@ -880,9 +961,16 @@ validate_individual_data <- function(individuals_data,
       if (!is.na(trait_info$minallowedvalue)) {
         below_min <- sum(actual_values < trait_info$minallowedvalue, na.rm = TRUE)
         if (below_min > 0) {
+          # Build error message with unit if available
+          unit_info <- if (!is.na(trait_info$expectedunit) && trait_info$expectedunit != "") {
+            sprintf(" (expected unit: %s)", trait_info$expectedunit)
+          } else {
+            ""
+          }
+
           errors <- c(errors, list(sprintf(
-            "Trait '%s' has %d value(s) below minimum allowed (%s)",
-            trait_col, below_min, trait_info$minallowedvalue
+            "Trait '%s' has %d value(s) below minimum allowed (%s)%s",
+            trait_col, below_min, trait_info$minallowedvalue, unit_info
           )))
         }
       }
@@ -890,9 +978,16 @@ validate_individual_data <- function(individuals_data,
       if (!is.na(trait_info$maxallowedvalue)) {
         above_max <- sum(actual_values > trait_info$maxallowedvalue, na.rm = TRUE)
         if (above_max > 0) {
+          # Build error message with unit if available
+          unit_info <- if (!is.na(trait_info$expectedunit) && trait_info$expectedunit != "") {
+            sprintf(" (expected unit: %s)", trait_info$expectedunit)
+          } else {
+            ""
+          }
+
           errors <- c(errors, list(sprintf(
-            "Trait '%s' has %d value(s) above maximum allowed (%s)",
-            trait_col, above_max, trait_info$maxallowedvalue
+            "Trait '%s' has %d value(s) above maximum allowed (%s)%s",
+            trait_col, above_max, trait_info$maxallowedvalue, unit_info
           )))
         }
       }

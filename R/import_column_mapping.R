@@ -154,6 +154,27 @@
       "diameter_130", "diam_130", "d_130", "d130",
       "diametre", "diametre_130", "circonference"
     ),
+    
+    height_of_stem_diameter = c(
+      # Direct variations
+      "point of measurement", "POM", "Height of DBH",
+      "DBH height", "hauteur de mesure"
+    ),
+    
+    position_x = c(
+      "X"
+    ),
+    
+    position_y = c(
+      "Y"
+    ),
+    
+    observations = c(
+      "comment",
+      "commentaires",
+      "commentaire",
+      "commmentaire"
+    ),
 
     tree_height = c(
       "height", "h", "ht", "tree_height_m", "treeheight",
@@ -168,7 +189,7 @@
       "tree_tag", "treetag", "tree.tag", "tag_number", "tagnumber",
       "individual_id", "individualid", "individual.id",
       "stem_id", "stemid", "stem.id", "id", "numero", "numero_arbre",
-      "ind_num_sous_plot"
+      "ind_num_sous_plot", "Etiquette"
     ),
 
     # Taxonomy columns (for individuals import)
@@ -472,14 +493,6 @@ get_import_column_routing <- function(table_type = "plots", con = NULL) {
         max = 6000,
         severity = "warning",
         message = "Elevation seems unusual (expected -500 to 6000m)"
-      ),
-
-      plot_area = list(
-        type = "numeric",
-        min = 0,
-        max = 100,
-        severity = "warning",
-        message = "Plot area seems unusual (expected 0 to 100 ha)"
       )
     )
   )
@@ -637,6 +650,48 @@ map_user_columns <- function(user_data,
     mapping_confidence[user_col] <- 0
   }
 
+  # -------------------------------------------------------------------
+  # DEDUPLICATION: Handle multiple user columns mapping to same DB column
+  # -------------------------------------------------------------------
+
+  # Find duplicate target mappings
+  mapped_cols <- !is.na(mappings)
+  if (sum(mapped_cols) > 0) {
+    target_counts <- table(mappings[mapped_cols])
+    duplicated_targets <- names(target_counts[target_counts > 1])
+
+    if (length(duplicated_targets) > 0) {
+      message("Found ", length(duplicated_targets), " database column(s) with multiple user column mappings")
+
+      for (target in duplicated_targets) {
+        # Find all user columns mapped to this target
+        duplicate_user_cols <- names(mappings)[which(mappings == target)]
+
+        # Create priority scores: exact=4, synonym=3, fuzzy=2, none=1
+        priority_map <- c("exact" = 4, "synonym" = 3, "fuzzy" = 2, "none" = 1)
+        priorities <- priority_map[mapping_methods[duplicate_user_cols]]
+
+        # Composite score: (priority * 100) + (confidence * 10)
+        scores <- (priorities * 100) + (mapping_confidence[duplicate_user_cols] * 10)
+
+        # Find best mapping
+        best_user_col <- duplicate_user_cols[which.max(scores)]
+        loser_user_cols <- setdiff(duplicate_user_cols, best_user_col)
+
+        # Report
+        message("Target '", target, "': keeping '", best_user_col, "' (",
+                mapping_methods[best_user_col], ", conf=",
+                round(mapping_confidence[best_user_col], 2), ")")
+        message("  Unmarking: ", paste(loser_user_cols, collapse = ", "))
+
+        # Unmap losers (set to NA = skip)
+        mappings[loser_user_cols] <- NA
+        mapping_methods[loser_user_cols] <- "none"
+        mapping_confidence[loser_user_cols] <- 0
+      }
+    }
+  }
+
   # Create mapping result with metadata
   result <- list(
     mappings = mappings,
@@ -676,25 +731,61 @@ map_user_columns <- function(user_data,
 #' @keywords internal
 .find_synonym_match <- function(user_col_clean, synonyms) {
 
-  # Normalize: remove spaces, underscores, dots for matching
+  # Normalize: remove ALL special characters, spaces, underscores, dots, brackets
   normalize <- function(x) {
-    gsub("[_\\. ]", "", tolower(trimws(x)))
+    gsub("[^a-z0-9]", "", tolower(trimws(x)))
   }
 
   user_col_normalized <- normalize(user_col_clean)
 
+  # STEP 1: Try exact match first (highest confidence)
   for (target_col in names(synonyms)) {
     # First check if matches target column name itself
     if (user_col_normalized == normalize(target_col)) {
       return(target_col)
     }
 
-    # Then check synonyms
+    # Then check synonyms for exact match
     synonym_list_normalized <- sapply(synonyms[[target_col]], normalize)
 
     if (user_col_normalized %in% synonym_list_normalized) {
       return(target_col)
     }
+  }
+
+  # STEP 2: Try pattern/substring match (e.g., "DBH [cm]" contains "dbh")
+  # Use composite scoring: prioritize longest synonym, then highest similarity
+  best_match <- NULL
+  best_match_score <- 0
+
+  for (target_col in names(synonyms)) {
+    synonym_list_normalized <- sapply(synonyms[[target_col]], normalize)
+
+    for (synonym_norm in synonym_list_normalized) {
+      # Skip very short synonyms to avoid false positives (e.g., "y", "x", "h")
+      if (nchar(synonym_norm) < 3) {
+        next
+      }
+
+      # Check if synonym is contained in user column name
+      if (grepl(synonym_norm, user_col_normalized, fixed = TRUE)) {
+        # Calculate similarity to target column for tiebreaking
+        similarity <- stringdist::stringsim(user_col_clean, target_col)
+
+        # Composite score: length (weighted 100x) + similarity (weighted 10x)
+        # This ensures longer matches win, but similarity breaks ties
+        composite_score <- (nchar(synonym_norm) * 100) + (similarity * 10)
+
+        if (composite_score > best_match_score) {
+          best_match <- target_col
+          best_match_score <- composite_score
+        }
+      }
+    }
+  }
+
+  if (!is.null(best_match)) {
+    return(best_match)
   }
 
   return(NULL)
