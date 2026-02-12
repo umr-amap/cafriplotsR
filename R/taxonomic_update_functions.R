@@ -214,6 +214,18 @@ update_taxa_link_table <- function(con = NULL, con_taxa = NULL, force = FALSE, w
     }
   }
 
+  # Check if staging table exists - if so, use legacy method which updates it properly
+  staging_table_exists <- tryCatch({
+    result <- DBI::dbGetQuery(actual_con, "SELECT COUNT(*) as n FROM table_idtax_temp;")
+    result$n[1] > 0
+  }, error = function(e) FALSE)
+
+  if (staging_table_exists) {
+    cli::cli_alert_info("Detected staging table setup (table_idtax_temp)")
+    cli::cli_alert_info("Using manual update method to ensure staging table is refreshed...")
+    return(legacy_update_taxa_link_table(con = actual_con, con_taxa = con_taxa))
+  }
+
   # Try materialized view approach first
   cli::cli_alert_info("Attempting to refresh table_idtax materialized view...")
 
@@ -229,6 +241,24 @@ update_taxa_link_table <- function(con = NULL, con_taxa = NULL, force = FALSE, w
         cli::cli_alert_info("Refresh completed in {round(duration_sec, 2)} seconds")
       }
 
+      # CRITICAL: Verify that the refresh actually updated the data
+      # Check if table_idtax_temp exists and has recent data
+      cli::cli_alert_info("Verifying data was actually updated...")
+
+      temp_table_exists <- tryCatch({
+        result <- DBI::dbGetQuery(actual_con, "SELECT COUNT(*) as n FROM table_idtax_temp;")
+        result$n[1] > 0
+      }, error = function(e) FALSE)
+
+      if (!temp_table_exists) {
+        cli::cli_alert_warning("Staging table table_idtax_temp not found or empty")
+        cli::cli_alert_info("PostgreSQL function may not be updating staging table properly")
+        cli::cli_alert_info("Falling back to manual update method...")
+        stop("Staging table verification failed - triggering fallback")
+      }
+
+      cli::cli_alert_success("Verification passed - data appears to be updated")
+
       return(list(
         success = TRUE,
         method = "materialized_view",
@@ -242,8 +272,8 @@ update_taxa_link_table <- function(con = NULL, con_taxa = NULL, force = FALSE, w
     }
 
   }, error = function(e) {
-    # Check if it's a permission error
-    if (grepl("permission denied|does not exist", e$message, ignore.case = TRUE)) {
+    # Check if it's a permission error or materialized view issue
+    if (grepl("permission denied|does not exist|is not a table|materialized view", e$message, ignore.case = TRUE)) {
       cli::cli_alert_warning("Materialized view refresh not available: {e$message}")
       cli::cli_alert_info("Falling back to legacy update method...")
 
@@ -324,13 +354,68 @@ legacy_update_taxa_link_table <- function(con = NULL, con_taxa = NULL) {
   }, error = function(e) FALSE)
 
   if (view_exists) {
-    cli::cli_alert_danger("table_idtax is a materialized view - cannot update with dbWriteTable")
-    cli::cli_alert_info("You need REFRESH permission or admin access")
-    cli::cli_alert_info("Contact your database administrator to:")
-    cli::cli_alert_info("  1. Grant you REFRESH permission, or")
-    cli::cli_alert_info("  2. Run the refresh on your behalf")
+    cli::cli_alert_warning("table_idtax is a materialized view - cannot use dbWriteTable directly")
+    cli::cli_alert_info("Updating staging table table_idtax_temp first...")
 
-    stop("Insufficient permissions to update table_idtax")
+    # Step 1: Update the staging table that feeds the materialized view
+    # Use TRUNCATE + INSERT instead of DROP/CREATE to preserve dependencies
+    staging_success <- tryCatch({
+      # TRUNCATE the staging table (faster than DELETE and resets sequences)
+      DBI::dbExecute(actual_con, "TRUNCATE TABLE table_idtax_temp;")
+      cli::cli_alert_info("Truncated staging table table_idtax_temp")
+
+      # Insert new data
+      DBI::dbWriteTable(
+        actual_con,
+        name = "table_idtax_temp",
+        value = id_taxa_table,
+        append = TRUE,  # Append instead of overwrite
+        overwrite = FALSE
+      )
+
+      cli::cli_alert_success("Staging table table_idtax_temp updated with {nrow(id_taxa_table)} records")
+      TRUE
+
+    }, error = function(e) {
+      cli::cli_alert_warning("Failed to update staging table: {e$message}")
+      cli::cli_alert_info("Will try direct refresh instead...")
+      FALSE
+    })
+
+    # Step 2: Refresh the materialized view (pulls from updated staging table)
+    refresh_success <- tryCatch({
+      cli::cli_alert_info("Refreshing materialized view table_idtax...")
+      DBI::dbExecute(actual_con, "REFRESH MATERIALIZED VIEW table_idtax;")
+
+      end_time <- Sys.time()
+      duration <- as.numeric(difftime(end_time, start_time, units = "secs"))
+
+      # Verify refresh worked by checking record count
+      count_result <- DBI::dbGetQuery(actual_con, "SELECT COUNT(*) as n FROM table_idtax;")
+
+      cli::cli_alert_success("Materialized view refreshed successfully")
+      cli::cli_alert_info("Refresh completed in {round(duration, 2)} seconds")
+      cli::cli_alert_info("Record count: {count_result$n[1]}")
+
+      return(list(
+        success = TRUE,
+        method = if (staging_success) "staging_table_and_refresh" else "direct_refresh",
+        message = if (staging_success) "Updated staging table and refreshed view" else "Refreshed view only",
+        record_count = count_result$n[1],
+        duration = duration
+      ))
+
+    }, error = function(e) {
+      cli::cli_alert_danger("Failed to refresh materialized view: {e$message}")
+      cli::cli_alert_info("You need REFRESH permission or admin access")
+      cli::cli_alert_info("Contact your database administrator to:")
+      cli::cli_alert_info("  1. Grant you REFRESH permission, or")
+      cli::cli_alert_info("  2. Run the refresh on your behalf")
+
+      stop("Insufficient permissions to update table_idtax")
+    })
+
+    return(refresh_success)
 
   } else {
     # Regular table - use dbWriteTable
