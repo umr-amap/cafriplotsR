@@ -242,40 +242,50 @@ merge_individuals_taxa <- function(id_individual = NULL,
 
 
 
-#' Update local taxonomy link table
-#'
-#' Updates the table_idtax in main database with latest synonym information
-#' from the taxa database
-#'
-#' @return NULL (updates database table)
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @export
-update_taxa_link_table <- function() {
+# ============================================================================
+# DEPRECATED: update_taxa_link_table()
+#
+# This function has been replaced by the version in taxonomic_update_functions.R
+# which includes materialized view support, error handling, and fallback logic.
+#
+# The old implementation is kept here (commented out) for reference only.
+# Use the new version from taxonomic_update_functions.R instead.
+# ============================================================================
 
-  # if (exists("mydb_taxa")) rm(mydb_taxa)
-  mydb_taxa <- call.mydb.taxa()
-
-  mydb <- call.mydb()
-
-  id_taxa_table <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa) %>%
-    # dplyr::tbl(mydb_taxa, "table_taxa") %>%
-    dplyr::select(idtax_n, idtax_good_n) %>%
-    dplyr::collect()
-
-  dbWriteTable(mydb,
-               name = "table_idtax",
-               value = id_taxa_table,
-               append = FALSE,
-               overwrite = TRUE)
-
-  cli::cli_alert_success("table_idtax updated")
-
-  # dplyr::tbl(mydb, "table_idtax")
-
-
-}
+# #' Update local taxonomy link table
+# #'
+# #' Updates the table_idtax in main database with latest synonym information
+# #' from the taxa database
+# #'
+# #' @return NULL (updates database table)
+# #'
+# #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+# #'
+# #' @export
+# update_taxa_link_table <- function() {
+#
+#   # if (exists("mydb_taxa")) rm(mydb_taxa)
+#   mydb_taxa <- call.mydb.taxa()
+#
+#   mydb <- call.mydb()
+#
+#   id_taxa_table <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa) %>%
+#     # dplyr::tbl(mydb_taxa, "table_taxa") %>%
+#     dplyr::select(idtax_n, idtax_good_n) %>%
+#     dplyr::collect()
+#
+#   dbWriteTable(mydb,
+#                name = "table_idtax",
+#                value = id_taxa_table,
+#                append = FALSE,
+#                overwrite = TRUE)
+#
+#   cli::cli_alert_success("table_idtax updated")
+#
+#   # dplyr::tbl(mydb, "table_idtax")
+#
+#
+# }
 
 
 
