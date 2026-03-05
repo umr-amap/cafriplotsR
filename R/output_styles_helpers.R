@@ -75,7 +75,7 @@
     }
   }
 
-  # 4. Add coordinates if available (from show_all_coordinates = TRUE)
+  # 4. Add coordinates if available (from extract_coordinates = TRUE)
   if (!is.null(coordinates)) {
     result$coordinates <- coordinates
   }

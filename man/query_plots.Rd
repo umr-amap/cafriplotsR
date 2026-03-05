@@ -18,7 +18,8 @@ query_plots(
   id_specimen = NULL,
   interactive = TRUE,
   show_multiple_census = FALSE,
-  show_all_coordinates = FALSE,
+  extract_coordinates = FALSE,
+  show_all_coordinates = lifecycle::deprecated(),
   remove_ids = TRUE,
   extract_traits = TRUE,
   extract_individual_features = TRUE,
@@ -65,7 +66,11 @@ query_plots(
 
 \item{show_multiple_census}{Logical. Whether to show multiple census data. Optional.}
 
-\item{show_all_coordinates}{Logical. Whether to show all coordinates. Optional.}
+\item{extract_coordinates}{Logical. Whether to extract subplot coordinates as separate tables.
+When TRUE, returns `coordinates` (raw coordinate data) and `coordinates_sf` (spatial features)
+in the output list. Default is FALSE.}
+
+\item{show_all_coordinates}{`r lifecycle::badge("deprecated")` Use `extract_coordinates` instead.}
 
 \item{remove_ids}{Logical. Whether to remove ID columns from output. Optional.}
 

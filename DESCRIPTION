@@ -45,7 +45,8 @@ Imports:
     leaflet,
     rappdirs,
     plotly,
-    rclipboard
+    rclipboard,
+    purrr
 Suggests:
     getPass,
     dm,
