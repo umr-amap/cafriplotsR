@@ -530,7 +530,7 @@ bilinear_interpolation <-
 #'
 #' @author Gilles Dauby
 #'
-#' @param coord_sf sf polygon output of query_plots, using show_all_coordinates TRUE
+#' @param coord_sf sf polygon output of query_plots, using extract_coordinates = TRUE
 #' @param coord_rel tibble extract of query_plots individuals with relative coordinates
 #' 
 #' @details
@@ -815,7 +815,7 @@ approximate_isolated_xy <- function(dataset,
 #' library(CafriplotsR)
 #'
 #' # Extract datas
-#' x <- query_plots(locality_name = "Mbalmayo", extract_individuals = TRUE, show_all_coordinates = TRUE)
+#' x <- query_plots(locality_name = "Mbalmayo", extract_individuals = TRUE, extract_coordinates = TRUE)
 #'
 #' coordinates_sf <- x$coordinates_sf
 #' ind.extract <- x$extract

@@ -2,6 +2,13 @@
 
 ### New Features
 
+* **Improved parameter naming in `query_plots()`**
+  - New `extract_coordinates` parameter replaces `show_all_coordinates` for better clarity
+  - More intuitive name better describes the action: extracting coordinate data from subplots
+  - When TRUE, returns `coordinates` (raw data) and `coordinates_sf` (spatial features) in output list
+  - Old parameter `show_all_coordinates` still works but shows deprecation warning
+  - Will be removed in a future version (2.0.0)
+
 * **Enhanced column mapping with pattern/substring synonym matching**
   - Column mapping now recognizes synonyms embedded in larger strings (e.g., "DBH [cm]" matches "dbh" → `stem_diameter`)
   - Normalizes both user columns and synonyms by removing special characters, brackets, spaces
