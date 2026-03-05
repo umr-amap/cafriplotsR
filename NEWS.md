@@ -40,6 +40,14 @@
   - Only appends unit info when trait has `expectedunit` defined in database
   - Reduces debugging time and prevents data import errors
 
+### Bug Fixes
+
+* **Fixed missing `purrr` dependency for coordinate extraction**
+  - Added `purrr` to package Imports (required by `query_plots()` with `show_all_coordinates = TRUE`)
+  - Fixed unnamespaced `map_chr()` calls to use `purrr::map_chr()` in coordinate processing
+  - Resolves "dépendance 'tidytable' pas chargée (necessaire pour coordinates)" error message
+  - Affects `functions_manip_db.R` coordinate extraction when querying subplot coordinates
+
 ### Code Refactoring
 
 * **Refactored `generate_rmd_export_plot.R` script**
