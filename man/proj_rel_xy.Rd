@@ -7,7 +7,7 @@
 proj_rel_xy(coord_sf, coord_rel)
 }
 \arguments{
-\item{coord_sf}{sf polygon output of query_plots, using show_all_coordinates TRUE}
+\item{coord_sf}{sf polygon output of query_plots, using extract_coordinates = TRUE}
 
 \item{coord_rel}{tibble extract of query_plots individuals with relative coordinates}
 }

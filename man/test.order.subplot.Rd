@@ -123,7 +123,7 @@ test.order.subplot(df, sub_plot)
 library(CafriplotsR)
 
 # Extract datas
-x <- query_plots(locality_name = "Mbalmayo", extract_individuals = TRUE, show_all_coordinates = TRUE)
+x <- query_plots(locality_name = "Mbalmayo", extract_individuals = TRUE, extract_coordinates = TRUE)
 
 coordinates_sf <- x$coordinates_sf
 ind.extract <- x$extract
