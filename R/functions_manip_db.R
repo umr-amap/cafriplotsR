@@ -70,7 +70,10 @@ method_list <- function() {
 #' @param id_specimen Optional. Specimen identifiers.
 #' @param interactive Logical. Whether the query should be interactive. TRUE by default.
 #' @param show_multiple_census Logical. Whether to show multiple census data. Optional.
-#' @param show_all_coordinates Logical. Whether to show all coordinates. Optional.
+#' @param extract_coordinates Logical. Whether to extract subplot coordinates as separate tables.
+#'   When TRUE, returns `coordinates` (raw coordinate data) and `coordinates_sf` (spatial features)
+#'   in the output list. Default is FALSE.
+#' @param show_all_coordinates `r lifecycle::badge("deprecated")` Use `extract_coordinates` instead.
 #' @param remove_ids Logical. Whether to remove ID columns from output. Optional.
 #' @param extract_traits Logical. Whether to extract taxonomic traits. Optional.
 #' @param extract_individual_features Logical. Whether to extract individual-level features. Optional.
@@ -131,7 +134,8 @@ query_plots <- function(plot_name = NULL,
                         id_specimen = NULL,
                         interactive = TRUE,
                         show_multiple_census = FALSE,
-                        show_all_coordinates = FALSE,
+                        extract_coordinates = FALSE,
+                        show_all_coordinates = lifecycle::deprecated(),
                         remove_ids = TRUE,
                         extract_traits = TRUE,
                         extract_individual_features = TRUE,
@@ -153,6 +157,17 @@ query_plots <- function(plot_name = NULL,
   # Match arguments
   census_strategy <- match.arg(census_strategy)
   output_style <- match.arg(output_style)
+
+  # Handle deprecated parameter
+  if (lifecycle::is_present(show_all_coordinates)) {
+    lifecycle::deprecate_warn(
+      when = "1.9.4",
+      what = "query_plots(show_all_coordinates)",
+      with = "query_plots(extract_coordinates)",
+      details = "The parameter name has been changed for clarity."
+    )
+    extract_coordinates <- show_all_coordinates
+  }
 
   # Use provided connection or create new one
   mydb <- if (!is.null(con)) con else call.mydb()
@@ -315,8 +330,8 @@ query_plots <- function(plot_name = NULL,
       relocate(any_of(relocate_fields), .after = "plot_name")
     
     # Handle coordinates if requested
-    if (show_all_coordinates) {
-      
+    if (extract_coordinates) {
+
       # Extract coordinate features
       if (is.data.frame(all_subplots$features_raw)) {
         
@@ -372,7 +387,7 @@ query_plots <- function(plot_name = NULL,
         }
         
       } else {
-        show_all_coordinates <- FALSE
+        extract_coordinates <- FALSE
         cli::cli_alert_danger("No coordinates for quadrat available")
       }
     }
@@ -417,7 +432,7 @@ query_plots <- function(plot_name = NULL,
     tryCatch({
       outputmap <-  mapview::mapview(data_sf, map.types = map_types)
 
-      if(show_all_coordinates) {
+      if(extract_coordinates) {
         if(!is.null(unlist(coordinates_subplots_plot_sf)))
           outputmap <- outputmap +
             mapview::mapview(coordinates_subplots_plot_sf, map.types = map_types)
@@ -524,10 +539,10 @@ query_plots <- function(plot_name = NULL,
     print_table(census_features)
   }
 
-  if (show_all_coordinates)
+  if (extract_coordinates)
     res_list$coordinates <- coordinates_subplots
 
-  if (show_all_coordinates)
+  if (extract_coordinates)
     res_list$coordinates_sf <- coordinates_subplots_plot_sf
 
   res_list <- res_list[!is.na(res_list)]
