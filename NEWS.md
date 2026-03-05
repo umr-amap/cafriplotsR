@@ -2,6 +2,13 @@
 
 ### New Features
 
+* **Improved parameter naming in `query_plots()`**
+  - New `extract_coordinates` parameter replaces `show_all_coordinates` for better clarity
+  - More intuitive name better describes the action: extracting coordinate data from subplots
+  - When TRUE, returns `coordinates` (raw data) and `coordinates_sf` (spatial features) in output list
+  - Old parameter `show_all_coordinates` still works but shows deprecation warning
+  - Will be removed in a future version (2.0.0)
+
 * **Enhanced column mapping with pattern/substring synonym matching**
   - Column mapping now recognizes synonyms embedded in larger strings (e.g., "DBH [cm]" matches "dbh" → `stem_diameter`)
   - Normalizes both user columns and synonyms by removing special characters, brackets, spaces
@@ -39,6 +46,14 @@
   - Helps users quickly identify unit mismatches (cm vs m, mm vs cm, etc.)
   - Only appends unit info when trait has `expectedunit` defined in database
   - Reduces debugging time and prevents data import errors
+
+### Bug Fixes
+
+* **Fixed missing `purrr` dependency for coordinate extraction**
+  - Added `purrr` to package Imports (required by `query_plots()` with `show_all_coordinates = TRUE`)
+  - Fixed unnamespaced `map_chr()` calls to use `purrr::map_chr()` in coordinate processing
+  - Resolves "dépendance 'tidytable' pas chargée (necessaire pour coordinates)" error message
+  - Affects `functions_manip_db.R` coordinate extraction when querying subplot coordinates
 
 ### Code Refactoring
 
