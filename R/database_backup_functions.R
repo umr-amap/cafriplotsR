@@ -105,23 +105,37 @@ backup_database <- function(backup_dir = "~/database_backups",
   # Generate timestamped filename
   timestamp <- format(Sys.time(), "%Y-%m-%d_%H-%M-%S")
   backup_filename <- sprintf("%s_backup_%s.dump", db_name_backup, timestamp)
-  backup_path <- file.path(backup_dir, backup_filename)
 
-  # Normalize path for cross-platform compatibility
-  # On Windows, convert to forward slashes and get absolute path
-  backup_path <- normalizePath(backup_path, winslash = "/", mustWork = FALSE)
+  # Normalize path - create directory first if needed
+  backup_dir <- path.expand(backup_dir)
+  if (!dir.exists(backup_dir)) {
+    dir.create(backup_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  # On Windows, use short path names to avoid spaces and special characters
+  if (.Platform$OS.type == "windows") {
+    # Get short path name for the directory (which exists)
+    backup_dir_short <- utils::shortPathName(normalizePath(backup_dir, winslash = "\\"))
+    # Construct full path with short directory and filename
+    backup_path <- file.path(backup_dir_short, backup_filename)
+    # Normalize to use backslashes consistently
+    backup_path <- gsub("/", "\\\\", backup_path)
+  } else {
+    backup_path <- file.path(backup_dir, backup_filename)
+    backup_path <- normalizePath(backup_path, mustWork = FALSE)
+  }
 
   cli::cli_alert_info("Starting backup of {.strong {db_name_backup}} database...")
+  cli::cli_alert_info("Backup path: {.path {backup_path}}")
 
   # Build pg_dump command
-  # Use --file= format to handle paths with spaces
   args <- c(
     "-h", db_host,
     "-p", as.character(db_port),
     "-U", user,
     "-d", db_name_backup,
     "-F", if (compress) "c" else "p",  # c = custom compressed, p = plain SQL
-    paste0("--file=", backup_path)
+    "-f", backup_path
   )
 
   # Set password via environment variable (safer than command line)
@@ -374,7 +388,14 @@ restore_database <- function(backup_file,
   cli::cli_alert_info("Starting restore of {.strong {db_name_restore}} database...")
 
   # Normalize backup file path for cross-platform compatibility
-  backup_file <- normalizePath(backup_file, winslash = "/", mustWork = TRUE)
+  if (.Platform$OS.type == "windows") {
+    backup_file <- normalizePath(backup_file, winslash = "\\", mustWork = TRUE)
+    backup_file <- utils::shortPathName(backup_file)
+  } else {
+    backup_file <- normalizePath(backup_file, mustWork = TRUE)
+  }
+
+  cli::cli_alert_info("Restore file: {.path {backup_file}}")
 
   # Build pg_restore command
   args <- c(
@@ -390,7 +411,7 @@ restore_database <- function(backup_file,
     cli::cli_alert_warning("Using --clean option: will drop existing objects")
   }
 
-  # Add backup file path (system2 will handle quoting)
+  # Add backup file path
   args <- c(args, backup_file)
 
   # Set password via environment variable

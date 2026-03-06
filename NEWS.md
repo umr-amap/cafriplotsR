@@ -47,7 +47,25 @@
   - Only appends unit info when trait has `expectedunit` defined in database
   - Reduces debugging time and prevents data import errors
 
+* **Database backup and restore functions**
+  - New `backup_database()` function creates timestamped PostgreSQL backups using pg_dump
+  - Supports both main (`plots_transects`) and taxa (`rainbio`) databases
+  - Backup files use format: `database_backup_YYYY-MM-DD_HH-MM-SS.dump`
+  - Optional compression (enabled by default) for smaller file sizes
+  - New `list_backups()` function shows all available backups with timestamps and sizes
+  - New `restore_database()` function restores from backup with safety confirmations
+  - New `cleanup_old_backups()` function removes backups older than specified days (with dry-run mode)
+  - Proper Windows path handling using short path names (8.3 format) to avoid space issues
+  - Secure password handling via PGPASSWORD environment variable
+  - Requires PostgreSQL client tools (pg_dump/pg_restore) installed and in PATH
+
 ### Bug Fixes
+
+* **Fixed missing `stringr::` namespace prefix in coordinate extraction**
+  - Added `stringr::` prefix to `str_split()` calls in coordinate extraction code
+  - Fixes "impossible de trouver la fonction 'str_split'" error in `query_plots()` with `show_all_coordinates = TRUE`
+  - Affects `functions_manip_db.R` lines 351-354 in coordinate processing
+  - `stringr` was already in package dependencies, just needed proper namespace usage
 
 * **Fixed missing `purrr` dependency for coordinate extraction**
   - Added `purrr` to package Imports (required by `query_plots()` with `show_all_coordinates = TRUE`)

@@ -348,10 +348,10 @@ query_plots <- function(plot_name = NULL,
         
         all_coordinates_subplots_rf <- all_ids_subplot_coordinates %>%
           mutate(
-            coord2 = purrr::map_chr(str_split(type, "_"), ~.x[length(.x)]),
-            coord1 = purrr::map_chr(str_split(type, "_"), ~.x[length(.x) - 1]),
-            coord3 = purrr::map_chr(str_split(type, "_"), ~.x[1]),
-            coord4 = purrr::map_chr(str_split(type, "_"), ~.x[2])
+            coord2 = purrr::map_chr(stringr::str_split(type, "_"), ~.x[length(.x)]),
+            coord1 = purrr::map_chr(stringr::str_split(type, "_"), ~.x[length(.x) - 1]),
+            coord3 = purrr::map_chr(stringr::str_split(type, "_"), ~.x[1]),
+            coord4 = purrr::map_chr(stringr::str_split(type, "_"), ~.x[2])
           ) %>%
           select(
             coord1, coord2, coord3, coord4,
