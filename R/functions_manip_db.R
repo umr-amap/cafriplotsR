@@ -89,6 +89,13 @@ method_list <- function() {
 #'   will have NA values, reflecting biological reality.
 #' @param include_issue Logical. Whether to include issue flags in aggregated output. Optional.
 #' @param include_measurement_ids Logical. Whether to include measurement IDs in aggregated output. Optional.
+#' @param individual_features_format Character. Format for individual-level feature measurements.
+#'   `"wide"` (default) returns one row per individual with one column per trait (aggregated).
+#'   `"long"` returns one row per individual per measurement: if an individual has two diameter
+#'   measurements, it will appear in two rows. Adds columns `trait`, `traitvalue`,
+#'   `traitvalue_char`, `valuetype`, `census_name`, and `census_date` (NA when not census-linked).
+#'   Census filtering via `show_multiple_census` / `census_strategy` is still applied.
+#'   Incompatible with `concatenate_stem = TRUE`.
 #' @param output_style Character. Output formatting style. Options: "auto", "minimal", "standard",
 #'   "permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.
 #' @param con Optional database connection to main database. If NULL, will call call.mydb() to establish connection.
@@ -149,6 +156,7 @@ query_plots <- function(plot_name = NULL,
                         include_measurement_ids = FALSE,
                         exact_match = FALSE,
                         census_strategy = c("last", "first", "mean"),
+                        individual_features_format = c("wide", "long"),
                         output_style = c("auto", "minimal", "standard",
                                          "permanent_plot", "permanent_plot_multi_census", "transect", "full"),
                         con = NULL,
@@ -156,7 +164,15 @@ query_plots <- function(plot_name = NULL,
 
   # Match arguments
   census_strategy <- match.arg(census_strategy)
+  individual_features_format <- match.arg(individual_features_format)
   output_style <- match.arg(output_style)
+
+  if (individual_features_format == "long" && isTRUE(concatenate_stem)) {
+    cli::cli_alert_warning(
+      "`individual_features_format = 'long'` is incompatible with `concatenate_stem = TRUE`. Setting `concatenate_stem = FALSE`."
+    )
+    concatenate_stem <- FALSE
+  }
 
   # Handle deprecated parameter
   if (lifecycle::is_present(show_all_coordinates)) {
@@ -209,8 +225,6 @@ query_plots <- function(plot_name = NULL,
     tbl <- "data_individuals"
     sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE id_n IN ({vals*})",
                          vals = id_individual, .con = mydb)
-    
-
     
     res <- func_try_fetch(con = mydb, sql = sql)
 
@@ -348,10 +362,10 @@ query_plots <- function(plot_name = NULL,
         
         all_coordinates_subplots_rf <- all_ids_subplot_coordinates %>%
           mutate(
-            coord2 = purrr::map_chr(stringr::str_split(type, "_"), ~.x[length(.x)]),
-            coord1 = purrr::map_chr(stringr::str_split(type, "_"), ~.x[length(.x) - 1]),
-            coord3 = purrr::map_chr(stringr::str_split(type, "_"), ~.x[1]),
-            coord4 = purrr::map_chr(stringr::str_split(type, "_"), ~.x[2])
+            coord2 = purrr::map_chr(str_split(type, "_"), ~.x[length(.x)]),
+            coord1 = purrr::map_chr(str_split(type, "_"), ~.x[length(.x) - 1]),
+            coord3 = purrr::map_chr(str_split(type, "_"), ~.x[1]),
+            coord4 = purrr::map_chr(str_split(type, "_"), ~.x[2])
           ) %>%
           select(
             coord1, coord2, coord3, coord4,
@@ -483,7 +497,8 @@ query_plots <- function(plot_name = NULL,
                               remove_obs_with_issue = remove_obs_with_issue,
                               include_issue = include_issue,
                               include_measurement_ids = include_measurement_ids,
-                              census_strategy = census_strategy)
+                              census_strategy = census_strategy,
+                              individual_features_format = individual_features_format)
 
     # Ensure concatenate_stem is logical
     if (!is.logical(concatenate_stem)) {
@@ -710,9 +725,11 @@ enrich_with_traits <- function(individuals, con,
                                remove_obs_with_issue = TRUE,
                                include_issue = FALSE,
                                include_measurement_ids = FALSE,
-                               census_strategy = c("last", "first", "mean")) {
+                               census_strategy = c("last", "first", "mean"),
+                               individual_features_format = c("wide", "long")) {
 
   census_strategy <- match.arg(census_strategy)
+  individual_features_format <- match.arg(individual_features_format)
   mydb <- call.mydb()
 
   cli::cli_rule(left = "Processing traits")
@@ -726,7 +743,8 @@ enrich_with_traits <- function(individuals, con,
       remove_obs_with_issue = remove_obs_with_issue,
       include_issue = include_issue,
       include_measurement_ids = include_measurement_ids,
-      census_strategy = census_strategy
+      census_strategy = census_strategy,
+      individual_features_format = individual_features_format
     )
   }
   
@@ -748,31 +766,89 @@ enrich_with_traits <- function(individuals, con,
 enrich_individual_traits <- function(individuals, con, show_multiple_census, remove_obs_with_issue,
                                      include_issue = FALSE,
                                      include_measurement_ids = FALSE,
-                                     census_strategy = c("last", "first", "mean")) {
+                                     census_strategy = c("last", "first", "mean"),
+                                     individual_features_format = c("wide", "long")) {
 
   census_strategy <- match.arg(census_strategy)
+  individual_features_format <- match.arg(individual_features_format)
   cli::cli_alert_info("Enriching with individual-level traits")
 
   all_traits <- traits_list()
-  traits_aggregated <- get_individual_aggregated_features(
-    individual_ids = individuals$id_n,
-    trait_ids = all_traits$id_trait,  # Tous les traits
-    include_multi_census = show_multiple_census,
-    remove_issues = remove_obs_with_issue,
-    con = con,
-    include_issue = include_issue,
-    include_measurement_ids = include_measurement_ids,
-    census_strategy = census_strategy
-  )
-  
-  # Vérifier qu'il y a des résultats
-  if (nrow(traits_aggregated) > 0 && ncol(traits_aggregated) > 1) {
-    individuals <- individuals %>%
-      left_join(traits_aggregated, by = c('id_n' = 'id_data_individuals'))
+
+  if (individual_features_format == "wide") {
+
+    traits_aggregated <- get_individual_aggregated_features(
+      individual_ids = individuals$id_n,
+      trait_ids = all_traits$id_trait,
+      include_multi_census = show_multiple_census,
+      remove_issues = remove_obs_with_issue,
+      con = con,
+      include_issue = include_issue,
+      include_measurement_ids = include_measurement_ids,
+      census_strategy = census_strategy
+    )
+
+    if (nrow(traits_aggregated) > 0 && ncol(traits_aggregated) > 1) {
+      individuals <- individuals %>%
+        left_join(traits_aggregated, by = c('id_n' = 'id_data_individuals'))
+    } else {
+      cli::cli_alert_info("No traits found to enrich")
+    }
+
   } else {
-    cli::cli_alert_info("No traits found to enrich")
+
+    # Long format: one row per individual x measurement
+    raw_traits <- query_individual_features(
+      individual_ids = individuals$id_n,
+      trait_ids = all_traits$id_trait,
+      include_multi_census = show_multiple_census,
+      format = "long",
+      remove_issues = remove_obs_with_issue,
+      census_strategy = census_strategy,
+      con = con
+    )
+
+    if (nrow(raw_traits) == 0) {
+      cli::cli_alert_info("No traits found to enrich")
+      return(individuals)
+    }
+
+    # Build a clean census_date column from day/month/year components when available
+    if ("census_year" %in% names(raw_traits)) {
+      raw_traits <- raw_traits %>%
+        mutate(
+          census_date = suppressWarnings(
+            lubridate::make_date(
+              year  = census_year,
+              month = coalesce(census_month, 1L),
+              day   = coalesce(census_day,   1L)
+            )
+          )
+        ) %>%
+        select(-any_of(c("census_typevalue", "census_day", "census_month", "census_year")))
+    }
+
+    # Drop columns from raw_traits that are already in individuals
+    drop_from_raw <- intersect(
+      names(raw_traits),
+      c("id_table_liste_plots", "id_sub_plots")
+    )
+    raw_traits <- raw_traits %>% select(-any_of(drop_from_raw))
+
+    # Drop plot-level census_date from individuals: the measurement-level
+    # census_date from raw_traits (NA for non-census measurements) is more
+    # informative and should take precedence in long format
+    individuals <- individuals %>% select(-any_of("census_date"))
+
+    # Join: expands individuals to one row per measurement
+    individuals <- individuals %>%
+      left_join(raw_traits, by = c('id_n' = 'id_data_individuals'))
+
+    cli::cli_alert_success(
+      "Long format: {nrow(individuals)} row(s) after joining measurements"
+    )
   }
-  
+
   return(individuals)
 }
 
