@@ -33,6 +33,7 @@ query_plots(
   include_measurement_ids = FALSE,
   exact_match = FALSE,
   census_strategy = c("last", "first", "mean"),
+  individual_features_format = c("wide", "long"),
   output_style = c("auto", "minimal", "standard", "permanent_plot",
     "permanent_plot_multi_census", "transect", "full"),
   con = NULL,
@@ -98,6 +99,14 @@ in the output list. Default is FALSE.}
 Options: "last" (default, most recent census), "first" (earliest census), or "mean" (average across all censuses).
 When "first" or "last" is selected, individuals recruited after the first census or dead before the last census
 will have NA values, reflecting biological reality.}
+
+\item{individual_features_format}{Character. Format for individual-level feature measurements.
+`"wide"` (default) returns one row per individual with one column per trait (aggregated).
+`"long"` returns one row per individual per measurement: if an individual has two diameter
+measurements, it will appear in two rows. Adds columns `trait`, `traitvalue`,
+`traitvalue_char`, `valuetype`, `census_name`, and `census_date` (NA when not census-linked).
+Census filtering via `show_multiple_census` / `census_strategy` is still applied.
+Incompatible with `concatenate_stem = TRUE`.}
 
 \item{output_style}{Character. Output formatting style. Options: "auto", "minimal", "standard",
 "permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.}

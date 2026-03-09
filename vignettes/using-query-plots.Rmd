@@ -256,6 +256,40 @@ multi_census$censuses
 multi_census$height_diameter
 ```
 
+### Long Format: One Row per Measurement
+
+The default output (`individual_features_format = "wide"`) places each trait in its own column, aggregating when multiple measurements exist. Use `"long"` to keep every measurement on its own row instead:
+
+```{r long-format}
+trees_long <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  individual_features_format = "long"
+)
+
+# Each row is one measurement for one individual
+# Columns: trait, traitvalue / traitvalue_char, valuetype,
+#          census_name (e.g. "census_3"), census_date (NA if not census-linked)
+trees_long$individuals |>
+  dplyr::select(plot_name, tag, tax_sp_level, trait, traitvalue, census_name, census_date)
+```
+
+In long format, an individual with two diameter measurements (e.g. from two censuses) appears in two rows. Measurements not linked to any census (e.g. position coordinates) have `census_name = NA` and `census_date = NA`.
+
+Census filtering still applies: with `census_strategy = "last"` (the default), only measurements from the most recent census are returned for census-linked traits, while non-census measurements are always included.
+
+```{r long-format-first-census}
+# Long format keeping only the first census
+trees_long_first <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  individual_features_format = "long",
+  census_strategy = "first"
+)
+```
+
+Long format is particularly useful when you need to work with raw measurement values rather than aggregated summaries, or when you want to compute your own statistics across multiple measurements.
+
 ## Column Renaming
 
 The output styles automatically rename database columns to user-friendly names:
@@ -560,6 +594,9 @@ Configure how multiple censuses should be handled:
 
 - **Census Strategy**: Last census, First census, or Mean across censuses
 - **Show multiple census data**: Creates separate columns for each census (e.g., dbh_census_1, dbh_census_2)
+- **Individual features format**: Controls the row structure of individual-level measurements:
+  - *Wide* (default): one row per individual, with one column per trait — values are aggregated when multiple measurements exist for the same individual
+  - *Long*: one row per measurement — if an individual has two diameter records (e.g. two censuses), it appears in two rows. The output includes `trait`, `traitvalue` / `traitvalue_char`, `valuetype`, `census_name`, and `census_date` columns (`NA` when the measurement is not linked to a census). Census filtering (`census_strategy`) is still applied in long format.
 
 #### Data Organization
 

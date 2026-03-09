@@ -296,8 +296,10 @@ mod_plot_metadata_viewer_server <- function(id, metadata, i18n) {
 
       meta <- metadata()
 
-      # Find the plot ID column - id_liste_plots is the primary key in data_liste_plots
-      id_col <- if ("id_liste_plots" %in% names(meta)) {
+      # Find the plot ID column - renamed to plot_id by output_styles_helpers
+      id_col <- if ("plot_id" %in% names(meta)) {
+        "plot_id"
+      } else if ("id_liste_plots" %in% names(meta)) {
         "id_liste_plots"
       } else if ("id_plot" %in% names(meta)) {
         "id_plot"

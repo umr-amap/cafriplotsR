@@ -363,6 +363,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
       metadata = NULL,
       individuals = NULL,
       individual_features = NULL,
+      extracted_plot_ids = NULL,
       modules_initialized = FALSE
     )
 
@@ -387,6 +388,11 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
           cli::cli_alert_info("Skipping execution - trigger value is 0")
           return()
         }
+
+        # Reset any previous extraction results: filter parameters have changed
+        rv$individuals <- NULL
+        rv$individual_features <- NULL
+        rv$extracted_plot_ids <- NULL
 
         cli::cli_alert_info("Getting filters...")
         # Get filters
@@ -497,6 +503,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
               output_style = options$output_style,
               census_strategy = options$census_strategy,
               show_multiple_census = options$show_multiple_census,
+              individual_features_format = options$individual_features_format,
               concatenate_stem = options$concatenate_stem,
               remove_ids = options$remove_ids,
               remove_obs_with_issue = options$remove_obs_with_issue,
@@ -506,6 +513,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
 
             # Store results
             rv$individuals <- result
+            rv$extracted_plot_ids <- selected_plots()
 
             # Show success notification
             shiny::showNotification(
@@ -654,7 +662,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
       mod_code_preview_server(
         "code_preview",
         filters = filter_output$filters,
-        selected_plots = selected_plots,
+        selected_plots = shiny::reactive(rv$extracted_plot_ids),
         extraction_options = extraction_output$options,
         metadata_available = shiny::reactive(!is.null(rv$metadata)),
         individuals_available = shiny::reactive(!is.null(rv$individuals)),
@@ -670,6 +678,21 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
         pool_reactive = pool_reactive,
         i18n = i18n
       )
+
+      # Reset extraction results when the plot selection changes (user ticks/unticks plots)
+      shiny::observeEvent(selected_plots(), {
+        rv$individuals <- NULL
+        rv$individual_features <- NULL
+        rv$extracted_plot_ids <- NULL
+      }, ignoreInit = TRUE)
+
+      # Reset extraction results when any extraction option changes (census strategy,
+      # output style, individual_features_format, etc.)
+      shiny::observeEvent(extraction_output$options(), {
+        rv$individuals <- NULL
+        rv$individual_features <- NULL
+        rv$extracted_plot_ids <- NULL
+      }, ignoreInit = TRUE)
 
       # Mark modules as initialized
       rv$modules_initialized <- TRUE
