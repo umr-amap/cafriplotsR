@@ -256,6 +256,40 @@ multi_census$censuses
 multi_census$height_diameter
 ```
 
+### Format Long : Une Ligne par Mesure
+
+La sortie par défaut (`individual_features_format = "wide"`) place chaque trait dans sa propre colonne en agrégeant les valeurs lorsque plusieurs mesures existent. Utilisez `"long"` pour conserver chaque mesure sur sa propre ligne :
+
+```{r long-format}
+arbres_long <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  individual_features_format = "long"
+)
+
+# Chaque ligne correspond à une mesure pour un individu
+# Colonnes : trait, traitvalue / traitvalue_char, valuetype,
+#            census_name (ex. "census_3"), census_date (NA si non lié à un recensement)
+arbres_long$individuals |>
+  dplyr::select(plot_name, tag, tax_sp_level, trait, traitvalue, census_name, census_date)
+```
+
+En format long, un individu ayant deux mesures de diamètre (ex. issus de deux recensements) apparaît sur deux lignes. Les mesures non liées à un recensement (ex. coordonnées de position) ont `census_name = NA` et `census_date = NA`.
+
+Le filtrage des recensements reste actif : avec `census_strategy = "last"` (valeur par défaut), seules les mesures du recensement le plus récent sont retournées pour les traits liés à un recensement, tandis que les mesures non recensées sont toujours incluses.
+
+```{r long-format-premier-recensement}
+# Format long avec uniquement le premier recensement
+arbres_long_premier <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  individual_features_format = "long",
+  census_strategy = "first"
+)
+```
+
+Le format long est particulièrement utile lorsque vous souhaitez travailler avec les valeurs brutes des mesures plutôt qu'avec des agrégats, ou calculer vos propres statistiques sur plusieurs mesures.
+
 ## Renommage des Colonnes
 
 Les styles de sortie renomment automatiquement les colonnes de la base de données en noms conviviaux :
@@ -559,6 +593,9 @@ Configurez comment les recensements multiples doivent être gérés :
 
 - **Stratégie de recensement** : Dernier recensement, Premier recensement, ou Moyenne entre les recensements
 - **Afficher les données de recensements multiples** : Crée des colonnes séparées pour chaque recensement (ex. dbh_census_1, dbh_census_2)
+- **Format des données individuelles** : Contrôle la structure des lignes pour les mesures individuelles :
+  - *Large* (par défaut) : une ligne par individu, avec une colonne par trait — les valeurs sont agrégées lorsque plusieurs mesures existent pour un même individu
+  - *Long* : une ligne par mesure — si un individu a deux enregistrements de diamètre (ex. deux recensements), il apparaît sur deux lignes. La sortie inclut les colonnes `trait`, `traitvalue` / `traitvalue_char`, `valuetype`, `census_name` et `census_date` (`NA` si la mesure n'est pas liée à un recensement). Le filtrage des recensements (`census_strategy`) reste appliqué en format long.
 
 #### Organisation des Données
 

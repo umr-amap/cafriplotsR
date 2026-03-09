@@ -121,10 +121,10 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
     generate_individuals_code <- function(plot_ids, options, filters = NULL, use_metadata_ref = FALSE) {
       args <- c()
 
-      # Plot IDs - use metadata reference if available and multiple plots
-      if (use_metadata_ref && length(plot_ids) > 1) {
-        # Suggest using metadata output instead of long vector
-        args <- c(args, '  id_plot = metadata$metadata$id_liste_plots')
+      # Plot IDs - always use metadata reference when metadata was queried,
+      # so that the generated script is consistent and self-contained
+      if (use_metadata_ref) {
+        args <- c(args, '  id_plot = metadata$metadata$plot_id')
       } else if (length(plot_ids) == 1) {
         args <- c(args, sprintf('  id_plot = %s', plot_ids))
       } else {
@@ -151,6 +151,10 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
 
       if (isTRUE(options$show_multiple_census)) {
         args <- c(args, '  show_multiple_census = TRUE')
+      }
+
+      if (!is.null(options$individual_features_format) && options$individual_features_format != "wide") {
+        args <- c(args, sprintf('  individual_features_format = "%s"', options$individual_features_format))
       }
 
       # Data organization
@@ -191,7 +195,6 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
       if (use_metadata_ref && length(plot_ids) > 1) {
         code <- paste0(
           "# Extract individual tree data from selected plots\n",
-          "# Note: Column name might be 'plot_id' instead of 'id_liste_plots' depending on output_style\n",
           "individuals <- query_plots(\n",
           paste(args, collapse = ",\n"),
           "\n)"

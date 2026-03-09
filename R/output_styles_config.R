@@ -13,14 +13,15 @@
     metadata_columns = c(
       "plot_name", "country", "locality_name", "method",
       "ddlat", "ddlon", "elevation",
-      "census_date", "principal_investigator"
+      "census_date", "principal_investigator",
+      "id_liste_plots"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "tax_fam", "tax_gen", "tax_sp_level",
       "stem_diameter", "census_date"
     ),
     keep_patterns = c(),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
-    remove_patterns = c("^id_(?!n)", "^feat_", "^trait_", "^date_modif"),
+    remove_patterns = c("^id_(?!n|liste_plots)", "^feat_", "^trait_", "^date_modif"),
     additional_tables = c(),
     rename_columns = list(
       metadata = c("ddlat" = "latitude", "ddlon" = "longitude"),
@@ -33,7 +34,8 @@
     metadata_columns = c(
       "plot_name", "country", "locality_name", "method",
       "ddlat", "ddlon", "elevation", "plot_area",
-      "census_date", "census_number", "n_individuals", "n_species", "n_families"
+      "census_date", "census_number", "n_individuals", "n_species", "n_families",
+      "id_liste_plots"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "quadrat", "subplot_name",
@@ -42,7 +44,7 @@
     ),
     keep_common_features = TRUE,  # Keep features present in >10% of plots
     keep_patterns = c(),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
-    remove_patterns = c("^id_(?!n)", "^date_modif"),
+    remove_patterns = c("^id_(?!n|liste_plots)", "^date_modif"),
     additional_tables = c(),
     rename_columns = list(
       metadata = c("ddlat" = "latitude", "ddlon" = "longitude"),
@@ -60,24 +62,29 @@
     individuals_columns = c(
       "id_n", "plot_name", "tag", "quadrat",
       "tax_fam", "tax_gen", "tax_sp_level",
-      "stem_diameter", "tree_height", "census_date"
+      "stem_diameter", "tree_height", "census_date",
+      "number_of_stem",
+      "traitvalue",
+      "traitvalue_char",
+      "trait",
+      "traitdescription",
+      "valuetype"
     ),
     keep_patterns = c("wood_density",
                       "stem_diameter",
                       "observations",
                       "light",
                       "position_"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
-    remove_patterns = c("^id_(?!n)", "^date_modif", "_census_\\d+$"),  # Remove census suffix columns
+    remove_patterns = c("^id_(?!n|liste_plots)", "^date_modif", "_census_\\d+$"),  # Remove census suffix columns
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,  # Features go to census table
     rename_columns = list(
-      metadata = c("ddlat" = "latitude", 
-                   "ddlon" = "longitude", 
-                   "id_liste_plots" = "plot_id"),
-      individuals = c("tax_fam" = "family", 
-                      "tax_gen" = "genus", 
+      metadata = c("ddlat" = "latitude",
+                   "ddlon" = "longitude"),
+      individuals = c("tax_fam" = "family",
+                      "tax_gen" = "genus",
                       "tax_sp_level" = "species",
-                      "stem_diameter" = "dbh", 
+                      "stem_diameter" = "dbh",
                       "tree_height" = "height",
                       "height_of_stem_diameter" = "pom")
     )
@@ -87,11 +94,18 @@
     description = "Organized output for permanent plots with multiple censuses shown (show_multiple_census = TRUE)",
     metadata_columns = c(
       "id_liste_plots", "plot_name", "country", "locality_name", "method",
-      "ddlat", "ddlon", "elevation"
+      "ddlat", "ddlon", "elevation",
+      "id_liste_plots"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "quadrat",
-      "tax_fam", "tax_gen", "tax_sp_level"
+      "tax_fam", "tax_gen", "tax_sp_level",
+      "number_of_stem",
+      "traitvalue",
+      "traitvalue_char",
+      "trait",
+      "traitdescription",
+      "valuetype"
       # Census-specific columns added dynamically (stem_diameter_census_1, etc.)
     ),
     keep_census_columns = TRUE,  # Keep all _census_N columns
@@ -100,11 +114,11 @@
                       "observations",
                       "light",
                       "position_"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
-    remove_patterns = c("^id_(?!n)", "^date_modif"),
+    remove_patterns = c("^id_(?!n|liste_plots)", "^date_modif"),
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,
     rename_columns = list(
-      metadata = c("ddlat" = "latitude", "ddlon" = "longitude", "id_liste_plots" = "plot_id"),
+      metadata = c("ddlat" = "latitude", "ddlon" = "longitude"),
       individuals = c("tax_fam" = "family", "tax_gen" = "genus", "tax_sp_level" = "species")
       # Census columns renamed dynamically: stem_diameter_census_1 -> dbh_census_1, etc.
     ),
@@ -120,14 +134,15 @@
       "plot_name", "country", "locality_name", "method",
       "ddlat", "ddlon", "elevation",
       "transect_length", "transect_width",
-      "census_date"
+      "census_date",
+      "id_liste_plots"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "distance_along_transect",
       "tax_fam", "tax_gen", "tax_sp_level", "dbh"
     ),
     keep_patterns = c(),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
-    remove_patterns = c("^id_(?!n)", "height", "pom", "growth", "mortality", "^date_modif"),
+    remove_patterns = c("^id_(?!n|liste_plots)", "height", "pom", "growth", "mortality", "^date_modif"),
     additional_tables = c(),
     rename_columns = list(
       metadata = c("ddlat" = "latitude", "ddlon" = "longitude"),

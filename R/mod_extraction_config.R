@@ -97,6 +97,21 @@ mod_extraction_config_server <- function(id, selected_plots, i18n) {
               ),
               shiny::helpText(i18n()$t("Creates separate columns for each census"))
             )
+          ),
+          shiny::hr(),
+          shiny::radioButtons(
+            ns("individual_features_format"),
+            i18n()$t("Individual features format"),
+            choices = stats::setNames(
+              c("wide", "long"),
+              c(i18n()$t("Wide format (one row per individual)"),
+                i18n()$t("Long format (one row per measurement)"))
+            ),
+            selected = isolate(input$individual_features_format) %||% "wide",
+            inline = TRUE
+          ),
+          shiny::helpText(
+            i18n()$t("In long format, each measurement has its own row (e.g. two diameters = two rows). Census filtering is still applied.")
           )
         ),
 
@@ -389,6 +404,7 @@ mod_extraction_config_server <- function(id, selected_plots, i18n) {
         # Census handling
         census_strategy = input$census_strategy %||% "last",
         show_multiple_census = input$show_multiple_census %||% FALSE,
+        individual_features_format = input$individual_features_format %||% "wide",
 
         # Data organization
         concatenate_stem = input$concatenate_stem %||% FALSE,
