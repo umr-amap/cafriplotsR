@@ -96,9 +96,9 @@
 #' Extract metadata table from query results
 #'
 #' @description
-#' Extracts plot-level metadata from query results. Always includes id_liste_plots
-#' (or plot_id if renamed) to enable chaining queries (e.g., extracting individuals
-#' from metadata results: query_plots(id_plot = metadata$metadata$id_liste_plots)).
+#' Extracts plot-level metadata from query results. Always renames id_liste_plots
+#' to plot_id regardless of output style, so chaining queries is always consistent:
+#' query_plots(id_plot = metadata$metadata$plot_id).
 #'
 #' @keywords internal
 #' @noRd
@@ -185,10 +185,16 @@
     # Only rename columns that exist
     renames <- renames[names(renames) %in% names(meta_data)]
     if (length(renames) > 0) {
-      meta_data <- 
+      meta_data <-
         meta_data %>%
         dplyr::rename(!!!rlang::set_names(names(renames), renames))
     }
+  }
+
+  # Always rename id_liste_plots -> plot_id regardless of output style, so that
+  # chaining is consistent: query_plots(id_plot = metadata$metadata$plot_id)
+  if ("id_liste_plots" %in% names(meta_data)) {
+    meta_data <- meta_data %>% dplyr::rename(plot_id = id_liste_plots)
   }
 
   return(meta_data)

@@ -1,3 +1,37 @@
+# CafriplotsR 1.9.4 (Development)
+
+### New Features
+
+* **Long format output for individual features in `query_plots()`**
+  - New `individual_features_format = c("wide", "long")` parameter (default: `"wide"`)
+  - Wide format (existing behaviour): one row per individual with trait columns pivoted wide
+  - Long format: one row per individual × measurement (`trait`, `traitvalue`, `traitvalue_char`, `valuetype`, `census_date`)
+  - Census filtering (`census_strategy`, `show_multiple_census`) applies to both formats
+  - `concatenate_stem = TRUE` is incompatible with long format and raises an informative error
+  - Option exposed in the **Census Handling** section of the interactive query-plots Shiny app
+
+* **Consistent `plot_id` column across all output styles**
+  - `id_liste_plots` is now always renamed to `plot_id` in metadata output, regardless of output style
+  - Enables reliable chaining: `query_plots(id_plot = metadata$metadata$plot_id, ...)`
+  - `remove_patterns` regex updated to also preserve `id_liste_plots` (like `id_n`)
+
+### Bug Fixes
+
+* **Shiny app query-plots — results reset when query parameters change**
+  - Going back to the query builder and changing filters, plot selection, or extraction options now clears the results section
+  - Prevents stale extraction results from being displayed alongside a new metadata query
+
+* **Shiny app query-plots — generated R code now reflects actual extraction**
+  - Code preview captures plot IDs at extraction time (not live selection state)
+  - Individuals code always uses `metadata$metadata$plot_id` when a metadata query preceded extraction, regardless of how many plots were selected
+  - Fixed metadata viewer failing to find the `plot_id` column (was only checking legacy names `id_liste_plots` / `id_plot`)
+
+### Documentation
+
+* Updated vignettes (`using-query-plots.Rmd`, `using-query-plots-fr.Rmd`) with `individual_features_format` parameter in the **Census Handling** section
+
+---
+
 # CafriplotsR 1.9.3 (Development)
 
 ### New Features

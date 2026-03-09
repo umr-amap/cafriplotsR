@@ -15,7 +15,8 @@ enrich_with_traits(
   remove_obs_with_issue = TRUE,
   include_issue = FALSE,
   include_measurement_ids = FALSE,
-  census_strategy = c("last", "first", "mean")
+  census_strategy = c("last", "first", "mean"),
+  individual_features_format = c("wide", "long")
 )
 }
 \arguments{
