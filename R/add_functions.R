@@ -3513,13 +3513,33 @@ add_trait <- function(new_trait = NULL,
                       new_traitdescription = NULL,
                       new_factorlevels = NULL,
                       new_expectedunit = NULL,
-                      new_comments = NULL) {
+                      new_comments = NULL,
+                      new_category = NULL,
+                      con = NULL,
+                      interactive = TRUE) {
   
-  mydb <- call.mydb()
-  
+  if (is.null(con)) {
+    mydb <- call.mydb()
+  } else {
+    mydb <- con
+  }
+
+  # Handle pool connections
+  actual_con <- if (inherits(mydb, "Pool")) {
+    pool::poolCheckout(mydb)
+  } else {
+    mydb
+  }
+
+  on.exit({
+    if (inherits(mydb, "Pool") && !is.null(actual_con)) {
+      pool::poolReturn(actual_con)
+    }
+  }, add = TRUE)
+
   if(is.null(new_trait)) stop("define new trait")
   if(is.null(new_valuetype)) stop("define new_valuetype")
-  
+
   if (!any(
     new_valuetype == c(
       'numeric',
@@ -3535,16 +3555,16 @@ add_trait <- function(new_trait = NULL,
   stop(
     "valuetype should one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character', 'table_data_liste_plots' or 'table_colnam'"
   )
-  
+
   if (new_valuetype == "numeric" | new_valuetype == "integer")
-    if (!is.numeric(new_maxallowedvalue) &
+    if (!is.null(new_maxallowedvalue) && !is.numeric(new_maxallowedvalue) &
         !is.integer(new_maxallowedvalue))
       stop("valuetype numeric of integer and max value not of this type")
   if (new_valuetype == "numeric" | new_valuetype == "integer")
-    if (!is.numeric(new_minallowedvalue) &
+    if (!is.null(new_minallowedvalue) && !is.numeric(new_minallowedvalue) &
         !is.integer(new_minallowedvalue))
       stop("valuetype numeric of integer and min value not of this type")
-  
+
   new_data_renamed <- tibble(
     trait = new_trait,
     relatedterm = ifelse(is.null(new_relatedterm), NA, new_relatedterm),
@@ -3554,15 +3574,18 @@ add_trait <- function(new_trait = NULL,
     traitdescription = ifelse(is.null(new_traitdescription), NA, new_traitdescription),
     factorlevels = ifelse(is.null(new_factorlevels), NA, new_factorlevels),
     expectedunit = ifelse(is.null(new_expectedunit), NA, new_expectedunit),
-    comments = ifelse(is.null(new_comments), NA, new_comments)
+    comments = ifelse(is.null(new_comments), NA, new_comments),
+    category = ifelse(is.null(new_category), "Other", new_category)
   )
-  
-  print(new_data_renamed)
-  
-  # Q <- utils::askYesNo("confirm adding this trait?")
-  Q <- choose_prompt(message = "confirm adding this trait ?")
-  
-  if(Q) DBI::dbWriteTable(mydb, "traitlist", new_data_renamed, append = TRUE, row.names = FALSE)
+
+  if (interactive) {
+    print(new_data_renamed)
+    Q <- choose_prompt(message = "confirm adding this trait ?")
+  } else {
+    Q <- TRUE
+  }
+
+  if(Q) DBI::dbWriteTable(actual_con, "traitlist", new_data_renamed, append = TRUE, row.names = FALSE)
   
 }
 
@@ -4372,215 +4395,215 @@ add_trait_taxa <- function(new_trait = NULL,
 
 
 
-add_sp_trait_measures_features <- function(new_data,
-                                           id_trait_measures = "id_trait_measures",
-                                           features,
-                                           allow_multiple_value = FALSE,
-                                           add_data = FALSE) {
-  
-  for (i in 1:length(features))
-    if (!any(colnames(new_data) == features[i]))
-      stop(paste("features field provide not found in new_data", features[i]))
-  
-  new_data_renamed <- new_data
-  
-  ## removing entries with NA values for traits
-  new_data_renamed <-
-    new_data_renamed %>%
-    dplyr::filter_at(dplyr::vars(!!features), dplyr::any_vars(!is.na(.)))
-  
-  if (nrow(new_data_renamed) == 0)
-    stop("no values for selected features(s)")
-  
-  new_data_renamed <-
-    new_data_renamed %>%
-    mutate(id_new_data = 1:nrow(.))
-  
-  new_data_renamed <-
-    new_data_renamed %>%
-    rename(id_trait_measures := all_of(id_trait_measures))
-  
-  link_trait_measures <-
-    new_data_renamed %>%
-    dplyr::left_join(
-      try_open_postgres_table(table = "table_traits_measures", con = mydb_taxa) %>%
-        dplyr::select(id_trait_measures) %>%
-        dplyr::filter(id_trait_measures %in% !!unique(new_data_renamed$id_trait_measures)) %>%
-        dplyr::collect() %>%
-        dplyr::mutate(rrr = 1),
-      by = c("id_trait_measures" = "id_trait_measures")
-    )
-  
-  if (dplyr::filter(link_trait_measures, is.na(rrr)) %>%
-      nrow() > 0) {
-    print(dplyr::filter(link_trait_measures, is.na(rrr)))
-    stop("provided trait_measures not found in table_traits_measures")
-  }
-  
-  
-  ### preparing dataset to add for each trait
-  list_add_data <- vector('list', length(features))
-  for (i in 1:length(features)) {
-    
-    feat <- features[i]
-    if(!any(colnames(new_data_renamed) == feat))
-      stop(paste("feat field not found", feat))
-    
-    data_feat <-
-      new_data_renamed
-    
-    data_feat <-
-      data_feat %>%
-      dplyr::filter(!is.na(!!sym(feat)))
-    
-    if(nrow(data_feat) > 0) {
-      ### adding trait id and adding potential issues based on trait
-      data_feat <-
-        .link_sp_trait(data_stand = data_feat, trait = feat)
-      
-      ## see what type of value numeric of character
-      valuetype <-
-        data_feat %>%
-        dplyr::distinct(id_trait) %>%
-        dplyr::left_join(
-          dplyr::tbl(mydb, "traitlist") %>%
-            dplyr::select(valuetype, id_trait) %>%
-            dplyr::collect(),
-          by = c("id_trait" = "id_trait")
-        )
-      
-      if (valuetype$valuetype == "table_colnam") {
-        
-        add_col_sep <-
-          data_feat %>%
-          tidyr::separate_rows(trait, sep = ",") %>%
-          mutate(trait = stringr::str_squish(trait))
-        
-        add_col_sep <- .link_colnam(
-          data_stand = add_col_sep,
-          column_searched = "trait",
-          column_name = "colnam",
-          id_field = "trait",
-          id_table_name = "id_table_colnam",
-          db_connection = mydb,
-          table_name = "table_colnam"
-        )
-        
-        data_feat <-add_col_sep
-        
-      }
-      
-      if (any(data_feat$trait == 0)) {
-        
-        add_0 <- choose_prompt(message = "Some value are equal to 0. Do you want to add these values anyway ??")
-        
-        if(!add_0)
-          data_feat <-
-            data_feat %>%
-            dplyr::filter(trait != 0)
-        
-      }
-      
-      
-      
-      cli::cli_h3(".add_modif_field")
-      data_feat <-
-        .add_modif_field(dataset = data_feat)
-      
-      
-      if (valuetype$valuetype == "ordinal" |
-          valuetype$valuetype == "character")
-        val_type <- "character"
-      
-      if (valuetype$valuetype == "numeric" | valuetype$valuetype == "table_colnam")
-        val_type <- "numeric"
-      
-      if (valuetype$valuetype == "integer")
-        val_type <- "numeric"
-      
-      cli::cli_h3("data_to_add")
-      data_to_add <-
-        dplyr::tibble(
-          id_trait_measures = data_feat$id_trait_measures,
-          id_trait = data_feat$id_trait,
-          typevalue = ifelse(
-            rep(val_type == "numeric", nrow(data_feat)),
-            data_feat$trait,
-            NA
-          ),
-          typevalue_char = ifelse(
-            rep(val_type == "character", nrow(data_feat)),
-            as.character(data_feat$trait),
-            NA
-          ),
-          date_modif_d = data_feat$date_modif_d,
-          date_modif_m = data_feat$date_modif_m,
-          date_modif_y = data_feat$date_modif_y
-        )
-      
-      list_add_data[[i]] <-
-        data_to_add
-      
-      print(data_to_add)
-      
-      if (data_to_add %>% dplyr::distinct() %>% nrow() != nrow(data_to_add)) {
-        
-        duplicates_lg <- duplicated(data_to_add)
-        
-        cli::cli_alert_warning("Duplicates in new data for {feat} concerning {length(duplicates_lg[duplicates_lg])} id(s)")
-        
-        cf_merge <- 
-          choose_prompt(message = "confirm merging duplicates?")
-        
-        if (cf_merge) {
-          
-          # issues_dup <- data_to_add %>%
-          #   filter(id_trait_measures %in% data_to_add[duplicates_lg, "id_trait_measures"]) %>%
-          #   dplyr::select(issue, id_trait_measures)
-          
-          ## resetting issue
-          if(any(grepl("identical value", issues_dup$issue))) {
-            
-            issues_dup_modif_issue <-
-              issues_dup[grepl("identical value", issues_dup$issue),]
-            
-            data_to_add <-
-              data_to_add %>%
-              mutate(issue = replace(issue, id_trait_measures %in% issues_dup_modif_issue$id_trait_measures, NA))
-            
-          }
-          
-          data_to_add <- data_to_add %>% dplyr::distinct()
-        } else {
-          if (!allow_multiple_value) stop()
-        }
-        
-      }
-      
-      response <-
-        choose_prompt(message = "Confirm add these data to table_traits_measures_feat table?")
-      
-      if(add_data & response) {
-        
-        DBI::dbWriteTable(mydb_taxa, "table_traits_measures_feat",
-                          data_to_add,
-                          append = TRUE,
-                          row.names = FALSE)
-        
-        cli::cli_alert_success("Adding data : {nrow(data_to_add)} values added")
-      }
-      
-    } else{
-      
-      cli::cli_alert_info("no added data for {trait} - no values different of 0")
-      
-    }
-  }
-  
-  
-  return(list(list_features_add = list_add_data))
-  
-}
+# add_sp_trait_measures_features <- function(new_data,
+#                                            id_trait_measures = "id_trait_measures",
+#                                            features,
+#                                            allow_multiple_value = FALSE,
+#                                            add_data = FALSE) {
+#   
+#   for (i in 1:length(features))
+#     if (!any(colnames(new_data) == features[i]))
+#       stop(paste("features field provide not found in new_data", features[i]))
+#   
+#   new_data_renamed <- new_data
+#   
+#   ## removing entries with NA values for traits
+#   new_data_renamed <-
+#     new_data_renamed %>%
+#     dplyr::filter_at(dplyr::vars(!!features), dplyr::any_vars(!is.na(.)))
+#   
+#   if (nrow(new_data_renamed) == 0)
+#     stop("no values for selected features(s)")
+#   
+#   new_data_renamed <-
+#     new_data_renamed %>%
+#     mutate(id_new_data = 1:nrow(.))
+#   
+#   new_data_renamed <-
+#     new_data_renamed %>%
+#     rename(id_trait_measures := all_of(id_trait_measures))
+#   
+#   link_trait_measures <-
+#     new_data_renamed %>%
+#     dplyr::left_join(
+#       try_open_postgres_table(table = "table_traits_measures", con = mydb_taxa) %>%
+#         dplyr::select(id_trait_measures) %>%
+#         dplyr::filter(id_trait_measures %in% !!unique(new_data_renamed$id_trait_measures)) %>%
+#         dplyr::collect() %>%
+#         dplyr::mutate(rrr = 1),
+#       by = c("id_trait_measures" = "id_trait_measures")
+#     )
+#   
+#   if (dplyr::filter(link_trait_measures, is.na(rrr)) %>%
+#       nrow() > 0) {
+#     print(dplyr::filter(link_trait_measures, is.na(rrr)))
+#     stop("provided trait_measures not found in table_traits_measures")
+#   }
+#   
+#   
+#   ### preparing dataset to add for each trait
+#   list_add_data <- vector('list', length(features))
+#   for (i in 1:length(features)) {
+#     
+#     feat <- features[i]
+#     if(!any(colnames(new_data_renamed) == feat))
+#       stop(paste("feat field not found", feat))
+#     
+#     data_feat <-
+#       new_data_renamed
+#     
+#     data_feat <-
+#       data_feat %>%
+#       dplyr::filter(!is.na(!!sym(feat)))
+#     
+#     if(nrow(data_feat) > 0) {
+#       ### adding trait id and adding potential issues based on trait
+#       data_feat <-
+#         .link_sp_trait(data_stand = data_feat, trait = feat)
+#       
+#       ## see what type of value numeric of character
+#       valuetype <-
+#         data_feat %>%
+#         dplyr::distinct(id_trait) %>%
+#         dplyr::left_join(
+#           dplyr::tbl(mydb, "traitlist") %>%
+#             dplyr::select(valuetype, id_trait) %>%
+#             dplyr::collect(),
+#           by = c("id_trait" = "id_trait")
+#         )
+#       
+#       if (valuetype$valuetype == "table_colnam") {
+#         
+#         add_col_sep <-
+#           data_feat %>%
+#           tidyr::separate_rows(trait, sep = ",") %>%
+#           mutate(trait = stringr::str_squish(trait))
+#         
+#         add_col_sep <- .link_colnam(
+#           data_stand = add_col_sep,
+#           column_searched = "trait",
+#           column_name = "colnam",
+#           id_field = "trait",
+#           id_table_name = "id_table_colnam",
+#           db_connection = mydb,
+#           table_name = "table_colnam"
+#         )
+#         
+#         data_feat <-add_col_sep
+#         
+#       }
+#       
+#       if (any(data_feat$trait == 0)) {
+#         
+#         add_0 <- choose_prompt(message = "Some value are equal to 0. Do you want to add these values anyway ??")
+#         
+#         if(!add_0)
+#           data_feat <-
+#             data_feat %>%
+#             dplyr::filter(trait != 0)
+#         
+#       }
+#       
+#       
+#       
+#       cli::cli_h3(".add_modif_field")
+#       data_feat <-
+#         .add_modif_field(dataset = data_feat)
+#       
+#       
+#       if (valuetype$valuetype == "ordinal" |
+#           valuetype$valuetype == "character")
+#         val_type <- "character"
+#       
+#       if (valuetype$valuetype == "numeric" | valuetype$valuetype == "table_colnam")
+#         val_type <- "numeric"
+#       
+#       if (valuetype$valuetype == "integer")
+#         val_type <- "numeric"
+#       
+#       cli::cli_h3("data_to_add")
+#       data_to_add <-
+#         dplyr::tibble(
+#           id_trait_measures = data_feat$id_trait_measures,
+#           id_trait = data_feat$id_trait,
+#           typevalue = ifelse(
+#             rep(val_type == "numeric", nrow(data_feat)),
+#             data_feat$trait,
+#             NA
+#           ),
+#           typevalue_char = ifelse(
+#             rep(val_type == "character", nrow(data_feat)),
+#             as.character(data_feat$trait),
+#             NA
+#           ),
+#           date_modif_d = data_feat$date_modif_d,
+#           date_modif_m = data_feat$date_modif_m,
+#           date_modif_y = data_feat$date_modif_y
+#         )
+#       
+#       list_add_data[[i]] <-
+#         data_to_add
+#       
+#       print(data_to_add)
+#       
+#       if (data_to_add %>% dplyr::distinct() %>% nrow() != nrow(data_to_add)) {
+#         
+#         duplicates_lg <- duplicated(data_to_add)
+#         
+#         cli::cli_alert_warning("Duplicates in new data for {feat} concerning {length(duplicates_lg[duplicates_lg])} id(s)")
+#         
+#         cf_merge <- 
+#           choose_prompt(message = "confirm merging duplicates?")
+#         
+#         if (cf_merge) {
+#           
+#           # issues_dup <- data_to_add %>%
+#           #   filter(id_trait_measures %in% data_to_add[duplicates_lg, "id_trait_measures"]) %>%
+#           #   dplyr::select(issue, id_trait_measures)
+#           
+#           ## resetting issue
+#           if(any(grepl("identical value", issues_dup$issue))) {
+#             
+#             issues_dup_modif_issue <-
+#               issues_dup[grepl("identical value", issues_dup$issue),]
+#             
+#             data_to_add <-
+#               data_to_add %>%
+#               mutate(issue = replace(issue, id_trait_measures %in% issues_dup_modif_issue$id_trait_measures, NA))
+#             
+#           }
+#           
+#           data_to_add <- data_to_add %>% dplyr::distinct()
+#         } else {
+#           if (!allow_multiple_value) stop()
+#         }
+#         
+#       }
+#       
+#       response <-
+#         choose_prompt(message = "Confirm add these data to table_traits_measures_feat table?")
+#       
+#       if(add_data & response) {
+#         
+#         DBI::dbWriteTable(mydb_taxa, "table_traits_measures_feat",
+#                           data_to_add,
+#                           append = TRUE,
+#                           row.names = FALSE)
+#         
+#         cli::cli_alert_success("Adding data : {nrow(data_to_add)} values added")
+#       }
+#       
+#     } else{
+#       
+#       cli::cli_alert_info("no added data for {trait} - no values different of 0")
+#       
+#     }
+#   }
+#   
+#   
+#   return(list(list_features_add = list_add_data))
+#   
+# }
 
 
 

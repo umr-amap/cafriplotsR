@@ -5500,6 +5500,10 @@
     {
       "en": "In long format, each measurement has its own row (e.g. two diameters = two rows). Census filtering is still applied.",
       "fr": "En format long, chaque mesure occupe sa propre ligne (ex. deux diamètres = deux lignes). Le filtrage des recensements reste appliqué."
+    },
+    {
+      "en": "Category",
+      "fr": "Catégorie"
     }
   ]
 }

@@ -33,9 +33,11 @@
     description = "Standard output for general analysis",
     metadata_columns = c(
       "plot_name", "country", "locality_name", "method",
-      "ddlat", "ddlon", "elevation", "plot_area",
-      "census_date", "census_number", "n_individuals", "n_species", "n_families",
-      "id_liste_plots"
+      "ddlat", "ddlon", "elevation",
+      "first_census",
+      "last_census",
+      "n_census",
+      "id_liste_plots", "data_provider", "principal_investigator", "data_manager", "team_leader"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "quadrat", "subplot_name",
@@ -57,7 +59,10 @@
     metadata_columns = c(
       "id_liste_plots", "plot_name", "country", "locality_name", "method",
       "ddlat", "ddlon", "elevation", "data_provider", "plot_area",
-      "forest_description"
+      "forest_description",
+      "first_census",
+      "last_census",
+      "n_census", "data_provider", "principal_investigator", "data_manager", "team_leader"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "quadrat",
@@ -95,7 +100,10 @@
     metadata_columns = c(
       "id_liste_plots", "plot_name", "country", "locality_name", "method",
       "ddlat", "ddlon", "elevation",
-      "id_liste_plots"
+      "id_liste_plots",
+      "first_census",
+      "last_census",
+      "n_census", "data_provider", "principal_investigator", "data_manager", "team_leader"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "quadrat",

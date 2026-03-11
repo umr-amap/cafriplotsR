@@ -317,6 +317,28 @@ query_plots <- function(plot_name = NULL,
         relocate(plot_name, .before = year)
     }
     
+    # Summarise census info per plot and join into res
+    if (exists("census_features") && is.data.frame(census_features) && nrow(census_features) > 0) {
+      census_summary <- census_features %>%
+        mutate(
+          census_date = dplyr::case_when(
+            !is.na(day)   ~ paste(year, sprintf("%02d", month), sprintf("%02d", day), sep = "-"),
+            !is.na(month) ~ paste(year, sprintf("%02d", month), sep = "-"),
+            TRUE           ~ as.character(year)
+          )
+        ) %>%
+        group_by(id_table_liste_plots) %>%
+        summarise(
+          n_census     = dplyr::n(),
+          first_census = census_date[which.min(typevalue)],
+          last_census  = census_date[which.max(typevalue)],
+          .groups = "drop"
+        )
+
+      res <- res %>%
+        left_join(census_summary, by = c("id_liste_plots" = "id_table_liste_plots"))
+    }
+
     # Clean up columns
     res <- res %>%
       select(-any_of(c("additional_people", "team_leader", "data_provider")))
