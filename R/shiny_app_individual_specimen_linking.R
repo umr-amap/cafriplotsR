@@ -747,14 +747,21 @@ launch_individual_specimen_linking_app <- function(lang = "en") {
 
   # Join with lookup tables for country and method filtering
   if (!is.null(filters)) {
-    # Join with countries if filtering by country
+    # Resolve country names to id_country, then filter directly
     if (!is.null(filters$country) && length(filters$country) > 0) {
-      query <- query %>%
-        dplyr::left_join(
-          dplyr::tbl(actual_con, "table_countries"),
-          by = "id_country"
-        ) %>%
-        dplyr::filter(country %in% !!filters$country)
+      country_ids <- DBI::dbGetQuery(
+        actual_con,
+        glue::glue_sql(
+          "SELECT id_country FROM table_countries WHERE country IN ({vals*})",
+          vals = filters$country,
+          .con = actual_con
+        )
+      )$id_country
+
+      if (length(country_ids) > 0) {
+        query <- query %>%
+          dplyr::filter(id_country %in% !!country_ids)
+      }
     }
 
     # Join with methods if filtering by method

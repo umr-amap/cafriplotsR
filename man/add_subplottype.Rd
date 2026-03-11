@@ -13,6 +13,7 @@ add_subplottype(
   new_factorlevels = NULL,
   new_expectedunit = NULL,
   new_comments = NULL,
+  new_category = NULL,
   con = NULL,
   interactive = TRUE
 )
@@ -33,6 +34,8 @@ add_subplottype(
 \item{new_expectedunit}{string expected unit (unitless if none)}
 
 \item{new_comments}{string any comments}
+
+\item{new_category}{string category for grouping features in the UI (e.g., "People", "Sampling", "Environment", "Observation"). Defaults to "Other".}
 
 \item{con}{Database connection (optional). If NULL, will create a new connection.}
 

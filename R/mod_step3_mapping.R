@@ -364,27 +364,15 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
         # Get actual current mapping (includes user modifications)
         current_mapped_to <- user_mods[[user_col]]
 
-        # Create column-specific dropdown sorted by similarity
-        # This ensures most relevant options appear first in the dropdown,
-        # making manual mapping easier when auto-mapping doesn't find a match
-        user_col_clean <- tolower(trimws(user_col))
-
-        # Calculate similarity score (0-1) between user column and each schema column
-        similarities <- stringdist::stringsim(user_col_clean, tolower(all_schema_cols))
-
-        # Create data frame pairing columns with their similarity scores
-        col_similarity_df <- data.frame(
-          col = all_schema_cols,
-          sim = similarities,
-          stringsAsFactors = FALSE
+        # Build grouped choices sorted by similarity within each category
+        grouped_choices <- get_schema_choices_grouped(
+          column_descriptions = column_descriptions,
+          schema_columns = all_schema_cols,
+          user_col = user_col
         )
 
-        # Sort by similarity (descending), then alphabetically for ties
-        # This puts most similar options at the top of the dropdown
-        col_similarity_df <- col_similarity_df[order(-col_similarity_df$sim, col_similarity_df$col), ]
-
-        # Build dropdown choices: skip option first, then sorted columns
-        schema_choices <- c("(Skip this column)" = "", setNames(col_similarity_df$col, col_similarity_df$col))
+        # Prepend skip option as its own group
+        schema_choices <- c(list("---" = c("(Skip this column)" = "")), grouped_choices)
 
         # Determine status icon and color
         status_info <- if (method == "exact") {
@@ -435,12 +423,16 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
             # Database column dropdown + description (reactive)
             shiny::column(
               5,
-              shiny::selectInput(
+              shiny::selectizeInput(
                 session$ns(paste0("map_", user_col)),
                 label = NULL,
                 choices = schema_choices,
                 selected = if (!is.na(current_mapped_to)) current_mapped_to else "",
-                width = "100%"
+                width = "100%",
+                options = list(
+                  placeholder = "(Skip this column)",
+                  allowEmptyOption = TRUE
+                )
               ),
               shiny::uiOutput(session$ns(paste0("desc_", user_col)))
             ),
@@ -811,6 +803,16 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
                 placeholder = i18n()$t("Describe what this feature measures or represents"),
                 rows = 3
               ),
+              shiny::selectInput(
+                session$ns("new_feature_category"),
+                i18n()$t("Category"),
+                choices = c("Stem-level trait", "Stem status", "Leaf trait",
+                            "Wood trait", "Phenology", "Classification",
+                            "Vitality", "Position", "Sampling",
+                            "Sampling identification", "People",
+                            "Observation", "Other trait", "Other"),
+                selected = "Stem-level trait"
+              ),
               shiny::conditionalPanel(
                 condition = sprintf("input['%s'] != 'table_colnam' && (input['%s'] == 'numeric' || input['%s'] == 'integer')",
                                    session$ns("new_feature_valuetype"),
@@ -864,10 +866,17 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
         modal_title <- i18n()$t("Create New Feature/Attribute")
         modal_description <- i18n()$t("Create a new feature/attribute that can be linked to individual stems/trees.")
         name_placeholder <- i18n()$t("e.g., crown_diameter, bark_thickness")
+        category_choices <- c("Stem-level trait", "Stem status", "Leaf trait",
+                              "Wood trait", "Phenology", "Classification",
+                              "Vitality", "Position", "Sampling",
+                              "Sampling identification", "People",
+                              "Observation", "Other trait", "Other")
       } else {
         modal_title <- i18n()$t("Create New Plot Feature")
         modal_description <- i18n()$t("Create a new feature that can be linked to plots (e.g., soil characteristics, additional census information).")
         name_placeholder <- i18n()$t("e.g., soil_ph, canopy_height, soil_type")
+        category_choices <- c("Environment", "Soil", "Sampling", "People",
+                              "Position", "Observation", "Other")
       }
 
       shiny::showModal(
@@ -942,6 +951,12 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
                 i18n()$t("Description *"),
                 placeholder = i18n()$t("Describe what this feature measures or represents"),
                 rows = 3
+              ),
+              shiny::selectInput(
+                session$ns("new_feature_category"),
+                i18n()$t("Category"),
+                choices = category_choices,
+                selected = category_choices[1]
               ),
               shiny::conditionalPanel(
                 condition = sprintf("input['%s'] != 'table_colnam' && (input['%s'] == 'numeric' || input['%s'] == 'integer')",
@@ -1066,6 +1081,7 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
               new_maxallowedvalue = new_max,
               new_expectedunit = new_unit,
               new_factorlevels = new_levels,
+              new_category = input$new_feature_category,
               con = con(),              # Pass connection pool
               interactive = FALSE       # Disable interactive prompts in Shiny
             )
@@ -1079,6 +1095,7 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
               new_maxallowedvalue = new_max,
               new_expectedunit = new_unit,
               new_factorlevels = new_levels,
+              new_category = input$new_feature_category,
               con = con(),              # Pass connection pool
               interactive = FALSE       # Disable interactive prompts in Shiny
             )
