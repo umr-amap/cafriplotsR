@@ -512,17 +512,18 @@ subplot_list <- function(con = NULL) {
   if (is.null(con)) con <- call.mydb()
   
   DBI::dbGetQuery(con, "
-    SELECT 
+    SELECT
       type,
       valuetype,
       typedescription,
       expectedunit,
       minallowedvalue,
       maxallowedvalue,
-      id_subplotype
+      id_subplotype,
+      category
     FROM subplotype_list
-    ORDER BY type
-  ") %>% 
+    ORDER BY category, type
+  ") %>%
     as_tibble()
 }
 
@@ -916,6 +917,7 @@ subplot_list <- function(con = NULL) {
 #' @param new_factorlevels string a vector of all possible value if valuetype is categorical or ordinal
 #' @param new_expectedunit string expected unit (unitless if none)
 #' @param new_comments string any comments
+#' @param new_category string category for grouping features in the UI (e.g., "People", "Sampling", "Environment", "Observation"). Defaults to "Other".
 #' @param con Database connection (optional). If NULL, will create a new connection.
 #' @param interactive Logical. If TRUE (default), will ask for confirmation. Set to FALSE when calling from Shiny.
 #'
@@ -928,6 +930,7 @@ add_subplottype <- function(new_type = NULL,
                             new_factorlevels = NULL,
                             new_expectedunit = NULL,
                             new_comments = NULL,
+                            new_category = NULL,
                             con = NULL,
                             interactive = TRUE) {
 
@@ -990,7 +993,8 @@ add_subplottype <- function(new_type = NULL,
     typedescription = ifelse(is.null(new_typedescription), NA, new_typedescription),
     factorlevels = ifelse(is.null(new_factorlevels), NA, new_factorlevels),
     expectedunit = ifelse(is.null(new_expectedunit), NA, new_expectedunit),
-    comments = ifelse(is.null(new_comments), NA, new_comments)
+    comments = ifelse(is.null(new_comments), NA, new_comments),
+    category = ifelse(is.null(new_category), "Other", new_category)
   )
 
   # Only print and ask for confirmation if interactive

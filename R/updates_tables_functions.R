@@ -1057,7 +1057,7 @@ update_ident_specimens <- function(colnam = NULL,
   } else {
 
     queried_speci <-
-      query_specimens(id_search = id_speci, subset_columns = FALSE)
+      query_specimens(id_specimen = id_speci, subset_columns = FALSE)
 
   }
 
@@ -1272,7 +1272,7 @@ update_ident_specimens <- function(colnam = NULL,
         # if(show_results) print(dbFetch(rs))
         DBI::dbClearResult(rs)
 
-        if(show_results) query_specimens(id_search = queried_speci$id_specimen)
+        if(show_results) query_specimens(id_specimen = queried_speci$id_specimen)
       }
 
     } else{

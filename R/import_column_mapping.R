@@ -268,38 +268,89 @@
     ""
   }
 
-  # Hard-coded descriptions for flat table columns
+  # Hard-coded descriptions for flat table columns (with category for grouped dropdowns)
   flat_descriptions <- list(
     # Plot identification
-    plot_name = "Unique identifier for the plot (required). Must be unique across the database.",
+    plot_name = list(
+      description = "Unique identifier for the plot (required). Must be unique across the database.",
+      category = "Identification"
+    ),
 
     # Geographic
-    country = paste0("Country where the plot is located.", plot_metadata_warning),
-    province = paste0("Province, state, or administrative region within the country.", plot_metadata_warning),
-    locality_name = paste0("Name of the locality, village, or specific location.", plot_metadata_warning),
-    ddlat = paste0("Latitude in decimal degrees. Range: -90 to 90.", plot_metadata_warning),
-    ddlon = paste0("Longitude in decimal degrees. Range: -180 to 180.", plot_metadata_warning),
-    elevation = paste0("Elevation above sea level in meters. Typical range: -500 to 6000m.", plot_metadata_warning),
+    country = list(
+      description = paste0("Country where the plot is located.", plot_metadata_warning),
+      category = "Location"
+    ),
+    province = list(
+      description = paste0("Province, state, or administrative region within the country.", plot_metadata_warning),
+      category = "Location"
+    ),
+    locality_name = list(
+      description = paste0("Name of the locality, village, or specific location.", plot_metadata_warning),
+      category = "Location"
+    ),
+    ddlat = list(
+      description = paste0("Latitude in decimal degrees. Range: -90 to 90.", plot_metadata_warning),
+      category = "Location"
+    ),
+    ddlon = list(
+      description = paste0("Longitude in decimal degrees. Range: -180 to 180.", plot_metadata_warning),
+      category = "Location"
+    ),
+    elevation = list(
+      description = paste0("Elevation above sea level in meters. Typical range: -500 to 6000m.", plot_metadata_warning),
+      category = "Location"
+    ),
 
     # Plot characteristics
-    method = paste0("Survey method or protocol used. E.g., '1ha-IRD', 'transect', etc.", plot_metadata_warning),
+    method = list(
+      description = paste0("Survey method or protocol used. E.g., '1ha-IRD', 'transect', etc.", plot_metadata_warning),
+      category = "Sampling"
+    ),
 
     # Dates
-    date_y = paste0("Year of survey/census. Format: YYYY (e.g., 2023).", plot_metadata_warning),
-    date_m = paste0("Month of survey/census. Range: 1-12.", plot_metadata_warning),
-    data_d = paste0("Day of survey/census. Range: 1-31.", plot_metadata_warning),
+    date_y = list(
+      description = paste0("Year of survey/census. Format: YYYY (e.g., 2023).", plot_metadata_warning),
+      category = "Dates"
+    ),
+    date_m = list(
+      description = paste0("Month of survey/census. Range: 1-12.", plot_metadata_warning),
+      category = "Dates"
+    ),
+    data_d = list(
+      description = paste0("Day of survey/census. Range: 1-31.", plot_metadata_warning),
+      category = "Dates"
+    ),
 
     # Individual tree columns
-    idtax_n = "Taxonomic ID from the taxonomic database (required for individuals). Use taxonomic matching app to get this ID.",
-    original_tax_name = "Original taxonomic name before standardization (required for individuals). Keeps traceability of the original field identification.",
-    tag = "Tree tag or identifier within the plot (recommended). If not provided, will be auto-generated as sequential integers (1, 2, 3, ...) per plot.",
+    idtax_n = list(
+      description = "Taxonomic ID from the taxonomic database (required for individuals). Use taxonomic matching app to get this ID.",
+      category = "Identification"
+    ),
+    original_tax_name = list(
+      description = "Original taxonomic name before standardization (required for individuals). Keeps traceability of the original field identification.",
+      category = "Identification"
+    ),
+    tag = list(
+      description = "Tree tag or identifier within the plot (recommended). If not provided, will be auto-generated as sequential integers (1, 2, 3, ...) per plot.",
+      category = "Identification"
+    ),
 
     # Herbarium specimens (optional for individuals)
-    herbarium_nbe_type = "Type or source of herbarium specimen (optional). E.g., 'IRD plot 4181', institution name.",
-    herbarium_nbe_char = "Herbarium specimen reference number or barcode (optional). E.g., 'Lejoly 485', accession number.",
+    herbarium_nbe_type = list(
+      description = "Type or source of herbarium specimen (optional). E.g., 'IRD plot 4181', institution name.",
+      category = "Specimens"
+    ),
+    herbarium_nbe_char = list(
+      description = "Herbarium specimen reference number or barcode (optional). E.g., 'Lejoly 485', accession number.",
+      category = "Specimens"
+    ),
 
     # Multi-stem trees (optional for individuals)
-    multi_tiges_id = "Multi-stem identifier for trees with multiple stems (optional). Links secondary stems to the main individual by referencing the main stem's tag."
+    multi_tiges_id = list(
+      description = "Multi-stem identifier for trees with multiple stems (optional). Links secondary stems to the main individual by referencing the main stem's tag.",
+      category = "Identification"
+    )
   )
 
   # Fetch feature descriptions from database
@@ -309,7 +360,7 @@
     # Get subplot feature descriptions
     tryCatch({
       subplot_desc <- DBI::dbGetQuery(con, "
-        SELECT type, typedescription
+        SELECT type, typedescription, category
         FROM subplotype_list
         WHERE typedescription IS NOT NULL AND typedescription != ''
       ")
@@ -317,7 +368,8 @@
       if (nrow(subplot_desc) > 0) {
         for (i in 1:nrow(subplot_desc)) {
           feature_info[[subplot_desc$type[i]]] <- list(
-            description = subplot_desc$typedescription[i]
+            description = subplot_desc$typedescription[i],
+            category = if (!is.na(subplot_desc$category[i])) subplot_desc$category[i] else "Other"
           )
         }
       }
@@ -328,7 +380,7 @@
     # Get individual feature/trait descriptions with additional info
     tryCatch({
       trait_info <- DBI::dbGetQuery(con, "
-        SELECT trait, traitdescription, factorlevels, expectedunit
+        SELECT trait, traitdescription, factorlevels, expectedunit, category
         FROM traitlist
         WHERE traitdescription IS NOT NULL AND traitdescription != ''
       ")
@@ -336,7 +388,8 @@
       if (nrow(trait_info) > 0) {
         for (i in 1:nrow(trait_info)) {
           info <- list(
-            description = trait_info$traitdescription[i]
+            description = trait_info$traitdescription[i],
+            category = if (!is.na(trait_info$category[i])) trait_info$category[i] else "Other"
           )
 
           # Add factor levels if available
@@ -357,13 +410,107 @@
     })
   }
 
-  # For flat columns, convert to same structure as features
-  flat_info <- lapply(flat_descriptions, function(desc) {
-    list(description = desc)
-  })
+  # Combine flat and feature info (both are already list-of-lists with description + category)
+  c(flat_descriptions, feature_info)
+}
 
-  # Combine flat and feature info
-  c(flat_info, feature_info)
+
+#' Build Grouped Choices for Schema Column Dropdowns
+#'
+#' Builds a named list of named character vectors suitable for \code{selectInput}
+#' or \code{selectizeInput} with optgroups. Columns are grouped by their category
+#' from the database or hardcoded config.
+#'
+#' @param column_descriptions Named list of column descriptions (from \code{.get_column_descriptions()}).
+#'   Each element should be a list with at least \code{description} and optionally \code{category}.
+#' @param schema_columns Character vector of all valid schema column names.
+#' @param user_col Optional: name of the user column being mapped, used to sort
+#'   choices within each group by string similarity (most relevant first).
+#'
+#' @return A named list where names are category labels and values are named
+#'   character vectors of column choices (suitable for selectInput optgroups).
+#'
+#' @keywords internal
+get_schema_choices_grouped <- function(column_descriptions, schema_columns,
+                                       user_col = NULL) {
+
+  # Build a data frame of column -> category
+  col_categories <- data.frame(
+    col = schema_columns,
+    category = vapply(schema_columns, function(col) {
+      info <- column_descriptions[[col]]
+      if (!is.null(info) && !is.null(info$category)) {
+        info$category
+      } else {
+        "Other"
+      }
+    }, character(1)),
+    stringsAsFactors = FALSE
+  )
+
+  # If user_col provided, compute similarity for sorting within groups
+  if (!is.null(user_col)) {
+    user_col_clean <- tolower(trimws(user_col))
+    col_categories$sim <- stringdist::stringsim(user_col_clean, tolower(col_categories$col))
+  } else {
+    col_categories$sim <- 0
+  }
+
+  # Build label for each column: "col_name - description (unit)"
+  col_categories$label <- vapply(col_categories$col, function(col) {
+    info <- column_descriptions[[col]]
+    if (!is.null(info) && !is.null(info$description)) {
+      desc <- info$description
+      # Truncate long descriptions
+      if (nchar(desc) > 60) desc <- paste0(substr(desc, 1, 57), "...")
+      # Add unit if available
+      if (!is.null(info$expectedunit) && !is.na(info$expectedunit) && info$expectedunit != "") {
+        paste0(col, " - ", desc, " [", info$expectedunit, "]")
+      } else {
+        paste0(col, " - ", desc)
+      }
+    } else {
+      col
+    }
+  }, character(1))
+
+
+  # Define a preferred category order
+  # Includes both flat column categories (Identification, Location, Dates, Specimens)
+  # and database feature categories from subplotype_list and traitlist
+  category_order <- c(
+    # Flat column categories (plots/individuals direct columns)
+    "Identification", "Location", "Dates", "Specimens",
+    # Shared categories
+    "Sampling", "Sampling identification", "People", "Position", "Observation",
+    # Subplot feature categories
+    "Environment", "Soil",
+    # Trait categories
+    "Stem-level trait", "Stem status", "Leaf trait", "Wood trait",
+    "Phenology", "Classification", "Vitality",
+    # Catch-all
+    "Other trait", "Other"
+  )
+
+  # Sort categories: known ones first in order, unknown ones at the end alphabetically
+  unique_cats <- unique(col_categories$category)
+  known <- intersect(category_order, unique_cats)
+  unknown <- setdiff(unique_cats, category_order)
+  ordered_cats <- c(known, sort(unknown))
+
+  # Build the grouped list
+  grouped_choices <- list()
+
+  for (cat in ordered_cats) {
+    cat_rows <- col_categories[col_categories$category == cat, , drop = FALSE]
+    # Sort within group: by similarity (desc), then alphabetically
+    cat_rows <- cat_rows[order(-cat_rows$sim, cat_rows$col), , drop = FALSE]
+
+    choices <- stats::setNames(cat_rows$col, cat_rows$label)
+    grouped_choices[[cat]] <- choices
+  }
+
+  grouped_choices
 }
 
 

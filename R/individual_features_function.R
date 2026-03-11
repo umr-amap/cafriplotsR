@@ -2069,17 +2069,18 @@ list_individual_features <- function(con = NULL) {
   if (is.null(con)) con <- call.mydb()
   
   features <- DBI::dbGetQuery(con, "
-    SELECT DISTINCT 
+    SELECT DISTINCT
       tl.trait,
       tl.valuetype,
       tl.description,
       tl.unit,
+      tl.category,
       COUNT(DISTINCT tm.id_data_individuals) as n_individuals,
       COUNT(*) as n_measurements
     FROM traitlist tl
     LEFT JOIN data_traits_measures tm ON tl.id_trait = tm.traitid
-    GROUP BY tl.trait, tl.valuetype, tl.description, tl.unit
-    ORDER BY n_measurements DESC
+    GROUP BY tl.trait, tl.valuetype, tl.description, tl.unit, tl.category
+    ORDER BY tl.category, n_measurements DESC
   ")
   
   return(features)
@@ -2163,7 +2164,8 @@ traits_list <- function(id_trait = NULL) {
                   maxallowedvalue,
                   minallowedvalue,
                   expectedunit,
-                  valuetype)
+                  valuetype,
+                  category)
   
   if (is.null(id_trait)) {
     

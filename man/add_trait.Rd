@@ -13,7 +13,10 @@ add_trait(
   new_traitdescription = NULL,
   new_factorlevels = NULL,
   new_expectedunit = NULL,
-  new_comments = NULL
+  new_comments = NULL,
+  new_category = NULL,
+  con = NULL,
+  interactive = TRUE
 )
 }
 \arguments{
