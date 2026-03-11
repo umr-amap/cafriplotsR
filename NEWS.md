@@ -2,6 +2,29 @@
 
 ### New Features
 
+* **User management system** (`R/user_management.R`)
+  - `create_user_registry()`: Create a `user_registry` table in the main database for tracking user metadata (email, institution, etc.)
+  - `register_user()`: Add or update user metadata in the registry
+  - `setup_user_permissions()`: Grant/configure user permissions on main and taxa databases
+  - `get_registered_users()`: List registered users with their metadata
+  - `get_user_emails()`: Retrieve user email addresses for communications
+  - `deactivate_user()` / `reactivate_user()`: Manage user active status
+
+* **Feature and trait categories**
+  - New `category` parameter in `add_trait()` and `add_subplottype()` for grouping features in the UI
+  - Import wizard (step 3) now shows a category selector when adding new traits or subplot features
+
+* **Census summary columns in `query_plots()` metadata output**
+  - New columns `n_census`, `first_census`, `last_census` in plot-level metadata
+  - Exposed in all output styles
+
+* **Grouped schema column dropdowns in import wizard**
+  - `get_schema_choices_grouped()`: Builds optgroup-organized choices for column mapping dropdowns
+  - Columns grouped by category, with most-similar matches sorted to the top per group
+
+* **Apply fuzzy matches button in specimen lookup module**
+  - Users can now review and confirm fuzzy collector/specimen matches before applying them
+
 * **Long format output for individual features in `query_plots()`**
   - New `individual_features_format = c("wide", "long")` parameter (default: `"wide"`)
   - Wide format (existing behaviour): one row per individual with trait columns pivoted wide

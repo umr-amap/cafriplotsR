@@ -277,7 +277,13 @@ mod_specimen_lookup_server <- function(id, data, mappings, con_main, con_taxa, i
                   width = "300px"
                 )
               )
-            })
+            }),
+            shiny::actionButton(
+              ns("apply_fuzzy_matches"),
+              shiny::tagList(shiny::icon("check"), paste0(" ", i18n()$t("Apply Fuzzy Matches"))),
+              class = "btn-warning",
+              style = "margin-top: 10px;"
+            )
           )
         },
 
@@ -299,6 +305,48 @@ mod_specimen_lookup_server <- function(id, data, mappings, con_main, con_taxa, i
           )
         }
       )
+    })
+
+    # Apply confirmed fuzzy matches when button clicked
+    shiny::observeEvent(input$apply_fuzzy_matches, {
+      coll <- collector_analysis()
+      shiny::req(coll, length(coll$fuzzy) > 0)
+
+      fuzzy_names <- names(coll$fuzzy)
+      newly_matched <- list()
+      still_fuzzy <- list()
+
+      for (i in seq_along(fuzzy_names)) {
+        selected_id <- input[[paste0("coll_match_", i)]]
+        user_val <- fuzzy_names[i]
+
+        if (!is.null(selected_id) && selected_id != "") {
+          # Move to exact with the user-confirmed ID
+          coll$exact[[user_val]] <- as.integer(selected_id)
+          newly_matched[[user_val]] <- selected_id
+        } else {
+          still_fuzzy[[user_val]] <- coll$fuzzy[[user_val]]
+        }
+      }
+
+      coll$fuzzy <- still_fuzzy
+      collector_analysis(coll)
+
+      n_applied <- length(newly_matched)
+      n_remaining <- length(still_fuzzy)
+
+      if (n_applied > 0) {
+        shiny::showNotification(
+          sprintf(i18n()$t("%d fuzzy matches applied."), n_applied),
+          type = "message", duration = 3
+        )
+      }
+      if (n_remaining > 0) {
+        shiny::showNotification(
+          sprintf(i18n()$t("%d fuzzy matches still need a selection."), n_remaining),
+          type = "warning", duration = 4
+        )
+      }
     })
 
     # Check if matching is complete (no unmatched collectors)
@@ -330,7 +378,7 @@ mod_specimen_lookup_server <- function(id, data, mappings, con_main, con_taxa, i
       # Start with user data (already contains idtax_n column from upload)
       result <- user_data
 
-      # Add collector IDs
+      # Add collector IDs (exact matches only — fuzzy must be confirmed via Apply button first)
       if (!is.null(coll)) {
         collector_col <- maps$collector
         result$id_colnam <- sapply(result[[collector_col]], function(val) {
