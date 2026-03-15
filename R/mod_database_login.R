@@ -1,6 +1,6 @@
 #' Database Login Module - UI
 #'
-#' UI component for database authentication
+#' UI component for database authentication with language selection
 #'
 #' @param id Module namespace ID
 #'
@@ -18,76 +18,44 @@ mod_database_login_ui <- function(id) {
       shiny::wellPanel(
         style = "background-color: #f8f9fa; padding: 30px;",
 
-        shiny::h3(
-          shiny::icon("database"),
-          " Database Connection",
-          style = "text-align: center; margin-bottom: 20px;"
+        # Language toggle (top-right)
+        shiny::div(
+          style = "text-align: right; margin-bottom: 10px;",
+          shiny::radioButtons(
+            ns("language"),
+            label = NULL,
+            choices = c("English" = "en", "Français" = "fr"),
+            selected = "en",
+            inline = TRUE
+          )
         ),
 
-        shiny::p(
-          "Connect to the CafriplotsR database to access forest plot data.",
-          class = "text-muted",
-          style = "text-align: center;"
-        ),
-
+        # All content rendered dynamically for i18n
+        shiny::uiOutput(ns("login_header")),
         shiny::hr(),
 
-        # Check for saved credentials
+        # Saved credentials message
         shiny::uiOutput(ns("saved_credentials_message")),
 
-        # Option to use saved credentials
+        # Option to use saved credentials (only shown when saved creds exist)
         shiny::conditionalPanel(
-          condition = sprintf("output['%s']", ns("has_saved_credentials")),
-          shiny::checkboxInput(
-            ns("use_saved"),
-            "Use saved credentials from .Renviron",
-            value = TRUE
-          ),
+          condition = sprintf("output['%s'] == 'TRUE'", ns("has_saved_credentials")),
+          shiny::uiOutput(ns("use_saved_checkbox")),
           shiny::hr()
         ),
 
-        # Manual credentials input (hidden when using saved credentials)
+        # Manual credentials input (shown when no saved creds or checkbox unchecked)
         shiny::conditionalPanel(
-          condition = sprintf("!input['%s']", ns("use_saved")),
-
-          shiny::h5(shiny::icon("server"), " Database Credentials"),
-
-          shiny::textInput(
-            ns("db_user"),
-            "Username",
-            placeholder = "Database username"
-          ),
-
-          shiny::passwordInput(
-            ns("db_password"),
-            "Password",
-            placeholder = "Database password"
-          ),
-
-          shiny::hr(),
-
-          shiny::p(
-            class = "text-muted",
-            style = "font-size: 0.9em;",
-            shiny::icon("info-circle"),
-            " Credentials will only be used for this session. ",
-            "To save credentials permanently, use ",
-            shiny::code("setup_db_credentials()"),
-            " in R console."
-          )
+          condition = sprintf("output['%s'] != 'TRUE' || !input['%s']",
+                              ns("has_saved_credentials"), ns("use_saved")),
+          shiny::uiOutput(ns("credentials_form"))
         ),
 
         # Status message
         shiny::uiOutput(ns("status_message")),
 
         # Connect button
-        shiny::actionButton(
-          ns("connect"),
-          "Connect to Database",
-          icon = shiny::icon("plug"),
-          class = "btn-primary btn-lg btn-block",
-          style = "margin-top: 10px;"
-        ),
+        shiny::uiOutput(ns("connect_button")),
 
         # Hidden output for conditional panel
         shiny::textOutput(ns("has_saved_credentials"))
@@ -98,7 +66,7 @@ mod_database_login_ui <- function(id) {
 
 #' Database Login Module - Server
 #'
-#' Server logic for database authentication
+#' Server logic for database authentication with language selection
 #'
 #' @param id Module namespace ID
 #'
@@ -106,12 +74,35 @@ mod_database_login_ui <- function(id) {
 #'   - authenticated: Reactive logical indicating connection status
 #'   - pool_main: Main database connection pool (NULL if not connected)
 #'   - pool_taxa: Taxa database connection pool (NULL if not connected)
+#'   - language: Reactive string returning selected language ("en" or "fr")
 #'
 #' @keywords internal
 #' @export
 mod_database_login_server <- function(id) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Initialize translator for login module
+    i18n_translator <- tryCatch({
+      init_translator()
+    }, error = function(e) {
+      cli::cli_alert_warning("Could not load translations: {e$message}")
+      NULL
+    })
+
+    # Helper: translate text
+    t <- function(key) {
+      if (is.null(i18n_translator)) return(key)
+      i18n_translator$t(key)
+    }
+
+    # Update translator language when toggle changes
+    shiny::observe({
+      shiny::req(input$language)
+      if (!is.null(i18n_translator)) {
+        i18n_translator$set_translation_language(input$language)
+      }
+    })
 
     # Reactive values
     rv <- shiny::reactiveValues(
@@ -126,7 +117,6 @@ mod_database_login_server <- function(id) {
     shiny::observe({
       saved_user <- Sys.getenv("MYDB_USER")
       saved_pass <- Sys.getenv("MYDB_PASS")
-
       rv$has_saved <- (saved_user != "" && saved_pass != "")
     })
 
@@ -136,17 +126,44 @@ mod_database_login_server <- function(id) {
     })
     shiny::outputOptions(output, "has_saved_credentials", suspendWhenHidden = FALSE)
 
-    # Saved credentials message
+    # -- Rendered UI elements (reactive to language changes) --
+
+    output$login_header <- shiny::renderUI({
+      input$language  # trigger re-render on language change
+      shiny::tagList(
+        shiny::h3(
+          shiny::icon("database"),
+          paste0(" ", t("Database Connection")),
+          style = "text-align: center; margin-bottom: 20px;"
+        ),
+        shiny::p(
+          t("Connect to the CafriplotsR database to access forest plot data."),
+          class = "text-muted",
+          style = "text-align: center;"
+        )
+      )
+    })
+
+    output$use_saved_checkbox <- shiny::renderUI({
+      input$language
+      shiny::checkboxInput(
+        ns("use_saved"),
+        t("Use saved credentials from .Renviron"),
+        value = TRUE
+      )
+    })
+
     output$saved_credentials_message <- shiny::renderUI({
+      input$language
       if (rv$has_saved) {
         shiny::div(
           class = "alert alert-success",
           style = "font-size: 0.9em;",
           shiny::icon("check-circle"),
-          shiny::strong(" Saved credentials detected"),
+          shiny::strong(paste0(" ", t("Saved credentials detected"))),
           shiny::br(),
           shiny::tags$small(
-            "You can use your saved credentials or enter new ones manually."
+            t("You can use your saved credentials or enter new ones manually.")
           )
         )
       } else {
@@ -154,13 +171,53 @@ mod_database_login_server <- function(id) {
           class = "alert alert-info",
           style = "font-size: 0.9em;",
           shiny::icon("info-circle"),
-          " No saved credentials found. Please enter your database credentials."
+          paste0(" ", t("No saved credentials found. Please enter your database credentials."))
         )
       }
     })
 
+    output$credentials_form <- shiny::renderUI({
+      input$language
+      shiny::tagList(
+        shiny::h5(shiny::icon("server"), paste0(" ", t("Database Credentials"))),
+        shiny::textInput(
+          ns("db_user"),
+          t("Username"),
+          placeholder = t("Database username")
+        ),
+        shiny::passwordInput(
+          ns("db_password"),
+          t("Password"),
+          placeholder = t("Database password")
+        ),
+        shiny::hr(),
+        shiny::p(
+          class = "text-muted",
+          style = "font-size: 0.9em;",
+          shiny::icon("info-circle"),
+          paste0(" ", t("Credentials will only be used for this session. To save credentials permanently, use")),
+          " ",
+          shiny::code("setup_db_credentials()"),
+          " ",
+          t("in R console.")
+        )
+      )
+    })
+
+    output$connect_button <- shiny::renderUI({
+      input$language
+      shiny::actionButton(
+        ns("connect"),
+        t("Connect to Database"),
+        icon = shiny::icon("plug"),
+        class = "btn-primary btn-lg btn-block",
+        style = "margin-top: 10px;"
+      )
+    })
+
     # Status message
     output$status_message <- shiny::renderUI({
+      input$language
       if (!is.null(rv$error_message)) {
         shiny::div(
           class = "alert alert-danger",
@@ -172,7 +229,7 @@ mod_database_login_server <- function(id) {
         shiny::div(
           class = "alert alert-success",
           shiny::icon("check-circle"),
-          " Successfully connected to database!"
+          paste0(" ", t("Successfully connected to database!"))
         )
       } else {
         NULL
@@ -185,7 +242,7 @@ mod_database_login_server <- function(id) {
       rv$error_message <- NULL
 
       # Determine which credentials to use
-      if (rv$has_saved && input$use_saved) {
+      if (rv$has_saved && isTRUE(input$use_saved)) {
         # Use saved credentials
         db_user <- Sys.getenv("MYDB_USER")
         db_password <- Sys.getenv("MYDB_PASS")
@@ -196,8 +253,9 @@ mod_database_login_server <- function(id) {
         db_password <- input$db_password
 
         # Validate inputs
-        if (nzchar(db_user) == FALSE || nzchar(db_password) == FALSE) {
-          rv$error_message <- "Please enter username and password"
+        if (is.null(db_user) || is.null(db_password) ||
+            nzchar(db_user) == FALSE || nzchar(db_password) == FALSE) {
+          rv$error_message <- t("Please enter username and password")
           return()
         }
       }
@@ -238,7 +296,7 @@ mod_database_login_server <- function(id) {
       shiny::withProgress({
 
         # Try to create main pool
-        shiny::setProgress(0.2, message = "Connecting to main database...")
+        shiny::setProgress(0.2, message = t("Connecting to main database..."))
 
         tryCatch({
           pool_main <- pool::dbPool(
@@ -261,7 +319,7 @@ mod_database_login_server <- function(id) {
           }
 
         }, error = function(e) {
-          rv$error_message <- paste("Main database connection failed:", e$message)
+          rv$error_message <- paste(t("Main database connection failed:"), e$message)
           cli::cli_alert_danger("Main database connection failed: {e$message}")
           return()
         })
@@ -272,7 +330,7 @@ mod_database_login_server <- function(id) {
         }
 
         # Try to create taxa pool
-        shiny::setProgress(0.6, message = "Connecting to taxa database...")
+        shiny::setProgress(0.6, message = t("Connecting to taxa database..."))
 
         tryCatch({
           pool_taxa <- pool::dbPool(
@@ -295,7 +353,7 @@ mod_database_login_server <- function(id) {
           }
 
         }, error = function(e) {
-          rv$error_message <- paste("Taxa database connection failed:", e$message)
+          rv$error_message <- paste(t("Taxa database connection failed:"), e$message)
           cli::cli_alert_danger("Taxa database connection failed: {e$message}")
 
           # Close main pool if taxa connection failed
@@ -307,7 +365,7 @@ mod_database_login_server <- function(id) {
         })
 
         # Mark as authenticated if both pools created
-        shiny::setProgress(1, message = "Connection successful!")
+        shiny::setProgress(1, message = t("Connection successful!"))
 
         if (!is.null(rv$pool_main) && !is.null(rv$pool_taxa)) {
           rv$authenticated <- TRUE
@@ -321,13 +379,13 @@ mod_database_login_server <- function(id) {
           credentials$password <- db_password
 
           shiny::showNotification(
-            "Successfully connected to databases!",
+            t("Successfully connected to databases!"),
             type = "message",
             duration = 5
           )
         }
 
-      }, message = "Connecting to database...")
+      }, message = t("Connecting to database..."))
     })
 
     # Note: Pool cleanup is handled by cleanup_connections() in the main app's
@@ -335,12 +393,13 @@ mod_database_login_server <- function(id) {
     # "Can't access reactive value outside of reactive consumer" errors
     # that occur when the session ends and reactive context is destroyed.
 
-    # Return reactive values
+    # Return reactive values (including language for parent app)
     return(
       list(
         authenticated = shiny::reactive(rv$authenticated),
         pool_main = shiny::reactive(rv$pool_main),
-        pool_taxa = shiny::reactive(rv$pool_taxa)
+        pool_taxa = shiny::reactive(rv$pool_taxa),
+        language = shiny::reactive(input$language %||% "en")
       )
     )
   })

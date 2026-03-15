@@ -211,6 +211,13 @@ launch_specimen_import_wizard <- function(lang = "en") {
     pool_taxa <- login_result$pool_taxa
     authenticated <- login_result$authenticated
 
+    # Sync language from login module to app language toggle
+    shiny::observe({
+      lang <- login_result$language()
+      shiny::req(lang)
+      shiny::updateRadioButtons(session, "lang_toggle-language", selected = lang)
+    })
+
     # Output for conditional panels
     output$authenticated <- shiny::reactive({
       authenticated()

@@ -8,11 +8,19 @@
 #'
 #' @return A tibble
 #' @export
-add_growth_form_taxa <- function(idtax) {
+add_growth_form_taxa <- function(idtax, con = NULL) {
 
-  # Ensure taxa database connection exists in global environment
-  if (exists("mydb_taxa", envir = .GlobalEnv)) rm(mydb_taxa, envir = .GlobalEnv)
-  assign("mydb_taxa", call.mydb.taxa(), envir = .GlobalEnv)
+  # Ensure main database connection exists
+  if (is.null(con)) {
+    if (exists("mydb", envir = .GlobalEnv)) {
+      mydb <- get("mydb", envir = .GlobalEnv)
+    } else {
+      mydb <- call.mydb()
+      assign("mydb", mydb, envir = .GlobalEnv)
+    }
+  } else {
+    mydb <- con
+  }
 
   if (length(idtax) > 1)
     stop("Only one taxa at the same time")
@@ -32,7 +40,8 @@ add_growth_form_taxa <- function(idtax) {
   add_sp_traits_measures(new_data = all_growth_form_pivot,
                          traits_field = names(all_growth_form_pivot)[2:ncol(all_growth_form_pivot)],
                          idtax = "idtax",
-                         add_data = T)
+                         add_data = TRUE,
+                         con = mydb)
 
 }
 
@@ -45,10 +54,12 @@ add_growth_form_taxa <- function(idtax) {
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #' @export
-traits_taxa_list <- function(id_trait = NULL) {
+traits_taxa_list <- function(id_trait = NULL, con = NULL) {
+
+  if (is.null(con)) con <- call.mydb()
 
   all_colnames_ind <-
-    try_open_postgres_table(table = "table_traits", con = mydb_taxa) %>%
+    try_open_postgres_table(table = "traitlist", con = con) %>%
     dplyr::select(trait,
                   id_trait,
                   traitdescription,
@@ -117,7 +128,10 @@ traits_taxa_list <- function(id_trait = NULL) {
 #' @param format Output format: "wide" (pivoted) or "long" (raw measurements)
 #' @param include_remarks Include measurement remarks
 #' @param include_measurement_features Add measurement-level features/metadata
-#' @param con_taxa Connection to taxa database (optional)
+#' @param con Connection to main database (optional, defaults to call.mydb()).
+#'   Used for trait measurements (taxa_traits_measures, traitlist).
+#' @param con_taxa Connection to taxa database (optional, defaults to call.mydb.taxa()).
+#'   Used for synonym resolution (table_taxa) and taxonomic info enrichment.
 #'
 #' @return List with components:
 #'   - traits_raw: Raw trait measurements with resolved taxonomy
@@ -134,12 +148,15 @@ query_taxa_traits <- function(
     format = c("wide", "long"),
     include_remarks = FALSE,
     include_measurement_features = FALSE,
+    con = NULL,
     con_taxa = NULL
 ) {
-  
+
   categorical_mode <- match.arg(categorical_mode)
   format <- match.arg(format)
-  
+
+  # Main DB for trait measurements; taxa DB for synonym resolution
+  if (is.null(con)) con <- call.mydb()
   if (is.null(con_taxa)) con_taxa <- call.mydb.taxa()
   
   cli::cli_h2("Querying taxa-level traits")
@@ -156,7 +173,7 @@ query_taxa_traits <- function(
   traits_raw <- fetch_taxa_trait_measurements(
     idtax = idtax,
     trait_ids = trait_ids,
-    con = con_taxa
+    con = con
   )
   
   if (nrow(traits_raw) == 0) {
@@ -309,8 +326,8 @@ fetch_taxa_trait_measurements <- function(idtax, trait_ids = NULL, con) {
       tl.expectedunit,
       tl.minallowedvalue,
       tl.maxallowedvalue
-    FROM table_traits_measures tm
-    LEFT JOIN table_traits tl ON tm.fk_id_trait = tl.id_trait
+    FROM taxa_traits_measures tm
+    LEFT JOIN traitlist tl ON tm.fk_id_trait = tl.id_trait
     WHERE 1=1
   "
 
@@ -371,17 +388,19 @@ query_traits_measures <- function(
     verbose = TRUE,
     pivot_table = TRUE,
     include_remarks = FALSE,
-    extract_trait_measures_features = FALSE
+    extract_trait_measures_features = FALSE,
+    con = NULL,
+    con_taxa = NULL
 ) {
-  
+
   if (verbose) {
     cli::cli_alert_info("Using legacy wrapper - consider migrating to query_taxa_traits()")
   }
-  
+
   # Map old parameters to new
   categorical_mode <- if (trait_cat_mode == "most_frequent") "mode" else "concat"
   format <- if (pivot_table) "wide" else "long"
-  
+
   # Call new function
   result <- query_taxa_traits(
     idtax = idtax,
@@ -391,7 +410,9 @@ query_traits_measures <- function(
     categorical_mode = categorical_mode,
     format = format,
     include_remarks = include_remarks,
-    include_measurement_features = extract_trait_measures_features
+    include_measurement_features = extract_trait_measures_features,
+    con = con,
+    con_taxa = con_taxa
   )
   
   # Return in old format
@@ -568,29 +589,35 @@ choice_trait_cat <- function(id_trait) {
 #' @param pattern string vector trait to look for in the table
 #'
 #' @export
-query_trait <- function(id_trait = NULL, pattern = NULL) {
+query_trait <- function(id_trait = NULL, pattern = NULL, con = NULL) {
 
-  if (!exists("mydb_taxa")) assign("mydb_taxa", call.mydb.taxa(), envir = .GlobalEnv)
-  mydb_taxa <- get("mydb_taxa", envir = .GlobalEnv)
-  
+  if (is.null(con)) {
+    if (exists("mydb", envir = .GlobalEnv)) {
+      con <- get("mydb", envir = .GlobalEnv)
+    } else {
+      con <- call.mydb()
+      assign("mydb", con, envir = .GlobalEnv)
+    }
+  }
+
   if (!is.null(id_trait)) {
     cli::cli_alert_info("query trait by id")
-    
-    table_traits <- try_open_postgres_table(table = "table_traits", con = mydb_taxa)
-    
+
+    trait_tbl <- try_open_postgres_table(table = "traitlist", con = con)
+
     valuetype <-
-      table_traits %>%
+      trait_tbl %>%
       dplyr::filter(id_trait == !!id_trait) %>%
       dplyr::collect()
   }
-  
+
   if (is.null(id_trait) & !is.null(pattern)) {
-    
+
     cli::cli_alert_info("query trait by string pattern")
-    
-    sql <- glue::glue_sql(paste0("SELECT * FROM table_traits WHERE trait ILIKE '%", pattern, "%'"))
-    
-    valuetype <- func_try_fetch(con = mydb_taxa, sql = sql)
+
+    sql <- glue::glue_sql(paste0("SELECT * FROM traitlist WHERE trait ILIKE '%", pattern, "%'"))
+
+    valuetype <- func_try_fetch(con = con, sql = sql)
     
     
   }

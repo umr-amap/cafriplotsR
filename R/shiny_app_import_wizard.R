@@ -283,6 +283,13 @@ import_wizard_server <- function(input, output, session, translator) {
   pool_taxa_reactive <- login_output$pool_taxa
   authenticated_reactive <- login_output$authenticated
 
+  # Sync language from login module to app language selector
+  shiny::observe({
+    lang <- login_output$language()
+    shiny::req(lang)
+    shiny::updateSelectInput(session, "selected_language", selected = lang)
+  })
+
   # Output for conditional panel (needs to be suspendable=FALSE)
   output$authenticated <- shiny::reactive({
     authenticated_reactive()

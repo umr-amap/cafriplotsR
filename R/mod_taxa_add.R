@@ -1592,9 +1592,9 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
         stringsAsFactors = FALSE
       )
 
-      # Insert into table_traits_measures
+      # Insert into taxa_traits_measures
       tryCatch({
-        DBI::dbAppendTable(actual_con, "table_traits_measures", measurement)
+        DBI::dbAppendTable(actual_con, "taxa_traits_measures", measurement)
         cli::cli_alert_success("Added {level$trait} = {trait_value}")
       }, error = function(e) {
         cli::cli_alert_warning("Failed to add {level$trait}: {e$message}")
