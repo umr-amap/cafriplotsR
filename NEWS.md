@@ -1,3 +1,50 @@
+# CafriplotsR 1.9.5 (Development)
+
+### New Features
+
+* **Taxa traits import Shiny app** (`shiny_app_taxa_traits_import()`)
+  - New interactive app for importing taxa-level trait measurements into the database
+  - Modules: column mapping (`mod_trait_column_mapping`), metadata mapping (`mod_trait_metadata_mapping`), validation (`mod_trait_validation`), preview & import (`mod_trait_preview_import`)
+  - Supports dry run preview before committing data
+  - Duplicate detection against existing database records
+  - Transactional import: trait measures and features inserted atomically (single transaction)
+
+* **Internationalization (i18n) on login module**
+  - `mod_database_login` now includes an EN/FR language toggle at the login step
+  - Language choice is synced to the main app language selector across all 7 Shiny apps
+  - Checkbox "Use saved credentials" now correctly hidden when no saved credentials are detected
+
+### Bug Fixes
+
+* **`add_sp_traits_measures()` robustness improvements**
+  - Added `con` parameter to accept an existing connection/pool instead of always calling `call.mydb.taxa()`
+  - Fixed `else { new_data_renamed <- new_data }` branch that silently discarded the `idtax` column rename
+  - Replaced deprecated `dplyr::filter_at()` / `dplyr::any_vars()` with `dplyr::if_any()`
+  - Fixed `ifelse()` type coercion bug: numeric trait values were silently converted to character
+  - Transaction now wraps both trait measures and features inserts (was committing before features)
+  - `dbRollback()` errors no longer mask the original insertion error
+  - Fixed `apply()` converting tibble rows to character vectors; replaced with `lapply()`
+
+* **`add_sp_traits_measures_features()` fixes**
+  - Added `in_transaction` parameter to prevent nested `dbBegin()` errors when called within an outer transaction
+  - Added `interactive` parameter passthrough (was defaulting to `TRUE`, showing console prompts in Shiny)
+  - Fixed `valuetype` variable name collision with `dplyr::select()`
+  - Added `is.numeric()` guard on zero-value check to prevent NA crash with character trait columns
+
+* **`.link_sp_trait()` range validation fix**
+  - Added `!is.na()` guards on `minallowedvalue` / `maxallowedvalue` checks to prevent NA propagation crash when optional range limits are NULL
+
+* **Trait table references migrated to main database**
+  - `table_traits` → `traitlist`, `table_traits_measures` → `taxa_traits_measures` across all query, add, update, delete, and link functions
+  - `mydb_taxa` → `mydb` for trait operations (traits now in `plots_transects` database)
+
+### Code Refactoring
+
+* Switched all trait operations from taxa database (`rainbio`) to main database (`plots_transects`)
+* Updated `R/taxa_traits_function.R`, `R/delete_functions.R`, `R/updates_tables_functions.R`, `R/link_table_functions.R`, `R/individual_features_function.R`, `R/mod_taxa_add.R`, `R/mod_growth_form_selector.R`
+
+---
+
 # CafriplotsR 1.9.4 (Development)
 
 ### New Features

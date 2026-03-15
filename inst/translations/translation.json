@@ -5504,6 +5504,374 @@
     {
       "en": "Category",
       "fr": "Catégorie"
+    },
+    {
+      "en": "Preview & Import",
+      "fr": "Aperçu et import"
+    },
+    {
+      "en": "Add New Trait",
+      "fr": "Ajouter un nouveau trait"
+    },
+    {
+      "en": "Trait columns",
+      "fr": "Colonnes de traits"
+    },
+    {
+      "en": "Skipped",
+      "fr": "Ignorées"
+    },
+    {
+      "en": "Upload Your Data",
+      "fr": "Téléverser vos données"
+    },
+    {
+      "en": "Expected Format",
+      "fr": "Format attendu"
+    },
+    {
+      "en": "Step 1: Upload Trait Data",
+      "fr": "Étape 1 : Téléverser les données de traits"
+    },
+    {
+      "en": "Important: Standardize taxonomy first!",
+      "fr": "Important : Standardisez d'abord la taxonomie !"
+    },
+    {
+      "en": "Your data must contain an 'idtax_n' column with valid taxon IDs from the database. Use the Taxonomic Matching app (launch_taxonomic_match()) to standardize species names and obtain idtax_n values before importing traits.",
+      "fr": "Vos données doivent contenir une colonne 'idtax_n' avec des identifiants taxonomiques valides de la base de données. Utilisez l'application d'appariement taxonomique (launch_taxonomic_match()) pour standardiser les noms d'espèces et obtenir les valeurs idtax_n avant d'importer les traits."
+    },
+    {
+      "en": "Upload an Excel or CSV file containing trait measurements with an idtax column.",
+      "fr": "Téléversez un fichier Excel ou CSV contenant des mesures de traits avec une colonne idtax."
+    },
+    {
+      "en": "Your file should contain:",
+      "fr": "Votre fichier doit contenir :"
+    },
+    {
+      "en": "Taxon ID (required)",
+      "fr": "Identifiant taxonomique (requis)"
+    },
+    {
+      "en": "One or more columns with trait values (e.g., wood_density, max_height)",
+      "fr": "Une ou plusieurs colonnes avec des valeurs de traits (ex. wood_density, max_height)"
+    },
+    {
+      "en": "Optional metadata: basisofrecord, latitude, longitude, reference, etc.",
+      "fr": "Métadonnées optionnelles : basisofrecord, latitude, longitude, référence, etc."
+    },
+    {
+      "en": "Column names will be automatically matched to traits in the next step.",
+      "fr": "Les noms de colonnes seront automatiquement associés aux traits à l'étape suivante."
+    },
+    {
+      "en": "Map Your Columns",
+      "fr": "Associer vos colonnes"
+    },
+    {
+      "en": "For each column in your data, select its role: the taxon ID column (required), metadata fields, or trait values from the trait list.",
+      "fr": "Pour chaque colonne de vos données, sélectionnez son rôle : la colonne d'identifiant taxonomique (requise), les champs de métadonnées, ou les valeurs de traits de la liste."
+    },
+    {
+      "en": "Trait name (lowercase, underscores)",
+      "fr": "Nom du trait (minuscules, underscores)"
+    },
+    {
+      "en": "Value type",
+      "fr": "Type de valeur"
+    },
+    {
+      "en": "Expected unit (optional)",
+      "fr": "Unité attendue (optionnel)"
+    },
+    {
+      "en": "Min allowed value",
+      "fr": "Valeur minimale autorisée"
+    },
+    {
+      "en": "Max allowed value",
+      "fr": "Valeur maximale autorisée"
+    },
+    {
+      "en": "Factor levels (comma-separated)",
+      "fr": "Niveaux de facteur (séparés par des virgules)"
+    },
+    {
+      "en": "Add Trait",
+      "fr": "Ajouter le trait"
+    },
+    {
+      "en": "Trait added successfully",
+      "fr": "Trait ajouté avec succès"
+    },
+    {
+      "en": "Error adding trait:",
+      "fr": "Erreur lors de l'ajout du trait :"
+    },
+    {
+      "en": "You must map exactly one column to 'Taxon ID (idtax)'",
+      "fr": "Vous devez associer exactement une colonne à 'Identifiant taxonomique (idtax)'"
+    },
+    {
+      "en": "Only one column can be mapped to 'Taxon ID (idtax)'",
+      "fr": "Une seule colonne peut être associée à 'Identifiant taxonomique (idtax)'"
+    },
+    {
+      "en": "You must map at least one column to a trait",
+      "fr": "Vous devez associer au moins une colonne à un trait"
+    },
+    {
+      "en": "Each trait can only be mapped once",
+      "fr": "Chaque trait ne peut être associé qu'une seule fois"
+    },
+    {
+      "en": "No 'basisofrecord' column mapped - you will be asked to select one for all rows",
+      "fr": "Aucune colonne 'basisofrecord' associée - vous devrez en sélectionner une pour toutes les lignes"
+    },
+    {
+      "en": "No 'basisofrecord' column mapped",
+      "fr": "Aucune colonne 'basisofrecord' associée"
+    },
+    {
+      "en": "Review your data before importing. Use dry run to check for issues without writing to the database.",
+      "fr": "Vérifiez vos données avant l'import. Utilisez la simulation pour détecter les problèmes sans écrire dans la base de données."
+    },
+    {
+      "en": "Select basis of record for all rows:",
+      "fr": "Sélectionnez le type d'enregistrement pour toutes les lignes :"
+    },
+    {
+      "en": "Measurement remarks (optional, applies to all rows):",
+      "fr": "Remarques de mesure (optionnel, s'applique à toutes les lignes) :"
+    },
+    {
+      "en": "Total measurements to insert",
+      "fr": "Total de mesures à insérer"
+    },
+    {
+      "en": "Traits",
+      "fr": "Traits"
+    },
+    {
+      "en": "Unique taxa",
+      "fr": "Taxons uniques"
+    },
+    {
+      "en": "Per-trait breakdown:",
+      "fr": "Détail par trait :"
+    },
+    {
+      "en": "Dry Run (Preview Only)",
+      "fr": "Simulation (aperçu uniquement)"
+    },
+    {
+      "en": "Import to Database",
+      "fr": "Importer dans la base de données"
+    },
+    {
+      "en": "This will write data to the database. This action cannot be easily undone.",
+      "fr": "Cela écrira les données dans la base de données. Cette action ne peut pas être facilement annulée."
+    },
+    {
+      "en": "Match basisofrecord values",
+      "fr": "Associer les valeurs de basisofrecord"
+    },
+    {
+      "en": "Map each value found in your data to a valid basis of record:",
+      "fr": "Associez chaque valeur trouvée dans vos données à un type d'enregistrement valide :"
+    },
+    {
+      "en": "Trait measures",
+      "fr": "Mesures de traits"
+    },
+    {
+      "en": "Features of measures",
+      "fr": "Caractéristiques des mesures"
+    },
+    {
+      "en": "The primary observed value for a taxon (e.g. wood density, max height). Stored in taxa_traits_measures.",
+      "fr": "La valeur principale observée pour un taxon (ex. densité du bois, hauteur max). Stockée dans taxa_traits_measures."
+    },
+    {
+      "en": "Supplementary details about how a measurement was made (e.g. instrument, plant part). Stored in taxa_traits_measures_feat and linked to the main measure.",
+      "fr": "Détails supplémentaires sur la façon dont une mesure a été effectuée (ex. instrument, partie de la plante). Stockés dans taxa_traits_measures_feat et liés à la mesure principale."
+    },
+    {
+      "en": "You must map at least one column to a trait measure",
+      "fr": "Vous devez associer au moins une colonne à une mesure de trait"
+    },
+    {
+      "en": "Each trait can only be mapped once as a trait measure",
+      "fr": "Chaque trait ne peut être associé qu'une seule fois comme mesure de trait"
+    },
+    {
+      "en": "Each trait can only be mapped once as a feature of measures",
+      "fr": "Chaque trait ne peut être associé qu'une seule fois comme caractéristique de mesure"
+    },
+    {
+      "en": "Documentation columns",
+      "fr": "Colonnes de documentation"
+    },
+    {
+      "en": "Columns documenting measurements: taxon ID, metadata (basis of record, coordinates...) and features of measures stored in taxa_traits_measures_feat.",
+      "fr": "Colonnes documentant les mesures : identifiant taxonomique, métadonnées (type d'enregistrement, coordonnées...) et caractéristiques des mesures stockées dans taxa_traits_measures_feat."
+    },
+    {
+      "en": "Column(s) mapped in both sections (must choose one):",
+      "fr": "Colonne(s) associée(s) dans les deux sections (choisir une) :"
+    },
+    {
+      "en": "Section 1 – Trait measures",
+      "fr": "Section 1 – Mesures de traits"
+    },
+    {
+      "en": "Map each column that contains a primary trait observation (e.g. wood density, max height). Values will be stored in taxa_traits_measures.",
+      "fr": "Associez chaque colonne contenant une observation de trait primaire (ex. densité du bois, hauteur max). Les valeurs seront stockées dans taxa_traits_measures."
+    },
+    {
+      "en": "Section 2 – Metadata",
+      "fr": "Section 2 – Métadonnées"
+    },
+    {
+      "en": "Map columns that document the measurements: flat metadata fields (basisofrecord, coordinates, reference...) stored in taxa_traits_measures, and supplementary trait features stored in taxa_traits_measures_feat.",
+      "fr": "Associez les colonnes documentant les mesures : champs de métadonnées plats (basisofrecord, coordonnées, référence...) stockés dans taxa_traits_measures, et caractéristiques de mesure stockées dans taxa_traits_measures_feat."
+    },
+    {
+      "en": "Taxon ID column (required)",
+      "fr": "Colonne identifiant taxonomique (requis)"
+    },
+    {
+      "en": "Select which column contains the taxon ID (idtax_n).",
+      "fr": "Sélectionnez la colonne contenant l'identifiant taxonomique (idtax_n)."
+    },
+    {
+      "en": "You must select the Taxon ID column",
+      "fr": "Vous devez sélectionner la colonne identifiant taxonomique"
+    },
+    {
+      "en": "The Taxon ID column is also mapped in a section - it will be used only as taxon ID",
+      "fr": "La colonne identifiant taxonomique est aussi associée dans une section - elle sera utilisée uniquement comme identifiant taxonomique"
+    },
+    {
+      "en": "Flat metadata",
+      "fr": "Métadonnées directes"
+    },
+    {
+      "en": "Not mapped",
+      "fr": "Non associées"
+    },
+    {
+      "en": "Map Trait Columns",
+      "fr": "Associer les colonnes de traits"
+    },
+    {
+      "en": "Map Metadata Columns",
+      "fr": "Associer les colonnes de métadonnées"
+    },
+    {
+      "en": "All columns are already mapped as traits.",
+      "fr": "Toutes les colonnes sont déjà associées comme traits."
+    },
+    {
+      "en": "Each feature can only be mapped once",
+      "fr": "Chaque caractéristique ne peut être associée qu'une seule fois"
+    },
+    {
+      "en": "Each metadata field can only be mapped once",
+      "fr": "Chaque champ de métadonnées ne peut être associé qu'une seule fois"
+    },
+    {
+      "en": "Create New Trait",
+      "fr": "Créer un nouveau trait"
+    },
+    {
+      "en": "Create a new trait entry in the traitlist. It will immediately become available in the mapping above.",
+      "fr": "Créer une nouvelle entrée dans la liste des traits. Elle sera immédiatement disponible dans l'association ci-dessus."
+    },
+    {
+      "en": "Trait Name *",
+      "fr": "Nom du trait *"
+    },
+    {
+      "en": "e.g., bark_thickness, leaf_area",
+      "fr": "ex. bark_thickness, leaf_area"
+    },
+    {
+      "en": "e.g., cm, m, kg, g/cm3, %",
+      "fr": "ex. cm, m, kg, g/cm3, %"
+    },
+    {
+      "en": "Describe what this trait measures or represents",
+      "fr": "Décrivez ce que ce trait mesure ou représente"
+    },
+    {
+      "en": "Create Trait",
+      "fr": "Créer le trait"
+    },
+    {
+      "en": "Trait name and description are required.",
+      "fr": "Le nom du trait et la description sont obligatoires."
+    },
+    {
+      "en": "Trait '%s' created successfully",
+      "fr": "Trait '%s' créé avec succès"
+    },
+    {
+      "en": "Add New Feature",
+      "fr": "Ajouter une nouvelle caractéristique"
+    },
+    {
+      "en": "Create New Feature",
+      "fr": "Créer une nouvelle caractéristique"
+    },
+    {
+      "en": "Create a new feature entry in the traitlist. It will immediately become available in the mapping above.",
+      "fr": "Créer une nouvelle entrée dans la liste des traits. Elle sera immédiatement disponible dans l'association ci-dessus."
+    },
+    {
+      "en": "Feature name and description are required.",
+      "fr": "Le nom de la caractéristique et la description sont obligatoires."
+    },
+    {
+      "en": "Feature '%s' created successfully",
+      "fr": "Caractéristique '%s' créée avec succès"
+    },
+    {
+      "en": "Error adding feature:",
+      "fr": "Erreur lors de l'ajout de la caractéristique :"
+    },
+    {
+      "en": "Validate Trait Data",
+      "fr": "Valider les données de traits"
+    },
+    {
+      "en": "Run validation checks on your mapped data before importing. This will check for type mismatches, missing values, out-of-range values, and more.",
+      "fr": "Exécuter les vérifications de validation sur vos données associées avant l'importation. Ceci vérifiera les incompatibilités de type, les valeurs manquantes, les valeurs hors limites, etc."
+    },
+    {
+      "en": "Checking taxon IDs...",
+      "fr": "Vérification des identifiants taxonomiques..."
+    },
+    {
+      "en": "Checking trait columns...",
+      "fr": "Vérification des colonnes de traits..."
+    },
+    {
+      "en": "Checking metadata columns...",
+      "fr": "Vérification des colonnes de métadonnées..."
+    },
+    {
+      "en": "Checking for duplicates...",
+      "fr": "Vérification des doublons..."
+    },
+    {
+      "en": "Note: %d warning(s) found but do not prevent import.",
+      "fr": "Note : %d avertissement(s) trouvé(s) mais n'empêchent pas l'importation."
+    },
+    {
+      "en": "Password",
+      "fr": "Mot de passe"
     }
   ]
 }
