@@ -375,10 +375,12 @@
 #' @param trait string vector
 #'
 #' @export
-.link_sp_trait <- function(data_stand, trait) {
+.link_sp_trait <- function(data_stand, trait, con = NULL) {
+
+  if (is.null(con)) con <- call.mydb()
 
   all_traits <-
-    try_open_postgres_table(table = "table_traits", con = mydb_taxa) %>%
+    try_open_postgres_table(table = "traitlist", con = con) %>%
     collect()
 
   selected_name <- .find_cat(value_to_search = trait,
@@ -402,18 +404,20 @@
     dplyr::slice(selected_name)
 
   issues <- vector(mode = "character", length = nrow(data_stand))
-  if(select_trait_features$valuetype == "numeric") {
-    if(any(data_stand$trait<select_trait_features$minallowedvalue)) {
+  if(isTRUE(select_trait_features$valuetype == "numeric")) {
+    if(!is.na(select_trait_features$minallowedvalue) &&
+       any(data_stand$trait < select_trait_features$minallowedvalue, na.rm = TRUE)) {
       warning(paste(trait, "values lower than minallowedvalue for", trait, "for",
-                    sum(data_stand$trait<select_trait_features$minallowedvalue), "entries"))
-      issues[data_stand$trait<select_trait_features$minallowedvalue] <-
+                    sum(data_stand$trait < select_trait_features$minallowedvalue, na.rm = TRUE), "entries"))
+      issues[!is.na(data_stand$trait) & data_stand$trait < select_trait_features$minallowedvalue] <-
         paste(select_trait_features$trait, "lower than minallowedvalue")
     }
 
-    if(any(data_stand$trait>select_trait_features$maxallowedvalue)) {
+    if(!is.na(select_trait_features$maxallowedvalue) &&
+       any(data_stand$trait > select_trait_features$maxallowedvalue, na.rm = TRUE)) {
       warning(paste(trait, "values higher than maxallowedvalue for", trait, "for",
-                    sum(data_stand$trait>select_trait_features$maxallowedvalue), "entries"))
-      issues[data_stand$trait>select_trait_features$maxallowedvalue] <-
+                    sum(data_stand$trait > select_trait_features$maxallowedvalue, na.rm = TRUE), "entries"))
+      issues[!is.na(data_stand$trait) & data_stand$trait > select_trait_features$maxallowedvalue] <-
         paste(select_trait_features$trait, "higher than maxallowedvalue")
     }
   }
@@ -764,18 +768,18 @@ join_help_function <- function(df1, df2, col1, col2, keep_columns) {
   if(type_data=="taxa")
     corresponding_data <-
       dplyr::tbl(mydb_taxa, "table_taxa")
-  
+
   if(type_data=="individuals")
     corresponding_data <-
       dplyr::tbl(mydb, "data_individuals")
-  
+
   if(type_data == "trait")
     corresponding_data <-
-      dplyr::tbl(mydb_taxa, "table_traits")
-  
+      dplyr::tbl(mydb, "traitlist")
+
   if(type_data == "sp_trait_measures")
     corresponding_data <-
-      dplyr::tbl(mydb, "table_traits_measures")
+      dplyr::tbl(mydb, "taxa_traits_measures")
   
   if(type_data == "plot_data")
     corresponding_data <-

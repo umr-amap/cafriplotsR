@@ -241,6 +241,13 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
       # Note: Pool cleanup is handled by cleanup_connections() below
     }
 
+    # Sync language from login module to app language selector
+    shiny::observe({
+      lang <- login_output$language()
+      shiny::req(lang)
+      shiny::updateSelectInput(session, "selected_language", selected = lang)
+    })
+
     # Stop app and quit R when browser is closed
     session$onSessionEnded(function() {
       # Clean up all connections and credentials
