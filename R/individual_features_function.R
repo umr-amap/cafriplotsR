@@ -1531,7 +1531,7 @@ query_traits_measures_features <- function(
 
   # Get connection if not provided
   if (is.null(con)) {
-    con <- if (src == "individuals") call.mydb() else call.mydb.taxa()
+    con <- call.mydb()
   }
   
   # Quick count check - skip for very large queries to avoid timeout
@@ -1610,8 +1610,8 @@ get_measurement_features_config <- function(src) {
     )
   } else if (src == "taxa") {
     list(
-      table_name = "table_traits_measures_feat",
-      trait_table = "table_traits",
+      table_name = "taxa_traits_measures_feat",
+      trait_table = "traitlist",
       id_col = "id_taxa_trait_feat"
     )
   } else {

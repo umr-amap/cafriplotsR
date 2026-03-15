@@ -1944,12 +1944,10 @@ update_trait_measures <- function(new_data,
                                   ask_before_update = FALSE,
                                   only_new_ident = FALSE) {
 
-  if (exists("mydb_taxa")) rm(mydb_taxa)
-  if (!exists("mydb_taxa")) call.mydb.taxa()
+  mydb <- call.mydb()
 
   all_colnames_rec <-
-    try_open_postgres_table(table = "table_traits_measures", con = mydb_taxa) %>%
-    # dplyr::tbl(mydb, "table_traits_measures") %>%
+    try_open_postgres_table(table = "taxa_traits_measures", con = mydb) %>%
     colnames()
 
   if (is.null(col_names_select))
@@ -2150,15 +2148,15 @@ update_trait_measures <- function(new_data,
         }
 
         ## create a temporary table with new data
-        DBI::dbWriteTable(mydb_taxa, "temp_table", matches,
+        DBI::dbWriteTable(mydb, "temp_table", matches,
                           overwrite=T, fileEncoding = "UTF-8", row.names=F)
 
         query_up <-
-          paste0("UPDATE table_traits_measures t1 SET (", field,", date_modif_d, date_modif_m, date_modif_y) = (t2.", var_new, ", t2.data_modif_d, t2.data_modif_m, t2.data_modif_y) FROM temp_table t2 WHERE t1.",
+          paste0("UPDATE taxa_traits_measures t1 SET (", field,", date_modif_d, date_modif_m, date_modif_y) = (t2.", var_new, ", t2.data_modif_d, t2.data_modif_m, t2.data_modif_y) FROM temp_table t2 WHERE t1.",
                  id_db," = t2.id")
 
         rs <-
-          DBI::dbSendStatement(mydb_taxa, query_up)
+          DBI::dbSendStatement(mydb, query_up)
 
         cat("\nRows updated", RPostgres::dbGetRowsAffected(rs))
         rs@sql
@@ -2189,11 +2187,10 @@ update_trait_table <- function(new_data,
                                launch_update = FALSE,
                                add_backup = TRUE) {
 
-  if (exists("mydb_taxa")) rm(mydb_taxa)
-  if (!exists("mydb_taxa")) call.mydb.taxa()
+  mydb <- call.mydb()
 
   all_colnames_traits <-
-    dplyr::tbl(mydb_taxa, "table_traits") %>%
+    dplyr::tbl(mydb, "traitlist") %>%
     colnames()
 
   if (is.null(col_names_select) & is.null(col_names_corresp))
@@ -2277,15 +2274,15 @@ update_trait_table <- function(new_data,
       }
 
       ## create a temporary table with new data
-      DBI::dbWriteTable(mydb_taxa, "temp_table", matches,
+      DBI::dbWriteTable(mydb, "temp_table", matches,
                         overwrite=T, fileEncoding = "UTF-8", row.names=F)
 
       query_up <-
-        paste0("UPDATE table_traits t1 SET ", field," = t2.", var_new, " FROM temp_table t2 WHERE t1.",
+        paste0("UPDATE traitlist t1 SET ", field," = t2.", var_new, " FROM temp_table t2 WHERE t1.",
                id_db," = t2.id")
 
       rs <-
-        DBI::dbSendStatement(mydb_taxa, query_up)
+        DBI::dbSendStatement(mydb, query_up)
 
       cat("Rows updated", RPostgres::dbGetRowsAffected(rs))
       rs@sql

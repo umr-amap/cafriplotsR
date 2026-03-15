@@ -41,17 +41,14 @@
 #'
 #' @return No values
 #' @export
-.delete_entry_sp_trait_measure <- function(id) {
-  
-  if (!exists("mydb_taxa")) call.mydb.taxa()
-  
-  # tbl <- "table_traits_measures"
-  # sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE id_trait_measures IN ({vals*})",
-  #                       vals = id, .con = mydb_taxa)
-  # 
-  # valuetype <- func_try_fetch(con = mydb_taxa, sql = sql)
-  
-  query <- "DELETE FROM table_traits_measures WHERE MMM"
+.delete_entry_sp_trait_measure <- function(id, con = NULL) {
+
+  if (is.null(con)) {
+    if (!exists("mydb")) mydb <- call.mydb()
+    con <- mydb
+  }
+
+  query <- "DELETE FROM taxa_traits_measures WHERE MMM"
   query <-
     gsub(
       pattern = "MMM",
@@ -59,8 +56,8 @@
                            paste(unique(id), collapse = "', '"), "')"),
       x = query
     )
-  
-  rs <- DBI::dbSendQuery(mydb_taxa, query)
+
+  rs <- DBI::dbSendQuery(con, query)
   DBI::dbClearResult(rs)
   
   
@@ -559,21 +556,22 @@
 #' @param id integer
 #'
 #' @return No values
-.delete_sp_trait_list <- function(id) {
-  
-  if(!exists("mydb_taxa")) call.mydb()
-  
-  traits_taxa_list() %>% 
-    filter(id_trait %in% !!id) %>% 
+.delete_sp_trait_list <- function(id, con = NULL) {
+
+  if (is.null(con)) {
+    if (!exists("mydb")) mydb <- call.mydb()
+    con <- mydb
+  }
+
+  traits_taxa_list(con = con) %>%
+    filter(id_trait %in% !!id) %>%
     print()
-  
-  # if_cont <- askYesNo(msg = "Continue ?")
-  
-  if_cont <- 
+
+  if_cont <-
     choose_prompt(message = "Continue ?")
-  
+
   if (if_cont) {
-    query <- "DELETE FROM table_traits WHERE MMM"
+    query <- "DELETE FROM traitlist WHERE MMM"
     query <-
       gsub(
         pattern = "MMM",
@@ -581,8 +579,8 @@
                              paste(unique(id), collapse = "', '"), "')"),
         x = query
       )
-    
-    rs <- DBI::dbSendQuery(mydb_taxa, query)
+
+    rs <- DBI::dbSendQuery(con, query)
     DBI::dbClearResult(rs)
   }
   
