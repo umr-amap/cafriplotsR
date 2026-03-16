@@ -16,6 +16,15 @@
 
 ### Bug Fixes
 
+* **`.traits_to_genera_aggreg()` incorrect `source` assignment**
+  - Fixed hardcoded `source = "species"` for all non-NA trait values; traits assigned via a genus-level `idtax` were incorrectly labelled as species-level
+  - `tax_level` (already present in `individuals` via `add_taxa_table_taxa`) is now carried through `dataset_subset` and used to set `source` correctly (`"species"` for species/infraspecific, the actual level otherwise)
+  - Applies to both categorical and numeric trait paths
+  - `tax_level` is dropped before `pivot_wider` to avoid column duplication on join-back
+
+* **`register_user()` NULL parameter crash**
+  - Fixed "Expected string vector of length 1" error when `institution` or `notes` are NULL; `glue_sql` requires length-1 values, so NULLs are now converted to `NA_character_` before SQL construction
+
 * **`add_sp_traits_measures()` robustness improvements**
   - Added `con` parameter to accept an existing connection/pool instead of always calling `call.mydb.taxa()`
   - Fixed `else { new_data_renamed <- new_data }` branch that silently discarded the `idtax` column rename
