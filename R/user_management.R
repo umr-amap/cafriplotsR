@@ -126,17 +126,24 @@ register_user <- function(con, username, email = NULL,
     .con = con
   ))
 
+  # Convert NULL to NA_character_ for SQL substitution (glue_sql requires length-1 values)
+  email       <- if (is.null(email))       NA_character_ else email
+  first_name  <- if (is.null(first_name))  NA_character_ else first_name
+  last_name   <- if (is.null(last_name))   NA_character_ else last_name
+  institution <- if (is.null(institution)) NA_character_ else institution
+  notes       <- if (is.null(notes))       NA_character_ else notes
+
   tryCatch({
     if (nrow(existing) > 0) {
       # Update existing entry
       updates <- c()
       params <- list()
 
-      if (!is.null(email)) updates <- c(updates, "email = {email}")
-      if (!is.null(first_name)) updates <- c(updates, "first_name = {first_name}")
-      if (!is.null(last_name)) updates <- c(updates, "last_name = {last_name}")
-      if (!is.null(institution)) updates <- c(updates, "institution = {institution}")
-      if (!is.null(notes)) updates <- c(updates, "notes = {notes}")
+      if (!is.na(email)) updates <- c(updates, "email = {email}")
+      if (!is.na(first_name)) updates <- c(updates, "first_name = {first_name}")
+      if (!is.na(last_name)) updates <- c(updates, "last_name = {last_name}")
+      if (!is.na(institution)) updates <- c(updates, "institution = {institution}")
+      if (!is.na(notes)) updates <- c(updates, "notes = {notes}")
 
       if (length(updates) > 0) {
         sql <- glue::glue_sql(

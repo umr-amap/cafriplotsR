@@ -2142,6 +2142,8 @@ SpecimenFetcher <- R6::R6Class(
     # dplyr::filter(is.na(tax_sp_level)) %>%
     dplyr::select(id_n, tax_gen)
   
+  
+  ### query all taxa of genera found in dataset
   all_sp_genera <- query_taxa(
     genus = list_genus %>%
       dplyr::filter(!is.na(tax_gen)) %>%
@@ -2153,6 +2155,7 @@ SpecimenFetcher <- R6::R6Class(
     exact_match = TRUE
   )
   
+  ### filter to keep only genera found in dataset (in case the query_taxa found other genus
   all_sp_genera <-
     all_sp_genera %>%
     filter(tax_gen %in% unique(list_genus$tax_gen),
@@ -2160,7 +2163,8 @@ SpecimenFetcher <- R6::R6Class(
   
   all_val_sp <- query_taxa_traits(idtax = all_sp_genera %>%
                                         filter(!is.na(tax_esp)) %>%
-                                        pull(idtax_n), format = "long",
+                                        pull(idtax_n), 
+                                  format = "long",
                                   include_synonyms = T, 
                                       add_taxa_info = T)
   
@@ -2178,53 +2182,6 @@ SpecimenFetcher <- R6::R6Class(
       name_prefix = "taxa_"
     )
     
-    # traits_idtax_char <-
-    #   all_val_sp$traits_found %>%
-    #   dplyr::filter(valuetype == "categorical") %>%
-    #   dplyr::select(idtax,
-    #                 trait,
-    #                 traitvalue_char,
-    #                 basisofrecord,
-    #                 id_trait_measures) %>%
-    #   dplyr::mutate(rn = data.table::rowid(trait)) %>%
-    #   tidyr::pivot_wider(
-    #     names_from = trait,
-    #     values_from = c(traitvalue_char, basisofrecord, id_trait_measures), 
-    #     names_prefix = "taxa_level_"
-    #   ) %>%
-    #   dplyr::select(-rn) %>%
-    #   left_join(all_val_sp$traits_idtax_char %>%
-    #               dplyr::select(idtax, tax_gen),
-    #             by = c("idtax" = "idtax"))
-    
-    # names(traits_idtax_char) <- gsub("traitvalue_char_", "", names(traits_idtax_char))
-    
-    # traits_idtax_concat <-
-    #   traits_idtax_char %>%
-    #   dplyr::select(tax_gen, starts_with("id_trait_")) %>%
-    #   dplyr::mutate(across(starts_with("id_trait_"), as.character)) %>%
-    #   dplyr::group_by(tax_gen) %>%
-    #   dplyr::mutate(dplyr::across(where(is.character),
-    #                               ~ stringr::str_c(.[!is.na(.)],
-    #                                                collapse = ", "))) %>%
-    #   dplyr::ungroup() %>%
-    #   dplyr::distinct()
-    # 
-    # cli::cli_alert_info("Extracting most frequent value for categorical traits at genus level")
-    # 
-    # traits_idtax_char <-
-    #   traits_idtax_char %>%
-    #   dplyr::select(-starts_with("id_trait_")) %>%
-    #   group_by(tax_gen, across(where(is.character))) %>%
-    #   count() %>%
-    #   arrange(tax_gen, desc(n)) %>%
-    #   ungroup() %>%
-    #   group_by(tax_gen) %>%
-    #   dplyr::summarise_if(is.character, ~ first(.x[!is.na(.x)]))
-    # 
-    # traits_idtax_char <-
-    #   left_join(traits_idtax_char,
-    #             traits_idtax_concat, by = c("tax_gen" = "tax_gen"))
     
     colnames_traits <- names(traits_idtax_char %>%
                                dplyr::select(
@@ -2235,59 +2192,65 @@ SpecimenFetcher <- R6::R6Class(
     
     colnames_data <- names(dataset)
     
-    dataset_subset <- 
-      dataset %>% 
-      select(id_n, 
+    dataset_subset <-
+      dataset %>%
+      select(id_n,
              tax_gen,
+             any_of("tax_level"),
              all_of(colnames_traits[which(colnames_traits %in% colnames_data)]))
-    
-    dataset_pivot <- 
-      dataset_subset %>% 
+
+    dataset_pivot <-
+      dataset_subset %>%
       tidyr::pivot_longer(cols = colnames_traits[which(colnames_traits %in% colnames_data)],
-                   names_to = "trait") %>% 
+                   names_to = "trait") %>%
       arrange(tax_gen, trait)
-    
-    dataset_traits_pivot <- 
-      traits_idtax_char %>% 
+
+    dataset_traits_pivot <-
+      traits_idtax_char %>%
       select(tax_gen,
-             all_of(colnames_traits)) %>% 
+             all_of(colnames_traits)) %>%
       tidyr::pivot_longer(cols = colnames_traits[which(colnames_traits %in% colnames_data)],
-                   names_to = "trait") %>% 
+                   names_to = "trait") %>%
       arrange(tax_gen, trait)
-    
-    dataset_genus_level <- 
-      dataset_pivot %>% 
-      filter(is.na(value)) %>% 
-      select(-value) %>% 
+
+    dataset_genus_level <-
+      dataset_pivot %>%
+      filter(is.na(value)) %>%
+      select(-value) %>%
       left_join(dataset_traits_pivot,
                 by = c("tax_gen" = "tax_gen",
                        "trait" = "trait"))
-    
-    dataset_sp_level <- 
-      dataset_pivot %>% 
-      filter(!is.na(value)) %>% 
-      select(-value) %>% 
+
+    dataset_sp_level <-
+      dataset_pivot %>%
+      filter(!is.na(value)) %>%
+      select(-value) %>%
       left_join(dataset_traits_pivot,
                 by = c("tax_gen" = "tax_gen",
-                       "trait" = "trait")) %>% 
-      mutate(source = "species")
-    
-    
-    dataset_genus_level_filled <- 
-      dataset_genus_level  %>% 
-      filter(!is.na(value)) %>% 
+                       "trait" = "trait")) %>%
+      mutate(source = dplyr::case_when(
+        "tax_level" %in% names(.) & tax_level %in% c("species", "infraspecific") ~ "species",
+        "tax_level" %in% names(.) & !is.na(tax_level) ~ tax_level,
+        TRUE ~ "species"
+      ))
+
+
+    dataset_genus_level_filled <-
+      dataset_genus_level  %>%
+      filter(!is.na(value)) %>%
       mutate(source = "genus")
-    
-    
-    dataset_genus_level_unfilled <- 
-      dataset_genus_level  %>% 
-      filter(is.na(value)) %>% 
+
+
+    dataset_genus_level_unfilled <-
+      dataset_genus_level  %>%
+      filter(is.na(value)) %>%
       mutate(source = NA_character_)
-    
-    
-    dataset_pivot_wider_char <- 
-      bind_rows(dataset_sp_level, dataset_genus_level_filled, dataset_genus_level_unfilled) %>% 
-      tidyr::pivot_wider(names_from = trait, 
+
+
+    dataset_pivot_wider_char <-
+      bind_rows(dataset_sp_level, dataset_genus_level_filled, dataset_genus_level_unfilled) %>%
+      select(-any_of("tax_level")) %>%
+      tidyr::pivot_wider(names_from = trait,
                   values_from = c(value, source))
     
     names(dataset_pivot_wider_char) <- 
@@ -2313,48 +2276,6 @@ SpecimenFetcher <- R6::R6Class(
     
     colnames_data <- names(dataset)
     
-    # traits_idtax_num <-
-    #   all_val_sp$traits_found %>%
-    #   dplyr::filter(valuetype == "numeric") %>%
-    #   dplyr::select(idtax,
-    #                 trait,
-    #                 traitvalue,
-    #                 basisofrecord,
-    #                 id_trait_measures) %>%
-    #   dplyr::mutate(rn = data.table::rowid(trait)) %>%
-    #   tidyr::pivot_wider(
-    #     names_from = trait,
-    #     values_from = c(traitvalue, basisofrecord, id_trait_measures), 
-    #     names_prefix = "taxa_level_"
-    #   ) %>%
-    #   dplyr::select(-rn) %>%
-    #   dplyr::left_join(all_val_sp$traits_idtax_num %>%
-    #                      dplyr::select(idtax, tax_gen),
-    #                    by = c("idtax" = "idtax"))
-    
-    # names(traits_idtax_num) <- gsub("traitvalue_", "", names(traits_idtax_num))
-    
-    # traits_idtax_concat <-
-    #   traits_idtax_num %>%
-    #   dplyr::select(tax_gen, starts_with("id_trait_")) %>%
-    #   dplyr::mutate(across(starts_with("id_trait_"), as.character)) %>%
-    #   dplyr::group_by(tax_gen) %>%
-    #   dplyr::mutate(dplyr::across(where(is.character),
-    #                               ~ stringr::str_c(.[!is.na(.)],
-    #                                                collapse = ", "))) %>%
-    #   dplyr::ungroup() %>%
-    #   dplyr::distinct()
-    # 
-    # traits_idtax_num <-
-    #   traits_idtax_num %>%
-    #   dplyr::select(-starts_with("id_trait_")) %>%
-    #   dplyr::group_by(tax_gen) %>%
-    #   dplyr::summarise(dplyr::across(where(is.numeric),
-    #                                  .fns= list(mean = ~mean(., na.rm= TRUE),
-    #                                             sd = ~sd(., na.rm= TRUE),
-    #                                             n = ~sum(!is.na(.))),
-    #                                  .names = "{.col}_{.fn}"))
-    
     
     colnames_traits <- names(traits_idtax_num %>%
                                dplyr::select(
@@ -2364,75 +2285,81 @@ SpecimenFetcher <- R6::R6Class(
                                ))
     
     dataset_subset <- 
-      dataset %>% 
-      select(id_n, 
+      dataset %>%
+      select(id_n,
              tax_gen,
              tax_fam,
              plot_name,
+             any_of("tax_level"),
              all_of(colnames_traits[which(colnames_traits %in% colnames_data)]))
-    
-    dataset_pivot <- 
-      dataset_subset %>% 
+
+    dataset_pivot <-
+      dataset_subset %>%
       tidyr::pivot_longer(cols = starts_with("taxa_"),
-                   names_to = "trait") %>% 
+                   names_to = "trait") %>%
       arrange(tax_fam, tax_gen, trait)
-    
-    dataset_traits_pivot <- 
-      traits_idtax_num %>% 
+
+    dataset_traits_pivot <-
+      traits_idtax_num %>%
       select(tax_gen,
-             all_of(colnames_traits)) %>% 
+             all_of(colnames_traits)) %>%
       tidyr::pivot_longer(cols = starts_with("taxa_"),
-                   names_to = "trait") %>% 
-      arrange(tax_gen, trait) %>% 
+                   names_to = "trait") %>%
+      arrange(tax_gen, trait) %>%
       filter(!is.na(value))
-    
+
     ## traits with no values at species level
     if (any(!colnames_traits %in% colnames_data)) {
-      
-      no_val_genus_level <- 
+
+      no_val_genus_level <-
         expand_grid(id_n = unique(dataset_pivot$id_n),
-                    trait = colnames_traits[!colnames_traits %in% colnames_data]) %>% 
-        left_join(dataset %>% select(id_n, tax_gen, tax_fam)) %>% 
+                    trait = colnames_traits[!colnames_traits %in% colnames_data]) %>%
+        left_join(dataset %>% select(id_n, tax_gen, tax_fam)) %>%
         left_join(dataset_traits_pivot,
                   by = c("tax_gen" = "tax_gen",
                          "trait" = "trait"))
     } else {
       no_val_genus_level <- NULL
     }
-    
-    dataset_genus_level <- 
-      dataset_pivot %>% 
-      filter(is.na(value)) %>% 
-      select(-value) %>% 
+
+    dataset_genus_level <-
+      dataset_pivot %>%
+      filter(is.na(value)) %>%
+      select(-value) %>%
       left_join(dataset_traits_pivot,
                 by = c("tax_gen" = "tax_gen",
                        "trait" = "trait"))
-    
+
     dataset_genus_level <- bind_rows(dataset_genus_level, no_val_genus_level)
-    
-    dataset_sp_level <- 
-      dataset_pivot %>% 
-      filter(!is.na(value)) %>% 
-      # select(-value) %>% 
+
+    dataset_sp_level <-
+      dataset_pivot %>%
+      filter(!is.na(value)) %>%
+      # select(-value) %>%
       # left_join(dataset_traits_pivot,
       #           by = c("tax_gen" = "tax_gen",
-      #                  "trait" = "trait")) %>% 
-      mutate(source = "species")
-    
-    dataset_genus_level_filled <- 
-      dataset_genus_level  %>% 
-      filter(!is.na(value)) %>% 
+      #                  "trait" = "trait")) %>%
+      mutate(source = dplyr::case_when(
+        "tax_level" %in% names(.) & tax_level %in% c("species", "infraspecific") ~ "species",
+        "tax_level" %in% names(.) & !is.na(tax_level) ~ tax_level,
+        TRUE ~ "species"
+      ))
+
+    dataset_genus_level_filled <-
+      dataset_genus_level  %>%
+      filter(!is.na(value)) %>%
       mutate(source = "genus")
-    
-    dataset_genus_level_unfilled <- 
-      dataset_genus_level  %>% 
-      filter(is.na(value)) %>% 
+
+    dataset_genus_level_unfilled <-
+      dataset_genus_level  %>%
+      filter(is.na(value)) %>%
       mutate(source = NA_character_)
-    
-    
-    dataset_pivot_wider_num <- 
-      bind_rows(dataset_sp_level, dataset_genus_level_filled, dataset_genus_level_unfilled) %>% 
-      tidyr::pivot_wider(names_from = trait, 
+
+
+    dataset_pivot_wider_num <-
+      bind_rows(dataset_sp_level, dataset_genus_level_filled, dataset_genus_level_unfilled) %>%
+      select(-any_of("tax_level")) %>%
+      tidyr::pivot_wider(names_from = trait,
                   values_from = c(value, source))
     
     names(dataset_pivot_wider_num) <- 
