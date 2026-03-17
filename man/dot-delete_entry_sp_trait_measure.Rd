@@ -2,19 +2,21 @@
 % Please edit documentation in R/delete_functions.R
 \name{.delete_entry_sp_trait_measure}
 \alias{.delete_entry_sp_trait_measure}
-\title{Delete an entry in traits measurements table}
+\title{Delete an entry in traits measurements table (DEPRECATED)}
 \usage{
-.delete_entry_sp_trait_measure(id)
+.delete_entry_sp_trait_measure(id, con = NULL)
 }
 \arguments{
-\item{id}{integer}
+\item{id}{integer vector of id_trait_measures values to delete}
+
+\item{con}{Database connection}
 }
 \value{
 No values
 }
 \description{
-Delete an entry in traits measurements table using id for selection
-}
-\author{
-Gilles Dauby, \email{gilles.dauby@ird.fr}
+**DEPRECATED**: Use [safe_delete_taxa_traits()] instead.
+
+This function is unsafe because it does not delete related records in
+`taxa_traits_measures_feat` first, which may violate foreign key constraints.
 }
