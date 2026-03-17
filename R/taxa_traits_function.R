@@ -148,6 +148,7 @@ query_taxa_traits <- function(
     format = c("wide", "long"),
     include_remarks = FALSE,
     include_measurement_features = FALSE,
+    include_citation = FALSE,
     con = NULL,
     con_taxa = NULL
 ) {
@@ -173,7 +174,8 @@ query_taxa_traits <- function(
   traits_raw <- fetch_taxa_trait_measurements(
     idtax = idtax,
     trait_ids = trait_ids,
-    con = con
+    con = con,
+    include_citation = include_citation
   )
   
   if (nrow(traits_raw) == 0) {
@@ -307,10 +309,30 @@ query_taxa_traits <- function(
 
 #' Fetch raw trait measurements for taxa
 #' @keywords internal
-fetch_taxa_trait_measurements <- function(idtax, trait_ids = NULL, con) {
+fetch_taxa_trait_measurements <- function(idtax, trait_ids = NULL, con,
+                                          include_citation = FALSE) {
 
   # Build query with explicit column selection to avoid duplicates
-  query <- "
+  citation_select <- if (include_citation) {
+    ",
+      tc.citation_key,
+      tc.authors       AS citation_authors,
+      tc.year          AS citation_year,
+      tc.title         AS citation_title,
+      tc.journal       AS citation_journal,
+      tc.doi           AS citation_doi,
+      tc.dataset_name  AS citation_dataset_name"
+  } else {
+    ""
+  }
+
+  citation_join <- if (include_citation) {
+    "LEFT JOIN table_citations tc ON tm.id_citation = tc.id_citation"
+  } else {
+    ""
+  }
+
+  query <- paste0("
     SELECT
       tm.id_trait_measures,
       tm.idtax,
@@ -319,17 +341,20 @@ fetch_taxa_trait_measurements <- function(idtax, trait_ids = NULL, con) {
       tm.basisofrecord,
       tm.measurementremarks,
       tm.fk_id_trait,
+      tm.id_citation,
       tl.id_trait,
       tl.trait,
       tl.valuetype,
       tl.traitdescription,
       tl.expectedunit,
       tl.minallowedvalue,
-      tl.maxallowedvalue
+      tl.maxallowedvalue",
+    citation_select, "
     FROM taxa_traits_measures tm
     LEFT JOIN traitlist tl ON tm.fk_id_trait = tl.id_trait
+    ", citation_join, "
     WHERE 1=1
-  "
+  ")
 
   conditions <- character()
 

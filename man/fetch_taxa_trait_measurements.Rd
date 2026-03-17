@@ -4,7 +4,12 @@
 \alias{fetch_taxa_trait_measurements}
 \title{Fetch raw trait measurements for taxa}
 \usage{
-fetch_taxa_trait_measurements(idtax, trait_ids = NULL, con)
+fetch_taxa_trait_measurements(
+  idtax,
+  trait_ids = NULL,
+  con,
+  include_citation = FALSE
+)
 }
 \description{
 Fetch raw trait measurements for taxa
