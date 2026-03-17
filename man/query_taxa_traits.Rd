@@ -13,6 +13,7 @@ query_taxa_traits(
   format = c("wide", "long"),
   include_remarks = FALSE,
   include_measurement_features = FALSE,
+  include_citation = FALSE,
   con = NULL,
   con_taxa = NULL
 )
