@@ -232,3 +232,309 @@ check_citations_migration <- function(con) {
 
   invisible(result)
 }
+
+
+# =============================================================================
+# Phase 3 — CRUD functions
+# =============================================================================
+
+#' Query citations from table_citations
+#'
+#' Returns rows from `table_citations`, optionally filtered by ID, citation key,
+#' dataset name, or a free-text pattern matched against `citation_key`, `authors`,
+#' `title`, and `dataset_name`.
+#'
+#' @param con Database connection to `plots_transects`. If NULL, calls
+#'   `call.mydb()`.
+#' @param ids Integer vector of `id_citation` values to retrieve.
+#' @param keys Character vector of `citation_key` values to retrieve.
+#' @param dataset_names Character vector of `dataset_name` values to filter on.
+#' @param pattern Character string. Case-insensitive substring matched against
+#'   `citation_key`, `authors`, `title`, and `dataset_name`.
+#'
+#' @return A data frame of matching rows, or all rows when no filter is supplied.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # All citations
+#' query_citations(con)
+#'
+#' # By key
+#' query_citations(con, keys = "TRY_v6")
+#'
+#' # Free-text search
+#' query_citations(con, pattern = "TRY")
+#' }
+#'
+#' @export
+query_citations <- function(con = NULL,
+                            ids           = NULL,
+                            keys          = NULL,
+                            dataset_names = NULL,
+                            pattern       = NULL) {
+
+  if (is.null(con)) con <- call.mydb()
+
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+  }, add = TRUE)
+
+  # Build WHERE clauses
+  clauses <- character(0)
+
+  if (!is.null(ids)) {
+    ids_sql <- paste(as.integer(ids), collapse = ", ")
+    clauses <- c(clauses, paste0("id_citation IN (", ids_sql, ")"))
+  }
+
+  if (!is.null(keys)) {
+    keys_sql <- paste0("'", gsub("'", "''", keys), "'", collapse = ", ")
+    clauses <- c(clauses, paste0("citation_key IN (", keys_sql, ")"))
+  }
+
+  if (!is.null(dataset_names)) {
+    ds_sql <- paste0("'", gsub("'", "''", dataset_names), "'", collapse = ", ")
+    clauses <- c(clauses, paste0("dataset_name IN (", ds_sql, ")"))
+  }
+
+  if (!is.null(pattern)) {
+    p <- gsub("'", "''", pattern)
+    clauses <- c(clauses, paste0(
+      "(citation_key ILIKE '%", p, "%'",
+      " OR authors ILIKE '%", p, "%'",
+      " OR title ILIKE '%", p, "%'",
+      " OR dataset_name ILIKE '%", p, "%')"
+    ))
+  }
+
+  sql <- if (length(clauses) > 0) {
+    paste("SELECT * FROM table_citations WHERE", paste(clauses, collapse = " AND "))
+  } else {
+    "SELECT * FROM table_citations ORDER BY id_citation"
+  }
+
+  result <- func_try_fetch(con = actual_con, sql = sql)
+
+  cli::cli_alert_info("{nrow(result)} citation(s) found")
+  result
+}
+
+
+#' Add one or more citations to table_citations
+#'
+#' Inserts new rows into `table_citations`. Rows whose `citation_key` already
+#' exists in the database are skipped with a warning.
+#'
+#' @param new_data Data frame with citation fields. The column `citation_key`
+#'   is mandatory. Optional columns: `authors`, `year`, `title`, `journal`,
+#'   `volume`, `pages`, `doi`, `url`, `dataset_name`, `notes`.
+#' @param con Database connection to `plots_transects`. If NULL, calls
+#'   `call.mydb()`.
+#' @param interactive Logical. If TRUE (default), shows a preview and asks for
+#'   confirmation before inserting.
+#'
+#' @return Invisible data frame of actually inserted rows, or NULL if nothing
+#'   was inserted.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' add_citation(
+#'   data.frame(
+#'     citation_key = "TRY_v6",
+#'     authors      = "Kattge et al.",
+#'     year         = 2020,
+#'     title        = "TRY plant trait database - enhanced coverage and open access",
+#'     journal      = "Global Change Biology",
+#'     doi          = "10.1111/gcb.14904",
+#'     dataset_name = "TRY"
+#'   ),
+#'   con = con
+#' )
+#' }
+#'
+#' @export
+add_citation <- function(new_data, con = NULL, interactive = TRUE) {
+
+  if (is.null(con)) con <- call.mydb()
+
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+  }, add = TRUE)
+
+  if (!"citation_key" %in% names(new_data)) {
+    cli::cli_abort("new_data must contain a 'citation_key' column")
+  }
+
+  # Add modification date
+  today <- Sys.Date()
+  new_data$date_modif_d <- as.integer(format(today, "%d"))
+  new_data$date_modif_m <- as.integer(format(today, "%m"))
+  new_data$date_modif_y <- as.integer(format(today, "%Y"))
+
+  # Check for existing keys
+  existing <- tryCatch({
+    DBI::dbGetQuery(actual_con,
+      "SELECT citation_key FROM table_citations"
+    )$citation_key
+  }, error = function(e) character(0))
+
+  duplicates <- new_data$citation_key[new_data$citation_key %in% existing]
+
+  if (length(duplicates) > 0) {
+    cli::cli_alert_warning(
+      "Skipping {length(duplicates)} citation(s) with existing key(s): {paste(duplicates, collapse=', ')}"
+    )
+    new_data <- new_data[!new_data$citation_key %in% duplicates, ]
+  }
+
+  if (nrow(new_data) == 0) {
+    cli::cli_alert_info("No new citations to insert")
+    return(invisible(NULL))
+  }
+
+  # Keep only valid columns
+  valid_cols <- c("citation_key", "authors", "year", "title", "journal",
+                  "volume", "pages", "doi", "url", "dataset_name", "notes",
+                  "date_modif_d", "date_modif_m", "date_modif_y")
+  new_data <- new_data[, intersect(names(new_data), valid_cols), drop = FALSE]
+
+  cli::cli_h3("Citations to insert:")
+  print(new_data)
+
+  do_insert <- if (interactive) {
+    choose_prompt(message = paste0("Confirm inserting ", nrow(new_data), " citation(s)?"))
+  } else {
+    TRUE
+  }
+
+  if (do_insert) {
+    tryCatch({
+      DBI::dbWriteTable(actual_con, "table_citations", new_data,
+                        append = TRUE, row.names = FALSE)
+      cli::cli_alert_success("{nrow(new_data)} citation(s) inserted")
+    }, error = function(e) {
+      cli::cli_alert_danger("Insert failed: {e$message}")
+      stop(e)
+    })
+  } else {
+    cli::cli_alert_info("Insert cancelled")
+    return(invisible(NULL))
+  }
+
+  invisible(new_data)
+}
+
+
+#' Update fields of an existing citation
+#'
+#' Updates one or more columns of a single row in `table_citations`, identified
+#' by its `id_citation`.
+#'
+#' @param id_citation Integer. The `id_citation` of the row to update.
+#' @param fields Named list of field-value pairs to update. Names must be valid
+#'   column names of `table_citations` (excluding `id_citation`).
+#' @param con Database connection to `plots_transects`. If NULL, calls
+#'   `call.mydb()`.
+#' @param execute Logical. If FALSE (default), shows changes without applying
+#'   them. Set to TRUE to apply.
+#'
+#' @return Invisible TRUE on success, or invisible FALSE if not executed.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # Preview
+#' update_citation(1, list(doi = "10.1111/gcb.14904", url = "https://..."), con)
+#'
+#' # Apply
+#' update_citation(1, list(doi = "10.1111/gcb.14904"), con, execute = TRUE)
+#' }
+#'
+#' @export
+update_citation <- function(id_citation, fields, con = NULL, execute = FALSE) {
+
+  if (is.null(con)) con <- call.mydb()
+
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+  }, add = TRUE)
+
+  if (!is.numeric(id_citation) || length(id_citation) != 1) {
+    cli::cli_abort("id_citation must be a single integer")
+  }
+
+  valid_cols <- c("citation_key", "authors", "year", "title", "journal",
+                  "volume", "pages", "doi", "url", "dataset_name", "notes",
+                  "date_modif_d", "date_modif_m", "date_modif_y")
+
+  invalid <- setdiff(names(fields), valid_cols)
+  if (length(invalid) > 0) {
+    cli::cli_abort("Invalid field(s): {paste(invalid, collapse=', ')}")
+  }
+
+  # Always update modification date
+  today <- Sys.Date()
+  fields$date_modif_d <- as.integer(format(today, "%d"))
+  fields$date_modif_m <- as.integer(format(today, "%m"))
+  fields$date_modif_y <- as.integer(format(today, "%Y"))
+
+  # Fetch current values for comparison
+  current <- tryCatch({
+    DBI::dbGetQuery(actual_con,
+      paste0("SELECT * FROM table_citations WHERE id_citation = ", as.integer(id_citation))
+    )
+  }, error = function(e) {
+    cli::cli_abort("Could not fetch current record: {e$message}")
+  })
+
+  if (nrow(current) == 0) {
+    cli::cli_abort("No citation found with id_citation = {id_citation}")
+  }
+
+  # Show comparison
+  cli::cli_h3("Proposed changes for id_citation = {id_citation}:")
+  for (nm in setdiff(names(fields), c("date_modif_d", "date_modif_m", "date_modif_y"))) {
+    old_val <- if (nm %in% names(current)) current[[nm]][1] else NA
+    cli::cli_alert_info("{.field {nm}}: {.val {old_val}} -> {.val {fields[[nm]]}}")
+  }
+
+  if (!execute) {
+    cli::cli_alert_warning("DRY RUN - no changes applied (rerun with execute = TRUE)")
+    return(invisible(FALSE))
+  }
+
+  # Build SET clause
+  set_parts <- mapply(function(col, val) {
+    if (is.na(val) || is.null(val)) {
+      paste0(col, " = NULL")
+    } else if (is.character(val)) {
+      paste0(col, " = '", gsub("'", "''", val), "'")
+    } else {
+      paste0(col, " = ", val)
+    }
+  }, names(fields), fields, SIMPLIFY = TRUE)
+
+  sql <- paste0(
+    "UPDATE table_citations SET ",
+    paste(set_parts, collapse = ", "),
+    " WHERE id_citation = ", as.integer(id_citation)
+  )
+
+  tryCatch({
+    DBI::dbExecute(actual_con, sql)
+    cli::cli_alert_success("Citation {id_citation} updated")
+  }, error = function(e) {
+    cli::cli_alert_danger("Update failed: {e$message}")
+    stop(e)
+  })
+
+  invisible(TRUE)
+}
