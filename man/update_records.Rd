@@ -8,7 +8,7 @@ update_records(
   data,
   table_type = c("individuals", "plots", "individual_features", "subplot_features",
     "individual_features_metadata", "methodslist", "table_colnam", "traitlist",
-    "subplotype_list", "specimens"),
+    "taxa_traits_measures", "subplotype_list", "specimens"),
   execute = FALSE,
   method = c("single", "batch"),
   con = NULL,
