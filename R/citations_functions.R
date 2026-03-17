@@ -544,27 +544,42 @@ update_citation <- function(id_citation, fields, con = NULL, execute = FALSE) {
 # Backfill helpers
 # =============================================================================
 
-#' Summarise existing references in taxa_traits_measures
+#' Export taxa trait measurements for citation backfill
 #'
-#' Returns a summary of distinct `references` values (and NULL) in
-#' `taxa_traits_measures`, with their row counts and current `id_citation`
-#' assignment. Use this to identify which groups of rows need a citation
-#' backfilled.
+#' Exports `taxa_traits_measures` to a data frame (optionally saved as Excel)
+#' with a blank `id_citation` column ready to be filled in manually. Once
+#' filled, pass the result to `apply_citation_backfill()`.
+#'
+#' The export contains only the columns needed to identify each row and assign
+#' a citation: `id_trait_measures`, `idtax`, `fk_id_trait`, `basisofrecord`,
+#' `measurementremarks`, and the current `id_citation` (NA where unset).
+#' Trait names from `traitlist` are joined for readability.
 #'
 #' @param con Database connection to `plots_transects`. If NULL, calls
 #'   `call.mydb()`.
+#' @param file Path to an `.xlsx` file to write. If NULL (default), returns
+#'   the data frame without writing.
+#' @param only_missing Logical. If TRUE (default), export only rows where
+#'   `id_citation IS NULL`.
 #'
-#' @return A data frame with columns `references`, `n_rows`,
-#'   `id_citation_assigned` (TRUE/FALSE), `n_with_citation`, `n_without_citation`.
+#' @return A data frame with columns `id_trait_measures`, `idtax`, `trait`,
+#'   `fk_id_trait`, `basisofrecord`, `measurementremarks`, `id_citation`.
 #'
 #' @examples
 #' \dontrun{
 #' con <- call.mydb()
-#' survey_taxa_traits_references(con)
+#'
+#' # Return as data frame
+#' df <- export_taxa_traits_for_citation_backfill(con)
+#'
+#' # Write to Excel for manual editing
+#' export_taxa_traits_for_citation_backfill(con, file = "traits_to_cite.xlsx")
 #' }
 #'
 #' @export
-survey_taxa_traits_references <- function(con = NULL) {
+export_taxa_traits_for_citation_backfill <- function(con = NULL,
+                                                      file = NULL,
+                                                      only_missing = TRUE) {
 
   if (is.null(con)) con <- call.mydb()
 
@@ -573,82 +588,92 @@ survey_taxa_traits_references <- function(con = NULL) {
     if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
   }, add = TRUE)
 
-  result <- DBI::dbGetQuery(actual_con, "
+  where_sql <- if (only_missing) "WHERE tm.id_citation IS NULL" else ""
+
+  result <- DBI::dbGetQuery(actual_con, paste0("
     SELECT
-      COALESCE(reference, '(NULL)') AS reference,
-      COUNT(*)                      AS n_rows,
-      COUNT(id_citation)            AS n_with_citation,
-      COUNT(*) - COUNT(id_citation) AS n_without_citation
-    FROM taxa_traits_measures
-    GROUP BY reference
-    ORDER BY n_rows DESC
-  ")
+      tm.id_trait_measures,
+      tm.idtax,
+      tl.trait,
+      tm.fk_id_trait,
+      tm.basisofrecord,
+      tm.measurementremarks,
+      tm.id_citation
+    FROM taxa_traits_measures tm
+    LEFT JOIN traitlist tl ON tm.fk_id_trait = tl.id_trait
+    ", where_sql, "
+    ORDER BY tl.trait, tm.idtax
+  "))
 
   cli::cli_alert_info(
-    "{nrow(result)} distinct reference value(s) found across {sum(result$n_rows)} row(s)"
-  )
-  cli::cli_alert_info(
-    "{sum(result$n_without_citation)} row(s) still have no id_citation"
+    "{nrow(result)} row(s) exported ({if (only_missing) 'missing citation only' else 'all rows'})"
   )
 
-  result
+  if (!is.null(file)) {
+    if (!requireNamespace("openxlsx", quietly = TRUE)) {
+      cli::cli_abort("Package 'openxlsx' required to write Excel. Install with: install.packages('openxlsx')")
+    }
+    # Also export available citations as a second sheet for reference
+    citations <- tryCatch(
+      DBI::dbGetQuery(actual_con,
+        "SELECT id_citation, citation_key, authors, year, dataset_name
+         FROM table_citations ORDER BY citation_key"),
+      error = function(e) data.frame()
+    )
+    wb <- openxlsx::createWorkbook()
+    openxlsx::addWorksheet(wb, "traits")
+    openxlsx::writeData(wb, "traits", result)
+    if (nrow(citations) > 0) {
+      openxlsx::addWorksheet(wb, "citations_reference")
+      openxlsx::writeData(wb, "citations_reference", citations)
+    }
+    openxlsx::saveWorkbook(wb, file, overwrite = TRUE)
+    cli::cli_alert_success("Written to {.file {file}}")
+    cli::cli_alert_info("Fill in the 'id_citation' column in the 'traits' sheet, then run apply_citation_backfill()")
+  }
+
+  invisible(result)
 }
 
 
-#' Backfill id_citation in taxa_traits_measures
+#' Apply citation backfill from a manually filled data frame
 #'
-#' Updates `id_citation` for rows whose `reference` column matches a given
-#' pattern (exact, partial, or NULL), assigning them to a citation from
-#' `table_citations`. Supports dry-run preview before executing.
+#' Takes a data frame (typically the output of
+#' `export_taxa_traits_for_citation_backfill()` after manual editing) and
+#' updates `id_citation` in `taxa_traits_measures` for each row where
+#' `id_citation` is not NA. Rows with NA are skipped.
 #'
-#' @details
-#' The `reference_pattern` argument is matched against the `reference` column
-#' using `ILIKE` (case-insensitive partial match) unless `match_null = TRUE`,
-#' in which case only rows where `reference IS NULL` are targeted.
-#' Set `reference_pattern = NULL` to target **all** rows (use with care).
-#'
-#' @param citation_key Character. The `citation_key` of the citation to assign.
-#'   Must already exist in `table_citations`.
-#' @param reference_pattern Character or NULL. Pattern to match against the
-#'   `reference` column (ILIKE). NULL targets all rows regardless of reference.
-#' @param match_null Logical. If TRUE, targets rows where `reference IS NULL`
-#'   (ignores `reference_pattern`). Default FALSE.
-#' @param overwrite Logical. If TRUE, also update rows that already have an
-#'   `id_citation`. If FALSE (default), only update rows where `id_citation IS NULL`.
+#' @param data Data frame with at minimum two columns: `id_trait_measures`
+#'   (integer, primary key) and `id_citation` (integer, FK to
+#'   `table_citations`). Additional columns are ignored.
 #' @param con Database connection to `plots_transects`. If NULL, calls
 #'   `call.mydb()`.
-#' @param execute Logical. If FALSE (default), shows count of rows that would
+#' @param execute Logical. If FALSE (default), shows a preview of what would
 #'   be updated without modifying the database.
+#' @param batch_size Integer. Number of rows per UPDATE batch (default 1000).
 #'
-#' @return Invisible integer: number of rows updated (or that would be updated).
+#' @return Invisible integer: number of rows updated.
 #'
 #' @examples
 #' \dontrun{
 #' con <- call.mydb()
 #'
-#' # Preview: how many rows with "TRY" in reference would get this citation?
-#' backfill_taxa_traits_citations("TRY_2020", reference_pattern = "TRY", con = con)
+#' # Export, fill manually, apply
+#' df <- export_taxa_traits_for_citation_backfill(con)
+#' # ... fill df$id_citation ...
+#' apply_citation_backfill(df, con = con)              # dry run
+#' apply_citation_backfill(df, con = con, execute = TRUE)
 #'
-#' # Apply
-#' backfill_taxa_traits_citations("TRY_2020", reference_pattern = "TRY",
-#'                                con = con, execute = TRUE)
-#'
-#' # Target rows with NULL reference
-#' backfill_taxa_traits_citations("CoForTraits_2019", match_null = TRUE,
-#'                                con = con, execute = TRUE)
-#'
-#' # Target all rows (assign one citation to everything)
-#' backfill_taxa_traits_citations("CoForTraits_2019", reference_pattern = NULL,
-#'                                con = con, execute = TRUE)
+#' # Or from Excel
+#' df <- readxl::read_excel("traits_to_cite.xlsx", sheet = "traits")
+#' apply_citation_backfill(df, con = con, execute = TRUE)
 #' }
 #'
 #' @export
-backfill_taxa_traits_citations <- function(citation_key,
-                                           reference_pattern = NULL,
-                                           match_null        = FALSE,
-                                           overwrite         = FALSE,
-                                           con               = NULL,
-                                           execute           = FALSE) {
+apply_citation_backfill <- function(data,
+                                    con        = NULL,
+                                    execute    = FALSE,
+                                    batch_size = 1000L) {
 
   if (is.null(con)) con <- call.mydb()
 
@@ -657,71 +682,81 @@ backfill_taxa_traits_citations <- function(citation_key,
     if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
   }, add = TRUE)
 
-  # Resolve citation_key -> id_citation
-  cit <- DBI::dbGetQuery(actual_con,
-    paste0("SELECT id_citation FROM table_citations WHERE citation_key = '",
-           gsub("'", "''", citation_key), "'")
-  )
-
-  if (nrow(cit) == 0) {
-    cli::cli_abort(
-      "citation_key '{citation_key}' not found in table_citations. Run query_citations() to see available keys."
-    )
+  required <- c("id_trait_measures", "id_citation")
+  missing_cols <- setdiff(required, names(data))
+  if (length(missing_cols) > 0) {
+    cli::cli_abort("data must contain columns: {paste(missing_cols, collapse=', ')}")
   }
 
-  id_cit <- cit$id_citation[1]
+  # Keep only rows where id_citation is filled in
+  to_update <- data[!is.na(data$id_citation), c("id_trait_measures", "id_citation")]
+  to_update$id_trait_measures <- as.integer(to_update$id_trait_measures)
+  to_update$id_citation        <- as.integer(to_update$id_citation)
 
-  # Build WHERE clause
-  where_parts <- character(0)
+  n_skip <- nrow(data) - nrow(to_update)
 
-  if (match_null) {
-    where_parts <- c(where_parts, "reference IS NULL")
-  } else if (!is.null(reference_pattern)) {
-    p <- gsub("'", "''", reference_pattern)
-    where_parts <- c(where_parts, paste0("reference ILIKE '%", p, "%'"))
-  }
-  # reference_pattern = NULL and match_null = FALSE -> no reference filter (all rows)
+  cli::cli_alert_info("{nrow(to_update)} row(s) to update, {n_skip} skipped (NA id_citation)")
 
-  if (!overwrite) {
-    where_parts <- c(where_parts, "id_citation IS NULL")
-  }
-
-  where_sql <- if (length(where_parts) > 0) {
-    paste("WHERE", paste(where_parts, collapse = " AND "))
-  } else {
-    ""
-  }
-
-  # Count rows that would be affected
-  count_sql <- paste("SELECT COUNT(*) AS n FROM taxa_traits_measures", where_sql)
-  n_rows <- DBI::dbGetQuery(actual_con, count_sql)$n
-
-  cli::cli_alert_info(
-    "{n_rows} row(s) would be updated with id_citation = {id_cit} ({citation_key})"
-  )
-
-  if (!execute) {
-    cli::cli_alert_warning("DRY RUN - no changes applied (rerun with execute = TRUE)")
-    return(invisible(n_rows))
-  }
-
-  if (n_rows == 0) {
+  if (nrow(to_update) == 0) {
     cli::cli_alert_info("Nothing to update")
     return(invisible(0L))
   }
 
-  update_sql <- paste(
-    "UPDATE taxa_traits_measures SET id_citation =", id_cit,
-    where_sql
+  # Preview: citation breakdown
+  cit_summary <- as.data.frame(table(to_update$id_citation))
+  names(cit_summary) <- c("id_citation", "n_rows")
+
+  # Enrich with citation_key for readability
+  cit_keys <- tryCatch(
+    DBI::dbGetQuery(actual_con,
+      "SELECT id_citation, citation_key FROM table_citations"),
+    error = function(e) data.frame(id_citation = integer(), citation_key = character())
   )
+  cit_summary$id_citation <- as.integer(as.character(cit_summary$id_citation))
+  cit_summary <- merge(cit_summary, cit_keys, by = "id_citation", all.x = TRUE)
 
-  tryCatch({
-    n_updated <- DBI::dbExecute(actual_con, update_sql)
-    cli::cli_alert_success("{n_updated} row(s) updated with citation '{citation_key}'")
-  }, error = function(e) {
-    cli::cli_alert_danger("Update failed: {e$message}")
-    stop(e)
-  })
+  cli::cli_h3("Citation assignment preview:")
+  for (i in seq_len(nrow(cit_summary))) {
+    r <- cit_summary[i, ]
+    key <- if (!is.na(r$citation_key)) r$citation_key else paste0("id=", r$id_citation)
+    cli::cli_alert_info("  {key}: {r$n_rows} row(s)")
+  }
 
-  invisible(n_rows)
+  if (!execute) {
+    cli::cli_alert_warning("DRY RUN - no changes applied (rerun with execute = TRUE)")
+    return(invisible(nrow(to_update)))
+  }
+
+  # Batch UPDATE
+  batches <- split(to_update, ceiling(seq_len(nrow(to_update)) / batch_size))
+  n_updated <- 0L
+
+  cli::cli_progress_bar("Updating batches", total = length(batches))
+
+  for (batch in batches) {
+    # Build VALUES list for a single UPDATE ... FROM (VALUES ...) approach
+    # Efficient: one SQL per batch instead of one per row
+    values_sql <- paste(
+      apply(batch, 1, function(r) paste0("(", r["id_trait_measures"], ",", r["id_citation"], ")")),
+      collapse = ", "
+    )
+    sql <- paste0(
+      "UPDATE taxa_traits_measures AS tm
+       SET id_citation = v.id_citation
+       FROM (VALUES ", values_sql, ") AS v(id_trait_measures, id_citation)
+       WHERE tm.id_trait_measures = v.id_trait_measures"
+    )
+    tryCatch({
+      n_updated <- n_updated + DBI::dbExecute(actual_con, sql)
+    }, error = function(e) {
+      cli::cli_alert_danger("Batch failed: {e$message}")
+      stop(e)
+    })
+    cli::cli_progress_update()
+  }
+
+  cli::cli_progress_done()
+  cli::cli_alert_success("{n_updated} row(s) updated")
+
+  invisible(n_updated)
 }
