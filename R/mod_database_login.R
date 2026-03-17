@@ -57,6 +57,17 @@ mod_database_login_ui <- function(id) {
         # Connect button
         shiny::uiOutput(ns("connect_button")),
 
+        # Public access separator
+        shiny::hr(style = "margin-top: 20px; margin-bottom: 15px;"),
+        shiny::div(
+          style = "text-align: center; color: #6c757d; font-size: 0.85em; margin-bottom: 10px;",
+          shiny::uiOutput(ns("or_label"))
+        ),
+
+        # Public access button + notice
+        shiny::uiOutput(ns("public_connect_button")),
+        shiny::uiOutput(ns("public_access_notice")),
+
         # Hidden output for conditional panel
         shiny::textOutput(ns("has_saved_credentials"))
       )
@@ -104,13 +115,18 @@ mod_database_login_server <- function(id) {
       }
     })
 
+    # Public credentials (read-only user — intentionally embedded)
+    public_user     <- "CafriP_public"
+    public_password <- "CafriPublic01"
+
     # Reactive values
     rv <- shiny::reactiveValues(
       authenticated = FALSE,
       pool_main = NULL,
       pool_taxa = NULL,
       error_message = NULL,
-      has_saved = FALSE
+      has_saved = FALSE,
+      is_public = FALSE
     )
 
     # Check for saved credentials on startup
@@ -234,6 +250,42 @@ mod_database_login_server <- function(id) {
       } else {
         NULL
       }
+    })
+
+    output$or_label <- shiny::renderUI({
+      input$language
+      shiny::tagList(
+        shiny::tags$span(
+          style = "background: #f8f9fa; padding: 0 10px;",
+          t("or")
+        )
+      )
+    })
+
+    output$public_connect_button <- shiny::renderUI({
+      input$language
+      shiny::actionButton(
+        ns("connect_public"),
+        shiny::tagList(
+          shiny::icon("globe"),
+          paste0(" ", t("Connect as public user"))
+        ),
+        class = "btn-outline-secondary btn-block",
+        style = "margin-bottom: 8px;"
+      )
+    })
+
+    output$public_access_notice <- shiny::renderUI({
+      input$language
+      shiny::div(
+        class = "alert alert-warning",
+        style = "font-size: 0.85em; margin-top: 5px; margin-bottom: 0; padding: 8px 12px;",
+        shiny::icon("exclamation-triangle"),
+        " ",
+        shiny::strong(t("Read-only access:")),
+        " ",
+        t("Public authentication gives access to taxonomy and traits only. Adding or modifying data is not available.")
+      )
     })
 
     # Connect button handler
@@ -388,6 +440,89 @@ mod_database_login_server <- function(id) {
       }, message = t("Connecting to database..."))
     })
 
+    # Public connect button handler
+    shiny::observeEvent(input$connect_public, {
+      rv$error_message <- NULL
+      rv$is_public <- FALSE
+
+      tryCatch({
+        create_db_config()
+      }, error = function(e) {
+        cli::cli_alert_warning("Could not load db config: {e$message}")
+      })
+
+      db_host <- if (exists("db_host", envir = .GlobalEnv)) {
+        get("db_host", envir = .GlobalEnv)
+      } else {
+        "dg474899-001.dbaas.ovh.net"
+      }
+
+      db_port <- if (exists("db_port", envir = .GlobalEnv)) {
+        get("db_port", envir = .GlobalEnv)
+      } else {
+        35699
+      }
+
+      shiny::withProgress({
+
+        shiny::setProgress(0.3, message = t("Connecting as public user..."))
+
+        tryCatch({
+          pool_main <- pool::dbPool(
+            drv = RPostgres::Postgres(),
+            host = db_host,
+            port = db_port,
+            dbname = "plots_transects",
+            user = public_user,
+            password = public_password
+          )
+          DBI::dbGetQuery(pool_main, "SELECT 1 AS test")
+          rv$pool_main <- pool_main
+        }, error = function(e) {
+          rv$error_message <- paste(t("Public connection failed (main database):"), e$message)
+          return()
+        })
+
+        if (is.null(rv$pool_main)) return()
+
+        shiny::setProgress(0.7, message = t("Connecting to taxa database..."))
+
+        tryCatch({
+          pool_taxa <- pool::dbPool(
+            drv = RPostgres::Postgres(),
+            host = db_host,
+            port = db_port,
+            dbname = "rainbio",
+            user = public_user,
+            password = public_password
+          )
+          DBI::dbGetQuery(pool_taxa, "SELECT 1 AS test")
+          rv$pool_taxa <- pool_taxa
+        }, error = function(e) {
+          rv$error_message <- paste(t("Public connection failed (taxa database):"), e$message)
+          if (!is.null(rv$pool_main)) {
+            pool::poolClose(rv$pool_main)
+            rv$pool_main <- NULL
+          }
+          return()
+        })
+
+        if (!is.null(rv$pool_main) && !is.null(rv$pool_taxa)) {
+          rv$authenticated <- TRUE
+          rv$is_public     <- TRUE
+          .db_env$pool_main <- rv$pool_main
+          .db_env$pool_taxa <- rv$pool_taxa
+          shiny::setProgress(1, message = t("Connected!"))
+          shiny::showNotification(
+            paste0(t("Connected as public user — read-only access")),
+            type = "message",
+            duration = 5
+          )
+        }
+
+      }, message = t("Connecting as public user..."))
+    })
+
     # Note: Pool cleanup is handled by cleanup_connections() in the main app's
     # onSessionEnded callback. Removing duplicate cleanup here prevents
     # "Can't access reactive value outside of reactive consumer" errors
@@ -397,9 +532,10 @@ mod_database_login_server <- function(id) {
     return(
       list(
         authenticated = shiny::reactive(rv$authenticated),
-        pool_main = shiny::reactive(rv$pool_main),
-        pool_taxa = shiny::reactive(rv$pool_taxa),
-        language = shiny::reactive(input$language %||% "en")
+        pool_main     = shiny::reactive(rv$pool_main),
+        pool_taxa     = shiny::reactive(rv$pool_taxa),
+        language      = shiny::reactive(input$language %||% "en"),
+        is_public     = shiny::reactive(rv$is_public)
       )
     )
   })
