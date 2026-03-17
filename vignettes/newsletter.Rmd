@@ -1,0 +1,49 @@
+---
+title: "Newsletter"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Newsletter}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# CafriplotsR Newsletter
+
+Updates on major milestones for the CafriplotsR package and the Central African forest plots database.
+
+---
+
+## March 2026
+
+### New data
+
+**Tervuren xylarium Wood Density Database (TWDD) integrated**
+
+A large wood density dataset — the TWDD — has been added to the database. It contains **13,332 samples** spanning **2,994 species**, 1,022 genera, and 156 plant families across six continents, with 72% of records from Africa. It is particularly strong for Central Africa, with over 30% of the collection originating from the Democratic Republic of the Congo (more than 2,000 woody species).
+
+Compared to the two previously dominant wood density references (CIRAD and the Global Wood Density Database), the TWDD adds 1,164 species, 160 genera, and 8 plant families not previously represented — making it an important resource for biomass estimation and trait-based ecology in African tropical forests.
+
+Before integration, the taxonomy of the TWDD was standardized against the CafriplotsR taxonomic backbone to ensure consistency with the rest of the database. A total of **12,970 values** from the TWDD were added.
+
+> **Citation requirement:** Any use of this dataset must cite the original publication:
+>
+> Verbiest W.W.M., Hicter P., Beeckman H. et al. (2026). The Tervuren xylarium Wood Density Database (TWDD). *Scientific Data*, 13, 243. <https://doi.org/10.1038/s41597-026-06563-2>
+
+<!--
+TEMPLATE FOR NEW ENTRIES:
+
+## Month Year
+
+### New data
+- Brief description of datasets added (e.g., "Added 15 new plots from Cameroon (Dja reserve)")
+
+### New capabilities
+- Brief description of major new features (e.g., "New interactive app for importing trait data")
+
+### Breaking changes
+- What changed and what users need to do (e.g., "Trait tables moved to the main database — update your scripts if you query traits directly")
+
+### Notes
+- Any other relevant announcements (e.g., upcoming workshops, maintenance windows)
+
+-->

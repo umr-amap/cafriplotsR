@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -44,7 +44,9 @@
 <span>  <span class="va">extraction_options</span>,</span>
 <span>  <span class="va">metadata_available</span>,</span>
 <span>  <span class="va">individuals_available</span>,</span>
-<span>  <span class="va">i18n</span></span>
+<span>  <span class="va">i18n</span>,</span>
+<span>  individual_features_options <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  individual_features_available <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -78,6 +80,14 @@
 
 <dt id="arg-i-n">i18n<a class="anchor" aria-label="anchor" href="#arg-i-n"></a></dt>
 <dd><p>Reactive returning shiny.i18n translator</p></dd>
+
+
+<dt id="arg-individual-features-options">individual_features_options<a class="anchor" aria-label="anchor" href="#arg-individual-features-options"></a></dt>
+<dd><p>Reactive returning named list of individual features options (optional)</p></dd>
+
+
+<dt id="arg-individual-features-available">individual_features_available<a class="anchor" aria-label="anchor" href="#arg-individual-features-available"></a></dt>
+<dd><p>Reactive returning TRUE when individual features have been queried (optional)</p></dd>
 
 </dl></div>
 

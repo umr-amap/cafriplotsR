@@ -72,7 +72,7 @@ plot_data <- query_plots(
   ## Si wd n'est pas disponible pour l'espèce, la moyenne de wd par genre est attribuée aux espèces appartenant à ce genre
   ## si wd n'est pas disponible au niveau du genre, la moyenne de la parcelle est donnée
   ## génère une colonne qui indique la source de l'information
-  traits_to_genera = TRUE
+  traits_to_genera = T
 )
 
 ```
