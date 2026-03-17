@@ -14,8 +14,9 @@ A reactive list containing:
   - authenticated: Reactive logical indicating connection status
   - pool_main: Main database connection pool (NULL if not connected)
   - pool_taxa: Taxa database connection pool (NULL if not connected)
+  - language: Reactive string returning selected language ("en" or "fr")
 }
 \description{
-Server logic for database authentication
+Server logic for database authentication with language selection
 }
 \keyword{internal}

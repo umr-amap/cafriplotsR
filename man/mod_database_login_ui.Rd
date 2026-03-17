@@ -13,6 +13,6 @@ mod_database_login_ui(id)
 A shiny tagList
 }
 \description{
-UI component for database authentication
+UI component for database authentication with language selection
 }
 \keyword{internal}

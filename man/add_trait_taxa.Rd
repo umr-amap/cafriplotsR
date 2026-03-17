@@ -13,7 +13,9 @@ add_trait_taxa(
   new_traitdescription = NULL,
   new_factorlevels = NULL,
   new_expectedunit = NULL,
-  new_comments = NULL
+  new_comments = NULL,
+  con = NULL,
+  interactive = TRUE
 )
 }
 \arguments{

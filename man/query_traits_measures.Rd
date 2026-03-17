@@ -13,7 +13,9 @@ query_traits_measures(
   verbose = TRUE,
   pivot_table = TRUE,
   include_remarks = FALSE,
-  extract_trait_measures_features = FALSE
+  extract_trait_measures_features = FALSE,
+  con = NULL,
+  con_taxa = NULL
 )
 }
 \description{

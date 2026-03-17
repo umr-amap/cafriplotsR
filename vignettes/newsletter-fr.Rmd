@@ -1,0 +1,49 @@
+---
+title: "Newsletter"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Newsletter (FR)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# CafriplotsR Newsletter
+
+Actualités sur les grandes étapes du package CafriplotsR et de la base de données des placettes forestières d'Afrique centrale.
+
+---
+
+## Mars 2026
+
+### Nouvelles données
+
+**Intégration de la base de données de densité du bois de Tervuren (TWDD)**
+
+Une grande base de données de densité du bois — la TWDD — a été ajoutée à la base de données. Elle contient **13 332 échantillons** couvrant **2 994 espèces**, 1 022 genres et 156 familles de plantes sur six continents, dont 72 % des enregistrements provenant d'Afrique. Elle est particulièrement riche pour l'Afrique centrale, avec plus de 30 % de la collection originaire de la République démocratique du Congo (plus de 2 000 espèces ligneuses).
+
+Par rapport aux deux références de densité du bois précédemment dominantes (CIRAD et la Global Wood Density Database), la TWDD ajoute 1 164 espèces, 160 genres et 8 familles de plantes qui n'y figuraient pas — ce qui en fait une ressource importante pour l'estimation de la biomasse et l'écologie fonctionnelle dans les forêts tropicales africaines.
+
+Avant l'intégration, la taxonomie de la TWDD a été standardisée selon le référentiel taxonomique de CafriplotsR afin d'assurer la cohérence avec le reste de la base de données. Au total, **12 970 valeurs** issues de la TWDD ont été ajoutées.
+
+> **Obligation de citation :** Toute utilisation de ces données doit citer la publication originale :
+>
+> Verbiest W.W.M., Hicter P., Beeckman H. et al. (2026). The Tervuren xylarium Wood Density Database (TWDD). *Scientific Data*, 13, 243. <https://doi.org/10.1038/s41597-026-06563-2>
+
+<!--
+MODÈLE POUR LES NOUVELLES ENTRÉES :
+
+## Mois Année
+
+### Nouvelles données
+- Description des jeux de données ajoutés (ex. : "15 nouvelles placettes du Cameroun ajoutées (réserve du Dja)")
+
+### Nouvelles fonctionnalités
+- Description des nouvelles fonctions majeures (ex. : "Nouvelle application interactive pour l'import de données de traits")
+
+### Changements incompatibles
+- Ce qui a changé et ce que les utilisateurs doivent faire (ex. : "Les tables de traits ont été déplacées vers la base principale — mettre à jour les scripts qui interrogent les traits directement")
+
+### Notes
+- Autres annonces pertinentes (ex. : ateliers à venir, maintenances)
+
+-->
