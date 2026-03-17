@@ -16,7 +16,8 @@ add_sp_traits_measures(
   ask_before_update = TRUE,
   basisofrecord = NULL,
   measurementremarks = NULL,
-  interactive = TRUE
+  interactive = TRUE,
+  con = NULL
 )
 }
 \arguments{

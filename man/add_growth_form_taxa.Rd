@@ -4,7 +4,7 @@
 \alias{add_growth_form_taxa}
 \title{Add growth forms to a single taxa}
 \usage{
-add_growth_form_taxa(idtax)
+add_growth_form_taxa(idtax, con = NULL)
 }
 \value{
 A tibble

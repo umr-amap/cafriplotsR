@@ -13,6 +13,7 @@ query_taxa_traits(
   format = c("wide", "long"),
   include_remarks = FALSE,
   include_measurement_features = FALSE,
+  con = NULL,
   con_taxa = NULL
 )
 }
@@ -33,7 +34,11 @@ query_taxa_traits(
 
 \item{include_measurement_features}{Add measurement-level features/metadata}
 
-\item{con_taxa}{Connection to taxa database (optional)}
+\item{con}{Connection to main database (optional, defaults to call.mydb()).
+Used for trait measurements (taxa_traits_measures, traitlist).}
+
+\item{con_taxa}{Connection to taxa database (optional, defaults to call.mydb.taxa()).
+Used for synonym resolution (table_taxa) and taxonomic info enrichment.}
 }
 \value{
 List with components:

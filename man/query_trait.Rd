@@ -4,7 +4,7 @@
 \alias{query_trait}
 \title{Query in taxa trait table}
 \usage{
-query_trait(id_trait = NULL, pattern = NULL)
+query_trait(id_trait = NULL, pattern = NULL, con = NULL)
 }
 \arguments{
 \item{id_trait}{integer id of trait to select}

@@ -52,6 +52,264 @@ mydb_taxa <- call.mydb.taxa()
 
 The package will prompt for credentials interactively, or you can use environment variables via `use_env_credentials = TRUE`.
 
+## Interactive Shiny Application
+
+CafriplotsR provides an interactive Shiny application for users who prefer a graphical interface over writing R code. The app wraps `query_plots()` with an intuitive two-stage workflow.
+
+### Launching the App
+
+```{r launch-app, eval=FALSE}
+# Launch the interactive query app
+launch_query_plots_app()
+
+# Or specify language (French or English)
+launch_query_plots_app(language = "fr")  # French (default)
+launch_query_plots_app(language = "en")  # English
+```
+
+### App Overview
+
+When you first launch the app, you'll see the main interface with a navigation bar containing three tabs:
+
+![Application initial view](images/app-query-initial-view.png)
+
+The app uses a **tabbed workflow**:
+
+1. **Query Builder** - Define filters and search criteria
+2. **Results & Extraction** - View results, select plots, extract individuals
+3. **About** - App documentation and package information
+
+### Phase 1: Query Builder
+
+#### Setting Up Filters
+
+The Query Builder tab provides various filtering options to find plots of interest:
+
+![Filter panel](images/app-query-filters.png)
+
+**Basic Filters:**
+
+- **Country**: Multi-select dropdown of available countries
+- **Method**: Filter by inventory method (1 ha plot, Long Transect, etc.)
+- **Plot Name(s)**: Text search (comma-separated for multiple plots)
+- **Locality**: Search by locality name
+- **Individual Tag**: Search by tree tag number
+
+#### Advanced Filters
+
+Click on "Advanced Filters" to expand additional search options:
+
+![Advanced filters](images/app-query-advanced-filters.png)
+
+- **Plot ID**: Search by database plot ID
+- **Individual ID**: Search by specific individual ID
+- **Taxon ID**: Filter by taxonomic ID
+- **Specimen ID**: Search by herbarium specimen ID
+- **Exact match**: Toggle for strict text matching
+
+#### Executing the Query
+
+After setting your filters, click **"Execute Query"** to retrieve plot metadata. The app shows a summary of active filters before execution.
+
+### Phase 2: Results & Extraction
+
+#### Interactive Map
+
+Query results are displayed on an interactive map with multiple basemap options:
+
+![Interactive map with plot markers](images/app-query-map-view.png)
+
+**Map features:**
+
+- **Basemap layers**: OpenStreetMap, Satellite, Physical
+- **Clickable markers**: Click to see plot details
+- **Popup information**: Plot name, country, method, area
+
+#### Metadata Table
+
+Below the map, a sortable and searchable table displays all plot metadata:
+
+![Plot metadata table](images/app-query-metadata-table.png)
+
+**Table features:**
+
+- **Search**: Filter table contents
+- **Sort**: Click column headers to sort
+- **Pagination**: Navigate through large result sets
+- **Row selection**: Click rows to select/deselect plots
+
+#### Selecting Plots
+
+Select specific plots for individual extraction by clicking rows in the table:
+
+![Selected plots highlighted](images/app-query-plot-selection.png)
+
+- Selected rows are highlighted
+- A counter shows the number of selected plots
+- By default, all plots are selected
+
+### Phase 3: Configure Extraction
+
+#### Output Style
+
+Choose how the extracted data should be formatted:
+
+![Extraction configuration panel](images/app-query-extraction-config.png)
+
+**Available styles:**
+
+| Style | Description |
+|-------|-------------|
+| Auto-detect | Automatically selects based on plot method |
+| Minimal | Essential columns only (plot, tag, species, dbh) |
+| Standard | Common columns for general ecological analysis |
+| Permanent Plot | Single census format for permanent plot monitoring |
+| Permanent Plot (multi-census) | Preserves all census columns |
+| Transect | Simplified format for walk surveys |
+| Full | Complete dataset with all columns |
+
+#### Census Handling
+
+Configure how multiple censuses should be handled:
+
+![Census handling options](images/app-query-census-options.png)
+
+- **Census Strategy**: Last census, First census, or Mean across censuses
+- **Show multiple census data**: Creates separate columns for each census (e.g., dbh_census_1, dbh_census_2)
+- **Individual features format**: Controls the row structure of individual-level measurements:
+  - *Wide* (default): one row per individual, with one column per trait — values are aggregated when multiple measurements exist for the same individual
+  - *Long*: one row per measurement — if an individual has two diameter records (e.g. two censuses), it appears in two rows. The output includes `trait`, `traitvalue` / `traitvalue_char`, `valuetype`, `census_name`, and `census_date` columns (`NA` when the measurement is not linked to a census). Census filtering (`census_strategy`) is still applied in long format.
+
+#### Data Organization
+
+Control output structure:
+
+- **Concatenate multiple stems**: Combine data from multi-stemmed trees
+- **Remove database IDs**: Hide internal ID columns for cleaner output
+- **Remove observations with issues**: Exclude flagged problematic records
+- **Include issue flags**: Add quality flag columns to output
+
+#### Additional Data
+
+Select what extra information to include:
+
+![Additional data options](images/app-query-additional-data.png)
+
+- **Extract taxonomic traits**: Wood density, growth form, etc.
+- **Extract individual-level features**: Tree-specific measurements
+- **Extract subplot-level features**: Subplot characteristics
+- **Fallback to genus-level traits**: Use genus data when species unavailable
+
+### Phase 4: Extract and Download
+
+#### Extraction Results
+
+Click **"Extract Individuals from Selected Plots"** to retrieve detailed tree data:
+
+![Results display with tabs](images/app-query-results-display.png)
+
+Results are organized in tabs:
+
+- **Individuals**: Tree-level measurements
+- **Metadata**: Plot information
+- **Censuses**: Census dates and details (if applicable)
+- **Height-Diameter**: H-D pairs for allometry (if applicable)
+
+#### Download Options
+
+Export your data in multiple formats:
+
+![Download panel](images/app-query-download-panel.png)
+
+**Available formats:**
+
+- **Excel (.xlsx)**: Multi-sheet workbook
+- **CSV (zipped)**: Separate CSV files in a ZIP archive
+- **R Object (.rds)**: Native R format preserving data types
+- **Shapefile (.zip)**: Spatial data (if coordinates available)
+
+Select which tables to include in your export using the checkboxes.
+
+### Viewing the Equivalent R Code
+
+A key feature of the app is the **"Equivalent R Code"** panel, displayed after running queries:
+
+![Code preview panel](images/app-query-code-preview.png)
+
+This shows the exact R code you would use with `query_plots()` to reproduce the same results programmatically.
+
+**Code sections:**
+
+1. **Metadata Query**: Code to retrieve plot metadata with your filters
+2. **Individual Extraction**: Code to extract tree data with your options
+3. **Complete Workflow Script**: Full script combining both steps
+
+![Complete workflow script](images/app-query-code-complete.png)
+
+**Why this matters:**
+
+- **Learning**: Understand how app options map to function parameters
+- **Reproducibility**: Save the exact code for your analysis documentation
+- **Scripting**: Copy code for automated workflows
+- **Collaboration**: Share query parameters with colleagues
+
+Click **"Copy to clipboard"** to copy any code section.
+
+### About Page
+
+The About tab provides app documentation and package information:
+
+![About page](images/app-query-about-page.png)
+
+### App vs. Function: When to Use Each
+
+| Use Case | Recommendation |
+|----------|----------------|
+| Quick data exploration | Use the app |
+| Interactive plot selection on a map | Use the app |
+| Learning function parameters | Start with the app, copy generated code |
+| Reproducible analysis scripts | Use `query_plots()` |
+| Automated data pipelines | Use `query_plots()` |
+| Processing many queries | Use `query_plots()` |
+
+### Language Selection
+
+The app supports **bilingual operation** (French and English). French is the default language.
+
+A language toggle is located in the top-right corner:
+
+- Click **"FR"** for French interface
+- Click **"EN"** for English interface
+
+The switch is instant and affects all UI elements.
+
+### Example: From App to Script
+
+Here's how the app helps you build reproducible queries:
+
+1. **In the app**: Select Cameroon, filter by "1 ha plot" method, extract with traits
+
+2. **Copy the generated code**:
+
+```{r app-to-script, eval=FALSE}
+# Query plot metadata
+metadata <- query_plots(
+  country = c("Cameroon"),
+  method = c("1 ha plot"),
+  extract_individuals = FALSE
+)
+
+# Extract individual tree data from selected plots
+individuals <- query_plots(
+  id_plot = c(1, 5, 12),
+  extract_individuals = TRUE,
+  output_style = "permanent_plot",
+  extract_traits = TRUE,
+  extract_individual_features = TRUE
+)
+```
+3. **Use in your analysis script** for reproducible research
+
 ## Basic Usage
 
 ### Query Plot Metadata Only
@@ -469,262 +727,4 @@ flat_output <- query_plots(
 
 # Returns a single data frame instead of structured list
 ```
-
-## Interactive Shiny Application
-
-CafriplotsR provides an interactive Shiny application for users who prefer a graphical interface over writing R code. The app wraps `query_plots()` with an intuitive two-stage workflow.
-
-### Launching the App
-
-```{r launch-app, eval=FALSE}
-# Launch the interactive query app
-launch_query_plots_app()
-
-# Or specify language (French or English)
-launch_query_plots_app(language = "fr")  # French (default)
-launch_query_plots_app(language = "en")  # English
-```
-
-### App Overview
-
-When you first launch the app, you'll see the main interface with a navigation bar containing three tabs:
-
-![Application initial view](images/app-query-initial-view.png)
-
-The app uses a **tabbed workflow**:
-
-1. **Query Builder** - Define filters and search criteria
-2. **Results & Extraction** - View results, select plots, extract individuals
-3. **About** - App documentation and package information
-
-### Phase 1: Query Builder
-
-#### Setting Up Filters
-
-The Query Builder tab provides various filtering options to find plots of interest:
-
-![Filter panel](images/app-query-filters.png)
-
-**Basic Filters:**
-
-- **Country**: Multi-select dropdown of available countries
-- **Method**: Filter by inventory method (1 ha plot, Long Transect, etc.)
-- **Plot Name(s)**: Text search (comma-separated for multiple plots)
-- **Locality**: Search by locality name
-- **Individual Tag**: Search by tree tag number
-
-#### Advanced Filters
-
-Click on "Advanced Filters" to expand additional search options:
-
-![Advanced filters](images/app-query-advanced-filters.png)
-
-- **Plot ID**: Search by database plot ID
-- **Individual ID**: Search by specific individual ID
-- **Taxon ID**: Filter by taxonomic ID
-- **Specimen ID**: Search by herbarium specimen ID
-- **Exact match**: Toggle for strict text matching
-
-#### Executing the Query
-
-After setting your filters, click **"Execute Query"** to retrieve plot metadata. The app shows a summary of active filters before execution.
-
-### Phase 2: Results & Extraction
-
-#### Interactive Map
-
-Query results are displayed on an interactive map with multiple basemap options:
-
-![Interactive map with plot markers](images/app-query-map-view.png)
-
-**Map features:**
-
-- **Basemap layers**: OpenStreetMap, Satellite, Physical
-- **Clickable markers**: Click to see plot details
-- **Popup information**: Plot name, country, method, area
-
-#### Metadata Table
-
-Below the map, a sortable and searchable table displays all plot metadata:
-
-![Plot metadata table](images/app-query-metadata-table.png)
-
-**Table features:**
-
-- **Search**: Filter table contents
-- **Sort**: Click column headers to sort
-- **Pagination**: Navigate through large result sets
-- **Row selection**: Click rows to select/deselect plots
-
-#### Selecting Plots
-
-Select specific plots for individual extraction by clicking rows in the table:
-
-![Selected plots highlighted](images/app-query-plot-selection.png)
-
-- Selected rows are highlighted
-- A counter shows the number of selected plots
-- By default, all plots are selected
-
-### Phase 3: Configure Extraction
-
-#### Output Style
-
-Choose how the extracted data should be formatted:
-
-![Extraction configuration panel](images/app-query-extraction-config.png)
-
-**Available styles:**
-
-| Style | Description |
-|-------|-------------|
-| Auto-detect | Automatically selects based on plot method |
-| Minimal | Essential columns only (plot, tag, species, dbh) |
-| Standard | Common columns for general ecological analysis |
-| Permanent Plot | Single census format for permanent plot monitoring |
-| Permanent Plot (multi-census) | Preserves all census columns |
-| Transect | Simplified format for walk surveys |
-| Full | Complete dataset with all columns |
-
-#### Census Handling
-
-Configure how multiple censuses should be handled:
-
-![Census handling options](images/app-query-census-options.png)
-
-- **Census Strategy**: Last census, First census, or Mean across censuses
-- **Show multiple census data**: Creates separate columns for each census (e.g., dbh_census_1, dbh_census_2)
-- **Individual features format**: Controls the row structure of individual-level measurements:
-  - *Wide* (default): one row per individual, with one column per trait — values are aggregated when multiple measurements exist for the same individual
-  - *Long*: one row per measurement — if an individual has two diameter records (e.g. two censuses), it appears in two rows. The output includes `trait`, `traitvalue` / `traitvalue_char`, `valuetype`, `census_name`, and `census_date` columns (`NA` when the measurement is not linked to a census). Census filtering (`census_strategy`) is still applied in long format.
-
-#### Data Organization
-
-Control output structure:
-
-- **Concatenate multiple stems**: Combine data from multi-stemmed trees
-- **Remove database IDs**: Hide internal ID columns for cleaner output
-- **Remove observations with issues**: Exclude flagged problematic records
-- **Include issue flags**: Add quality flag columns to output
-
-#### Additional Data
-
-Select what extra information to include:
-
-![Additional data options](images/app-query-additional-data.png)
-
-- **Extract taxonomic traits**: Wood density, growth form, etc.
-- **Extract individual-level features**: Tree-specific measurements
-- **Extract subplot-level features**: Subplot characteristics
-- **Fallback to genus-level traits**: Use genus data when species unavailable
-
-### Phase 4: Extract and Download
-
-#### Extraction Results
-
-Click **"Extract Individuals from Selected Plots"** to retrieve detailed tree data:
-
-![Results display with tabs](images/app-query-results-display.png)
-
-Results are organized in tabs:
-
-- **Individuals**: Tree-level measurements
-- **Metadata**: Plot information
-- **Censuses**: Census dates and details (if applicable)
-- **Height-Diameter**: H-D pairs for allometry (if applicable)
-
-#### Download Options
-
-Export your data in multiple formats:
-
-![Download panel](images/app-query-download-panel.png)
-
-**Available formats:**
-
-- **Excel (.xlsx)**: Multi-sheet workbook
-- **CSV (zipped)**: Separate CSV files in a ZIP archive
-- **R Object (.rds)**: Native R format preserving data types
-- **Shapefile (.zip)**: Spatial data (if coordinates available)
-
-Select which tables to include in your export using the checkboxes.
-
-### Viewing the Equivalent R Code
-
-A key feature of the app is the **"Equivalent R Code"** panel, displayed after running queries:
-
-![Code preview panel](images/app-query-code-preview.png)
-
-This shows the exact R code you would use with `query_plots()` to reproduce the same results programmatically.
-
-**Code sections:**
-
-1. **Metadata Query**: Code to retrieve plot metadata with your filters
-2. **Individual Extraction**: Code to extract tree data with your options
-3. **Complete Workflow Script**: Full script combining both steps
-
-![Complete workflow script](images/app-query-code-complete.png)
-
-**Why this matters:**
-
-- **Learning**: Understand how app options map to function parameters
-- **Reproducibility**: Save the exact code for your analysis documentation
-- **Scripting**: Copy code for automated workflows
-- **Collaboration**: Share query parameters with colleagues
-
-Click **"Copy to clipboard"** to copy any code section.
-
-### About Page
-
-The About tab provides app documentation and package information:
-
-![About page](images/app-query-about-page.png)
-
-### App vs. Function: When to Use Each
-
-| Use Case | Recommendation |
-|----------|----------------|
-| Quick data exploration | Use the app |
-| Interactive plot selection on a map | Use the app |
-| Learning function parameters | Start with the app, copy generated code |
-| Reproducible analysis scripts | Use `query_plots()` |
-| Automated data pipelines | Use `query_plots()` |
-| Processing many queries | Use `query_plots()` |
-
-### Language Selection
-
-The app supports **bilingual operation** (French and English). French is the default language.
-
-A language toggle is located in the top-right corner:
-
-- Click **"FR"** for French interface
-- Click **"EN"** for English interface
-
-The switch is instant and affects all UI elements.
-
-### Example: From App to Script
-
-Here's how the app helps you build reproducible queries:
-
-1. **In the app**: Select Cameroon, filter by "1 ha plot" method, extract with traits
-
-2. **Copy the generated code**:
-
-```{r app-to-script, eval=FALSE}
-# Query plot metadata
-metadata <- query_plots(
-  country = c("Cameroon"),
-  method = c("1 ha plot"),
-  extract_individuals = FALSE
-)
-
-# Extract individual tree data from selected plots
-individuals <- query_plots(
-  id_plot = c(1, 5, 12),
-  extract_individuals = TRUE,
-  output_style = "permanent_plot",
-  extract_traits = TRUE,
-  extract_individual_features = TRUE
-)
-```
-3. **Use in your analysis script** for reproducible research
 

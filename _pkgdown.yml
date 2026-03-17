@@ -2,6 +2,9 @@ url: https://umr-amap.github.io/cafriplotsR/
 template:
   bootstrap: 5
 
+news:
+  cran_dates: false
+
 navbar:
   right:
     - text: "FR"
@@ -19,6 +22,10 @@ articles:
     - updating-data
     - biomass-agb-estimation
     - growth-mortality-analysis
+  - title: "Newsletter"
+    contents:
+    - newsletter
+    - newsletter-fr
   - title: "Tools"
     contents:
     - taxonomic-app

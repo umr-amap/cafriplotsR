@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -113,9 +113,9 @@ sans les données d’arbres individuels :</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">$metadata</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; 1 rows × 9 columns</span></span>
-<span><span class="co">#&gt; Columns: plot_name, country, locality_name, method, latitude, longitude,</span></span>
-<span><span class="co">#&gt; elevation, data_provider, ...</span></span>
+<span><span class="co">#&gt; 1 rows × 16 columns</span></span>
+<span><span class="co">#&gt; Columns: plot_id, plot_name, country, locality_name, method, latitude,</span></span>
+<span><span class="co">#&gt; longitude, elevation, ...</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="font-style: italic;">Access tables with: $metadata, $individuals, etc.</span></span></span>
 <span><span class="co">#&gt; <span style="font-style: italic;">Use names(result) to see all available tables</span></span></span></code></pre></div>
@@ -139,13 +139,13 @@ sans les données d’arbres individuels :</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">$metadata</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; 1 rows × 9 columns</span></span>
-<span><span class="co">#&gt; Columns: plot_name, country, locality_name, method, latitude, longitude,</span></span>
-<span><span class="co">#&gt; elevation, data_provider, ...</span></span>
+<span><span class="co">#&gt; 1 rows × 16 columns</span></span>
+<span><span class="co">#&gt; Columns: plot_id, plot_name, country, locality_name, method, latitude,</span></span>
+<span><span class="co">#&gt; longitude, elevation, ...</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">$individuals</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; 456 rows × 16 columns</span></span>
+<span><span class="co">#&gt; 456 rows × 21 columns</span></span>
 <span><span class="co">#&gt; Columns: id_n, plot_name, tag, family, genus, species, dbh, quadrat, ...</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="font-style: italic;">Access tables with: $metadata, $individuals, etc.</span></span></span>
@@ -338,13 +338,55 @@ voir tous les recensements :</p>
 <span><span class="co"># La table hauteur-diamètre a une ligne par mesure</span></span>
 <span><span class="va">multi_census</span><span class="op">$</span><span class="va">height_diameter</span></span></code></pre></div>
 </div>
+<div class="section level3">
+<h3 id="format-long-une-ligne-par-mesure">Format Long : Une Ligne par Mesure<a class="anchor" aria-label="anchor" href="#format-long-une-ligne-par-mesure"></a>
+</h3>
+<p>La sortie par défaut
+(<code>individual_features_format = "wide"</code>) place chaque trait
+dans sa propre colonne en agrégeant les valeurs lorsque plusieurs
+mesures existent. Utilisez <code>"long"</code> pour conserver chaque
+mesure sur sa propre ligne :</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">arbres_long</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  individual_features_format <span class="op">=</span> <span class="st">"long"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Chaque ligne correspond à une mesure pour un individu</span></span>
+<span><span class="co"># Colonnes : trait, traitvalue / traitvalue_char, valuetype,</span></span>
+<span><span class="co">#            census_name (ex. "census_3"), census_date (NA si non lié à un recensement)</span></span>
+<span><span class="va">arbres_long</span><span class="op">$</span><span class="va">individuals</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">plot_name</span>, <span class="va">tag</span>, <span class="va">tax_sp_level</span>, <span class="va">trait</span>, <span class="va">traitvalue</span>, <span class="va">census_name</span>, <span class="va">census_date</span><span class="op">)</span></span></code></pre></div>
+<p>En format long, un individu ayant deux mesures de diamètre (ex. issus
+de deux recensements) apparaît sur deux lignes. Les mesures non liées à
+un recensement (ex. coordonnées de position) ont
+<code>census_name = NA</code> et <code>census_date = NA</code>.</p>
+<p>Le filtrage des recensements reste actif : avec
+<code>census_strategy = "last"</code> (valeur par défaut), seules les
+mesures du recensement le plus récent sont retournées pour les traits
+liés à un recensement, tandis que les mesures non recensées sont
+toujours incluses.</p>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Format long avec uniquement le premier recensement</span></span>
+<span><span class="va">arbres_long_premier</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  individual_features_format <span class="op">=</span> <span class="st">"long"</span>,</span>
+<span>  census_strategy <span class="op">=</span> <span class="st">"first"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Le format long est particulièrement utile lorsque vous souhaitez
+travailler avec les valeurs brutes des mesures plutôt qu’avec des
+agrégats, ou calculer vos propres statistiques sur plusieurs
+mesures.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="renommage-des-colonnes">Renommage des Colonnes<a class="anchor" aria-label="anchor" href="#renommage-des-colonnes"></a>
 </h2>
 <p>Les styles de sortie renomment automatiquement les colonnes de la
 base de données en noms conviviaux :</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -369,7 +411,7 @@ base de données en noms conviviaux :</p>
 <h3 id="coordonnées-de-parcelle">Coordonnées de Parcelle<a class="anchor" aria-label="anchor" href="#coordonn%C3%A9es-de-parcelle"></a>
 </h3>
 <p>Par défaut, retourne une coordonnée par parcelle :</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  country <span class="op">=</span> <span class="st">"Gabon"</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span></span>
@@ -382,7 +424,7 @@ base de données en noms conviviaux :</p>
 </h3>
 <p>Certaines parcelles ont plusieurs points de coordonnées (coins,
 centres de sous-parcelles) :</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">plots_all_coords</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo"</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -396,7 +438,7 @@ centres de sous-parcelles) :</p>
 <h3 id="carte-interactive">Carte Interactive<a class="anchor" aria-label="anchor" href="#carte-interactive"></a>
 </h3>
 <p>Visualiser les emplacements des parcelles :</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  country <span class="op">=</span> <span class="st">"Cameroon"</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -411,7 +453,7 @@ centres de sous-parcelles) :</p>
 <h3 id="conserver-les-ids-de-base-de-données">Conserver les IDs de Base de Données<a class="anchor" aria-label="anchor" href="#conserver-les-ids-de-base-de-donn%C3%A9es"></a>
 </h3>
 <p>Par défaut, les IDs internes sont supprimés. Pour les conserver :</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">with_ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -425,7 +467,7 @@ centres de sous-parcelles) :</p>
 <h3 id="filtrage-par-id-dindividu">Filtrage par ID d’Individu<a class="anchor" aria-label="anchor" href="#filtrage-par-id-dindividu"></a>
 </h3>
 <p>Extraire des individus spécifiques :</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">specific_trees</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  id_individual <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1001</span>, <span class="fl">1002</span>, <span class="fl">1003</span><span class="op">)</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -435,7 +477,7 @@ centres de sous-parcelles) :</p>
 <h3 id="filtrage-par-taxon">Filtrage par Taxon<a class="anchor" aria-label="anchor" href="#filtrage-par-taxon"></a>
 </h3>
 <p>Extraire les individus de taxons spécifiques :</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">species_trees</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
 <span>  id_tax <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">115</span><span class="op">)</span>,  <span class="co"># IDs de taxons</span></span>
@@ -449,7 +491,7 @@ centres de sous-parcelles) :</p>
 <p>Les options <code>keep_patterns</code> et
 <code>remove_patterns</code> dans les configurations de style permettent
 la personnalisation (PAS ENCORE IMPLÉMENTÉ) :</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Dans votre configuration de style personnalisé :</span></span>
 <span><span class="co"># keep_patterns = c("^feat_wood", "^trait_leaf")</span></span>
 <span><span class="co"># Ceci garde les caractéristiques du bois et les traits foliaires tout en supprimant les autres</span></span></code></pre></div>
@@ -458,7 +500,7 @@ la personnalisation (PAS ENCORE IMPLÉMENTÉ) :</p>
 <h2 id="combinaison-doptions">Combinaison d’Options<a class="anchor" aria-label="anchor" href="#combinaison-doptions"></a>
 </h2>
 <p>Requêtes complexes combinant plusieurs filtres :</p>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">complex_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  country <span class="op">=</span> <span class="st">"Cameroon"</span>,</span>
 <span>  locality_name <span class="op">=</span> <span class="st">"Dja"</span>,</span>
@@ -501,7 +543,7 @@ rapides</li>
 <h3 id="résultats-vides">Résultats Vides<a class="anchor" aria-label="anchor" href="#r%C3%A9sultats-vides"></a>
 </h3>
 <p>Si votre requête ne retourne pas de données :</p>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Vérifier le statut de connexion</span></span>
 <span><span class="fu"><a href="../reference/print_connection_status.html">print_connection_status</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
@@ -515,7 +557,7 @@ rapides</li>
 <h3 id="revenir-au-comportement-v1-4">Revenir au Comportement v1.4<a class="anchor" aria-label="anchor" href="#revenir-au-comportement-v1-4"></a>
 </h3>
 <p>Si vous avez besoin de l’ancienne sortie en data frame plat :</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">flat_output</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -535,7 +577,7 @@ travail intuitif en deux étapes.</p>
 <div class="section level3">
 <h3 id="lancement-de-lapplication">Lancement de l’Application<a class="anchor" aria-label="anchor" href="#lancement-de-lapplication"></a>
 </h3>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Lancer l'application de requête interactive</span></span>
 <span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
@@ -761,6 +803,25 @@ Premier recensement, ou Moyenne entre les recensements</li>
 <strong>Afficher les données de recensements multiples</strong> :
 Crée des colonnes séparées pour chaque recensement (ex. dbh_census_1,
 dbh_census_2)</li>
+<li>
+<strong>Format des données individuelles</strong> : Contrôle la
+structure des lignes pour les mesures individuelles :
+<ul>
+<li>
+<em>Large</em> (par défaut) : une ligne par individu, avec une
+colonne par trait — les valeurs sont agrégées lorsque plusieurs mesures
+existent pour un même individu</li>
+<li>
+<em>Long</em> : une ligne par mesure — si un individu a deux
+enregistrements de diamètre (ex. deux recensements), il apparaît sur
+deux lignes. La sortie inclut les colonnes <code>trait</code>,
+<code>traitvalue</code> / <code>traitvalue_char</code>,
+<code>valuetype</code>, <code>census_name</code> et
+<code>census_date</code> (<code>NA</code> si la mesure n’est pas liée à
+un recensement). Le filtrage des recensements
+(<code>census_strategy</code>) reste appliqué en format long.</li>
+</ul>
+</li>
 </ul>
 </div>
 <div class="section level4">
@@ -972,7 +1033,7 @@ reproductibles :</p>
 filtrez par méthode “1 ha plot”, extrayez avec les traits</p></li>
 <li><p><strong>Copiez le code généré</strong> :</p></li>
 </ol>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Requête de métadonnées de parcelles</span></span>
 <span><span class="va">metadata</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  country <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Cameroon"</span><span class="op">)</span>,</span>

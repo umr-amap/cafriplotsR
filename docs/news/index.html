@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,6 +30,446 @@
 
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.9.5" id="cafriplotsr-195-development">CafriplotsR 1.9.5 (Development)<a class="anchor" aria-label="anchor" href="#cafriplotsr-195-development"></a></h2>
+<div class="section level4">
+<h4 id="new-features-1-9-5">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-5"></a></h4>
+<ul><li>
+<strong>Taxa traits import Shiny app</strong> (<code>shiny_app_taxa_traits_import()</code>)
+<ul><li>New interactive app for importing taxa-level trait measurements into the database</li>
+<li>Modules: column mapping (<code>mod_trait_column_mapping</code>), metadata mapping (<code>mod_trait_metadata_mapping</code>), validation (<code>mod_trait_validation</code>), preview &amp; import (<code>mod_trait_preview_import</code>)</li>
+<li>Supports dry run preview before committing data</li>
+<li>Duplicate detection against existing database records</li>
+<li>Transactional import: trait measures and features inserted atomically (single transaction)</li>
+</ul></li>
+<li>
+<strong>Internationalization (i18n) on login module</strong>
+<ul><li>
+<code>mod_database_login</code> now includes an EN/FR language toggle at the login step</li>
+<li>Language choice is synced to the main app language selector across all 7 Shiny apps</li>
+<li>Checkbox “Use saved credentials” now correctly hidden when no saved credentials are detected</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-9-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5"></a></h4>
+<ul><li>
+<strong><code>.traits_to_genera_aggreg()</code> incorrect <code>source</code> assignment</strong>
+<ul><li>Fixed hardcoded <code>source = "species"</code> for all non-NA trait values; traits assigned via a genus-level <code>idtax</code> were incorrectly labelled as species-level</li>
+<li>
+<code>tax_level</code> (already present in <code>individuals</code> via <code>add_taxa_table_taxa</code>) is now carried through <code>dataset_subset</code> and used to set <code>source</code> correctly (<code>"species"</code> for species/infraspecific, the actual level otherwise)</li>
+<li>Applies to both categorical and numeric trait paths</li>
+<li>
+<code>tax_level</code> is dropped before <code>pivot_wider</code> to avoid column duplication on join-back</li>
+</ul></li>
+<li>
+<strong><code><a href="../reference/register_user.html">register_user()</a></code> NULL parameter crash</strong>
+<ul><li>Fixed “Expected string vector of length 1” error when <code>institution</code> or <code>notes</code> are NULL; <code>glue_sql</code> requires length-1 values, so NULLs are now converted to <code>NA_character_</code> before SQL construction</li>
+</ul></li>
+<li>
+<strong><code><a href="../reference/add_sp_traits_measures.html">add_sp_traits_measures()</a></code> robustness improvements</strong>
+<ul><li>Added <code>con</code> parameter to accept an existing connection/pool instead of always calling <code><a href="../reference/call.mydb.taxa.html">call.mydb.taxa()</a></code>
+</li>
+<li>Fixed <code>else { new_data_renamed &lt;- new_data }</code> branch that silently discarded the <code>idtax</code> column rename</li>
+<li>Replaced deprecated <code><a href="https://dplyr.tidyverse.org/reference/filter_all.html" class="external-link">dplyr::filter_at()</a></code> / <code><a href="https://dplyr.tidyverse.org/reference/all_vars.html" class="external-link">dplyr::any_vars()</a></code> with <code><a href="https://dplyr.tidyverse.org/reference/across.html" class="external-link">dplyr::if_any()</a></code>
+</li>
+<li>Fixed <code><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse()</a></code> type coercion bug: numeric trait values were silently converted to character</li>
+<li>Transaction now wraps both trait measures and features inserts (was committing before features)</li>
+<li>
+<code>dbRollback()</code> errors no longer mask the original insertion error</li>
+<li>Fixed <code><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply()</a></code> converting tibble rows to character vectors; replaced with <code><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply()</a></code>
+</li>
+</ul></li>
+<li>
+<strong><code>add_sp_traits_measures_features()</code> fixes</strong>
+<ul><li>Added <code>in_transaction</code> parameter to prevent nested <code>dbBegin()</code> errors when called within an outer transaction</li>
+<li>Added <code>interactive</code> parameter passthrough (was defaulting to <code>TRUE</code>, showing console prompts in Shiny)</li>
+<li>Fixed <code>valuetype</code> variable name collision with <code><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">dplyr::select()</a></code>
+</li>
+<li>Added <code><a href="https://rdrr.io/r/base/numeric.html" class="external-link">is.numeric()</a></code> guard on zero-value check to prevent NA crash with character trait columns</li>
+</ul></li>
+<li>
+<strong><code><a href="../reference/dot-link_sp_trait.html">.link_sp_trait()</a></code> range validation fix</strong>
+<ul><li>Added <code>!is.na()</code> guards on <code>minallowedvalue</code> / <code>maxallowedvalue</code> checks to prevent NA propagation crash when optional range limits are NULL</li>
+</ul></li>
+<li>
+<strong>Trait table references migrated to main database</strong>
+<ul><li>
+<code>table_traits</code> → <code>traitlist</code>, <code>table_traits_measures</code> → <code>taxa_traits_measures</code> across all query, add, update, delete, and link functions</li>
+<li>
+<code>mydb_taxa</code> → <code>mydb</code> for trait operations (traits now in <code>plots_transects</code> database)</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="code-refactoring-1-9-5">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-9-5"></a></h4>
+<ul><li>Switched all trait operations from taxa database (<code>rainbio</code>) to main database (<code>plots_transects</code>)</li>
+<li>Updated <code>R/taxa_traits_function.R</code>, <code>R/delete_functions.R</code>, <code>R/updates_tables_functions.R</code>, <code>R/link_table_functions.R</code>, <code>R/individual_features_function.R</code>, <code>R/mod_taxa_add.R</code>, <code>R/mod_growth_form_selector.R</code>
+</li>
+</ul><hr></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.9.4" id="cafriplotsr-194-development">CafriplotsR 1.9.4 (Development)<a class="anchor" aria-label="anchor" href="#cafriplotsr-194-development"></a></h2>
+<div class="section level4">
+<h4 id="new-features-1-9-4">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-4"></a></h4>
+<ul><li>
+<strong>User management system</strong> (<code>R/user_management.R</code>)
+<ul><li>
+<code><a href="../reference/create_user_registry.html">create_user_registry()</a></code>: Create a <code>user_registry</code> table in the main database for tracking user metadata (email, institution, etc.)</li>
+<li>
+<code><a href="../reference/register_user.html">register_user()</a></code>: Add or update user metadata in the registry</li>
+<li>
+<code><a href="../reference/setup_user_permissions.html">setup_user_permissions()</a></code>: Grant/configure user permissions on main and taxa databases</li>
+<li>
+<code><a href="../reference/get_registered_users.html">get_registered_users()</a></code>: List registered users with their metadata</li>
+<li>
+<code><a href="../reference/get_user_emails.html">get_user_emails()</a></code>: Retrieve user email addresses for communications</li>
+<li>
+<code><a href="../reference/deactivate_user.html">deactivate_user()</a></code> / <code><a href="../reference/reactivate_user.html">reactivate_user()</a></code>: Manage user active status</li>
+</ul></li>
+<li>
+<strong>Feature and trait categories</strong>
+<ul><li>New <code>category</code> parameter in <code><a href="../reference/add_trait.html">add_trait()</a></code> and <code><a href="../reference/add_subplottype.html">add_subplottype()</a></code> for grouping features in the UI</li>
+<li>Import wizard (step 3) now shows a category selector when adding new traits or subplot features</li>
+</ul></li>
+<li>
+<strong>Census summary columns in <code><a href="../reference/query_plots.html">query_plots()</a></code> metadata output</strong>
+<ul><li>New columns <code>n_census</code>, <code>first_census</code>, <code>last_census</code> in plot-level metadata</li>
+<li>Exposed in all output styles</li>
+</ul></li>
+<li>
+<strong>Grouped schema column dropdowns in import wizard</strong>
+<ul><li>
+<code><a href="../reference/get_schema_choices_grouped.html">get_schema_choices_grouped()</a></code>: Builds optgroup-organized choices for column mapping dropdowns</li>
+<li>Columns grouped by category, with most-similar matches sorted to the top per group</li>
+</ul></li>
+<li>
+<strong>Apply fuzzy matches button in specimen lookup module</strong>
+<ul><li>Users can now review and confirm fuzzy collector/specimen matches before applying them</li>
+</ul></li>
+<li>
+<strong>Long format output for individual features in <code><a href="../reference/query_plots.html">query_plots()</a></code></strong>
+<ul><li>New <code>individual_features_format = c("wide", "long")</code> parameter (default: <code>"wide"</code>)</li>
+<li>Wide format (existing behaviour): one row per individual with trait columns pivoted wide</li>
+<li>Long format: one row per individual × measurement (<code>trait</code>, <code>traitvalue</code>, <code>traitvalue_char</code>, <code>valuetype</code>, <code>census_date</code>)</li>
+<li>Census filtering (<code>census_strategy</code>, <code>show_multiple_census</code>) applies to both formats</li>
+<li>
+<code>concatenate_stem = TRUE</code> is incompatible with long format and raises an informative error</li>
+<li>Option exposed in the <strong>Census Handling</strong> section of the interactive query-plots Shiny app</li>
+</ul></li>
+<li>
+<strong>Consistent <code>plot_id</code> column across all output styles</strong>
+<ul><li>
+<code>id_liste_plots</code> is now always renamed to <code>plot_id</code> in metadata output, regardless of output style</li>
+<li>Enables reliable chaining: <code>query_plots(id_plot = metadata$metadata$plot_id, ...)</code>
+</li>
+<li>
+<code>remove_patterns</code> regex updated to also preserve <code>id_liste_plots</code> (like <code>id_n</code>)</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-9-4">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-4"></a></h4>
+<ul><li>
+<strong>Shiny app query-plots — results reset when query parameters change</strong>
+<ul><li>Going back to the query builder and changing filters, plot selection, or extraction options now clears the results section</li>
+<li>Prevents stale extraction results from being displayed alongside a new metadata query</li>
+</ul></li>
+<li>
+<strong>Shiny app query-plots — generated R code now reflects actual extraction</strong>
+<ul><li>Code preview captures plot IDs at extraction time (not live selection state)</li>
+<li>Individuals code always uses <code>metadata$metadata$plot_id</code> when a metadata query preceded extraction, regardless of how many plots were selected</li>
+<li>Fixed metadata viewer failing to find the <code>plot_id</code> column (was only checking legacy names <code>id_liste_plots</code> / <code>id_plot</code>)</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="documentation-1-9-4">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-9-4"></a></h4>
+<ul><li>Updated vignettes (<code>using-query-plots.Rmd</code>, <code>using-query-plots-fr.Rmd</code>) with <code>individual_features_format</code> parameter in the <strong>Census Handling</strong> section</li>
+</ul><hr></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.9.3" id="cafriplotsr-193-development">CafriplotsR 1.9.3 (Development)<a class="anchor" aria-label="anchor" href="#cafriplotsr-193-development"></a></h2>
+<div class="section level4">
+<h4 id="new-features-1-9-3">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-3"></a></h4>
+<ul><li>
+<strong>Improved parameter naming in <code><a href="../reference/query_plots.html">query_plots()</a></code></strong>
+<ul><li>New <code>extract_coordinates</code> parameter replaces <code>show_all_coordinates</code> for better clarity</li>
+<li>More intuitive name better describes the action: extracting coordinate data from subplots</li>
+<li>When TRUE, returns <code>coordinates</code> (raw data) and <code>coordinates_sf</code> (spatial features) in output list</li>
+<li>Old parameter <code>show_all_coordinates</code> still works but shows deprecation warning</li>
+<li>Will be removed in a future version (2.0.0)</li>
+</ul></li>
+<li>
+<strong>Enhanced column mapping with pattern/substring synonym matching</strong>
+<ul><li>Column mapping now recognizes synonyms embedded in larger strings (e.g., “DBH [cm]” matches “dbh” → <code>stem_diameter</code>)</li>
+<li>Normalizes both user columns and synonyms by removing special characters, brackets, spaces</li>
+<li>Minimum 3-character synonym length to avoid false positives</li>
+<li>Composite scoring: prioritizes longest synonym match (×100), then column similarity (×10) as tiebreaker</li>
+<li>Dynamic confidence scoring (0.80-0.90) based on similarity for pattern matches</li>
+<li>Works across all import types: plots, individuals, and traits</li>
+<li>Dramatically improves auto-mapping success rate for datasets with unit annotations</li>
+</ul></li>
+<li>
+<strong>Smart deduplication for duplicate column mappings</strong>
+<ul><li>Automatically detects when multiple user columns map to the same database column</li>
+<li>Keeps only the best mapping based on priority: exact match &gt; exact synonym &gt; pattern synonym &gt; fuzzy</li>
+<li>Unmaps lower-quality duplicates (sets to skip) to prevent data conflicts</li>
+<li>Console/log output shows which columns were kept and which were unmarked</li>
+<li>Example: “original_tax_name”, “Espece”, “Espece N” all mapping to <code>original_tax_name</code> → keeps exact match, skips others</li>
+<li>Prevents import errors from ambiguous column data sources</li>
+</ul></li>
+<li>
+<strong>Similarity-based dropdown sorting in column mapping UI</strong>
+<ul><li>Import wizard dropdowns now show database columns sorted by similarity to user column name</li>
+<li>Each user column gets its own relevance-ranked dropdown (not global alphabetical)</li>
+<li>Most similar options appear first, making manual mapping intuitive</li>
+<li>Uses same string similarity algorithm as fuzzy matching</li>
+<li>Significantly improves UX for columns that weren’t auto-mapped</li>
+</ul></li>
+<li>
+<strong>Auto-fill missing taxonomy with Magnoliopsida</strong>
+<ul><li>Missing <code>idtax_n</code> values are automatically filled with 351190 (Magnoliopsida class)</li>
+<li>Converts taxonomy validation errors to warnings for missing <code>idtax_n</code> and <code>original_tax_name</code>
+</li>
+<li>Clear messaging: “Missing idtax_n are considered to be unidentified stems”</li>
+<li>Allows import to proceed for unidentified individuals while providing placeholder taxonomy</li>
+<li>Users can update taxonomy later when identification becomes available</li>
+</ul></li>
+<li>
+<strong>Enhanced validation error messages with expected units</strong>
+<ul><li>Min/max range validation errors now include expected unit information</li>
+<li>Example: “Trait ‘height_of_stem_diameter’ has 5930 value(s) above maximum allowed (30) (expected unit: m)”</li>
+<li>Helps users quickly identify unit mismatches (cm vs m, mm vs cm, etc.)</li>
+<li>Only appends unit info when trait has <code>expectedunit</code> defined in database</li>
+<li>Reduces debugging time and prevents data import errors</li>
+</ul></li>
+<li>
+<strong>Database backup and restore functions</strong>
+<ul><li>New <code><a href="../reference/backup_database.html">backup_database()</a></code> function creates timestamped PostgreSQL backups using pg_dump</li>
+<li>Supports both main (<code>plots_transects</code>) and taxa (<code>rainbio</code>) databases</li>
+<li>Backup files use format: <code>database_backup_YYYY-MM-DD_HH-MM-SS.dump</code>
+</li>
+<li>Optional compression (enabled by default) for smaller file sizes</li>
+<li>New <code><a href="../reference/list_backups.html">list_backups()</a></code> function shows all available backups with timestamps and sizes</li>
+<li>New <code><a href="../reference/restore_database.html">restore_database()</a></code> function restores from backup with safety confirmations</li>
+<li>New <code><a href="../reference/cleanup_old_backups.html">cleanup_old_backups()</a></code> function removes backups older than specified days (with dry-run mode)</li>
+<li>Proper Windows path handling using short path names (8.3 format) to avoid space issues</li>
+<li>Secure password handling via PGPASSWORD environment variable</li>
+<li>Requires PostgreSQL client tools (pg_dump/pg_restore) installed and in PATH</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-9-3">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-3"></a></h4>
+<ul><li>
+<strong>Fixed missing <code>stringr::</code> namespace prefix in coordinate extraction</strong>
+<ul><li>Added <code>stringr::</code> prefix to <code><a href="https://stringr.tidyverse.org/reference/str_split.html" class="external-link">str_split()</a></code> calls in coordinate extraction code</li>
+<li>Fixes “impossible de trouver la fonction ‘str_split’” error in <code><a href="../reference/query_plots.html">query_plots()</a></code> with <code>show_all_coordinates = TRUE</code>
+</li>
+<li>Affects <code>functions_manip_db.R</code> lines 351-354 in coordinate processing</li>
+<li>
+<code>stringr</code> was already in package dependencies, just needed proper namespace usage</li>
+</ul></li>
+<li>
+<strong>Fixed missing <code>purrr</code> dependency for coordinate extraction</strong>
+<ul><li>Added <code>purrr</code> to package Imports (required by <code><a href="../reference/query_plots.html">query_plots()</a></code> with <code>show_all_coordinates = TRUE</code>)</li>
+<li>Fixed unnamespaced <code><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">map_chr()</a></code> calls to use <code><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">purrr::map_chr()</a></code> in coordinate processing</li>
+<li>Resolves “dépendance ‘tidytable’ pas chargée (necessaire pour coordinates)” error message</li>
+<li>Affects <code>functions_manip_db.R</code> coordinate extraction when querying subplot coordinates</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="code-refactoring-1-9-3">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-9-3"></a></h4>
+<ul><li>
+<strong>Refactored <code>generate_rmd_export_plot.R</code> script</strong>
+<ul><li>Better structure with clear configuration, validation, and processing sections</li>
+<li>Comprehensive error handling for each quadrat and plot</li>
+<li>Improved user feedback with <code>cli</code> package progress messages</li>
+<li>Validates output directory and template existence before processing</li>
+<li>Tracks results and errors for each operation</li>
+<li>Final summary with counts of generated files and any errors</li>
+<li>Optional cleanup of individual PDFs after merging</li>
+<li>Remains as internal/non-exported script for user convenience</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="documentation-1-9-3">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-9-3"></a></h4>
+<ul><li>
+<strong>Added FUTURE_IMPROVEMENTS.md</strong>
+<ul><li>Documents enhancement idea for database-backed synonym system for traits</li>
+<li>Currently trait synonyms are hardcoded in R; proposal to store in <code>table_traits</code> table</li>
+<li>Includes implementation roadmap and related files for future development</li>
+</ul></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.9.2" id="cafriplotsr-192-development">CafriplotsR 1.9.2 (Development)<a class="anchor" aria-label="anchor" href="#cafriplotsr-192-development"></a></h2>
+<div class="section level4">
+<h4 id="bug-fixes-1-9-2">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-2"></a></h4>
+<ul><li>
+<strong>Fixed empty specimen handling in <code><a href="../reference/merge_individuals_taxa.html">merge_individuals_taxa()</a></code></strong>
+<ul><li>When no specimens are linked to individuals, function was creating empty tibble without proper column structure</li>
+<li>Caused “Column ‘id_specimen’ doesn’t exist” error in <code><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">dplyr::select()</a></code>
+</li>
+<li>Now creates empty tibble with correct column structure (id_specimen, idtax_specimen_f, colnam_specimen, colnbr, suffix)</li>
+<li>Fixes error in <code><a href="../reference/query_plots.html">query_plots()</a></code> with <code>extract_individuals = TRUE</code> when plots have no linked specimens</li>
+</ul></li>
+<li>
+<strong>Fixed connection retry logic for trait measurement features queries</strong>
+<ul><li>Replaced direct <code><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">DBI::dbGetQuery()</a></code> calls with <code><a href="../reference/func_try_fetch.html">func_try_fetch()</a></code> in measurement features functions</li>
+<li>Automatic retry (up to 10 attempts) when database connections are lost or timeout</li>
+<li>Affected functions: <code><a href="../reference/count_measurement_features.html">count_measurement_features()</a></code>, <code><a href="../reference/fetch_measurement_features_raw.html">fetch_measurement_features_raw()</a></code>, <code><a href="../reference/fetch_taxa_trait_measurements.html">fetch_taxa_trait_measurements()</a></code>, <code><a href="../reference/pivot_table_references.html">pivot_table_references()</a></code>
+</li>
+<li>Prevents “server closed the connection unexpectedly” errors in long-running Shiny sessions</li>
+<li>Users no longer need to manually rerun queries after connection failures</li>
+</ul></li>
+<li>
+<strong>Fixed duplicate rows when including measurement features</strong>
+<ul><li>
+<code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code> and <code><a href="../reference/query_individual_features.html">query_individual_features()</a></code> with <code>include_measurement_features = TRUE</code> were creating duplicate rows for same <code>id_trait_measures</code>
+</li>
+<li>Root cause: Multiple feature records per measurement (e.g., separate records for <code>try_dataset_id</code> and <code>try_observation_id</code>) were being kept as separate rows</li>
+<li>Modified <code><a href="../reference/pivot_features_by_type.html">pivot_features_by_type()</a></code> and <code><a href="../reference/pivot_table_references.html">pivot_table_references()</a></code> to aggregate features by <code>id_trait_measures</code> only</li>
+<li>Multiple feature values are now properly concatenated with <code>|</code> separator in single row</li>
+<li>Added safety check in <code><a href="../reference/pivot_measurement_features.html">pivot_measurement_features()</a></code> to ensure one row per measurement</li>
+</ul></li>
+<li>
+<strong>Fixed missing id_col in pivoted measurement features</strong>
+<ul><li>
+<code>id_ind_meas_feat</code> (individuals) and <code>id_taxa_trait_feat</code> (taxa) columns were lost during pivot operations</li>
+<li>Modified <code><a href="../reference/pivot_measurement_features.html">pivot_measurement_features()</a></code> to pre-aggregate feature IDs separately and join back after pivoting</li>
+<li>Feature IDs are now properly preserved and concatenated when multiple features exist per measurement</li>
+<li>Prevents “objet ‘id_ind_meas_feat’ introuvable” errors in downstream code</li>
+</ul></li>
+<li>
+<strong>Fixed census-linked measurements exclusion in <code><a href="../reference/query_individual_features.html">query_individual_features()</a></code></strong>
+<ul><li>When <code>include_multi_census = FALSE</code>, measurements linked to subplots/censuses (having <code>id_sub_plots</code>) were incorrectly excluded from results</li>
+<li>Now properly aggregates census-linked measurements by individual when <code>include_multi_census = FALSE</code>
+</li>
+<li>When <code>include_multi_census = TRUE</code>, still keeps separate rows for each subplot/census</li>
+<li>Affects both numeric and character trait pivoting</li>
+</ul></li>
+<li>
+<strong>Fixed R code generation bug in Shiny app for individual features</strong>
+<ul><li>
+<code>mod_code_preview</code> was always generating <code>individuals$extract$id_n</code> regardless of <code>output_style</code>
+</li>
+<li>Now correctly generates <code>individuals$individuals$id_n</code> for standard output styles</li>
+<li>Only uses <code>individuals$extract$id_n</code> when <code>output_style = "full"</code>
+</li>
+<li>Prevents “Column ‘id_n’ not found” errors when copying generated code</li>
+</ul></li>
+<li>
+<strong>Optimized <code><a href="../reference/merge_individuals_taxa.html">merge_individuals_taxa()</a></code> performance</strong>
+<ul><li>Was loading entire <code>table_idtax</code> synonym table (could be millions of rows) causing long delays</li>
+<li>Now fetches individuals first, then loads only the synonyms needed for those specific taxa</li>
+<li>Also optimized specimen and specimen-link queries to filter early</li>
+<li>Added detailed progress indicators at each step</li>
+<li>Dramatically improves query speed for large databases</li>
+</ul></li>
+<li>
+<strong>Fixed timeout errors for large individual features queries</strong>
+<ul><li>Count query with huge IN clauses (&gt;10,000 measurements) was causing “SSL SYSCALL error: EOF detected”</li>
+<li>Now skips count query for very large datasets to avoid timeout</li>
+<li>Reduced chunking threshold from 15,000 to 5,000 for more aggressive chunking</li>
+<li>Added better progress indicators throughout the query process</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="new-features-1-9-2">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-2"></a></h4>
+<ul><li>
+<strong>Comprehensive permission management for import wizard</strong>
+<ul><li>New <code><a href="../reference/setup_import_wizard_permissions.html">setup_import_wizard_permissions()</a></code> - one-command setup for all import permissions</li>
+<li>New <code><a href="../reference/grant_all_table_permissions.html">grant_all_table_permissions()</a></code> - grant on ALL existing tables and sequences</li>
+<li>New <code><a href="../reference/grant_plot_insert_permissions.html">grant_plot_insert_permissions()</a></code> - grant specific table permissions</li>
+<li>New <code><a href="../reference/diagnose_plot_permissions.html">diagnose_plot_permissions()</a></code> - diagnose permission issues</li>
+<li>New <code><a href="../reference/diagnose_add_person_setup.html">diagnose_add_person_setup()</a></code> - check if secure functions are available</li>
+<li>Automatic sequence discovery - finds and grants permissions on all sequences for tables</li>
+<li>Handles missing tables gracefully - skips non-existent tables without failing</li>
+<li>Comprehensive error messages guide users through permission setup</li>
+<li>Supports granting to specific users or PUBLIC (all users)</li>
+<li>RLS policies remain intact - table permissions don’t affect row-level security</li>
+</ul></li>
+<li>
+<strong>Safe plot deletion with transaction support</strong>
+<ul><li>New <code><a href="../reference/safe_delete_plot.html">safe_delete_plot()</a></code> function for safely deleting plots and all related data</li>
+<li>
+<strong>Dry-run mode by default</strong> - preview what will be deleted before actually deleting</li>
+<li>Shows detailed counts: individuals, trait measurements, measurement features, subplots</li>
+<li>Requires explicit confirmation (can be bypassed with <code>force = TRUE</code>)</li>
+<li>Uses database transactions - rolls back all changes if any step fails</li>
+<li>Correct cascade deletion order respects foreign key constraints:
+<ol style="list-style-type: decimal"><li>Measurement features → 2. Trait measurements → 3. Individuals → 4. Subplots → 5. Plot</li>
+</ol></li>
+<li>Detailed progress logging at each step</li>
+<li>Options to keep individuals or subplots if needed</li>
+<li>Returns deletion summary for verification</li>
+<li>See documentation: <code><a href="../reference/safe_delete_plot.html">?safe_delete_plot</a></code>
+</li>
+</ul></li>
+<li>
+<strong>Secure function for adding people without INSERT permissions</strong>
+<ul><li>New <code><a href="../reference/setup_add_person_function.html">setup_add_person_function()</a></code> creates a PostgreSQL SECURITY DEFINER function</li>
+<li>Database administrators run this once to enable all users to add people to <code>table_colnam</code>
+</li>
+<li>Users without INSERT permission can now add people through the import wizard</li>
+<li>Automatic fallback: tries secure function first, then direct INSERT if available</li>
+<li>Improved error messages guide users to contact admin if permissions lacking</li>
+<li>New functions: <code><a href="../reference/add_person_to_db.html">add_person_to_db()</a></code>, <code><a href="../reference/grant_lookup_table_permissions.html">grant_lookup_table_permissions()</a></code>
+</li>
+<li>See documentation: <code><a href="../reference/setup_add_person_function.html">?setup_add_person_function</a></code>
+</li>
+</ul></li>
+<li>
+<strong>Improved user experience for individual features display</strong>
+<ul><li>Removed internal <code>id_ind_meas_feat</code> column from results when metadata is included</li>
+<li>Added informative note in Shiny app explaining <code>id_data_individuals</code> corresponds to <code>id_n</code> in individuals table</li>
+<li>Helps users understand how to join individual features with individuals data</li>
+<li>Bilingual support (English/French)</li>
+</ul></li>
+<li>
+<strong>Long format traits table in taxonomic match Shiny app</strong>
+<ul><li>Added tabbed interface to traits enrichment module in <code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>
+</li>
+<li>Two views now available after fetching traits:
+<ul><li>
+<strong>Wide Format (Aggregated)</strong>: One row per taxon with trait columns (existing functionality preserved)</li>
+<li>
+<strong>Long Format (Detailed)</strong>: One row per measurement with all metadata</li>
+</ul></li>
+<li>Long format automatically includes:
+<ul><li>Measurement remarks (<code>include_remarks = TRUE</code>)</li>
+<li>Measurement features (<code>include_measurement_features = TRUE</code>)</li>
+<li>Original input names, matched names, and corrected names for traceability</li>
+<li>All measurement metadata (basisofrecord, traitdescription, expectedunit, etc.)</li>
+</ul></li>
+<li>Separate download buttons for each format (<code>.xlsx</code> export)</li>
+<li>Full bilingual support (English/French) with 9 new translations</li>
+<li>Equivalent to calling <code>query_taxa_traits(format = "long", include_remarks = TRUE, include_measurement_features = TRUE)</code>
+</li>
+</ul></li>
+<li>
+<strong>Individual Features Query in Plot Query App</strong>
+<ul><li>Added optional individual-level features extraction to <code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code>
+</li>
+<li>New collapsible configuration panel for querying individual features separately using <code><a href="../reference/query_individual_features.html">query_individual_features()</a></code>
+</li>
+<li>Extracts features from already-loaded individuals data (uses <code>id_n</code> column)</li>
+<li>Configurable parameters:
+<ul><li>Trait selection (all traits or specific trait IDs)</li>
+<li>Output format (wide with aggregation or long without aggregation)</li>
+<li>Multi-census data inclusion</li>
+<li>Measurement metadata inclusion</li>
+<li>Census strategy</li>
+</ul></li>
+<li>Results displayed in separate “Individual Features” tab</li>
+<li>Included in all export formats (Excel, CSV, RDS)</li>
+<li>Dynamic R code generation shows equivalent <code><a href="../reference/query_individual_features.html">query_individual_features()</a></code> call</li>
+<li>Format explanations:
+<ul><li>Wide format: one row per individual, measurements as columns (aggregated if multiple observations)</li>
+<li>Long format: one row per measurement (complete representation, no aggregation)</li>
+</ul></li>
+<li>Full bilingual support with 30+ new translations</li>
+<li>Positioned logically after individual extraction button for intuitive workflow</li>
+</ul></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.9.1" id="cafriplotsr-191-2026-01-18">CafriplotsR 1.9.1 (2026-01-18)<a class="anchor" aria-label="anchor" href="#cafriplotsr-191-2026-01-18"></a></h2>
 <div class="section level4">
