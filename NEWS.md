@@ -2,6 +2,14 @@
 
 ### New Features
 
+* **Public access login option in all Shiny apps**
+  - `mod_database_login` now offers a "Connect as public user" button alongside the personal credentials form
+  - Public connection uses a dedicated read-only database user (`CafriP_public`) with access restricted to taxonomy and taxa-level trait tables only — no plot data exposed
+  - A yellow warning notice on the login panel informs users that public access is read-only and does not allow adding or modifying data
+  - `mod_database_login_server()` returns a new `is_public` reactive so parent apps can adapt their UI accordingly
+  - `shiny_app_taxo_backbone`: the existing write-permission check (`has_table_privilege`) automatically detects the public user and displays the amber "Read-Only Mode" badge — no additional changes required
+  - Applies to both `launch_taxonomic_match_app()` and `launch_taxo_backbone_app()`
+
 * **Taxa traits import Shiny app** (`shiny_app_taxa_traits_import()`)
   - New interactive app for importing taxa-level trait measurements into the database
   - Modules: column mapping (`mod_trait_column_mapping`), metadata mapping (`mod_trait_metadata_mapping`), validation (`mod_trait_validation`), preview & import (`mod_trait_preview_import`)
