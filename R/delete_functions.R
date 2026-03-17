@@ -24,224 +24,46 @@
 }
 
 
+# .delete_entry_trait_measure <- function(id) {
+#   
+#   if(!exists("mydb")) call.mydb()
+#   
+#   # DBI::dbExecute(mydb,
+#   #                "DELETE FROM data_traits_measures WHERE id_trait_measures=$1", params=list(id)
+#   # )
+#   
+#   feats <- query_traits_measures_features(id_trait_measures = id)
+#   
+#   if (nrow(feats) > 0) {
+#     
+#     feat <-
+#       feats %>%
+#       mutate(id_ind_meas_feat_n = str_extract_all(id_ind_meas_feat, "[[:digit:]]+"))
+#     
+#     
+#     print(feat)
+#     
+#     # askYesNo(msg = "Remove associated features")
+#     rm_feats <- choose_prompt(message = "Remove associated features ?")
+#     
+#     if (rm_feats)
+#       .delete_entry_trait_measure_features(id = as.numeric(unlist(feat$id_ind_meas_feat_n)))
+#     
+#   }
+#   
+#   query <- "DELETE FROM data_traits_measures WHERE MMM"
+#   query <-
+#     gsub(
+#       pattern = "MMM",
+#       replacement = paste0("id_trait_measures IN ('",
+#                            paste(unique(id), collapse = "', '"), "')"),
+#       x = query
+#     )
+#   
+#   rs <- DBI::dbSendQuery(mydb, query)
+#   DBI::dbClearResult(rs)
+# }
 
-
-
-
-
-
-#' Delete an entry in traits measurements table
-#'
-#' Delete an entry in traits measurements table using id for selection
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param id integer
-#'
-#' @return No values
-#' @export
-.delete_entry_sp_trait_measure <- function(id, con = NULL) {
-
-  if (is.null(con)) {
-    if (!exists("mydb")) mydb <- call.mydb()
-    con <- mydb
-  }
-
-  query <- "DELETE FROM taxa_traits_measures WHERE MMM"
-  query <-
-    gsub(
-      pattern = "MMM",
-      replacement = paste0("id_trait_measures IN ('",
-                           paste(unique(id), collapse = "', '"), "')"),
-      x = query
-    )
-
-  rs <- DBI::dbSendQuery(con, query)
-  DBI::dbClearResult(rs)
-  
-  
-  
-}
-
-
-
-#' Delete an entry in subplotype_list table
-#'
-#' Delete an entry in subplotype_list table using id for selection
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param id integer
-#'
-#' @return No values
-.delete_subplottype <- function(id) {
-  
-  if(!exists("mydb")) call.mydb()
-  
-  # askYesNo(msg = "You are about to delete entries in the table that contain subplot features types. Do you confirm ?")
-  
-  choose_prompt(message = "You are about to delete entries in the table that contain subplot features types. Do you confirm ?")
-  
-  query <- "DELETE FROM subplotype_list WHERE MMM"
-  query <-
-    gsub(
-      pattern = "MMM",
-      replacement = paste0("id_subplotype IN ('",
-                           paste(unique(id), collapse = "', '"), "')"),
-      x = query
-    )
-  
-  rs <- DBI::dbSendQuery(mydb, query)
-  DBI::dbClearResult(rs)
-  
-}
-
-#' Delete an entry in data_liste_sub_plots features
-#'
-#' Delete an entry in data_liste_sub_plots features using id for selection
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param id integer
-#'
-#' @return No values
-.delete_subplotfeature <- function(id) {
-  
-  if(!exists("mydb")) call.mydb()
-  
-  query <- "DELETE FROM data_liste_sub_plots WHERE MMM"
-  query <-
-    gsub(
-      pattern = "MMM",
-      replacement = paste0("id_sub_plots IN ('",
-                           paste(unique(id), collapse = "', '"), "')"),
-      x = query
-    )
-  
-  rs <- DBI::dbSendQuery(mydb, query)
-  DBI::dbClearResult(rs)
-  
-  # DBI::dbExecute(mydb,
-  #                "DELETE FROM data_liste_sub_plots WHERE id_sub_plots=$1", params=list(id)
-  # )
-}
-
-
-
-#' Delete an entry in data_liste_sub_plots features
-#'
-#' Delete an entry in data_liste_sub_plots features using id for selection
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param id integer
-#'
-#' @return No values
-.delete_subplotfeature_feat <- function(id) {
-  
-  if(!exists("mydb")) mydb <- call.mydb()
-  
-  query <- "DELETE FROM data_subplot_feat WHERE MMM"
-  query <-
-    gsub(
-      pattern = "MMM",
-      replacement = paste0("id_subplot_feat IN ('",
-                           paste(unique(id), collapse = "', '"), "')"),
-      x = query
-    )
-  
-  rs <- DBI::dbSendQuery(mydb, query)
-  DBI::dbClearResult(rs)
-  
-  # DBI::dbExecute(mydb,
-  #                "DELETE FROM data_liste_sub_plots WHERE id_sub_plots=$1", params=list(id)
-  # )
-}
-
-
-#' Delete an entry in trait measurement table (individuals features)
-#'
-#' Delete an entry in trait measurement table using id for selection
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param id integer
-#'
-#' @return No values
-#' @export
-.delete_entry_trait_measure <- function(id) {
-  
-  if(!exists("mydb")) call.mydb()
-  
-  # DBI::dbExecute(mydb,
-  #                "DELETE FROM data_traits_measures WHERE id_trait_measures=$1", params=list(id)
-  # )
-  
-  feats <- query_traits_measures_features(id_trait_measures = id)
-  
-  if (nrow(feats) > 0) {
-    
-    feat <-
-      feats %>%
-      mutate(id_ind_meas_feat_n = str_extract_all(id_ind_meas_feat, "[[:digit:]]+"))
-    
-    
-    print(feat)
-    
-    # askYesNo(msg = "Remove associated features")
-    rm_feats <- choose_prompt(message = "Remove associated features ?")
-    
-    if (rm_feats)
-      .delete_entry_trait_measure_features(id = as.numeric(unlist(feat$id_ind_meas_feat_n)))
-    
-  }
-  
-  query <- "DELETE FROM data_traits_measures WHERE MMM"
-  query <-
-    gsub(
-      pattern = "MMM",
-      replacement = paste0("id_trait_measures IN ('",
-                           paste(unique(id), collapse = "', '"), "')"),
-      x = query
-    )
-  
-  rs <- DBI::dbSendQuery(mydb, query)
-  DBI::dbClearResult(rs)
-}
-
-
-#' Delete an entry in trait measurement features table
-#'
-#' Delete an entry in trait measurement features table using id for selection
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param id integer
-#'
-#' @return No values
-#' @export
-.delete_entry_trait_measure_features <- function(id) {
-  
-  if(!exists("mydb")) call.mydb()
-  
-  query <- "DELETE FROM data_ind_measures_feat WHERE MMM"
-  query <-
-    gsub(
-      pattern = "MMM",
-      replacement = paste0("id_ind_meas_feat IN ('",
-                           paste(unique(id), collapse = "', '"), "')"),
-      x = query
-    )
-  
-  rs <- DBI::dbSendQuery(mydb, query)
-  DBI::dbClearResult(rs)
-}
 
 
 #' Delete an entry in trait measurement table
@@ -337,77 +159,67 @@
   
 }
 
-#' Delete an entry in individuals table
-#'
-#' Delete an entry in individuals table using id for selection
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param id integer
-#'
-#' @return No values
-#' @export
-.delete_individuals <- function(id) {
-  
-  if(!exists("mydb")) call.mydb()
-  
-  # DBI::dbExecute(mydb,
-  #                "DELETE FROM data_individuals WHERE id_n=$1", params=list(id)
-  # )
-  
-  
-  ind_feat <- query_individual_features(individual_ids = id, format = "long", remove_issues = FALSE)
-  
-  link_specimens <- 
-    try_open_postgres_table(table = "data_link_specimens", con = mydb) %>% 
-    filter(id_n %in% !!id) %>% 
-    collect()
-  
-  if (length(ind_feat$traits_char) > 0 | 
-      length(ind_feat$traits_num) > 0) {
-    
-    print(ind_feat)
-    
-    # rm_feats <- askYesNo(msg = "Remove associated individual features ?")
-    
-    rm_feats <- 
-      choose_prompt(message = "Remove associated individual features ?")
-    
-    if (rm_feats) {
-      if (length(ind_feat$traits_char) > 0)
-        .delete_entry_trait_measure(id = ind_feat$traits_char[[1]]$id_trait_measures)
-      
-      if (length(ind_feat$traits_num) > 0)
-        .delete_entry_trait_measure(id = ind_feat$traits_num[[1]]$id_trait_measures)      
-    }
-  }
-  
-  if (nrow(link_specimens) > 0) {
-    
-    print(link_specimens)
-    
-    rm_link <- 
-      choose_prompt(message = "Remove links to specimens ?")
-    
-    if (rm_link)
-      .delete_link_individual_specimen(id_ind = id)
-    
-  }
-  
-  query <- "DELETE FROM data_individuals WHERE MMM"
-  query <-
-    gsub(
-      pattern = "MMM",
-      replacement = paste0("id_n IN ('",
-                           paste(unique(id), collapse = "', '"), "')"),
-      x = query
-    )
-  
-  rs <- DBI::dbSendQuery(mydb, query)
-  DBI::dbClearResult(rs)
-  
-}
+
+# .delete_individuals <- function(id) {
+#   
+#   if(!exists("mydb")) call.mydb()
+#   
+#   # DBI::dbExecute(mydb,
+#   #                "DELETE FROM data_individuals WHERE id_n=$1", params=list(id)
+#   # )
+#   
+#   
+#   ind_feat <- query_individual_features(individual_ids = id, format = "long", remove_issues = FALSE)
+#   
+#   link_specimens <- 
+#     try_open_postgres_table(table = "data_link_specimens", con = mydb) %>% 
+#     filter(id_n %in% !!id) %>% 
+#     collect()
+#   
+#   if (length(ind_feat$traits_char) > 0 | 
+#       length(ind_feat$traits_num) > 0) {
+#     
+#     print(ind_feat)
+#     
+#     # rm_feats <- askYesNo(msg = "Remove associated individual features ?")
+#     
+#     rm_feats <- 
+#       choose_prompt(message = "Remove associated individual features ?")
+#     
+#     if (rm_feats) {
+#       if (length(ind_feat$traits_char) > 0)
+#         .delete_entry_trait_measure(id = ind_feat$traits_char[[1]]$id_trait_measures)
+#       
+#       if (length(ind_feat$traits_num) > 0)
+#         .delete_entry_trait_measure(id = ind_feat$traits_num[[1]]$id_trait_measures)      
+#     }
+#   }
+#   
+#   if (nrow(link_specimens) > 0) {
+#     
+#     print(link_specimens)
+#     
+#     rm_link <- 
+#       choose_prompt(message = "Remove links to specimens ?")
+#     
+#     if (rm_link)
+#       .delete_link_individual_specimen(id_ind = id)
+#     
+#   }
+#   
+#   query <- "DELETE FROM data_individuals WHERE MMM"
+#   query <-
+#     gsub(
+#       pattern = "MMM",
+#       replacement = paste0("id_n IN ('",
+#                            paste(unique(id), collapse = "', '"), "')"),
+#       x = query
+#     )
+#   
+#   rs <- DBI::dbSendQuery(mydb, query)
+#   DBI::dbClearResult(rs)
+#   
+# }
 
 
 #' Delete an entry in specimen table
@@ -471,26 +283,6 @@
 }
 
 
-#' Delete an entry in plot meta-data
-#'
-#' Delete an entry in plot meta-data table using id for selection
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param id integer
-#'
-#' @return No values
-#' @export
-.delete_plot <- function(id) {
-  
-  if(!exists("mydb")) call.mydb()
-  
-  DBI::dbExecute(mydb,
-                 "DELETE FROM data_liste_plots WHERE id_liste_plots=$1", params=list(id)
-  )
-}
-
 
 #' Delete an entry in colnam table
 #'
@@ -546,44 +338,3 @@
 
 
 
-#' Delete an entry in species trait list
-#'
-#' Delete an entry in species traitlist entry using id for selection
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param id integer
-#'
-#' @return No values
-.delete_sp_trait_list <- function(id, con = NULL) {
-
-  if (is.null(con)) {
-    if (!exists("mydb")) mydb <- call.mydb()
-    con <- mydb
-  }
-
-  traits_taxa_list(con = con) %>%
-    filter(id_trait %in% !!id) %>%
-    print()
-
-  if_cont <-
-    choose_prompt(message = "Continue ?")
-
-  if (if_cont) {
-    query <- "DELETE FROM traitlist WHERE MMM"
-    query <-
-      gsub(
-        pattern = "MMM",
-        replacement = paste0("id_trait IN ('",
-                             paste(unique(id), collapse = "', '"), "')"),
-        x = query
-      )
-
-    rs <- DBI::dbSendQuery(con, query)
-    DBI::dbClearResult(rs)
-  }
-  
-  
-  
-}

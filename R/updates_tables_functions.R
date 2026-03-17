@@ -3974,6 +3974,16 @@ get_column_routing <- function(table_type, con) {
       feature_columns = c(),
       has_table_references = FALSE
     ),
+    taxa_traits_measures = list(
+      table = "taxa_traits_measures",
+      id_column = "id_trait_measures",
+      backup_table = NULL,
+      direct_columns = c("traitvalue", "traitvalue_char", "basisofrecord",
+                         "measurementremarks", "references",
+                         "year", "month", "day"),
+      feature_columns = c(),
+      has_table_references = FALSE
+    ),
     subplotype_list = list(
       table = "subplotype_list",
       id_column = "id_subplotype",
@@ -4926,7 +4936,7 @@ update_records <- function(data,
                            table_type = c("individuals", "plots", "individual_features",
                                           "subplot_features", "individual_features_metadata",
                                           "methodslist", "table_colnam",
-                                          "traitlist",
+                                          "traitlist", "taxa_traits_measures",
                                           "subplotype_list", "specimens"),
                            execute = FALSE,
                            method = c("single", "batch"),

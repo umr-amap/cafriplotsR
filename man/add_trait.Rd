@@ -18,32 +18,61 @@ add_trait(
   con = NULL,
   interactive = TRUE
 )
+
+add_trait(
+  new_trait = NULL,
+  new_relatedterm = NULL,
+  new_valuetype = NULL,
+  new_maxallowedvalue = NULL,
+  new_minallowedvalue = NULL,
+  new_traitdescription = NULL,
+  new_factorlevels = NULL,
+  new_expectedunit = NULL,
+  new_comments = NULL,
+  new_category = NULL,
+  con = NULL,
+  interactive = TRUE
+)
 }
 \arguments{
-\item{new_trait}{A single string.}
+\item{new_trait}{string value with new trait descritors - try to avoid space}
 
-\item{new_relatedterm}{Optional. A single string.}
+\item{new_relatedterm}{string related trait to new trait}
 
-\item{new_valuetype}{A single string, one of `"numeric"`, `"integer"`, `"categorical"`, `"ordinal"`, `"logical"`, `"character"`, `"table_data_liste_plots"`, or `"table_colnam"`.}
+\item{new_valuetype}{string one of following 'numeric', 'integer', 'categorical', 'ordinal', 'logical', 'character'}
 
-\item{new_maxallowedvalue}{Optional. if valuetype is numeric, indicate the maximum allowed value}
+\item{new_maxallowedvalue}{numeric if valuetype is numeric, indicate the maximum allowed value}
 
-\item{new_minallowedvalue}{Optional. if valuetype is numeric, indicate the minimum allowed value}
+\item{new_minallowedvalue}{numeric if valuetype is numeric, indicate the minimum allowed value}
 
-\item{new_traitdescription}{Optional. A single string.}
+\item{new_traitdescription}{string full description of trait}
 
-\item{new_factorlevels}{Optional. Factor levels.}
+\item{new_factorlevels}{string a vector of all possible value if valuetype is categorical or ordinal}
 
-\item{new_expectedunit}{Optional. A single string.}
+\item{new_expectedunit}{string expected unit (unitless if none)}
 
-\item{new_comments}{Optional. A single string.}
+\item{new_comments}{string any comments}
+
+\item{con}{Database connection. If NULL, uses call.mydb().}
+
+\item{interactive}{logical whether to prompt user for confirmation}
 }
 \value{
 The function writes to a database table if confirmed by the user. The function
 will error if `new_trait` or `new_valuetype` are not provided, if `new_valuetype`
 is not one of the allowed values, or if numeric/integer value types don't match
 their corresponding min/max values.
+
+nothing
 }
 \description{
 Add trait and associated descriptors in trait list table
+
+See https://terminologies.gfbio.org/terms/ets/pages/index.html for description of each field
+}
+\details{
+Add trait and associated descriptors to the traitlist table in the main database.
+}
+\author{
+Gilles Dauby, \email{gilles.dauby@ird.fr}
 }

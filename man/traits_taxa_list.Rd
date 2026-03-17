@@ -4,7 +4,7 @@
 \alias{traits_taxa_list}
 \title{List of trait}
 \usage{
-traits_taxa_list(id_trait = NULL)
+traits_taxa_list(id_trait = NULL, con = NULL)
 }
 \value{
 A tibble of all traits
