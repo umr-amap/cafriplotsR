@@ -3930,6 +3930,8 @@ add_sp_traits_measures <- function(new_data,
           cli::cli_alert_danger("Excluding {nrow(duplicated_rows)} values because already in DB")
           data_to_add <- data_to_add %>%
             dplyr::filter(!idtax %in% duplicated_rows$idtax)
+          data_trait <- data_trait %>%
+            dplyr::filter(!idtax %in% duplicated_rows$idtax)
         }
 
         if(nrow(data_to_add) < 1) stop("no new values anymore to import after excluding duplicates")
