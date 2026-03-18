@@ -18,6 +18,27 @@ mod_trait_preview_import_ui <- function(id) {
     shiny::uiOutput(ns("basisofrecord_selector")),
     shiny::uiOutput(ns("measurementremarks_input")),
     shiny::hr(),
+
+    # Loading spinner — visible immediately, hidden once prepared_data() resolves
+    shiny::div(
+      id = ns("loading_preview"),
+      style = "padding: 60px 20px; text-align: center;",
+      shiny::icon("circle-notch", class = "fa-spin",
+                  style = "font-size: 48px; color: #007bff;"),
+      shiny::h4("Computing preview...",
+                style = "color: #495057; margin-top: 20px;"),
+      shiny::p("This may take a few seconds for large datasets.",
+               style = "color: #6c757d;"),
+      shiny::div(
+        style = paste0("display: inline-block; margin-top: 12px; padding: 10px 20px;",
+                       " background: #d4edda; border-radius: 6px;",
+                       " border-left: 4px solid #28a745;"),
+        shiny::icon("check-circle", style = "color: #28a745;"),
+        shiny::tags$strong(" Validation passed — your data is ready to import.",
+                           style = "color: #155724;")
+      )
+    ),
+
     shiny::uiOutput(ns("preview_summary")),
     DT::DTOutput(ns("preview_table")),
     shiny::hr(),
@@ -461,6 +482,7 @@ mod_trait_preview_import_server <- function(id, data, mapping, pool, i18n) {
     # -- Preview summary --
     output$preview_summary <- shiny::renderUI({
       shiny::req(prepared_data())
+      shinyjs::hide("loading_preview")
       pd <- prepared_data()
 
       n_trait_rows   <- sum(pd$trait_summary$role == "trait measure")
