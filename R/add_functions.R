@@ -3903,12 +3903,19 @@ add_sp_traits_measures <- function(new_data,
           rename(trait = traitvalue_char)
       }
 
+      # Tag rows by source before binding so that within-file duplicates
+      # (multiple rows for the same taxon/trait in the import file) are not
+      # mistakenly counted as "already in DB".
       duplicated_rows <-
-        dplyr::bind_rows(selected_data_traits, all_vals) %>%
-        dplyr::filter(is.na(issue)) %>%
+        dplyr::bind_rows(
+          selected_data_traits %>% dplyr::filter(is.na(issue)) %>% dplyr::mutate(.src = "new"),
+          all_vals            %>% dplyr::filter(is.na(issue)) %>% dplyr::mutate(.src = "db")
+        ) %>%
         dplyr::group_by(idtax, fk_id_trait, trait, basisofrecord, measurementremarks) %>%
-        dplyr::count() %>%
-        dplyr::filter(n > 1)
+        dplyr::filter(any(.src == "new") & any(.src == "db")) %>%
+        dplyr::filter(.src == "new") %>%
+        dplyr::ungroup() %>%
+        dplyr::select(-".src")
 
       if (nrow(duplicated_rows) == 0) {
         cli::cli_alert_success("No duplicates found in DB for {trait} ({nrow(data_to_add)} rows ready)")
