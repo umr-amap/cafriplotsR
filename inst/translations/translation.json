@@ -5872,6 +5872,46 @@
     {
       "en": "Password",
       "fr": "Mot de passe"
+    },
+    {
+      "en": "Data Sources",
+      "fr": "Sources de données"
+    },
+    {
+      "en": "No citation information available for these trait measurements. Citations may not have been assigned yet.",
+      "fr": "Aucune information de citation disponible pour ces mesures de traits. Les citations peuvent ne pas encore avoir été attribuées."
+    },
+    {
+      "en": "Please cite or acknowledge data sources",
+      "fr": "Veuillez citer ou mentionner les sources de données"
+    },
+    {
+      "en": "The trait data used to enrich your dataset comes from the databases and publications listed below. If you use these data in a publication, you must cite or acknowledge each source accordingly. Proper attribution ensures the sustainability of open data initiatives and recognizes the work of data collectors and curators.",
+      "fr": "Les données de traits utilisées pour enrichir votre jeu de données proviennent des bases de données et publications listées ci-dessous. Si vous utilisez ces données dans une publication, vous devez citer ou mentionner chaque source. Une attribution correcte assure la pérennité des initiatives de données ouvertes et reconnaît le travail des collecteurs et curateurs de données."
+    },
+    {
+      "en": "Data sources",
+      "fr": "Sources de données"
+    },
+    {
+      "en": "Total measurements",
+      "fr": "Total des mesures"
+    },
+    {
+      "en": "Unassigned sources",
+      "fr": "Sources non attribuées"
+    },
+    {
+      "en": "Sources contributing to your enriched dataset",
+      "fr": "Sources contribuant à votre jeu de données enrichi"
+    },
+    {
+      "en": "Unassigned source",
+      "fr": "Source non attribuée"
+    },
+    {
+      "en": "These measurements do not have a citation assigned yet.",
+      "fr": "Ces mesures ne disposent pas encore de citation attribuée."
     }
   ]
 }
