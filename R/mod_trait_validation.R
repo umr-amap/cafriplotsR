@@ -157,7 +157,7 @@ mod_trait_validation_server <- function(id, data, mapping, pool, i18n) {
           info <- traits_info[traits_info$trait == trait_name, ]
           if (nrow(info) == 0) next
 
-          col_vals <- df[[user_col]]
+          col_vals <- cleaned_df[[user_col]]
           valuetype <- info$valuetype[1]
           n_total <- length(col_vals)
           n_na <- sum(is.na(col_vals))
@@ -283,7 +283,7 @@ mod_trait_validation_server <- function(id, data, mapping, pool, i18n) {
 
         for (user_col in names(meta_cols)) {
           db_col <- meta_cols[user_col]
-          col_vals <- df[[user_col]]
+          col_vals <- cleaned_df[[user_col]]
           non_na_vals <- col_vals[!is.na(col_vals)]
 
           if (db_col %in% c("decimallatitude", "decimallongitude", "elevation")) {
@@ -369,7 +369,7 @@ mod_trait_validation_server <- function(id, data, mapping, pool, i18n) {
           for (user_col in names(trait_cols)) {
             trait_name <- trait_cols[user_col]
             # Check for duplicate idtax + trait value combinations
-            dup_df <- df[!is.na(df[[user_col]]), c(idtax_col, user_col)]
+            dup_df <- cleaned_df[!is.na(cleaned_df[[user_col]]), c(idtax_col, user_col)]
             if (nrow(dup_df) > 0 && any(duplicated(dup_df))) {
               n_dups <- sum(duplicated(dup_df))
               add_warning(user_col, "duplicates",
