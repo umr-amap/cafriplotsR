@@ -291,8 +291,11 @@ mod_trait_column_mapping_server <- function(id, data, pool, i18n) {
             shiny::column(1, shiny::div(shiny::icon("arrow-right", style = "color: #aaa;"),
                           style = "text-align:center; padding-top:12px;")),
             shiny::column(7,
-              shiny::selectInput(ns(paste0("map_", safe)), label = NULL,
-                choices = choices, selected = selected, width = "100%"),
+              shiny::selectizeInput(ns(paste0("map_", safe)), label = NULL,
+                choices = choices, selected = selected, width = "100%",
+                options = list(
+                  onChange = I("function(value) { if (!value) { this.setValue('skip'); } }")
+                )),
               shiny::uiOutput(ns(paste0("desc_", safe))))
           )
         )
