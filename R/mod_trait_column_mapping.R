@@ -77,7 +77,7 @@ mod_trait_column_mapping_server <- function(id, data, pool, i18n) {
         setNames(paste0("trait:", tr$trait[idx]),
                  paste0(tr$trait[idx], " [", tr$valuetype[idx], "]"))
       })
-      c(grouped, list("--- Other ---" = c("Skip" = "skip")))
+      c(list("---" = c("(Skip this column)" = "")), grouped)
     })
 
     # ---- Auto-mapping ----
@@ -85,7 +85,7 @@ mod_trait_column_mapping_server <- function(id, data, pool, i18n) {
       shiny::req(data())
       tr <- available_traits()
       user_cols <- colnames(data())
-      result <- setNames(rep("skip", length(user_cols)), user_cols)
+      result <- setNames(rep("", length(user_cols)), user_cols)
 
       for (col in user_cols) {
         cl <- tolower(trimws(col))
@@ -273,7 +273,7 @@ mod_trait_column_mapping_server <- function(id, data, pool, i18n) {
         # Preserve user selection if it exists, otherwise use auto-map
         current_val <- input[[paste0("map_", safe)]]
         selected <- if (!is.null(current_val)) current_val else auto[col]
-        border <- if (selected != "skip") "#28a745" else "#dee2e6"
+        border <- if (selected != "") "#28a745" else "#dee2e6"
 
         vals <- utils::head(stats::na.omit(data()[[col]]), 3)
         sample_str <- paste(vals, collapse = ", ")
@@ -294,7 +294,8 @@ mod_trait_column_mapping_server <- function(id, data, pool, i18n) {
               shiny::selectizeInput(ns(paste0("map_", safe)), label = NULL,
                 choices = choices, selected = selected, width = "100%",
                 options = list(
-                  onBlur = I("function() { if (!this.getValue()) { this.setValue('skip'); } }")
+                  placeholder = i18n()$t("(Skip this column)"),
+                  allowEmptyOption = TRUE
                 )),
               shiny::uiOutput(ns(paste0("desc_", safe))))
           )
@@ -321,7 +322,7 @@ mod_trait_column_mapping_server <- function(id, data, pool, i18n) {
       shiny::req(data())
       cols <- colnames(data())
       setNames(
-        sapply(cols, function(col) input[[paste0("map_", make.names(col))]] %||% "skip"),
+        sapply(cols, function(col) input[[paste0("map_", make.names(col))]] %||% ""),
         cols)
     })
 
@@ -329,7 +330,7 @@ mod_trait_column_mapping_server <- function(id, data, pool, i18n) {
     output$summary_cards <- shiny::renderUI({
       m <- current_mappings()
       n_traits <- sum(grepl("^trait:", m))
-      n_skip   <- sum(m == "skip")
+      n_skip   <- sum(m == "")
       shiny::fluidRow(
         shiny::column(6, shiny::div(
           class = "card text-center p-2",

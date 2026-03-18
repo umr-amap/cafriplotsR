@@ -115,9 +115,9 @@ mod_trait_metadata_mapping_server <- function(id, data, trait_mapping, pool, i18
       })
 
       c(
+        list("---" = c("(Skip this column)" = "")),
         list("--- Flat metadata ---" = flat_ch),
-        feat_grouped,
-        list("--- Other ---" = c("Skip" = "skip"))
+        feat_grouped
       )
     })
 
@@ -126,7 +126,7 @@ mod_trait_metadata_mapping_server <- function(id, data, trait_mapping, pool, i18
       shiny::req(data(), available_traits())
       cols <- available_cols()
       tr <- available_traits()
-      result <- setNames(rep("skip", length(cols)), cols)
+      result <- setNames(rep("", length(cols)), cols)
 
       for (col in cols) {
         cl <- tolower(trimws(col))
@@ -386,7 +386,7 @@ mod_trait_metadata_mapping_server <- function(id, data, trait_mapping, pool, i18
         # Preserve user selection if it exists, otherwise use auto-map
         current_val <- input[[paste0("meta_", safe)]]
         selected <- if (!is.null(current_val)) current_val else auto[col]
-        border <- if (selected != "skip") "#007bff" else "#dee2e6"
+        border <- if (selected != "") "#007bff" else "#dee2e6"
 
         vals <- utils::head(stats::na.omit(data()[[col]]), 3)
         sample_str <- paste(vals, collapse = ", ")
@@ -407,7 +407,8 @@ mod_trait_metadata_mapping_server <- function(id, data, trait_mapping, pool, i18
               shiny::selectizeInput(ns(paste0("meta_", safe)), label = NULL,
                 choices = choices, selected = selected, width = "100%",
                 options = list(
-                  onBlur = I("function() { if (!this.getValue()) { this.setValue('skip'); } }")
+                  placeholder = i18n()$t("(Skip this column)"),
+                  allowEmptyOption = TRUE
                 )),
               shiny::uiOutput(ns(paste0("metadesc_", safe))))
           )
@@ -436,7 +437,7 @@ mod_trait_metadata_mapping_server <- function(id, data, trait_mapping, pool, i18
       cols <- available_cols()
       if (length(cols) == 0) return(setNames(character(0), character(0)))
       setNames(
-        sapply(cols, function(col) input[[paste0("meta_", make.names(col))]] %||% "skip"),
+        sapply(cols, function(col) input[[paste0("meta_", make.names(col))]] %||% ""),
         cols)
     })
 
@@ -445,7 +446,7 @@ mod_trait_metadata_mapping_server <- function(id, data, trait_mapping, pool, i18
       m <- current_mappings()
       n_meta <- sum(grepl("^meta:", m))
       n_feat <- sum(grepl("^feature:", m))
-      n_skip <- sum(m == "skip")
+      n_skip <- sum(m == "")
       idtax_ok <- !is.null(input$idtax_col) && nchar(input$idtax_col) > 0
 
       shiny::fluidRow(
@@ -539,7 +540,7 @@ mod_trait_metadata_mapping_server <- function(id, data, trait_mapping, pool, i18
 # ---- Helper: metadata description UI ----
 #' @keywords internal
 .meta_desc_ui <- function(val, traits_df, flat_meta_cols) {
-  if (is.null(val) || val == "skip") return(NULL)
+  if (is.null(val) || val == "") return(NULL)
 
   if (grepl("^meta:", val)) {
     meta_name <- sub("^meta:", "", val)
