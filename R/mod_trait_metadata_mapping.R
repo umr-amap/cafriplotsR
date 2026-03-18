@@ -407,7 +407,7 @@ mod_trait_metadata_mapping_server <- function(id, data, trait_mapping, pool, i18
               shiny::selectizeInput(ns(paste0("meta_", safe)), label = NULL,
                 choices = choices, selected = selected, width = "100%",
                 options = list(
-                  onChange = I("function(value) { if (!value) { this.setValue('skip'); } }")
+                  onBlur = I("function() { if (!this.getValue()) { this.setValue('skip'); } }")
                 )),
               shiny::uiOutput(ns(paste0("metadesc_", safe))))
           )
