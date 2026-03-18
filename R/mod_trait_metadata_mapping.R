@@ -404,8 +404,11 @@ mod_trait_metadata_mapping_server <- function(id, data, trait_mapping, pool, i18
             shiny::column(1, shiny::div(shiny::icon("arrow-right", style = "color: #aaa;"),
                           style = "text-align:center; padding-top:12px;")),
             shiny::column(7,
-              shiny::selectInput(ns(paste0("meta_", safe)), label = NULL,
-                choices = choices, selected = selected, width = "100%"),
+              shiny::selectizeInput(ns(paste0("meta_", safe)), label = NULL,
+                choices = choices, selected = selected, width = "100%",
+                options = list(
+                  onChange = I("function(value) { if (!value) { this.setValue('skip'); } }")
+                )),
               shiny::uiOutput(ns(paste0("metadesc_", safe))))
           )
         )
