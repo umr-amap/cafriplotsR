@@ -29,6 +29,28 @@ Avant l'intégration, la taxonomie de la TWDD a été standardisée selon le ré
 >
 > Verbiest W.W.M., Hicter P., Beeckman H. et al. (2026). The Tervuren xylarium Wood Density Database (TWDD). *Scientific Data*, 13, 243. <https://doi.org/10.1038/s41597-026-06563-2>
 
+### Nouvelles fonctionnalités
+
+**Suivi des citations pour les traits au niveau taxonomique**
+
+Les mesures de traits au niveau des taxons stockées dans la base de données sont désormais liées à leurs sources d'origine — études publiées ou bases de données de traits d'où les valeurs ont été extraites. Lorsque vous enrichissez un jeu de données d'espèces ou explorez des traits via les applications interactives, un panneau **Sources de données** dédié met en évidence les citations concernées et le nombre de mesures provenant de chaque source.
+
+Cela rend la citation appropriée directe et sans ambiguïté : le panneau liste la référence complète de chaque source avec le nombre de mesures ou observations associées, afin que vous sachiez exactement ce qu'il faut citer lorsque vous utilisez des données de traits dans vos analyses. Un des objectifs de ce package est de faciliter l'intégration et la ré-utilisation de ces différents jeux de données. Pour cela, il est nécessaire d'être le plus transparent possible sur cette intégration de donc de respecter les exigences de partage des données des publications et bases de données sous-jacentes.
+
+> **Pour les utilisateurs R :** La fonction `query_taxa_traits()` accepte désormais le paramètre `include_citation = TRUE` pour joindre les informations de citation directement au tableau retourné. Les formats de sortie large (*wide*) et long sont tous deux pris en charge.
+
+**Mode accès public pour deux applications Shiny interactives**
+
+Deux applications de la boîte à outils CafriplotsR peuvent désormais être lancées **sans identifiants de connexion** — utile pour les collaborateurs, les relecteurs, ou toute personne souhaitant explorer les données sans demander un compte personnel :
+
+- **Navigateur du référentiel taxonomique** (`launch_taxo_backbone_app()`) : Parcourez le référentiel taxonomique complet, effectuez des recherches par nom ou identifiant, explorez la hiérarchie taxonomique, et extrayez les traits au niveau des taxons en format large ou long avec les citations associées.
+
+- **Application d'harmonisation taxonomique et d'enrichissement en traits** (`launch_taxonomic_match_app()`) : Chargez une liste d'espèces, standardisez les noms par rapport au référentiel CafriplotsR, et enrichissez-les avec les traits de la base de données — le tout dans une interface guidée, étape par étape.
+
+En mode public, les applications se connectent automatiquement avec des identifiants en lecture seule, donc aucune connexion n'est requise. Les deux applications affichent une bannière claire indiquant que vous opérez en mode public avec accès en lecture seule.
+
+---
+
 <!--
 MODÈLE POUR LES NOUVELLES ENTRÉES :
 

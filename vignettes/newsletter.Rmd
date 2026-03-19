@@ -29,6 +29,28 @@ Before integration, the taxonomy of the TWDD was standardized against the Cafrip
 >
 > Verbiest W.W.M., Hicter P., Beeckman H. et al. (2026). The Tervuren xylarium Wood Density Database (TWDD). *Scientific Data*, 13, 243. <https://doi.org/10.1038/s41597-026-06563-2>
 
+### New capabilities
+
+**Citation tracking for taxa-level traits**
+
+Taxa-level trait measurements stored in the database are now linked to their original sources — published studies or trait databases from which values were extracted. When you enrich a species dataset or explore traits through the interactive apps, a dedicated **Data Sources** panel now highlights which citations are involved and how many measurements come from each source.
+
+This makes proper attribution straightforward: the panel lists the full reference for each source alongside measurement or observation counts, so you know exactly what to cite when you use trait data in your analyses. One of the core goals of this package is to facilitate the integration and reuse of these diverse datasets. Achieving that requires being as transparent as possible about how data are combined — and therefore respecting the data-sharing requirements of the underlying publications and databases.
+
+> **For R users:** The `query_taxa_traits()` function now accepts `include_citation = TRUE` to attach citation information directly to the returned data frame. Both wide and long output formats are supported.
+
+**Public access mode for two interactive Shiny apps**
+
+Two apps in the CafriplotsR toolkit can now be launched **without database credentials** — useful for collaborators, reviewers, or anyone who wants to explore the data without requesting a personal account:
+
+- **Taxonomic backbone browser** (`launch_taxo_backbone_app()`): Browse the full taxonomic reference, search by name or identifier, explore the taxonomic hierarchy, and extract taxa-level traits as wide or long tables with associated citations.
+
+- **Taxonomic harmonisation & trait enrichment app** (`launch_taxonomic_match_app()`): Upload a species list, standardise names against the CafriplotsR backbone, and enrich with traits from the database — all in a guided, step-by-step interface.
+
+In public mode the apps connect automatically using read-only credentials, so no login is required. Both apps display a clear banner indicating that you are operating in public mode with read-only access.
+
+---
+
 <!--
 TEMPLATE FOR NEW ENTRIES:
 
