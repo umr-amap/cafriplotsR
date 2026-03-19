@@ -18,6 +18,7 @@ query_taxa(
   exact_match = TRUE,
   check_synonymy = TRUE,
   extract_traits = TRUE,
+  include_children = FALSE,
   min_similarity = 0.3
 )
 }
@@ -49,6 +50,10 @@ for family/genus/order queries, exact matching is recommended.}
 \item{check_synonymy}{logical whether to resolve synonyms and include them}
 
 \item{extract_traits}{logical whether to add trait information}
+
+\item{include_children}{logical if TRUE, recursively include all descendant
+taxa (e.g. species within a genus, infraspecific taxa within a species)
+via the `id_parent` foreign key. Default FALSE.}
 
 \item{min_similarity}{numeric (0-1) minimum similarity score for fuzzy matching (default: 0.3)}
 
