@@ -98,6 +98,54 @@ cite the original publication:</p>
 xylarium Wood Density Database (TWDD). <em>Scientific Data</em>, 13,
 243. <a href="https://doi.org/10.1038/s41597-026-06563-2" class="external-link uri">https://doi.org/10.1038/s41597-026-06563-2</a></p>
 </blockquote>
+</div>
+<div class="section level4">
+<h4 id="new-capabilities">New capabilities<a class="anchor" aria-label="anchor" href="#new-capabilities"></a>
+</h4>
+<p><strong>Citation tracking for taxa-level traits</strong></p>
+<p>Taxa-level trait measurements stored in the database are now linked
+to their original sources — published studies or trait databases from
+which values were extracted. When you enrich a species dataset or
+explore traits through the interactive apps, a dedicated <strong>Data
+Sources</strong> panel now highlights which citations are involved and
+how many measurements come from each source.</p>
+<p>This makes proper attribution straightforward: the panel lists the
+full reference for each source alongside measurement or observation
+counts, so you know exactly what to cite when you use trait data in your
+analyses. One of the core goals of this package is to facilitate the
+integration and reuse of these diverse datasets. Achieving that requires
+being as transparent as possible about how data are combined — and
+therefore respecting the data-sharing requirements of the underlying
+publications and databases.</p>
+<blockquote>
+<p><strong>For R users:</strong> The <code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code>
+function now accepts <code>include_citation = TRUE</code> to attach
+citation information directly to the returned data frame. Both wide and
+long output formats are supported.</p>
+</blockquote>
+<p><strong>Public access mode for two interactive Shiny
+apps</strong></p>
+<p>Two apps in the CafriplotsR toolkit can now be launched
+<strong>without database credentials</strong> — useful for
+collaborators, reviewers, or anyone who wants to explore the data
+without requesting a personal account:</p>
+<ul>
+<li><p><strong>Taxonomic backbone browser</strong>
+(<code><a href="../reference/launch_taxo_backbone_app.html">launch_taxo_backbone_app()</a></code>): Browse the full taxonomic
+reference, search by name or identifier, explore the taxonomic
+hierarchy, and extract taxa-level traits as wide or long tables with
+associated citations.</p></li>
+<li><p><strong>Taxonomic harmonisation &amp; trait enrichment
+app</strong> (<code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>): Upload a
+species list, standardise names against the CafriplotsR backbone, and
+enrich with traits from the database — all in a guided, step-by-step
+interface.</p></li>
+</ul>
+<p>In public mode the apps connect automatically using read-only
+credentials, so no login is required. Both apps display a clear banner
+indicating that you are operating in public mode with read-only
+access.</p>
+<hr>
 <!--
 TEMPLATE FOR NEW ENTRIES:
 

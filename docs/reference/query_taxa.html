@@ -60,6 +60,7 @@ exact matching is used by default.</p>
 <span>  exact_match <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  check_synonymy <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  extract_traits <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  include_children <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  min_similarity <span class="op">=</span> <span class="fl">0.3</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -120,6 +121,12 @@ for family/genus/order queries, exact matching is recommended.</p></dd>
 
 <dt id="arg-extract-traits">extract_traits<a class="anchor" aria-label="anchor" href="#arg-extract-traits"></a></dt>
 <dd><p>logical whether to add trait information</p></dd>
+
+
+<dt id="arg-include-children">include_children<a class="anchor" aria-label="anchor" href="#arg-include-children"></a></dt>
+<dd><p>logical if TRUE, recursively include all descendant
+taxa (e.g. species within a genus, infraspecific taxa within a species)
+via the `id_parent` foreign key. Default FALSE.</p></dd>
 
 
 <dt id="arg-min-similarity">min_similarity<a class="anchor" aria-label="anchor" href="#arg-min-similarity"></a></dt>

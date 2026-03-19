@@ -77,7 +77,7 @@ or query preparation errors.</p>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>This function is designed for read queries (e.g., <code>SELECT</code>) that return results.
-For write queries (e.g., <code>UPDATE</code>, <code>INSERT</code>, <code>DELETE</code>), use a variant that uses <code>dbExecute()</code> or <code>dbSendStatement()</code>.</p>
+For write queries (e.g., <code>UPDATE</code>, <code>INSERT</code>, <code>DELETE</code>), use a variant that uses <code><a href="https://dbi.r-dbi.org/reference/dbExecute.html" class="external-link">dbExecute()</a></code> or <code><a href="https://dbi.r-dbi.org/reference/dbSendStatement.html" class="external-link">dbSendStatement()</a></code>.</p>
 <p>If the database connection is lost, the function stops immediately.
 If the query fails to prepare (e.g., due to a lock or temporary issue), the function retries up to <code>max_attempts</code>.</p>
     </div>

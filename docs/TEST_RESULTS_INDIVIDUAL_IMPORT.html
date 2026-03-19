@@ -174,7 +174,7 @@
 <span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="kw">VALUES</span> (<span class="op">..</span>.), (<span class="op">..</span>.), (<span class="op">..</span>.)</span>
 <span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="kw">RETURNING</span> id_individuals, plot_name, tag</span></code></pre></div>
 <p>Benefits: - Single query for all individuals - Immediately returns IDs for linking features - Efficient bulk insert - Bypasses some RLS restrictions</p>
-<p><strong>Features</strong>: Uses standard <code>dbWriteTable()</code> with append</p>
+<p><strong>Features</strong>: Uses standard <code><a href="https://dbi.r-dbi.org/reference/dbWriteTable.html" class="external-link">dbWriteTable()</a></code> with append</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbWriteTable.html" class="external-link">dbWriteTable</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"data_ind_measures_feat"</span>, <span class="va">features_data</span>,</span>
 <span>                  append <span class="op">=</span> <span class="cn">TRUE</span>, row.names <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>

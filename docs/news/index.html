@@ -35,6 +35,94 @@
 <div class="section level4">
 <h4 id="new-features-1-9-5">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-5"></a></h4>
 <ul><li>
+<strong>Structured citation tracking for taxa-level trait measurements</strong>
+<ul><li>New <code>table_citations</code> table in the main database (<code>plots_transects</code>) with fields for authors, year, title, journal, DOI, URL, and dataset name</li>
+<li>
+<code><a href="../reference/migrate_add_citations_table.html">migrate_add_citations_table()</a></code>: migration function to create the table and add <code>id_citation</code> FK column to <code>taxa_traits_measures</code>
+</li>
+<li>
+<code><a href="../reference/query_citations.html">query_citations()</a></code>, <code><a href="../reference/add_citation.html">add_citation()</a></code>, <code><a href="../reference/update_citation.html">update_citation()</a></code>: CRUD functions for managing citation records</li>
+<li>
+<code><a href="../reference/export_taxa_traits_for_citation_backfill.html">export_taxa_traits_for_citation_backfill()</a></code> / <code><a href="../reference/apply_citation_backfill.html">apply_citation_backfill()</a></code>: workflow for bulk-assigning citations to existing measurements via an exported Excel file</li>
+<li>
+<code><a href="../reference/grant_lookup_table_permissions.html">grant_lookup_table_permissions()</a></code> now includes <code>table_citations</code> by default</li>
+<li>
+<code><a href="../reference/add_sp_traits_measures.html">add_sp_traits_measures()</a></code> accepts <code>id_citation</code> to tag new measurements at import</li>
+<li>
+<code><a href="../reference/fetch_taxa_trait_measurements.html">fetch_taxa_trait_measurements()</a></code> and <code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code> gain <code>include_citation = FALSE</code> parameter to join full citation metadata</li>
+</ul></li>
+<li>
+<strong>Citation source panel in taxa traits enrichment module</strong> (<code>shiny_app_taxo_match</code>)
+<ul><li>New “Data Sources” tab in the trait enrichment results showing per-citation measurement/taxa/trait counts</li>
+<li>Acknowledgement banner emphasising the importance of citing data sources</li>
+<li>Excel downloads (wide and long format) include a <code>citations</code> sheet alongside trait data</li>
+</ul></li>
+<li>
+<strong>Citation selector in taxa traits import app</strong> (<code>shiny_app_taxa_traits_import</code>)
+<ul><li>Dropdown to pick the citation for all rows being imported, with a “New citation” modal to create one on the fly</li>
+</ul></li>
+<li>
+<strong>Multi-row selection in taxo backbone app</strong> (<code>shiny_app_taxo_backbone</code>)
+<ul><li>Search results table now supports multi-row selection (Ctrl/Cmd click)</li>
+<li>Selected taxon panel lists all selected taxa when multiple are chosen; Update/Synonymy tabs act on the first selected</li>
+<li>Tree view shows an explicit message instead of silently showing the first taxon when multiple are selected</li>
+<li>Trait text panel redirects to “Extract as Table” when multiple taxa are selected</li>
+</ul></li>
+<li>
+<strong>New module: taxa trait table extraction</strong> (<code>mod_taxa_traits_table</code>)
+<ul><li>“Extract as Table” button in the taxo backbone search panel fetches wide and long trait tables for selected taxa</li>
+<li>Results include Wide Format, Long Format, and Data Sources tabs with per-citation cards</li>
+<li>Excel downloads include a <code>citations</code> sheet</li>
+</ul></li>
+<li>
+<strong>New module: equivalent R code preview</strong> (<code>mod_taxa_r_code</code>)
+<ul><li>Collapsible “Show Equivalent R Code” panel in the taxo backbone search section</li>
+<li>Generates <code><a href="../reference/query_taxa.html">query_taxa()</a></code> call matching current search filters (including <code>include_children</code>)</li>
+<li>Generates <code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code> calls once “Extract as Table” is triggered</li>
+<li>Produces a complete workflow script; when user is connected as public, includes the public connection credentials automatically</li>
+<li>Notes for Shiny-only options (<code>include_synonyms</code>, <code>synonymy_filter</code>) that require post-processing in R</li>
+</ul></li>
+<li>
+<strong><code>include_children</code> parameter in <code><a href="../reference/query_taxa.html">query_taxa()</a></code></strong>
+<ul><li>New <code>include_children = FALSE</code> parameter recursively fetches all descendant taxa via the <code>id_parent</code> foreign key (up to 10 iterations)</li>
+<li>New internal helper <code><a href="../reference/dot-include_children.html">.include_children()</a></code> used by both the name-based and ID-based query paths</li>
+<li>The taxo backbone Shiny app now delegates child fetching to this parameter instead of a manual loop</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-9-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5"></a></h4>
+<ul><li>
+<strong><code><a href="../reference/pivot_numeric_traits.html">pivot_numeric_traits()</a></code> namespace fix</strong>
+<ul><li>
+<code><a href="https://stringr.tidyverse.org/reference/str_remove.html" class="external-link">str_remove()</a></code> qualified as <code><a href="https://stringr.tidyverse.org/reference/str_remove.html" class="external-link">stringr::str_remove()</a></code> to avoid ambiguity when package is not attached</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="code-refactoring-1-9-5">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-9-5"></a></h4>
+<ul><li>
+<strong><code><a href="../reference/safe_delete_plot.html">safe_delete_plot()</a></code> batch transactions</strong>
+<ul><li>Replaced single large transaction covering all deletions with per-batch transactions (batch size 2000)</li>
+<li>Pre-resolves individual and trait-measure IDs before deletion to avoid expensive nested subqueries</li>
+<li>Prevents lock timeouts on plots with large numbers of individuals</li>
+</ul></li>
+<li>
+<strong>Output styles config</strong>
+<ul><li>Added <code>phenology</code> and <code>succession_guild</code> to default individual output columns</li>
+</ul></li>
+<li>
+<strong>Public access login option in all Shiny apps</strong>
+<ul><li>
+<code>mod_database_login</code> now offers a “Connect as public user” button alongside the personal credentials form</li>
+<li>Public connection uses a dedicated read-only database user (<code>CafriP_public</code>) with access restricted to taxonomy and taxa-level trait tables only — no plot data exposed</li>
+<li>A yellow warning notice on the login panel informs users that public access is read-only and does not allow adding or modifying data</li>
+<li>
+<code><a href="../reference/mod_database_login_server.html">mod_database_login_server()</a></code> returns a new <code>is_public</code> reactive so parent apps can adapt their UI accordingly</li>
+<li>
+<code>shiny_app_taxo_backbone</code>: the existing write-permission check (<code>has_table_privilege</code>) automatically detects the public user and displays the amber “Read-Only Mode” badge — no additional changes required</li>
+<li>Applies to both <code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code> and <code><a href="../reference/launch_taxo_backbone_app.html">launch_taxo_backbone_app()</a></code>
+</li>
+</ul></li>
+<li>
 <strong>Taxa traits import Shiny app</strong> (<code>shiny_app_taxa_traits_import()</code>)
 <ul><li>New interactive app for importing taxa-level trait measurements into the database</li>
 <li>Modules: column mapping (<code>mod_trait_column_mapping</code>), metadata mapping (<code>mod_trait_metadata_mapping</code>), validation (<code>mod_trait_validation</code>), preview &amp; import (<code>mod_trait_preview_import</code>)</li>
@@ -51,7 +139,7 @@
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="bug-fixes-1-9-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5"></a></h4>
+<h4 id="bug-fixes-1-9-5-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5-1"></a></h4>
 <ul><li>
 <strong><code>.traits_to_genera_aggreg()</code> incorrect <code>source</code> assignment</strong>
 <ul><li>Fixed hardcoded <code>source = "species"</code> for all non-NA trait values; traits assigned via a genus-level <code>idtax</code> were incorrectly labelled as species-level</li>
@@ -75,13 +163,13 @@
 <li>Fixed <code><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse()</a></code> type coercion bug: numeric trait values were silently converted to character</li>
 <li>Transaction now wraps both trait measures and features inserts (was committing before features)</li>
 <li>
-<code>dbRollback()</code> errors no longer mask the original insertion error</li>
+<code><a href="https://dbi.r-dbi.org/reference/transactions.html" class="external-link">dbRollback()</a></code> errors no longer mask the original insertion error</li>
 <li>Fixed <code><a href="https://rdrr.io/r/base/apply.html" class="external-link">apply()</a></code> converting tibble rows to character vectors; replaced with <code><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply()</a></code>
 </li>
 </ul></li>
 <li>
 <strong><code>add_sp_traits_measures_features()</code> fixes</strong>
-<ul><li>Added <code>in_transaction</code> parameter to prevent nested <code>dbBegin()</code> errors when called within an outer transaction</li>
+<ul><li>Added <code>in_transaction</code> parameter to prevent nested <code><a href="https://dbi.r-dbi.org/reference/transactions.html" class="external-link">dbBegin()</a></code> errors when called within an outer transaction</li>
 <li>Added <code>interactive</code> parameter passthrough (was defaulting to <code>TRUE</code>, showing console prompts in Shiny)</li>
 <li>Fixed <code>valuetype</code> variable name collision with <code><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">dplyr::select()</a></code>
 </li>
@@ -100,7 +188,7 @@
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="code-refactoring-1-9-5">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-9-5"></a></h4>
+<h4 id="code-refactoring-1-9-5-1">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-9-5-1"></a></h4>
 <ul><li>Switched all trait operations from taxa database (<code>rainbio</code>) to main database (<code>plots_transects</code>)</li>
 <li>Updated <code>R/taxa_traits_function.R</code>, <code>R/delete_functions.R</code>, <code>R/updates_tables_functions.R</code>, <code>R/link_table_functions.R</code>, <code>R/individual_features_function.R</code>, <code>R/mod_taxa_add.R</code>, <code>R/mod_growth_form_selector.R</code>
 </li>

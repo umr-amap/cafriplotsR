@@ -166,7 +166,7 @@ une sortie structurée optimisée pour l’analyse de biomasse :</p>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">Querying taxa-level traits</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fetching trait measurements for 154 taxon/taxa</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 6544 measurement(s) for 144 taxa</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 4661 measurement(s) for 144 taxa</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Resolving taxonomic synonyms</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">Processing traits to wide format</span> ──</span></span>
@@ -186,9 +186,9 @@ une sortie structurée optimisée pour l’analyse de biomasse :</p>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">Querying taxa-level traits</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fetching trait measurements for 13104 taxon/taxa</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 22975 measurement(s) for 2453 taxa</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 18639 measurement(s) for 2451 taxa</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Resolving taxonomic synonyms</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Including synonyms: 2453 taxa expanded to 6004 taxa</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Including synonyms: 2451 taxa expanded to 6004 taxa</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Adding taxonomic information</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Query completed</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Setting wood density SD to averaged species and genus level according to BIOMASS dataset</span></span>
@@ -228,7 +228,7 @@ enrichis</strong> :</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Vérifier quelles données nous avons</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">plot_data</span><span class="op">$</span><span class="va">individuals</span><span class="op">)</span></span>
-<span><span class="co">#&gt; tibble [888 × 24] (S3: tbl_df/tbl/data.frame)</span></span>
+<span><span class="co">#&gt; tibble [888 × 28] (S3: tbl_df/tbl/data.frame)</span></span>
 <span><span class="co">#&gt;  $ id_n                           : int [1:888] 248314 248318 248322 248326 248330 248334 248338 248342 248346 248350 ...</span></span>
 <span><span class="co">#&gt;  $ plot_name                      : chr [1:888] "bouamir001" "bouamir001" "bouamir001" "bouamir001" ...</span></span>
 <span><span class="co">#&gt;  $ tag                            : num [1:888] 1 2 3 4 5 6 7 8 9 10 ...</span></span>
@@ -240,8 +240,8 @@ enrichis</strong> :</p>
 <span><span class="co">#&gt;  $ height                         : num [1:888] 12.8 NA NA NA NA ...</span></span>
 <span><span class="co">#&gt;  $ census_date                    : Date[1:888], format: "2018-12-02" "2018-12-02" ...</span></span>
 <span><span class="co">#&gt;  $ number_of_stem                 : int [1:888] NA NA NA NA NA NA NA NA NA NA ...</span></span>
-<span><span class="co">#&gt;  $ taxa_mean_wood_density         : num [1:888] 0.74 0.64 0.74 0.64 0.51 0.56 0.63 0.53 0.8 0.61 ...</span></span>
-<span><span class="co">#&gt;  $ taxa_n_wood_density            : num [1:888] 7 182 20 140 23 2 25 71 58 87 ...</span></span>
+<span><span class="co">#&gt;  $ taxa_mean_wood_density         : num [1:888] 0.75 0.64 0.74 0.64 0.51 0.56 0.64 0.53 0.8 0.61 ...</span></span>
+<span><span class="co">#&gt;  $ taxa_n_wood_density            : num [1:888] 6 96 10 70 12 1 14 36 31 44 ...</span></span>
 <span><span class="co">#&gt;  $ taxa_sd_wood_density           : num [1:888] 0.0708 0.0708 0.0708 0.0708 0.0708 ...</span></span>
 <span><span class="co">#&gt;  $ source_taxa_mean_wood_density  : chr [1:888] "species" "species" "species" "species" ...</span></span>
 <span><span class="co">#&gt;  $ source_taxa_n_wood_density     : chr [1:888] "species" "species" "species" "species" ...</span></span>
@@ -252,7 +252,11 @@ enrichis</strong> :</p>
 <span><span class="co">#&gt;  $ position_x                     : num [1:888] 3 NA NA NA NA 17.2 NA 13.4 19 NA ...</span></span>
 <span><span class="co">#&gt;  $ position_x_iphone              : num [1:888] 2.323 0.801 4.587 10.825 15.836 ...</span></span>
 <span><span class="co">#&gt;  $ position_y                     : num [1:888] 10 NA NA NA NA 15 NA 6.5 5 NA ...</span></span>
-<span><span class="co">#&gt;  $ position_y_iphone              : num [1:888] 10.3 15 19.7 19.9 17.5 ...</span></span></code></pre></div>
+<span><span class="co">#&gt;  $ position_y_iphone              : num [1:888] 10.3 15 19.7 19.9 17.5 ...</span></span>
+<span><span class="co">#&gt;  $ taxa_phenology                 : chr [1:888] "evergreen" "deciduous" "evergreen" "evergreen" ...</span></span>
+<span><span class="co">#&gt;  $ source_taxa_phenology          : chr [1:888] "species" "species" "genus" "species" ...</span></span>
+<span><span class="co">#&gt;  $ taxa_succession_guild          : chr [1:888] "non-pioneer light demanding" "non-pioneer light demanding" "shade-tolerant" "shade-tolerant" ...</span></span>
+<span><span class="co">#&gt;  $ source_taxa_succession_guild   : chr [1:888] "species" "species" "genus" "species" ...</span></span></code></pre></div>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Colonnes clés pour la biomasse :</span></span>
 <span><span class="co"># - dbh (stem_diameter) : Diamètre à hauteur de poitrine (cm)</span></span>
@@ -272,7 +276,7 @@ enrichis</strong> :</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 1 × 4</span></span></span>
 <span><span class="co">#&gt;   n_total n_with_wd pct_with_wd mean_wd</span></span>
 <span><span class="co">#&gt;     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>     <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span>   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>     888       888         100   0.638</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>     888       888         100   0.639</span></span></code></pre></div>
 <p><strong>Note</strong> : Les traits de densité du bois sont
 automatiquement : - Récupérés de la base de données taxonomique -
 Hérités de l’espèce → genre → famille quand les données au niveau de
@@ -497,12 +501,12 @@ pour la hauteur</li>
 <code class="sourceCode R"><span><span class="co"># Résumé des variables requises</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">agb_data</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"dbh"</span>, <span class="st">"taxa_mean_wood_density"</span>, <span class="st">"H_final"</span>, <span class="st">"H_RSE"</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       dbh        taxa_mean_wood_density    H_final          H_RSE      </span></span>
-<span><span class="co">#&gt;  Min.   : 10.0   Min.   :0.2900         Min.   : 8.93   Min.   :4.280  </span></span>
-<span><span class="co">#&gt;  1st Qu.: 12.3   1st Qu.:0.5900         1st Qu.:16.39   1st Qu.:4.280  </span></span>
-<span><span class="co">#&gt;  Median : 16.2   Median :0.6600         Median :19.07   Median :5.299  </span></span>
-<span><span class="co">#&gt;  Mean   : 23.3   Mean   :0.6381         Mean   :20.97   Mean   :4.824  </span></span>
-<span><span class="co">#&gt;  3rd Qu.: 24.8   3rd Qu.:0.7100         3rd Qu.:23.86   3rd Qu.:5.299  </span></span>
-<span><span class="co">#&gt;  Max.   :175.0   Max.   :0.8700         Max.   :41.10   Max.   :5.299</span></span>
+<span><span class="co">#&gt;  Min.   : 10.0   Min.   :0.290          Min.   : 8.93   Min.   :4.280  </span></span>
+<span><span class="co">#&gt;  1st Qu.: 12.3   1st Qu.:0.590          1st Qu.:16.39   1st Qu.:4.280  </span></span>
+<span><span class="co">#&gt;  Median : 16.2   Median :0.650          Median :19.07   Median :5.299  </span></span>
+<span><span class="co">#&gt;  Mean   : 23.3   Mean   :0.639          Mean   :20.97   Mean   :4.824  </span></span>
+<span><span class="co">#&gt;  3rd Qu.: 24.8   3rd Qu.:0.710          3rd Qu.:23.86   3rd Qu.:5.299  </span></span>
+<span><span class="co">#&gt;  Max.   :175.0   Max.   :0.870          Max.   :41.10   Max.   :5.299</span></span>
 <span></span>
 <span><span class="co"># Vérifier les données manquantes</span></span>
 <span><span class="va">agb_data</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
@@ -545,8 +549,8 @@ pour la hauteur</li>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 3</span></span></span>
 <span><span class="co">#&gt;   plot_name   n_trees total_AGB_Mg</span></span>
 <span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>         <span style="color: #949494; font-style: italic;">&lt;int&gt;</span>        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> bouamir001      389         333.</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> mbalmayo001     445         446.</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> bouamir001      389         334.</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> mbalmayo001     445         445.</span></span></code></pre></div>
 <hr>
 </div>
 </div>
