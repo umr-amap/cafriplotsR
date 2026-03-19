@@ -52,6 +52,8 @@ accepted taxon name.</p>
 <span>  format <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"wide"</span>, <span class="st">"long"</span><span class="op">)</span>,</span>
 <span>  include_remarks <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  include_measurement_features <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  include_citation <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  con <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  con_taxa <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -92,8 +94,14 @@ accepted taxon name.</p>
 <dd><p>Add measurement-level features/metadata</p></dd>
 
 
+<dt id="arg-con">con<a class="anchor" aria-label="anchor" href="#arg-con"></a></dt>
+<dd><p>Connection to main database (optional, defaults to call.mydb()).
+Used for trait measurements (taxa_traits_measures, traitlist).</p></dd>
+
+
 <dt id="arg-con-taxa">con_taxa<a class="anchor" aria-label="anchor" href="#arg-con-taxa"></a></dt>
-<dd><p>Connection to taxa database (optional)</p></dd>
+<dd><p>Connection to taxa database (optional, defaults to call.mydb.taxa()).
+Used for synonym resolution (table_taxa) and taxonomic info enrichment.</p></dd>
 
 </dl></div>
     <div class="section level2">

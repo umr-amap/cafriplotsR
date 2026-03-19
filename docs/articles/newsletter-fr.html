@@ -100,6 +100,59 @@ données doit citer la publication originale :</p>
 xylarium Wood Density Database (TWDD). <em>Scientific Data</em>, 13,
 243. <a href="https://doi.org/10.1038/s41597-026-06563-2" class="external-link uri">https://doi.org/10.1038/s41597-026-06563-2</a></p>
 </blockquote>
+</div>
+<div class="section level4">
+<h4 id="nouvelles-fonctionnalités">Nouvelles fonctionnalités<a class="anchor" aria-label="anchor" href="#nouvelles-fonctionnalit%C3%A9s"></a>
+</h4>
+<p><strong>Suivi des citations pour les traits au niveau
+taxonomique</strong></p>
+<p>Les mesures de traits au niveau des taxons stockées dans la base de
+données sont désormais liées à leurs sources d’origine — études publiées
+ou bases de données de traits d’où les valeurs ont été extraites.
+Lorsque vous enrichissez un jeu de données d’espèces ou explorez des
+traits via les applications interactives, un panneau <strong>Sources de
+données</strong> dédié met en évidence les citations concernées et le
+nombre de mesures provenant de chaque source.</p>
+<p>Cela rend la citation appropriée directe et sans ambiguïté : le
+panneau liste la référence complète de chaque source avec le nombre de
+mesures ou observations associées, afin que vous sachiez exactement ce
+qu’il faut citer lorsque vous utilisez des données de traits dans vos
+analyses. Un des objectifs de ce package est de faciliter l’intégration
+et la ré-utilisation de ces différents jeux de données. Pour cela, il
+est nécessaire d’être le plus transparent possible sur cette intégration
+de donc de respecter les exigences de partage des données des
+publications et bases de données sous-jacentes.</p>
+<blockquote>
+<p><strong>Pour les utilisateurs R :</strong> La fonction
+<code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code> accepte désormais le paramètre
+<code>include_citation = TRUE</code> pour joindre les informations de
+citation directement au tableau retourné. Les formats de sortie large
+(<em>wide</em>) et long sont tous deux pris en charge.</p>
+</blockquote>
+<p><strong>Mode accès public pour deux applications Shiny
+interactives</strong></p>
+<p>Deux applications de la boîte à outils CafriplotsR peuvent désormais
+être lancées <strong>sans identifiants de connexion</strong> — utile
+pour les collaborateurs, les relecteurs, ou toute personne souhaitant
+explorer les données sans demander un compte personnel :</p>
+<ul>
+<li><p><strong>Navigateur du référentiel taxonomique</strong>
+(<code><a href="../reference/launch_taxo_backbone_app.html">launch_taxo_backbone_app()</a></code>) : Parcourez le référentiel
+taxonomique complet, effectuez des recherches par nom ou identifiant,
+explorez la hiérarchie taxonomique, et extrayez les traits au niveau des
+taxons en format large ou long avec les citations associées.</p></li>
+<li><p><strong>Application d’harmonisation taxonomique et
+d’enrichissement en traits</strong>
+(<code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>) : Chargez une liste
+d’espèces, standardisez les noms par rapport au référentiel CafriplotsR,
+et enrichissez-les avec les traits de la base de données — le tout dans
+une interface guidée, étape par étape.</p></li>
+</ul>
+<p>En mode public, les applications se connectent automatiquement avec
+des identifiants en lecture seule, donc aucune connexion n’est requise.
+Les deux applications affichent une bannière claire indiquant que vous
+opérez en mode public avec accès en lecture seule.</p>
+<hr>
 <!--
 MODÈLE POUR LES NOUVELLES ENTRÉES :
 
