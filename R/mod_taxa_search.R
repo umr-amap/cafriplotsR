@@ -23,19 +23,23 @@ mod_taxa_search_ui <- function(id) {
 #' @param id Module namespace ID
 #' @param pool Reactive returning taxa database connection pool
 #' @param i18n Reactive returning shiny.i18n translator
+#' @param is_public Reactive returning TRUE if user connected with public
+#'   credentials (used for R code generation). Default: always FALSE.
 #'
 #' @return Reactive containing selected taxon data (full row from table_taxa)
 #'
 #' @keywords internal
 #' @export
-mod_taxa_search_server <- function(id, pool, i18n) {
+mod_taxa_search_server <- function(id, pool, i18n,
+                                    is_public = shiny::reactive(FALSE)) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
     # Reactive values
     rv <- shiny::reactiveValues(
-      search_results = NULL,
-      selected_row = NULL
+      search_results     = NULL,
+      selected_row       = NULL,
+      last_search_params = NULL
     )
 
     # Main UI with translations
@@ -219,8 +223,14 @@ mod_taxa_search_server <- function(id, pool, i18n) {
         # Traits explanation
         shiny::uiOutput(ns("traits_explanation")),
 
-        # Selected taxon traits
-        shiny::uiOutput(ns("selected_traits"))
+        # Selected taxon traits (text summary)
+        shiny::uiOutput(ns("selected_traits")),
+
+        # Trait table extraction (wide/long + citations)
+        mod_taxa_traits_table_ui(ns("traits_table")),
+
+        # Equivalent R code section
+        mod_taxa_r_code_ui(ns("r_code"))
       )
     })
 
@@ -249,6 +259,21 @@ mod_taxa_search_server <- function(id, pool, i18n) {
     # Execute search
     shiny::observeEvent(input$search_btn, {
       shiny::req(pool())
+
+      # Capture search parameters for R code generation
+      rv$last_search_params <- list(
+        search_mode      = input$search_mode %||% "binomial",
+        binomial         = input$binomial_input %||% "",
+        genus            = input$genus_filter %||% "",
+        species          = input$species_filter %||% "",
+        family           = input$family_filter %||% "",
+        order            = input$order_filter %||% "",
+        id_filter        = if (!is.null(input$id_filter) && !is.na(input$id_filter)) input$id_filter else NULL,
+        exact_match      = isTRUE(input$exact_match),
+        include_synonyms = isTRUE(input$include_synonyms),
+        include_children = isTRUE(input$include_children),
+        synonymy_filter  = input$synonymy_filter %||% "all"
+      )
 
       tryCatch({
         cli::cli_alert_info("Executing taxa search...")
@@ -290,6 +315,7 @@ mod_taxa_search_server <- function(id, pool, i18n) {
             exact_match = input$exact_match,
             check_synonymy = FALSE,
             extract_traits = TRUE,
+            include_children = isTRUE(input$include_children),
             verbose = FALSE
           )
 
@@ -435,120 +461,8 @@ mod_taxa_search_server <- function(id, pool, i18n) {
           })
         }
 
-        # Include child taxa if requested
-        if (!is.null(results) && nrow(results) > 0 && input$include_children) {
-          tryCatch({
-            cli::cli_alert_info("Including child taxa...")
-
-            # Get connection
-            actual_con <- if (inherits(pool(), "Pool")) {
-              pool::poolCheckout(pool())
-            } else {
-              pool()
-            }
-
-            on.exit({
-              if (inherits(pool(), "Pool") && !is.null(actual_con)) {
-                tryCatch({
-                  pool::poolReturn(actual_con)
-                }, error = function(e) {
-                  # Connection might already be returned, ignore
-                })
-              }
-            }, add = TRUE)
-
-            # Get all IDs from current results
-            parent_ids <- results %>% dplyr::pull(idtax_n)
-
-            # Recursively find all children
-            all_children <- data.frame()
-            current_parent_ids <- parent_ids
-            iteration <- 0
-            max_iterations <- 10  # Safety limit to prevent infinite loops
-
-            while (length(current_parent_ids) > 0 && iteration < max_iterations) {
-              iteration <- iteration + 1
-              cli::cli_alert_info("  Iteration {iteration}: Searching children of {length(current_parent_ids)} parent(s)...")
-
-              # Find direct children of current parents
-              children <- dplyr::tbl(actual_con, "table_taxa") %>%
-                dplyr::filter(id_parent %in% !!current_parent_ids) %>%
-                dplyr::collect()
-
-              if (nrow(children) == 0) {
-                cli::cli_alert_info("  No more children found")
-                break
-              }
-
-              cli::cli_alert_success("  Found {nrow(children)} child taxon/taxa")
-
-              # Add to all_children if not already there
-              if (nrow(all_children) == 0) {
-                all_children <- children
-              } else {
-                # Only add children not already in the collection
-                new_children <- children %>%
-                  dplyr::filter(!idtax_n %in% all_children$idtax_n)
-                if (nrow(new_children) > 0) {
-                  all_children <- dplyr::bind_rows(all_children, new_children)
-                }
-              }
-
-              # Set up next iteration: current children become parents to search
-              current_parent_ids <- children %>% dplyr::pull(idtax_n)
-            }
-
-            if (nrow(all_children) > 0) {
-              cli::cli_alert_success("Total children found: {nrow(all_children)}")
-
-              # Add traits to children if results have trait columns
-              trait_cols <- names(results)[grepl("^taxa_", names(results))]
-              if (length(trait_cols) > 0) {
-                tryCatch({
-                  traits_result <- query_taxa_traits(
-                    idtax = all_children$idtax_n,
-                    format = "wide",
-                    add_taxa_info = FALSE,
-                    include_synonyms = TRUE,
-                    categorical_mode = "mode",
-                    con_taxa = NULL
-                  )
-
-                  # Join numeric traits
-                  has_numeric <- !is.null(traits_result$traits_numeric) &&
-                                 !inherits(traits_result$traits_numeric, "logical")
-                  if (has_numeric && nrow(traits_result$traits_numeric) > 0) {
-                    all_children <- all_children %>%
-                      dplyr::left_join(
-                        traits_result$traits_numeric,
-                        by = c("idtax_n" = "idtax")
-                      )
-                  }
-
-                  # Join categorical traits
-                  has_categorical <- !is.null(traits_result$traits_categorical) &&
-                                     !inherits(traits_result$traits_categorical, "logical")
-                  if (has_categorical && nrow(traits_result$traits_categorical) > 0) {
-                    all_children <- all_children %>%
-                      dplyr::left_join(
-                        traits_result$traits_categorical,
-                        by = c("idtax_n" = "idtax")
-                      )
-                  }
-                }, error = function(e) {
-                  cli::cli_alert_warning("Could not fetch traits for children: {e$message}")
-                })
-              }
-
-              # Combine results with children
-              results <- dplyr::bind_rows(results, all_children)
-            } else {
-              cli::cli_alert_info("No child taxa found")
-            }
-          }, error = function(e) {
-            cli::cli_alert_warning("Could not include children: {e$message}")
-          })
-        }
+        # Note: include_children is now handled by query_taxa() directly.
+        # The Shiny checkbox is passed via include_children parameter above.
 
         # Apply synonymy filter
         if (!is.null(results) && nrow(results) > 0) {
@@ -605,7 +519,8 @@ mod_taxa_search_server <- function(id, pool, i18n) {
       shiny::div(
         class = "alert alert-success",
         shiny::icon("check-circle"),
-        sprintf(" %s: %d", i18n()$t("Results"), n_results)
+        sprintf(" %s: %d  —  ", i18n()$t("Results"), n_results),
+        i18n()$t("Click a row to select it, or hold Ctrl/Cmd to select multiple taxa. Selected taxa can be explored and updated in the other tabs, or compared using 'Extract as Table' below.")
       )
     })
 
@@ -644,7 +559,7 @@ mod_taxa_search_server <- function(id, pool, i18n) {
 
       DT::datatable(
         results_display,
-        selection = list(mode = "single"),
+        selection = list(mode = "multiple"),
         options = list(
           pageLength = 25,
           scrollX = TRUE,
@@ -666,7 +581,9 @@ mod_taxa_search_server <- function(id, pool, i18n) {
 
       if (length(selected_row) > 0) {
         rv$selected_row <- rv$search_results[selected_row, ]
-        cli::cli_alert_success("Taxon selected: ID {rv$selected_row$idtax_n}")
+        cli::cli_alert_success(
+          "{nrow(rv$selected_row)} taxon/taxa selected: IDs {paste(rv$selected_row$idtax_n, collapse = ', ')}"
+        )
       }
     })
 
@@ -674,7 +591,41 @@ mod_taxa_search_server <- function(id, pool, i18n) {
     output$selected_info <- shiny::renderUI({
       shiny::req(rv$selected_row)
 
-      taxon <- rv$selected_row
+      n_selected <- nrow(rv$selected_row)
+
+      # ---- Multiple taxa selected: compact list ----
+      if (n_selected > 1) {
+        taxa_list_items <- lapply(seq_len(n_selected), function(i) {
+          row <- rv$selected_row[i, ]
+          label <- paste0(
+            row$tax_gen %||% "", " ", row$tax_esp %||% "",
+            " (ID: ", row$idtax_n, ")",
+            if (!is.na(row$idtax_good_n)) paste0(" [", i18n()$t("Synonym"), "]") else ""
+          )
+          shiny::tags$li(label)
+        })
+
+        return(shiny::wellPanel(
+          style = "background-color: #d4edda; border-color: #c3e6cb;",
+          shiny::h5(
+            shiny::icon("check-square"),
+            " ",
+            paste0(n_selected, " ", i18n()$t("taxa selected"))
+          ),
+          shiny::tags$ul(taxa_list_items),
+          shiny::hr(),
+          shiny::p(
+            class = "text-muted",
+            style = "font-size: 0.9em; margin-bottom: 0;",
+            shiny::icon("info-circle"),
+            " ",
+            i18n()$t("Update Taxon and Synonymy Management tabs act on the first selected taxon.")
+          )
+        ))
+      }
+
+      # ---- Single taxon selected: detailed panel ----
+      taxon <- rv$selected_row[1, ]
 
       # Get accepted name if synonym
       accepted_name_info <- NULL
@@ -731,15 +682,9 @@ mod_taxa_search_server <- function(id, pool, i18n) {
             shiny::strong(i18n()$t("Status:")),
             " ",
             if (!is.na(taxon$idtax_good_n)) {
-              shiny::span(
-                class = "synonym-indicator",
-                i18n()$t("Synonym")
-              )
+              shiny::span(class = "synonym-indicator", i18n()$t("Synonym"))
             } else {
-              shiny::span(
-                style = "color: #28a745; font-weight: bold;",
-                i18n()$t("Accepted name")
-              )
+              shiny::span(style = "color: #28a745; font-weight: bold;", i18n()$t("Accepted name"))
             },
             shiny::br(),
             if (!is.null(accepted_name_info)) {
@@ -768,8 +713,8 @@ mod_taxa_search_server <- function(id, pool, i18n) {
       # Only show explanation if a taxon is selected
       shiny::req(rv$selected_row)
 
-      # Check if there are any taxa_ columns
-      all_cols <- names(rv$selected_row)
+      # Check if there are any taxa_ columns (use first row as representative)
+      all_cols <- names(rv$selected_row[1, ])
       trait_cols <- all_cols[grepl("^taxa_", all_cols) & !grepl("id", all_cols, ignore.case = TRUE)]
 
       # Only show explanation if traits exist
@@ -812,8 +757,24 @@ mod_taxa_search_server <- function(id, pool, i18n) {
     output$selected_traits <- shiny::renderUI({
       shiny::req(rv$selected_row)
 
+      # Multiple taxa: redirect to Extract as Table
+      if (nrow(rv$selected_row) > 1) {
+        return(shiny::wellPanel(
+          style = "background-color: #d1ecf1; border-color: #bee5eb;",
+          shiny::h5(shiny::icon("leaf"), " ", i18n()$t("Taxa-Level Traits")),
+          shiny::p(
+            shiny::icon("table"),
+            " ",
+            sprintf(
+              i18n()$t("%d taxa selected — use 'Extract as Table' below to compare their traits side by side."),
+              nrow(rv$selected_row)
+            )
+          )
+        ))
+      }
+
       tryCatch({
-        taxon <- rv$selected_row
+        taxon <- rv$selected_row[1, ]
 
         # Get all column names
         all_cols <- names(taxon)
@@ -913,6 +874,23 @@ mod_taxa_search_server <- function(id, pool, i18n) {
         return(NULL)
       })
     })
+
+    # Trait table module (wide/long/citations for selected taxon)
+    traits_table_out <- mod_taxa_traits_table_server(
+      "traits_table",
+      selected_taxon = shiny::reactive(rv$selected_row),
+      i18n = i18n
+    )
+
+    # R code preview module
+    mod_taxa_r_code_server(
+      "r_code",
+      search_params  = shiny::reactive(rv$last_search_params),
+      selected_taxon = shiny::reactive(rv$selected_row),
+      traits_fetched = traits_table_out$traits_fetched,
+      is_public      = is_public,
+      i18n           = i18n
+    )
 
     # Return selected taxon data
     return(shiny::reactive(rv$selected_row))
