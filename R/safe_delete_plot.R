@@ -204,95 +204,123 @@ safe_delete_plot <- function(plot_ids,
     }
   }
 
-  # ===== STEP 5: Delete in correct order =====
+  # ===== STEP 5: Delete in correct order (batched) =====
   cli::cli_h2("Deleting Data")
 
-  # Start transaction
-  if (verbose) cli::cli_alert_info("Starting database transaction...")
-  DBI::dbBegin(con)
+  summary$success <- FALSE
+  batch_size <- 2000
+
+  # Pre-resolve IDs to avoid expensive nested subqueries during DELETE
+  if (delete_individuals && n_individuals > 0) {
+    if (verbose) cli::cli_alert_info("Resolving individual IDs...")
+    individual_ids <- DBI::dbGetQuery(con, sprintf("
+      SELECT id_n FROM data_individuals
+      WHERE id_table_liste_plots_n IN (%s)
+    ", paste(plot_ids, collapse = ",")))$id_n
+
+    if (n_trait_measures > 0) {
+      if (verbose) cli::cli_alert_info("Resolving trait measurement IDs...")
+      trait_measure_ids <- DBI::dbGetQuery(con, sprintf("
+        SELECT id_trait_measures FROM data_traits_measures
+        WHERE id_data_individuals IN (%s)
+      ", paste(individual_ids, collapse = ",")))$id_trait_measures
+    } else {
+      trait_measure_ids <- integer(0)
+    }
+  } else {
+    individual_ids <- integer(0)
+    trait_measure_ids <- integer(0)
+  }
+
+  # Helper: batch-delete by ID list, each batch in its own transaction
+  batch_delete <- function(con, table, id_column, ids, label, verbose) {
+    if (length(ids) == 0) return(0L)
+    total <- 0L
+    n_batches <- ceiling(length(ids) / batch_size)
+
+    for (batch_idx in seq_len(n_batches)) {
+      start_idx <- (batch_idx - 1) * batch_size + 1
+      end_idx   <- min(batch_idx * batch_size, length(ids))
+      batch_ids <- ids[start_idx:end_idx]
+
+      DBI::dbBegin(con)
+      tryCatch({
+        rs <- DBI::dbSendQuery(con, sprintf(
+          "DELETE FROM %s WHERE %s IN (%s)",
+          table, id_column, paste(batch_ids, collapse = ",")
+        ))
+        n_del <- DBI::dbGetRowsAffected(rs)
+        DBI::dbClearResult(rs)
+        DBI::dbCommit(con)
+        total <- total + n_del
+
+        if (verbose && n_batches > 1) {
+          cli::cli_alert_info("    Batch {batch_idx}/{n_batches}: deleted {n_del} {label}")
+        }
+      }, error = function(e) {
+        tryCatch(DBI::dbRollback(con), error = function(e2) {})
+        stop(sprintf("Error deleting %s (batch %d/%d): %s",
+                     label, batch_idx, n_batches, e$message), call. = FALSE)
+      })
+    }
+    total
+  }
 
   tryCatch({
 
-    # Step 5.1: Delete measurement features
-    if (n_meas_feat > 0 && delete_individuals) {
+    # Step 5.1: Delete measurement features (by trait_measure_ids)
+    if (length(trait_measure_ids) > 0 && n_meas_feat > 0) {
       if (verbose) cli::cli_alert_info("Deleting measurement features...")
-      n_deleted <- DBI::dbExecute(con, sprintf("
-        DELETE FROM data_ind_measures_feat
-        WHERE id_trait_measures IN (
-          SELECT id_trait_measures FROM data_traits_measures
-          WHERE id_data_individuals IN (
-            SELECT id_n FROM data_individuals
-            WHERE id_table_liste_plots_n IN (%s)
-          )
-        )
-      ", paste(plot_ids, collapse = ",")))
+      n_deleted <- batch_delete(con, "data_ind_measures_feat", "id_trait_measures",
+                                trait_measure_ids, "measurement feature(s)", verbose)
       summary$deleted$measurement_features <- n_deleted
-      if (verbose) cli::cli_alert_success("  ✔ Deleted {n_deleted} measurement feature(s)")
+      if (verbose) cli::cli_alert_success("  Deleted {n_deleted} measurement feature(s)")
     }
 
-    # Step 5.2: Delete trait measurements
-    if (n_trait_measures > 0 && delete_individuals) {
+    # Step 5.2: Delete trait measurements (by individual_ids)
+    if (length(individual_ids) > 0 && n_trait_measures > 0) {
       if (verbose) cli::cli_alert_info("Deleting trait measurements...")
-      n_deleted <- DBI::dbExecute(con, sprintf("
-        DELETE FROM data_traits_measures
-        WHERE id_data_individuals IN (
-          SELECT id_n FROM data_individuals
-          WHERE id_table_liste_plots_n IN (%s)
-        )
-      ", paste(plot_ids, collapse = ",")))
+      n_deleted <- batch_delete(con, "data_traits_measures", "id_data_individuals",
+                                individual_ids, "trait measurement(s)", verbose)
       summary$deleted$trait_measurements <- n_deleted
-      if (verbose) cli::cli_alert_success("  ✔ Deleted {n_deleted} trait measurement(s)")
+      if (verbose) cli::cli_alert_success("  Deleted {n_deleted} trait measurement(s)")
     }
 
-    # Step 5.3: Delete individuals
-    if (n_individuals > 0 && delete_individuals) {
+    # Step 5.3: Delete individuals (by plot_ids)
+    if (length(individual_ids) > 0 && delete_individuals) {
       if (verbose) cli::cli_alert_info("Deleting individuals...")
-      n_deleted <- DBI::dbExecute(con, sprintf("
-        DELETE FROM data_individuals
-        WHERE id_table_liste_plots_n IN (%s)
-      ", paste(plot_ids, collapse = ",")))
+      n_deleted <- batch_delete(con, "data_individuals", "id_table_liste_plots_n",
+                                plot_ids, "individual(s)", verbose)
       summary$deleted$individuals <- n_deleted
-      if (verbose) cli::cli_alert_success("  ✔ Deleted {n_deleted} individual(s)")
+      if (verbose) cli::cli_alert_success("  Deleted {n_deleted} individual(s)")
     }
 
     # Step 5.4: Delete subplot features
     if (n_subplots > 0 && delete_subplots) {
       if (verbose) cli::cli_alert_info("Deleting subplot features...")
-      n_deleted <- DBI::dbExecute(con, sprintf("
-        DELETE FROM data_liste_sub_plots
-        WHERE id_table_liste_plots IN (%s)
-      ", paste(plot_ids, collapse = ",")))
+      n_deleted <- batch_delete(con, "data_liste_sub_plots", "id_table_liste_plots",
+                                plot_ids, "subplot feature(s)", verbose)
       summary$deleted$subplots <- n_deleted
-      if (verbose) cli::cli_alert_success("  ✔ Deleted {n_deleted} subplot feature(s)")
+      if (verbose) cli::cli_alert_success("  Deleted {n_deleted} subplot feature(s)")
     }
 
     # Step 5.5: Delete plots
     if (verbose) cli::cli_alert_info("Deleting plot(s)...")
-    n_deleted <- DBI::dbExecute(con, sprintf("
-      DELETE FROM data_liste_plots
-      WHERE id_liste_plots IN (%s)
-    ", paste(plot_ids, collapse = ",")))
+    n_deleted <- batch_delete(con, "data_liste_plots", "id_liste_plots",
+                              plot_ids, "plot(s)", verbose)
     summary$deleted$plots <- n_deleted
-    if (verbose) cli::cli_alert_success("  ✔ Deleted {n_deleted} plot(s)")
-
-    # Commit transaction
-    DBI::dbCommit(con)
-    if (verbose) cli::cli_alert_success("✅ Transaction committed successfully")
+    if (verbose) cli::cli_alert_success("  Deleted {n_deleted} plot(s)")
 
     summary$success <- TRUE
+    if (verbose) cli::cli_alert_success("All deletions completed successfully")
 
   }, error = function(e) {
-    # Rollback on error
-    DBI::dbRollback(con)
-    cli::cli_alert_danger("❌ Error occurred - transaction rolled back")
-    cli::cli_alert_danger("Error: {e$message}")
-
-    summary$success <- FALSE
-    summary$errors <- c(summary$errors, list(e$message))
+    cli::cli_alert_danger("Error occurred during deletion: {e$message}")
+    summary$errors <<- c(summary$errors, list(e$message))
   })
 
   # ===== STEP 6: Summary =====
-  if (verbose && summary$success) {
+  if (verbose && isTRUE(summary$success)) {
     cli::cli_h2("Deletion Summary")
     cli::cli_alert_success("Successfully deleted:")
     cli::cli_ul(c(
