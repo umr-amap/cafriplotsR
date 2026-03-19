@@ -1,0 +1,762 @@
+#' Migration: Add table_citations and id_citation FK to taxa_traits_measures
+#'
+#' Creates the `table_citations` lookup table in the `plots_transects` database
+#' and adds an `id_citation` foreign key column to `taxa_traits_measures`.
+#'
+#' @details
+#' The `table_citations` table stores structured bibliographic information for
+#' the datasets and databases that contributed trait measurements. This is
+#' distinct from the `references` flat-text column in `taxa_traits_measures`,
+#' which records the original source of an individual measurement (e.g. a
+#' herbarium label or field survey). A citation describes the compiled
+#' dataset/database itself (e.g. TRY v6, BIEN, a curated species list) and
+#' is what users should cite when using trait data.
+#'
+#' This migration:
+#' 1. Creates `table_citations` with structured bibliographic fields
+#' 2. Grants INSERT/UPDATE/SELECT on `table_citations` to PUBLIC
+#' 3. Adds `id_citation` (FK to `table_citations`) to `taxa_traits_measures`
+#'
+#' @param con Database connection to `plots_transects` (must have admin privileges)
+#' @param dry_run If TRUE, only print SQL without executing (default: TRUE)
+#' @return Invisible TRUE on success
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb(user = "admin", password = "xxx")
+#'
+#' # Preview the migration
+#' migrate_add_citations_table(con, dry_run = TRUE)
+#'
+#' # Run the migration
+#' migrate_add_citations_table(con, dry_run = FALSE)
+#' }
+#'
+#' @export
+migrate_add_citations_table <- function(con, dry_run = TRUE) {
+
+  cli::cli_h1("Migration: Add table_citations")
+
+  if (!DBI::dbIsValid(con)) {
+    cli::cli_abort("Invalid database connection")
+  }
+
+  # -------------------------------------------------------------------------
+  # Step 1: Create table_citations
+  # -------------------------------------------------------------------------
+  cli::cli_h2("Step 1: Create table_citations")
+
+  sql_create_table <- "
+    CREATE TABLE IF NOT EXISTS table_citations (
+      id_citation   SERIAL PRIMARY KEY,
+      citation_key  TEXT UNIQUE NOT NULL,
+      authors       TEXT,
+      year          INTEGER,
+      title         TEXT,
+      journal       TEXT,
+      volume        TEXT,
+      pages         TEXT,
+      doi           TEXT,
+      url           TEXT,
+      dataset_name  TEXT,
+      notes         TEXT,
+      date_modif_d  SMALLINT,
+      date_modif_m  SMALLINT,
+      date_modif_y  SMALLINT
+    );
+  "
+
+  if (dry_run) {
+    cli::cli_alert_info("Would execute:{.code CREATE TABLE IF NOT EXISTS table_citations (...)}")
+  } else {
+    tryCatch({
+      DBI::dbExecute(con, sql_create_table)
+      cli::cli_alert_success("table_citations created (or already exists)")
+    }, error = function(e) {
+      cli::cli_alert_danger("Failed to create table_citations: {e$message}")
+      stop(e)
+    })
+  }
+
+  # -------------------------------------------------------------------------
+  # Step 2: Grant permissions to PUBLIC
+  # -------------------------------------------------------------------------
+  cli::cli_h2("Step 2: Grant permissions on table_citations")
+
+  sql_grant <- "GRANT SELECT, INSERT, UPDATE ON table_citations TO PUBLIC;"
+  sql_grant_seq <- "GRANT USAGE, SELECT ON SEQUENCE table_citations_id_citation_seq TO PUBLIC;"
+
+  if (dry_run) {
+    cli::cli_alert_info("Would execute: {.code {trimws(sql_grant)}}")
+    cli::cli_alert_info("Would execute: {.code {trimws(sql_grant_seq)}}")
+  } else {
+    tryCatch({
+      DBI::dbExecute(con, sql_grant)
+      DBI::dbExecute(con, sql_grant_seq)
+      cli::cli_alert_success("Permissions granted on table_citations to PUBLIC")
+    }, error = function(e) {
+      cli::cli_alert_danger("Failed to grant permissions: {e$message}")
+      stop(e)
+    })
+  }
+
+  # -------------------------------------------------------------------------
+  # Step 3: Add id_citation FK to taxa_traits_measures
+  # -------------------------------------------------------------------------
+  cli::cli_h2("Step 3: Add id_citation to taxa_traits_measures")
+
+  sql_add_fk <- "
+    ALTER TABLE taxa_traits_measures
+      ADD COLUMN IF NOT EXISTS id_citation INTEGER
+        REFERENCES table_citations(id_citation);
+  "
+
+  if (dry_run) {
+    cli::cli_alert_info("Would execute: {.code ALTER TABLE taxa_traits_measures ADD COLUMN IF NOT EXISTS id_citation INTEGER REFERENCES table_citations(id_citation)}")
+  } else {
+    tryCatch({
+      DBI::dbExecute(con, sql_add_fk)
+      cli::cli_alert_success("Column id_citation added to taxa_traits_measures")
+    }, error = function(e) {
+      cli::cli_alert_danger("Failed to add id_citation column: {e$message}")
+      stop(e)
+    })
+  }
+
+  # -------------------------------------------------------------------------
+  # Step 4: Verify
+  # -------------------------------------------------------------------------
+  cli::cli_h2("Step 4: Verify migration")
+
+  if (!dry_run) {
+    # Check table exists
+    tbl_exists <- DBI::dbGetQuery(con, "
+      SELECT COUNT(*) AS n
+      FROM information_schema.tables
+      WHERE table_name = 'table_citations'
+    ")$n > 0
+
+    if (tbl_exists) {
+      cli::cli_alert_success("table_citations exists")
+    } else {
+      cli::cli_alert_danger("table_citations NOT found!")
+    }
+
+    # Check FK column exists
+    col_exists <- DBI::dbGetQuery(con, "
+      SELECT COUNT(*) AS n
+      FROM information_schema.columns
+      WHERE table_name = 'taxa_traits_measures'
+        AND column_name = 'id_citation'
+    ")$n > 0
+
+    if (col_exists) {
+      cli::cli_alert_success("Column id_citation exists on taxa_traits_measures")
+    } else {
+      cli::cli_alert_danger("Column id_citation NOT found on taxa_traits_measures!")
+    }
+  }
+
+  # Summary
+  cli::cli_h2("Done")
+
+  if (dry_run) {
+    cli::cli_alert_warning("DRY RUN - No changes were made")
+    cli::cli_alert_info("Run with {.code dry_run = FALSE} to apply changes")
+  } else {
+    cli::cli_alert_success("Migration completed successfully")
+  }
+
+  invisible(TRUE)
+}
+
+
+#' Check citations migration status
+#'
+#' Verifies whether the citations migration has been applied.
+#'
+#' @param con Database connection to `plots_transects`
+#' @return Invisible list with fields `table_exists`, `fk_column_exists`,
+#'   `migration_complete`
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#' check_citations_migration(con)
+#' }
+#'
+#' @export
+check_citations_migration <- function(con) {
+
+  cli::cli_h2("Checking citations migration status")
+
+  result <- list(
+    table_exists     = FALSE,
+    fk_column_exists = FALSE
+  )
+
+  result$table_exists <- tryCatch({
+    DBI::dbGetQuery(con, "
+      SELECT COUNT(*) AS n FROM information_schema.tables
+      WHERE table_name = 'table_citations'
+    ")$n > 0
+  }, error = function(e) FALSE)
+
+  if (result$table_exists) {
+    cli::cli_alert_success("table_citations exists")
+  } else {
+    cli::cli_alert_danger("table_citations does NOT exist")
+  }
+
+  result$fk_column_exists <- tryCatch({
+    DBI::dbGetQuery(con, "
+      SELECT COUNT(*) AS n FROM information_schema.columns
+      WHERE table_name = 'taxa_traits_measures'
+        AND column_name = 'id_citation'
+    ")$n > 0
+  }, error = function(e) FALSE)
+
+  if (result$fk_column_exists) {
+    cli::cli_alert_success("Column id_citation exists on taxa_traits_measures")
+  } else {
+    cli::cli_alert_danger("Column id_citation NOT found on taxa_traits_measures")
+  }
+
+  result$migration_complete <- result$table_exists && result$fk_column_exists
+
+  if (result$migration_complete) {
+    cli::cli_alert_success("Citations migration is complete")
+  } else {
+    cli::cli_alert_warning("Citations migration is incomplete - run migrate_add_citations_table(con, dry_run = FALSE)")
+  }
+
+  invisible(result)
+}
+
+
+# =============================================================================
+# Phase 3 — CRUD functions
+# =============================================================================
+
+#' Query citations from table_citations
+#'
+#' Returns rows from `table_citations`, optionally filtered by ID, citation key,
+#' dataset name, or a free-text pattern matched against `citation_key`, `authors`,
+#' `title`, and `dataset_name`.
+#'
+#' @param con Database connection to `plots_transects`. If NULL, calls
+#'   `call.mydb()`.
+#' @param ids Integer vector of `id_citation` values to retrieve.
+#' @param keys Character vector of `citation_key` values to retrieve.
+#' @param dataset_names Character vector of `dataset_name` values to filter on.
+#' @param pattern Character string. Case-insensitive substring matched against
+#'   `citation_key`, `authors`, `title`, and `dataset_name`.
+#'
+#' @return A data frame of matching rows, or all rows when no filter is supplied.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # All citations
+#' query_citations(con)
+#'
+#' # By key
+#' query_citations(con, keys = "TRY_v6")
+#'
+#' # Free-text search
+#' query_citations(con, pattern = "TRY")
+#' }
+#'
+#' @export
+query_citations <- function(con = NULL,
+                            ids           = NULL,
+                            keys          = NULL,
+                            dataset_names = NULL,
+                            pattern       = NULL) {
+
+  if (is.null(con)) con <- call.mydb()
+
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+  }, add = TRUE)
+
+  # Build WHERE clauses
+  clauses <- character(0)
+
+  if (!is.null(ids)) {
+    ids_sql <- paste(as.integer(ids), collapse = ", ")
+    clauses <- c(clauses, paste0("id_citation IN (", ids_sql, ")"))
+  }
+
+  if (!is.null(keys)) {
+    keys_sql <- paste0("'", gsub("'", "''", keys), "'", collapse = ", ")
+    clauses <- c(clauses, paste0("citation_key IN (", keys_sql, ")"))
+  }
+
+  if (!is.null(dataset_names)) {
+    ds_sql <- paste0("'", gsub("'", "''", dataset_names), "'", collapse = ", ")
+    clauses <- c(clauses, paste0("dataset_name IN (", ds_sql, ")"))
+  }
+
+  if (!is.null(pattern)) {
+    p <- gsub("'", "''", pattern)
+    clauses <- c(clauses, paste0(
+      "(citation_key ILIKE '%", p, "%'",
+      " OR authors ILIKE '%", p, "%'",
+      " OR title ILIKE '%", p, "%'",
+      " OR dataset_name ILIKE '%", p, "%')"
+    ))
+  }
+
+  sql <- if (length(clauses) > 0) {
+    paste("SELECT * FROM table_citations WHERE", paste(clauses, collapse = " AND "))
+  } else {
+    "SELECT * FROM table_citations ORDER BY id_citation"
+  }
+
+  result <- func_try_fetch(con = actual_con, sql = sql)
+
+  cli::cli_alert_info("{nrow(result)} citation(s) found")
+  result
+}
+
+
+#' Add one or more citations to table_citations
+#'
+#' Inserts new rows into `table_citations`. Rows whose `citation_key` already
+#' exists in the database are skipped with a warning.
+#'
+#' @param new_data Data frame with citation fields. The column `citation_key`
+#'   is mandatory. Optional columns: `authors`, `year`, `title`, `journal`,
+#'   `volume`, `pages`, `doi`, `url`, `dataset_name`, `notes`.
+#' @param con Database connection to `plots_transects`. If NULL, calls
+#'   `call.mydb()`.
+#' @param interactive Logical. If TRUE (default), shows a preview and asks for
+#'   confirmation before inserting.
+#'
+#' @return Invisible data frame of actually inserted rows, or NULL if nothing
+#'   was inserted.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' add_citation(
+#'   data.frame(
+#'     citation_key = "TRY_v6",
+#'     authors      = "Kattge et al.",
+#'     year         = 2020,
+#'     title        = "TRY plant trait database - enhanced coverage and open access",
+#'     journal      = "Global Change Biology",
+#'     doi          = "10.1111/gcb.14904",
+#'     dataset_name = "TRY"
+#'   ),
+#'   con = con
+#' )
+#' }
+#'
+#' @export
+add_citation <- function(new_data, con = NULL, interactive = TRUE) {
+
+  if (is.null(con)) con <- call.mydb()
+
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+  }, add = TRUE)
+
+  if (!"citation_key" %in% names(new_data)) {
+    cli::cli_abort("new_data must contain a 'citation_key' column")
+  }
+
+  # Add modification date
+  today <- Sys.Date()
+  new_data$date_modif_d <- as.integer(format(today, "%d"))
+  new_data$date_modif_m <- as.integer(format(today, "%m"))
+  new_data$date_modif_y <- as.integer(format(today, "%Y"))
+
+  # Check for existing keys
+  existing <- tryCatch({
+    DBI::dbGetQuery(actual_con,
+      "SELECT citation_key FROM table_citations"
+    )$citation_key
+  }, error = function(e) character(0))
+
+  duplicates <- new_data$citation_key[new_data$citation_key %in% existing]
+
+  if (length(duplicates) > 0) {
+    cli::cli_alert_warning(
+      "Skipping {length(duplicates)} citation(s) with existing key(s): {paste(duplicates, collapse=', ')}"
+    )
+    new_data <- new_data[!new_data$citation_key %in% duplicates, ]
+  }
+
+  if (nrow(new_data) == 0) {
+    cli::cli_alert_info("No new citations to insert")
+    return(invisible(NULL))
+  }
+
+  # Keep only valid columns
+  valid_cols <- c("citation_key", "authors", "year", "title", "journal",
+                  "volume", "pages", "doi", "url", "dataset_name", "notes",
+                  "date_modif_d", "date_modif_m", "date_modif_y")
+  new_data <- new_data[, intersect(names(new_data), valid_cols), drop = FALSE]
+
+  cli::cli_h3("Citations to insert:")
+  print(new_data)
+
+  do_insert <- if (interactive) {
+    choose_prompt(message = paste0("Confirm inserting ", nrow(new_data), " citation(s)?"))
+  } else {
+    TRUE
+  }
+
+  if (do_insert) {
+    tryCatch({
+      DBI::dbWriteTable(actual_con, "table_citations", new_data,
+                        append = TRUE, row.names = FALSE)
+      cli::cli_alert_success("{nrow(new_data)} citation(s) inserted")
+    }, error = function(e) {
+      cli::cli_alert_danger("Insert failed: {e$message}")
+      stop(e)
+    })
+  } else {
+    cli::cli_alert_info("Insert cancelled")
+    return(invisible(NULL))
+  }
+
+  invisible(new_data)
+}
+
+
+#' Update fields of an existing citation
+#'
+#' Updates one or more columns of a single row in `table_citations`, identified
+#' by its `id_citation`.
+#'
+#' @param id_citation Integer. The `id_citation` of the row to update.
+#' @param fields Named list of field-value pairs to update. Names must be valid
+#'   column names of `table_citations` (excluding `id_citation`).
+#' @param con Database connection to `plots_transects`. If NULL, calls
+#'   `call.mydb()`.
+#' @param execute Logical. If FALSE (default), shows changes without applying
+#'   them. Set to TRUE to apply.
+#'
+#' @return Invisible TRUE on success, or invisible FALSE if not executed.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # Preview
+#' update_citation(1, list(doi = "10.1111/gcb.14904", url = "https://..."), con)
+#'
+#' # Apply
+#' update_citation(1, list(doi = "10.1111/gcb.14904"), con, execute = TRUE)
+#' }
+#'
+#' @export
+update_citation <- function(id_citation, fields, con = NULL, execute = FALSE) {
+
+  if (is.null(con)) con <- call.mydb()
+
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+  }, add = TRUE)
+
+  if (!is.numeric(id_citation) || length(id_citation) != 1) {
+    cli::cli_abort("id_citation must be a single integer")
+  }
+
+  valid_cols <- c("citation_key", "authors", "year", "title", "journal",
+                  "volume", "pages", "doi", "url", "dataset_name", "notes",
+                  "date_modif_d", "date_modif_m", "date_modif_y")
+
+  invalid <- setdiff(names(fields), valid_cols)
+  if (length(invalid) > 0) {
+    cli::cli_abort("Invalid field(s): {paste(invalid, collapse=', ')}")
+  }
+
+  # Always update modification date
+  today <- Sys.Date()
+  fields$date_modif_d <- as.integer(format(today, "%d"))
+  fields$date_modif_m <- as.integer(format(today, "%m"))
+  fields$date_modif_y <- as.integer(format(today, "%Y"))
+
+  # Fetch current values for comparison
+  current <- tryCatch({
+    DBI::dbGetQuery(actual_con,
+      paste0("SELECT * FROM table_citations WHERE id_citation = ", as.integer(id_citation))
+    )
+  }, error = function(e) {
+    cli::cli_abort("Could not fetch current record: {e$message}")
+  })
+
+  if (nrow(current) == 0) {
+    cli::cli_abort("No citation found with id_citation = {id_citation}")
+  }
+
+  # Show comparison
+  cli::cli_h3("Proposed changes for id_citation = {id_citation}:")
+  for (nm in setdiff(names(fields), c("date_modif_d", "date_modif_m", "date_modif_y"))) {
+    old_val <- if (nm %in% names(current)) current[[nm]][1] else NA
+    cli::cli_alert_info("{.field {nm}}: {.val {old_val}} -> {.val {fields[[nm]]}}")
+  }
+
+  if (!execute) {
+    cli::cli_alert_warning("DRY RUN - no changes applied (rerun with execute = TRUE)")
+    return(invisible(FALSE))
+  }
+
+  # Build SET clause
+  set_parts <- mapply(function(col, val) {
+    if (is.na(val) || is.null(val)) {
+      paste0(col, " = NULL")
+    } else if (is.character(val)) {
+      paste0(col, " = '", gsub("'", "''", val), "'")
+    } else {
+      paste0(col, " = ", val)
+    }
+  }, names(fields), fields, SIMPLIFY = TRUE)
+
+  sql <- paste0(
+    "UPDATE table_citations SET ",
+    paste(set_parts, collapse = ", "),
+    " WHERE id_citation = ", as.integer(id_citation)
+  )
+
+  tryCatch({
+    DBI::dbExecute(actual_con, sql)
+    cli::cli_alert_success("Citation {id_citation} updated")
+  }, error = function(e) {
+    cli::cli_alert_danger("Update failed: {e$message}")
+    stop(e)
+  })
+
+  invisible(TRUE)
+}
+
+
+# =============================================================================
+# Backfill helpers
+# =============================================================================
+
+#' Export taxa trait measurements for citation backfill
+#'
+#' Exports `taxa_traits_measures` to a data frame (optionally saved as Excel)
+#' with a blank `id_citation` column ready to be filled in manually. Once
+#' filled, pass the result to `apply_citation_backfill()`.
+#'
+#' The export contains only the columns needed to identify each row and assign
+#' a citation: `id_trait_measures`, `idtax`, `fk_id_trait`, `basisofrecord`,
+#' `measurementremarks`, and the current `id_citation` (NA where unset).
+#' Trait names from `traitlist` are joined for readability.
+#'
+#' @param con Database connection to `plots_transects`. If NULL, calls
+#'   `call.mydb()`.
+#' @param file Path to an `.xlsx` file to write. If NULL (default), returns
+#'   the data frame without writing.
+#' @param only_missing Logical. If TRUE (default), export only rows where
+#'   `id_citation IS NULL`.
+#'
+#' @return A data frame with columns `id_trait_measures`, `idtax`, `trait`,
+#'   `fk_id_trait`, `basisofrecord`, `measurementremarks`, `id_citation`.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # Return as data frame
+#' df <- export_taxa_traits_for_citation_backfill(con)
+#'
+#' # Write to Excel for manual editing
+#' export_taxa_traits_for_citation_backfill(con, file = "traits_to_cite.xlsx")
+#' }
+#'
+#' @export
+export_taxa_traits_for_citation_backfill <- function(con = NULL,
+                                                      file = NULL,
+                                                      only_missing = TRUE) {
+
+  if (is.null(con)) con <- call.mydb()
+
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+  }, add = TRUE)
+
+  where_sql <- if (only_missing) "WHERE tm.id_citation IS NULL" else ""
+
+  result <- DBI::dbGetQuery(actual_con, paste0("
+    SELECT
+      tm.id_trait_measures,
+      tm.idtax,
+      tl.trait,
+      tm.fk_id_trait,
+      tm.basisofrecord,
+      tm.measurementremarks,
+      tm.id_citation
+    FROM taxa_traits_measures tm
+    LEFT JOIN traitlist tl ON tm.fk_id_trait = tl.id_trait
+    ", where_sql, "
+    ORDER BY tl.trait, tm.idtax
+  "))
+
+  cli::cli_alert_info(
+    "{nrow(result)} row(s) exported ({if (only_missing) 'missing citation only' else 'all rows'})"
+  )
+
+  if (!is.null(file)) {
+    if (!requireNamespace("openxlsx", quietly = TRUE)) {
+      cli::cli_abort("Package 'openxlsx' required to write Excel. Install with: install.packages('openxlsx')")
+    }
+    # Also export available citations as a second sheet for reference
+    citations <- tryCatch(
+      DBI::dbGetQuery(actual_con,
+        "SELECT id_citation, citation_key, authors, year, dataset_name
+         FROM table_citations ORDER BY citation_key"),
+      error = function(e) data.frame()
+    )
+    wb <- openxlsx::createWorkbook()
+    openxlsx::addWorksheet(wb, "traits")
+    openxlsx::writeData(wb, "traits", result)
+    if (nrow(citations) > 0) {
+      openxlsx::addWorksheet(wb, "citations_reference")
+      openxlsx::writeData(wb, "citations_reference", citations)
+    }
+    openxlsx::saveWorkbook(wb, file, overwrite = TRUE)
+    cli::cli_alert_success("Written to {.file {file}}")
+    cli::cli_alert_info("Fill in the 'id_citation' column in the 'traits' sheet, then run apply_citation_backfill()")
+  }
+
+  invisible(result)
+}
+
+
+#' Apply citation backfill from a manually filled data frame
+#'
+#' Takes a data frame (typically the output of
+#' `export_taxa_traits_for_citation_backfill()` after manual editing) and
+#' updates `id_citation` in `taxa_traits_measures` for each row where
+#' `id_citation` is not NA. Rows with NA are skipped.
+#'
+#' @param data Data frame with at minimum two columns: `id_trait_measures`
+#'   (integer, primary key) and `id_citation` (integer, FK to
+#'   `table_citations`). Additional columns are ignored.
+#' @param con Database connection to `plots_transects`. If NULL, calls
+#'   `call.mydb()`.
+#' @param execute Logical. If FALSE (default), shows a preview of what would
+#'   be updated without modifying the database.
+#' @param batch_size Integer. Number of rows per UPDATE batch (default 1000).
+#'
+#' @return Invisible integer: number of rows updated.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # Export, fill manually, apply
+#' df <- export_taxa_traits_for_citation_backfill(con)
+#' # ... fill df$id_citation ...
+#' apply_citation_backfill(df, con = con)              # dry run
+#' apply_citation_backfill(df, con = con, execute = TRUE)
+#'
+#' # Or from Excel
+#' df <- readxl::read_excel("traits_to_cite.xlsx", sheet = "traits")
+#' apply_citation_backfill(df, con = con, execute = TRUE)
+#' }
+#'
+#' @export
+apply_citation_backfill <- function(data,
+                                    con        = NULL,
+                                    execute    = FALSE,
+                                    batch_size = 1000L) {
+
+  if (is.null(con)) con <- call.mydb()
+
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+  }, add = TRUE)
+
+  required <- c("id_trait_measures", "id_citation")
+  missing_cols <- setdiff(required, names(data))
+  if (length(missing_cols) > 0) {
+    cli::cli_abort("data must contain columns: {paste(missing_cols, collapse=', ')}")
+  }
+
+  # Keep only rows where id_citation is filled in
+  to_update <- data[!is.na(data$id_citation), c("id_trait_measures", "id_citation")]
+  to_update$id_trait_measures <- as.integer(to_update$id_trait_measures)
+  to_update$id_citation        <- as.integer(to_update$id_citation)
+
+  n_skip <- nrow(data) - nrow(to_update)
+
+  cli::cli_alert_info("{nrow(to_update)} row(s) to update, {n_skip} skipped (NA id_citation)")
+
+  if (nrow(to_update) == 0) {
+    cli::cli_alert_info("Nothing to update")
+    return(invisible(0L))
+  }
+
+  # Preview: citation breakdown
+  cit_summary <- as.data.frame(table(to_update$id_citation))
+  names(cit_summary) <- c("id_citation", "n_rows")
+
+  # Enrich with citation_key for readability
+  cit_keys <- tryCatch(
+    DBI::dbGetQuery(actual_con,
+      "SELECT id_citation, citation_key FROM table_citations"),
+    error = function(e) data.frame(id_citation = integer(), citation_key = character())
+  )
+  cit_summary$id_citation <- as.integer(as.character(cit_summary$id_citation))
+  cit_summary <- merge(cit_summary, cit_keys, by = "id_citation", all.x = TRUE)
+
+  cli::cli_h3("Citation assignment preview:")
+  for (i in seq_len(nrow(cit_summary))) {
+    r <- cit_summary[i, ]
+    key <- if (!is.na(r$citation_key)) r$citation_key else paste0("id=", r$id_citation)
+    cli::cli_alert_info("  {key}: {r$n_rows} row(s)")
+  }
+
+  if (!execute) {
+    cli::cli_alert_warning("DRY RUN - no changes applied (rerun with execute = TRUE)")
+    return(invisible(nrow(to_update)))
+  }
+
+  # Batch UPDATE
+  batches <- split(to_update, ceiling(seq_len(nrow(to_update)) / batch_size))
+  n_updated <- 0L
+
+  cli::cli_progress_bar("Updating batches", total = length(batches))
+
+  for (batch in batches) {
+    # Build VALUES list for a single UPDATE ... FROM (VALUES ...) approach
+    # Efficient: one SQL per batch instead of one per row
+    values_sql <- paste(
+      apply(batch, 1, function(r) paste0("(", r["id_trait_measures"], ",", r["id_citation"], ")")),
+      collapse = ", "
+    )
+    sql <- paste0(
+      "UPDATE taxa_traits_measures AS tm
+       SET id_citation = v.id_citation
+       FROM (VALUES ", values_sql, ") AS v(id_trait_measures, id_citation)
+       WHERE tm.id_trait_measures = v.id_trait_measures"
+    )
+    tryCatch({
+      n_updated <- n_updated + DBI::dbExecute(actual_con, sql)
+    }, error = function(e) {
+      cli::cli_alert_danger("Batch failed: {e$message}")
+      stop(e)
+    })
+    cli::cli_progress_update()
+  }
+
+  cli::cli_progress_done()
+  cli::cli_alert_success("{n_updated} row(s) updated")
+
+  invisible(n_updated)
+}

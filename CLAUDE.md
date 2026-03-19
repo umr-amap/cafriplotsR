@@ -109,8 +109,8 @@ This is `CafriplotsR`, an R package for exploring and updating a PostgreSQL data
 
 The package manages connections to **two separate PostgreSQL databases**:
 
-1. **Main database** (`plots_transects`): Contains plot, subplot, and individual tree data
-2. **Taxa database** (`rainbio`): Contains taxonomic information and species-level traits
+1. **Main database** (`plots_transects`): Contains plot, subplot, individual tree data, **and taxa-level trait measurements** (`taxa_traits_measures` was migrated here from `rainbio`)
+2. **Taxa database** (`rainbio`): Contains taxonomic information (taxon hierarchy, synonymy)
 
 **Connection management** (`R/connections_db.R`):
 - Connections are stored in internal environment `.db_env`
@@ -172,7 +172,7 @@ The package follows a **layered query architecture**:
 - Subplots contain observations with features that can describe these subplots features (for a census, people involved)
 
 **Traits hierarchy**:
-- Taxa-level: `table_traits_measures` (species traits in taxa DB)
+- Taxa-level: `taxa_traits_measures` (species traits, now in main `plots_transects` DB)
 - Individual-level: `data_ind_measures_feat` (tree-level measurements in main DB)
 - Both link to `table_traits` / `traitlist` for trait definitions
 

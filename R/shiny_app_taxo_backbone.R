@@ -302,10 +302,12 @@ shiny_app_taxo_backbone <- function(pool_taxa = NULL, language = "fr") {
 
       pool_reactive <- login_output$pool_taxa  # NOTE: taxa DB, not main DB!
       authenticated_reactive <- login_output$authenticated
+      is_public_reactive <- login_output$is_public
     } else {
       # Pool provided, mark as authenticated
       pool_reactive <- shiny::reactive(pool_taxa)
       authenticated_reactive <- shiny::reactive(TRUE)
+      is_public_reactive <- shiny::reactive(FALSE)
 
       # Store in global env
       .db_env$pool_taxa <- pool_taxa
@@ -536,7 +538,8 @@ shiny_app_taxo_backbone <- function(pool_taxa = NULL, language = "fr") {
       selected_taxon <- mod_taxa_search_server(
         "search",
         pool = pool_reactive,
-        i18n = i18n
+        i18n = i18n,
+        is_public = is_public_reactive
       )
 
       # Update reactive values when taxon is selected

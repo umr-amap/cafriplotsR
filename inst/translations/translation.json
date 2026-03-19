@@ -5872,6 +5872,110 @@
     {
       "en": "Password",
       "fr": "Mot de passe"
+    },
+    {
+      "en": "Data Sources",
+      "fr": "Sources de données"
+    },
+    {
+      "en": "No citation information available for these trait measurements. Citations may not have been assigned yet.",
+      "fr": "Aucune information de citation disponible pour ces mesures de traits. Les citations peuvent ne pas encore avoir été attribuées."
+    },
+    {
+      "en": "Please cite or acknowledge data sources",
+      "fr": "Veuillez citer ou mentionner les sources de données"
+    },
+    {
+      "en": "The trait data used to enrich your dataset comes from the databases and publications listed below. If you use these data in a publication, you must cite or acknowledge each source accordingly. Proper attribution ensures the sustainability of open data initiatives and recognizes the work of data collectors and curators.",
+      "fr": "Les données de traits utilisées pour enrichir votre jeu de données proviennent des bases de données et publications listées ci-dessous. Si vous utilisez ces données dans une publication, vous devez citer ou mentionner chaque source. Une attribution correcte assure la pérennité des initiatives de données ouvertes et reconnaît le travail des collecteurs et curateurs de données."
+    },
+    {
+      "en": "Data sources",
+      "fr": "Sources de données"
+    },
+    {
+      "en": "Total measurements",
+      "fr": "Total des mesures"
+    },
+    {
+      "en": "Unassigned sources",
+      "fr": "Sources non attribuées"
+    },
+    {
+      "en": "Sources contributing to your enriched dataset",
+      "fr": "Sources contribuant à votre jeu de données enrichi"
+    },
+    {
+      "en": "Unassigned source",
+      "fr": "Source non attribuée"
+    },
+    {
+      "en": "These measurements do not have a citation assigned yet.",
+      "fr": "Ces mesures ne disposent pas encore de citation attribuée."
+    },
+    {
+      "en": "Click a row to select it, or hold Ctrl/Cmd to select multiple taxa. Selected taxa can be explored and updated in the other tabs, or compared using 'Extract as Table' below.",
+      "fr": "Cliquez sur une ligne pour la sélectionner, ou maintenez Ctrl/Cmd pour sélectionner plusieurs taxons. Les taxons sélectionnés peuvent être explorés et mis à jour dans les autres onglets, ou comparés via \"Extraire en tableau\" ci-dessous."
+    },
+    {
+      "en": "taxa selected",
+      "fr": "taxons sélectionnés"
+    },
+    {
+      "en": "Update Taxon and Synonymy Management tabs act on the first selected taxon.",
+      "fr": "Les onglets Mise à jour et Gestion des synonymies agissent sur le premier taxon sélectionné."
+    },
+    {
+      "en": "%d taxa selected — use 'Extract as Table' below to compare their traits side by side.",
+      "fr": "%d taxons sélectionnés — utilisez \"Extraire en tableau\" ci-dessous pour comparer leurs traits côte à côte."
+    },
+    {
+      "en": "Extract as Table",
+      "fr": "Extraire en tableau"
+    },
+    {
+      "en": "Extract full wide/long trait tables with citation information for this taxon.",
+      "fr": "Extraire les tableaux complets de traits (format large/long) avec les informations de citation pour ce taxon."
+    },
+    {
+      "en": "This view shows the taxonomic hierarchy as defined in the backbone only if one taxon is selected. Please select a single taxon in the Browse & Search tab.",
+      "fr": "Cette vue affiche la hiérarchie taxonomique telle que définie dans le référentiel uniquement si un seul taxon est sélectionné. Veuillez sélectionner un seul taxon dans l'onglet Parcourir et Rechercher."
+    },
+    {
+      "en": "Hide R Code",
+      "fr": "Masquer le code R"
+    },
+    {
+      "en": "Show Equivalent R Code",
+      "fr": "Afficher le code R équivalent"
+    },
+    {
+      "en": "Use this code to reproduce the same query programmatically.",
+      "fr": "Utilisez ce code pour reproduire la même requête de manière programmatique."
+    },
+    {
+      "en": "Taxonomic Search",
+      "fr": "Recherche taxonomique"
+    },
+    {
+      "en": "Trait Extraction",
+      "fr": "Extraction des traits"
+    },
+    {
+      "en": "Click 'Extract as Table' above to also generate the query_taxa_traits() code.",
+      "fr": "Cliquez sur \"Extraire en tableau\" ci-dessus pour générer aussi le code query_taxa_traits()."
+    },
+    {
+      "en": "Not a parameter of query_taxa(). To add synonyms manually:",
+      "fr": "Pas un paramètre de query_taxa(). Pour ajouter les synonymes manuellement :"
+    },
+    {
+      "en": "Not a parameter of query_taxa(). To retrieve descendant taxa manually:",
+      "fr": "Pas un paramètre de query_taxa(). Pour récupérer les taxons descendants manuellement :"
+    },
+    {
+      "en": "Not a parameter of query_taxa(). Apply as a post-processing filter:",
+      "fr": "Pas un paramètre de query_taxa(). À appliquer comme filtre post-traitement :"
     }
   ]
 }

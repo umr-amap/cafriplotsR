@@ -1975,7 +1975,7 @@ pivot_numeric_traits <- function(data, include_census) {
         values_from = c(value, id_measure),
         names_glue = "{.value}_{trait}_{census_name}"
       ) %>%
-      rename_with(~str_remove(.x, "value_"), starts_with("value_")) %>%
+      rename_with(~stringr::str_remove(.x, "value_"), starts_with("value_")) %>%
       select(-starts_with("id_measure_")) %>%
       distinct()
 
@@ -1996,7 +1996,7 @@ pivot_numeric_traits <- function(data, include_census) {
         values_from = c(value, id_measure),
         names_glue = "{.value}_{trait}"
       ) %>%
-      rename_with(~str_remove(.x, "value_"), starts_with("value_")) %>%
+      rename_with(~stringr::str_remove(.x, "value_"), starts_with("value_")) %>%
       select(-starts_with("id_measure_")) %>%
       distinct()
 

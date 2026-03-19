@@ -7,7 +7,7 @@
 grant_lookup_table_permissions(
   con,
   user,
-  tables = c("table_colnam", "table_countries", "methodslist"),
+  tables = c("table_colnam", "table_countries", "methodslist", "table_citations"),
   operations = c("SELECT", "INSERT", "UPDATE")
 )
 }

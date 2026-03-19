@@ -38,6 +38,9 @@
 #'   for family/genus/order queries, exact matching is recommended.
 #' @param check_synonymy logical whether to resolve synonyms and include them
 #' @param extract_traits logical whether to add trait information
+#' @param include_children logical if TRUE, recursively include all descendant
+#'   taxa (e.g. species within a genus, infraspecific taxa within a species)
+#'   via the `id_parent` foreign key. Default FALSE.
 #' @param min_similarity numeric (0-1) minimum similarity score for fuzzy matching (default: 0.3)
 #'
 #'
@@ -58,6 +61,7 @@ query_taxa <-
     exact_match = TRUE,
     check_synonymy = TRUE,
     extract_traits = TRUE,
+    include_children = FALSE,
     min_similarity = 0.3
   ) {
 
@@ -74,6 +78,7 @@ query_taxa <-
         only_class = only_class,
         check_synonymy = check_synonymy,
         extract_traits = extract_traits,
+        include_children = include_children,
         verbose = verbose
       ))
     }
@@ -190,6 +195,11 @@ query_taxa <-
         idtax_n
       )
 
+    # Include child taxa (recursive via id_parent)
+    if (include_children && nrow(res) > 0) {
+      res <- .include_children(res, mydb_taxa, verbose)
+    }
+
     # Apply hierarchical filters using tax_level field
     if (only_genus) {
       res <- res %>% dplyr::filter(tax_level == "genus")
@@ -240,7 +250,8 @@ query_taxa <-
 #' Query taxa by IDs (internal helper)
 #' @keywords internal
 .query_taxa_by_ids <- function(ids, class, mydb_taxa, only_genus, only_family,
-                                only_class, check_synonymy, extract_traits, verbose) {
+                                only_class, check_synonymy, extract_traits,
+                                include_children = FALSE, verbose) {
 
   # Filter by class if specified
   if (!is.null(class)) {
@@ -260,6 +271,11 @@ query_taxa <-
 
   if (is.null(res) || nrow(res) == 0) {
     return(NULL)
+  }
+
+  # Include child taxa (recursive via id_parent)
+  if (include_children && nrow(res) > 0) {
+    res <- .include_children(res, mydb_taxa, verbose)
   }
 
   # Apply hierarchical filters
@@ -318,6 +334,62 @@ query_taxa <-
     collect()
 
   return(res_class)
+}
+
+
+#' Recursively include all child taxa via id_parent
+#' @param res data.frame of initial taxa results
+#' @param mydb_taxa database connection
+#' @param verbose logical
+#' @return data.frame with children appended
+#' @keywords internal
+.include_children <- function(res, mydb_taxa, verbose) {
+  parent_ids     <- res$idtax_n
+  all_children   <- data.frame()
+  iteration      <- 0L
+  max_iterations <- 10L
+
+  if (verbose) cli::cli_alert_info("Including child taxa...")
+
+
+  while (length(parent_ids) > 0 && iteration < max_iterations) {
+    iteration <- iteration + 1L
+
+    sql <- glue::glue_sql(
+      "SELECT * FROM table_taxa WHERE id_parent IN ({vals*})",
+      vals = parent_ids, .con = mydb_taxa
+    )
+    children <- func_try_fetch(con = mydb_taxa, sql = sql)
+
+    if (is.null(children) || nrow(children) == 0) break
+
+    # Keep only genuinely new children
+    new_kids <- children[!children$idtax_n %in% c(res$idtax_n,
+                                                    all_children$idtax_n), ]
+    if (nrow(new_kids) == 0) break
+
+    all_children <- dplyr::bind_rows(all_children, new_kids)
+    parent_ids   <- new_kids$idtax_n
+
+    if (verbose) {
+      cli::cli_alert_success(
+        "  Iteration {iteration}: found {nrow(new_kids)} child taxon/taxa"
+      )
+    }
+  }
+
+  if (nrow(all_children) > 0) {
+    if (verbose) {
+      cli::cli_alert_success(
+        "Total child taxa added: {nrow(all_children)}"
+      )
+    }
+    res <- dplyr::bind_rows(res, all_children)
+  } else if (verbose) {
+    cli::cli_alert_info("No child taxa found")
+  }
+
+  res
 }
 
 

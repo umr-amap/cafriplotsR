@@ -4,7 +4,7 @@
 \alias{mod_taxa_search_server}
 \title{Taxa Search & Browser Module - Server}
 \usage{
-mod_taxa_search_server(id, pool, i18n)
+mod_taxa_search_server(id, pool, i18n, is_public = shiny::reactive(FALSE))
 }
 \arguments{
 \item{id}{Module namespace ID}
@@ -12,6 +12,9 @@ mod_taxa_search_server(id, pool, i18n)
 \item{pool}{Reactive returning taxa database connection pool}
 
 \item{i18n}{Reactive returning shiny.i18n translator}
+
+\item{is_public}{Reactive returning TRUE if user connected with public
+credentials (used for R code generation). Default: always FALSE.}
 }
 \value{
 Reactive containing selected taxon data (full row from table_taxa)

@@ -55,6 +55,8 @@ launch_taxa_traits_import <- function(launch_browser = TRUE, language = "fr") {
 
   translator <- init_translator()
 
+  options(shiny.maxRequestSize = 50 * 1024^2)  # 50 MB upload limit
+
   shiny::shinyApp(
     ui = taxa_traits_import_ui(translator, language),
     server = function(input, output, session) {
