@@ -119,13 +119,13 @@ mod_taxa_tree_view_server <- function(id, pool, selected_taxon, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # Reactive to build hierarchy from selected taxon
+    # Reactive to build hierarchy from selected taxon (single taxon only)
     hierarchy <- shiny::reactive({
       shiny::req(selected_taxon())
       shiny::req(pool())
 
       taxon <- selected_taxon()
-      if (is.null(taxon) || nrow(taxon) == 0 || is.null(taxon$idtax_n)) {
+      if (is.null(taxon) || nrow(taxon) == 0 || nrow(taxon) > 1 || is.null(taxon$idtax_n)) {
         return(NULL)
       }
 
@@ -137,13 +137,13 @@ mod_taxa_tree_view_server <- function(id, pool, selected_taxon, i18n) {
       })
     })
 
-    # Reactive to count children
+    # Reactive to count children (single taxon only)
     children_counts <- shiny::reactive({
       shiny::req(selected_taxon())
       shiny::req(pool())
 
       taxon <- selected_taxon()
-      if (is.null(taxon) || nrow(taxon) == 0 || is.null(taxon$idtax_n)) {
+      if (is.null(taxon) || nrow(taxon) == 0 || nrow(taxon) > 1 || is.null(taxon$idtax_n)) {
         return(NULL)
       }
 
@@ -163,6 +163,17 @@ mod_taxa_tree_view_server <- function(id, pool, selected_taxon, i18n) {
             shiny::icon("info-circle"),
             " ",
             i18n()$t("Please select a taxon from the Browse & Search tab first")
+          )
+        )
+      }
+
+      if (nrow(selected_taxon()) > 1) {
+        return(
+          shiny::div(
+            class = "alert alert-warning",
+            shiny::icon("exclamation-triangle"),
+            " ",
+            i18n()$t("This view shows the taxonomic hierarchy as defined in the backbone only if one taxon is selected. Please select a single taxon in the Browse & Search tab.")
           )
         )
       }
