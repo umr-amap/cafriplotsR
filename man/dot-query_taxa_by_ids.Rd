@@ -13,6 +13,7 @@
   only_class,
   check_synonymy,
   extract_traits,
+  include_children = FALSE,
   verbose
 )
 }
