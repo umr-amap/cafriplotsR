@@ -2,6 +2,61 @@
 
 ### New Features
 
+* **Structured citation tracking for taxa-level trait measurements**
+  - New `table_citations` table in the main database (`plots_transects`) with fields for authors, year, title, journal, DOI, URL, and dataset name
+  - `migrate_add_citations_table()`: migration function to create the table and add `id_citation` FK column to `taxa_traits_measures`
+  - `query_citations()`, `add_citation()`, `update_citation()`: CRUD functions for managing citation records
+  - `export_taxa_traits_for_citation_backfill()` / `apply_citation_backfill()`: workflow for bulk-assigning citations to existing measurements via an exported Excel file
+  - `grant_lookup_table_permissions()` now includes `table_citations` by default
+  - `add_sp_traits_measures()` accepts `id_citation` to tag new measurements at import
+  - `fetch_taxa_trait_measurements()` and `query_taxa_traits()` gain `include_citation = FALSE` parameter to join full citation metadata
+
+* **Citation source panel in taxa traits enrichment module** (`shiny_app_taxo_match`)
+  - New "Data Sources" tab in the trait enrichment results showing per-citation measurement/taxa/trait counts
+  - Acknowledgement banner emphasising the importance of citing data sources
+  - Excel downloads (wide and long format) include a `citations` sheet alongside trait data
+
+* **Citation selector in taxa traits import app** (`shiny_app_taxa_traits_import`)
+  - Dropdown to pick the citation for all rows being imported, with a "New citation" modal to create one on the fly
+
+* **Multi-row selection in taxo backbone app** (`shiny_app_taxo_backbone`)
+  - Search results table now supports multi-row selection (Ctrl/Cmd click)
+  - Selected taxon panel lists all selected taxa when multiple are chosen; Update/Synonymy tabs act on the first selected
+  - Tree view shows an explicit message instead of silently showing the first taxon when multiple are selected
+  - Trait text panel redirects to "Extract as Table" when multiple taxa are selected
+
+* **New module: taxa trait table extraction** (`mod_taxa_traits_table`)
+  - "Extract as Table" button in the taxo backbone search panel fetches wide and long trait tables for selected taxa
+  - Results include Wide Format, Long Format, and Data Sources tabs with per-citation cards
+  - Excel downloads include a `citations` sheet
+
+* **New module: equivalent R code preview** (`mod_taxa_r_code`)
+  - Collapsible "Show Equivalent R Code" panel in the taxo backbone search section
+  - Generates `query_taxa()` call matching current search filters (including `include_children`)
+  - Generates `query_taxa_traits()` calls once "Extract as Table" is triggered
+  - Produces a complete workflow script; when user is connected as public, includes the public connection credentials automatically
+  - Notes for Shiny-only options (`include_synonyms`, `synonymy_filter`) that require post-processing in R
+
+* **`include_children` parameter in `query_taxa()`**
+  - New `include_children = FALSE` parameter recursively fetches all descendant taxa via the `id_parent` foreign key (up to 10 iterations)
+  - New internal helper `.include_children()` used by both the name-based and ID-based query paths
+  - The taxo backbone Shiny app now delegates child fetching to this parameter instead of a manual loop
+
+### Bug Fixes
+
+* **`pivot_numeric_traits()` namespace fix**
+  - `str_remove()` qualified as `stringr::str_remove()` to avoid ambiguity when package is not attached
+
+### Code Refactoring
+
+* **`safe_delete_plot()` batch transactions**
+  - Replaced single large transaction covering all deletions with per-batch transactions (batch size 2000)
+  - Pre-resolves individual and trait-measure IDs before deletion to avoid expensive nested subqueries
+  - Prevents lock timeouts on plots with large numbers of individuals
+
+* **Output styles config**
+  - Added `phenology` and `succession_guild` to default individual output columns
+
 * **Public access login option in all Shiny apps**
   - `mod_database_login` now offers a "Connect as public user" button alongside the personal credentials form
   - Public connection uses a dedicated read-only database user (`CafriP_public`) with access restricted to taxonomy and taxa-level trait tables only — no plot data exposed
