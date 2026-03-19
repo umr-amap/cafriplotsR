@@ -100,29 +100,49 @@ mod_trait_validation_server <- function(id, data, mapping, pool, i18n) {
         shiny::setProgress(0.2, message = i18n()$t("Checking taxon IDs..."))
 
         idtax_vals <- df[[idtax_col]]
-        n_na_idtax <- sum(is.na(idtax_vals))
-        if (n_na_idtax > 0) {
-          add_error(idtax_col, "missing_values",
-            sprintf("Taxon ID column has %d missing value(s)", n_na_idtax),
-            "Rows with missing taxon IDs cannot be imported")
+        numeric_idtax <- suppressWarnings(as.numeric(idtax_vals))
+
+        # Identify invalid rows: NA or zero
+        rows_na   <- is.na(numeric_idtax)
+        rows_zero <- !is.na(numeric_idtax) & numeric_idtax == 0
+        rows_invalid <- rows_na | rows_zero
+
+        n_na_idtax   <- sum(rows_na)
+        n_zero_idtax <- sum(rows_zero)
+        n_removed    <- sum(rows_invalid)
+
+        if (n_removed > 0) {
+          detail_parts <- c()
+          if (n_na_idtax > 0)
+            detail_parts <- c(detail_parts, sprintf("%d NA", n_na_idtax))
+          if (n_zero_idtax > 0)
+            detail_parts <- c(detail_parts, sprintf("%d zero", n_zero_idtax))
+
+          add_warning(idtax_col, "invalid_idtax_removed",
+            sprintf("Removed %d row(s) with invalid taxon ID (%s) — these cannot be imported",
+                    n_removed, paste(detail_parts, collapse = ", ")),
+            sprintf("Rows removed: %s",
+                    paste(which(rows_invalid), collapse = ", ")))
+
+          # Remove invalid rows from cleaned data
+          cleaned_df <- cleaned_df[!rows_invalid, ]
         }
 
-        # Check if idtax values are integers
-        if (!is.na(n_na_idtax)) {
-          non_na_vals <- idtax_vals[!is.na(idtax_vals)]
-          numeric_vals <- suppressWarnings(as.numeric(non_na_vals))
-          n_non_numeric <- sum(is.na(numeric_vals))
-          if (n_non_numeric > 0) {
-            add_error(idtax_col, "type_mismatch",
-              sprintf("Taxon ID column has %d non-numeric value(s)", n_non_numeric),
-              "Taxon IDs must be integers")
-          } else {
-            n_non_int <- sum(numeric_vals != round(numeric_vals), na.rm = TRUE)
-            if (n_non_int > 0) {
-              add_warning(idtax_col, "type_mismatch",
-                sprintf("Taxon ID column has %d non-integer value(s)", n_non_int),
-                "Taxon IDs should be whole numbers")
-            }
+        # Check if remaining idtax values are integers
+        remaining_idtax <- suppressWarnings(as.numeric(cleaned_df[[idtax_col]]))
+        non_na_remaining <- remaining_idtax[!is.na(remaining_idtax)]
+
+        n_non_numeric <- sum(is.na(suppressWarnings(as.numeric(cleaned_df[[idtax_col]]))))
+        if (n_non_numeric > 0) {
+          add_error(idtax_col, "type_mismatch",
+            sprintf("Taxon ID column still has %d non-numeric value(s) after cleaning", n_non_numeric),
+            "Taxon IDs must be integers")
+        } else {
+          n_non_int <- sum(non_na_remaining != round(non_na_remaining), na.rm = TRUE)
+          if (n_non_int > 0) {
+            add_warning(idtax_col, "type_mismatch",
+              sprintf("Taxon ID column has %d non-integer value(s)", n_non_int),
+              "Taxon IDs should be whole numbers")
           }
         }
 
@@ -137,7 +157,7 @@ mod_trait_validation_server <- function(id, data, mapping, pool, i18n) {
           info <- traits_info[traits_info$trait == trait_name, ]
           if (nrow(info) == 0) next
 
-          col_vals <- df[[user_col]]
+          col_vals <- cleaned_df[[user_col]]
           valuetype <- info$valuetype[1]
           n_total <- length(col_vals)
           n_na <- sum(is.na(col_vals))
@@ -263,7 +283,7 @@ mod_trait_validation_server <- function(id, data, mapping, pool, i18n) {
 
         for (user_col in names(meta_cols)) {
           db_col <- meta_cols[user_col]
-          col_vals <- df[[user_col]]
+          col_vals <- cleaned_df[[user_col]]
           non_na_vals <- col_vals[!is.na(col_vals)]
 
           if (db_col %in% c("decimallatitude", "decimallongitude", "elevation")) {
@@ -349,7 +369,7 @@ mod_trait_validation_server <- function(id, data, mapping, pool, i18n) {
           for (user_col in names(trait_cols)) {
             trait_name <- trait_cols[user_col]
             # Check for duplicate idtax + trait value combinations
-            dup_df <- df[!is.na(df[[user_col]]), c(idtax_col, user_col)]
+            dup_df <- cleaned_df[!is.na(cleaned_df[[user_col]]), c(idtax_col, user_col)]
             if (nrow(dup_df) > 0 && any(duplicated(dup_df))) {
               n_dups <- sum(duplicated(dup_df))
               add_warning(user_col, "duplicates",
@@ -376,6 +396,8 @@ mod_trait_validation_server <- function(id, data, mapping, pool, i18n) {
           cleaned_data = cleaned_df,
           summary = list(
             total_rows = nrow(df),
+            rows_removed = n_removed,
+            rows_to_import = nrow(cleaned_df),
             errors = n_errors,
             warnings = n_warnings,
             changes_applied = n_changes,
@@ -408,13 +430,30 @@ mod_trait_validation_server <- function(id, data, mapping, pool, i18n) {
       shiny::tagList(
         # Summary cards
         shiny::fluidRow(
-          shiny::column(3, shiny::div(
+          shiny::column(2, shiny::div(
             class = "card",
             style = "padding: 20px; background-color: #f8f9fa; border-left: 4px solid #007bff; text-align: center;",
             shiny::h3(result$summary$total_rows, style = "margin: 0; color: #007bff;"),
             shiny::p(i18n()$t("Total Rows"), style = "margin: 5px 0 0 0; color: #6c757d;")
           )),
-          shiny::column(3, shiny::div(
+          shiny::column(2, shiny::div(
+            class = "card",
+            style = sprintf("padding: 20px; background-color: #f8f9fa; border-left: 4px solid %s; text-align: center;",
+                            if (result$summary$rows_removed == 0) "#28a745" else "#dc3545"),
+            shiny::h3(result$summary$rows_removed,
+                      style = sprintf("margin: 0; color: %s;",
+                                      if (result$summary$rows_removed == 0) "#28a745" else "#dc3545")),
+            shiny::p(i18n()$t("Rows Removed"), style = "margin: 5px 0 0 0; color: #6c757d;"),
+            if (result$summary$rows_removed > 0)
+              shiny::tags$small(i18n()$t("NA or zero idtax"), style = "color: #dc3545;")
+          )),
+          shiny::column(2, shiny::div(
+            class = "card",
+            style = "padding: 20px; background-color: #f8f9fa; border-left: 4px solid #28a745; text-align: center;",
+            shiny::h3(result$summary$rows_to_import, style = "margin: 0; color: #28a745;"),
+            shiny::p(i18n()$t("Rows to Import"), style = "margin: 5px 0 0 0; color: #6c757d;")
+          )),
+          shiny::column(2, shiny::div(
             class = "card",
             style = sprintf("padding: 20px; background-color: #f8f9fa; border-left: 4px solid %s; text-align: center;",
                             if (result$summary$errors == 0) "#28a745" else "#dc3545"),
@@ -423,13 +462,13 @@ mod_trait_validation_server <- function(id, data, mapping, pool, i18n) {
                                       if (result$summary$errors == 0) "#28a745" else "#dc3545")),
             shiny::p(i18n()$t("Errors"), style = "margin: 5px 0 0 0; color: #6c757d;")
           )),
-          shiny::column(3, shiny::div(
+          shiny::column(2, shiny::div(
             class = "card",
             style = "padding: 20px; background-color: #f8f9fa; border-left: 4px solid #ffc107; text-align: center;",
             shiny::h3(result$summary$warnings, style = "margin: 0; color: #ffc107;"),
             shiny::p(i18n()$t("Warnings"), style = "margin: 5px 0 0 0; color: #6c757d;")
           )),
-          shiny::column(3, shiny::div(
+          shiny::column(2, shiny::div(
             class = "card",
             style = "padding: 20px; background-color: #f8f9fa; border-left: 4px solid #17a2b8; text-align: center;",
             shiny::h3(result$summary$changes_applied, style = "margin: 0; color: #17a2b8;"),

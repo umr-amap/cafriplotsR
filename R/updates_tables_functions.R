@@ -3979,7 +3979,7 @@ get_column_routing <- function(table_type, con) {
       id_column = "id_trait_measures",
       backup_table = NULL,
       direct_columns = c("traitvalue", "traitvalue_char", "basisofrecord",
-                         "measurementremarks", "references",
+                         "measurementremarks", "references", "id_citation",
                          "year", "month", "day"),
       feature_columns = c(),
       has_table_references = FALSE

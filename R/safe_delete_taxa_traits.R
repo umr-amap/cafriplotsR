@@ -205,7 +205,7 @@ safe_delete_taxa_traits <- function(idtax = NULL,
     lines <- c(
       sprintf("%d trait measurement record(s)", length(measure_ids_to_delete))
     )
-    if (n_feat > 0) lines <- c(lines, sprintf("%d measurement feature(s)", n_feat))
+    if (n_feat > 0) lines <- c(lines, sprintf("%d measurement feature(s)", as.integer(n_feat)))
     cli::cli_ul(lines)
     cli::cli_alert_success("Taxonomy will be PRESERVED (taxa entries not deleted)")
 
@@ -307,7 +307,7 @@ safe_delete_taxa_traits <- function(idtax = NULL,
       cli::cli_alert_success("Successfully deleted:")
       lines <- c(sprintf("%d trait measurement record(s)", total_deleted_measures))
       if (!is.null(summary$deleted$measurement_features)) {
-        lines <- c(lines, sprintf("%d measurement feature(s)", summary$deleted$measurement_features))
+        lines <- c(lines, sprintf("%d measurement feature(s)", as.integer(summary$deleted$measurement_features)))
       }
       cli::cli_ul(lines)
       cli::cli_alert_success("Taxonomy preserved (taxa entries intact)")

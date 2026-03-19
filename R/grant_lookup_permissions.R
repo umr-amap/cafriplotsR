@@ -277,7 +277,8 @@ check_add_person_function_exists <- function(con) {
 #'
 #' @export
 grant_lookup_table_permissions <- function(con, user,
-                                           tables = c("table_colnam", "table_countries", "methodslist"),
+                                           tables = c("table_colnam", "table_countries",
+                                                      "methodslist", "table_citations"),
                                            operations = c("SELECT", "INSERT", "UPDATE")) {
 
   if (!test_connection(con)) {
