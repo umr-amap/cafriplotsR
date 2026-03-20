@@ -849,6 +849,12 @@ validate_individual_data <- function(individuals_data,
 .validate_feature_linking_columns <- function(features_data) {
   errors <- list()
 
+  # .row_idx provides reliable 1:1 linking (preferred over plot_name + tag)
+  if (".row_idx" %in% names(features_data)) {
+    return(errors)
+  }
+
+  # Fallback: require traditional linking columns
   required_linking <- c("plot_name", "tag")
 
   for (col in required_linking) {
@@ -875,6 +881,19 @@ validate_individual_data <- function(individuals_data,
 .validate_feature_individual_linkage <- function(features_data, individuals_data) {
   errors <- list()
   warnings <- list()
+
+  # When .row_idx is present, linking is guaranteed 1:1 — just check row counts match
+  if (".row_idx" %in% names(features_data) && ".row_idx" %in% names(individuals_data)) {
+    orphan_idx <- setdiff(features_data$.row_idx, individuals_data$.row_idx)
+    if (length(orphan_idx) > 0) {
+      errors <- c(errors, list(sprintf(
+        "Features sheet has %d row(s) with .row_idx not found in individuals (indices: %s)",
+        length(orphan_idx),
+        paste(head(orphan_idx, 10), collapse = ", ")
+      )))
+    }
+    return(list(errors = errors, warnings = warnings))
+  }
 
   if (!"plot_name" %in% names(features_data) || !"tag" %in% names(features_data)) {
     return(list(errors = errors, warnings = warnings))

@@ -199,9 +199,11 @@ import_individual_data <- function(individuals_data,
       # Execute and get returned IDs
       individuals_id_data <- DBI::dbGetQuery(con, insert_sql)
 
-      # Add plot_name back for linking with features
-      # The individuals_with_plot_id has plot_name before prepare step removed non-DB columns
+      # Add plot_name and row index back for linking with features.
+      # Row order from INSERT RETURNING matches input order, so .row_idx
+      # provides a reliable 1:1 link even when tags are duplicated within a plot.
       individuals_id_data$plot_name <- individuals_with_plot_id$plot_name
+      individuals_id_data$.row_idx <- seq_len(nrow(individuals_id_data))
 
       if (progress) {
         cli::cli_alert_success("{nrow(individuals_prepared)} individuals inserted")
@@ -429,14 +431,28 @@ import_individual_data <- function(individuals_data,
 .prepare_features_data <- function(features_data, individuals_id_data, con, progress = TRUE) {
 
   # Link features to individuals (id_individuals from INSERT RETURNING)
+  # Prefer .row_idx for a reliable 1:1 link (avoids cartesian products when
+
+  # tags are duplicated within a plot, e.g. same tag in different subplots).
+  if (".row_idx" %in% names(features_data) && ".row_idx" %in% names(individuals_id_data)) {
+    join_keys <- ".row_idx"
+    if (progress) {
+      cli::cli_alert_info("Using row index (.row_idx) for reliable 1:1 individual-feature linking")
+    }
+  } else {
+    join_keys <- c("plot_name", "tag")
+    if (progress) {
+      cli::cli_alert_info("Falling back to plot_name + tag for individual-feature linking")
+    }
+  }
   features_with_id <- features_data %>%
-    dplyr::left_join(individuals_id_data, by = c("plot_name", "tag"))
+    dplyr::left_join(individuals_id_data, by = join_keys)
 
   # Get trait definitions for trait IDs
   all_traits <- traits_list()
 
   # Identify trait columns (exclude linking columns)
-  linking_cols <- c("plot_name", "tag", "census_date", "census_id", "id_individuals")
+  linking_cols <- c("plot_name", "tag", "sous_plot_name", ".row_idx", "census_date", "census_id", "id_individuals")
   trait_cols <- setdiff(names(features_with_id), linking_cols)
 
   if (length(trait_cols) == 0) {
