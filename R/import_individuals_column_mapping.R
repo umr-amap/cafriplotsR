@@ -1185,9 +1185,13 @@ map_individual_columns <- function(data = NULL,
       features_data_part <- data[, feature_original_names, drop = FALSE]
       names(features_data_part) <- feature_cols$mapped_to
 
-      # Get linking columns from INDIVIDUALS table (not original data)
-      # This ensures we get auto-generated tags if they exist
-      linking_col_names <- intersect(c("plot_name", "tag"), names(individuals))
+      # Add row index for reliable 1:1 linking between individuals and features.
+      # This avoids cartesian products when tags are duplicated within a plot
+      # (e.g., same tag in different subplots/quadrats).
+      individuals$.row_idx <- seq_len(nrow(individuals))
+
+      # Carry row index + traditional linking columns to features
+      linking_col_names <- intersect(c("plot_name", "tag", ".row_idx"), names(individuals))
 
       if (length(linking_col_names) > 0) {
         linking_data <- individuals[, linking_col_names, drop = FALSE]
@@ -1196,7 +1200,7 @@ map_individual_columns <- function(data = NULL,
         features <- cbind(linking_data, features_data_part)
 
         cli::cli_alert_success("Created features table with {nrow(feature_cols)} trait{?s}")
-        cli::cli_alert_info("Linked via: {paste(linking_col_names, collapse = ', ')}")
+        cli::cli_alert_info("Linked via row index (.row_idx) for reliable 1:1 matching")
       } else {
         cli::cli_alert_warning("No linking columns available in individuals table")
         features <- NULL

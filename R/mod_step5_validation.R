@@ -105,19 +105,21 @@ mod_step5_validation_server <- function(id, data, mappings, config, con, i18n) {
             # Only columns that were actually mapped by the user should be present
 
             # Step 3: Separate direct columns from features
+            # Add .row_idx for reliable 1:1 linking between individuals and features
+            # (avoids cartesian products when tags are duplicated within a plot)
+            renamed_data$.row_idx <- seq_len(nrow(renamed_data))
+
             direct_cols <- config()$direct_columns
             individuals_cols <- intersect(names(renamed_data), direct_cols)
-            individuals_data <- renamed_data[, individuals_cols, drop = FALSE]
+            individuals_data <- renamed_data[, c(individuals_cols, ".row_idx"), drop = FALSE]
 
             # Step 4: Build features_data if there are any feature columns
             feature_cols_all <- config()$feature_columns
             feature_cols <- intersect(names(renamed_data), feature_cols_all)
 
             features_data <- if (length(feature_cols) > 0) {
-              # Features need linking columns (plot_name, tag) plus feature values
-              linking_cols <- c("plot_name", "tag")
-              linking_present <- intersect(linking_cols, names(renamed_data))
-              feature_data_cols <- unique(c(linking_present, feature_cols))
+              # Features need .row_idx plus feature values
+              feature_data_cols <- unique(c(".row_idx", feature_cols))
               renamed_data[, feature_data_cols, drop = FALSE]
             } else {
               NULL
