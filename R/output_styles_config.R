@@ -155,7 +155,9 @@
       "id_n", "plot_name", "tag", "distance_along_transect",
       "tax_fam", "tax_gen", "tax_sp_level", "dbh"
     ),
-    keep_patterns = c(),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
+    keep_patterns = c("position_",
+                      "strate",
+                      "transect_part"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n|liste_plots)", "height", "pom", "growth", "mortality", "^date_modif"),
     additional_tables = c(),
     rename_columns = list(

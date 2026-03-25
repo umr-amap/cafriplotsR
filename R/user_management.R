@@ -53,9 +53,10 @@ create_user_registry <- function(con) {
     DBI::dbExecute(con, sql_comment)
     cli::cli_alert_success("Created 'user_registry' table")
 
-    # Grant SELECT to all users so they can see who has access
+    # Grant full access to the table creator, SELECT to all users
+    DBI::dbExecute(con, "GRANT ALL ON user_registry TO CURRENT_USER")
     DBI::dbExecute(con, "GRANT SELECT ON user_registry TO PUBLIC")
-    cli::cli_alert_info("Granted SELECT on user_registry to all users")
+    cli::cli_alert_info("Granted ALL on user_registry to current user, SELECT to all users")
 
     invisible(TRUE)
   }, error = function(e) {
@@ -103,29 +104,6 @@ register_user <- function(con, username, email = NULL,
     return(invisible(FALSE))
   }
 
-  # Verify the user exists as a PostgreSQL role
-  role_exists <- DBI::dbGetQuery(con, glue::glue_sql(
-    "SELECT 1 FROM pg_roles WHERE rolname = {username} AND rolcanlogin = TRUE",
-    .con = con
-  ))
-
-  if (nrow(role_exists) == 0) {
-    cli::cli_alert_danger("User '{username}' does not exist as a PostgreSQL role. Create it on OVH first.")
-    return(invisible(FALSE))
-  }
-
-  # Ensure registry table exists
-  if (!DBI::dbExistsTable(con, "user_registry")) {
-    cli::cli_alert_info("Creating user_registry table...")
-    create_user_registry(con)
-  }
-
-  # Check if user already registered
-  existing <- DBI::dbGetQuery(con, glue::glue_sql(
-    "SELECT username FROM user_registry WHERE username = {username}",
-    .con = con
-  ))
-
   # Convert NULL to NA_character_ for SQL substitution (glue_sql requires length-1 values)
   email       <- if (is.null(email))       NA_character_ else email
   first_name  <- if (is.null(first_name))  NA_character_ else first_name
@@ -134,6 +112,28 @@ register_user <- function(con, username, email = NULL,
   notes       <- if (is.null(notes))       NA_character_ else notes
 
   tryCatch({
+    # Verify the user exists as a PostgreSQL role
+    role_exists <- DBI::dbGetQuery(con, glue::glue_sql(
+      "SELECT 1 FROM pg_roles WHERE rolname = {username} AND rolcanlogin = TRUE",
+      .con = con
+    ))
+
+    if (nrow(role_exists) == 0) {
+      cli::cli_alert_danger("User '{username}' does not exist as a PostgreSQL role. Create it on OVH first.")
+      return(invisible(FALSE))
+    }
+
+    # Ensure registry table exists
+    if (!DBI::dbExistsTable(con, "user_registry")) {
+      cli::cli_alert_info("Creating user_registry table...")
+      create_user_registry(con)
+    }
+
+    # Check if user already registered
+    existing <- DBI::dbGetQuery(con, glue::glue_sql(
+      "SELECT username FROM user_registry WHERE username = {username}",
+      .con = con
+    ))
     if (nrow(existing) > 0) {
       # Update existing entry
       updates <- c()
