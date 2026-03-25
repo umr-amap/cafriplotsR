@@ -765,8 +765,7 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
           result <- query_taxa(
             genus = rv$form_data$tax_gen,
             species = rv$form_data$tax_esp,
-            exact_match = TRUE,
-            con = pool()
+            exact_match = TRUE
           )
 
           if (nrow(result) > 0) {
