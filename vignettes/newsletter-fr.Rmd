@@ -19,13 +19,13 @@ Actualités sur les grandes étapes du package CafriplotsR et de la base de donn
 
 **Intégration de la base de données de densité du bois de Tervuren (TWDD)**
 
-Une grande base de données de densité du bois — la TWDD — a été ajoutée à la base de données. Elle contient **13 332 échantillons** couvrant **2 994 espèces**, 1 022 genres et 156 familles de plantes sur six continents, dont 72 % des enregistrements provenant d'Afrique. Elle est particulièrement riche pour l'Afrique centrale, avec plus de 30 % de la collection originaire de la République démocratique du Congo (plus de 2 000 espèces ligneuses).
+Une grande base de données de densité du bois — la TWDD — a été ajoutée à la base de données. Elle contient **13 332 échantillons** couvrant **2 994 espèces**, 1 022 genres et 156 familles de plantes sur six continents, dont 72 % des enregistrements provenant d'Afrique.
 
-Par rapport aux deux références de densité du bois précédemment dominantes (CIRAD et la Global Wood Density Database), la TWDD ajoute 1 164 espèces, 160 genres et 8 familles de plantes qui n'y figuraient pas — ce qui en fait une ressource importante pour l'estimation de la biomasse et l'écologie fonctionnelle dans les forêts tropicales africaines.
+La TWDD ajoute 1 164 espèces, 160 genres et 8 familles de plantes qui n'étaient pas documentés auparavant.
 
 Avant l'intégration, la taxonomie de la TWDD a été standardisée selon le référentiel taxonomique de CafriplotsR afin d'assurer la cohérence avec le reste de la base de données. Au total, **12 970 valeurs** issues de la TWDD ont été ajoutées.
 
-> **Obligation de citation :** Toute utilisation de ces données doit citer la publication originale :
+> Toute utilisation de ces données doit citer la publication originale :
 >
 > Verbiest W.W.M., Hicter P., Beeckman H. et al. (2026). The Tervuren xylarium Wood Density Database (TWDD). *Scientific Data*, 13, 243. <https://doi.org/10.1038/s41597-026-06563-2>
 
@@ -33,9 +33,9 @@ Avant l'intégration, la taxonomie de la TWDD a été standardisée selon le ré
 
 **Suivi des citations pour les traits au niveau taxonomique**
 
-Les mesures de traits au niveau des taxons stockées dans la base de données sont désormais liées à leurs sources d'origine — études publiées ou bases de données de traits d'où les valeurs ont été extraites. Lorsque vous enrichissez un jeu de données d'espèces ou explorez des traits via les applications interactives, un panneau **Sources de données** dédié met en évidence les citations concernées et le nombre de mesures provenant de chaque source.
+Les mesures de traits au niveau des taxons stockées dans la base de données sont désormais liées à leurs sources d'origine — études publiées ou bases de données de traits d'où les valeurs ont été extraites. Lorsque vous enrichissez un jeu de données d'espèces ou explorez des traits via les applications interactives (`launch_taxo_backbone_app()` et `launch_taxonomic_match_app()`), un panneau **Sources de données** dédié liste les citations concernées et le nombre de mesures/observations provenant de chaque source.
 
-Cela rend la citation appropriée directe et sans ambiguïté : le panneau liste la référence complète de chaque source avec le nombre de mesures ou observations associées, afin que vous sachiez exactement ce qu'il faut citer lorsque vous utilisez des données de traits dans vos analyses. Un des objectifs de ce package est de faciliter l'intégration et la ré-utilisation de ces différents jeux de données. Pour cela, il est nécessaire d'être le plus transparent possible sur cette intégration de donc de respecter les exigences de partage des données des publications et bases de données sous-jacentes.
+Cela rend la citation appropriée directe et sans ambiguïté : le panneau liste la référence complète de chaque source de sorte que l'utilisateur sait  ce qu'il faut citer lorsque ces données son utilisées. Ce nouveau développement renforce un des objectifs de ce package qui est de faciliter l'intégration et la ré-utilisation de ces différents jeux de données. Pour cela, il est nécessaire d'être le plus transparent possible sur cette intégration de donc de respecter les exigences de partage des données des publications et bases de données sous-jacentes.
 
 > **Pour les utilisateurs R :** La fonction `query_taxa_traits()` accepte désormais le paramètre `include_citation = TRUE` pour joindre les informations de citation directement au tableau retourné. Les formats de sortie large (*wide*) et long sont tous deux pris en charge.
 

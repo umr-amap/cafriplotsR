@@ -492,8 +492,9 @@ mod_step6_preview_server <- function(id, validation_result, i18n) {
     output$data_preview <- DT::renderDT({
       shiny::req(display_data())
 
-      # Show first 100 rows
+      # Show first 100 rows, exclude internal columns
       preview_data <- head(display_data(), 100)
+      preview_data <- preview_data[, !names(preview_data) %in% ".row_idx", drop = FALSE]
 
       # Enrich lookup columns with readable names (replace IDs with names for display)
       preview_data_enriched <- .enrich_preview_with_lookup_names(preview_data)
@@ -530,9 +531,11 @@ mod_step6_preview_server <- function(id, validation_result, i18n) {
       },
       content = function(file) {
         shiny::req(display_data())
+        export_data <- display_data()
+        export_data <- export_data[, !names(export_data) %in% ".row_idx", drop = FALSE]
 
         # Enrich data with lookup names (same as preview display)
-        enriched_data <- .enrich_preview_with_lookup_names(display_data())
+        enriched_data <- .enrich_preview_with_lookup_names(export_data)
 
         writexl::write_xlsx(enriched_data, file)
 
@@ -551,9 +554,11 @@ mod_step6_preview_server <- function(id, validation_result, i18n) {
       },
       content = function(file) {
         shiny::req(display_data())
+        export_data <- display_data()
+        export_data <- export_data[, !names(export_data) %in% ".row_idx", drop = FALSE]
 
         # Enrich data with lookup names (same as preview display)
-        enriched_data <- .enrich_preview_with_lookup_names(display_data())
+        enriched_data <- .enrich_preview_with_lookup_names(export_data)
 
         write.csv(enriched_data, file, row.names = FALSE)
 
