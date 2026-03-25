@@ -9,6 +9,12 @@ navbar:
   right:
     - text: "FR"
       href: articles/readme-fr.html
+    - icon: fa-github
+      href: https://github.com/umr-amap/cafriplotsR
+      aria-label: GitHub
+    - icon: fa-bug
+      href: https://github.com/umr-amap/cafriplotsR/issues
+      aria-label: Report an issue
 
 articles:
   - title: "Getting Started"
