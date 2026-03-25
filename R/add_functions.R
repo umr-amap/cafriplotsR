@@ -650,16 +650,34 @@ add_subplot_features <- function(new_data,
                          dplyr::select(valuetype, id_subplotype) %>%
                          dplyr::collect(),
                        by=c("id_subplottype"="id_subplotype"))
-    
+
+    # For table_colnam type features (e.g. team_leader, additional_people),
+    # resolve person names to id_table_colnam IDs and separate comma-delimited values
+    if (any(valuetype$valuetype == "table_colnam")) {
+
+      data_subplottype <-
+        data_subplottype %>%
+        tidyr::separate_rows(subplotype, sep = ",") %>%
+        dplyr::mutate(subplotype = stringr::str_squish(subplotype))
+
+      data_subplottype <- .link_colnam(
+        data_stand = data_subplottype,
+        column_searched = "subplotype",
+        column_name = "colnam",
+        id_field = "subplotype",
+        id_table_name = "id_table_colnam",
+        db_connection = mydb,
+        table_name = "table_colnam"
+      )
+    }
+
     print("data_to_add")
     data_to_add <-
       dplyr::tibble(id_table_liste_plots = data_subplottype$id_liste_plots,
-                    # id_colnam = data_subplottype$id_colnam,
                     year = data_subplottype$year,
                     month = data_subplottype$month,
                     day = data_subplottype$day,
                     id_type_sub_plot = data_subplottype$id_subplottype,
-                    # typevalue = data_subplottype$subplottype,
                     typevalue = ifelse(rep(any(valuetype$valuetype %in% c("numeric", "table_colnam")),
                                            nrow(data_subplottype)), data_subplottype$subplotype, NA),
                     typevalue_char = ifelse(rep(valuetype$valuetype == "character",
