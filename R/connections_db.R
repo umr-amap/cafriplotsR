@@ -297,14 +297,19 @@ connect_database <- function(db_type = c("main", "taxa"),
     }
   }
   
-  # Get credentials
+  # If credentials are provided explicitly, cache them so subsequent calls
+  # (e.g. call.mydb.taxa() inside query_plots) reuse them without prompting
+  if (!is.null(pass)) credentials[[pass_key]] <- pass
+  if (!is.null(user)) credentials[[user_key]] <- user
+
+  # Get credentials (from cache or interactive prompt)
   if (is.null(pass)) {
     if (!exists(pass_key, envir = credentials)) {
       credentials[[pass_key]] <- get_password_secure("Enter database password: ")
     }
     pass <- credentials[[pass_key]]
   }
-  
+
   if (is.null(user)) {
     if (!exists(user_key, envir = credentials)) {
       credentials[[user_key]] <- get_username_secure("Enter database username: ")
@@ -878,53 +883,70 @@ get_user_accessible_plots <- function(con, user, table = "data_liste_plots") {
     "User must be specified" = !is.null(user) && nchar(user) > 0
   )
 
+  result_rows <- list()
 
+  # --- 1. Plots created by the user (creator_access_* policies) ---
+  if (table == "data_liste_plots") {
+    created_ids <- tryCatch({
+      DBI::dbGetQuery(con, sprintf(
+        "SELECT id_liste_plots FROM data_liste_plots WHERE created_by = '%s'",
+        gsub("'", "''", user)
+      ))$id_liste_plots
+    }, error = function(e) {
+      cli::cli_alert_warning("Could not query created_by plots: {e$message}")
+      integer(0)
+    })
+
+    if (length(created_ids) > 0) {
+      created_ids <- sort(unique(as.integer(created_ids)))
+      cli::cli_alert_info("{length(created_ids)} plot(s) created by '{user}' (creator access)")
+      result_rows[[length(result_rows) + 1]] <- data.frame(
+        user = user,
+        policyname = "creator_access (automatic)",
+        cmd = "ALL",
+        stringsAsFactors = FALSE
+      )
+      result_rows[[length(result_rows)]]$plot_ids <- list(created_ids)
+    }
+  }
+
+  # --- 2. Plots from explicit per-user policies (define_user_policy grants) ---
   policies <- list_user_policies(con, user = user, table = table)
 
-  if (nrow(policies) == 0) {
-    cli::cli_alert_warning("No policies found for user '{user}' on table '{table}'")
+  if (nrow(policies) > 0) {
+    for (i in seq_len(nrow(policies))) {
+      qual <- policies$qual[i]
+      cmd  <- policies$cmd[i]
+
+      # Extract plot IDs from the qual expression
+      # Handles both ARRAY[...] and IN (...) syntax
+      ids <- as.integer(unlist(regmatches(qual, gregexpr("\\d+", qual))))
+      ids <- ids[ids > 0]
+      ids <- sort(unique(ids))
+
+      if (length(ids) > 0) {
+        row_df <- data.frame(
+          user = user,
+          policyname = policies$policyname[i],
+          cmd = cmd,
+          stringsAsFactors = FALSE
+        )
+        row_df$plot_ids <- list(ids)
+        result_rows[[length(result_rows) + 1]] <- row_df
+      }
+    }
+  }
+
+  # --- Combine results ---
+  if (length(result_rows) == 0) {
+    cli::cli_alert_warning("No accessible plots found for user '{user}' on table '{table}'")
     return(NULL)
   }
 
-  # Parse qual column to extract plot IDs
-  # Common patterns:
-  # - (id_liste_plots = ANY (ARRAY[1, 2, 3]))
-  # - (id_liste_plots IN (1, 2, 3))
+  result_df <- do.call(rbind, result_rows)
 
-  results <- lapply(seq_len(nrow(policies)), function(i) {
-    qual <- policies$qual[i]
-    cmd <- policies$cmd[i]
-
-    # Extract numbers from the qual expression
-    # This handles both ARRAY[...] and IN (...) syntax
-    ids <- as.integer(unlist(regmatches(qual, gregexpr("\\d+", qual))))
-
-    # Remove any non-plot IDs (like array indices if present)
-    # Plot IDs are typically > 0
-    ids <- ids[ids > 0]
-
-    data.frame(
-      user = user,
-      policyname = policies$policyname[i],
-      cmd = cmd,
-      stringsAsFactors = FALSE
-    )
-  })
-
-  # Combine results
-  result_df <- do.call(rbind, results)
-
-  # Add plot_ids as a list column separately
-  all_ids <- lapply(seq_len(nrow(policies)), function(i) {
-    qual <- policies$qual[i]
-    ids <- as.integer(unlist(regmatches(qual, gregexpr("\\d+", qual))))
-    ids <- ids[ids > 0]
-    sort(unique(ids))
-  })
-
-  result_df$plot_ids <- all_ids
-
-  cli::cli_alert_success("Found {length(unique(unlist(result_df$plot_ids)))} unique plot IDs for user '{user}'")
+  all_unique <- length(unique(unlist(result_df$plot_ids)))
+  cli::cli_alert_success("Found {all_unique} unique plot IDs for user '{user}'")
 
   return(as_tibble(result_df))
 }
