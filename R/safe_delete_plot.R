@@ -11,7 +11,7 @@
 #' 4. Individuals
 #' 5. Subplot features
 #' 6. Subplots
-#' 7. Plot
+#' 7. Plot (skipped if \code{delete_plot = FALSE})
 #'
 #' **Safety features:**
 #' - Dry-run mode to preview what will be deleted
@@ -28,6 +28,10 @@
 #'   **USE WITH EXTREME CAUTION!**
 #' @param delete_individuals Logical. Delete individuals? Default TRUE.
 #' @param delete_subplots Logical. Delete subplot features? Default TRUE.
+#' @param delete_plot Logical. Delete the plot record itself? Default TRUE. Set to
+#'   FALSE combined with \code{delete_subplots = FALSE} to remove only individuals
+#'   and their features while preserving all plot metadata (same as
+#'   \code{\link{safe_delete_individuals}}).
 #' @param verbose Logical. Show detailed progress? Default TRUE.
 #'
 #' @return List with deletion summary (invisible)
@@ -47,6 +51,9 @@
 #'
 #' # Delete plot but keep individuals (rare)
 #' safe_delete_plot(plot_ids = 123, delete_individuals = FALSE)
+#'
+#' # Delete ONLY individuals and their features, keep plot metadata
+#' safe_delete_plot(plot_ids = 123, delete_plot = FALSE, delete_subplots = FALSE)
 #' }
 #'
 #' @export
@@ -56,6 +63,7 @@ safe_delete_plot <- function(plot_ids,
                              force = FALSE,
                              delete_individuals = TRUE,
                              delete_subplots = TRUE,
+                             delete_plot = TRUE,
                              verbose = TRUE) {
 
   # Validate inputs
@@ -181,6 +189,12 @@ safe_delete_plot <- function(plot_ids,
   if (dry_run) {
     cli::cli_alert_info("This was a DRY-RUN - nothing was deleted")
     cli::cli_alert_info("To actually delete, run with dry_run = FALSE")
+    if (!delete_plot) {
+      cli::cli_alert_success("Plot metadata will be preserved (delete_plot = FALSE)")
+    }
+    if (!delete_subplots) {
+      cli::cli_alert_success("Subplot features will be preserved (delete_subplots = FALSE)")
+    }
     return(invisible(summary))
   }
 
@@ -189,12 +203,15 @@ safe_delete_plot <- function(plot_ids,
     cli::cli_h2("⚠️  CONFIRMATION REQUIRED ⚠️")
     cli::cli_alert_danger("You are about to PERMANENTLY delete:")
     cli::cli_ul(c(
-      "{nrow(plots_info)} plot(s)",
-      if (n_individuals > 0) "{n_individuals} individual(s)" else NULL,
-      if (n_trait_measures > 0) "{n_trait_measures} trait measurement(s)" else NULL,
-      if (n_meas_feat > 0) "{n_meas_feat} measurement feature(s)" else NULL,
-      if (n_subplots > 0) "{n_subplots} subplot feature(s)" else NULL
+      if (delete_plot) "{nrow(plots_info)} plot(s)" else NULL,
+      if (n_individuals > 0 && delete_individuals) "{n_individuals} individual(s)" else NULL,
+      if (n_trait_measures > 0 && delete_individuals) "{n_trait_measures} trait measurement(s)" else NULL,
+      if (n_meas_feat > 0 && delete_individuals) "{n_meas_feat} measurement feature(s)" else NULL,
+      if (n_subplots > 0 && delete_subplots) "{n_subplots} subplot feature(s)" else NULL
     ))
+    if (!delete_plot) {
+      cli::cli_alert_success("Plot metadata will be PRESERVED (not deleted)")
+    }
 
     confirm <- choose_prompt(message = "Are you ABSOLUTELY SURE you want to delete this data?")
 
@@ -268,6 +285,21 @@ safe_delete_plot <- function(plot_ids,
 
   tryCatch({
 
+    # Step 5.0: Delete specimen links (data_link_specimens) before individuals
+    if (length(individual_ids) > 0) {
+      n_specimen_links <- DBI::dbGetQuery(con, sprintf("
+        SELECT COUNT(*) as n FROM data_link_specimens WHERE id_n IN (%s)
+      ", paste(individual_ids, collapse = ",")))$n
+
+      if (n_specimen_links > 0) {
+        if (verbose) cli::cli_alert_info("Deleting {n_specimen_links} specimen link(s)...")
+        n_deleted <- batch_delete(con, "data_link_specimens", "id_n",
+                                  individual_ids, "specimen link(s)", verbose)
+        summary$deleted$specimen_links <- n_deleted
+        if (verbose) cli::cli_alert_success("  Deleted {n_deleted} specimen link(s)")
+      }
+    }
+
     # Step 5.1: Delete measurement features (by trait_measure_ids)
     if (length(trait_measure_ids) > 0 && n_meas_feat > 0) {
       if (verbose) cli::cli_alert_info("Deleting measurement features...")
@@ -304,12 +336,16 @@ safe_delete_plot <- function(plot_ids,
       if (verbose) cli::cli_alert_success("  Deleted {n_deleted} subplot feature(s)")
     }
 
-    # Step 5.5: Delete plots
-    if (verbose) cli::cli_alert_info("Deleting plot(s)...")
-    n_deleted <- batch_delete(con, "data_liste_plots", "id_liste_plots",
-                              plot_ids, "plot(s)", verbose)
-    summary$deleted$plots <- n_deleted
-    if (verbose) cli::cli_alert_success("  Deleted {n_deleted} plot(s)")
+    # Step 5.5: Delete plots (only if delete_plot = TRUE)
+    if (delete_plot) {
+      if (verbose) cli::cli_alert_info("Deleting plot(s)...")
+      n_deleted <- batch_delete(con, "data_liste_plots", "id_liste_plots",
+                                plot_ids, "plot(s)", verbose)
+      summary$deleted$plots <- n_deleted
+      if (verbose) cli::cli_alert_success("  Deleted {n_deleted} plot(s)")
+    } else {
+      if (verbose) cli::cli_alert_success("  Plot records preserved (delete_plot = FALSE)")
+    }
 
     summary$success <- TRUE
     if (verbose) cli::cli_alert_success("All deletions completed successfully")
@@ -324,12 +360,15 @@ safe_delete_plot <- function(plot_ids,
     cli::cli_h2("Deletion Summary")
     cli::cli_alert_success("Successfully deleted:")
     cli::cli_ul(c(
-      "{summary$deleted$plots} plot(s)",
+      if (!is.null(summary$deleted$plots)) "{summary$deleted$plots} plot(s)" else NULL,
       if (!is.null(summary$deleted$individuals)) "{summary$deleted$individuals} individual(s)" else NULL,
       if (!is.null(summary$deleted$trait_measurements)) "{summary$deleted$trait_measurements} trait measurement(s)" else NULL,
       if (!is.null(summary$deleted$measurement_features)) "{summary$deleted$measurement_features} measurement feature(s)" else NULL,
       if (!is.null(summary$deleted$subplots)) "{summary$deleted$subplots} subplot feature(s)" else NULL
     ))
+    if (!delete_plot) {
+      cli::cli_alert_success("Plot metadata preserved (plot, subplots, subplot features intact)")
+    }
   }
 
   invisible(summary)

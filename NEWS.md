@@ -2,6 +2,45 @@
 
 ### New Features
 
+* **Feature Wizard Shiny app** (`launch_feature_wizard()`)
+  - New 6-step guided wizard for adding features and census data to existing plots
+  - Step 1: Login and multi-select plot selector with summary (reuses `mod_database_login`)
+  - Step 2: Choose operation mode — New Census, Add Plot Features, Add Individual Measurements, Define Multi-Stems, or Add Recruits (redirects to Import Wizard)
+  - Step 3 (plot features): Form or xlsx upload with column mapping for census metadata and arbitrary subplot features
+  - Step 3 (measurements): xlsx upload with trait mapping grouped by category, showing description, unit, factor levels, and column content preview; supports wide and long formats
+  - Step 3 (multi-stems): Upload or interactively define stem groups; enriches data by joining with DB to resolve `id_n`, `group_id_n`, and existing `stem_grouping`; shows all plot individuals alongside grouped ones for manual editing (remove, reassign, reset)
+  - Step 4: Lookup matching for people columns (skipped for measurements and multi-stems)
+  - Step 5: Validation with context-aware checks — duplicate detection (numeric traits only), previous census value comparison with `issue` column, issue summary table by trait; multi-stems uses pre-resolved IDs with "tag not found" as warning
+  - Step 6: Import execution with dry-run support — bulk insert via single `dbAppendTable()` in explicit transaction for measurements; `update_records()` for multi-stem `stem_grouping` updates; context-aware labels (import vs update)
+  - Full EN/FR internationalization
+
+* **`add_subplot_features()` people resolution**
+  - For features with `valuetype == "table_colnam"` (team_leader, additional_people, etc.), comma-delimited person names are now split and matched to `table_colnam` IDs before insertion
+
+* **`safe_delete_individuals()` specimen link cascade**
+  - Now counts and deletes specimen links (`data_link_specimens`) in cascade when deleting individuals
+
+* **`safe_delete_plot()` `delete_plot` parameter**
+  - New `delete_plot = TRUE` parameter; set to `FALSE` to remove only individuals and their features while preserving all plot metadata and subplot features
+
+### Bug Fixes
+
+* **Import wizard `.row_idx` column leak**
+  - Internal `.row_idx` column excluded from trait validation, data preview display, and xlsx/csv exports
+
+* **`mod_taxa_add` unused `con` parameter**
+  - Removed unused `con = pool()` argument from `query_taxa()` call that could cause errors
+
+* **`register_user()` validation simplification**
+  - Fixed registry table permissions (GRANT ALL to creator); removed redundant role existence check that could fail for users without `pg_roles` access
+
+* **`output_styles_config` additional keep patterns**
+  - Added `position_`, `strate`, `transect_part` to default keep_patterns for transect output
+
+### Documentation
+
+* Newsletter text refined (EN/FR): concise TWDD description, clarified citation tracking panel wording, added function names for interactive apps
+
 * **Structured citation tracking for taxa-level trait measurements**
   - New `table_citations` table in the main database (`plots_transects`) with fields for authors, year, title, journal, DOI, URL, and dataset name
   - `migrate_add_citations_table()`: migration function to create the table and add `id_citation` FK column to `taxa_traits_measures`

@@ -934,8 +934,8 @@ validate_individual_data <- function(individuals_data,
   # Get trait definitions
   all_traits <- traits_list()
 
-  # Exclude linking columns
-  linking_cols <- c("plot_name", "tag", "census_date", "census_id")
+  # Exclude linking and internal columns
+  linking_cols <- c("plot_name", "tag", "census_date", "census_id", ".row_idx")
   trait_cols <- setdiff(names(features_data), linking_cols)
 
   for (trait_col in trait_cols) {
