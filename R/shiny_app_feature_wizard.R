@@ -272,7 +272,7 @@ feature_wizard_server <- function(input, output, session, translator) {
   output$fw_step_indicator <- shiny::renderUI({
     labels <- step_labels()
     # Determine which steps to show (skip step 4 for modes that don't need it)
-    show_steps <- if (rv$operation_mode %in% skip_step4_modes) {
+    show_steps <- if (isTRUE(rv$operation_mode %in% skip_step4_modes)) {
       c(1, 2, 3, 5, 6)
     } else {
       1:6
@@ -378,7 +378,7 @@ feature_wizard_server <- function(input, output, session, translator) {
   shiny::observeEvent(input$fw_btn_back, {
     new_step <- rv$step - 1
     # Skip step 4 when going back for modes that don't need it
-    if (new_step == 4 && rv$operation_mode %in% skip_step4_modes) {
+    if (new_step == 4 && isTRUE(rv$operation_mode %in% skip_step4_modes)) {
       new_step <- 3
     }
     rv$step <- max(1, new_step)
@@ -388,7 +388,7 @@ feature_wizard_server <- function(input, output, session, translator) {
     if (can_proceed()) {
       new_step <- rv$step + 1
       # Skip step 4 for modes that don't need lookup matching
-      if (new_step == 4 && rv$operation_mode %in% skip_step4_modes) {
+      if (new_step == 4 && isTRUE(rv$operation_mode %in% skip_step4_modes)) {
         new_step <- 5
       }
       rv$step <- new_step

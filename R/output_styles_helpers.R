@@ -177,7 +177,7 @@
   # Get unique by plot
   meta_data <- source_data %>%
     dplyr::select(any_of(keep_cols)) %>%
-    dplyr::distinct(plot_name, .keep_all = TRUE)
+    dplyr::distinct(plot_name, id_liste_plots, .keep_all = TRUE)
 
   # Apply column renaming if specified
   if (!is.null(style_config$rename_columns) && !is.null(style_config$rename_columns$metadata)) {

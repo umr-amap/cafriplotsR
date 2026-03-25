@@ -1,5 +1,8 @@
 # CafriplotsR <img src="man/figures/logo.png" align="right" height="139" />
 
+[![codecov](https://codecov.io/gh/umr-amap/cafriplotsR/branch/master/graph/badge.svg)](https://codecov.io/gh/umr-amap/cafriplotsR)
+
+
 > R package for managing and exploring the Central African forest plot database [cafriplot network](https://cafriplot.net/)
 
 ## Overview
