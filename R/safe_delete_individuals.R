@@ -202,6 +202,16 @@ safe_delete_individuals <- function(plot_name = NULL,
     cli::cli_alert_success("No trait measurements found")
   }
 
+  # Count specimen links
+  n_specimen_links <- DBI::dbGetQuery(con, sprintf("
+    SELECT COUNT(*) as n FROM data_link_specimens WHERE id_n IN (%s)
+  ", paste(individual_ids_to_delete, collapse = ",")))$n
+
+  summary$counts$specimen_links <- n_specimen_links
+  if (n_specimen_links > 0) {
+    cli::cli_alert_warning("{n_specimen_links} specimen link(s) will be deleted")
+  }
+
   # ===== STEP 3: Dry-run exit =====
   if (dry_run) {
     cli::cli_alert_info("This was a DRY-RUN - nothing was deleted")
@@ -217,7 +227,8 @@ safe_delete_individuals <- function(plot_name = NULL,
     cli::cli_ul(c(
       "{nrow(individuals_info)} individual(s)",
       if (n_trait_measures > 0) "{n_trait_measures} trait measurement(s)" else NULL,
-      if (n_meas_feat > 0) "{n_meas_feat} measurement feature(s)" else NULL
+      if (n_meas_feat > 0) "{n_meas_feat} measurement feature(s)" else NULL,
+      if (n_specimen_links > 0) "{n_specimen_links} specimen link(s)" else NULL
     ))
     cli::cli_alert_success("Plot metadata will be PRESERVED (not deleted)")
 
@@ -344,6 +355,47 @@ safe_delete_individuals <- function(plot_name = NULL,
     })
   }
 
+  # Step 5.3b: Delete specimen links (data_link_specimens) before individuals
+  n_specimen_links <- DBI::dbGetQuery(con, sprintf("
+    SELECT COUNT(*) as n FROM data_link_specimens WHERE id_n IN (%s)
+  ", paste(individual_ids_to_delete, collapse = ",")))$n
+
+  if (n_specimen_links > 0) {
+    if (verbose) cli::cli_alert_info("Deleting {n_specimen_links} specimen link(s)...")
+
+    tryCatch({
+      DBI::dbBegin(con)
+      batch_size_links <- 5000
+      unique_ind_ids <- unique(individual_ids_to_delete)
+      n_batches_links <- ceiling(length(unique_ind_ids) / batch_size_links)
+      total_deleted_links <- 0
+
+      for (batch_idx in seq_len(n_batches_links)) {
+        start_idx <- (batch_idx - 1) * batch_size_links + 1
+        end_idx <- min(batch_idx * batch_size_links, length(unique_ind_ids))
+        batch_ids <- unique_ind_ids[start_idx:end_idx]
+
+        rs <- DBI::dbSendQuery(con, sprintf(
+          "DELETE FROM data_link_specimens WHERE id_n IN (%s)",
+          paste(batch_ids, collapse = ",")
+        ))
+        total_deleted_links <- total_deleted_links + DBI::dbGetRowsAffected(rs)
+        DBI::dbClearResult(rs)
+      }
+
+      DBI::dbCommit(con)
+      summary$deleted$specimen_links <- total_deleted_links
+      if (verbose) cli::cli_alert_success("  ✔ Deleted {total_deleted_links} specimen link(s)")
+
+    }, error = function(e) {
+      DBI::dbRollback(con)
+      cli::cli_alert_danger("❌ Error deleting specimen links: {e$message}")
+      summary$success <- FALSE
+      summary$errors <- c(summary$errors, list(e$message))
+      return(invisible(summary))
+    })
+  }
+
   # Step 5.4: Delete individuals (separate transaction per batch to avoid timeout)
   if (verbose) cli::cli_alert_info("Deleting individuals in batches...")
 
@@ -352,7 +404,9 @@ safe_delete_individuals <- function(plot_name = NULL,
   n_batches <- ceiling(length(unique_ids) / batch_size)
   total_deleted_indiv <- 0
 
+  batch_error <- FALSE
   for (batch_idx in 1:n_batches) {
+    if (batch_error) break
     tryCatch({
       # Separate transaction for each batch
       DBI::dbBegin(con)
@@ -388,7 +442,7 @@ safe_delete_individuals <- function(plot_name = NULL,
       cli::cli_alert_danger("❌ Error deleting individuals batch {batch_idx}: {e$message}")
       summary$success <- FALSE
       summary$errors <- c(summary$errors, list(paste0("Batch ", batch_idx, ": ", e$message)))
-      break  # Stop on first error
+      batch_error <<- TRUE  # Stop on first error
     })
   }
 
@@ -409,7 +463,8 @@ safe_delete_individuals <- function(plot_name = NULL,
     cli::cli_ul(c(
       "{summary$deleted$individuals} individual(s)",
       if (!is.null(summary$deleted$trait_measurements)) "{summary$deleted$trait_measurements} trait measurement(s)" else NULL,
-      if (!is.null(summary$deleted$measurement_features)) "{summary$deleted$measurement_features} measurement feature(s)" else NULL
+      if (!is.null(summary$deleted$measurement_features)) "{summary$deleted$measurement_features} measurement feature(s)" else NULL,
+      if (!is.null(summary$deleted$specimen_links)) "{summary$deleted$specimen_links} specimen link(s)" else NULL
     ))
     cli::cli_alert_success("Plot metadata preserved (plot, subplots, subplot features intact)")
   }
