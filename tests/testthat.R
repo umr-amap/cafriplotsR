@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(plotsdatabase)
+library(CafriplotsR)
 
-test_check("plotsdatabase")
+test_check("CafriplotsR")

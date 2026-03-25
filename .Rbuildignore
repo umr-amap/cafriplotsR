@@ -5,3 +5,4 @@
 ^pkgdown$
 ^\.github$
 ^docs$
+^codecov\.yml$

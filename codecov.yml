@@ -1,0 +1,14 @@
+comment: false
+
+coverage:
+  status:
+    project:
+      default:
+        # Starting from scratch - use informational mode first
+        # Change to "error" once you reach a stable baseline
+        informational: true
+    patch:
+      default:
+        # Require new code in PRs to have some coverage
+        target: 50%
+        informational: true
