@@ -5976,6 +5976,1102 @@
     {
       "en": "Not a parameter of query_taxa(). Apply as a post-processing filter:",
       "fr": "Pas un paramètre de query_taxa(). À appliquer comme filtre post-traitement :"
+    },
+    {
+      "en": "Select Plots",
+      "fr": "Sélectionner les parcelles"
+    },
+    {
+      "en": "Choose Mode",
+      "fr": "Choisir le mode"
+    },
+    {
+      "en": "Enter Features",
+      "fr": "Saisir les données"
+    },
+    {
+      "en": "Step 1: Select Plots",
+      "fr": "Étape 1 : Sélectionner les parcelles"
+    },
+    {
+      "en": "Search and select the plots you want to add features to.",
+      "fr": "Recherchez et sélectionnez les parcelles auxquelles ajouter des données."
+    },
+    {
+      "en": "Search plots by name",
+      "fr": "Rechercher des parcelles par nom"
+    },
+    {
+      "en": "Type plot name to search...",
+      "fr": "Tapez un nom de parcelle..."
+    },
+    {
+      "en": "Selected Plots",
+      "fr": "Parcelles sélectionnées"
+    },
+    {
+      "en": "No plots found matching your search.",
+      "fr": "Aucune parcelle trouvée correspondant à votre recherche."
+    },
+    {
+      "en": "%d plot(s) found",
+      "fr": "%d parcelle(s) trouvée(s)"
+    },
+    {
+      "en": "Add Selected Plots",
+      "fr": "Ajouter les parcelles sélectionnées"
+    },
+    {
+      "en": "Please select at least one plot from the table.",
+      "fr": "Veuillez sélectionner au moins une parcelle dans le tableau."
+    },
+    {
+      "en": "%d plot(s) selected",
+      "fr": "%d parcelle(s) sélectionnée(s)"
+    },
+    {
+      "en": "No plots selected yet. Use the search above to find and select plots.",
+      "fr": "Aucune parcelle sélectionnée. Utilisez la recherche ci-dessus pour trouver et sélectionner des parcelles."
+    },
+    {
+      "en": "Clear Selection",
+      "fr": "Effacer la sélection"
+    },
+    {
+      "en": "Step 2: Choose Operation",
+      "fr": "Étape 2 : Choisir l'opération"
+    },
+    {
+      "en": "Select the type of data you want to add to your selected plots.",
+      "fr": "Sélectionnez le type de données à ajouter à vos parcelles."
+    },
+    {
+      "en": "New Census",
+      "fr": "Nouveau recensement"
+    },
+    {
+      "en": "Add census metadata (census number, dates, team members) to selected plots. Ideal for recording a new field campaign.",
+      "fr": "Ajouter les métadonnées de recensement (numéro, dates, équipe) aux parcelles sélectionnées. Idéal pour enregistrer une nouvelle campagne de terrain."
+    },
+    {
+      "en": "Auto-detects next census number",
+      "fr": "Détection automatique du prochain numéro de recensement"
+    },
+    {
+      "en": "Date fields (year, month, day)",
+      "fr": "Champs de date (année, mois, jour)"
+    },
+    {
+      "en": "Team members (leader, PI, data manager)",
+      "fr": "Membres de l'équipe (chef, IP, gestionnaire de données)"
+    },
+    {
+      "en": "Form entry or xlsx upload",
+      "fr": "Saisie par formulaire ou chargement xlsx"
+    },
+    {
+      "en": "Add Plot Features",
+      "fr": "Ajouter des caractéristiques"
+    },
+    {
+      "en": "Add any plot-level features from the feature catalog. Choose from available feature types and enter values.",
+      "fr": "Ajouter des caractéristiques au niveau de la parcelle depuis le catalogue. Choisissez les types et entrez les valeurs."
+    },
+    {
+      "en": "Dynamic feature type selector",
+      "fr": "Sélecteur dynamique de type de caractéristique"
+    },
+    {
+      "en": "Numeric, character, or lookup values",
+      "fr": "Valeurs numériques, textuelles ou de référence"
+    },
+    {
+      "en": "Supports any subplot feature type",
+      "fr": "Prend en charge tout type de caractéristique de sous-parcelle"
+    },
+    {
+      "en": "Selected: %s",
+      "fr": "Sélectionné : %s"
+    },
+    {
+      "en": "Click Next to continue.",
+      "fr": "Cliquez sur Suivant pour continuer."
+    },
+    {
+      "en": "Step 3: Enter Feature Data",
+      "fr": "Étape 3 : Saisir les données"
+    },
+    {
+      "en": "Enter feature data manually or upload an xlsx file.",
+      "fr": "Saisissez les données manuellement ou chargez un fichier xlsx."
+    },
+    {
+      "en": "Input Method",
+      "fr": "Méthode de saisie"
+    },
+    {
+      "en": "Manual Form Entry",
+      "fr": "Saisie manuelle"
+    },
+    {
+      "en": "Upload xlsx File",
+      "fr": "Charger un fichier xlsx"
+    },
+    {
+      "en": "Adding census data for %d plot(s). Auto-detected next census number: %d",
+      "fr": "Ajout de données de recensement pour %d parcelle(s). Prochain numéro détecté : %d"
+    },
+    {
+      "en": "Team Members",
+      "fr": "Membres de l'équipe"
+    },
+    {
+      "en": "e.g., John Doe",
+      "fr": "ex. Jean Dupont"
+    },
+    {
+      "en": "e.g., Jane Smith",
+      "fr": "ex. Marie Martin"
+    },
+    {
+      "en": "e.g., Bob Jones",
+      "fr": "ex. Pierre Durand"
+    },
+    {
+      "en": "Prepare Census Data",
+      "fr": "Préparer les données de recensement"
+    },
+    {
+      "en": "Census data prepared successfully.",
+      "fr": "Données de recensement préparées avec succès."
+    },
+    {
+      "en": "Select Feature Types",
+      "fr": "Sélectionner les types de caractéristiques"
+    },
+    {
+      "en": "Feature Types",
+      "fr": "Types de caractéristiques"
+    },
+    {
+      "en": "Select feature types...",
+      "fr": "Sélectionner les types..."
+    },
+    {
+      "en": "Date Information",
+      "fr": "Informations de date"
+    },
+    {
+      "en": "Feature Values",
+      "fr": "Valeurs des caractéristiques"
+    },
+    {
+      "en": "Enter person name(s), comma-separated",
+      "fr": "Entrez le(s) nom(s), séparés par des virgules"
+    },
+    {
+      "en": "Enter value",
+      "fr": "Entrez une valeur"
+    },
+    {
+      "en": "Prepare Feature Data",
+      "fr": "Préparer les données"
+    },
+    {
+      "en": "Please select at least one feature type.",
+      "fr": "Veuillez sélectionner au moins un type de caractéristique."
+    },
+    {
+      "en": "Feature data prepared successfully.",
+      "fr": "Données de caractéristiques préparées avec succès."
+    },
+    {
+      "en": "Upload an xlsx file with a 'plot_name' column and feature columns. For census mode, include a 'census' column.",
+      "fr": "Chargez un fichier xlsx avec une colonne 'plot_name' et des colonnes de caractéristiques. Pour le mode recensement, incluez une colonne 'census'."
+    },
+    {
+      "en": "Choose xlsx file",
+      "fr": "Choisir un fichier xlsx"
+    },
+    {
+      "en": "Expected columns: plot_name, year, month, day, and feature columns matching subplot feature types.",
+      "fr": "Colonnes attendues : plot_name, year, month, day, et des colonnes correspondant aux types de caractéristiques."
+    },
+    {
+      "en": "Uploaded file must contain a 'plot_name' column.",
+      "fr": "Le fichier doit contenir une colonne 'plot_name'."
+    },
+    {
+      "en": "No matching plot names found in uploaded file.",
+      "fr": "Aucun nom de parcelle correspondant trouvé dans le fichier."
+    },
+    {
+      "en": "For census mode, file must contain a 'census' column.",
+      "fr": "Pour le mode recensement, le fichier doit contenir une colonne 'census'."
+    },
+    {
+      "en": "Loaded %d rows from xlsx file.",
+      "fr": "%d lignes chargées depuis le fichier xlsx."
+    },
+    {
+      "en": "Uploaded file is empty.",
+      "fr": "Le fichier est vide."
+    },
+    {
+      "en": "No data prepared yet. Fill the form or upload a file above.",
+      "fr": "Aucune donnée préparée. Remplissez le formulaire ou chargez un fichier ci-dessus."
+    },
+    {
+      "en": "%d rows, %d columns ready",
+      "fr": "%d lignes, %d colonnes prêtes"
+    },
+    {
+      "en": "Could not load feature types from database.",
+      "fr": "Impossible de charger les types de caractéristiques depuis la base de données."
+    },
+    {
+      "en": "Match people names and other lookup values to database entries.",
+      "fr": "Apparier les noms de personnes et autres valeurs de référence aux entrées de la base de données."
+    },
+    {
+      "en": "No lookup matching needed. You can proceed.",
+      "fr": "Aucun appariement nécessaire. Vous pouvez continuer."
+    },
+    {
+      "en": "No people names found. You can proceed.",
+      "fr": "Aucun nom de personne trouvé. Vous pouvez continuer."
+    },
+    {
+      "en": "All names matched. You can proceed.",
+      "fr": "Tous les noms correspondent. Vous pouvez continuer."
+    },
+    {
+      "en": "Total Names",
+      "fr": "Total de noms"
+    },
+    {
+      "en": "All names matched!",
+      "fr": "Tous les noms correspondent !"
+    },
+    {
+      "en": "name(s) not found in database. Please resolve below.",
+      "fr": "nom(s) non trouvé(s) en base de données. Veuillez résoudre ci-dessous."
+    },
+    {
+      "en": "Resolve Unmatched Names",
+      "fr": "Résoudre les noms non appariés"
+    },
+    {
+      "en": "Not found in database",
+      "fr": "Non trouvé en base de données"
+    },
+    {
+      "en": "Search for match...",
+      "fr": "Rechercher..."
+    },
+    {
+      "en": "Add New",
+      "fr": "Ajouter"
+    },
+    {
+      "en": "Add New Person to Database",
+      "fr": "Ajouter une nouvelle personne à la base"
+    },
+    {
+      "en": "Add '%s' as a new entry in table_colnam?",
+      "fr": "Ajouter '%s' comme nouvelle entrée dans table_colnam ?"
+    },
+    {
+      "en": "Name cannot be empty.",
+      "fr": "Le nom ne peut pas être vide."
+    },
+    {
+      "en": "'%s' added to database.",
+      "fr": "'%s' ajouté à la base de données."
+    },
+    {
+      "en": "Lookup matching complete. You can proceed.",
+      "fr": "Appariement terminé. Vous pouvez continuer."
+    },
+    {
+      "en": "Step 5: Validation & Preview",
+      "fr": "Étape 5 : Validation et aperçu"
+    },
+    {
+      "en": "Review the data that will be imported. Fix any errors before proceeding.",
+      "fr": "Vérifiez les données qui seront importées. Corrigez les erreurs avant de continuer."
+    },
+    {
+      "en": "Data to Import",
+      "fr": "Données à importer"
+    },
+    {
+      "en": "Missing plot ID column. Data may not be properly linked.",
+      "fr": "Colonne d'identifiant de parcelle manquante. Les données peuvent ne pas être correctement liées."
+    },
+    {
+      "en": "Plot ID is missing",
+      "fr": "L'identifiant de parcelle est manquant"
+    },
+    {
+      "en": "Census number is required",
+      "fr": "Le numéro de recensement est requis"
+    },
+    {
+      "en": "Census %d already exists for this plot. It will be duplicated.",
+      "fr": "Le recensement %d existe déjà pour cette parcelle. Il sera dupliqué."
+    },
+    {
+      "en": "Census column is missing",
+      "fr": "La colonne de recensement est manquante"
+    },
+    {
+      "en": "Year must be between 1900 and 2100",
+      "fr": "L'année doit être entre 1900 et 2100"
+    },
+    {
+      "en": "No year provided",
+      "fr": "Aucune année fournie"
+    },
+    {
+      "en": "Month must be between 1 and 12",
+      "fr": "Le mois doit être entre 1 et 12"
+    },
+    {
+      "en": "Day must be between 1 and 31",
+      "fr": "Le jour doit être entre 1 et 31"
+    },
+    {
+      "en": "No data rows to import",
+      "fr": "Aucune ligne de données à importer"
+    },
+    {
+      "en": "Validation passed!",
+      "fr": "Validation réussie !"
+    },
+    {
+      "en": "You can proceed to import.",
+      "fr": "Vous pouvez procéder à l'import."
+    },
+    {
+      "en": "Validation failed.",
+      "fr": "La validation a échoué."
+    },
+    {
+      "en": "Please fix the errors below before proceeding.",
+      "fr": "Veuillez corriger les erreurs ci-dessous avant de continuer."
+    },
+    {
+      "en": "Step 6: Execute Import",
+      "fr": "Étape 6 : Exécuter l'import"
+    },
+    {
+      "en": "Run a dry-run first to see what will be inserted, then execute the import.",
+      "fr": "Lancez d'abord un essai à blanc pour voir ce qui sera inséré, puis exécutez l'import."
+    },
+    {
+      "en": "Dry Run",
+      "fr": "Essai à blanc"
+    },
+    {
+      "en": "Simulate the import without making changes.",
+      "fr": "Simuler l'import sans effectuer de modifications."
+    },
+    {
+      "en": "Execute the import for real. Changes will be saved.",
+      "fr": "Exécuter l'import réellement. Les modifications seront enregistrées."
+    },
+    {
+      "en": "This will insert data into the database. This action cannot be easily undone.",
+      "fr": "Ceci va insérer des données en base. Cette action ne peut pas être facilement annulée."
+    },
+    {
+      "en": "Rows to import: %d",
+      "fr": "Lignes à importer : %d"
+    },
+    {
+      "en": "Subplot feature records to create: %d",
+      "fr": "Enregistrements de caractéristiques à créer : %d"
+    },
+    {
+      "en": "People feature records to create: %d",
+      "fr": "Enregistrements de personnes à créer : %d"
+    },
+    {
+      "en": "Preview of records",
+      "fr": "Aperçu des enregistrements"
+    },
+    {
+      "en": "Dry run: %d census record(s) and %d people record(s) would be created.",
+      "fr": "Essai : %d enregistrement(s) de recensement et %d enregistrement(s) de personnes seraient créés."
+    },
+    {
+      "en": "Successfully added %d census record(s) and %d people feature record(s).",
+      "fr": "%d enregistrement(s) de recensement et %d enregistrement(s) de personnes ajoutés avec succès."
+    },
+    {
+      "en": "Dry run: %d feature record(s) would be created.",
+      "fr": "Essai : %d enregistrement(s) de caractéristiques seraient créés."
+    },
+    {
+      "en": "Successfully added %d feature record(s).",
+      "fr": "%d enregistrement(s) de caractéristiques ajoutés avec succès."
+    },
+    {
+      "en": "Please complete this step before proceeding.",
+      "fr": "Veuillez compléter cette étape avant de continuer."
+    },
+    {
+      "en": "Analyzing...",
+      "fr": "Analyse en cours..."
+    },
+    {
+      "en": "Validating...",
+      "fr": "Validation en cours..."
+    },
+    {
+      "en": "Step 3: Upload Individual Measurements",
+      "fr": "Etape 3 : Importer les mesures individuelles"
+    },
+    {
+      "en": "Upload trait observations (DBH, height, etc.) for existing tagged individuals. Match individuals by plot name and tag number.",
+      "fr": "Importez des observations de traits (DHP, hauteur, etc.) pour des individus existants. Correspondance par nom de parcelle et numero d'etiquette."
+    },
+    {
+      "en": "Data Format",
+      "fr": "Format des donnees"
+    },
+    {
+      "en": "Wide format (one column per trait)",
+      "fr": "Format large (une colonne par trait)"
+    },
+    {
+      "en": "Long format (trait type + value columns)",
+      "fr": "Format long (colonnes type de trait + valeur)"
+    },
+    {
+      "en": "Wide format: each trait is a separate column. Expected columns: plot_name, tag, and one column per trait (e.g., DBH, height, crown_diameter).",
+      "fr": "Format large : chaque trait est une colonne separee. Colonnes attendues : plot_name, tag, et une colonne par trait (ex. DHP, hauteur, diametre_couronne)."
+    },
+    {
+      "en": "Long format: one row per measurement. Expected columns: plot_name, tag, a column for trait type/name, a column for numeric values, and optionally a column for character values. Additional metadata columns are allowed.",
+      "fr": "Format long : une ligne par mesure. Colonnes attendues : plot_name, tag, une colonne pour le type/nom du trait, une colonne pour les valeurs numeriques, et optionnellement une colonne pour les valeurs textuelles. Des colonnes de metadonnees supplementaires sont autorisees."
+    },
+    {
+      "en": "Tag / Individual number column *",
+      "fr": "Colonne etiquette / numero individu *"
+    },
+    {
+      "en": "Map Key Columns",
+      "fr": "Mapper les colonnes cles"
+    },
+    {
+      "en": "Map the plot name and tag columns. Remaining columns will be treated as potential trait columns in the next section.",
+      "fr": "Mappez les colonnes nom de parcelle et etiquette. Les colonnes restantes seront traitees comme colonnes de traits potentielles."
+    },
+    {
+      "en": "Trait type / name column *",
+      "fr": "Colonne type / nom de trait *"
+    },
+    {
+      "en": "Numeric value column",
+      "fr": "Colonne valeur numerique"
+    },
+    {
+      "en": "Character value column",
+      "fr": "Colonne valeur textuelle"
+    },
+    {
+      "en": "Map Columns to Traits",
+      "fr": "Mapper les colonnes aux traits"
+    },
+    {
+      "en": "Map each data column to a trait from the database. Columns mapped to '-- skip --' will be ignored.",
+      "fr": "Mappez chaque colonne de donnees a un trait de la base de donnees. Les colonnes mappees a '-- ignorer --' seront ignorees."
+    },
+    {
+      "en": "Map Trait Names",
+      "fr": "Mapper les noms de traits"
+    },
+    {
+      "en": "Map each trait name from your file to a trait in the database. Unmapped traits will be skipped.",
+      "fr": "Mappez chaque nom de trait de votre fichier a un trait de la base de donnees. Les traits non mappes seront ignores."
+    },
+    {
+      "en": "Samples",
+      "fr": "Exemples"
+    },
+    {
+      "en": "Link to Census",
+      "fr": "Lier a un recensement"
+    },
+    {
+      "en": "Select which census these measurements belong to (one per plot). The latest census per plot is pre-selected.",
+      "fr": "Selectionnez a quel recensement ces mesures appartiennent (un par parcelle). Le dernier recensement par parcelle est pre-selectionne."
+    },
+    {
+      "en": "Census",
+      "fr": "Recensement"
+    },
+    {
+      "en": "No census records found for selected plots. Measurements will not be linked to a census.",
+      "fr": "Aucun recensement trouve pour les parcelles selectionnees. Les mesures ne seront pas liees a un recensement."
+    },
+    {
+      "en": "No data prepared yet. Upload a file and map columns above.",
+      "fr": "Aucune donnee preparee. Importez un fichier et mappez les colonnes ci-dessus."
+    },
+    {
+      "en": "measurement rows, %d columns ready",
+      "fr": "lignes de mesures, %d colonnes prets"
+    },
+    {
+      "en": "Please map the tag column.",
+      "fr": "Veuillez mapper la colonne etiquette."
+    },
+    {
+      "en": "No trait columns mapped. Please map at least one column to a trait.",
+      "fr": "Aucune colonne de trait mappee. Veuillez mapper au moins une colonne a un trait."
+    },
+    {
+      "en": "No valid measurements found after mapping.",
+      "fr": "Aucune mesure valide trouvee apres le mapping."
+    },
+    {
+      "en": "No trait names mapped. Please map at least one trait.",
+      "fr": "Aucun nom de trait mappe. Veuillez mapper au moins un trait."
+    },
+    {
+      "en": "No rows remaining after filtering to mapped traits.",
+      "fr": "Aucune ligne restante apres filtrage des traits mappes."
+    },
+    {
+      "en": "measurement(s) prepared.",
+      "fr": "mesure(s) preparee(s)."
+    },
+    {
+      "en": "Please map the plot name and tag columns first.",
+      "fr": "Veuillez d'abord mapper les colonnes nom de parcelle et etiquette."
+    },
+    {
+      "en": "No remaining columns to map as traits.",
+      "fr": "Aucune colonne restante a mapper comme trait."
+    },
+    {
+      "en": "No trait names found in the selected column.",
+      "fr": "Aucun nom de trait trouve dans la colonne selectionnee."
+    },
+    {
+      "en": "Missing tag column for individual matching.",
+      "fr": "Colonne etiquette manquante pour la correspondance des individus."
+    },
+    {
+      "en": "Trait ID is missing (unmapped trait)",
+      "fr": "ID de trait manquant (trait non mappe)"
+    },
+    {
+      "en": "Missing trait ID column.",
+      "fr": "Colonne ID de trait manquante."
+    },
+    {
+      "en": "No measurement values found in data.",
+      "fr": "Aucune valeur de mesure trouvee dans les donnees."
+    },
+    {
+      "en": "Individual with tag '%s' not found in plot",
+      "fr": "Individu avec etiquette '%s' non trouve dans la parcelle"
+    },
+    {
+      "en": "%d more unmatched individuals not shown",
+      "fr": "%d autres individus non apparies non affiches"
+    },
+    {
+      "en": "Value %.2f below minimum %.2f for trait '%s'",
+      "fr": "Valeur %.2f inferieure au minimum %.2f pour le trait '%s'"
+    },
+    {
+      "en": "Value %.2f above maximum %.2f for trait '%s'",
+      "fr": "Valeur %.2f superieure au maximum %.2f pour le trait '%s'"
+    },
+    {
+      "en": "No measurements could be matched to existing individuals.",
+      "fr": "Aucune mesure n'a pu etre appariee a des individus existants."
+    },
+    {
+      "en": "Dry run: %d measurement(s) matched to individuals.",
+      "fr": "Simulation : %d mesure(s) appariee(s) a des individus."
+    },
+    {
+      "en": "Successfully inserted %d measurement(s).",
+      "fr": "Insertion reussie de %d mesure(s)."
+    },
+    {
+      "en": "%d measurement rows, %d columns ready",
+      "fr": "%d lignes de mesures, %d colonnes prets"
+    },
+    {
+      "en": "%d measurement(s) prepared.",
+      "fr": "%d mesure(s) preparee(s)."
+    },
+    {
+      "en": "Plot-Level Operations",
+      "fr": "Operations au niveau parcelle"
+    },
+    {
+      "en": "Individual-Level Operations",
+      "fr": "Operations au niveau individuel"
+    },
+    {
+      "en": "Add Individual Measurements",
+      "fr": "Ajouter des mesures individuelles"
+    },
+    {
+      "en": "Add trait observations (DBH, height, etc.) for existing tagged individuals. Upload a file with plot name, tag and trait values.",
+      "fr": "Ajoutez des observations de traits (DHP, hauteur, etc.) pour des individus existants. Importez un fichier avec nom de parcelle, etiquette et valeurs de traits."
+    },
+    {
+      "en": "Wide format (one column per trait) or long format",
+      "fr": "Format large (une colonne par trait) ou format long"
+    },
+    {
+      "en": "Column/trait name mapping with synonyms",
+      "fr": "Mapping colonnes/noms de traits avec synonymes"
+    },
+    {
+      "en": "Matches individuals by plot name + tag",
+      "fr": "Correspondance des individus par nom de parcelle + etiquette"
+    },
+    {
+      "en": "Links measurements to a census",
+      "fr": "Lie les mesures a un recensement"
+    },
+    {
+      "en": "Add Recruits",
+      "fr": "Ajouter des recrues"
+    },
+    {
+      "en": "Add new individuals (recruits) to selected plots. This opens the Import Wizard which handles column mapping, taxonomy matching, and validation for flat individual columns.",
+      "fr": "Ajoutez de nouveaux individus (recrues) aux parcelles selectionnees. Cela ouvre l'assistant d'import qui gere le mapping de colonnes, la correspondance taxonomique et la validation pour les colonnes plates des individus."
+    },
+    {
+      "en": "Uses the Import Wizard (launch_import_wizard)",
+      "fr": "Utilise l'assistant d'import (launch_import_wizard)"
+    },
+    {
+      "en": "Flat columns only (no individual features)",
+      "fr": "Colonnes plates uniquement (pas de features individuelles)"
+    },
+    {
+      "en": "Requires idtax_n from taxonomic matching",
+      "fr": "Necessite idtax_n issu de la correspondance taxonomique"
+    },
+    {
+      "en": "Add recruits before adding measurements",
+      "fr": "Ajoutez les recrues avant d'importer les mesures"
+    },
+    {
+      "en": "Adding recruits (new individuals with flat columns only, no individual features) is handled by the Import Wizard, which provides full column mapping, taxonomy matching, and validation.",
+      "fr": "L'ajout de recrues (nouveaux individus avec colonnes plates uniquement, sans features individuelles) est gere par l'assistant d'import, qui fournit le mapping de colonnes, la correspondance taxonomique et la validation."
+    },
+    {
+      "en": "Make sure recruits are added before importing their measurements.",
+      "fr": "Assurez-vous que les recrues sont ajoutees avant d'importer leurs mesures."
+    },
+    {
+      "en": "Run the following command in the R console to open the Import Wizard:",
+      "fr": "Executez la commande suivante dans la console R pour ouvrir l'assistant d'import :"
+    },
+    {
+      "en": "Map your file columns to the expected fields. Auto-matched using synonyms and fuzzy matching.",
+      "fr": "Mappez les colonnes de votre fichier aux champs attendus. Correspondance automatique par synonymes et correspondance floue."
+    },
+    {
+      "en": "Structural Operations",
+      "fr": "Opérations structurelles"
+    },
+    {
+      "en": "Define Multi-Stems",
+      "fr": "Définir les multi-tiges"
+    },
+    {
+      "en": "Group individual tags that belong to the same multi-stem tree. Upload a grouping table or define groups interactively.",
+      "fr": "Grouper les tags individuels appartenant au même arbre multi-tiges. Télécharger une table de groupement ou définir les groupes interactivement."
+    },
+    {
+      "en": "Upload pre-filled grouping table (xlsx)",
+      "fr": "Télécharger une table de groupement pré-remplie (xlsx)"
+    },
+    {
+      "en": "Or group stems interactively per plot",
+      "fr": "Ou grouper les tiges interactivement par parcelle"
+    },
+    {
+      "en": "Validates tag existence and taxonomy",
+      "fr": "Valide l'existence des tags et la taxonomie"
+    },
+    {
+      "en": "Updates stem_grouping in database",
+      "fr": "Met à jour stem_grouping dans la base de données"
+    },
+    {
+      "en": "Step 3: Define Multi-Stem Groups",
+      "fr": "Étape 3 : Définir les groupes multi-tiges"
+    },
+    {
+      "en": "Group individual tags that belong to the same multi-stem tree. The first tag in each group becomes the parent stem.",
+      "fr": "Grouper les tags individuels appartenant au même arbre multi-tiges. Le premier tag de chaque groupe devient la tige parente."
+    },
+    {
+      "en": "Input method",
+      "fr": "Méthode de saisie"
+    },
+    {
+      "en": "Upload grouping table",
+      "fr": "Télécharger table de groupement"
+    },
+    {
+      "en": "Interactive grouping",
+      "fr": "Groupement interactif"
+    },
+    {
+      "en": "Current Stem Groups",
+      "fr": "Groupes de tiges actuels"
+    },
+    {
+      "en": "Upload an xlsx or csv file with at least 3 columns: plot_name, tag, and group_tag (the parent tag for each group). You can generate this table from process_openforis_census().",
+      "fr": "Téléchargez un fichier xlsx ou csv avec au moins 3 colonnes : plot_name, tag, et group_tag (le tag parent pour chaque groupe). Vous pouvez générer cette table avec process_openforis_census()."
+    },
+    {
+      "en": "Upload grouping file",
+      "fr": "Télécharger le fichier de groupement"
+    },
+    {
+      "en": "Select a plot, then check the boxes next to tags you want to group together. Click 'Create Group' to form a multi-stem group from the selected tags.",
+      "fr": "Sélectionnez une parcelle, puis cochez les cases à côté des tags à grouper ensemble. Cliquez sur 'Créer le groupe' pour former un groupe multi-tiges."
+    },
+    {
+      "en": "Select plot",
+      "fr": "Sélectionner la parcelle"
+    },
+    {
+      "en": "Create Group from Selected",
+      "fr": "Créer un groupe à partir de la sélection"
+    },
+    {
+      "en": "Remove Selected from Groups",
+      "fr": "Retirer la sélection des groupes"
+    },
+    {
+      "en": "Individuals in selected plot",
+      "fr": "Individus dans la parcelle sélectionnée"
+    },
+    {
+      "en": "Map columns",
+      "fr": "Mapper les colonnes"
+    },
+    {
+      "en": "Plot name column",
+      "fr": "Colonne nom de parcelle"
+    },
+    {
+      "en": "Tag column",
+      "fr": "Colonne tag"
+    },
+    {
+      "en": "Group tag column (parent)",
+      "fr": "Colonne tag du groupe (parent)"
+    },
+    {
+      "en": "Apply Mapping",
+      "fr": "Appliquer le mapping"
+    },
+    {
+      "en": "Please map all three columns.",
+      "fr": "Veuillez mapper les trois colonnes."
+    },
+    {
+      "en": "No valid stem groups found for selected plots.",
+      "fr": "Aucun groupe de tiges valide trouvé pour les parcelles sélectionnées."
+    },
+    {
+      "en": "Loaded %d stems in %d groups",
+      "fr": "%d tiges chargées dans %d groupes"
+    },
+    {
+      "en": "Error reading file:",
+      "fr": "Erreur de lecture du fichier :"
+    },
+    {
+      "en": "Error querying individuals:",
+      "fr": "Erreur lors de la requête des individus :"
+    },
+    {
+      "en": "Select at least 2 individuals to create a group.",
+      "fr": "Sélectionnez au moins 2 individus pour créer un groupe."
+    },
+    {
+      "en": "Created group with parent tag %s (%d stems)",
+      "fr": "Groupe créé avec tag parent %s (%d tiges)"
+    },
+    {
+      "en": "Select individuals to remove from groups.",
+      "fr": "Sélectionnez les individus à retirer des groupes."
+    },
+    {
+      "en": "Removed selected stems from groups.",
+      "fr": "Tiges sélectionnées retirées des groupes."
+    },
+    {
+      "en": "No stem groups defined yet.",
+      "fr": "Aucun groupe de tiges défini pour le moment."
+    },
+    {
+      "en": "%d group(s), %d total stems",
+      "fr": "%d groupe(s), %d tiges au total"
+    },
+    {
+      "en": "%d flagged — review before import",
+      "fr": "%d signalé(s) — vérifier avant import"
+    },
+    {
+      "en": "No lookup matching needed. Click Next to continue.",
+      "fr": "Aucune correspondance nécessaire. Cliquez sur Suivant pour continuer."
+    },
+    {
+      "en": "Missing required column: %s",
+      "fr": "Colonne requise manquante : %s"
+    },
+    {
+      "en": "Tag %s appears in multiple groups",
+      "fr": "Le tag %s apparaît dans plusieurs groupes"
+    },
+    {
+      "en": "Group tag %s not found as a tag in this plot's data",
+      "fr": "Le tag de groupe %s non trouvé comme tag dans les données de cette parcelle"
+    },
+    {
+      "en": "Group has only 1 member — will be ignored",
+      "fr": "Le groupe n'a qu'un seul membre — sera ignoré"
+    },
+    {
+      "en": "Tag %s not found in database for this plot",
+      "fr": "Tag %s non trouvé dans la base de données pour cette parcelle"
+    },
+    {
+      "en": "%d more unmatched tags not shown",
+      "fr": "%d tags non trouvés supplémentaires non affichés"
+    },
+    {
+      "en": "Tag %s already has stem_grouping=%s — will be overwritten",
+      "fr": "Le tag %s a déjà stem_grouping=%s — sera écrasé"
+    },
+    {
+      "en": "Flagged: %s",
+      "fr": "Signalé : %s"
+    },
+    {
+      "en": "No stem_grouping updates needed (all tags are parents or unresolved)",
+      "fr": "Aucune mise à jour de stem_grouping nécessaire (tous les tags sont parents ou non résolus)"
+    },
+    {
+      "en": "Dry run: %d stems in %d groups would be updated",
+      "fr": "Simulation : %d tiges dans %d groupes seraient mises à jour"
+    },
+    {
+      "en": "Successfully updated %d stems in %d multi-stem groups",
+      "fr": "%d tiges mises à jour avec succès dans %d groupes multi-tiges"
+    },
+    {
+      "en": "%d measurement(s) have a value of 0",
+      "fr": "%d mesure(s) ont une valeur egale a 0"
+    },
+    {
+      "en": "%d individual(s) have multiple observations for the same trait with DIFFERENT values",
+      "fr": "%d individu(s) ont plusieurs observations pour le meme trait avec des valeurs DIFFERENTES"
+    },
+    {
+      "en": "%d individual(s) have multiple observations for the same trait with identical values",
+      "fr": "%d individu(s) ont plusieurs observations pour le meme trait avec des valeurs identiques"
+    },
+    {
+      "en": "%d measurement(s) already exist in the database for the same individual, trait and census",
+      "fr": "%d mesure(s) existent deja dans la base de donnees pour le meme individu, trait et recensement"
+    },
+    {
+      "en": "%d measurement(s) have values lower than the maximum from previous censuses — check consistency",
+      "fr": "%d mesure(s) ont des valeurs inferieures au maximum des recensements precedents — verifier la coherence"
+    },
+    {
+      "en": "Measurement records to create: %d",
+      "fr": "Enregistrements de mesures a creer : %d"
+    },
+    {
+      "en": "Issues by Trait",
+      "fr": "Problèmes par trait"
+    },
+    {
+      "en": "Trait",
+      "fr": "Trait"
+    },
+    {
+      "en": "Issue",
+      "fr": "Problème"
+    },
+    {
+      "en": "Count",
+      "fr": "Nombre"
+    },
+    {
+      "en": "Preparing dry run for %d row(s)...",
+      "fr": "Préparation du test pour %d ligne(s)..."
+    },
+    {
+      "en": "Inserting %d measurement(s) into database — please wait...",
+      "fr": "Insertion de %d mesure(s) dans la base de données — veuillez patienter..."
+    },
+    {
+      "en": "Inserting %d record(s) into database — please wait...",
+      "fr": "Insertion de %d enregistrement(s) dans la base de données — veuillez patienter..."
+    },
+    {
+      "en": "Remove Selected Rows",
+      "fr": "Supprimer les lignes sélectionnées"
+    },
+    {
+      "en": "Remove Unchanged",
+      "fr": "Supprimer les inchangés"
+    },
+    {
+      "en": "Change Group Tag",
+      "fr": "Changer le tag de groupe"
+    },
+    {
+      "en": "Reset to Upload",
+      "fr": "Réinitialiser depuis le fichier"
+    },
+    {
+      "en": "Select rows in the table, then use the buttons above to edit. 'Remove Selected' drops rows from the import. 'Change Group Tag' reassigns selected rows to a different parent.",
+      "fr": "Sélectionnez des lignes dans le tableau, puis utilisez les boutons ci-dessus. 'Supprimer' retire les lignes de l'import. 'Changer le tag de groupe' réassigne les lignes sélectionnées à un autre parent."
+    },
+    {
+      "en": "Select rows to remove first.",
+      "fr": "Sélectionnez d'abord les lignes à supprimer."
+    },
+    {
+      "en": "Also removed %d stems that became singleton groups.",
+      "fr": "%d tiges devenues des groupes singletons ont aussi été supprimées."
+    },
+    {
+      "en": "Removed %d row(s).",
+      "fr": "%d ligne(s) supprimée(s)."
+    },
+    {
+      "en": "No status information available.",
+      "fr": "Aucune information de statut disponible."
+    },
+    {
+      "en": "Removed %d unchanged row(s).",
+      "fr": "%d ligne(s) inchangée(s) supprimée(s)."
+    },
+    {
+      "en": "Select rows to reassign first.",
+      "fr": "Sélectionnez d'abord les lignes à réassigner."
+    },
+    {
+      "en": "Reassigning %d stem(s): tags %s",
+      "fr": "Réassignation de %d tige(s) : tags %s"
+    },
+    {
+      "en": "New group tag (parent tag):",
+      "fr": "Nouveau tag de groupe (tag parent) :"
+    },
+    {
+      "en": "Existing parent tags in these plots:",
+      "fr": "Tags parents existants dans ces parcelles :"
+    },
+    {
+      "en": "Please enter a valid tag number.",
+      "fr": "Veuillez entrer un numéro de tag valide."
+    },
+    {
+      "en": "Reassigned %d stem(s) to group tag %s.",
+      "fr": "%d tige(s) réassignée(s) au tag de groupe %s."
+    },
+    {
+      "en": "No upload to reset to.",
+      "fr": "Aucun fichier d'origine pour réinitialiser."
+    },
+    {
+      "en": "Reset to original upload.",
+      "fr": "Réinitialisé depuis le fichier d'origine."
+    },
+    {
+      "en": "%d group(s), %d stems in groups, %d total individuals in plots",
+      "fr": "%d groupe(s), %d tiges dans les groupes, %d individus au total dans les parcelles"
+    },
+    {
+      "en": "The table shows all individuals from selected plots. Grouped rows can be edited; 'available' rows (white) can be added to a group via 'Change Group Tag'. 'Remove Selected' moves grouped rows back to available.",
+      "fr": "Le tableau montre tous les individus des parcelles sélectionnées. Les lignes groupées peuvent être éditées ; les lignes 'disponibles' (blanches) peuvent être ajoutées à un groupe via 'Changer le tag de groupe'. 'Supprimer la sélection' remet les lignes groupées en disponible."
+    },
+    {
+      "en": "Selected rows are not in any group.",
+      "fr": "Les lignes sélectionnées ne sont dans aucun groupe."
+    },
+    {
+      "en": "Removed %d row(s) from groups.",
+      "fr": "%d ligne(s) retirée(s) des groupes."
+    },
+    {
+      "en": "Review the stem groupings that will be updated. Fix any errors before proceeding.",
+      "fr": "Vérifiez les regroupements de tiges qui seront mis à jour. Corrigez les erreurs avant de continuer."
+    },
+    {
+      "en": "Data to Update",
+      "fr": "Données à mettre à jour"
+    },
+    {
+      "en": "Step 6: Execute Update",
+      "fr": "Étape 6 : Exécuter la mise à jour"
+    },
+    {
+      "en": "Run a dry-run first to preview the changes, then execute the update.",
+      "fr": "Lancez d'abord un essai pour prévisualiser les modifications, puis exécutez la mise à jour."
+    },
+    {
+      "en": "Simulate the update without making changes.",
+      "fr": "Simuler la mise à jour sans effectuer de modifications."
+    },
+    {
+      "en": "Update Database",
+      "fr": "Mettre à jour la base de données"
+    },
+    {
+      "en": "Execute the update for real. Changes will be saved.",
+      "fr": "Exécuter la mise à jour. Les modifications seront enregistrées."
+    },
+    {
+      "en": "Confirm Update",
+      "fr": "Confirmer la mise à jour"
+    },
+    {
+      "en": "This will update records in the database. This action cannot be easily undone.",
+      "fr": "Cela mettra à jour des enregistrements dans la base de données. Cette action ne peut pas être facilement annulée."
+    },
+    {
+      "en": "Records to update: %d",
+      "fr": "Enregistrements à mettre à jour : %d"
+    },
+    {
+      "en": "Update Successful!",
+      "fr": "Mise à jour réussie !"
+    },
+    {
+      "en": "Update Failed",
+      "fr": "Échec de la mise à jour"
+    },
+    {
+      "en": "Updating %d record(s) in database — please wait...",
+      "fr": "Mise à jour de %d enregistrement(s) dans la base de données — veuillez patienter..."
     }
   ]
 }
