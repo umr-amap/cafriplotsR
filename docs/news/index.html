@@ -19,6 +19,8 @@
 <li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><a class="nav-link" href="../articles/readme-fr.html">FR</a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR" aria-label="GitHub"><span class="fa fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR/issues" aria-label="Report an issue"><span class="fa fa-bug"></span></a></li>
       </ul></div>
 
 
@@ -35,7 +37,55 @@
 <div class="section level4">
 <h4 id="new-features-1-9-5">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-5"></a></h4>
 <ul><li>
-<strong>Structured citation tracking for taxa-level trait measurements</strong>
+<strong>Feature Wizard Shiny app</strong> (<code><a href="../reference/launch_feature_wizard.html">launch_feature_wizard()</a></code>)
+<ul><li>New 6-step guided wizard for adding features and census data to existing plots</li>
+<li>Step 1: Login and multi-select plot selector with summary (reuses <code>mod_database_login</code>)</li>
+<li>Step 2: Choose operation mode — New Census, Add Plot Features, Add Individual Measurements, Define Multi-Stems, or Add Recruits (redirects to Import Wizard)</li>
+<li>Step 3 (plot features): Form or xlsx upload with column mapping for census metadata and arbitrary subplot features</li>
+<li>Step 3 (measurements): xlsx upload with trait mapping grouped by category, showing description, unit, factor levels, and column content preview; supports wide and long formats</li>
+<li>Step 3 (multi-stems): Upload or interactively define stem groups; enriches data by joining with DB to resolve <code>id_n</code>, <code>group_id_n</code>, and existing <code>stem_grouping</code>; shows all plot individuals alongside grouped ones for manual editing (remove, reassign, reset)</li>
+<li>Step 4: Lookup matching for people columns (skipped for measurements and multi-stems)</li>
+<li>Step 5: Validation with context-aware checks — duplicate detection (numeric traits only), previous census value comparison with <code>issue</code> column, issue summary table by trait; multi-stems uses pre-resolved IDs with “tag not found” as warning</li>
+<li>Step 6: Import execution with dry-run support — bulk insert via single <code><a href="https://dbi.r-dbi.org/reference/dbAppendTable.html" class="external-link">dbAppendTable()</a></code> in explicit transaction for measurements; <code><a href="../reference/update_records.html">update_records()</a></code> for multi-stem <code>stem_grouping</code> updates; context-aware labels (import vs update)</li>
+<li>Full EN/FR internationalization</li>
+</ul></li>
+<li>
+<strong><code><a href="../reference/add_subplot_features.html">add_subplot_features()</a></code> people resolution</strong>
+<ul><li>For features with <code>valuetype == "table_colnam"</code> (team_leader, additional_people, etc.), comma-delimited person names are now split and matched to <code>table_colnam</code> IDs before insertion</li>
+</ul></li>
+<li>
+<strong><code><a href="../reference/safe_delete_individuals.html">safe_delete_individuals()</a></code> specimen link cascade</strong>
+<ul><li>Now counts and deletes specimen links (<code>data_link_specimens</code>) in cascade when deleting individuals</li>
+</ul></li>
+<li>
+<strong><code><a href="../reference/safe_delete_plot.html">safe_delete_plot()</a></code> <code>delete_plot</code> parameter</strong>
+<ul><li>New <code>delete_plot = TRUE</code> parameter; set to <code>FALSE</code> to remove only individuals and their features while preserving all plot metadata and subplot features</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="bug-fixes-1-9-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5"></a></h4>
+<ul><li>
+<strong>Import wizard <code>.row_idx</code> column leak</strong>
+<ul><li>Internal <code>.row_idx</code> column excluded from trait validation, data preview display, and xlsx/csv exports</li>
+</ul></li>
+<li>
+<strong><code>mod_taxa_add</code> unused <code>con</code> parameter</strong>
+<ul><li>Removed unused <code>con = pool()</code> argument from <code><a href="../reference/query_taxa.html">query_taxa()</a></code> call that could cause errors</li>
+</ul></li>
+<li>
+<strong><code><a href="../reference/register_user.html">register_user()</a></code> validation simplification</strong>
+<ul><li>Fixed registry table permissions (GRANT ALL to creator); removed redundant role existence check that could fail for users without <code>pg_roles</code> access</li>
+</ul></li>
+<li>
+<strong><code>output_styles_config</code> additional keep patterns</strong>
+<ul><li>Added <code>position_</code>, <code>strate</code>, <code>transect_part</code> to default keep_patterns for transect output</li>
+</ul></li>
+</ul></div>
+<div class="section level4">
+<h4 id="documentation-1-9-5">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-9-5"></a></h4>
+<ul><li><p>Newsletter text refined (EN/FR): concise TWDD description, clarified citation tracking panel wording, added function names for interactive apps</p></li>
+<li>
+<p><strong>Structured citation tracking for taxa-level trait measurements</strong></p>
 <ul><li>New <code>table_citations</code> table in the main database (<code>plots_transects</code>) with fields for authors, year, title, journal, DOI, URL, and dataset name</li>
 <li>
 <code><a href="../reference/migrate_add_citations_table.html">migrate_add_citations_table()</a></code>: migration function to create the table and add <code>id_citation</code> FK column to <code>taxa_traits_measures</code>
@@ -52,30 +102,30 @@
 <code><a href="../reference/fetch_taxa_trait_measurements.html">fetch_taxa_trait_measurements()</a></code> and <code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code> gain <code>include_citation = FALSE</code> parameter to join full citation metadata</li>
 </ul></li>
 <li>
-<strong>Citation source panel in taxa traits enrichment module</strong> (<code>shiny_app_taxo_match</code>)
+<p><strong>Citation source panel in taxa traits enrichment module</strong> (<code>shiny_app_taxo_match</code>)</p>
 <ul><li>New “Data Sources” tab in the trait enrichment results showing per-citation measurement/taxa/trait counts</li>
 <li>Acknowledgement banner emphasising the importance of citing data sources</li>
 <li>Excel downloads (wide and long format) include a <code>citations</code> sheet alongside trait data</li>
 </ul></li>
 <li>
-<strong>Citation selector in taxa traits import app</strong> (<code>shiny_app_taxa_traits_import</code>)
+<p><strong>Citation selector in taxa traits import app</strong> (<code>shiny_app_taxa_traits_import</code>)</p>
 <ul><li>Dropdown to pick the citation for all rows being imported, with a “New citation” modal to create one on the fly</li>
 </ul></li>
 <li>
-<strong>Multi-row selection in taxo backbone app</strong> (<code>shiny_app_taxo_backbone</code>)
+<p><strong>Multi-row selection in taxo backbone app</strong> (<code>shiny_app_taxo_backbone</code>)</p>
 <ul><li>Search results table now supports multi-row selection (Ctrl/Cmd click)</li>
 <li>Selected taxon panel lists all selected taxa when multiple are chosen; Update/Synonymy tabs act on the first selected</li>
 <li>Tree view shows an explicit message instead of silently showing the first taxon when multiple are selected</li>
 <li>Trait text panel redirects to “Extract as Table” when multiple taxa are selected</li>
 </ul></li>
 <li>
-<strong>New module: taxa trait table extraction</strong> (<code>mod_taxa_traits_table</code>)
+<p><strong>New module: taxa trait table extraction</strong> (<code>mod_taxa_traits_table</code>)</p>
 <ul><li>“Extract as Table” button in the taxo backbone search panel fetches wide and long trait tables for selected taxa</li>
 <li>Results include Wide Format, Long Format, and Data Sources tabs with per-citation cards</li>
 <li>Excel downloads include a <code>citations</code> sheet</li>
 </ul></li>
 <li>
-<strong>New module: equivalent R code preview</strong> (<code>mod_taxa_r_code</code>)
+<p><strong>New module: equivalent R code preview</strong> (<code>mod_taxa_r_code</code>)</p>
 <ul><li>Collapsible “Show Equivalent R Code” panel in the taxo backbone search section</li>
 <li>Generates <code><a href="../reference/query_taxa.html">query_taxa()</a></code> call matching current search filters (including <code>include_children</code>)</li>
 <li>Generates <code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code> calls once “Extract as Table” is triggered</li>
@@ -83,14 +133,14 @@
 <li>Notes for Shiny-only options (<code>include_synonyms</code>, <code>synonymy_filter</code>) that require post-processing in R</li>
 </ul></li>
 <li>
-<strong><code>include_children</code> parameter in <code><a href="../reference/query_taxa.html">query_taxa()</a></code></strong>
+<p><strong><code>include_children</code> parameter in <code><a href="../reference/query_taxa.html">query_taxa()</a></code></strong></p>
 <ul><li>New <code>include_children = FALSE</code> parameter recursively fetches all descendant taxa via the <code>id_parent</code> foreign key (up to 10 iterations)</li>
 <li>New internal helper <code><a href="../reference/dot-include_children.html">.include_children()</a></code> used by both the name-based and ID-based query paths</li>
 <li>The taxo backbone Shiny app now delegates child fetching to this parameter instead of a manual loop</li>
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="bug-fixes-1-9-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5"></a></h4>
+<h4 id="bug-fixes-1-9-5-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5-1"></a></h4>
 <ul><li>
 <strong><code><a href="../reference/pivot_numeric_traits.html">pivot_numeric_traits()</a></code> namespace fix</strong>
 <ul><li>
@@ -139,7 +189,7 @@
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="bug-fixes-1-9-5-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5-1"></a></h4>
+<h4 id="bug-fixes-1-9-5-2">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5-2"></a></h4>
 <ul><li>
 <strong><code>.traits_to_genera_aggreg()</code> incorrect <code>source</code> assignment</strong>
 <ul><li>Fixed hardcoded <code>source = "species"</code> for all non-NA trait values; traits assigned via a genus-level <code>idtax</code> were incorrectly labelled as species-level</li>
