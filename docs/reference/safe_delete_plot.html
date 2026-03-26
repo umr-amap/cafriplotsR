@@ -8,12 +8,14 @@ correct order to respect foreign key constraints:
 4. Individuals
 5. Subplot features
 6. Subplots
-7. Plot
+7. Plot (skipped if delete_plot = FALSE)
 **Safety features:**
 - Dry-run mode to preview what will be deleted
 - Shows counts of all related data
 - Requires explicit confirmation (unless force = TRUE)
-- Uses database transaction (rolls back on error)
+- Processes plots one-by-one (or in small batches) to avoid memory crashes
+  with large datasets
+- Uses per-batch transactions (rolls back each batch on error)
 - Detailed logging of each step"><meta property="og:description" content="**DANGER: This permanently deletes data from the database!**
 This function safely deletes one or more plots and all related data in the
 correct order to respect foreign key constraints:
@@ -23,12 +25,14 @@ correct order to respect foreign key constraints:
 4. Individuals
 5. Subplot features
 6. Subplots
-7. Plot
+7. Plot (skipped if delete_plot = FALSE)
 **Safety features:**
 - Dry-run mode to preview what will be deleted
 - Shows counts of all related data
 - Requires explicit confirmation (unless force = TRUE)
-- Uses database transaction (rolls back on error)
+- Processes plots one-by-one (or in small batches) to avoid memory crashes
+  with large datasets
+- Uses per-batch transactions (rolls back each batch on error)
 - Detailed logging of each step"><meta property="og:image" content="https://umr-amap.github.io/cafriplotsR/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
@@ -49,6 +53,8 @@ correct order to respect foreign key constraints:
 <li class="nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><a class="nav-link" href="../articles/readme-fr.html">FR</a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR" aria-label="GitHub"><span class="fa fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR/issues" aria-label="Report an issue"><span class="fa fa-bug"></span></a></li>
       </ul></div>
 
 
@@ -71,12 +77,14 @@ correct order to respect foreign key constraints:
 4. Individuals
 5. Subplot features
 6. Subplots
-7. Plot</p>
+7. Plot (skipped if <code>delete_plot = FALSE</code>)</p>
 <p>**Safety features:**
 - Dry-run mode to preview what will be deleted
 - Shows counts of all related data
 - Requires explicit confirmation (unless force = TRUE)
-- Uses database transaction (rolls back on error)
+- Processes plots one-by-one (or in small batches) to avoid memory crashes
+  with large datasets
+- Uses per-batch transactions (rolls back each batch on error)
 - Detailed logging of each step</p>
     </div>
 
@@ -89,6 +97,9 @@ correct order to respect foreign key constraints:
 <span>  force <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  delete_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  delete_subplots <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  delete_plot <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  plot_batch_size <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>  row_batch_size <span class="op">=</span> <span class="fl">2000L</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -123,6 +134,23 @@ Default TRUE for safety.</p></dd>
 <dd><p>Logical. Delete subplot features? Default TRUE.</p></dd>
 
 
+<dt id="arg-delete-plot">delete_plot<a class="anchor" aria-label="anchor" href="#arg-delete-plot"></a></dt>
+<dd><p>Logical. Delete the plot record itself? Default TRUE. Set to
+FALSE combined with <code>delete_subplots = FALSE</code> to remove only individuals
+and their features while preserving all plot metadata (same as
+<code><a href="safe_delete_individuals.html">safe_delete_individuals</a></code>).</p></dd>
+
+
+<dt id="arg-plot-batch-size">plot_batch_size<a class="anchor" aria-label="anchor" href="#arg-plot-batch-size"></a></dt>
+<dd><p>Integer. Number of plots processed per iteration.
+Reduce to 1 (default) for very large plots to avoid memory/query size issues.</p></dd>
+
+
+<dt id="arg-row-batch-size">row_batch_size<a class="anchor" aria-label="anchor" href="#arg-row-batch-size"></a></dt>
+<dd><p>Integer. Number of rows deleted per SQL statement within
+each plot batch. Default 2000.</p></dd>
+
+
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>Logical. Show detailed progress? Default TRUE.</p></dd>
 
@@ -143,11 +171,17 @@ Default TRUE for safety.</p></dd>
 <span class="r-in"><span><span class="co"># STEP 2: Review the output, then delete if sure</span></span></span>
 <span class="r-in"><span><span class="fu">safe_delete_plot</span><span class="op">(</span>plot_ids <span class="op">=</span> <span class="fl">123</span>, dry_run <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Delete multiple plots</span></span></span>
+<span class="r-in"><span><span class="co"># Delete multiple plots (processed one by one by default)</span></span></span>
 <span class="r-in"><span><span class="fu">safe_delete_plot</span><span class="op">(</span>plot_ids <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">123</span>, <span class="fl">124</span>, <span class="fl">125</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Process 5 plots at a time (faster for many small plots)</span></span></span>
+<span class="r-in"><span><span class="fu">safe_delete_plot</span><span class="op">(</span>plot_ids <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">123</span>, <span class="fl">124</span>, <span class="fl">125</span><span class="op">)</span>, plot_batch_size <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Delete plot but keep individuals (rare)</span></span></span>
 <span class="r-in"><span><span class="fu">safe_delete_plot</span><span class="op">(</span>plot_ids <span class="op">=</span> <span class="fl">123</span>, delete_individuals <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Delete ONLY individuals and their features, keep plot metadata</span></span></span>
+<span class="r-in"><span><span class="fu">safe_delete_plot</span><span class="op">(</span>plot_ids <span class="op">=</span> <span class="fl">123</span>, delete_plot <span class="op">=</span> <span class="cn">FALSE</span>, delete_subplots <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

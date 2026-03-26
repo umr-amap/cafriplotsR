@@ -40,6 +40,8 @@
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><a class="nav-link" href="../articles/readme-fr.html">FR</a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR" aria-label="GitHub"><span class="fa fa-github"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR/issues" aria-label="Report an issue"><span class="fa fa-bug"></span></a></li>
       </ul>
 </div>
 
@@ -79,23 +81,16 @@ Tervuren (TWDD)</strong></p>
 ajoutée à la base de données. Elle contient <strong>13 332
 échantillons</strong> couvrant <strong>2 994 espèces</strong>, 1 022
 genres et 156 familles de plantes sur six continents, dont 72 % des
-enregistrements provenant d’Afrique. Elle est particulièrement riche
-pour l’Afrique centrale, avec plus de 30 % de la collection originaire
-de la République démocratique du Congo (plus de 2 000 espèces
-ligneuses).</p>
-<p>Par rapport aux deux références de densité du bois précédemment
-dominantes (CIRAD et la Global Wood Density Database), la TWDD ajoute 1
-164 espèces, 160 genres et 8 familles de plantes qui n’y figuraient pas
-— ce qui en fait une ressource importante pour l’estimation de la
-biomasse et l’écologie fonctionnelle dans les forêts tropicales
-africaines.</p>
+enregistrements provenant d’Afrique.</p>
+<p>La TWDD ajoute 1 164 espèces, 160 genres et 8 familles de plantes qui
+n’étaient pas documentés auparavant.</p>
 <p>Avant l’intégration, la taxonomie de la TWDD a été standardisée selon
 le référentiel taxonomique de CafriplotsR afin d’assurer la cohérence
 avec le reste de la base de données. Au total, <strong>12 970
 valeurs</strong> issues de la TWDD ont été ajoutées.</p>
 <blockquote>
-<p><strong>Obligation de citation :</strong> Toute utilisation de ces
-données doit citer la publication originale :</p>
+<p>Toute utilisation de ces données doit citer la publication originale
+:</p>
 <p>Verbiest W.W.M., Hicter P., Beeckman H. et al. (2026). The Tervuren
 xylarium Wood Density Database (TWDD). <em>Scientific Data</em>, 13,
 243. <a href="https://doi.org/10.1038/s41597-026-06563-2" class="external-link uri">https://doi.org/10.1038/s41597-026-06563-2</a></p>
@@ -110,18 +105,20 @@ taxonomique</strong></p>
 données sont désormais liées à leurs sources d’origine — études publiées
 ou bases de données de traits d’où les valeurs ont été extraites.
 Lorsque vous enrichissez un jeu de données d’espèces ou explorez des
-traits via les applications interactives, un panneau <strong>Sources de
-données</strong> dédié met en évidence les citations concernées et le
-nombre de mesures provenant de chaque source.</p>
+traits via les applications interactives
+(<code><a href="../reference/launch_taxo_backbone_app.html">launch_taxo_backbone_app()</a></code> et
+<code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>), un panneau <strong>Sources
+de données</strong> dédié liste les citations concernées et le nombre de
+mesures/observations provenant de chaque source.</p>
 <p>Cela rend la citation appropriée directe et sans ambiguïté : le
-panneau liste la référence complète de chaque source avec le nombre de
-mesures ou observations associées, afin que vous sachiez exactement ce
-qu’il faut citer lorsque vous utilisez des données de traits dans vos
-analyses. Un des objectifs de ce package est de faciliter l’intégration
-et la ré-utilisation de ces différents jeux de données. Pour cela, il
-est nécessaire d’être le plus transparent possible sur cette intégration
-de donc de respecter les exigences de partage des données des
-publications et bases de données sous-jacentes.</p>
+panneau liste la référence complète de chaque source de sorte que
+l’utilisateur sait ce qu’il faut citer lorsque ces données son
+utilisées. Ce nouveau développement renforce un des objectifs de ce
+package qui est de faciliter l’intégration et la ré-utilisation de ces
+différents jeux de données. Pour cela, il est nécessaire d’être le plus
+transparent possible sur cette intégration de donc de respecter les
+exigences de partage des données des publications et bases de données
+sous-jacentes.</p>
 <blockquote>
 <p><strong>Pour les utilisateurs R :</strong> La fonction
 <code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code> accepte désormais le paramètre
