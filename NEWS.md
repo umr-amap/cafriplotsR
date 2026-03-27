@@ -2,6 +2,18 @@
 
 ### New Features
 
+* **`safe_delete_specimen_links()` — new function for removing individual–specimen links**
+  - Dry-run mode (default) previews what would be deleted before any change is made
+  - Selection by individual IDs, specimen ID, or direct link ID
+  - Wrapped in a database transaction with rollback on error
+  - Replaces the old internal `.delete_link_individual_specimen()`
+
+* **`add_traits_measures()` — redesigned API for inserting individual-level trait measurements**
+  - Clearer parameter names: `plot_name_col`, `tag_col`, `id_individual_col`
+    (removed ambiguous `id_plot_name`, `id_tag_plot`, `individual_plot_field`)
+  - Bulk insert via temp table + COPY protocol — tested on 112 000+ rows
+  - `census_col` and `id_sub_plots_col` for flexible census linking
+
 * **Feature Wizard Shiny app** (`launch_feature_wizard()`)
   - New 6-step guided wizard for adding features and census data to existing plots
   - Step 1: Login and multi-select plot selector with summary (reuses `mod_database_login`)
@@ -24,6 +36,25 @@
   - New `delete_plot = TRUE` parameter; set to `FALSE` to remove only individuals and their features while preserving all plot metadata and subplot features
 
 ### Bug Fixes
+
+* **`query_plots()` `stem_diameter = NA` with `show_multiple_census = FALSE`**
+  - Older measurements stored without `id_table_liste_plots` were silently
+    dropped during census filtering; fixed by coalescing the plot ID from the
+    subplot table
+
+* **`query_plots()` / `query_individual_features()` — consolidated issue-handling parameter**
+  - Replaced the confusing pair `remove_obs_with_issue` + `include_issue` with a
+    single `issues = c("remove", "include", "ignore")` parameter throughout the
+    call stack (including Shiny apps)
+
+* **`update_records()` — setting values to `NA`/`NULL` now detected and applied**
+  - Change detection previously ignored rows where the new value is `NA`; now
+    both "fill" and "clear" directions are handled
+  - Single and batch execution paths both emit `SET col = NULL` correctly
+
+* **`output_styles_config` — `census_date` added to permanent plot styles**
+  - `census_date` now included in `individuals_columns` and `keep_patterns`
+    for `permanent_plot` and `permanent_plot_multi_census` output styles
 
 * **Import wizard `.row_idx` column leak**
   - Internal `.row_idx` column excluded from trait validation, data preview display, and xlsx/csv exports
