@@ -166,12 +166,8 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
         args <- c(args, '  remove_ids = FALSE')
       }
 
-      if (!isTRUE(options$remove_obs_with_issue)) {
-        args <- c(args, '  remove_obs_with_issue = FALSE')
-      }
-
-      if (isTRUE(options$include_issue)) {
-        args <- c(args, '  include_issue = TRUE')
+      if (!identical(options$issues, "remove")) {
+        args <- c(args, sprintf('  issues = "%s"', options$issues))
       }
 
       # Additional extraction options
@@ -251,8 +247,8 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
       }
 
       # Remove issues
-      if (!isTRUE(feat_opts$remove_issues)) {
-        args <- c(args, '  remove_issues = FALSE')
+      if (!identical(feat_opts$issues, "remove")) {
+        args <- c(args, sprintf('  issues = "%s"', feat_opts$issues))
       }
 
       # Build the code

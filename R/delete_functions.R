@@ -66,98 +66,87 @@
 
 
 
-#' Delete an entry in trait measurement table
-#'
-#' Delete an entry in trait measurement table using id for selection
-#'
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#'
-#' @param id_ind integer
-#' @param id_specimen integer
-#'
-#' @return No values
-#' @export
-.delete_link_individual_specimen <- function(id_ind = NULL,
-                                             id_specimen = NULL,
-                                             id_link = NULL) {
-  
-  if(!exists("mydb")) call.mydb()
-  
-  if(!is.null(id_ind)) {
-    selected_link <-
-      dplyr::tbl(mydb, "data_link_specimens") %>%
-      dplyr::filter(id_n %in% !!id_ind) %>%
-      dplyr::collect() %>%
-      as.data.frame()
-    
-    
-    # confirm <-
-    #   utils::askYesNo(msg = "Confirm removing these links?")
-    
-    if (nrow(selected_link) > 0) {
-      print(selected_link)
-      
-      confirm <- 
-        choose_prompt(message = "Confirm removing these links?")
-      
-      if(confirm)
-        for (i in 1:nrow(selected_link))
-          DBI::dbExecute(mydb,
-                         "DELETE FROM data_link_specimens WHERE id_n=$1",
-                         params=list(selected_link$id_n[i]))
-    }
-    
-    
-  }
-  
-  if(!is.null(id_specimen)) {
-    selected_link <-
-      dplyr::tbl(mydb, "data_link_specimens") %>%
-      dplyr::filter(id_specimen %in% !!id_specimen) %>%
-      dplyr::collect() %>%
-      as.data.frame()
-    
-    print(selected_link)
-    
-    confirm <- 
-      choose_prompt(message = "Confirm removing these links?")
-    
-    if(confirm) {
-      query <- "DELETE FROM data_link_specimens WHERE MMM"
-      query <-
-        gsub(
-          pattern = "MMM",
-          replacement = paste0("id_specimen IN ('",
-                               paste(unique(selected_link$id_specimen), collapse = "', '"), "')"),
-          x = query
-        )
-      
-      rs <- DBI::dbSendQuery(mydb, query)
-      DBI::dbClearResult(rs)
-    }
-    
-    
-  }
-  
-  if (!is.null(id_link)) {
-    
-    query <- "DELETE FROM data_link_specimens WHERE MMM"
-    query <-
-      gsub(
-        pattern = "MMM",
-        replacement = paste0("id_link_specimens IN ('",
-                             paste(unique(id_link), collapse = "', '"), "')"),
-        x = query
-      )
-    
-    rs <- DBI::dbSendQuery(mydb, query)
-    DBI::dbClearResult(rs)
-    
-  }
-  
-  
-}
+
+# .delete_link_individual_specimen <- function(id_ind = NULL,
+#                                              id_specimen = NULL,
+#                                              id_link = NULL) {
+#   
+#   if(!exists("mydb")) call.mydb()
+#   
+#   if(!is.null(id_ind)) {
+#     selected_link <-
+#       dplyr::tbl(mydb, "data_link_specimens") %>%
+#       dplyr::filter(id_n %in% !!id_ind) %>%
+#       dplyr::collect() %>%
+#       as.data.frame()
+#     
+#     
+#     # confirm <-
+#     #   utils::askYesNo(msg = "Confirm removing these links?")
+#     
+#     if (nrow(selected_link) > 0) {
+#       print(selected_link)
+#       
+#       confirm <- 
+#         choose_prompt(message = "Confirm removing these links?")
+#       
+#       if(confirm)
+#         for (i in 1:nrow(selected_link))
+#           DBI::dbExecute(mydb,
+#                          "DELETE FROM data_link_specimens WHERE id_n=$1",
+#                          params=list(selected_link$id_n[i]))
+#     }
+#     
+#     
+#   }
+#   
+#   if(!is.null(id_specimen)) {
+#     selected_link <-
+#       dplyr::tbl(mydb, "data_link_specimens") %>%
+#       dplyr::filter(id_specimen %in% !!id_specimen) %>%
+#       dplyr::collect() %>%
+#       as.data.frame()
+#     
+#     print(selected_link)
+#     
+#     confirm <- 
+#       choose_prompt(message = "Confirm removing these links?")
+#     
+#     if(confirm) {
+#       query <- "DELETE FROM data_link_specimens WHERE MMM"
+#       query <-
+#         gsub(
+#           pattern = "MMM",
+#           replacement = paste0("id_specimen IN ('",
+#                                paste(unique(selected_link$id_specimen), collapse = "', '"), "')"),
+#           x = query
+#         )
+#       
+#       rs <- DBI::dbSendQuery(mydb, query)
+#       DBI::dbClearResult(rs)
+#     }
+#     
+#     
+#   }
+#   
+#   if (!is.null(id_link)) {
+#     
+#     query <- "DELETE FROM data_link_specimens WHERE MMM"
+#     query <-
+#       gsub(
+#         pattern = "MMM",
+#         replacement = paste0("id_link_specimens IN ('",
+#                              paste(unique(id_link), collapse = "', '"), "')"),
+#         x = query
+#       )
+#     
+#     rs <- DBI::dbSendQuery(mydb, query)
+#     DBI::dbClearResult(rs)
+#     
+#   }
+#   
+#   
+# }
 
 
 # .delete_individuals <- function(id) {

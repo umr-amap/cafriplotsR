@@ -96,8 +96,19 @@
 #'     plot_name, tag, group_tag (parent tag), stem_order (position within
 #'     group), original_tax_name, idtax, flag (validation issues). NULL if
 #'     no multi-stem individuals detected. Review flags before uploading.}
+#'   \item{all_stems}{Tibble in the same wide format as \code{recruits} but
+#'     covering every stem in the dataset (recruits and existing individuals
+#'     alike). Useful for bulk imports or cross-census checks where you need
+#'     all stems in one table.}
+#'   \item{duplicated_stems}{Tibble of all rows involved in duplicated
+#'     \code{plot_name + tag} combinations (i.e. every row that shares a
+#'     plot_name/tag pair with at least one other row), with columns
+#'     plot_name, tag, state, species_scientific_name, species_code,
+#'     stem_diameter, quadrat (whichever are present). NULL if no duplicates.
+#'     A \code{warning()} is also raised when duplicates are found.}
 #'   \item{summary}{List with counts: n_plots, n_recruits, n_existing,
-#'     n_measurements, n_specimens, n_multi_stem_groups, trait_names.}
+#'     n_measurements, n_specimens, n_multi_stem_groups, n_all_stems,
+#'     n_duplicated_stems, trait_names.}
 #' }
 #'
 #' @examples
@@ -244,6 +255,30 @@ process_openforis_census <- function(data_dir = NULL,
   )
   trees$tag <- as.numeric(trees$tag)
 
+  # ---- Check for duplicated plot_name + tag combinations ----
+  dup_key <- paste(trees$plot_name, trees$tag, sep = "__")
+  dup_mask <- duplicated(dup_key) | duplicated(dup_key, fromLast = TRUE)
+  duplicated_stems <- NULL
+  if (any(dup_mask)) {
+    dup_cols <- intersect(
+      c("plot_name", "tag", "state", "species_scientific_name", "species_code",
+        "stem_diameter", "quadrat"),
+      names(trees)
+    )
+    duplicated_stems <- trees[dup_mask, dup_cols, drop = FALSE]
+    duplicated_stems <- duplicated_stems[order(duplicated_stems$plot_name,
+                                               duplicated_stems$tag), ]
+    rownames(duplicated_stems) <- NULL
+    n_dup_pairs <- length(unique(dup_key[dup_mask]))
+    warning(sprintf(
+      "%d duplicated plot_name + tag combination(s) found (%d rows). Check result$duplicated_stems.",
+      n_dup_pairs, sum(dup_mask)
+    ), call. = FALSE)
+    cli::cli_alert_warning(
+      "{n_dup_pairs} duplicated plot_name + tag combination(s) detected ({sum(dup_mask)} rows) — review result$duplicated_stems"
+    )
+  }
+
   # ---- Specimen number remapping ----
   if (!is.null(specimen_remap_file)) {
     # Auto-detect from data_dir if just a filename (no path separator)
@@ -354,6 +389,16 @@ process_openforis_census <- function(data_dir = NULL,
     )
     cli::cli_alert_success("Prepared {nrow(recruits)} recruit(s)")
   }
+
+  # ---- Process all stems (same wide format as recruits, no recruit filter) ----
+  all_stems <- .prepare_openforis_recruits(
+    trees, specimen_prefix,
+    observation_codes = obs_codes,
+    pom_codes = pom_code_list,
+    light_codes = light_code_list,
+    status_codes = status_code_list
+  )
+  cli::cli_alert_success("Prepared {nrow(all_stems)} stem(s) in all_stems")
 
   # ---- Process measurements for existing individuals ----
   # Also include recruits for measurements (they get diameter etc. too)
@@ -481,6 +526,12 @@ process_openforis_census <- function(data_dir = NULL,
   if (!is.null(multi_stems)) {
     multi_stems <- tibble::as_tibble(multi_stems)
   }
+  if (!is.null(all_stems)) {
+    all_stems <- tibble::as_tibble(all_stems)
+  }
+  if (!is.null(duplicated_stems)) {
+    duplicated_stems <- tibble::as_tibble(duplicated_stems)
+  }
 
   # ---- Summary ----
   summary_info <- list(
@@ -492,6 +543,8 @@ process_openforis_census <- function(data_dir = NULL,
     n_multi_stem_groups = if (!is.null(multi_stems)) {
       length(unique(paste(multi_stems$plot_name, multi_stems$group_tag)))
     } else 0L,
+    n_all_stems = if (!is.null(all_stems)) nrow(all_stems) else 0L,
+    n_duplicated_stems = if (!is.null(duplicated_stems)) nrow(duplicated_stems) else 0L,
     trait_names = if (nrow(measurements) > 0) unique(measurements$trait_name) else character(0)
   )
 
@@ -504,6 +557,8 @@ process_openforis_census <- function(data_dir = NULL,
     "*" = "{summary_info$n_measurements} measurement rows",
     "*" = "{summary_info$n_specimens} specimen(s)",
     "*" = "{summary_info$n_multi_stem_groups} multi-stem group(s)",
+    "*" = "{summary_info$n_all_stems} stem(s) in all_stems",
+    "*" = "{summary_info$n_duplicated_stems} duplicated stem row(s)",
     "*" = "Traits: {paste(summary_info$trait_names, collapse = ', ')}"
   ))
 
@@ -513,6 +568,8 @@ process_openforis_census <- function(data_dir = NULL,
     measurements = measurements,
     specimens = specimens,
     multi_stems = multi_stems,
+    all_stems = all_stems,
+    duplicated_stems = duplicated_stems,
     summary = summary_info
   )
 }
