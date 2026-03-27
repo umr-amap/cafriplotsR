@@ -82,12 +82,16 @@ method_list <- function() {
 #' @param include_liana Logical. Whether to include lianas. Optional.
 #' @param extract_subplot_features Logical. Whether to extract subplot features. Optional.
 #' @param concatenate_stem Logical. Whether to concatenate multiple stems. Optional.
-#' @param remove_obs_with_issue Logical. Whether to remove observations with issues. Optional.
+#' @param issues Character. How to handle flagged measurements. Options:
+#'   \itemize{
+#'     \item \code{"remove"} (default): Drop flagged measurements before aggregation.
+#'     \item \code{"include"}: Keep flagged measurements and add an issue column in output.
+#'     \item \code{"ignore"}: Keep flagged measurements but do not show the issue column.
+#'   }
 #' @param census_strategy Character. Strategy for selecting census when `show_multiple_census = FALSE`.
 #'   Options: "last" (default, most recent census), "first" (earliest census), or "mean" (average across all censuses).
 #'   When "first" or "last" is selected, individuals recruited after the first census or dead before the last census
 #'   will have NA values, reflecting biological reality.
-#' @param include_issue Logical. Whether to include issue flags in aggregated output. Optional.
 #' @param include_measurement_ids Logical. Whether to include measurement IDs in aggregated output. Optional.
 #' @param individual_features_format Character. Format for individual-level feature measurements.
 #'   `"wide"` (default) returns one row per individual with one column per trait (aggregated).
@@ -151,8 +155,7 @@ query_plots <- function(plot_name = NULL,
                         include_liana = FALSE,
                         extract_subplot_features = TRUE,
                         concatenate_stem = FALSE,
-                        remove_obs_with_issue = TRUE,
-                        include_issue = FALSE,
+                        issues = c("remove", "include", "ignore"),
                         include_measurement_ids = FALSE,
                         exact_match = FALSE,
                         census_strategy = c("last", "first", "mean"),
@@ -166,6 +169,7 @@ query_plots <- function(plot_name = NULL,
   census_strategy <- match.arg(census_strategy)
   individual_features_format <- match.arg(individual_features_format)
   output_style <- match.arg(output_style)
+  issues <- match.arg(issues)
 
   if (individual_features_format == "long" && isTRUE(concatenate_stem)) {
     cli::cli_alert_warning(
@@ -196,11 +200,12 @@ query_plots <- function(plot_name = NULL,
   } else {
     mydb.taxa <- call.mydb.taxa()
   }
-  
-  if (show_multiple_census && remove_obs_with_issue)
-    cli::cli_alert_info("Disabling `remove_obs_with_issue` because multiple censuses are shown")
-  
-  remove_obs_with_issue <- if (show_multiple_census) FALSE else remove_obs_with_issue
+
+  # When showing multiple censuses, issues must be kept (removing would lose census data)
+  if (show_multiple_census && issues == "remove") {
+    cli::cli_alert_info("Setting issues to 'ignore' because multiple censuses are shown")
+    issues <- "ignore"
+  }
   
   
   if (!is.null(id_individual) | !is.null(id_specimen))
@@ -516,8 +521,7 @@ query_plots <- function(plot_name = NULL,
                               traits_to_genera =  traits_to_genera,
                               wd_fam_level = wd_fam_level,
                               show_multiple_census = show_multiple_census,
-                              remove_obs_with_issue = remove_obs_with_issue,
-                              include_issue = include_issue,
+                              issues = issues,
                               include_measurement_ids = include_measurement_ids,
                               census_strategy = census_strategy,
                               individual_features_format = individual_features_format)
@@ -570,7 +574,7 @@ query_plots <- function(plot_name = NULL,
   if (nrow(res) < 100)
     print_table(res_print = res)
 
-  if(show_multiple_census) {
+  if(show_multiple_census && exists("census_features")) {
     res_list$census_features <- census_features
 
     print_table(census_features)
@@ -734,8 +738,8 @@ process_individuals <- function(plots_data,
 #' @param traits_to_genera Aggregate traits to genus level
 #' @param wd_fam_level Use family-level wood density
 #' @param show_multiple_census Show multiple census data
-#' @param remove_obs_with_issue Remove observations with issues
-#' 
+#' @param issues Character. How to handle flagged measurements: "remove", "include", or "ignore".
+#'
 #' @return Data frame enriched with traits
 #' @export
 enrich_with_traits <- function(individuals, con,
@@ -744,14 +748,14 @@ enrich_with_traits <- function(individuals, con,
                                traits_to_genera = FALSE,
                                wd_fam_level = FALSE,
                                show_multiple_census = FALSE,
-                               remove_obs_with_issue = TRUE,
-                               include_issue = FALSE,
+                               issues = c("remove", "include", "ignore"),
                                include_measurement_ids = FALSE,
                                census_strategy = c("last", "first", "mean"),
                                individual_features_format = c("wide", "long")) {
 
   census_strategy <- match.arg(census_strategy)
   individual_features_format <- match.arg(individual_features_format)
+  issues <- match.arg(issues)
   mydb <- call.mydb()
 
   cli::cli_rule(left = "Processing traits")
@@ -762,8 +766,7 @@ enrich_with_traits <- function(individuals, con,
       individuals = individuals,
       con = con,
       show_multiple_census = show_multiple_census,
-      remove_obs_with_issue = remove_obs_with_issue,
-      include_issue = include_issue,
+      issues = issues,
       include_measurement_ids = include_measurement_ids,
       census_strategy = census_strategy,
       individual_features_format = individual_features_format
@@ -785,14 +788,15 @@ enrich_with_traits <- function(individuals, con,
 
 #' Enrich with individual-level traits
 #' @keywords internal
-enrich_individual_traits <- function(individuals, con, show_multiple_census, remove_obs_with_issue,
-                                     include_issue = FALSE,
+enrich_individual_traits <- function(individuals, con, show_multiple_census,
+                                     issues = c("remove", "include", "ignore"),
                                      include_measurement_ids = FALSE,
                                      census_strategy = c("last", "first", "mean"),
                                      individual_features_format = c("wide", "long")) {
 
   census_strategy <- match.arg(census_strategy)
   individual_features_format <- match.arg(individual_features_format)
+  issues <- match.arg(issues)
   cli::cli_alert_info("Enriching with individual-level traits")
 
   all_traits <- traits_list()
@@ -803,9 +807,8 @@ enrich_individual_traits <- function(individuals, con, show_multiple_census, rem
       individual_ids = individuals$id_n,
       trait_ids = all_traits$id_trait,
       include_multi_census = show_multiple_census,
-      remove_issues = remove_obs_with_issue,
+      issues = issues,
       con = con,
-      include_issue = include_issue,
       include_measurement_ids = include_measurement_ids,
       census_strategy = census_strategy
     )
@@ -825,7 +828,7 @@ enrich_individual_traits <- function(individuals, con, show_multiple_census, rem
       trait_ids = all_traits$id_trait,
       include_multi_census = show_multiple_census,
       format = "long",
-      remove_issues = remove_obs_with_issue,
+      issues = issues,
       census_strategy = census_strategy,
       con = con
     )
@@ -857,10 +860,15 @@ enrich_individual_traits <- function(individuals, con, show_multiple_census, rem
     )
     raw_traits <- raw_traits %>% select(-any_of(drop_from_raw))
 
-    # Drop plot-level census_date from individuals: the measurement-level
+    # Drop plot-level census date columns from individuals: the measurement-level
     # census_date from raw_traits (NA for non-census measurements) is more
-    # informative and should take precedence in long format
-    individuals <- individuals %>% select(-any_of("census_date"))
+    # informative and should take precedence in long format.
+    # Also remove date_census_N columns (e.g. date_census_1, date_census_2)
+    # that come from the plot metadata join — they are wide-format artefacts
+    # irrelevant in long format.
+    individuals <- individuals %>%
+      select(-any_of("census_date")) %>%
+      select(-matches("^date_census_\\d+$"))
 
     # Join: expands individuals to one row per measurement
     individuals <- individuals %>%
@@ -2560,6 +2568,12 @@ explore_allometric_taxa <- function(genus_searched = NULL,
 #' @param interactive Logical, use interactive fuzzy matching for collectors
 #' @param extract_linked_individuals Logical, also fetch linked individuals
 #' @param subset_columns Logical, return subset of columns vs all columns
+#' @param show_html Logical. If TRUE (default) and the number of returned
+#'   specimens is at most \code{html_max}, the results are displayed as a
+#'   transposed HTML table in the RStudio Viewer (one column per specimen)
+#'   using \code{print_table()}.
+#' @param html_max Integer. Maximum number of specimens for which the HTML
+#'   visualisation is triggered automatically (default 20).
 #' @param con Database connection (if NULL, creates new connection)
 #' @param con.taxa Taxa database connection (if NULL, creates new connection)
 #'
@@ -2596,6 +2610,8 @@ query_specimens <- function(collector = NULL,
                             interactive = TRUE,
                             extract_linked_individuals = FALSE,
                             subset_columns = TRUE,
+                            show_html = TRUE,
+                            html_max = 20,
                             con = NULL,
                             con.taxa = NULL) {
 
@@ -2794,10 +2810,21 @@ query_specimens <- function(collector = NULL,
       }
     }
 
+    if (show_html && nrow(specimens) <= html_max) {
+      cli::cli_alert_info("Displaying {nrow(specimens)} specimen(s) as HTML (one column per specimen)")
+      print_table(specimens)
+    }
+
     return(list(
       specimens = specimens,
       linked_individuals = linked_individuals
     ))
+  }
+
+  # HTML visualisation (transposed: one column per specimen)
+  if (show_html && nrow(specimens) <= html_max) {
+    cli::cli_alert_info("Displaying {nrow(specimens)} specimen(s) as HTML (one column per specimen)")
+    print_table(specimens)
   }
 
   # Return specimens only
