@@ -77,7 +77,8 @@
       "traitvalue_char",
       "trait",
       "traitdescription",
-      "valuetype"
+      "valuetype",
+      "census_date"
     ),
     keep_patterns = c("wood_density",
                       "stem_diameter",
@@ -85,7 +86,9 @@
                       "light",
                       "position_",
                       "phenology",
-                      "succession_guild"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
+                      "succession_guild",
+                      "census_date",
+                      "stem_status"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n|liste_plots)", "^date_modif", "_census_\\d+$"),  # Remove census suffix columns
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,  # Features go to census table
@@ -109,7 +112,8 @@
       "id_liste_plots",
       "first_census",
       "last_census",
-      "n_census", "data_provider", "principal_investigator", "data_manager", "team_leader"
+      "n_census", "data_provider", "principal_investigator", "data_manager", "team_leader",
+      "census_date"
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "quadrat",
@@ -127,7 +131,9 @@
                       "stem_diameter",
                       "observations",
                       "light",
-                      "position_"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
+                      "position_",
+                      "census_date",
+                      "stem_status"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n|liste_plots)", "^date_modif"),
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,
