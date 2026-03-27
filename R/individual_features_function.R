@@ -9,9 +9,10 @@
 #' @param trait_ids Vector of trait IDs to extract (optional)
 #' @param plot_ids Vector of plot IDs (optional, for filtering)
 #' @param include_multi_census Include census-specific values
-#' @param remove_issues Remove measurements flagged with issues
+#' @param issues Character. How to handle flagged measurements: "remove" (default,
+#'   drop flagged rows), "include" (keep rows and add issue column), or "ignore"
+#'   (keep rows, no issue column).
 #' @param aggregation_mode How to aggregate: "mean", "last", "mode", "concat"
-#' @param include_issue Include aggregated issue column (default FALSE)
 #' @param include_measurement_ids Include aggregated id_trait_measures column (default FALSE)
 #' @param con Database connection
 #'
@@ -22,9 +23,8 @@ get_individual_aggregated_features <- function(
     trait_ids = NULL,
     plot_ids = NULL,
     include_multi_census = FALSE,
-    remove_issues = TRUE,
+    issues = c("remove", "include", "ignore"),
     aggregation_mode = c("auto", "mean", "last", "mode", "concat"),
-    include_issue = FALSE,
     include_measurement_ids = FALSE,
     census_strategy = c("last", "first", "mean"),
     con = NULL
@@ -32,6 +32,7 @@ get_individual_aggregated_features <- function(
 
   aggregation_mode <- match.arg(aggregation_mode)
   census_strategy <- match.arg(census_strategy)
+  issues <- match.arg(issues)
   if (is.null(con)) con <- call.mydb()
   
   # If plot_ids provided, get individual_ids from plots
@@ -83,7 +84,7 @@ get_individual_aggregated_features <- function(
     trait_ids = trait_ids,
     include_multi_census = include_multi_census,
     format = "long",
-    remove_issues = remove_issues,
+    issues = issues,
     census_strategy = census_strategy,
     con = con
   )
@@ -96,11 +97,14 @@ get_individual_aggregated_features <- function(
   # 2. Separate by value type and aggregate with data.table
   cli::cli_h2("Aggregating features by individual")
 
+  # Derive internal booleans for the aggregate functions
+  .include_issue <- (issues == "include")
+
   numeric_features <- aggregate_numeric_features_dt(
-    data = raw_data %>% filter(valuetype == "numeric"),
+    data = raw_data %>% filter(valuetype %in% c("numeric", "integer")),
     include_census = include_multi_census,
     mode = aggregation_mode,
-    include_issue = include_issue,
+    include_issue = .include_issue,
     include_measurement_ids = include_measurement_ids,
     census_strategy = census_strategy
   )
@@ -109,7 +113,7 @@ get_individual_aggregated_features <- function(
     data = raw_data %>% filter(valuetype %in% c("character", "ordinal", "categorical")),
     include_census = include_multi_census,
     mode = aggregation_mode,
-    include_issue = include_issue,
+    include_issue = .include_issue,
     include_measurement_ids = include_measurement_ids,
     census_strategy = census_strategy
   )
@@ -1097,16 +1101,19 @@ get_mode_dt <- function(x) {
     show_multiple_census = FALSE,
     remove_obs_with_issue = TRUE
 ) {
-  
+
   cli::cli_alert_info("Using legacy wrapper - consider migrating to get_individual_aggregated_features()")
-  
+
+  # Map old boolean to new issues parameter
+  issues <- if (isTRUE(remove_obs_with_issue)) "remove" else "ignore"
+
   # Use new function
   result <- get_individual_aggregated_features(
     individual_ids = src_individuals$id_n,
     trait_ids = traits,
     plot_ids = ids_plot,
     include_multi_census = show_multiple_census,
-    remove_issues = remove_obs_with_issue,
+    issues = issues,
     aggregation_mode = "auto"
   )
   
@@ -1144,11 +1151,13 @@ get_mode_dt <- function(x) {
 #' @param trait_ids Numeric vector of trait IDs (optional filter)
 #' @param include_multi_census Include multiple census data
 #' @param format Output format: "wide" (pivot) or "long" (raw)
-#' @param remove_issues Remove observations flagged with issues
+#' @param issues Character. How to handle flagged measurements: "remove" (default,
+#'   drop flagged rows), "include" (keep rows and add issue column), or "ignore"
+#'   (keep rows, no issue column).
 #' @param include_metadata Include trait measurement features (only available with format="long")
 #' @param include_individuals Include linked individual data
 #' @param con Database connection (optional)
-#' 
+#'
 #' @return Tibble with individual features in requested format
 #' @export
 query_individual_features <- function(
@@ -1156,7 +1165,7 @@ query_individual_features <- function(
     trait_ids = NULL,
     include_multi_census = FALSE,
     format = c("wide", "long"),
-    remove_issues = TRUE,
+    issues = c("remove", "include", "ignore"),
     include_metadata = FALSE,
     include_individuals = FALSE,
     census_strategy = c("last", "first", "mean"),
@@ -1165,6 +1174,7 @@ query_individual_features <- function(
 
   format <- match.arg(format)
   census_strategy <- match.arg(census_strategy)
+  issues <- match.arg(issues)
   if (is.null(con)) con <- call.mydb()
   
   # Check incompatible parameter combination
@@ -1191,8 +1201,8 @@ query_individual_features <- function(
     return(tibble())
   }
   
-  # 2. Optional: Remove issues
-  if (remove_issues) {
+  # 2. Handle issue flagging
+  if (issues == "remove") {
     n_before <- nrow(raw_data)
     raw_data <- raw_data %>% filter(is.na(issue))
     n_removed <- n_before - nrow(raw_data)
@@ -1388,14 +1398,22 @@ enrich_census_info <- function(data, con) {
       census_info %>%
         select(
           id_sub_plots,
+          .subplot_plot_id = id_table_liste_plots,
           census_name,
           census_typevalue = typevalue,
-          census_day = day,
+          census_day  = day,
           census_month = month,
-          census_year = year
+          census_year  = year
         ),
       by = "id_sub_plots"
-    )
+    ) %>%
+    # Pre-existing rows in data_traits_measures may have id_table_liste_plots = NULL
+    # (inserted before the column was systematically populated). Fill from the
+    # subplot table, which always carries the correct plot foreign key.
+    dplyr::mutate(
+      id_table_liste_plots = dplyr::coalesce(id_table_liste_plots, .subplot_plot_id)
+    ) %>%
+    dplyr::select(-.subplot_plot_id)
 }
 
 #' Filter data to first or last census
