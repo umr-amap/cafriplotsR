@@ -513,8 +513,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
               individual_features_format = options$individual_features_format,
               concatenate_stem = options$concatenate_stem,
               remove_ids = options$remove_ids,
-              remove_obs_with_issue = options$remove_obs_with_issue,
-              include_issue = options$include_issue,
+              issues = options$issues,
               con = pool_reactive()
             )
 
@@ -625,7 +624,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
               trait_ids = feat_opts$trait_ids,
               include_multi_census = feat_opts$include_multi_census,
               format = feat_opts$format,
-              remove_issues = feat_opts$remove_issues,
+              issues = feat_opts$issues,
               include_metadata = feat_opts$include_metadata,
               census_strategy = feat_opts$census_strategy,
               con = con

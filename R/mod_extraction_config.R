@@ -141,18 +141,18 @@ mod_extraction_config_server <- function(id, selected_plots, i18n) {
           shiny::fluidRow(
             shiny::column(
               6,
-              shiny::checkboxInput(
-                ns("remove_obs_with_issue"),
-                i18n()$t("Remove observations with issues"),
-                value = isolate(input$remove_obs_with_issue) %||% TRUE
+              shiny::selectInput(
+                ns("issues"),
+                i18n()$t("Issue handling"),
+                choices = c(
+                  "Remove flagged records" = "remove",
+                  "Include issue columns" = "include",
+                  "Ignore (keep all, no flags)" = "ignore"
+                ),
+                selected = isolate(input$issues) %||% "remove"
               ),
-              shiny::helpText(i18n()$t("Exclude flagged problematic records"))
+              shiny::helpText(i18n()$t("How to handle flagged problematic records"))
             )
-          ),
-          shiny::checkboxInput(
-            ns("include_issue"),
-            i18n()$t("Include issue flags in output"),
-            value = isolate(input$include_issue) %||% FALSE
           )
         ),
 
@@ -409,8 +409,7 @@ mod_extraction_config_server <- function(id, selected_plots, i18n) {
         # Data organization
         concatenate_stem = input$concatenate_stem %||% FALSE,
         remove_ids = input$remove_ids %||% TRUE,
-        remove_obs_with_issue = input$remove_obs_with_issue %||% TRUE,
-        include_issue = input$include_issue %||% FALSE,
+        issues = input$issues %||% "remove",
 
         # Additional extraction
         extract_traits = input$extract_traits %||% TRUE,
@@ -440,7 +439,7 @@ mod_extraction_config_server <- function(id, selected_plots, i18n) {
         include_multi_census = input$include_multi_census_features %||% FALSE,
         census_strategy = input$census_strategy %||% "last",
         include_metadata = input$include_metadata_features %||% FALSE,
-        remove_issues = input$remove_obs_with_issue %||% TRUE
+        issues = input$issues %||% "remove"
       )
     })
 
