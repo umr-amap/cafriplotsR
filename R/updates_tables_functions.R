@@ -4585,11 +4585,14 @@ detect_direct_changes <- function(data, columns, config, con, max_display = 10) 
     old_col <- paste0(col, "_old")
     new_col <- paste0(col, "_new")
     
-    # Find rows where value changed
+    # Find rows where value changed (including setting to NA)
     changed_rows <- comparison %>%
       dplyr::filter(
-        !is.na(!!sym(new_col)) & 
-          (is.na(!!sym(old_col)) | !!sym(old_col) != !!sym(new_col))
+        # Case 1: new is non-NA and differs from old (or old was NA)
+        (!is.na(!!sym(new_col)) &
+          (is.na(!!sym(old_col)) | !!sym(old_col) != !!sym(new_col))) |
+        # Case 2: clearing a value (old is non-NA, new is NA)
+        (!is.na(!!sym(old_col)) & is.na(!!sym(new_col)))
       )
     
     if (nrow(changed_rows) > 0) {
@@ -4807,8 +4810,12 @@ execute_direct_updates_single <- function(changes, config, con) {
     for (i in seq_len(nrow(col_changes))) {
       id_val <- col_changes[[config$id_column]][i]
       new_val <- col_changes$new_value[i]
-      
-      sql <- glue::glue_sql("UPDATE {`config$table`} SET {`col`} = {new_val} WHERE {`config$id_column`} = {id_val}", .con = con)
+
+      if (is.na(new_val)) {
+        sql <- glue::glue_sql("UPDATE {`config$table`} SET {`col`} = NULL WHERE {`config$id_column`} = {id_val}", .con = con)
+      } else {
+        sql <- glue::glue_sql("UPDATE {`config$table`} SET {`col`} = {new_val} WHERE {`config$id_column`} = {id_val}", .con = con)
+      }
       DBI::dbExecute(con, sql)
     }
     
@@ -4817,8 +4824,30 @@ execute_direct_updates_single <- function(changes, config, con) {
 }
 
 execute_direct_updates_batch <- function(changes, config, con) {
+  # Deduplicate: if same id+column appears multiple times, keep first occurrence
+  changes <- changes %>%
+    dplyr::distinct(!!sym(config$id_column), column, .keep_all = TRUE)
+
   update_data <- changes %>%
-    tidyr::pivot_wider(id_cols = !!sym(config$id_column), names_from = column, values_from = new_value)
+    tidyr::pivot_wider(
+      id_cols = !!sym(config$id_column),
+      names_from = column,
+      values_from = new_value,
+      values_fn = dplyr::first  # guard against any remaining duplicates
+    )
+
+  # Ensure all value columns are plain character (not list) so RPostgres
+  # sends NULL for NA rather than hex-encoded bytea
+  cols_to_update_pre <- setdiff(names(update_data), config$id_column)
+  for (col in cols_to_update_pre) {
+    if (is.list(update_data[[col]])) {
+      update_data[[col]] <- vapply(update_data[[col]], function(x) {
+        if (is.null(x) || length(x) == 0) NA_character_ else as.character(x[[1]])
+      }, character(1))
+    } else {
+      update_data[[col]] <- as.character(update_data[[col]])
+    }
+  }
 
   temp_table <- paste0("temp_update_", format(Sys.time(), "%Y%m%d%H%M%S"))
   DBI::dbWriteTable(con, temp_table, update_data, temporary = TRUE)
@@ -4866,21 +4895,20 @@ execute_direct_updates_batch <- function(changes, config, con) {
     }
 
     # PostgreSQL syntax: UPDATE ... SET ... FROM ... WHERE
-    # Build the SET clause with proper casting (avoid glue_sql escaping the cast)
+    # 1) Update non-NULL values (with proper casting)
     if (cast_type != "") {
-      # Use glue (not glue_sql) for the value expression to avoid escaping ::
       value_expr <- glue::glue('tmp."{col}"{cast_type}')
-      sql <- glue::glue_sql(
+      sql_nonnull <- glue::glue_sql(
         "UPDATE {`config$table`} t
          SET {`col`} = {`value_expr`}
          FROM {`temp_table`} tmp
          WHERE t.{`config$id_column`} = tmp.{`config$id_column`}
          AND tmp.{`col`} IS NOT NULL",
         .con = con,
-        value_expr = DBI::SQL(value_expr)  # Treat as literal SQL
+        value_expr = DBI::SQL(value_expr)
       )
     } else {
-      sql <- glue::glue_sql(
+      sql_nonnull <- glue::glue_sql(
         "UPDATE {`config$table`} t
          SET {`col`} = tmp.{`col`}
          FROM {`temp_table`} tmp
@@ -4889,9 +4917,20 @@ execute_direct_updates_batch <- function(changes, config, con) {
         .con = con
       )
     }
+    n_nonnull <- DBI::dbExecute(con, sql_nonnull)
 
-    n <- DBI::dbExecute(con, sql)
-    cli::cli_alert_success("{col}: {n} updated")
+    # 2) Set to NULL where new value is NA
+    sql_null <- glue::glue_sql(
+      "UPDATE {`config$table`} t
+       SET {`col`} = NULL
+       FROM {`temp_table`} tmp
+       WHERE t.{`config$id_column`} = tmp.{`config$id_column`}
+       AND tmp.{`col`} IS NULL",
+      .con = con
+    )
+    n_null <- DBI::dbExecute(con, sql_null)
+
+    cli::cli_alert_success("{col}: {n_nonnull + n_null} updated ({n_null} set to NULL)")
   }
 
   DBI::dbRemoveTable(con, temp_table)
