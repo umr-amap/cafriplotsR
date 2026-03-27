@@ -1621,37 +1621,32 @@ add_traits_measures_features <- function(new_data,
 #' @noRd
 .execute_trait_insert_with_returning <- function(data_to_add, con) {
 
-  # Build column list with proper quoting for reserved keywords
-  col_names <- paste(sprintf('"%s"', names(data_to_add)), collapse = ", ")
+  # Use a session-scoped temp table so data is sent via COPY (efficient for
+  # large payloads) rather than building a giant VALUES string in R.
+  tmp <- paste0("tmp_trait_insert_", format(Sys.time(), "%H%M%S%OS3"))
+  tmp_id <- DBI::dbQuoteIdentifier(con, tmp)
 
-  # Build VALUES clause with proper escaping
-  values_list <- apply(data_to_add, 1, function(row) {
-    values <- sapply(seq_along(row), function(i) {
-      val <- row[i]
-      col_name <- names(data_to_add)[i]
-
-      if (is.na(val)) {
-        "NULL"
-      } else if (is.numeric(val)) {
-        as.character(val)
-      } else {
-        # Escape single quotes for SQL safety
-        sprintf("'%s'", gsub("'", "''", as.character(val)))
-      }
-    })
-    sprintf("(%s)", paste(values, collapse = ", "))
-  })
-
-  values_clause <- paste(values_list, collapse = ", ")
-
-  # Build INSERT with RETURNING
-  insert_sql <- sprintf(
-    'INSERT INTO data_traits_measures (%s) VALUES %s RETURNING "id_trait_measures", "id_data_individuals"',
-    col_names,
-    values_clause
+  on.exit(
+    tryCatch(DBI::dbExecute(con, paste("DROP TABLE IF EXISTS", tmp_id)),
+             error = function(e) NULL),
+    add = TRUE
   )
 
-  # Execute and return IDs
+  # Write to temp table — RPostgres uses COPY for dbAppendTable / dbWriteTable
+  DBI::dbWriteTable(con, tmp, data_to_add, temporary = TRUE, overwrite = TRUE,
+                    row.names = FALSE)
+
+  col_names <- paste(DBI::dbQuoteIdentifier(con, names(data_to_add)), collapse = ", ")
+
+  insert_sql <- sprintf(
+    "INSERT INTO data_traits_measures (%s) SELECT %s FROM %s RETURNING %s, %s",
+    col_names,
+    col_names,
+    tmp_id,
+    DBI::dbQuoteIdentifier(con, "id_trait_measures"),
+    DBI::dbQuoteIdentifier(con, "id_data_individuals")
+  )
+
   DBI::dbGetQuery(con, insert_sql)
 }
 
@@ -1705,19 +1700,17 @@ add_traits_measures_features <- function(new_data,
     dplyr::rename(id_trait_measures := dplyr::all_of(id_trait_measures))
 
   # Validate trait_measures exist in database
-  link_trait_measures <-
-    new_data_renamed %>%
-    dplyr::left_join(
-      try_open_postgres_table(table = "data_traits_measures", con = con) %>%
-        dplyr::select(id_trait_measures) %>%
-        dplyr::filter(id_trait_measures %in% !!unique(new_data_renamed$id_trait_measures)) %>%
-        dplyr::collect() %>%
-        dplyr::mutate(rrr = 1),
-      by = c("id_trait_measures" = "id_trait_measures")
-    )
+  provided_tm_ids <- unique(new_data_renamed$id_trait_measures)
+  provided_tm_ids <- provided_tm_ids[!is.na(provided_tm_ids)]
 
-  if (dplyr::filter(link_trait_measures, is.na(rrr)) %>% nrow() > 0) {
-    print(dplyr::filter(link_trait_measures, is.na(rrr)))
+  found_tm_ids <-
+    try_open_postgres_table(table = "data_traits_measures", con = con) %>%
+    dplyr::filter(id_trait_measures %in% !!provided_tm_ids) %>%
+    dplyr::pull(id_trait_measures)
+
+  missing_tm_ids <- setdiff(provided_tm_ids, found_tm_ids)
+  if (length(missing_tm_ids) > 0) {
+    print(missing_tm_ids)
     stop("provided trait_measures not found in data_traits_measures")
   }
 
@@ -1797,14 +1790,13 @@ add_traits_measures_features <- function(new_data,
         .add_modif_field(dataset = data_feat)
 
       # Determine storage column based on valuetype
-      if (valuetype$valuetype == "ordinal" | valuetype$valuetype == "character")
-        val_type <- "character"
-
-      if (valuetype$valuetype == "numeric" | valuetype$valuetype == "table_colnam")
-        val_type <- "numeric"
-
-      if (valuetype$valuetype == "integer")
-        val_type <- "numeric"
+      val_type <- if (valuetype$valuetype %in% c("numeric", "integer", "table_colnam")) {
+        "numeric"
+      } else if (valuetype$valuetype %in% c("character", "ordinal", "categorical")) {
+        "character"
+      } else {
+        stop(paste("unhandled valuetype:", valuetype$valuetype))
+      }
 
       # Prepare data for insert
       if (interactive) cli::cli_h3("data_to_add")
@@ -1906,30 +1898,43 @@ add_traits_measures_features <- function(new_data,
 #' @param col_names_select string vector
 #' @param col_names_corresp string vector
 #' @param collector_field string column name which contain the collector name
-#' @param plot_name_field string column name which contain the plot_name for linking
-#' @param individual_plot_field string column name which contain the individual tag for linking
-#' @param id_plot_name string column name which contain the ID of plot_name
-#' @param id_tag_plot string column name which contain the ID of individuals table
-#' @param id_specimen string column name which contain the ID of specimen
+#' @param plot_name_col string column name containing plot names for linking to
+#'   \code{id_liste_plots}. Use together with \code{tag_col} to resolve
+#'   individuals by plot name + tag combination.
+#' @param tag_col string column name containing individual tag numbers. Used
+#'   together with \code{plot_name_col} to resolve individuals by plot + tag.
+#' @param id_individual_col string column name containing individual IDs
+#'   (\code{id_n} from \code{data_individuals}). Self-sufficient — no plot ID
+#'   argument is required when this is provided; the plot ID is resolved
+#'   internally only when needed for census lookup.
 #' @param traits_field string vector listing trait columns names in new_data
 #' @param features_field string vector listing features (column names) to link to measurements in new_data
 #' @param add_data logical whether or not data should be added - by default FALSE
 #' @param allow_multiple_value if multiple values linked to one individual can be uploaded at once
+#' @param census_col string. Optional column name in \code{new_data} containing the
+#'   census typevalue (integer, e.g. 1, 2, 3). The corresponding \code{id_sub_plots}
+#'   is resolved automatically from the database per plot × census. Rows with
+#'   different census values are handled correctly within a single call.
+#'   Takes precedence over the interactive census prompt but is overridden by
+#'   \code{id_sub_plots_col}.
+#' @param id_sub_plots_col string. Optional column name in \code{new_data} containing
+#'   the \code{id_sub_plots} value directly. When provided, no database lookup or
+#'   interactive prompt is performed. Takes precedence over \code{census_col}.
 #'
 #' @export
 add_traits_measures <- function(new_data,
                                 col_names_select = NULL,
                                 col_names_corresp = NULL,
                                 collector_field = NULL,
-                                plot_name_field = NULL,
-                                individual_plot_field = NULL,
-                                id_plot_name = NULL,
-                                id_tag_plot = NULL,
-                                id_specimen = NULL,
+                                plot_name_col = NULL,
+                                tag_col = NULL,
+                                id_individual_col = NULL,
                                 traits_field,
                                 features_field = NULL,
                                 allow_multiple_value = FALSE,
-                                add_data = FALSE) {
+                                add_data = FALSE,
+                                census_col = NULL,
+                                id_sub_plots_col = NULL) {
   
   mydb <- call.mydb()
   
@@ -1957,7 +1962,7 @@ add_traits_measures <- function(new_data,
   ## removing entries with NA values for traits
   new_data_renamed <-
     new_data_renamed %>%
-    dplyr::filter_at(dplyr::vars(!!traits_field), dplyr::any_vars(!is.na(.)))
+    dplyr::filter(dplyr::if_any(dplyr::all_of(traits_field), ~ !is.na(.)))
   
   if (nrow(new_data_renamed) == 0)
     stop("no values for selected trait(s)")
@@ -1969,62 +1974,53 @@ add_traits_measures <- function(new_data,
       mutate(day = NA) %>%
       mutate(day = as.numeric(day))
     
-    if (is.null(plot_name_field) & is.null(individual_plot_field) &
-        is.null(id_specimen) & is.null(id_plot_name) &
-        is.null(id_tag_plot))
-      stop("no links provided (either plot, specimen or tag), thus date is mandatory")
+    if (is.null(plot_name_col) & is.null(tag_col) & is.null(id_individual_col))
+      stop("no links provided (either plot_name_col+tag_col or id_individual_col), thus date is mandatory")
   }
-  
+
   if (!any(col_names_corresp == "year")) {
     cli::cli_alert_info("no information collection year provided")
     new_data_renamed <-
       new_data_renamed %>%
       mutate(year = NA) %>%
       mutate(year = as.numeric(year))
-    
-    if (is.null(plot_name_field) & is.null(individual_plot_field) &
-        is.null(id_specimen) & is.null(id_plot_name) &
-        is.null(id_tag_plot))
-      stop("no links provided (either plot, specimen or tag), thus date is mandatory")
+
+    if (is.null(plot_name_col) & is.null(tag_col) & is.null(id_individual_col))
+      stop("no links provided (either plot_name_col+tag_col or id_individual_col), thus date is mandatory")
   }
-  
+
   if (!any(col_names_corresp == "month")) {
     cli::cli_alert_info("no information collection month provided")
     new_data_renamed <-
       new_data_renamed %>%
       mutate(month = NA) %>%
       mutate(month = as.numeric(month))
-    
-    if (is.null(plot_name_field) & is.null(individual_plot_field) &
-        is.null(id_specimen) & is.null(id_plot_name) &
-        is.null(id_tag_plot))
-      stop("no links provided (either plot, specimen or tag), thus date is mandatory")
+
+    if (is.null(plot_name_col) & is.null(tag_col) & is.null(id_individual_col))
+      stop("no links provided (either plot_name_col+tag_col or id_individual_col), thus date is mandatory")
   }
-  
+
   if(!any(col_names_corresp == "country")) {
     cli::cli_alert_info("no country provided")
     new_data_renamed <-
       new_data_renamed %>%
       mutate(country = NA) %>%
       mutate(country = as.character(country))
-    
-    if(is.null(plot_name_field) & is.null(individual_plot_field) &
-       is.null(id_specimen) & is.null(id_plot_name) &
-       is.null(id_tag_plot)) stop("no links provided (either plot, specimen or tag), thus country is mandatory")
-    
+
+    if (is.null(plot_name_col) & is.null(tag_col) & is.null(id_individual_col))
+      stop("no links provided (either plot_name_col+tag_col or id_individual_col), thus country is mandatory")
+
   }
-  
+
   if (!any(col_names_corresp == "decimallatitude")) {
     cli::cli_alert_info("no decimallatitude provided")
     new_data_renamed <-
       new_data_renamed %>%
       dplyr::mutate(decimallatitude = NA) %>%
       dplyr::mutate(decimallatitude = as.double(decimallatitude))
-    
-    if (is.null(plot_name_field) & is.null(individual_plot_field) &
-        is.null(id_specimen) & is.null(id_plot_name) &
-        is.null(id_tag_plot))
-      stop("no links provided (either plot, specimen or tag), thus decimallatitude is mandatory")
+
+    if (is.null(plot_name_col) & is.null(tag_col) & is.null(id_individual_col))
+      stop("no links provided (either plot_name_col+tag_col or id_individual_col), thus decimallatitude is mandatory")
   }
   
   if (!any(col_names_corresp == "decimallongitude")) {
@@ -2034,10 +2030,8 @@ add_traits_measures <- function(new_data,
       dplyr::mutate(decimallongitude = NA) %>%
       dplyr::mutate(decimallongitude = as.double(decimallongitude))
     
-    if (is.null(plot_name_field) & is.null(individual_plot_field) &
-        is.null(id_specimen) & is.null(id_plot_name) &
-        is.null(id_tag_plot))
-      stop("no links provided (either plot, specimen or tag), thus decimallongitude is mandatory")
+    if (is.null(plot_name_col) & is.null(tag_col) & is.null(id_individual_col))
+      stop("no links provided (either plot_name_col+tag_col or id_individual_col), thus decimallongitude is mandatory")
   }
   
   new_data_renamed <-
@@ -2065,263 +2059,253 @@ add_traits_measures <- function(new_data,
   } else{
     new_data_renamed <-
       new_data_renamed %>%
-      mutate(id_colnam = NA) %>%
-      mutate(id_colnam = as.numeric(id_colnam))
+      mutate(id_colnam = NA_integer_)
     
-    if (is.null(plot_name_field) & is.null(individual_plot_field) &
-        is.null(id_specimen) & is.null(id_plot_name) &
-        is.null(id_tag_plot))
-      stop("no links provided (either plot, specimen or tag), thus collector_field is mandatory")
+    if (is.null(plot_name_col) & is.null(tag_col) & is.null(id_individual_col))
+      stop("no links provided (either plot_name_col+tag_col or id_individual_col), thus collector_field is mandatory")
   }
   
   ### Linking plot names
-  if(!is.null(plot_name_field)) {
-    if (!any(colnames(new_data_renamed) == plot_name_field))
-      stop("plot_name_field not found in colnames")
-    
-    # new_data_renamed <-
-    #   .link_plot_name(data_stand = new_data_renamed, plot_name_field = plot_name_field)
-    
+  if(!is.null(plot_name_col)) {
+    if (!any(colnames(new_data_renamed) == plot_name_col))
+      stop("plot_name_col not found in colnames")
+
     new_data_renamed <-
       .link_table(data_stand = new_data_renamed,
-                  column_searched = plot_name_field,
+                  column_searched = plot_name_col,
                   column_name = "plot_name",
                   id_field = "id_liste_plots",
                   id_table_name = "id_liste_plots",
                   db_connection = mydb,
                   table_name = "data_liste_plots")
-    
-  }
-  
-  if (!is.null(id_plot_name)) {
-    # Save user's input column name before overwriting
-    id_plot_name_col <- id_plot_name
-    id_plot_name_target <- "id_table_liste_plots_n"
-
-    new_data_renamed <-
-      new_data_renamed %>%
-      dplyr::rename_at(dplyr::vars(dplyr::all_of(id_plot_name_col)), ~ id_plot_name_target)
-
-    if (any(colnames(new_data_renamed) == "plot_name"))
-      new_data_renamed <-
-      new_data_renamed %>%
-      dplyr::select(-plot_name)
-
-    link_plot <-
-      new_data_renamed %>%
-      dplyr::left_join(
-        dplyr::tbl(mydb, "data_liste_plots") %>%
-          dplyr::select(plot_name, id_liste_plots) %>% dplyr::collect(),
-        by = c("id_table_liste_plots_n" = "id_liste_plots")
-      )
-
-    if (dplyr::filter(link_plot, is.na(plot_name)) %>%
-        nrow() > 0) {
-      print(dplyr::filter(link_plot, is.na(plot_name)))
-      cli::cli_alert_danger("provided id plot not found in plot metadata")
-    }
-
-    new_data_renamed <-
-      new_data_renamed %>%
-      dplyr::rename(id_liste_plots = id_table_liste_plots_n)
   }
   
   ### linking individuals by id
-  if(!is.null(id_tag_plot) & is.null(individual_plot_field)) {
-    
-    id_tag <-
-      "id_n"
-    
-    new_data_renamed <-
-      new_data_renamed %>%
-      dplyr::rename_at(dplyr::vars(all_of(id_tag_plot)), ~ id_tag)
-    
-    
-    link_individuals <-
-      new_data_renamed %>%
-      dplyr::left_join(
-        dplyr::tbl(mydb, "data_individuals") %>%
-          dplyr::select(idtax_n, 
-                        id_n, 
-                        # sous_plot_name
-          ) %>%
-          dplyr::filter(id_n %in% !!unique(new_data_renamed$id_n)) %>%
-          dplyr::collect() %>%
-          dplyr::mutate(rrr = 1),
-        by = c("id_n" = "id_n")
-      )
-    
-    if (dplyr::filter(link_individuals, is.na(rrr)) %>%
-        nrow() > 0) {
-      print(dplyr::filter(link_individuals
-                          , 
-                          is.na(rrr)
-      ))
-      stop("provided id individuals not found in data_individuals")
+  if (!is.null(id_individual_col)) {
+
+    new_data_renamed <- new_data_renamed %>%
+      dplyr::rename(id_n = !!id_individual_col)
+
+    provided_ids <- unique(new_data_renamed$id_n)
+    provided_ids <- provided_ids[!is.na(provided_ids)]
+
+    found_ids <-
+      dplyr::tbl(mydb, "data_individuals") %>%
+      dplyr::filter(id_n %in% !!provided_ids) %>%
+      dplyr::pull(id_n)
+
+    missing_ids <- setdiff(provided_ids, found_ids)
+    if (length(missing_ids) > 0) {
+      print(missing_ids)
+      stop("provided id_individual_col values not found in data_individuals")
     }
-    
-    new_data_renamed <-
-      new_data_renamed %>%
+
+    new_data_renamed <- new_data_renamed %>%
       dplyr::rename(id_data_individuals = id_n)
-  } else{
-    
-    new_data_renamed <-
-      new_data_renamed %>%
-      tibble::add_column(id_data_individuals = NA) %>%
-      dplyr::mutate(id_data_individuals = as.integer(id_data_individuals))
-    
+
+  } else {
+
+    new_data_renamed <- new_data_renamed %>%
+      dplyr::mutate(id_data_individuals = NA_integer_)
+
   }
   
   
-  if (is.null(id_plot_name) & is.null(plot_name_field)) {
-    
-    if (!is.null(id_tag_plot) & is.null(individual_plot_field)) {
-      
-      queried_individuals <-
-        query_plots(id_individual = new_data_renamed$id_data_individuals, remove_ids = F)
-      
-      new_data_renamed <-
-        new_data_renamed %>%
-        left_join(queried_individuals %>%
-                    dplyr::select(id_n, id_table_liste_plots_n),
-                  by = c("id_data_individuals" = "id_n")) %>%
-        rename(id_liste_plots = id_table_liste_plots_n)
-      
-    } else {
-      
-      new_data_renamed <-
-        new_data_renamed %>%
-        dplyr::mutate(id_liste_plots = NA) %>%
-        dplyr::mutate(id_liste_plots = as.integer(id_liste_plots))
-      
-    }
-  }
-  
-  ### check for different census for concerned plots
-  multiple_census <- FALSE
-  # census_check <- utils::askYesNo(msg = "Link trait measures to census (only for permanent plots) ?")
-  
-  census_check <- 
-    choose_prompt(message = "Link trait measures to census (only for permanent plots) ?")
-  
-  if (census_check) {
-    unique_ids_plots <- unique(new_data_renamed$id_liste_plots)
-    censuses <-
-      try_open_postgres_table(table = "data_liste_sub_plots", con = mydb) %>%
-      dplyr::filter(id_table_liste_plots %in% unique_ids_plots, id_type_sub_plot==27) %>%
-      dplyr::left_join(dplyr::tbl(mydb, "data_liste_plots") %>%
-                         dplyr::select(plot_name, id_liste_plots), by=c("id_table_liste_plots"="id_liste_plots")) %>%
-      dplyr::left_join(dplyr::tbl(mydb, "subplotype_list") %>%
-                         dplyr::select(type, id_subplotype), by=c("id_type_sub_plot"="id_subplotype")) %>%
-      dplyr::left_join(dplyr::tbl(mydb, "table_colnam") %>%
-                         dplyr::select(id_table_colnam, colnam), by=c("id_colnam"="id_table_colnam")) %>%
+  # If no plot ID resolved yet, derive it from individual IDs (needed for census lookup)
+  if (is.null(plot_name_col) && !is.null(id_individual_col)) {
+
+    ind_ids <- unique(new_data_renamed$id_data_individuals)
+    ind_ids <- ind_ids[!is.na(ind_ids)]
+
+    ind_to_plot <-
+      dplyr::tbl(mydb, "data_individuals") %>%
+      dplyr::filter(id_n %in% !!ind_ids) %>%
+      dplyr::select(id_n, id_table_liste_plots_n) %>%
       dplyr::collect()
-    
-    if(nrow(censuses) > 0) { # & length(unique(censuses$typevalue))>1
-      
-      cli::cli_alert_info("Multiple census for concerned plots")
-      censuses %>%
-        dplyr::select(plot_name, id_table_liste_plots, year, month, day, typevalue, type, colnam, additional_people) %>%
-        as.data.frame() %>%
-        print()
-      census_chosen <- readline(prompt="Choose census ")
-      
-      chosen_ids_subplots <-
-        censuses %>%
-        dplyr::filter(typevalue == as.numeric(census_chosen)) %>%
-        dplyr::select(id_table_liste_plots, id_sub_plots)
-      
-      if(nrow(chosen_ids_subplots) == 0) stop("chosen census not available")
-      
-      missing_census <-
-        new_data_renamed %>%
-        dplyr::distinct(id_liste_plots) %>%
-        dplyr::filter(!id_liste_plots %in% chosen_ids_subplots$id_table_liste_plots) %>%
-        dplyr::filter(!is.na(id_liste_plots))
-      
-      if(nrow(missing_census)) {
-        print(missing_census %>%
-                dplyr::left_join(dplyr::tbl(mydb, "data_liste_plots") %>%
-                                   dplyr::select(id_liste_plots, plot_name) %>%
-                                   dplyr::collect(),
-                                 by=c("id_liste_plots"="id_liste_plots")) %>%
-                as.data.frame())
-        warning(paste("Missing census for", nrow(missing_census),"plots, census chosen :", census_chosen))
-      }
-      
-      new_data_renamed <-
-        new_data_renamed %>%
-        dplyr::left_join(chosen_ids_subplots,
-                         by = c("id_liste_plots" = "id_table_liste_plots"))
-      # %>%
-      #   filter(id_liste_plots==824) %>%
-      #   select(id_sub_plots)
-      
-      if (as.numeric(census_chosen) > 1)
-        multiple_census <- TRUE
-      
-    } else {
-      
-      new_data_renamed <-
-        new_data_renamed %>%
-        tibble::add_column(id_sub_plots = NA) %>%
-        dplyr::mutate(id_sub_plots = as.integer(id_sub_plots))
-      multiple_census <- FALSE
-    }
-  }else{
-    
-    new_data_renamed <-
-      new_data_renamed %>%
-      tibble::add_column(id_sub_plots = NA) %>%
+
+    new_data_renamed <- new_data_renamed %>%
+      dplyr::left_join(ind_to_plot, by = c("id_data_individuals" = "id_n")) %>%
+      dplyr::rename(id_liste_plots = id_table_liste_plots_n)
+
+  } else if (is.null(plot_name_col) && is.null(id_individual_col)) {
+
+    new_data_renamed <- new_data_renamed %>%
+      dplyr::mutate(id_liste_plots = NA_integer_)
+
+  }
+  
+  ### Resolve census → id_sub_plots
+  # Three modes, in order of precedence:
+  #   1. id_sub_plots_col: column in new_data already contains id_sub_plots → use directly
+  #   2. census_col: column contains census typevalue → resolve id_sub_plots from DB per plot × census
+  #   3. Interactive fallback (original behaviour)
+
+  multiple_census <- FALSE
+
+  if (!is.null(id_sub_plots_col)) {
+
+    # ── Mode 1: id_sub_plots provided directly ──────────────────────────────
+    if (!id_sub_plots_col %in% names(new_data_renamed))
+      stop(paste("id_sub_plots_col column not found in new_data:", id_sub_plots_col))
+
+    new_data_renamed <- new_data_renamed %>%
+      dplyr::rename(id_sub_plots = !!id_sub_plots_col) %>%
       dplyr::mutate(id_sub_plots = as.integer(id_sub_plots))
-    
-  }
-  
-  ### Linking specimens
-  if(!is.null(id_specimen)) {
-    
-    id_tag <-
-      "id_specimen"
-    
-    new_data_renamed <-
-      new_data_renamed %>%
-      dplyr::rename_at(dplyr::vars(id_specimen), ~ id_tag)
-    
-    link_specimen <-
-      new_data_renamed %>%
-      dplyr::filter(!is.na(id_specimen)) %>%
+
+    # Determine multiple_census: fetch typevalue for the used id_sub_plots
+    used_subplot_ids <- unique(new_data_renamed$id_sub_plots)
+    used_subplot_ids <- used_subplot_ids[!is.na(used_subplot_ids)]
+    if (length(used_subplot_ids) > 0) {
+      subplot_typevalues <-
+        try_open_postgres_table(table = "data_liste_sub_plots", con = mydb) %>%
+        dplyr::filter(id_sub_plots %in% used_subplot_ids) %>%
+        dplyr::select(id_sub_plots, typevalue) %>%
+        dplyr::collect()
+      multiple_census <- any(subplot_typevalues$typevalue > 1, na.rm = TRUE)
+    }
+    cli::cli_alert_success(
+      "Census linked via id_sub_plots column '{id_sub_plots_col}' ({length(used_subplot_ids)} unique census(es))"
+    )
+
+  } else if (!is.null(census_col)) {
+
+    # ── Mode 2: census typevalue column → resolve id_sub_plots per plot × census
+    if (!census_col %in% names(new_data_renamed))
+      stop(paste("census_col column not found in new_data:", census_col))
+
+    new_data_renamed <- new_data_renamed %>%
+      dplyr::rename(.census_typevalue = !!census_col) %>%
+      dplyr::mutate(.census_typevalue = as.integer(.census_typevalue))
+
+    unique_ids_plots <- unique(new_data_renamed$id_liste_plots)
+    all_censuses <-
+      try_open_postgres_table(table = "data_liste_sub_plots", con = mydb) %>%
+      dplyr::filter(id_table_liste_plots %in% unique_ids_plots, id_type_sub_plot == 27) %>%
+      dplyr::select(id_table_liste_plots, id_sub_plots, typevalue) %>%
+      dplyr::collect() %>%
+      dplyr::mutate(typevalue = as.integer(typevalue))
+
+    new_data_renamed <- new_data_renamed %>%
       dplyr::left_join(
-        dplyr::tbl(mydb, "specimens") %>%
-          dplyr::select(id_diconame_n, id_specimen) %>% dplyr::collect(),
-        by = c("id_specimen" = "id_specimen")
+        all_censuses %>% dplyr::select(id_table_liste_plots, typevalue, id_sub_plots),
+        by = c("id_liste_plots" = "id_table_liste_plots",
+               ".census_typevalue" = "typevalue")
       )
-    
-    if(dplyr::filter(link_specimen, is.na(id_diconame_n)) %>%
-       nrow()>0) {
-      print(dplyr::filter(link_specimen, is.na(id_diconame_n)))
-      stop("provided id specimens not found in specimens table")
+
+    unmatched <- sum(is.na(new_data_renamed$id_sub_plots))
+    if (unmatched > 0)
+      warning(sprintf("%d row(s) could not be matched to a census and will have id_sub_plots = NA", unmatched))
+
+    # Determine multiple_census before dropping the typevalue column
+    multiple_census <- any(new_data_renamed$.census_typevalue > 1, na.rm = TRUE)
+
+    new_data_renamed <- new_data_renamed %>% dplyr::select(-.census_typevalue)
+
+    cli::cli_alert_success("Census linked via typevalue column '{census_col}'")
+
+  } else {
+
+    # ── Mode 3: Interactive fallback (original behaviour) ───────────────────
+    census_check <-
+      choose_prompt(message = "Link trait measures to census (only for permanent plots) ?")
+
+    if (census_check) {
+      unique_ids_plots <- unique(new_data_renamed$id_liste_plots)
+      censuses <-
+        try_open_postgres_table(table = "data_liste_sub_plots", con = mydb) %>%
+        dplyr::filter(id_table_liste_plots %in% unique_ids_plots, id_type_sub_plot == 27) %>%
+        dplyr::left_join(dplyr::tbl(mydb, "data_liste_plots") %>%
+                           dplyr::select(plot_name, id_liste_plots),
+                         by = c("id_table_liste_plots" = "id_liste_plots")) %>%
+        dplyr::left_join(dplyr::tbl(mydb, "subplotype_list") %>%
+                           dplyr::select(type, id_subplotype),
+                         by = c("id_type_sub_plot" = "id_subplotype")) %>%
+        dplyr::left_join(dplyr::tbl(mydb, "table_colnam") %>%
+                           dplyr::select(id_table_colnam, colnam),
+                         by = c("id_colnam" = "id_table_colnam")) %>%
+        dplyr::collect()
+
+      if (nrow(censuses) > 0) {
+
+        cli::cli_alert_info("Available census(es) for the concerned plots:")
+        censuses %>%
+          dplyr::select(plot_name, id_table_liste_plots, year, month, day,
+                        typevalue, type, colnam, additional_people) %>%
+          as.data.frame() %>%
+          print()
+        census_chosen <- readline(prompt = "Choose census (typevalue): ")
+
+        chosen_ids_subplots <-
+          censuses %>%
+          dplyr::filter(typevalue == as.numeric(census_chosen)) %>%
+          dplyr::select(id_table_liste_plots, id_sub_plots)
+
+        if (nrow(chosen_ids_subplots) == 0) stop("Chosen census not available")
+
+        missing_census <-
+          new_data_renamed %>%
+          dplyr::distinct(id_liste_plots) %>%
+          dplyr::filter(!id_liste_plots %in% chosen_ids_subplots$id_table_liste_plots,
+                        !is.na(id_liste_plots))
+
+        if (nrow(missing_census) > 0) {
+          print(missing_census %>%
+                  dplyr::left_join(
+                    dplyr::tbl(mydb, "data_liste_plots") %>%
+                      dplyr::select(id_liste_plots, plot_name) %>%
+                      dplyr::collect(),
+                    by = "id_liste_plots"
+                  ) %>%
+                  as.data.frame())
+          warning(paste("Missing census for", nrow(missing_census),
+                        "plot(s); census chosen:", census_chosen))
+        }
+
+        new_data_renamed <- new_data_renamed %>%
+          dplyr::left_join(chosen_ids_subplots,
+                           by = c("id_liste_plots" = "id_table_liste_plots"))
+
+        if (as.numeric(census_chosen) > 1)
+          multiple_census <- TRUE
+
+      } else {
+        new_data_renamed <- new_data_renamed %>%
+          dplyr::mutate(id_sub_plots = NA_integer_)
+        multiple_census <- FALSE
+      }
+
+    } else {
+      new_data_renamed <- new_data_renamed %>%
+        dplyr::mutate(id_sub_plots = NA_integer_)
     }
-  }else{
-    
-    if (!any(colnames(new_data_renamed) == "id_specimen")) {
-      
-      new_data_renamed <-
-        new_data_renamed %>%
-        mutate(id_specimen = NA) %>%
-        dplyr::mutate(id_specimen = as.integer(id_specimen))
-      
-    } else{
-      
-      warning("id_specimen column already in new_data, check if content is correct")
-      
-    }
-    
   }
   
+  ### Ensure id_specimen column exists (individual features are linked to individuals, not specimens)
+  if (!any(colnames(new_data_renamed) == "id_specimen")) {
+    new_data_renamed <- new_data_renamed %>%
+      dplyr::mutate(id_specimen = NA_integer_)
+  }
+  
+  ### Checkout connection once for the whole operation (pool-safe)
+  is_pool <- inherits(mydb, "Pool")
+  actual_con <- if (is_pool) {
+    con_checked_out <- pool::poolCheckout(mydb)
+    on.exit(pool::poolReturn(con_checked_out), add = TRUE)
+    con_checked_out
+  } else {
+    mydb
+  }
+
   ### preparing dataset to add for each trait
-  list_add_data <- vector('list', length(traits_field))
-  for (i in 1:length(traits_field)) {
-    
+  list_add_data <- vector("list", length(traits_field))
+  any_inserted  <- FALSE   # tracks whether at least one insert happened
+
+  tryCatch({
+
+  if (add_data) DBI::dbBegin(actual_con)
+
+  for (i in seq_along(traits_field)) {
+
     trait <- traits_field[i]
     if(!any(colnames(new_data_renamed) == trait))
       stop(paste("trait field not found", trait))
@@ -2366,14 +2350,11 @@ add_traits_measures <- function(new_data,
         )
       
       ### Linking individuals
-      if (!is.null(individual_plot_field)) {
-        
-        individual_plot <-
-          "tag"
-        
+      if (!is.null(tag_col)) {
+
         data_trait <-
           data_trait %>%
-          dplyr::rename_at(dplyr::vars(all_of(individual_plot_field)), ~ individual_plot)
+          dplyr::rename(tag = !!tag_col)
         
         
         ## not numeric or missing individuals tag
@@ -2589,7 +2570,7 @@ add_traits_measures <- function(new_data,
           ## merging issue
           data_trait <-
             data_trait %>%
-            tibble::add_column(issue_2 = issue_2) %>%
+            dplyr::mutate(issue_2 = issue_2) %>%
             dplyr::mutate(issue = paste(ifelse(is.na(issue), "", issue), ifelse(is.na(issue_2), "", issue_2), sep = ", ")) %>%
             dplyr::mutate(issue = ifelse(issue ==", ", NA, issue)) %>%
             dplyr::select(-issue_2)
@@ -2923,78 +2904,49 @@ add_traits_measures <- function(new_data,
         .add_modif_field(dataset = data_trait)
       
       
-      if (valuetype$valuetype == "ordinal" |
-          valuetype$valuetype == "character")
-        val_type <- "character"
-      
-      if (valuetype$valuetype == "numeric")
-        val_type <- "numeric"
-      
-      if (valuetype$valuetype == "integer")
-        val_type <- "numeric"
-      
+      val_type <- if (valuetype$valuetype %in% c("numeric", "integer", "table_colnam")) {
+        "numeric"
+      } else if (valuetype$valuetype %in% c("character", "ordinal", "categorical")) {
+        "character"
+      } else {
+        stop(paste("unhandled valuetype:", valuetype$valuetype))
+      }
+
       cli::cli_h3("data_to_add")
+      n <- nrow(data_trait)
+      .col_or_na <- function(col, na_val) {
+        if (col %in% colnames(data_trait)) data_trait[[col]] else rep(na_val, n)
+      }
       data_to_add <-
         dplyr::tibble(
           id_table_liste_plots = data_trait$id_liste_plots,
-          id_data_individuals = data_trait$id_data_individuals,
-          id_specimen = data_trait$id_specimen,
-          id_diconame = data_trait$id_diconame,
-          id_colnam = data_trait$id_colnam,
-          id_sub_plots = data_trait$id_sub_plots,
-          country = data_trait$country,
-          decimallatitude = data_trait$decimallatitude,
-          decimallongitude = data_trait$decimallongitude,
-          elevation = ifelse(rep(
-            any(colnames(data_trait) == "elevation"), nrow(data_trait)
-          ), data_trait$elevation, NA),
-          verbatimlocality = ifelse(rep(
-            any(colnames(data_trait) == "verbatimlocality"), nrow(data_trait)
-          ), data_trait$verbatimlocality, NA),
-          basisofrecord = data_trait$basisofrecord,
-          references = ifelse(rep(
-            any(colnames(data_trait) == "reference"), nrow(data_trait)
-          ), data_trait$reference, NA),
-          year = ifelse(rep(
-            any(colnames(data_trait) == "year"), nrow(data_trait)
-          ), data_trait$year, NA),
-          month = ifelse(rep(
-            any(colnames(data_trait) == "month"), nrow(data_trait)
-          ), data_trait$month, NA),
-          day = ifelse(rep(any(
-            colnames(data_trait) == "day"
-          ), nrow(data_trait)), data_trait$day, NA),
-          measurementremarks = ifelse(rep(
-            any(colnames(data_trait) == "measurementremarks"),
-            nrow(data_trait)
-          ), data_trait$measurementremarks, NA),
-          measurementmethod = ifelse(rep(
-            any(colnames(data_trait) == "measurementmethod"), nrow(data_trait)
-          ), data_trait$measurementmethod, NA),
-          traitid = data_trait$id_trait,
-          traitvalue = ifelse(
-            rep(val_type == "numeric", nrow(data_trait)),
-            data_trait$trait,
-            NA
-          ),
-          traitvalue_char = ifelse(
-            rep(val_type == "character", nrow(data_trait)),
-            as.character(data_trait$trait),
-            NA
-          ),
-          original_tax_name = ifelse(rep(
-            any(colnames(data_trait) == "original_tax_name"), nrow(data_trait)
-          ), data_trait$original_tax_name, NA),
-          original_plot_name = ifelse(rep(
-            any(colnames(data_trait) == "original_plot_name"), nrow(data_trait)
-          ), data_trait$original_plot_name, NA),
-          original_specimen = ifelse(rep(
-            any(colnames(data_trait) == "original_specimen"), nrow(data_trait)
-          ), data_trait$original_specimen, NA),
-          issue = data_trait$issue,
-          date_modif_d = data_trait$date_modif_d,
-          date_modif_m = data_trait$date_modif_m,
-          date_modif_y = data_trait$date_modif_y
+          id_data_individuals  = data_trait$id_data_individuals,
+          id_specimen          = data_trait$id_specimen,
+          id_diconame          = data_trait$id_diconame,
+          id_colnam            = data_trait$id_colnam,
+          id_sub_plots         = data_trait$id_sub_plots,
+          country              = data_trait$country,
+          decimallatitude      = data_trait$decimallatitude,
+          decimallongitude     = data_trait$decimallongitude,
+          elevation            = .col_or_na("elevation",          NA_real_),
+          verbatimlocality     = .col_or_na("verbatimlocality",   NA_character_),
+          basisofrecord        = data_trait$basisofrecord,
+          references           = .col_or_na("reference",          NA_character_),
+          year                 = .col_or_na("year",               NA_integer_),
+          month                = .col_or_na("month",              NA_integer_),
+          day                  = .col_or_na("day",                NA_integer_),
+          measurementremarks   = .col_or_na("measurementremarks", NA_character_),
+          measurementmethod    = .col_or_na("measurementmethod",  NA_character_),
+          traitid              = data_trait$id_trait,
+          traitvalue           = if (val_type == "numeric")   as.numeric(data_trait$trait) else rep(NA_real_,      n),
+          traitvalue_char      = if (val_type == "character") as.character(data_trait$trait) else rep(NA_character_, n),
+          original_tax_name    = .col_or_na("original_tax_name",  NA_character_),
+          original_plot_name   = .col_or_na("original_plot_name", NA_character_),
+          original_specimen    = .col_or_na("original_specimen",  NA_character_),
+          issue                = data_trait$issue,
+          date_modif_d         = data_trait$date_modif_d,
+          date_modif_m         = data_trait$date_modif_m,
+          date_modif_y         = data_trait$date_modif_y
         )
       
       if(no_linked_measures)
@@ -3065,86 +3017,77 @@ add_traits_measures <- function(new_data,
 
       if (add_data & response) {
 
-        # Handle connection pool checkout
-        is_pool <- inherits(mydb, "Pool")
-        if (is_pool) {
-          actual_con <- pool::poolCheckout(mydb)
-          on.exit({
-            pool::poolReturn(actual_con)
-          }, add = TRUE)
-        } else {
-          actual_con <- mydb
+        # Insert measurements with RETURNING to get IDs
+        trait_ids <- .execute_trait_insert_with_returning(data_to_add, actual_con)
+        any_inserted <- TRUE
+
+        cli::cli_alert_success("Inserted {nrow(data_to_add)} measurement(s) for '{trait}'")
+
+        # If features provided, add them in the same transaction
+        if (!is.null(features_field)) {
+
+          # Join by row position: RETURNING preserves insert order, so
+          # trait_ids[i, ] corresponds to data_trait[i, ] unambiguously.
+          # Joining on id_data_individuals would fan out when the same
+          # individual has multiple measurements (allow_multiple_value = TRUE).
+          data_feats <-
+            data_trait %>%
+            dplyr::select(dplyr::all_of(features_field)) %>%
+            dplyr::mutate(id_trait_measures = trait_ids$id_trait_measures) %>%
+            dplyr::select(id_trait_measures, dplyr::all_of(features_field))
+
+          .add_trait_features_internal(
+            new_data            = data_feats,
+            id_trait_measures   = "id_trait_measures",
+            features            = features_field,
+            con                 = actual_con,
+            allow_multiple_value = allow_multiple_value,
+            interactive         = FALSE
+          )
+
+          cli::cli_alert_success("Inserted features for {nrow(data_feats)} measurement(s)")
         }
 
-        # Begin transaction
-        DBI::dbBegin(actual_con)
-
-        tryCatch({
-
-          # Insert measurements with RETURNING to get IDs
-          trait_ids <- .execute_trait_insert_with_returning(data_to_add, actual_con)
-
-          cli::cli_alert_success("Added {nrow(data_to_add)} trait measurements for '{trait}'")
-
-          # If features provided, add them in same transaction
-          if (!is.null(features_field)) {
-
-            # Link features to returned IDs
-            data_feats <-
-              data_trait %>%
-              dplyr::select(dplyr::all_of(features_field), id_data_individuals) %>%
-              dplyr::left_join(trait_ids, by = "id_data_individuals") %>%
-              dplyr::select(id_trait_measures, dplyr::all_of(features_field))
-
-            # Add features (calls internal helper without additional prompts)
-            .add_trait_features_internal(
-              new_data = data_feats,
-              id_trait_measures = "id_trait_measures",
-              features = features_field,
-              con = actual_con,
-              allow_multiple_value = allow_multiple_value,
-              interactive = FALSE  # Skip prompts - already confirmed above
-            )
-
-            cli::cli_alert_success("Added features for {nrow(data_feats)} measurements")
-          }
-
-          # Commit transaction
-          DBI::dbCommit(actual_con)
-          cli::cli_alert_success("Transaction committed - all data added successfully for '{trait}'")
-
-        }, error = function(e) {
-          # Rollback on error
-          tryCatch({
-            DBI::dbRollback(actual_con)
-            cli::cli_alert_danger("Transaction rolled back due to error: {e$message}")
-          }, error = function(rollback_error) {
-            cli::cli_alert_danger("Error during rollback: {rollback_error$message}")
-          })
-          stop(e)
-        })
-
       } else {
-
-        cli::cli_alert_danger("No data added for '{trait}' - user cancelled or add_data is FALSE")
-
+        cli::cli_alert_info("Skipped '{trait}' (user declined or add_data = FALSE)")
       }
       
-    } else{
-      
-      cli::cli_alert_danger("No added data for {trait} - no values different of 0")
-      
+    } else {
+      cli::cli_alert_info("No data to add for '{trait}' - all values are 0 or NA")
     }
+  } # end trait loop
+
+  # Single commit covering all traits and their features
+  if (add_data && any_inserted) {
+    DBI::dbCommit(actual_con)
+    cli::cli_alert_success("Transaction committed — all traits and features inserted successfully")
+  } else if (add_data) {
+    DBI::dbRollback(actual_con)
+    cli::cli_alert_info("Transaction rolled back — no data was confirmed for insertion")
   }
-  
-  if(exists('unlinked_individuals'))
+
+  }, error = function(e) {
+    tryCatch(
+      DBI::dbRollback(actual_con),
+      error = function(e2) cli::cli_alert_danger("Rollback failed: {e2$message}")
+    )
+    # Distinguish connection loss from logic errors for a clearer message
+    if (grepl("terminating connection|connection.*lost|server.*shut|EOF|SSL SYSCALL",
+              e$message, ignore.case = TRUE)) {
+      cli::cli_alert_danger(paste(
+        "Database connection was lost during import. No data was committed.",
+        "Please reconnect with call.mydb() and retry."
+      ))
+    } else {
+      cli::cli_alert_danger("Transaction rolled back due to error: {e$message}")
+    }
+    stop(e)
+  }) # end tryCatch
+
+  if (exists("unlinked_individuals"))
     return(list(list_traits_add = list_add_data, unlinked_individuals = unlinked_individuals))
-  
-  if(!exists('unlinked_individuals'))
-    return(list(list_traits_add = list_add_data))
-  
-  
-  
+
+  return(list(list_traits_add = list_add_data))
 }
 
 
