@@ -4338,7 +4338,7 @@ reverse_map_table_references <- function(data, con) {
   # Format values (handle NA, NULL, empty strings)
   format_value <- function(x) {
     if (is.na(x) || is.null(x) || x == "") {
-      return(crayon::silver("<empty>"))
+      return(cli::col_grey("<empty>"))
     }
     # Truncate long values
     if (nchar(as.character(x)) > 50) {
@@ -4372,20 +4372,20 @@ reverse_map_table_references <- function(data, con) {
 
     # Display with taxonomy
     cli::cli_text(
-      "  {crayon::cyan(id_column)}: {crayon::bold(id)} | ",
-      "{crayon::yellow('idtax_n')}: ",
-      crayon::red(old_fmt), " ", crayon::silver(old_taxon),
-      " {crayon::silver('→')} ",
-      crayon::green(new_fmt), " ", crayon::silver(new_taxon)
+      "  {cli::col_cyan(id_column)}: {cli::style_bold(id)} | ",
+      "{cli::col_yellow('idtax_n')}: ",
+      cli::col_red(old_fmt), " ", cli::col_grey(old_taxon),
+      " {cli::col_grey('\u2192')} ",
+      cli::col_green(new_fmt), " ", cli::col_grey(new_taxon)
     )
   } else {
     # Standard display
     cli::cli_text(
-      "  {crayon::cyan(id_column)}: {crayon::bold(id)} | ",
-      "{crayon::yellow(column)}: ",
-      crayon::red(old_fmt),
-      " {crayon::silver('→')} ",
-      crayon::green(new_fmt)
+      "  {cli::col_cyan(id_column)}: {cli::style_bold(id)} | ",
+      "{cli::col_yellow(column)}: ",
+      cli::col_red(old_fmt),
+      " {cli::col_grey('\u2192')} ",
+      cli::col_green(new_fmt)
     )
   }
 }
@@ -4482,7 +4482,7 @@ reverse_map_table_references <- function(data, con) {
     col_changes <- changes_df %>% filter(column == col)
     n_changes <- nrow(col_changes)
 
-    cli::cli_alert_success("{col}: {crayon::bold(n_changes)} change(s)")
+    cli::cli_alert_success("{col}: {cli::style_bold(n_changes)} change(s)")
 
     # Check if taxonomy columns are available (for idtax_n)
     has_taxonomy <- col == "idtax_n" &&
@@ -4544,7 +4544,7 @@ reverse_map_table_references <- function(data, con) {
         }
       }
       cli::cli_text(
-        crayon::silver("  ... and {n_changes - max_display} more change(s)")
+        cli::col_grey("  ... and {n_changes - max_display} more change(s)")
       )
     }
     cli::cli_text("")  # Empty line between columns
