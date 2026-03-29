@@ -1,6 +1,15 @@
 url: https://umr-amap.github.io/cafriplotsR/
 template:
   bootstrap: 5
+  bslib:
+    primary: "#2C5F2D"
+    secondary: "#97BC62"
+    success: "#97BC62"
+    link-color: "#2C5F2D"
+    navbar-bg: "#2C5F2D"
+    navbar-light-brand-color: "#ffffff"
+    navbar-light-color: "#ffffff"
+    navbar-light-hover-color: "#97BC62"
 
 news:
   cran_dates: false
@@ -54,3 +63,195 @@ articles:
     - taxonomic-app-fr
     - taxonomic-backbone-app-fr
     - specimen_linking_workflow-fr
+
+reference:
+  - title: "Database Connections"
+    desc: "Connect to and manage PostgreSQL database connections"
+    contents:
+      - call.mydb
+      - call.mydb.taxa
+      - connect_database
+      - create_pool_main
+      - create_pool_taxa
+      - cleanup_connections
+      - db_diagnostic
+      - print_connection_status
+      - get_connection_info
+      - test_connection
+      - setup_db_credentials
+      - remove_db_credentials
+      - create_db_config
+      - func_try_fetch
+      - try_open_postgres_table
+      - get_database_fk
+
+  - title: "Data Queries"
+    desc: "Query plots, individuals, taxa, traits, and specimens from the database"
+    contents:
+      - query_plots
+      - query_subplots
+      - query_plot_features
+      - query_individual_features
+      - get_individual_aggregated_features
+      - query_taxa
+      - query_taxa_traits
+      - query_trait
+      - query_traits_measures
+      - query_traits_measures_features
+      - query_colnam
+      - query_specimens
+      - query_all_specimen_links
+      - query_citations
+      - species_plot_matrix
+      - explore_allometric_taxa
+      - list_individual_features
+      - get_linktypes
+      - method_list
+      - country_list
+      - subplot_list
+      - traits_list
+      - traits_taxa_list
+      - PlotFetcher
+      - PlotFilterBuilder
+      - SpecimenFetcher
+      - SpecimenFilterBuilder
+      - get_user_accessible_plots
+      - match_tax
+      - match_taxonomic_names
+      - resolve_taxon_synonyms
+      - get_taxon_hierarchy
+      - get_taxon_ancestors
+      - get_taxon_children
+      - count_taxon_children
+      - get_updates_diconame
+      - get_primary_specimen_link
+      - get_ref_specimen_ind
+
+  - title: "Data Adding"
+    desc: "Add new plots, individuals, traits, specimens, and taxa to the database"
+    contents:
+      - add_plots
+      - add_individuals
+      - add_plot_features
+      - add_subplot_features
+      - add_subplot_observations_feat
+      - add_plot_coordinates
+      - add_specimens
+      - add_citation
+      - add_entry_taxa
+      - add_growth_form_taxa
+      - add_person_to_db
+      - add_method
+      - add_sp_traits_measures
+      - add_trait
+      - add_trait_taxa
+      - add_traits_measures
+      - add_taxa_table_taxa
+      - add_subplottype
+      - import_plot_metadata
+      - import_individual_data
+
+  - title: "Update and Delete"
+    desc: "Update existing records and safely delete data with cascade handling"
+    contents:
+      - update_records
+      - update_dico_name
+      - update_dico_name_batch
+      - update_ident_specimens
+      - update_link_specimens_batch
+      - update_specimens_batch
+      - update_taxa_link_table
+      - update_taxon_parent
+      - update_citation
+      - apply_citation_backfill
+      - safe_delete_individuals
+      - safe_delete_plot
+      - safe_delete_taxa_traits
+      - .delete_country
+      - .delete_individual_feature_type
+      - .delete_specimens
+
+  - title: "Data Processing"
+    desc: "Process, validate, transform, and aggregate inventory and trait data"
+    contents:
+      - compute_growth
+      - compute_mortality
+      - process_trimble_data
+      - process_individuals
+      - process_stems
+      - divid_plot
+      - extract_corners
+      - approximate_isolated_xy
+      - proj_rel_xy
+      - latlong2UTM
+      - get_plot_rel_xy
+      - pivot_categorical_traits_generic
+      - pivot_numeric_traits_generic
+      - summarize_feature
+      - merge_individuals_taxa
+      - replace_NA
+      - clean_taxonomic_name
+      - parse_taxonomic_name
+      - standardize_taxonomic_batch
+      - validate_plot_metadata
+      - validate_individual_data
+      - map_individual_columns
+      - map_user_columns
+      - get_import_column_routing
+      - enrich_traits_with_measurement_features
+      - enrich_with_traits
+      - print_validation_results
+      - print_individual_validation_results
+      - print_import_result
+      - print_template_info
+      - print_individual_template_info
+      - print_mapping_summary
+      - get_individual_template
+      - get_plot_metadata_template
+      - export_plot_template
+
+  - title: "Shiny Apps"
+    desc: "Launch interactive Shiny applications for data management and exploration"
+    contents:
+      - launch_import_wizard
+      - launch_feature_wizard
+      - launch_query_plots_app
+      - launch_individual_specimen_linking_app
+      - launch_specimen_import_wizard
+      - launch_taxa_traits_import
+      - launch_taxo_backbone_app
+      - launch_taxonomic_match_app
+      - shiny_app_query_plots
+      - shiny_app_taxo_backbone
+      - mod_database_login_ui
+      - mod_database_login_server
+
+  - title: "Administration & Permissions"
+    desc: "User management, database permissions, backup, and migration utilities"
+    contents:
+      - define_user_policy
+      - define_read_only_policy
+      - define_read_write_policy
+      - define_full_access_policy
+      - setup_user_permissions
+      - setup_import_wizard_permissions
+      - list_user_policies
+      - register_user
+      - deactivate_user
+      - reactivate_user
+      - list_database_users
+      - get_registered_users
+      - get_user_emails
+      - create_user_registry
+      - grant_all_table_permissions
+      - grant_lookup_table_permissions
+      - grant_plot_insert_permissions
+      - backup_database
+      - restore_database
+      - list_backups
+      - cleanup_old_backups
+      - diagnose_plot_permissions
+      - diagnose_add_person_setup
+      - check_citations_migration
+      - check_created_by_migration
+      - check_taxa_permissions

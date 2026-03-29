@@ -1,0 +1,82 @@
+/* CafriplotsR - Forest Green Theme */
+
+/* Navbar */
+.navbar {
+  background-color: #2C5F2D !important;
+  border-bottom: 3px solid #97BC62;
+}
+
+.navbar-brand, .navbar-nav .nav-link {
+  color: #ffffff !important;
+}
+
+.navbar-nav .nav-link:hover {
+  color: #97BC62 !important;
+}
+
+/* Sidebar headings */
+.sidebar .nav-link.active,
+.sidebar .nav-link:hover {
+  color: #2C5F2D !important;
+  font-weight: 600;
+}
+
+/* Reference page section headings */
+.reference-index h2 {
+  border-bottom: 2px solid #2C5F2D;
+  color: #2C5F2D;
+  padding-bottom: 0.3em;
+  margin-top: 1.5em;
+}
+
+/* Links */
+a {
+  color: #2C5F2D;
+}
+
+a:hover {
+  color: #97BC62;
+}
+
+/* Package title on home page */
+.template-home .page-header h1 {
+  color: #2C5F2D;
+}
+
+/* Function title in reference pages */
+.ref-description h1 {
+  color: #2C5F2D;
+}
+
+/* Badges */
+.badge-primary, .bg-primary {
+  background-color: #2C5F2D !important;
+}
+
+/* Code blocks */
+pre {
+  border-left: 4px solid #97BC62;
+}
+
+/* Footer */
+.footer {
+  background-color: #f5f8f0;
+  border-top: 2px solid #97BC62;
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: #2C5F2D;
+  border-color: #2C5F2D;
+}
+
+.btn-primary:hover {
+  background-color: #1e4520;
+  border-color: #1e4520;
+}
+
+/* Table of contents active link */
+.toc .nav-link.active {
+  color: #2C5F2D !important;
+  border-left: 3px solid #2C5F2D;
+}
