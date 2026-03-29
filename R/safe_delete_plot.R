@@ -236,8 +236,17 @@ safe_delete_plot <- function(plot_ids,
   cli::cli_h2("Deleting Data")
   summary$success <- FALSE
 
+  # Handle Pool connections: checkout a raw connection for transaction work
+  is_pool <- inherits(con, "Pool")
+  if (is_pool) {
+    raw_con <- pool::poolCheckout(con)
+    on.exit(pool::poolReturn(raw_con), add = TRUE)
+  } else {
+    raw_con <- con
+  }
+
   # Helper: batch-delete by explicit ID list
-  batch_delete_ids <- function(con, table, id_column, ids, label) {
+  batch_delete_ids <- function(raw_con, table, id_column, ids, label) {
     if (length(ids) == 0) return(0L)
     total    <- 0L
     n_batch  <- ceiling(length(ids) / row_batch_size)
@@ -245,21 +254,21 @@ safe_delete_plot <- function(plot_ids,
       s   <- (bi - 1L) * row_batch_size + 1L
       e   <- min(bi * row_batch_size, length(ids))
       bids <- ids[s:e]
-      DBI::dbBegin(con)
+      DBI::dbBegin(raw_con)
       tryCatch({
-        rs    <- DBI::dbSendQuery(con, sprintf(
+        rs    <- DBI::dbSendQuery(raw_con, sprintf(
           "DELETE FROM %s WHERE %s IN (%s)",
           table, id_column, paste(bids, collapse = ",")
         ))
         n_del <- DBI::dbGetRowsAffected(rs)
         DBI::dbClearResult(rs)
-        DBI::dbCommit(con)
+        DBI::dbCommit(raw_con)
         total <- total + n_del
         if (verbose && n_batch > 1) {
           cli::cli_alert_info("    Batch {bi}/{n_batch}: deleted {n_del} {label}")
         }
       }, error = function(e) {
-        tryCatch(DBI::dbRollback(con), error = function(e2) {})
+        tryCatch(DBI::dbRollback(raw_con), error = function(e2) {})
         stop(sprintf("Error deleting %s (batch %d/%d): %s",
                      label, bi, n_batch, e$message), call. = FALSE)
       })
@@ -292,14 +301,14 @@ safe_delete_plot <- function(plot_ids,
       tm_ids  <- integer(0)
 
       if (delete_individuals && n_individuals > 0) {
-        ind_ids <- DBI::dbGetQuery(con, sprintf("
+        ind_ids <- DBI::dbGetQuery(raw_con, sprintf("
           SELECT id_n FROM data_individuals
           WHERE id_table_liste_plots_n IN (%s)
         ", pb_ids_sql))$id_n
       }
 
       if (length(ind_ids) > 0) {
-        tm_ids <- DBI::dbGetQuery(con, sprintf("
+        tm_ids <- DBI::dbGetQuery(raw_con, sprintf("
           SELECT id_trait_measures FROM data_traits_measures
           WHERE id_data_individuals IN (%s)
         ", paste(ind_ids, collapse = ",")))$id_trait_measures
@@ -307,12 +316,12 @@ safe_delete_plot <- function(plot_ids,
 
       # ---- 5.0 Specimen links ----
       if (length(ind_ids) > 0) {
-        n_sl <- DBI::dbGetQuery(con, sprintf("
+        n_sl <- DBI::dbGetQuery(raw_con, sprintf("
           SELECT COUNT(*) as n FROM data_link_specimens WHERE id_n IN (%s)
         ", paste(ind_ids, collapse = ",")))$n
         if (n_sl > 0) {
           if (verbose) cli::cli_alert_info("Deleting {n_sl} specimen link(s)...")
-          n_del <- batch_delete_ids(con, "data_link_specimens", "id_n",
+          n_del <- batch_delete_ids(raw_con, "data_link_specimens", "id_n",
                                     ind_ids, "specimen link(s)")
           summary$deleted$specimen_links <- summary$deleted$specimen_links + n_del
           if (verbose) cli::cli_alert_success("  Deleted {n_del} specimen link(s)")
@@ -322,7 +331,7 @@ safe_delete_plot <- function(plot_ids,
       # ---- 5.1 Measurement features (by trait_measure_ids) ----
       if (length(tm_ids) > 0) {
         if (verbose) cli::cli_alert_info("Deleting measurement features...")
-        n_del <- batch_delete_ids(con, "data_ind_measures_feat", "id_trait_measures",
+        n_del <- batch_delete_ids(raw_con, "data_ind_measures_feat", "id_trait_measures",
                                   tm_ids, "measurement feature(s)")
         summary$deleted$measurement_features <- summary$deleted$measurement_features + n_del
         if (verbose) cli::cli_alert_success("  Deleted {n_del} measurement feature(s)")
@@ -331,7 +340,7 @@ safe_delete_plot <- function(plot_ids,
       # ---- 5.2 Trait measurements (by individual_ids) ----
       if (length(ind_ids) > 0 && n_trait_measures > 0) {
         if (verbose) cli::cli_alert_info("Deleting trait measurements...")
-        n_del <- batch_delete_ids(con, "data_traits_measures", "id_data_individuals",
+        n_del <- batch_delete_ids(raw_con, "data_traits_measures", "id_data_individuals",
                                   ind_ids, "trait measurement(s)")
         summary$deleted$trait_measurements <- summary$deleted$trait_measurements + n_del
         if (verbose) cli::cli_alert_success("  Deleted {n_del} trait measurement(s)")
@@ -340,7 +349,7 @@ safe_delete_plot <- function(plot_ids,
       # ---- 5.3 Individuals ----
       if (length(ind_ids) > 0 && delete_individuals) {
         if (verbose) cli::cli_alert_info("Deleting individuals...")
-        n_del <- batch_delete_ids(con, "data_individuals", "id_n",
+        n_del <- batch_delete_ids(raw_con, "data_individuals", "id_n",
                                   ind_ids, "individual(s)")
         summary$deleted$individuals <- summary$deleted$individuals + n_del
         if (verbose) cli::cli_alert_success("  Deleted {n_del} individual(s)")
@@ -349,7 +358,7 @@ safe_delete_plot <- function(plot_ids,
       # ---- 5.4 Subplot features ----
       if (n_subplots > 0 && delete_subplots) {
         if (verbose) cli::cli_alert_info("Deleting subplot features...")
-        n_del <- batch_delete_ids(con, "data_liste_sub_plots", "id_table_liste_plots",
+        n_del <- batch_delete_ids(raw_con, "data_liste_sub_plots", "id_table_liste_plots",
                                   pb_ids, "subplot feature(s)")
         summary$deleted$subplots <- summary$deleted$subplots + n_del
         if (verbose) cli::cli_alert_success("  Deleted {n_del} subplot feature(s)")
@@ -358,7 +367,7 @@ safe_delete_plot <- function(plot_ids,
       # ---- 5.5 Plots ----
       if (delete_plot) {
         if (verbose) cli::cli_alert_info("Deleting plot(s)...")
-        n_del <- batch_delete_ids(con, "data_liste_plots", "id_liste_plots",
+        n_del <- batch_delete_ids(raw_con, "data_liste_plots", "id_liste_plots",
                                   pb_ids, "plot(s)")
         summary$deleted$plots <- summary$deleted$plots + n_del
         if (verbose) cli::cli_alert_success("  Deleted {n_del} plot(s)")
