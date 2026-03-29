@@ -47,3 +47,11 @@ WIZARD_*.md
 *_PLAN.md
 *_ANALYSIS.md
 workshop_*.md
+CLAUDE.local.md
+.Rproj.user/
+*.Rcheck/
+
+# Claude Code local files
+.claude/
+.claude-backup-*/
+.claude-config.yml
