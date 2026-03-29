@@ -243,6 +243,15 @@ safe_delete_individuals <- function(plot_name = NULL,
   # ===== STEP 5: Delete in correct order =====
   cli::cli_h2("Deleting Data")
 
+  # Handle Pool connections: checkout a raw connection for transaction work
+  is_pool <- inherits(con, "Pool")
+  if (is_pool) {
+    raw_con <- pool::poolCheckout(con)
+    on.exit(pool::poolReturn(raw_con), add = TRUE)
+  } else {
+    raw_con <- con
+  }
+
   # Step 5.1: Get trait measurement IDs first
   trait_measure_ids <- NULL
   if (n_trait_measures > 0) {
@@ -268,7 +277,7 @@ safe_delete_individuals <- function(plot_name = NULL,
     if (verbose) cli::cli_alert_info("Deleting measurement features in batches...")
 
     tryCatch({
-      DBI::dbBegin(con)
+      DBI::dbBegin(raw_con)
 
       batch_size <- 5000
       unique_trait_ids <- unique(trait_measure_ids)
@@ -285,7 +294,7 @@ safe_delete_individuals <- function(plot_name = NULL,
           paste(batch_ids, collapse = ",")
         )
 
-        rs <- DBI::dbSendQuery(con, query)
+        rs <- DBI::dbSendQuery(raw_con, query)
         n_deleted <- DBI::dbGetRowsAffected(rs)
         DBI::dbClearResult(rs)
 
@@ -296,12 +305,12 @@ safe_delete_individuals <- function(plot_name = NULL,
         }
       }
 
-      DBI::dbCommit(con)
+      DBI::dbCommit(raw_con)
       summary$deleted$measurement_features <- total_deleted_features
       if (verbose) cli::cli_alert_success("  ✔ Deleted {total_deleted_features} measurement feature(s) total")
 
     }, error = function(e) {
-      DBI::dbRollback(con)
+      DBI::dbRollback(raw_con)
       cli::cli_alert_danger("❌ Error deleting measurement features: {e$message}")
       summary$success <- FALSE
       summary$errors <- c(summary$errors, list(e$message))
@@ -314,7 +323,7 @@ safe_delete_individuals <- function(plot_name = NULL,
     if (verbose) cli::cli_alert_info("Deleting trait measurements in batches...")
 
     tryCatch({
-      DBI::dbBegin(con)
+      DBI::dbBegin(raw_con)
 
       batch_size <- 5000
       unique_trait_ids <- unique(trait_measure_ids)
@@ -331,7 +340,7 @@ safe_delete_individuals <- function(plot_name = NULL,
           paste(batch_ids, collapse = ",")
         )
 
-        rs <- DBI::dbSendQuery(con, query)
+        rs <- DBI::dbSendQuery(raw_con, query)
         n_deleted <- DBI::dbGetRowsAffected(rs)
         DBI::dbClearResult(rs)
 
@@ -342,12 +351,12 @@ safe_delete_individuals <- function(plot_name = NULL,
         }
       }
 
-      DBI::dbCommit(con)
+      DBI::dbCommit(raw_con)
       summary$deleted$trait_measurements <- total_deleted_measures
       if (verbose) cli::cli_alert_success("  ✔ Deleted {total_deleted_measures} trait measurement(s) total")
 
     }, error = function(e) {
-      DBI::dbRollback(con)
+      DBI::dbRollback(raw_con)
       cli::cli_alert_danger("❌ Error deleting trait measurements: {e$message}")
       summary$success <- FALSE
       summary$errors <- c(summary$errors, list(e$message))
@@ -356,7 +365,7 @@ safe_delete_individuals <- function(plot_name = NULL,
   }
 
   # Step 5.3b: Delete specimen links (data_link_specimens) before individuals
-  n_specimen_links <- DBI::dbGetQuery(con, sprintf("
+  n_specimen_links <- DBI::dbGetQuery(raw_con, sprintf("
     SELECT COUNT(*) as n FROM data_link_specimens WHERE id_n IN (%s)
   ", paste(individual_ids_to_delete, collapse = ",")))$n
 
@@ -364,7 +373,7 @@ safe_delete_individuals <- function(plot_name = NULL,
     if (verbose) cli::cli_alert_info("Deleting {n_specimen_links} specimen link(s)...")
 
     tryCatch({
-      DBI::dbBegin(con)
+      DBI::dbBegin(raw_con)
       batch_size_links <- 5000
       unique_ind_ids <- unique(individual_ids_to_delete)
       n_batches_links <- ceiling(length(unique_ind_ids) / batch_size_links)
@@ -375,7 +384,7 @@ safe_delete_individuals <- function(plot_name = NULL,
         end_idx <- min(batch_idx * batch_size_links, length(unique_ind_ids))
         batch_ids <- unique_ind_ids[start_idx:end_idx]
 
-        rs <- DBI::dbSendQuery(con, sprintf(
+        rs <- DBI::dbSendQuery(raw_con, sprintf(
           "DELETE FROM data_link_specimens WHERE id_n IN (%s)",
           paste(batch_ids, collapse = ",")
         ))
@@ -383,12 +392,12 @@ safe_delete_individuals <- function(plot_name = NULL,
         DBI::dbClearResult(rs)
       }
 
-      DBI::dbCommit(con)
+      DBI::dbCommit(raw_con)
       summary$deleted$specimen_links <- total_deleted_links
       if (verbose) cli::cli_alert_success("  ✔ Deleted {total_deleted_links} specimen link(s)")
 
     }, error = function(e) {
-      DBI::dbRollback(con)
+      DBI::dbRollback(raw_con)
       cli::cli_alert_danger("❌ Error deleting specimen links: {e$message}")
       summary$success <- FALSE
       summary$errors <- c(summary$errors, list(e$message))
@@ -409,7 +418,7 @@ safe_delete_individuals <- function(plot_name = NULL,
     if (batch_error) break
     tryCatch({
       # Separate transaction for each batch
-      DBI::dbBegin(con)
+      DBI::dbBegin(raw_con)
 
       start_idx <- (batch_idx - 1) * batch_size + 1
       end_idx <- min(batch_idx * batch_size, length(unique_ids))
@@ -420,11 +429,11 @@ safe_delete_individuals <- function(plot_name = NULL,
         paste(batch_ids, collapse = ",")
       )
 
-      rs <- DBI::dbSendQuery(con, query)
+      rs <- DBI::dbSendQuery(raw_con, query)
       n_deleted <- DBI::dbGetRowsAffected(rs)
       DBI::dbClearResult(rs)
 
-      DBI::dbCommit(con)
+      DBI::dbCommit(raw_con)
 
       total_deleted_indiv <- total_deleted_indiv + n_deleted
 
@@ -438,7 +447,7 @@ safe_delete_individuals <- function(plot_name = NULL,
       }
 
     }, error = function(e) {
-      tryCatch(DBI::dbRollback(con), error = function(e2) {})
+      tryCatch(DBI::dbRollback(raw_con), error = function(e2) {})
       cli::cli_alert_danger("❌ Error deleting individuals batch {batch_idx}: {e$message}")
       summary$success <- FALSE
       summary$errors <- c(summary$errors, list(paste0("Batch ", batch_idx, ": ", e$message)))

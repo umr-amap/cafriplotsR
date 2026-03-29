@@ -204,6 +204,15 @@ safe_delete_specimen_links <- function(individual_ids = NULL,
   # ===== STEP 4: Delete in batches =====
   cli::cli_h2("Deleting Specimen Links")
 
+  # Handle Pool connections: checkout a raw connection for transaction work
+  is_pool <- inherits(con, "Pool")
+  if (is_pool) {
+    raw_con <- pool::poolCheckout(con)
+    on.exit(pool::poolReturn(raw_con), add = TRUE)
+  } else {
+    raw_con <- con
+  }
+
   if (verbose) cli::cli_alert_info("Deleting {length(link_ids_to_delete)} link(s) in batches...")
 
   unique_link_ids <- unique(link_ids_to_delete)
@@ -216,14 +225,14 @@ safe_delete_specimen_links <- function(individual_ids = NULL,
     batch_ids  <- unique_link_ids[start_idx:end_idx]
 
     tryCatch({
-      DBI::dbBegin(con)
-      rs    <- DBI::dbSendQuery(con, sprintf(
+      DBI::dbBegin(raw_con)
+      rs    <- DBI::dbSendQuery(raw_con, sprintf(
         "DELETE FROM data_link_specimens WHERE id_link_specimens IN (%s)",
         paste(batch_ids, collapse = ",")
       ))
       n_del <- DBI::dbGetRowsAffected(rs)
       DBI::dbClearResult(rs)
-      DBI::dbCommit(con)
+      DBI::dbCommit(raw_con)
 
       total_deleted <- total_deleted + n_del
 
@@ -231,7 +240,7 @@ safe_delete_specimen_links <- function(individual_ids = NULL,
         cli::cli_alert_info("    Batch {batch_idx}/{n_batches}: deleted {n_del} link(s)")
       }
     }, error = function(e) {
-      tryCatch(DBI::dbRollback(con), error = function(e2) {})
+      tryCatch(DBI::dbRollback(raw_con), error = function(e2) {})
       cli::cli_alert_danger("Error deleting specimen links (batch {batch_idx}): {e$message}")
       summary$success <- FALSE
       summary$errors  <- c(summary$errors, list(e$message))

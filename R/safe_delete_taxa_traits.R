@@ -222,6 +222,15 @@ safe_delete_taxa_traits <- function(idtax = NULL,
   # ===== STEP 5: Delete in correct order =====
   cli::cli_h2("Deleting Data")
 
+  # Handle Pool connections: checkout a raw connection for transaction work
+  is_pool <- inherits(con, "Pool")
+  if (is_pool) {
+    raw_con <- pool::poolCheckout(con)
+    on.exit(pool::poolReturn(raw_con), add = TRUE)
+  } else {
+    raw_con <- con
+  }
+
   batch_size <- 5000
   unique_measure_ids <- unique(measure_ids_to_delete)
   n_batches <- ceiling(length(unique_measure_ids) / batch_size)
@@ -238,14 +247,14 @@ safe_delete_taxa_traits <- function(idtax = NULL,
       batch_ids <- unique_measure_ids[start_idx:end_idx]
 
       tryCatch({
-        DBI::dbBegin(con)
-        rs <- DBI::dbSendQuery(con, sprintf(
+        DBI::dbBegin(raw_con)
+        rs <- DBI::dbSendQuery(raw_con, sprintf(
           "DELETE FROM taxa_traits_measures_feat WHERE id_trait_measures IN (%s)",
           paste(batch_ids, collapse = ",")
         ))
         n_del <- DBI::dbGetRowsAffected(rs)
         DBI::dbClearResult(rs)
-        DBI::dbCommit(con)
+        DBI::dbCommit(raw_con)
 
         total_deleted_feat <- total_deleted_feat + n_del
 
@@ -253,7 +262,7 @@ safe_delete_taxa_traits <- function(idtax = NULL,
           cli::cli_alert_info("    Batch {batch_idx}/{n_batches}: deleted {n_del} feature(s)")
         }
       }, error = function(e) {
-        tryCatch(DBI::dbRollback(con), error = function(e2) {})
+        tryCatch(DBI::dbRollback(raw_con), error = function(e2) {})
         cli::cli_alert_danger("Error deleting measurement features (batch {batch_idx}): {e$message}")
         summary$success <- FALSE
         summary$errors  <- c(summary$errors, list(e$message))
@@ -275,14 +284,14 @@ safe_delete_taxa_traits <- function(idtax = NULL,
     batch_ids <- unique_measure_ids[start_idx:end_idx]
 
     tryCatch({
-      DBI::dbBegin(con)
-      rs <- DBI::dbSendQuery(con, sprintf(
+      DBI::dbBegin(raw_con)
+      rs <- DBI::dbSendQuery(raw_con, sprintf(
         "DELETE FROM taxa_traits_measures WHERE id_trait_measures IN (%s)",
         paste(batch_ids, collapse = ",")
       ))
       n_del <- DBI::dbGetRowsAffected(rs)
       DBI::dbClearResult(rs)
-      DBI::dbCommit(con)
+      DBI::dbCommit(raw_con)
 
       total_deleted_measures <- total_deleted_measures + n_del
 
@@ -290,7 +299,7 @@ safe_delete_taxa_traits <- function(idtax = NULL,
         cli::cli_alert_info("    Batch {batch_idx}/{n_batches}: deleted {n_del} measurement(s)")
       }
     }, error = function(e) {
-      tryCatch(DBI::dbRollback(con), error = function(e2) {})
+      tryCatch(DBI::dbRollback(raw_con), error = function(e2) {})
       cli::cli_alert_danger("Error deleting trait measurements (batch {batch_idx}): {e$message}")
       summary$success <- FALSE
       summary$errors  <- c(summary$errors, list(e$message))
