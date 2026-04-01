@@ -816,6 +816,26 @@ enrich_individual_traits <- function(individuals, con, show_multiple_census,
     if (nrow(traits_aggregated) > 0 && ncol(traits_aggregated) > 1) {
       individuals <- individuals %>%
         left_join(traits_aggregated, by = c('id_n' = 'id_data_individuals'))
+
+      # Remove dead/presumed_dead individuals when selecting a single census
+      if (!show_multiple_census && census_strategy %in% c("first", "last") &&
+          "stem_status" %in% names(individuals)) {
+        dead_ids <- individuals %>%
+          dplyr::filter(stem_status %in% c("dead", "presumed_dead")) %>%
+          dplyr::pull(id_n) %>%
+          unique()
+        if (length(dead_ids) > 0) {
+          individuals <- individuals %>% dplyr::filter(!id_n %in% dead_ids)
+          cli::cli_alert_info(
+            "Removed {length(dead_ids)} dead/presumed_dead individual(s) at {census_strategy} census"
+          )
+        }
+      } else if (!show_multiple_census && census_strategy %in% c("first", "last") &&
+                 !"stem_status" %in% names(individuals)) {
+        cli::cli_alert_warning(
+          "No stem_status data found. Dead/presumed_dead individuals cannot be filtered. Consider running the stem_status workflow."
+        )
+      }
     } else {
       cli::cli_alert_info("No traits found to enrich")
     }
@@ -877,6 +897,28 @@ enrich_individual_traits <- function(individuals, con, show_multiple_census,
     cli::cli_alert_success(
       "Long format: {nrow(individuals)} row(s) after joining measurements"
     )
+
+    # Remove dead/presumed_dead individuals when selecting a single census
+    if (!show_multiple_census && census_strategy %in% c("first", "last")) {
+      stem_rows <- individuals %>%
+        dplyr::filter(trait == "stem_status")
+      if (nrow(stem_rows) > 0) {
+        dead_ids <- stem_rows %>%
+          dplyr::filter(traitvalue_char %in% c("dead", "presumed_dead")) %>%
+          dplyr::pull(id_n) %>%
+          unique()
+        if (length(dead_ids) > 0) {
+          individuals <- individuals %>% dplyr::filter(!id_n %in% dead_ids)
+          cli::cli_alert_info(
+            "Removed {length(dead_ids)} dead/presumed_dead individual(s) at {census_strategy} census"
+          )
+        }
+      } else {
+        cli::cli_alert_warning(
+          "No stem_status data found. Dead/presumed_dead individuals cannot be filtered. Consider running the stem_status workflow."
+        )
+      }
+    }
   }
 
   return(individuals)
