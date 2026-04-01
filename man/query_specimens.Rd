@@ -18,6 +18,8 @@ query_specimens(
   interactive = TRUE,
   extract_linked_individuals = FALSE,
   subset_columns = TRUE,
+  show_html = TRUE,
+  html_max = 20,
   con = NULL,
   con.taxa = NULL
 )
@@ -48,6 +50,14 @@ query_specimens(
 \item{extract_linked_individuals}{Logical, also fetch linked individuals}
 
 \item{subset_columns}{Logical, return subset of columns vs all columns}
+
+\item{show_html}{Logical. If TRUE (default) and the number of returned
+specimens is at most \code{html_max}, the results are displayed as a
+transposed HTML table in the RStudio Viewer (one column per specimen)
+using \code{print_table()}.}
+
+\item{html_max}{Integer. Maximum number of specimens for which the HTML
+visualisation is triggered automatically (default 20).}
 
 \item{con}{Database connection (if NULL, creates new connection)}
 

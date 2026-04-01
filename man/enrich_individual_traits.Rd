@@ -8,8 +8,7 @@ enrich_individual_traits(
   individuals,
   con,
   show_multiple_census,
-  remove_obs_with_issue,
-  include_issue = FALSE,
+  issues = c("remove", "include", "ignore"),
   include_measurement_ids = FALSE,
   census_strategy = c("last", "first", "mean"),
   individual_features_format = c("wide", "long")

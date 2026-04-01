@@ -9,7 +9,7 @@ query_individual_features(
   trait_ids = NULL,
   include_multi_census = FALSE,
   format = c("wide", "long"),
-  remove_issues = TRUE,
+  issues = c("remove", "include", "ignore"),
   include_metadata = FALSE,
   include_individuals = FALSE,
   census_strategy = c("last", "first", "mean"),
@@ -25,7 +25,9 @@ query_individual_features(
 
 \item{format}{Output format: "wide" (pivot) or "long" (raw)}
 
-\item{remove_issues}{Remove observations flagged with issues}
+\item{issues}{Character. How to handle flagged measurements: "remove" (default,
+drop flagged rows), "include" (keep rows and add issue column), or "ignore"
+(keep rows, no issue column).}
 
 \item{include_metadata}{Include trait measurement features (only available with format="long")}
 
