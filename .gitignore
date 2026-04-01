@@ -91,3 +91,7 @@ USER_PERMISSIONS_GUIDE.md
 cheatsheet_cafriplots_fr.md
 newsletter_email.md
 text_formation.md
+
+# Root-level output images and libs assets
+basal_area_completeness_*.png
+libs/
