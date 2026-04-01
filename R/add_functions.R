@@ -2124,6 +2124,7 @@ add_traits_measures <- function(new_data,
       dplyr::collect()
 
     new_data_renamed <- new_data_renamed %>%
+      dplyr::select(-dplyr::any_of("id_table_liste_plots_n")) %>%
       dplyr::left_join(ind_to_plot, by = c("id_data_individuals" = "id_n")) %>%
       dplyr::rename(id_liste_plots = id_table_liste_plots_n)
 
@@ -2288,9 +2289,17 @@ add_traits_measures <- function(new_data,
   
   ### Checkout connection once for the whole operation (pool-safe)
   is_pool <- inherits(mydb, "Pool")
+  transaction_active <- FALSE  # tracks open transaction for interrupt-safe cleanup
   actual_con <- if (is_pool) {
     con_checked_out <- pool::poolCheckout(mydb)
-    on.exit(pool::poolReturn(con_checked_out), add = TRUE)
+    on.exit({
+      # Roll back any open transaction before returning connection to pool.
+      # This handles user interrupts (Ctrl+C) which bypass tryCatch handlers.
+      if (transaction_active) {
+        tryCatch(DBI::dbRollback(actual_con), error = function(e) NULL)
+      }
+      pool::poolReturn(con_checked_out)
+    }, add = TRUE)
     con_checked_out
   } else {
     mydb
@@ -2302,7 +2311,10 @@ add_traits_measures <- function(new_data,
 
   tryCatch({
 
-  if (add_data) DBI::dbBegin(actual_con)
+  if (add_data) {
+    DBI::dbBegin(actual_con)
+    transaction_active <- TRUE
+  }
 
   for (i in seq_along(traits_field)) {
 
@@ -3060,16 +3072,19 @@ add_traits_measures <- function(new_data,
   # Single commit covering all traits and their features
   if (add_data && any_inserted) {
     DBI::dbCommit(actual_con)
+    transaction_active <<- FALSE
     cli::cli_alert_success("Transaction committed — all traits and features inserted successfully")
   } else if (add_data) {
     DBI::dbRollback(actual_con)
+    transaction_active <<- FALSE
     cli::cli_alert_info("Transaction rolled back — no data was confirmed for insertion")
   }
 
   }, error = function(e) {
-    tryCatch(
-      DBI::dbRollback(actual_con),
-      error = function(e2) cli::cli_alert_danger("Rollback failed: {e2$message}")
+    tryCatch({
+      DBI::dbRollback(actual_con)
+      transaction_active <<- FALSE
+    }, error = function(e2) cli::cli_alert_danger("Rollback failed: {e2$message}")
     )
     # Distinguish connection loss from logic errors for a clearer message
     if (grepl("terminating connection|connection.*lost|server.*shut|EOF|SSL SYSCALL",
