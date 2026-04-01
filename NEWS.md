@@ -37,6 +37,14 @@
 
 ### Bug Fixes
 
+* **`query_plots()` dead/presumed_dead individual filtering at `census_strategy = "first"/"last"`**
+  - When `show_multiple_census = FALSE` and `census_strategy` is `"first"` or `"last"`,
+    individuals with `stem_status` of `"dead"` or `"presumed_dead"` at the selected census
+    are now automatically removed from the result
+  - A warning is emitted when no `stem_status` data is found (requires the stem_status
+    workflow to have been run for the plot)
+  - Applies to both wide and long `individual_features_format` output paths
+
 * **`query_plots()` `stem_diameter = NA` with `show_multiple_census = FALSE`**
   - Older measurements stored without `id_table_liste_plots` were silently
     dropped during census filtering; fixed by coalescing the plot ID from the

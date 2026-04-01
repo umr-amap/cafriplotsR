@@ -1222,7 +1222,7 @@ query_individual_features <- function(
 
     # Filter to first or last census
     if ("census_name" %in% names(raw_data) && any(!is.na(raw_data$census_name))) {
-      raw_data <- filter_to_census(data = raw_data, strategy = census_strategy, con = con)
+      raw_data <- filter_to_census(data = raw_data, strategy = census_strategy)
     } else {
       cli::cli_alert_warning("No census information available; using all measurements")
     }
@@ -1418,7 +1418,7 @@ enrich_census_info <- function(data, con) {
 
 #' Filter data to first or last census
 #' @keywords internal
-filter_to_census <- function(data, strategy = c("first", "last"), con) {
+filter_to_census <- function(data, strategy = c("first", "last")) {
 
   strategy <- match.arg(strategy)
 
@@ -1480,6 +1480,8 @@ filter_to_census <- function(data, strategy = c("first", "last"), con) {
   # Combine filtered census data with non-census data
   bind_rows(data_filtered, data_no_census)
 }
+
+
 
 #' Enrich data with measurement-level features/metadata
 #' @keywords internal

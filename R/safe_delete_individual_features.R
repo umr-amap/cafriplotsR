@@ -257,81 +257,87 @@ safe_delete_individual_features <- function(id_trait_measures = NULL,
     if (verbose) cli::cli_alert_info("Deleting measurement sub-features...")
 
     total_deleted_feat <- 0L
+    feat_error <- FALSE
 
-    for (batch_idx in seq_len(n_batches)) {
-      start_idx <- (batch_idx - 1) * batch_size + 1
-      end_idx   <- min(batch_idx * batch_size, length(unique_measure_ids))
-      batch_ids <- unique_measure_ids[start_idx:end_idx]
+    tryCatch({
+      DBI::dbBegin(raw_con)
 
-      tryCatch({
-        DBI::dbBegin(raw_con)
+      for (batch_idx in seq_len(n_batches)) {
+        start_idx <- (batch_idx - 1) * batch_size + 1
+        end_idx   <- min(batch_idx * batch_size, length(unique_measure_ids))
+        batch_ids <- unique_measure_ids[start_idx:end_idx]
+
         rs <- DBI::dbSendQuery(raw_con, sprintf(
           "DELETE FROM data_ind_measures_feat WHERE id_trait_measures IN (%s)",
           paste(batch_ids, collapse = ",")
         ))
         n_del <- DBI::dbGetRowsAffected(rs)
         DBI::dbClearResult(rs)
-        DBI::dbCommit(raw_con)
-
         total_deleted_feat <- total_deleted_feat + n_del
 
         if (verbose && n_batches > 1) {
           cli::cli_alert_info("    Batch {batch_idx}/{n_batches}: deleted {n_del} sub-feature(s)")
         }
-      }, error = function(e) {
-        tryCatch(DBI::dbRollback(raw_con), error = function(e2) {})
-        cli::cli_alert_danger("Error deleting measurement sub-features (batch {batch_idx}): {e$message}")
-        summary$success <- FALSE
-        summary$errors  <- c(summary$errors, list(e$message))
-      })
-    }
+      }
+
+      DBI::dbCommit(raw_con)
+
+    }, error = function(e) {
+      tryCatch(DBI::dbRollback(raw_con), error = function(e2) {})
+      cli::cli_alert_danger("Error deleting measurement sub-features: {e$message}")
+      feat_error <<- TRUE
+    })
 
     summary$deleted$measurement_features <- total_deleted_feat
     if (verbose) cli::cli_alert_success("  Deleted {total_deleted_feat} measurement sub-feature(s) total")
+
+    if (feat_error) {
+      cli::cli_alert_warning("Sub-feature deletion failed - aborting to preserve data integrity")
+      return(invisible(summary))
+    }
   }
 
   # Step 5.2: Delete trait measurements
   if (verbose) cli::cli_alert_info("Deleting individual feature measurements...")
 
-  total_deleted_measures <- 0L
+  measure_delete_error <- FALSE
 
-  for (batch_idx in seq_len(n_batches)) {
-    start_idx <- (batch_idx - 1) * batch_size + 1
-    end_idx   <- min(batch_idx * batch_size, length(unique_measure_ids))
-    batch_ids <- unique_measure_ids[start_idx:end_idx]
+  tryCatch({
+    DBI::dbBegin(raw_con)
 
-    tryCatch({
-      DBI::dbBegin(raw_con)
+    for (batch_idx in seq_len(n_batches)) {
+      start_idx <- (batch_idx - 1) * batch_size + 1
+      end_idx   <- min(batch_idx * batch_size, length(unique_measure_ids))
+      batch_ids <- unique_measure_ids[start_idx:end_idx]
+
       rs <- DBI::dbSendQuery(raw_con, sprintf(
         "DELETE FROM data_traits_measures WHERE id_trait_measures IN (%s)",
         paste(batch_ids, collapse = ",")
       ))
       n_del <- DBI::dbGetRowsAffected(rs)
       DBI::dbClearResult(rs)
-      DBI::dbCommit(raw_con)
-
-      total_deleted_measures <- total_deleted_measures + n_del
 
       if (verbose && n_batches > 1) {
         cli::cli_alert_info("    Batch {batch_idx}/{n_batches}: deleted {n_del} measurement(s)")
       }
-    }, error = function(e) {
-      tryCatch(DBI::dbRollback(raw_con), error = function(e2) {})
-      cli::cli_alert_danger("Error deleting feature measurements (batch {batch_idx}): {e$message}")
-      summary$success <- FALSE
-      summary$errors  <- c(summary$errors, list(e$message))
-    })
-  }
+    }
 
-  summary$deleted$trait_measurements <- total_deleted_measures
+    DBI::dbCommit(raw_con)
+
+  }, error = function(e) {
+    tryCatch(DBI::dbRollback(raw_con), error = function(e2) {})
+    cli::cli_alert_danger("Error deleting feature measurements: {e$message}")
+    measure_delete_error <<- TRUE
+  })
 
   # ===== STEP 6: Summary =====
-  if (total_deleted_measures == length(unique_measure_ids)) {
+  if (!measure_delete_error) {
     summary$success <- TRUE
+    summary$deleted$trait_measurements <- length(unique_measure_ids)
     if (verbose) {
       cli::cli_h2("Deletion Summary")
       cli::cli_alert_success("Successfully deleted:")
-      lines <- sprintf("%d individual feature measurement record(s)", total_deleted_measures)
+      lines <- sprintf("%d individual feature measurement record(s)", length(unique_measure_ids))
       if (!is.null(summary$deleted$measurement_features)) {
         lines <- c(lines, sprintf("%d measurement sub-feature(s)", as.integer(summary$deleted$measurement_features)))
       }
@@ -339,9 +345,8 @@ safe_delete_individual_features <- function(id_trait_measures = NULL,
       cli::cli_alert_success("Individuals preserved (individuals table not modified)")
     }
   } else {
-    cli::cli_alert_warning(
-      "Partial deletion: {total_deleted_measures}/{length(unique_measure_ids)} measurements deleted"
-    )
+    summary$deleted$trait_measurements <- 0L
+    cli::cli_alert_warning("Deletion failed - see error above")
   }
 
   invisible(summary)
