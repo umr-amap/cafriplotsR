@@ -9,9 +9,8 @@ get_individual_aggregated_features(
   trait_ids = NULL,
   plot_ids = NULL,
   include_multi_census = FALSE,
-  remove_issues = TRUE,
+  issues = c("remove", "include", "ignore"),
   aggregation_mode = c("auto", "mean", "last", "mode", "concat"),
-  include_issue = FALSE,
   include_measurement_ids = FALSE,
   census_strategy = c("last", "first", "mean"),
   con = NULL
@@ -26,11 +25,11 @@ get_individual_aggregated_features(
 
 \item{include_multi_census}{Include census-specific values}
 
-\item{remove_issues}{Remove measurements flagged with issues}
+\item{issues}{Character. How to handle flagged measurements: "remove" (default,
+drop flagged rows), "include" (keep rows and add issue column), or "ignore"
+(keep rows, no issue column).}
 
 \item{aggregation_mode}{How to aggregate: "mean", "last", "mode", "concat"}
-
-\item{include_issue}{Include aggregated issue column (default FALSE)}
 
 \item{include_measurement_ids}{Include aggregated id_trait_measures column (default FALSE)}
 

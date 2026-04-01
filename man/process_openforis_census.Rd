@@ -141,8 +141,19 @@ A list with components:
     plot_name, tag, group_tag (parent tag), stem_order (position within
     group), original_tax_name, idtax, flag (validation issues). NULL if
     no multi-stem individuals detected. Review flags before uploading.}
+  \item{all_stems}{Tibble in the same wide format as \code{recruits} but
+    covering every stem in the dataset (recruits and existing individuals
+    alike). Useful for bulk imports or cross-census checks where you need
+    all stems in one table.}
+  \item{duplicated_stems}{Tibble of all rows involved in duplicated
+    \code{plot_name + tag} combinations (i.e. every row that shares a
+    plot_name/tag pair with at least one other row), with columns
+    plot_name, tag, state, species_scientific_name, species_code,
+    stem_diameter, quadrat (whichever are present). NULL if no duplicates.
+    A \code{warning()} is also raised when duplicates are found.}
   \item{summary}{List with counts: n_plots, n_recruits, n_existing,
-    n_measurements, n_specimens, n_multi_stem_groups, trait_names.}
+    n_measurements, n_specimens, n_multi_stem_groups, n_all_stems,
+    n_duplicated_stems, trait_names.}
 }
 }
 \description{
