@@ -5322,6 +5322,10 @@
       "fr": "Format long (une ligne par mesure)"
     },
     {
+      "en": "Census pairs (one row per census interval)",
+      "fr": "Paires de recensements (une ligne par intervalle)"
+    },
+    {
       "en": "Include multi-census data",
       "fr": "Inclure les données multi-recensement"
     },
@@ -5410,12 +5414,20 @@
       "fr": "Format long :"
     },
     {
+      "en": "Census pairs format:",
+      "fr": "Format paires de recensements :"
+    },
+    {
       "en": "One row per individual, measurements as columns. Values are aggregated if multiple observations exist per individual.",
       "fr": "Une ligne par individu, mesures en colonnes. Les valeurs sont agrégées s'il existe plusieurs observations par individu."
     },
     {
       "en": "One row per measurement. More complete representation with no aggregation.",
       "fr": "Une ligne par mesure. Représentation plus complète sans agrégation."
+    },
+    {
+      "en": "One row per consecutive census pair per individual. Columns: dbh0, dbh1, date_census0, date_census1, time (days between censuses), stem_status at second census.",
+      "fr": "Une ligne par paire consécutive de recensements par individu. Colonnes : dbh0, dbh1, date_census0, date_census1, time (jours entre les recensements), stem_status au second recensement."
     },
     {
       "en": "Wide Format (Aggregated)",

@@ -313,7 +313,7 @@ mod_taxa_search_server <- function(id, pool, i18n,
             order = order,
             ids = ids,
             exact_match = input$exact_match,
-            check_synonymy = FALSE,
+            check_synonymy = TRUE,
             extract_traits = TRUE,
             include_children = isTRUE(input$include_children),
             verbose = FALSE
