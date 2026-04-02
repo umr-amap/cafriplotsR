@@ -115,16 +115,15 @@ mod_plot_metadata_viewer_server <- function(id, metadata, i18n) {
 
       if (is.null(meta)) {
         cli::cli_alert_info("No metadata available yet")
+        rv$selected_rows <- NULL
         return()
       }
 
       cli::cli_alert_success("Metadata received! {nrow(meta)} plots - triggering map and table rendering")
 
-      # Select ALL rows by default
-      if (is.null(rv$selected_rows)) {
-        rv$selected_rows <- 1:nrow(meta)
-        cli::cli_alert_info("All {nrow(meta)} plots selected by default")
-      }
+      # Always reset to all-selected when new metadata arrives
+      rv$selected_rows <- seq_len(nrow(meta))
+      cli::cli_alert_info("All {nrow(meta)} plots selected by default")
     })
 
     # Status message
@@ -272,7 +271,7 @@ mod_plot_metadata_viewer_server <- function(id, metadata, i18n) {
 
       DT::datatable(
         meta_display,
-        selection = list(mode = "multiple", selected = rv$selected_rows),
+        selection = list(mode = "multiple", selected = seq_len(nrow(meta_display))),
         options = list(
           pageLength = 10,
           scrollX = TRUE,

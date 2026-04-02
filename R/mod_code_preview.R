@@ -29,6 +29,8 @@ mod_code_preview_ui <- function(id) {
 #' @param individuals_available Reactive returning TRUE when individuals have been extracted
 #' @param individual_features_options Reactive returning named list of individual features options (optional)
 #' @param individual_features_available Reactive returning TRUE when individual features have been queried (optional)
+#' @param n_metadata_plots Reactive returning the total number of plots in the metadata query result (optional).
+#'   Used to determine whether the selected plots represent a subset or all queried plots.
 #' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return NULL
@@ -38,7 +40,8 @@ mod_code_preview_ui <- function(id) {
 mod_code_preview_server <- function(id, filters, selected_plots, extraction_options,
                                      metadata_available, individuals_available, i18n,
                                      individual_features_options = NULL,
-                                     individual_features_available = NULL) {
+                                     individual_features_available = NULL,
+                                     n_metadata_plots = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -58,8 +61,9 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
           paste0('"', filters$plot_name, '"', collapse = ", ")))
       }
 
-      if (!is.null(filters$locality_name) && nzchar(filters$locality_name)) {
-        args <- c(args, sprintf('  locality_name = "%s"', filters$locality_name))
+      if (!is.null(filters$locality_name) && length(filters$locality_name) > 0 && any(nzchar(filters$locality_name))) {
+        args <- c(args, sprintf('  locality_name = c(%s)',
+          paste0('"', filters$locality_name, '"', collapse = ", ")))
       }
 
       if (!is.null(filters$method) && length(filters$method) > 0) {
@@ -289,7 +293,13 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
         current_plots <- selected_plots()
         current_options <- extraction_options()
         current_filters <- filters()
-        individuals_code <- generate_individuals_code(current_plots, current_options, current_filters, use_metadata_ref = has_metadata)
+        # Use metadata reference only when ALL metadata plots are selected (not a subset)
+        all_selected <- is.null(n_metadata_plots) ||
+          isTRUE(length(current_plots) == n_metadata_plots())
+        individuals_code <- generate_individuals_code(
+          current_plots, current_options, current_filters,
+          use_metadata_ref = has_metadata && all_selected
+        )
         code_sections$individuals <- individuals_code
       }
 

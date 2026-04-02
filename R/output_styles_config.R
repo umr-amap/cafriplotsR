@@ -123,7 +123,8 @@
       "traitvalue_char",
       "trait",
       "traitdescription",
-      "valuetype"
+      "valuetype",
+      "time"
       # Census-specific columns added dynamically (stem_diameter_census_1, etc.)
     ),
     keep_census_columns = TRUE,  # Keep all _census_N columns
@@ -179,6 +180,45 @@
     keep_patterns = c(),  # No patterns applied in full mode
     remove_patterns = c(),
     additional_tables = c()
+  ),
+
+  census_pairs = list(
+    description = "One row per consecutive census pair per individual",
+    metadata_columns = c(
+      "plot_name", "country", "locality_name", "method",
+      "ddlat", "ddlon", "elevation",
+      "first_census", "last_census", "n_census",
+      "id_liste_plots", "data_provider", "principal_investigator"
+    ),
+    individuals_columns = c(
+      "id_n", "plot_name", "tag", "quadrat",
+      "tax_fam", "tax_gen", "tax_sp_level",
+      "number_of_stem",
+      "valuetype",
+      "time"
+      # Census-specific columns added dynamically (stem_diameter_census_1, etc.)
+    ),
+    keep_patterns = c("wood_density",
+                      "stem_diameter",
+                      "observations",
+                      "light",
+                      "phenology",
+                      "succession_guild",
+                      "census_date",
+                      "stem_status",
+                      "date_"),
+    remove_patterns = c("^id_(?!n|liste_plots)", "^date_modif"),
+    additional_tables = c(),
+    rename_columns = list(
+      metadata = c("ddlat" = "latitude", "ddlon" = "longitude"),
+      individuals = c(
+        "tax_fam" = "family", "tax_gen" = "genus", "tax_sp_level" = "species",
+        "stem_diameter_0" = "dbh_0", "stem_diameter_1" = "dbh_1",
+        "tree_height_0" = "height_0", "tree_height_1" = "height_1",
+        "date_census0" = "date_census_0",
+        "date_census1" = "date_census_1"
+      )
+    )
   )
 )
 
