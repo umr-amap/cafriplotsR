@@ -100,8 +100,19 @@ method_list <- function() {
 #'   `traitvalue_char`, `valuetype`, `census_name`, and `census_date` (NA when not census-linked).
 #'   Census filtering via `show_multiple_census` / `census_strategy` is still applied.
 #'   Incompatible with `concatenate_stem = TRUE`.
+#'   `"census_pairs"` returns one row per consecutive pair of censuses per individual.
+#'   Census pairing is plot-level: every individual is crossed against all consecutive
+#'   census pairs of its plot, receiving `NA` at any census where it has no measurement
+#'   (e.g. recruited at census_2 → `stem_diameter_0 = NA`; dead at census_2 →
+#'   `stem_diameter_1 = NA`). All individual-level traits appear as `<trait>_0` and
+#'   `<trait>_1` columns. Additional columns: `census_name_0`, `census_name_1`,
+#'   `date_census0`, `date_census1`, `time` (days between the two censuses).
+#'   All available censuses are used regardless of `show_multiple_census`.
+#'   Incompatible with `concatenate_stem = TRUE`.
 #' @param output_style Character. Output formatting style. Options: "auto", "minimal", "standard",
 #'   "permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.
+#'   When `individual_features_format = "census_pairs"` this argument is ignored and
+#'   the `"census_pairs"` style is applied automatically.
 #' @param con Optional database connection to main database. If NULL, will call call.mydb() to establish connection.
 #'   If you've already connected with `mydb <- call.mydb()`, pass `con = mydb` to avoid re-prompting.
 #' @param con.taxa Optional database connection to taxa database. If NULL, will check for `mydb.taxa` in calling environment,
@@ -159,7 +170,7 @@ query_plots <- function(plot_name = NULL,
                         include_measurement_ids = FALSE,
                         exact_match = FALSE,
                         census_strategy = c("last", "first", "mean"),
-                        individual_features_format = c("wide", "long"),
+                        individual_features_format = c("wide", "long", "census_pairs"),
                         output_style = c("auto", "minimal", "standard",
                                          "permanent_plot", "permanent_plot_multi_census", "transect", "full"),
                         con = NULL,
@@ -171,9 +182,9 @@ query_plots <- function(plot_name = NULL,
   output_style <- match.arg(output_style)
   issues <- match.arg(issues)
 
-  if (individual_features_format == "long" && isTRUE(concatenate_stem)) {
+  if (individual_features_format %in% c("long", "census_pairs") && isTRUE(concatenate_stem)) {
     cli::cli_alert_warning(
-      "`individual_features_format = 'long'` is incompatible with `concatenate_stem = TRUE`. Setting `concatenate_stem = FALSE`."
+      "`individual_features_format = '{individual_features_format}'` is incompatible with `concatenate_stem = TRUE`. Setting `concatenate_stem = FALSE`."
     )
     concatenate_stem <- FALSE
   }
@@ -598,6 +609,12 @@ query_plots <- function(plot_name = NULL,
     output_style <- detected_style
   }
 
+  # census_pairs individual format requires its own output style config
+  # (unless the user explicitly requested "full" style)
+  if (individual_features_format == "census_pairs" && output_style != "full") {
+    output_style <- "census_pairs"
+  }
+
   # Apply style restructuring (unless "full")
   if (output_style != "full") {
     res_list <- .apply_output_style(
@@ -751,7 +768,7 @@ enrich_with_traits <- function(individuals, con,
                                issues = c("remove", "include", "ignore"),
                                include_measurement_ids = FALSE,
                                census_strategy = c("last", "first", "mean"),
-                               individual_features_format = c("wide", "long")) {
+                               individual_features_format = c("wide", "long", "census_pairs")) {
 
   census_strategy <- match.arg(census_strategy)
   individual_features_format <- match.arg(individual_features_format)
@@ -792,7 +809,7 @@ enrich_individual_traits <- function(individuals, con, show_multiple_census,
                                      issues = c("remove", "include", "ignore"),
                                      include_measurement_ids = FALSE,
                                      census_strategy = c("last", "first", "mean"),
-                                     individual_features_format = c("wide", "long")) {
+                                     individual_features_format = c("wide", "long", "census_pairs")) {
 
   census_strategy <- match.arg(census_strategy)
   individual_features_format <- match.arg(individual_features_format)
@@ -801,7 +818,164 @@ enrich_individual_traits <- function(individuals, con, show_multiple_census,
 
   all_traits <- traits_list()
 
-  if (individual_features_format == "wide") {
+  if (individual_features_format == "census_pairs") {
+
+    # Census-pairs format: one row per consecutive census pair per individual.
+    # Uses plot-level census timeline so recruited/dead individuals get NA at
+    # the census where they have no measurement.
+    raw_traits <- query_individual_features(
+      individual_ids = individuals$id_n,
+      trait_ids = all_traits$id_trait,
+      include_multi_census = TRUE,
+      format = "long",
+      issues = issues,
+      census_strategy = census_strategy,
+      con = con
+    )
+
+    if (nrow(raw_traits) == 0) {
+      cli::cli_alert_info("No traits found to enrich")
+      return(individuals)
+    }
+
+    # Build census_date from year/month/day components
+    if ("census_year" %in% names(raw_traits)) {
+      raw_traits <- raw_traits %>%
+        dplyr::mutate(
+          census_date = suppressWarnings(
+            lubridate::make_date(
+              year  = census_year,
+              month = dplyr::coalesce(census_month, 1L),
+              day   = dplyr::coalesce(census_day,   1L)
+            )
+          )
+        ) %>%
+        dplyr::select(-dplyr::any_of(c("census_typevalue", "census_day", "census_month", "census_year")))
+    }
+
+    # Restrict to census-linked rows only (id_table_liste_plots needed for plot-level pairing)
+    census_raw <- raw_traits %>%
+      dplyr::filter(!is.na(census_name), !is.na(id_table_liste_plots))
+
+    if (nrow(census_raw) == 0) {
+      cli::cli_alert_warning("No census-linked traits found for census_pairs format")
+      return(individuals)
+    }
+
+    # Build plot-level census timeline with consecutive pairs
+    plot_censuses <- census_raw %>%
+      dplyr::distinct(id_table_liste_plots, census_name, census_date) %>%
+      dplyr::arrange(id_table_liste_plots, census_date, census_name) %>%
+      dplyr::group_by(id_table_liste_plots) %>%
+      dplyr::mutate(
+        census_name_1 = dplyr::lead(census_name),
+        date_census1  = dplyr::lead(census_date)
+      ) %>%
+      dplyr::filter(!is.na(census_name_1)) %>%
+      dplyr::rename(census_name_0 = census_name, date_census0 = census_date) %>%
+      dplyr::ungroup()
+
+    if (nrow(plot_censuses) == 0) {
+      cli::cli_alert_warning("No consecutive census pairs found (need >= 2 censuses per plot)")
+      return(individuals)
+    }
+
+    # Skeleton: all individuals × all census pairs of their plot
+    skeleton <- individuals %>%
+      dplyr::select(id_n, id_table_liste_plots_n) %>%
+      dplyr::left_join(
+        plot_censuses,
+        by = c("id_table_liste_plots_n" = "id_table_liste_plots")
+      ) %>%
+      dplyr::filter(!is.na(census_name_0)) %>%
+      dplyr::select(-id_table_liste_plots_n)
+
+    # Pivot all numeric traits wide per individual × census
+    numeric_wide <- census_raw %>%
+      dplyr::filter(valuetype %in% c("numeric", "integer"), !is.na(traitvalue)) %>%
+      dplyr::distinct(id_data_individuals, census_name, trait, .keep_all = TRUE) %>%
+      dplyr::select(id_data_individuals, census_name, trait, traitvalue) %>%
+      tidyr::pivot_wider(
+        id_cols = c("id_data_individuals", "census_name"),
+        names_from = "trait",
+        values_from = "traitvalue",
+        values_fn = dplyr::first
+      )
+
+    # Pivot all character traits wide per individual × census
+    char_wide <- census_raw %>%
+      dplyr::filter(valuetype %in% c("character", "ordinal", "categorical"), !is.na(traitvalue_char)) %>%
+      dplyr::distinct(id_data_individuals, census_name, trait, .keep_all = TRUE) %>%
+      dplyr::select(id_data_individuals, census_name, trait, traitvalue_char) %>%
+      tidyr::pivot_wider(
+        id_cols = c("id_data_individuals", "census_name"),
+        names_from = "trait",
+        values_from = "traitvalue_char",
+        values_fn = dplyr::first
+      )
+
+    # Combine numeric and character wide tables
+    n_num <- nrow(numeric_wide)
+    n_chr <- nrow(char_wide)
+    if (n_num > 0 && n_chr > 0) {
+      ind_census_wide <- dplyr::full_join(numeric_wide, char_wide, by = c("id_data_individuals", "census_name"))
+    } else if (n_num > 0) {
+      ind_census_wide <- numeric_wide
+    } else if (n_chr > 0) {
+      ind_census_wide <- char_wide
+    } else {
+      cli::cli_alert_warning("No trait measurements found for census_pairs format")
+      return(individuals)
+    }
+
+    # Create _0 and _1 versions of every trait column
+    trait_cols <- setdiff(names(ind_census_wide), c("id_data_individuals", "census_name"))
+
+    ind_census_0 <- ind_census_wide %>%
+      dplyr::rename_with(~ paste0(., "_0"), .cols = dplyr::all_of(trait_cols)) %>%
+      dplyr::rename(census_name_0 = census_name)
+
+    ind_census_1 <- ind_census_wide %>%
+      dplyr::rename_with(~ paste0(., "_1"), .cols = dplyr::all_of(trait_cols)) %>%
+      dplyr::rename(census_name_1 = census_name)
+
+    # Join skeleton with measurements at each census (NA where individual was absent)
+    pairs <- skeleton %>%
+      dplyr::left_join(ind_census_0, by = c("id_n" = "id_data_individuals", "census_name_0")) %>%
+      dplyr::left_join(ind_census_1, by = c("id_n" = "id_data_individuals", "census_name_1")) %>%
+      dplyr::mutate(
+        time = as.numeric(difftime(date_census1, date_census0, units = "days"))
+      )
+
+    # Remove pairs where the individual has no measurements at either census
+    all_trait_pair_cols <- intersect(
+      c(paste0(trait_cols, "_0"), paste0(trait_cols, "_1")),
+      names(pairs)
+    )
+    if (length(all_trait_pair_cols) > 0) {
+      pairs <- pairs[rowSums(!is.na(pairs[, all_trait_pair_cols, drop = FALSE])) > 0, ]
+    }
+
+    if (nrow(pairs) == 0) {
+      cli::cli_alert_warning("No census pairs with measurements found")
+      return(individuals)
+    }
+
+    # Drop any existing census_date artefacts from individuals before expanding
+    individuals <- individuals %>%
+      dplyr::select(-dplyr::any_of("census_date")) %>%
+      dplyr::select(-dplyr::matches("^date_census_\\d+$"))
+
+    # Expand individuals: one row per (individual, census pair)
+    individuals <- individuals %>%
+      dplyr::left_join(pairs, by = "id_n") %>%
+      dplyr::filter(!is.na(census_name_0))
+
+    cli::cli_alert_success(
+      "Census pairs format: {nrow(individuals)} row(s) across all consecutive census pairs"
+    )
+
+  } else if (individual_features_format == "wide") {
 
     traits_aggregated <- get_individual_aggregated_features(
       individual_ids = individuals$id_n,

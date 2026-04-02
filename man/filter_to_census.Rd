@@ -4,7 +4,7 @@
 \alias{filter_to_census}
 \title{Filter data to first or last census}
 \usage{
-filter_to_census(data, strategy = c("first", "last"), con)
+filter_to_census(data, strategy = c("first", "last"))
 }
 \description{
 Filter data to first or last census
