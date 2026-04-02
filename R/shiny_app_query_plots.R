@@ -268,7 +268,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
     # Create reactive translator (shiny.i18n recommended pattern)
     i18n <- shiny::reactive({
       selected <- input$selected_language
-      if (length(selected) > 0 && selected %in% translator$get_languages()) {
+      if (length(selected) == 1 && selected %in% translator$get_languages()) {
         translator$set_translation_language(selected)
       }
       translator
@@ -674,7 +674,8 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
         individuals_available = shiny::reactive(!is.null(rv$individuals)),
         i18n = i18n,
         individual_features_options = extraction_output$individual_features_options,
-        individual_features_available = shiny::reactive(!is.null(rv$individual_features))
+        individual_features_available = shiny::reactive(!is.null(rv$individual_features)),
+        n_metadata_plots = shiny::reactive(if (is.null(rv$metadata)) 0L else nrow(rv$metadata))
       )
 
       # Module 6: Plot Statistics (new)

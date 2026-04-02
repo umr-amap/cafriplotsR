@@ -1235,6 +1235,7 @@ query_individual_features <- function(
 
     # Remove internal aggregated ID column when metadata is included
     raw_data <- raw_data %>% select(-any_of("id_ind_meas_feat"))
+    raw_data <- raw_data %>% mutate(traitvalue_char = stringr::str_squish(traitvalue_char))
   }
 
   # 5. Format output

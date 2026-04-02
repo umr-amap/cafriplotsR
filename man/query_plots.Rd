@@ -28,8 +28,7 @@ query_plots(
   include_liana = FALSE,
   extract_subplot_features = TRUE,
   concatenate_stem = FALSE,
-  remove_obs_with_issue = TRUE,
-  include_issue = FALSE,
+  issues = c("remove", "include", "ignore"),
   include_measurement_ids = FALSE,
   exact_match = FALSE,
   census_strategy = c("last", "first", "mean"),
@@ -89,9 +88,12 @@ in the output list. Default is FALSE.}
 
 \item{concatenate_stem}{Logical. Whether to concatenate multiple stems. Optional.}
 
-\item{remove_obs_with_issue}{Logical. Whether to remove observations with issues. Optional.}
-
-\item{include_issue}{Logical. Whether to include issue flags in aggregated output. Optional.}
+\item{issues}{Character. How to handle flagged measurements. Options:
+\itemize{
+  \item \code{"remove"} (default): Drop flagged measurements before aggregation.
+  \item \code{"include"}: Keep flagged measurements and add an issue column in output.
+  \item \code{"ignore"}: Keep flagged measurements but do not show the issue column.
+}}
 
 \item{include_measurement_ids}{Logical. Whether to include measurement IDs in aggregated output. Optional.}
 

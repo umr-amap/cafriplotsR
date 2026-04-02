@@ -12,8 +12,7 @@ enrich_with_traits(
   traits_to_genera = FALSE,
   wd_fam_level = FALSE,
   show_multiple_census = FALSE,
-  remove_obs_with_issue = TRUE,
-  include_issue = FALSE,
+  issues = c("remove", "include", "ignore"),
   include_measurement_ids = FALSE,
   census_strategy = c("last", "first", "mean"),
   individual_features_format = c("wide", "long")
@@ -34,7 +33,7 @@ enrich_with_traits(
 
 \item{show_multiple_census}{Show multiple census data}
 
-\item{remove_obs_with_issue}{Remove observations with issues}
+\item{issues}{Character. How to handle flagged measurements: "remove", "include", or "ignore".}
 }
 \value{
 Data frame enriched with traits

@@ -103,9 +103,10 @@ mod_extraction_config_server <- function(id, selected_plots, i18n) {
             ns("individual_features_format"),
             i18n()$t("Individual features format"),
             choices = stats::setNames(
-              c("wide", "long"),
+              c("wide", "long", "census_pairs"),
               c(i18n()$t("Wide format (one row per individual)"),
-                i18n()$t("Long format (one row per measurement)"))
+                i18n()$t("Long format (one row per measurement)"),
+                i18n()$t("Census pairs (one row per census interval)"))
             ),
             selected = isolate(input$individual_features_format) %||% "wide",
             inline = TRUE
@@ -247,9 +248,10 @@ mod_extraction_config_server <- function(id, selected_plots, i18n) {
                 ns("individual_features_format"),
                 NULL,
                 choices = stats::setNames(
-                  c("wide", "long"),
+                  c("wide", "long", "census_pairs"),
                   c(i18n()$t("Wide format (measurements as columns)"),
-                    i18n()$t("Long format (measurements as rows)"))
+                    i18n()$t("Long format (measurements as rows)"),
+                    i18n()$t("Census pairs (one row per census interval)"))
                 ),
                 selected = "wide"
               ),
@@ -313,6 +315,12 @@ mod_extraction_config_server <- function(id, selected_plots, i18n) {
           shiny::strong(i18n()$t("Wide format:")),
           " ",
           i18n()$t("One row per individual, measurements as columns. Values are aggregated if multiple observations exist per individual.")
+        )
+      } else if (input$individual_features_format == "census_pairs") {
+        shiny::tagList(
+          shiny::strong(i18n()$t("Census pairs format:")),
+          " ",
+          i18n()$t("One row per consecutive census pair per individual. Columns: dbh0, dbh1, date_census0, date_census1, time (days between censuses), stem_status at second census.")
         )
       } else {
         shiny::tagList(

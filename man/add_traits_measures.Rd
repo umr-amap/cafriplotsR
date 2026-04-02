@@ -9,15 +9,15 @@ add_traits_measures(
   col_names_select = NULL,
   col_names_corresp = NULL,
   collector_field = NULL,
-  plot_name_field = NULL,
-  individual_plot_field = NULL,
-  id_plot_name = NULL,
-  id_tag_plot = NULL,
-  id_specimen = NULL,
+  plot_name_col = NULL,
+  tag_col = NULL,
+  id_individual_col = NULL,
   traits_field,
   features_field = NULL,
   allow_multiple_value = FALSE,
-  add_data = FALSE
+  add_data = FALSE,
+  census_col = NULL,
+  id_sub_plots_col = NULL
 )
 }
 \arguments{
@@ -29,15 +29,17 @@ add_traits_measures(
 
 \item{collector_field}{string column name which contain the collector name}
 
-\item{plot_name_field}{string column name which contain the plot_name for linking}
+\item{plot_name_col}{string column name containing plot names for linking to
+\code{id_liste_plots}. Use together with \code{tag_col} to resolve
+individuals by plot name + tag combination.}
 
-\item{individual_plot_field}{string column name which contain the individual tag for linking}
+\item{tag_col}{string column name containing individual tag numbers. Used
+together with \code{plot_name_col} to resolve individuals by plot + tag.}
 
-\item{id_plot_name}{string column name which contain the ID of plot_name}
-
-\item{id_tag_plot}{string column name which contain the ID of individuals table}
-
-\item{id_specimen}{string column name which contain the ID of specimen}
+\item{id_individual_col}{string column name containing individual IDs
+(\code{id_n} from \code{data_individuals}). Self-sufficient — no plot ID
+argument is required when this is provided; the plot ID is resolved
+internally only when needed for census lookup.}
 
 \item{traits_field}{string vector listing trait columns names in new_data}
 
@@ -46,6 +48,17 @@ add_traits_measures(
 \item{allow_multiple_value}{if multiple values linked to one individual can be uploaded at once}
 
 \item{add_data}{logical whether or not data should be added - by default FALSE}
+
+\item{census_col}{string. Optional column name in \code{new_data} containing the
+census typevalue (integer, e.g. 1, 2, 3). The corresponding \code{id_sub_plots}
+is resolved automatically from the database per plot × census. Rows with
+different census values are handled correctly within a single call.
+Takes precedence over the interactive census prompt but is overridden by
+\code{id_sub_plots_col}.}
+
+\item{id_sub_plots_col}{string. Optional column name in \code{new_data} containing
+the \code{id_sub_plots} value directly. When provided, no database lookup or
+interactive prompt is performed. Takes precedence over \code{census_col}.}
 }
 \value{
 list of tibbles that should be/have been added
