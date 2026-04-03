@@ -15,7 +15,8 @@
 <link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Above-Ground Biomass Estimation with BIOMASS Package">
+<script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
+<meta property="og:title" content="Above-Ground Biomass Estimation with BIOMASS Package">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -25,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -151,16 +152,16 @@ output optimized for biomass analysis:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">Fetching trait measurements</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Removed 283 measurement(s) with issues</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Removed 135 measurement(s) with issues</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Enriching with census information for first census selection</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Selected first census for 2 plot(s)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Filtered out 3683 measurement(s) from other censuses</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Query completed: 6110 measurement(s)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Filtered out 5123 measurement(s) from other censuses</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Query completed: 6944 measurement(s)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">Aggregating features by individual</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Aggregating 4597 numeric measurement(s)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Aggregating 1513 character measurement(s)</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Aggregating 2347 character measurement(s)</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Aggregated 888 individual(s)</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Enriching with taxonomic-level traits</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -229,7 +230,7 @@ traits</strong>:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Check what data we have</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">plot_data</span><span class="op">$</span><span class="va">individuals</span><span class="op">)</span></span>
-<span><span class="co">#&gt; tibble [888 × 28] (S3: tbl_df/tbl/data.frame)</span></span>
+<span><span class="co">#&gt; tibble [888 × 29] (S3: tbl_df/tbl/data.frame)</span></span>
 <span><span class="co">#&gt;  $ id_n                           : int [1:888] 248314 248318 248322 248326 248330 248334 248338 248342 248346 248350 ...</span></span>
 <span><span class="co">#&gt;  $ plot_name                      : chr [1:888] "bouamir001" "bouamir001" "bouamir001" "bouamir001" ...</span></span>
 <span><span class="co">#&gt;  $ tag                            : num [1:888] 1 2 3 4 5 6 7 8 9 10 ...</span></span>
@@ -257,7 +258,8 @@ traits</strong>:</p>
 <span><span class="co">#&gt;  $ taxa_phenology                 : chr [1:888] "evergreen" "deciduous" "evergreen" "evergreen" ...</span></span>
 <span><span class="co">#&gt;  $ source_taxa_phenology          : chr [1:888] "species" "species" "genus" "species" ...</span></span>
 <span><span class="co">#&gt;  $ taxa_succession_guild          : chr [1:888] "non-pioneer light demanding" "non-pioneer light demanding" "shade-tolerant" "shade-tolerant" ...</span></span>
-<span><span class="co">#&gt;  $ source_taxa_succession_guild   : chr [1:888] "species" "species" "genus" "species" ...</span></span></code></pre></div>
+<span><span class="co">#&gt;  $ source_taxa_succession_guild   : chr [1:888] "species" "species" "genus" "species" ...</span></span>
+<span><span class="co">#&gt;  $ stem_status                    : chr [1:888] "alive" "alive" "alive" "alive" ...</span></span></code></pre></div>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Key columns for biomass:</span></span>
 <span><span class="co"># - dbh (stem_diameter): Diameter at breast height (cm)</span></span>
@@ -267,7 +269,7 @@ traits</strong>:</p>
 <span><span class="co"># - source_taxa_mean_wood_density (taxa_sd_wood_density): source of information for wood density</span></span>
 <span></span>
 <span><span class="co"># Summary of wood density availability</span></span>
-<span><span class="va">plot_data</span><span class="op">$</span><span class="va">individuals</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span><span class="va">plot_data</span><span class="op">$</span><span class="va">individuals</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span></span>
 <span>    n_total <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/context.html" class="external-link">n</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>    n_with_wd <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">taxa_mean_wood_density</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -310,8 +312,8 @@ ready</strong> for modeling:</p>
 <span><span class="co"># - POM: Point of measurement (if available)</span></span>
 <span></span>
 <span><span class="co"># Summary</span></span>
-<span><span class="va">plot_data</span><span class="op">$</span><span class="va">height_diameter</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">plot_name</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span><span class="va">plot_data</span><span class="op">$</span><span class="va">height_diameter</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">plot_name</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span></span>
 <span>    n_pairs <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/context.html" class="external-link">n</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>    mean_dbh <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">D</span><span class="op">)</span>, <span class="fl">1</span><span class="op">)</span>,</span>
@@ -369,10 +371,10 @@ with BIOMASS:</p>
 recommended):</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Build separate models per plot</span></span>
-<span><span class="va">hd_models_by_plot</span> <span class="op">&lt;-</span> <span class="va">plot_data</span><span class="op">$</span><span class="va">height_diameter</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">plot_name</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/context.html" class="external-link">n</a></span><span class="op">(</span><span class="op">)</span> <span class="op">&gt;=</span> <span class="fl">15</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>  <span class="co"># Require at least 15 H-D pairs</span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_split.html" class="external-link">group_split</a></span><span class="op">(</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span><span class="va">hd_models_by_plot</span> <span class="op">&lt;-</span> <span class="va">plot_data</span><span class="op">$</span><span class="va">height_diameter</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">plot_name</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/context.html" class="external-link">n</a></span><span class="op">(</span><span class="op">)</span> <span class="op">&gt;=</span> <span class="fl">15</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span>  <span class="co"># Require at least 15 H-D pairs</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_split.html" class="external-link">group_split</a></span><span class="op">(</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">plot_df</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="kw"><a href="https://rdrr.io/r/base/conditions.html" class="external-link">tryCatch</a></span><span class="op">(</span><span class="op">{</span></span>
 <span>      <span class="va">model</span> <span class="op">&lt;-</span> <span class="fu">BIOMASS</span><span class="fu">::</span><span class="fu"><a href="https://umr-amap.github.io/BIOMASS/reference/modelHD.html" class="external-link">modelHD</a></span><span class="op">(</span></span>
@@ -390,7 +392,7 @@ recommended):</p>
 <span>    <span class="op">}</span>, error <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">e</span><span class="op">)</span> <span class="op">{</span></span>
 <span>      <span class="cn">NULL</span>  <span class="co"># Return NULL if model fails</span></span>
 <span>    <span class="op">}</span><span class="op">)</span></span>
-<span>  <span class="op">}</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span>  <span class="op">}</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Filter</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Negate</a></span><span class="op">(</span><span class="va">is.null</span><span class="op">)</span>, <span class="va">.</span><span class="op">)</span>  <span class="co"># Remove failed models</span></span>
 <span></span>
 <span><span class="co"># Summary</span></span>
@@ -430,8 +432,8 @@ recommended):</p>
 predict them:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Prepare data for AGB estimation</span></span>
-<span><span class="va">agb_data</span> <span class="op">&lt;-</span> <span class="va">plot_data</span><span class="op">$</span><span class="va">individuals</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">dbh</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span>  <span class="co"># Must have diameter</span></span>
+<span><span class="va">agb_data</span> <span class="op">&lt;-</span> <span class="va">plot_data</span><span class="op">$</span><span class="va">individuals</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">dbh</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span>  <span class="co"># Must have diameter</span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span></span>
 <span>    <span class="co"># Predict height using global model (or plot-specific if available)</span></span>
 <span>    H_predicted <span class="op">=</span> <span class="fu">BIOMASS</span><span class="fu">::</span><span class="fu"><a href="https://umr-amap.github.io/BIOMASS/reference/retrieveH.html" class="external-link">retrieveH</a></span><span class="op">(</span></span>
@@ -445,7 +447,7 @@ predict them:</p>
 <span>  <span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Check prediction success</span></span>
-<span><span class="va">agb_data</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span><span class="va">agb_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span></span>
 <span>    n_total <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/context.html" class="external-link">n</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>    n_measured <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">height</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -465,9 +467,9 @@ predict them:</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Predict with plot-specific models where available</span></span>
-<span><span class="va">agb_data</span> <span class="op">&lt;-</span> <span class="va">agb_data</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">dbh</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">left_join</a></span><span class="op">(</span><span class="va">plot_rse</span>, by <span class="op">=</span> <span class="st">"plot_name"</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span><span class="va">agb_data</span> <span class="op">&lt;-</span> <span class="va">agb_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">dbh</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">left_join</a></span><span class="op">(</span><span class="va">plot_rse</span>, by <span class="op">=</span> <span class="st">"plot_name"</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span></span>
 <span>    <span class="co"># Use plot-specific RSE if available, otherwise global</span></span>
 <span>    H_RSE <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">RSE_plot</span><span class="op">)</span>, <span class="va">RSE_plot</span>, <span class="va">RSE_global</span><span class="op">)</span>,</span>
@@ -506,7 +508,7 @@ database!)</li>
 <span><span class="co">#&gt;  Max.   :175.0   Max.   :0.870          Max.   :41.10   Max.   :5.299</span></span>
 <span></span>
 <span><span class="co"># Check for missing data</span></span>
-<span><span class="va">agb_data</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span><span class="va">agb_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span></span>
 <span>    missing_dbh <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">dbh</span><span class="op">)</span><span class="op">)</span>,</span>
 <span>    missing_wd <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">taxa_mean_wood_density</span><span class="op">)</span><span class="op">)</span>,</span>
@@ -524,8 +526,8 @@ database!)</li>
 <p>Quick estimate without uncertainty:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Simple AGB calculation using Chave et al. 2014 equation</span></span>
-<span><span class="va">agb_data</span> <span class="op">&lt;-</span> <span class="va">agb_data</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">dbh</span><span class="op">)</span> <span class="op">&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">taxa_mean_wood_density</span><span class="op">)</span> <span class="op">&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">H_final</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span><span class="va">agb_data</span> <span class="op">&lt;-</span> <span class="va">agb_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">dbh</span><span class="op">)</span> <span class="op">&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">taxa_mean_wood_density</span><span class="op">)</span> <span class="op">&amp;</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">H_final</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span></span>
 <span>    AGB_kg <span class="op">=</span> <span class="fu">BIOMASS</span><span class="fu">::</span><span class="fu"><a href="https://umr-amap.github.io/BIOMASS/reference/computeAGB.html" class="external-link">computeAGB</a></span><span class="op">(</span></span>
 <span>      D <span class="op">=</span> <span class="va">dbh</span>,</span>
@@ -535,8 +537,8 @@ database!)</li>
 <span>  <span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Plot-level AGB</span></span>
-<span><span class="va">agb_by_plot</span> <span class="op">&lt;-</span> <span class="va">agb_data</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">plot_name</span><span class="op">)</span> <span class="op"><a href="../reference/pipe.html">%&gt;%</a></span></span>
+<span><span class="va">agb_by_plot</span> <span class="op">&lt;-</span> <span class="va">agb_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">plot_name</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
 <span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span></span>
 <span>    n_trees <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/context.html" class="external-link">n</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>    total_AGB_Mg <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">AGB_kg</span><span class="op">)</span></span>
