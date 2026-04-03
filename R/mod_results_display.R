@@ -24,12 +24,13 @@ mod_results_display_ui <- function(id) {
 #' @param results Reactive containing query_plots() results
 #' @param individual_features_results Reactive containing query_individual_features() results (optional)
 #' @param i18n Reactive returning shiny.i18n translator
+#' @param con Reactive returning a database connection (for column documentation)
 #'
 #' @return NULL
 #'
 #' @keywords internal
 #' @export
-mod_results_display_server <- function(id, results, individual_features_results = NULL, i18n) {
+mod_results_display_server <- function(id, results, individual_features_results = NULL, i18n, con = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -198,6 +199,45 @@ mod_results_display_server <- function(id, results, individual_features_results 
       })
     })
 
+    # Column documentation reactive
+    column_docs <- shiny::reactive({
+      shiny::req(results())
+      tryCatch({
+        describe_columns(results(), con = if (!is.null(con)) con() else NULL)
+      }, error = function(e) {
+        message("Could not generate column documentation: ", e$message)
+        NULL
+      })
+    })
+
+    # Combined documentation data.frame (used for display and export)
+    coldoc_combined_df <- shiny::reactive({
+      docs <- column_docs()
+      if (is.null(docs)) return(NULL)
+
+      all_parts <- list()
+      if (inherits(docs, "column_documentation")) {
+        for (tab_name in names(docs)) {
+          doc_df <- docs[[tab_name]]
+          if (is.data.frame(doc_df) && nrow(doc_df) > 0) {
+            all_parts[[tab_name]] <- cbind(
+              data.frame(table = tab_name, stringsAsFactors = FALSE),
+              doc_df
+            )
+          }
+        }
+      } else if (inherits(docs, "column_documentation_table") && is.data.frame(docs) && nrow(docs) > 0) {
+        all_parts[["data"]] <- cbind(
+          data.frame(table = "data", stringsAsFactors = FALSE),
+          docs
+        )
+      }
+      if (length(all_parts) == 0) return(NULL)
+      result <- do.call(rbind, all_parts)
+      rownames(result) <- NULL
+      result
+    })
+
     # Get table names from results
     table_names <- shiny::reactive({
       table_list <- character()
@@ -238,12 +278,21 @@ mod_results_display_server <- function(id, results, individual_features_results 
     shiny::observe({
       shiny::req(table_names())
 
-      # Create readable labels
+      all_choices <- table_names()
+
+      # Add column documentation if available
+      if (!is.null(coldoc_combined_df())) {
+        all_choices <- c(all_choices, "column_documentation")
+      }
+
       labels <- setNames(
-        table_names(),
-        sapply(table_names(), function(x) {
-          # Convert snake_case to Title Case
-          gsub("_", " ", tools::toTitleCase(x))
+        all_choices,
+        sapply(all_choices, function(x) {
+          if (x == "column_documentation") {
+            i18n()$t("Column Documentation")
+          } else {
+            gsub("_", " ", tools::toTitleCase(x))
+          }
         })
       )
 
@@ -251,7 +300,7 @@ mod_results_display_server <- function(id, results, individual_features_results 
         session,
         "tables_to_export",
         choices = labels,
-        selected = table_names()  # Select all by default
+        selected = all_choices  # Select all by default
       )
     })
 
@@ -328,10 +377,26 @@ mod_results_display_server <- function(id, results, individual_features_results 
         )
       })
 
-      # Create tabsetPanel with tabs
+      # Add Column Documentation tab
+      coldoc_tab <- shiny::tabPanel(
+        title = shiny::tagList(shiny::icon("book-open"), " ", i18n()$t("Column Documentation")),
+        shiny::br(),
+        shiny::div(
+          class = "alert alert-info",
+          style = "font-size: 0.9em; padding: 10px; margin-bottom: 15px;",
+          shiny::HTML(paste0(
+            "<strong>", i18n()$t("Note"), ":</strong> ",
+            i18n()$t("Each row describes one output column: its original database name, a description, category, unit, and any contextual notes.")
+          ))
+        ),
+        DT::DTOutput(ns("coldoc_combined"))
+      )
+
+      # Create tabsetPanel with tabs + documentation tab
       do.call(shiny::tabsetPanel, c(
         list(id = ns("results_tabs"), type = "tabs"),
-        tabs
+        tabs,
+        list(coldoc_tab)
       ))
     })
 
@@ -375,6 +440,41 @@ mod_results_display_server <- function(id, results, individual_features_results 
       })
     })
 
+    # Render combined column documentation table
+    output$coldoc_combined <- DT::renderDT({
+      combined <- coldoc_combined_df()
+      if (is.null(combined)) return(NULL)
+
+      # Use translated column names for display
+      display_names <- c(
+        table         = i18n()$t("Table"),
+        column_name   = i18n()$t("Column Name"),
+        original_name = i18n()$t("Original Name"),
+        description   = i18n()$t("Description"),
+        category      = i18n()$t("Category"),
+        unit          = i18n()$t("Unit"),
+        notes         = i18n()$t("Notes")
+      )
+      for (orig in names(display_names)) {
+        if (orig %in% names(combined)) {
+          names(combined)[names(combined) == orig] <- display_names[[orig]]
+        }
+      }
+
+      DT::datatable(
+        combined,
+        options = list(
+          pageLength = 25,
+          scrollX = TRUE,
+          dom = "Bfrtip",
+          ordering = TRUE
+        ),
+        rownames = FALSE,
+        class = "display compact",
+        filter = "top"
+      )
+    })
+
     # Excel download
     output$download_excel <- shiny::downloadHandler(
       filename = function() {
@@ -411,6 +511,12 @@ mod_results_display_server <- function(id, results, individual_features_results 
         if ("features_metadata" %in% tables_to_include &&
             !is.null(features_metadata())) {
           data_list$features_metadata <- features_metadata()
+        }
+
+        # Add column documentation if selected
+        if ("column_documentation" %in% tables_to_include &&
+            !is.null(coldoc_combined_df())) {
+          data_list$column_documentation <- coldoc_combined_df()
         }
 
         # Write to Excel
@@ -453,6 +559,12 @@ mod_results_display_server <- function(id, results, individual_features_results 
         if ("features_metadata" %in% tables_to_include &&
             !is.null(features_metadata())) {
           data_list$features_metadata <- features_metadata()
+        }
+
+        # Add column documentation if selected
+        if ("column_documentation" %in% tables_to_include &&
+            !is.null(coldoc_combined_df())) {
+          data_list$column_documentation <- coldoc_combined_df()
         }
 
         # Create temp directory
@@ -506,6 +618,12 @@ mod_results_display_server <- function(id, results, individual_features_results 
         if ("features_metadata" %in% tables_to_include &&
             !is.null(features_metadata())) {
           data_to_save$features_metadata <- features_metadata()
+        }
+
+        # Add column documentation if selected
+        if ("column_documentation" %in% tables_to_include &&
+            !is.null(coldoc_combined_df())) {
+          data_to_save$column_documentation <- coldoc_combined_df()
         }
 
         # If only one table, save as data.frame instead of list

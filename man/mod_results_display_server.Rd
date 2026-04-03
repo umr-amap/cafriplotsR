@@ -8,7 +8,8 @@ mod_results_display_server(
   id,
   results,
   individual_features_results = NULL,
-  i18n
+  i18n,
+  con = NULL
 )
 }
 \arguments{
@@ -19,6 +20,8 @@ mod_results_display_server(
 \item{individual_features_results}{Reactive containing query_individual_features() results (optional)}
 
 \item{i18n}{Reactive returning shiny.i18n translator}
+
+\item{con}{Reactive returning a database connection (for column documentation)}
 }
 \description{
 Server logic for results display and download

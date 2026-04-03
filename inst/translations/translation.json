@@ -7084,6 +7084,38 @@
     {
       "en": "Updating %d record(s) in database — please wait...",
       "fr": "Mise à jour de %d enregistrement(s) dans la base de données — veuillez patienter..."
+    },
+    {
+      "en": "Column Documentation",
+      "fr": "Documentation des colonnes"
+    },
+    {
+      "en": "Column Name",
+      "fr": "Nom de la colonne"
+    },
+    {
+      "en": "Original Name",
+      "fr": "Nom original"
+    },
+    {
+      "en": "Description",
+      "fr": "Description"
+    },
+    {
+      "en": "Unit",
+      "fr": "Unité"
+    },
+    {
+      "en": "Notes",
+      "fr": "Notes"
+    },
+    {
+      "en": "Table",
+      "fr": "Table"
+    },
+    {
+      "en": "Each row describes one output column: its original database name, a description, category, unit, and any contextual notes.",
+      "fr": "Chaque ligne décrit une colonne du résultat : son nom original dans la base de données, une description, une catégorie, une unité et des notes contextuelles."
     }
   ]
 }

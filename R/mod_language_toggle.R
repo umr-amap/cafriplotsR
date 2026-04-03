@@ -17,7 +17,7 @@ mod_language_toggle_ui <- function(id) {
       inputId = ns("language"),
       label = NULL,
       choices = c("EN" = "en", "FR" = "fr"),
-      selected = "en",
+      selected = "fr",
       inline = TRUE
     )
   )
@@ -32,7 +32,7 @@ mod_language_toggle_ui <- function(id) {
 #' @return Reactive value containing current language
 #'
 #' @keywords internal
-mod_language_toggle_server <- function(id, initial = "en") {
+mod_language_toggle_server <- function(id, initial = "fr") {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Initialize with provided language
