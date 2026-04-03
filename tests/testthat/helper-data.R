@@ -58,3 +58,66 @@ make_categorical_trait_data <- function() {
     stringsAsFactors  = FALSE
   )
 }
+
+# ---------------------------------------------------------------------------
+# Sample data for output_styles_helpers.R tests
+# ---------------------------------------------------------------------------
+
+#' Flat plot+individual data as returned by query_plots() before restructuring.
+#' Two plots (P1, P2), two individuals each.
+make_plot_individual_data <- function() {
+  data.frame(
+    id_liste_plots          = c(1L, 1L, 2L, 2L),
+    plot_name               = c("P1", "P1", "P2", "P2"),
+    country                 = c("Gabon", "Gabon", "Cameroon", "Cameroon"),
+    ddlat                   = c(-0.5,  -0.5,   3.2,  3.2),
+    ddlon                   = c(12.1,  12.1,  11.8, 11.8),
+    elevation               = c(300L,  300L,  450L, 450L),
+    id_n                    = c(101L,  102L,  201L, 202L),
+    tag                     = c("T1",  "T2",  "T3", "T4"),
+    tax_fam                 = c("Fabaceae", "Meliaceae", "Fabaceae", "Annonaceae"),
+    tax_gen                 = c("Gilbertiodendron", "Entandrophragma",
+                                "Brachystegia", "Greenwayodendron"),
+    tax_sp_level            = c("dewevrei", "utile", "laurentii", "suaveolens"),
+    stem_diameter           = c(350, 420, 280, NA),
+    tree_height             = c(28.5, 35.0, 22.0, NA),
+    height_of_stem_diameter = c(1.3, 1.3, 1.3, NA),
+    date_modif_y            = c(2024L, 2024L, 2024L, 2024L),
+    stringsAsFactors        = FALSE
+  )
+}
+
+#' Census features table as would come from subplot census data.
+make_census_features <- function() {
+  data.frame(
+    plot_name  = c("P1", "P1", "P2"),
+    typevalue  = c(1,    2,    1),
+    year       = c(2010, 2015, 2012),
+    month      = c(3,    7,    11),
+    stringsAsFactors = FALSE
+  )
+}
+
+#' Multi-census individual data: two censuses per individual.
+#' Includes both base columns (stem_diameter, tree_height) and census-suffixed
+#' columns (stem_diameter_census_1, etc.) to match real query_plots() output.
+make_multi_census_data <- function() {
+  data.frame(
+    id_liste_plots            = c(1L, 1L),
+    plot_name                 = c("P1", "P1"),
+    id_n                      = c(101L, 102L),
+    tag                       = c("T1", "T2"),
+    tax_fam                   = c("Fabaceae", "Meliaceae"),
+    tax_gen                   = c("Gilbertiodendron", "Entandrophragma"),
+    tax_sp_level              = c("dewevrei", "utile"),
+    stem_diameter             = c(350, 420),          # base column (most recent)
+    tree_height               = c(28.5, 35.0),        # base column (most recent)
+    stem_diameter_census_1    = c(340, 410),
+    stem_diameter_census_2    = c(350, 420),
+    tree_height_census_1      = c(27.0, 34.0),
+    tree_height_census_2      = c(28.5, 35.0),
+    height_of_stem_diameter_census_1 = c(1.3, 1.3),
+    height_of_stem_diameter_census_2 = c(1.3, 1.3),
+    stringsAsFactors          = FALSE
+  )
+}
