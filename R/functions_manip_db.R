@@ -643,6 +643,11 @@ query_plots <- function(plot_name = NULL,
     if (is.list(res_list) && "meta_data" %in% names(res_list)) {
       names(res_list)[names(res_list) == "meta_data"] <- "metadata"
     }
+    # Assign plot_query_list class so describe_columns() can process it
+    if (is.list(res_list) && !is.data.frame(res_list)) {
+      class(res_list) <- c("plot_query_list", "list")
+      attr(res_list, "style") <- "full"
+    }
   }
 
   return(res_list)
