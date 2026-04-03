@@ -11,8 +11,7 @@ mod_code_preview_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    # Add rclipboard dependency
-    rclipboard::rclipboardSetup(),
+    .rclipboard_setup(),
     shiny::uiOutput(ns("code_preview_panel"))
   )
 }
@@ -350,7 +349,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
                 code_sections$metadata
               )
             ),
-            rclipboard::rclipButton(
+            .rclip_button(
               ns("copy_metadata"),
               i18n()$t("Copy to clipboard"),
               code_sections$metadata,
@@ -382,7 +381,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
                 code_sections$individuals
               )
             ),
-            rclipboard::rclipButton(
+            .rclip_button(
               ns("copy_individuals"),
               i18n()$t("Copy to clipboard"),
               code_sections$individuals,
@@ -414,7 +413,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
                 code_sections$individual_features
               )
             ),
-            rclipboard::rclipButton(
+            .rclip_button(
               ns("copy_individual_features"),
               i18n()$t("Copy to clipboard"),
               code_sections$individual_features,
@@ -483,7 +482,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
                 combined_code
               )
             ),
-            rclipboard::rclipButton(
+            .rclip_button(
               ns("copy_combined"),
               i18n()$t("Copy complete script"),
               combined_code,
