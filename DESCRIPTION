@@ -6,7 +6,6 @@ Authors@R: c(person("Gilles", "Dauby", email = "gilles.dauby@ird.fr", role = c("
 Description: Exploring and updating the database containing plot data from Central Africa. This package contains several function for manipulating tree inventories data from Central Africa. Access is restricted.
 License: GPL-2
 Imports:
-    methods,
     shiny,
     shiny.i18n,
     DBI,
@@ -15,7 +14,6 @@ Imports:
     ggplot2,
     rlang,
     sf,
-    mapview,
     magrittr,
     RPostgres,
     lubridate,
@@ -25,27 +23,18 @@ Imports:
     tibble,
     readxl,
     readr,
-    RecordLinkage,
-    foreign,
     stringr,
     stringdist,
     writexl,
     kableExtra,
     shinybusy,
-    tidyselect,
-    BIOMASS (>= 2.2.4),
-    date,
     glue,
-    ggpubr,
     cli,
     lifecycle,
     data.table,
-    zoo,
     pool,
     leaflet,
-    rappdirs,
     plotly,
-    rclipboard,
     purrr
 Suggests:
     getPass,
@@ -57,7 +46,11 @@ Suggests:
     testthat (>= 3.0.0),
     DiagrammeR,
     DiagrammeRsvg,
-    covr
+    covr,
+    rclipboard,
+    ggpubr,
+    foreign,
+    BIOMASS (>= 2.2.4)
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3

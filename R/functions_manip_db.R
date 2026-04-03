@@ -482,12 +482,20 @@ query_plots <- function(plot_name = NULL,
 
     # Wrap map creation in tryCatch to handle graphics parameter errors
     tryCatch({
-      outputmap <-  mapview::mapview(data_sf, map.types = map_types)
+      outputmap <- leaflet::leaflet(data_sf) %>%
+        leaflet::addProviderTiles("OpenStreetMap.DE",  group = "OpenStreetMap.DE") %>%
+        leaflet::addProviderTiles("Esri.WorldImagery",  group = "Esri.WorldImagery") %>%
+        leaflet::addProviderTiles("Esri.WorldPhysical", group = "Esri.WorldPhysical") %>%
+        leaflet::addCircleMarkers(label = ~plot_name, popup = ~plot_name) %>%
+        leaflet::addLayersControl(
+          baseGroups = map_types,
+          options = leaflet::layersControlOptions(collapsed = FALSE)
+        )
 
-      if(extract_coordinates) {
-        if(!is.null(unlist(coordinates_subplots_plot_sf)))
-          outputmap <- outputmap +
-            mapview::mapview(coordinates_subplots_plot_sf, map.types = map_types)
+      if (extract_coordinates && !is.null(unlist(coordinates_subplots_plot_sf))) {
+        outputmap <- outputmap %>%
+          leaflet::addCircleMarkers(data = coordinates_subplots_plot_sf,
+                                    color = "red", radius = 4)
       }
 
       print(outputmap)
@@ -553,7 +561,7 @@ query_plots <- function(plot_name = NULL,
     res <-
       res %>%
       dplyr::rename(idDB = id_n) %>%
-      dplyr::select(-tidyselect::starts_with("id_")) %>%
+      dplyr::select(-dplyr::starts_with("id_")) %>%
       dplyr::rename(id_n = idDB)
 
   }
@@ -565,7 +573,7 @@ query_plots <- function(plot_name = NULL,
     res <-
       res %>%
       dplyr::rename(idDB = id_liste_plots) %>%
-      dplyr::select(-tidyselect::starts_with("id_")) %>%
+      dplyr::select(-dplyr::starts_with("id_")) %>%
       dplyr::rename(id_liste_plots = idDB)
 
   }
@@ -1330,6 +1338,8 @@ reorganize_individual_columns <- function(individuals) {
     
     if (nrow(grouped) == 0) next
     
+    if (!requireNamespace("BIOMASS", quietly = TRUE))
+      stop("Package 'BIOMASS' is required for GPS coordinate correction. Install it with install.packages('BIOMASS').")
     cor_coord <- suppressMessages(suppressWarnings(BIOMASS::correctCoordGPS(
       longlat = grouped[, c("typevalue_ddlon", "typevalue_ddlat")],
       rangeX = c(0, diff(range(grouped$coord1))),
@@ -2595,6 +2605,8 @@ SpecimenFetcher <- R6::R6Class(
       if (any(names(dataset_pivot_wider_num) == "taxa_sd_wood_density")) {
         cli::cli_alert_info("Setting wood density SD to averaged species and genus level according to BIOMASS dataset")
         
+        if (!requireNamespace("BIOMASS", quietly = TRUE))
+          stop("Package 'BIOMASS' (>= 2.2.4) is required for wood density SD. Install it with install.packages('BIOMASS').")
         sd_10 <- BIOMASS::sd_10
         
         

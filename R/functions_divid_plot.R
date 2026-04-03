@@ -17,7 +17,7 @@
 #' @return list
 #' @export
 extract_corners = function(coordinates, map_res = FALSE) {
-  
+
   all_plot <- coordinates %>% distinct(plot_name)
   
   
@@ -209,11 +209,15 @@ extract_corners = function(coordinates, map_res = FALSE) {
         theme_bw() 
       
       
-      map <- 
-        ggpubr::ggarrange(raw, 
-                          jalon, 
-                          labels = c("inputs", "outputs"),
-                          ncol = 2, nrow = 1)
+      if (requireNamespace("ggpubr", quietly = TRUE)) {
+        map <- ggpubr::ggarrange(raw,
+                                 jalon,
+                                 labels = c("inputs", "outputs"),
+                                 ncol = 2, nrow = 1)
+      } else {
+        message("Install 'ggpubr' for side-by-side plots. Returning input plot only.")
+        map <- raw
+      }
     } else {
       map <- NA
     }
@@ -383,13 +387,33 @@ divid_plot <- function (corners) {
     
     
     # Map ---------------------------------------------------------------------
-    
-    map = mapview::mapview(sub_plot, zcol = "quadrat", legend = FALSE) %>%
-      leafem::addStaticLabels(label = sub_plot$quadrat,
-                              noHide = TRUE,
-                              direction = 'top',
-                              textOnly = TRUE,
-                              textsize = "20px")
+
+    pal <- leaflet::colorFactor(palette = "Set1", domain = sub_plot$quadrat)
+    centroids <- sf::st_centroid(sub_plot)
+    centroid_coords <- sf::st_coordinates(centroids)
+
+    map <- leaflet::leaflet(sub_plot) %>%
+      leaflet::addTiles() %>%
+      leaflet::addPolygons(
+        fillColor   = ~pal(quadrat),
+        fillOpacity = 0.5,
+        color       = "#333333",
+        weight      = 1
+      ) %>%
+      leaflet::addCircleMarkers(
+        lng         = centroid_coords[, 1],
+        lat         = centroid_coords[, 2],
+        radius      = 0,
+        stroke      = FALSE,
+        fillOpacity = 0,
+        label       = sub_plot$quadrat,
+        labelOptions = leaflet::labelOptions(
+          noHide    = TRUE,
+          direction = "center",
+          textOnly  = TRUE,
+          style     = list("font-size" = "20px")
+        )
+      )
     
     
     print(map)
@@ -677,8 +701,14 @@ approximate_isolated_xy <- function(dataset,
       arrange(tag) %>%
       group_by(!!col_subplot) %>%   # stay inside quadrats
       mutate(
-        x_filled = if (any(!is.na(x))) zoo::na.approx(x, x = tag, na.rm = FALSE) else x,
-        y_filled = if (any(!is.na(y))) zoo::na.approx(y, x = tag, na.rm = FALSE) else y
+        x_filled = if (any(!is.na(x))) {
+          idx <- !is.na(x)
+          stats::approx(x = tag[idx], y = x[idx], xout = tag, rule = 1)$y
+        } else x,
+        y_filled = if (any(!is.na(y))) {
+          idx <- !is.na(y)
+          stats::approx(x = tag[idx], y = y[idx], xout = tag, rule = 1)$y
+        } else y
       ) %>%
       ungroup() %>% 
       rename(!!col_pos_x := x_filled,

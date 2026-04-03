@@ -110,6 +110,8 @@ process_trimble_data <- function(PATH = NULL, plot_name = NULL, format = "dbf") 
     if (format == "dbf") {
 
       data.gps <- data.gps[grep(".dbf", data.gps)]
+      if (!requireNamespace("foreign", quietly = TRUE))
+        stop("Package 'foreign' is required to read .dbf files. Install it with install.packages('foreign').")
       gps_data <-
         foreign::read.dbf(file = data.gps) %>%
         dplyr::as_tibble()
@@ -196,6 +198,8 @@ process_trimble_data <- function(PATH = NULL, plot_name = NULL, format = "dbf") 
                                  occ_data_dir, "/"), full.names = TRUE, pattern = "^[^~]")
       data. <- data.[grep(".dbf", data.)]
 
+      if (!requireNamespace("foreign", quietly = TRUE))
+        stop("Package 'foreign' is required to read .dbf files. Install it with install.packages('foreign').")
       occ_data <-
         foreign::read.dbf(file = data.) %>%
         dplyr::as_tibble()
@@ -804,7 +808,8 @@ process_trimble_data <- function(PATH = NULL, plot_name = NULL, format = "dbf") 
   for (h in 1:(length(string_vector)-1))
     for (d in (h+1):length(string_vector))
       dist. <- c(dist.,
-                 RecordLinkage::levenshteinSim(str1 =  tolower(string_vector[h]),
-                                               str2 = tolower(string_vector[d])))
+                 stringdist::stringsim(tolower(string_vector[h]),
+                                       tolower(string_vector[d]),
+                                       method = "lv"))
   return(dist.)
 }
