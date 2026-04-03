@@ -4,7 +4,7 @@
 \alias{launch_individual_specimen_linking_app}
 \title{Launch Individual-Specimen Linking App}
 \usage{
-launch_individual_specimen_linking_app(lang = "en")
+launch_individual_specimen_linking_app(lang = "fr")
 }
 \arguments{
 \item{lang}{Character, initial language ("en" or "fr"). Default "en".}

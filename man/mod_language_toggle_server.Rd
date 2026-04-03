@@ -4,7 +4,7 @@
 \alias{mod_language_toggle_server}
 \title{Language Toggle Module - Server}
 \usage{
-mod_language_toggle_server(id, initial = "en")
+mod_language_toggle_server(id, initial = "fr")
 }
 \arguments{
 \item{id}{Character, module ID}
