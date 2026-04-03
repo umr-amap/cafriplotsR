@@ -17,7 +17,6 @@
 #' @param col_names_select string a vector of string indicating columns names of new_data
 #' @param col_names_corresp string a vector of string indicating to which columns selected columns of new_data corresponds
 #'
-#' @importFrom methods new
 #' @importFrom stats dist sd
 #' @importFrom kableExtra cell_spec kable_styling
 #'

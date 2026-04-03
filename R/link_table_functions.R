@@ -714,10 +714,11 @@
 #' @param column_name string the column name of compared_table containing the compared values
 .find_similar_string <- function(input, compared_table, column_name){
   dist. <-
-    RecordLinkage::levenshteinSim(tolower(input),
-                                  tolower(compared_table %>%
-                                            dplyr::select(!!column_name) %>%
-                                            dplyr::pull()))
+    stringdist::stringsim(tolower(input),
+                          tolower(compared_table %>%
+                                    dplyr::select(!!column_name) %>%
+                                    dplyr::pull()),
+                          method = "lv")
 
   arranged_values <-
     compared_table %>%

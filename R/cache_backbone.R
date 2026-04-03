@@ -8,14 +8,14 @@
 #' @description
 #' Returns the path to the cache directory for taxonomic backbone storage.
 #' Creates the directory if it doesn't exist. Uses platform-appropriate cache
-#' location via `rappdirs::user_cache_dir()`.
+#' location via `tools::R_user_dir()`.
 #'
 #' @return Character string, full path to cache directory
 #'
 #' @keywords internal
 #' @export
 get_backbone_cache_path <- function() {
-  cache_dir <- rappdirs::user_cache_dir('CafriplotsR')
+  cache_dir <- tools::R_user_dir("CafriplotsR", which = "cache")
 
   if (!dir.exists(cache_dir)) {
     dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
