@@ -11,7 +11,7 @@ mod_taxa_r_code_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
-    rclipboard::rclipboardSetup(),
+    .rclipboard_setup(),
     shiny::uiOutput(ns("toggle_btn")),
     shiny::uiOutput(ns("code_panel"))
   )
@@ -353,7 +353,7 @@ taxa_with_synonyms <- dplyr::bind_rows(taxa, synonyms)'
 .copy_btn <- function(ns, btn_id, code_str, i18n,
                       label = NULL) {
   if (is.null(label)) label <- i18n()$t("Copy to clipboard")
-  rclipboard::rclipButton(
+  .rclip_button(
     ns(btn_id),
     label,
     code_str,

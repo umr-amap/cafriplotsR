@@ -12,6 +12,6 @@ Character string, full path to cache directory
 \description{
 Returns the path to the cache directory for taxonomic backbone storage.
 Creates the directory if it doesn't exist. Uses platform-appropriate cache
-location via `rappdirs::user_cache_dir()`.
+location via `tools::R_user_dir()`.
 }
 \keyword{internal}
