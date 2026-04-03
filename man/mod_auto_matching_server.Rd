@@ -23,15 +23,17 @@ mod_auto_matching_server(
 \item{include_authors}{Reactive logical, whether to include author names}
 
 \item{min_similarity}{Numeric (0-1), minimum similarity threshold for fallback.
-Note: UI displays as percentage (0-100) but parameter uses decimal (default: 0.3 = 30%)}
+Note: UI displays as percentage (0-100) but parameter uses decimal (default: 0.3 = 30\%)}
 
 \item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
 Reactive list containing:
-  - data: Updated data frame with match results
-  - unmatched: Data frame of unmatched names
-  - stats: List of matching statistics
+  \itemize{
+    \item \code{data}: Updated data frame with match results
+    \item \code{unmatched}: Data frame of unmatched names
+    \item \code{stats}: List of matching statistics
+  }
 }
 \description{
 Auto Matching Module - Server
