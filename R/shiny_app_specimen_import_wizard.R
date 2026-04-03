@@ -40,7 +40,7 @@
 #' }
 #'
 #' @export
-launch_specimen_import_wizard <- function(lang = "en") {
+launch_specimen_import_wizard <- function(lang = "fr") {
   # Load i18n translations
   i18n <- shiny.i18n::Translator$new(
     translation_json_path = system.file(
@@ -434,6 +434,6 @@ launch_specimen_import_wizard <- function(lang = "en") {
 #'
 #' @return Shiny app object
 #' @keywords internal
-shiny_app_specimen_import_wizard <- function(lang = "en") {
+shiny_app_specimen_import_wizard <- function(lang = "fr") {
   launch_specimen_import_wizard(lang = lang)
 }

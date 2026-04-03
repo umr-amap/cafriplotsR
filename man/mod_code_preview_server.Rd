@@ -13,7 +13,8 @@ mod_code_preview_server(
   individuals_available,
   i18n,
   individual_features_options = NULL,
-  individual_features_available = NULL
+  individual_features_available = NULL,
+  n_metadata_plots = NULL
 )
 }
 \arguments{
@@ -34,6 +35,9 @@ mod_code_preview_server(
 \item{individual_features_options}{Reactive returning named list of individual features options (optional)}
 
 \item{individual_features_available}{Reactive returning TRUE when individual features have been queried (optional)}
+
+\item{n_metadata_plots}{Reactive returning the total number of plots in the metadata query result (optional).
+Used to determine whether the selected plots represent a subset or all queried plots.}
 }
 \description{
 Server logic for generating and displaying equivalent R code

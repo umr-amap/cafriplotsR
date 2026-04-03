@@ -661,7 +661,8 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
         "results",
         results = shiny::reactive(rv$individuals),
         individual_features_results = shiny::reactive(rv$individual_features),
-        i18n = i18n
+        i18n = i18n,
+        con = pool_reactive
       )
 
       # Module 5: Code Preview (equivalent R code)

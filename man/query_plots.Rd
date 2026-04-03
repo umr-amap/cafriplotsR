@@ -32,7 +32,7 @@ query_plots(
   include_measurement_ids = FALSE,
   exact_match = FALSE,
   census_strategy = c("last", "first", "mean"),
-  individual_features_format = c("wide", "long"),
+  individual_features_format = c("wide", "long", "census_pairs"),
   output_style = c("auto", "minimal", "standard", "permanent_plot",
     "permanent_plot_multi_census", "transect", "full"),
   con = NULL,
@@ -108,10 +108,21 @@ will have NA values, reflecting biological reality.}
 measurements, it will appear in two rows. Adds columns `trait`, `traitvalue`,
 `traitvalue_char`, `valuetype`, `census_name`, and `census_date` (NA when not census-linked).
 Census filtering via `show_multiple_census` / `census_strategy` is still applied.
+Incompatible with `concatenate_stem = TRUE`.
+`"census_pairs"` returns one row per consecutive pair of censuses per individual.
+Census pairing is plot-level: every individual is crossed against all consecutive
+census pairs of its plot, receiving `NA` at any census where it has no measurement
+(e.g. recruited at census_2 → `stem_diameter_0 = NA`; dead at census_2 →
+`stem_diameter_1 = NA`). All individual-level traits appear as `<trait>_0` and
+`<trait>_1` columns. Additional columns: `census_name_0`, `census_name_1`,
+`date_census0`, `date_census1`, `time` (days between the two censuses).
+All available censuses are used regardless of `show_multiple_census`.
 Incompatible with `concatenate_stem = TRUE`.}
 
 \item{output_style}{Character. Output formatting style. Options: "auto", "minimal", "standard",
-"permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.}
+"permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.
+When `individual_features_format = "census_pairs"` this argument is ignored and
+the `"census_pairs"` style is applied automatically.}
 
 \item{con}{Optional database connection to main database. If NULL, will call call.mydb() to establish connection.
 If you've already connected with `mydb <- call.mydb()`, pass `con = mydb` to avoid re-prompting.}

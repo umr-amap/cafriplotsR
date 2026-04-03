@@ -11,7 +11,7 @@ enrich_individual_traits(
   issues = c("remove", "include", "ignore"),
   include_measurement_ids = FALSE,
   census_strategy = c("last", "first", "mean"),
-  individual_features_format = c("wide", "long")
+  individual_features_format = c("wide", "long", "census_pairs")
 )
 }
 \description{

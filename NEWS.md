@@ -2,6 +2,14 @@
 
 ### New Features
 
+* **`describe_columns()` — new function for documenting query result columns**
+  - Reverse-maps every output column back to its database origin, accounting for output style renames (e.g. `ddlat` → `latitude`), census column renames (e.g. `stem_diameter_census_1` → `dbh_census_1`), and pivot suffixes (`_mean`, `_sd`, `char_`, `issue_agg_`, `_census_N`, `_0`/`_1` pairs)
+  - Accepts a `plot_query_list` (from `query_plots()`) or a plain `data.frame`; returns a named list of documentation tables (one per result table) or a single table
+  - Each documentation table has columns: `column_name`, `original_name`, `description`, `category`, `unit`, `notes`
+  - `con` defaults to `NULL` and uses the active connection via `call.mydb()`, matching `query_plots()` behaviour
+  - A dedicated **Column Documentation** tab is shown alongside the results tables in the `launch_query_plots()` Shiny app (replaces per-table collapsible panel); combines all tables' column docs into one filterable table with a leading *Table* column
+  - Column documentation can be included in Excel, CSV (zip), and RDS exports via the *Select tables to include* checkbox (selected by default)
+
 * **`query_plots()` new `census_pairs` output format for individual features**
   - New `individual_features_format = "census_pairs"` option produces one row per consecutive census pair per individual
   - Columns include `dbh_0`, `dbh_1`, `date_census_0`, `date_census_1`, `time` (days between censuses), and `stem_status` at the second census
