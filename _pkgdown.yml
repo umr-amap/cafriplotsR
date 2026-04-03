@@ -167,15 +167,40 @@ reference:
       - safe_delete_individuals
       - safe_delete_plot
       - safe_delete_taxa_traits
+      - safe_delete_individual_features
+      - safe_delete_specimen_links
       - .delete_country
       - .delete_individual_feature_type
       - .delete_specimens
+      - detect_direct_changes
+
+  - title: "Internal Linking & Matching Utilities"
+    desc: "Advanced internal functions for data matching and linking"
+    contents:
+      - .add_link_specimens
+      - .add_modif_field
+      - .add_taxa_noninteractive
+      - .comp_print_vec
+      - .delete_colnam
+      - .delete_trait_list
+      - .find_cat
+      - .find_ids
+      - .find_similar_string
+      - .get_trait_individuals_values
+      - .link_sp_trait
+      - .link_subplotype
+      - .link_table
+      - .link_trait
+      - .pairwise_string_similarity
+      - .query_unmatched_specimens
+      - .rename_data
 
   - title: "Data Processing"
     desc: "Process, validate, transform, and aggregate inventory and trait data"
     contents:
       - compute_growth
       - compute_mortality
+      - compute_stem_vital_status
       - process_trimble_data
       - process_individuals
       - process_stems
@@ -209,6 +234,16 @@ reference:
       - get_individual_template
       - get_plot_metadata_template
       - export_plot_template
+      - describe_columns
+      - choose_growth_form
+      - choose_prompt
+      - test.order.subplot
+      - export_taxa_traits_for_citation_backfill
+      - print.column_documentation
+      - print.plot_features_result
+      - print.plot_query_list
+      - print.plot_validation_result
+      - print_table
 
   - title: "Shiny Apps"
     desc: "Launch interactive Shiny applications for data management and exploration"
@@ -225,6 +260,104 @@ reference:
       - shiny_app_taxo_backbone
       - mod_database_login_ui
       - mod_database_login_server
+
+  - title: "Shiny Module Components"
+    desc: "Internal Shiny UI and server module components"
+    contents:
+      - mod_census_information_server
+      - mod_census_information_ui
+      - mod_code_preview_server
+      - mod_code_preview_ui
+      - mod_extraction_config_server
+      - mod_extraction_config_ui
+      - mod_feat_step1_select_plots_server
+      - mod_feat_step1_select_plots_ui
+      - mod_feat_step2_choose_mode_server
+      - mod_feat_step2_choose_mode_ui
+      - mod_feat_step3_measurements_server
+      - mod_feat_step3_measurements_ui
+      - mod_feat_step3_multi_stems_server
+      - mod_feat_step3_multi_stems_ui
+      - mod_feat_step3_plot_features_server
+      - mod_feat_step3_plot_features_ui
+      - mod_feat_step4_lookup_server
+      - mod_feat_step4_lookup_ui
+      - mod_feat_step5_validation_server
+      - mod_feat_step5_validation_ui
+      - mod_feat_step6_import_server
+      - mod_feat_step6_import_ui
+      - mod_growth_form_selector_server
+      - mod_growth_form_selector_ui
+      - mod_herbarium_parser_server
+      - mod_herbarium_parser_ui
+      - mod_individual_search_server
+      - mod_individual_search_ui
+      - mod_link_executor_server
+      - mod_link_executor_ui
+      - mod_link_preview_server
+      - mod_link_preview_ui
+      - mod_plot_filters_server
+      - mod_plot_filters_ui
+      - mod_plot_metadata_viewer_server
+      - mod_plot_metadata_viewer_ui
+      - mod_plot_statistics_server
+      - mod_plot_statistics_ui
+      - mod_results_display_server
+      - mod_results_display_ui
+      - mod_specimen_add_server
+      - mod_specimen_add_ui
+      - mod_specimen_import_server
+      - mod_specimen_import_ui
+      - mod_specimen_lookup_server
+      - mod_specimen_lookup_ui
+      - mod_specimen_mapping_server
+      - mod_specimen_mapping_ui
+      - mod_specimen_retriever_server
+      - mod_specimen_retriever_ui
+      - mod_specimen_search_server
+      - mod_specimen_search_ui
+      - mod_specimen_upload_server
+      - mod_specimen_upload_ui
+      - mod_taxa_add_server
+      - mod_taxa_add_ui
+      - mod_taxa_search_server
+      - mod_taxa_search_ui
+      - mod_taxa_synonymy_server
+      - mod_taxa_synonymy_ui
+      - mod_taxa_tree_view_server
+      - mod_taxa_tree_view_ui
+      - mod_taxa_update_server
+      - mod_taxa_update_ui
+      - mod_taxonomic_validator_server
+      - mod_taxonomic_validator_ui
+      - mod_trait_column_mapping_server
+      - mod_trait_column_mapping_ui
+      - mod_trait_metadata_mapping_server
+      - mod_trait_metadata_mapping_ui
+      - mod_trait_preview_import_server
+      - mod_trait_preview_import_ui
+      - mod_trait_validation_server
+      - mod_trait_validation_ui
+      - model_wd_1
+      - model_wd_2
+      - phylo_tree
+
+  - title: "Internationalization"
+    desc: "Translation and multi-language support utilities for Shiny apps"
+    contents:
+      - create_reactive_translator
+      - get_available_languages
+      - init_translator
+
+  - title: "Backbone Cache"
+    desc: "Taxonomic backbone cache management for offline use"
+    contents:
+      - cache_exists
+      - delete_backbone_cache
+      - get_backbone_cache_path
+      - get_cache_metadata
+      - load_backbone_cache
+      - save_backbone_cache
 
   - title: "Administration & Permissions"
     desc: "User management, database permissions, backup, and migration utilities"
@@ -255,3 +388,24 @@ reference:
       - check_citations_migration
       - check_created_by_migration
       - check_taxa_permissions
+      - check_hierarchy_consistency
+      - check_table_idtax_staleness
+      - get_table_idtax_metadata
+      - print_user_access_summary
+      - setup_add_person_function
+      - migrate_add_citations_table
+      - migrate_add_created_by
+      - migrate_table_idtax_to_materialized_view
+      - migration_add_audit_columns
+      - migration_add_id_parent_column
+      - migration_add_linktype_column
+      - migration_create_hierarchy_entries
+      - migration_create_linktypelist
+      - migration_link_hierarchy
+      - migration_link_infraspecific
+      - rollback_table_idtax_migration
+      - run_hierarchy_migration
+      - run_specimen_links_migration
+      - test_table_idtax_migration
+      - verify_hierarchy_integrity
+      - verify_specimen_links_migration

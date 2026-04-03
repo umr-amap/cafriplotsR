@@ -96,6 +96,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/clean_taxonomic_name.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/compute_growth.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/compute_mortality.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/compute_stem_vital_status.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/connect_database.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/country_list.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/count_measurement_features.html</loc></url>
@@ -112,6 +113,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/define_read_write_policy.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/define_user_policy.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/delete_backbone_cache.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/describe_columns.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/detect_direct_changes.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/diagnose_add_person_setup.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/diagnose_plot_permissions.html</loc></url>
@@ -515,6 +517,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/pivot_traits_to_wide.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/PlotFetcher.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/PlotFilterBuilder.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/print.column_documentation.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/print.plot_features_result.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/print.plot_query_list.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/print.plot_validation_result.html</loc></url>
@@ -560,7 +563,9 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/run_hierarchy_migration.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/run_specimen_links_migration.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/safe_delete_individuals.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/safe_delete_individual_features.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/safe_delete_plot.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/safe_delete_specimen_links.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/safe_delete_taxa_traits.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/save_backbone_cache.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/setup_add_person_function.html</loc></url>
