@@ -103,7 +103,6 @@ shiny_app_taxo_backbone <- function(pool_taxa = NULL, language = "fr") {
           title = shiny::textOutput("app_title", inline = TRUE),
           id = "main_nav",
           windowTitle = "CafriplotsR - Taxonomic Backbone Management",
-          theme = bslib::bs_theme(version = 5, bootswatch = "flatly"),
 
           # Page 1: Browse & Search
           shiny::tabPanel(
