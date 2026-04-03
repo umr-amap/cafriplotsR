@@ -11,7 +11,6 @@
 #' @param coordinates tibble output of query_plots, element coordinates
 #'
 #' @importFrom data.table data.table setnames rbindlist
-#' @importFrom ggpubr ggarrange
 #' @importFrom sf st_multipoint
 #' 
 #' @return list
@@ -269,9 +268,6 @@ extract_corners = function(coordinates, map_res = FALSE) {
 #' @param corners sf POINT the outputs WGS 84 of extract_corners function
 #' @param plot_name vector string the name of the plot
 #'
-#' @importFrom leafem addStaticLabels
-#' @importFrom mapview mapview
-#' 
 #' @return list sub_plot element is sf POLYGON with each quadrat as polygon
 #' @export
 divid_plot <- function (corners) {
@@ -669,8 +665,6 @@ get_plot_rel_xy <- function(dataset,
 #' @details
 #' Interpolate and fill x and y positioning
 #' 
-#' @importFrom zoo na.approx
-#'  
 #' @export
 approximate_isolated_xy <- function(dataset,
                                     col_subplot = "quadrat",

@@ -126,9 +126,6 @@ method_list <- function() {
 #'
 #' @importFrom DBI dbSendQuery dbFetch dbClearResult dbWriteTable
 #' @importFrom stringr str_flatten str_trim str_extract
-#' @importFrom date as.date
-#' @importFrom tidyselect vars_select_helpers
-#' @importFrom BIOMASS correctCoordGPS
 #' @importFrom glue glue_sql
 #' @importFrom stringr str_c
 #'
