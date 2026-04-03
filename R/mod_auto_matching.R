@@ -50,13 +50,15 @@ mod_auto_matching_ui <- function(id) {
 #' @param column_name Reactive character, name of column to match
 #' @param include_authors Reactive logical, whether to include author names
 #' @param min_similarity Numeric (0-1), minimum similarity threshold for fallback.
-#'   Note: UI displays as percentage (0-100) but parameter uses decimal (default: 0.3 = 30%)
+#'   Note: UI displays as percentage (0-100) but parameter uses decimal (default: 0.3 = 30\%)
 #' @param i18n Reactive returning shiny.i18n translator
 #'
 #' @return Reactive list containing:
-#'   - data: Updated data frame with match results
-#'   - unmatched: Data frame of unmatched names
-#'   - stats: List of matching statistics
+#'   \itemize{
+#'     \item \code{data}: Updated data frame with match results
+#'     \item \code{unmatched}: Data frame of unmatched names
+#'     \item \code{stats}: List of matching statistics
+#'   }
 #'
 #' @keywords internal
 mod_auto_matching_server <- function(id, data, column_name, include_authors,
