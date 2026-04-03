@@ -60,11 +60,6 @@ compute_growth <- function(plot_ids = NULL,
     stop("Either plot_ids or plot_names must be provided")
   }
 
-  # Check date package
-  if (!requireNamespace("date", quietly = TRUE)) {
-    stop("Package 'date' is required. Please install it with: install.packages('date')")
-  }
-
   # Connect to database
   if (is.null(con)) {
     con <- call.mydb()
@@ -296,11 +291,6 @@ compute_mortality <- function(plot_ids = NULL,
   # Check inputs
   if (is.null(plot_ids) && is.null(plot_names)) {
     stop("Either plot_ids or plot_names must be provided")
-  }
-
-  # Check date package
-  if (!requireNamespace("date", quietly = TRUE)) {
-    stop("Package 'date' is required. Please install it with: install.packages('date')")
   }
 
   # Connect to database

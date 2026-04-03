@@ -579,11 +579,9 @@ mod_results_display_server <- function(id, results, individual_features_results 
         }
 
         # Zip files
-        zip::zip(
-          zipfile = file,
-          files = basename(csv_files),
-          root = temp_dir
-        )
+        old_wd <- setwd(temp_dir)
+        on.exit(setwd(old_wd), add = TRUE)
+        utils::zip(zipfile = file, files = basename(csv_files))
       }
     )
 
@@ -669,11 +667,9 @@ mod_results_display_server <- function(id, results, individual_features_results 
         }
 
         # Zip files
-        zip::zip(
-          zipfile = file,
-          files = basename(shp_files),
-          root = temp_dir
-        )
+        old_wd <- setwd(temp_dir)
+        on.exit(setwd(old_wd), add = TRUE)
+        utils::zip(zipfile = file, files = basename(shp_files))
       }
     )
 

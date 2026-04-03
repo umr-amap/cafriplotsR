@@ -556,7 +556,7 @@ mod_plot_statistics_server <- function(id, results, pool_reactive, i18n) {
         dplyr::count(.data[[species_col]], name = "count") %>%
         dplyr::arrange(dplyr::desc(count)) %>%
         dplyr::slice_head(n = n_show) %>%
-        dplyr::mutate(species = forcats::fct_reorder(.data[[species_col]], count))
+        dplyr::mutate(species = stats::reorder(.data[[species_col]], count))
 
       # Create bar plot
       p <- ggplot2::ggplot(species_counts, ggplot2::aes(x = count, y = species)) +

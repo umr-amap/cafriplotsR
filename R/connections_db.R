@@ -132,8 +132,6 @@ get_password_secure <- function(prompt) {
   if (interactive()) {
     if (requireNamespace("getPass", quietly = TRUE)) {
       return(getPass::getPass(prompt))
-    } else if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
-      return(rstudioapi::askForPassword(prompt))
     } else {
       warning("No secure password input available, using readline")
       return(readline(paste0(prompt, " (WARNING: will be visible) ")))

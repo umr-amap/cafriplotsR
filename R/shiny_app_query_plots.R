@@ -76,7 +76,6 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
           title = shiny::textOutput("app_title", inline = TRUE),
           id = "main_nav",
           windowTitle = "CafriplotsR - Plot Query Tool",
-          theme = bslib::bs_theme(version = 5, bootswatch = "flatly"),
 
         # Page 1: Query Builder
         shiny::tabPanel(
