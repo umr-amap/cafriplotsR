@@ -59,7 +59,7 @@
 #' }
 #'
 #' @export
-launch_individual_specimen_linking_app <- function(lang = "en") {
+launch_individual_specimen_linking_app <- function(lang = "fr") {
   # Load i18n translations
   i18n <- shiny.i18n::Translator$new(
     translation_json_path = system.file(

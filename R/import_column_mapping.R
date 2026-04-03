@@ -350,6 +350,142 @@
     multi_tiges_id = list(
       description = "Multi-stem identifier for trees with multiple stems (optional). Links secondary stems to the main individual by referencing the main stem's tag.",
       category = "Identification"
+    ),
+
+    # --- Additional columns for query output documentation ---
+
+    # Individual identification (query output)
+    id_n = list(
+      description = "Unique database identifier for the individual tree.",
+      category = "Identification"
+    ),
+    subplot_name = list(
+      description = "Name of the subplot within the plot.",
+      category = "Identification"
+    ),
+    number_of_stem = list(
+      description = "Number of stems for the individual tree.",
+      category = "Measurement"
+    ),
+
+    # Measurement columns (raw database names)
+    stem_diameter = list(
+      description = "Stem diameter at breast height in cm.",
+      category = "Measurement"
+    ),
+    tree_height = list(
+      description = "Total tree height in meters.",
+      category = "Measurement"
+    ),
+    height_of_stem_diameter = list(
+      description = "Height at which stem diameter was measured (point of measurement) in meters.",
+      category = "Measurement"
+    ),
+
+    # Renamed measurement columns (output style aliases)
+    dbh = list(
+      description = "Stem diameter at breast height in cm (renamed from stem_diameter).",
+      category = "Measurement"
+    ),
+    height = list(
+      description = "Total tree height in meters (renamed from tree_height).",
+      category = "Measurement"
+    ),
+    pom = list(
+      description = "Point of measurement: height at which diameter was measured (renamed from height_of_stem_diameter).",
+      category = "Measurement"
+    ),
+
+    # Renamed location columns (output style aliases)
+    latitude = list(
+      description = "Latitude in decimal degrees (renamed from ddlat).",
+      category = "Location"
+    ),
+    longitude = list(
+      description = "Longitude in decimal degrees (renamed from ddlon).",
+      category = "Location"
+    ),
+
+    # Renamed taxonomy columns (output style aliases)
+    family = list(
+      description = "Taxonomic family (renamed from tax_fam).",
+      category = "Taxonomy"
+    ),
+    genus = list(
+      description = "Taxonomic genus (renamed from tax_gen).",
+      category = "Taxonomy"
+    ),
+    species = list(
+      description = "Species epithet (renamed from tax_sp_level).",
+      category = "Taxonomy"
+    ),
+
+    # Taxonomy columns (raw database names)
+    tax_fam = list(
+      description = "Taxonomic family of the tree.",
+      category = "Taxonomy"
+    ),
+    tax_gen = list(
+      description = "Taxonomic genus of the tree.",
+      category = "Taxonomy"
+    ),
+    tax_sp_level = list(
+      description = "Species epithet of the tree.",
+      category = "Taxonomy"
+    ),
+
+    # Plot-level identifiers (output)
+    plot_id = list(
+      description = "Unique database identifier for the plot (renamed from id_liste_plots).",
+      category = "Identification"
+    ),
+    id_liste_plots = list(
+      description = "Unique database identifier for the plot.",
+      category = "Identification"
+    ),
+
+    # Census summary columns
+    census_date = list(
+      description = "Date of the census measurement.",
+      category = "Dates"
+    ),
+    first_census = list(
+      description = "Date of the earliest census for this plot.",
+      category = "Dates"
+    ),
+    last_census = list(
+      description = "Date of the most recent census for this plot.",
+      category = "Dates"
+    ),
+    n_census = list(
+      description = "Total number of censuses conducted for this plot.",
+      category = "Dates"
+    ),
+    time = list(
+      description = "Time interval between censuses in years.",
+      category = "Dates"
+    ),
+
+    # Plot features (commonly appear in metadata)
+    plot_area = list(
+      description = "Total area of the plot (typically in hectares).",
+      category = "Sampling"
+    ),
+    forest_description = list(
+      description = "Description of the forest type or vegetation.",
+      category = "Sampling"
+    ),
+    distance_along_transect = list(
+      description = "Distance of the individual along the transect (meters).",
+      category = "Measurement"
+    ),
+    transect_length = list(
+      description = "Total length of the transect (meters).",
+      category = "Sampling"
+    ),
+    transect_width = list(
+      description = "Width of the transect (meters).",
+      category = "Sampling"
     )
   )
 

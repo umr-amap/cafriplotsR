@@ -25,7 +25,7 @@ mod_database_login_ui <- function(id) {
             ns("language"),
             label = NULL,
             choices = c("English" = "en", "Français" = "fr"),
-            selected = "en",
+            selected = "fr",
             inline = TRUE
           )
         ),
@@ -534,7 +534,7 @@ mod_database_login_server <- function(id) {
         authenticated = shiny::reactive(rv$authenticated),
         pool_main     = shiny::reactive(rv$pool_main),
         pool_taxa     = shiny::reactive(rv$pool_taxa),
-        language      = shiny::reactive(input$language %||% "en"),
+        language      = shiny::reactive(input$language %||% "fr"),
         is_public     = shiny::reactive(rv$is_public)
       )
     )
