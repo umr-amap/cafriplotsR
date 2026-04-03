@@ -4,7 +4,7 @@
 \alias{shiny_app_specimen_import_wizard}
 \title{Specimen Import Wizard (Internal Function)}
 \usage{
-shiny_app_specimen_import_wizard(lang = "en")
+shiny_app_specimen_import_wizard(lang = "fr")
 }
 \arguments{
 \item{lang}{Character, initial language}

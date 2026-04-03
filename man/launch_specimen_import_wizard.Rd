@@ -4,7 +4,7 @@
 \alias{launch_specimen_import_wizard}
 \title{Launch Specimen Import Wizard}
 \usage{
-launch_specimen_import_wizard(lang = "en")
+launch_specimen_import_wizard(lang = "fr")
 }
 \arguments{
 \item{lang}{Character, initial language ("en" or "fr"). Default "en".}
