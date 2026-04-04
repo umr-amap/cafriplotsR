@@ -1,4 +1,6 @@
 #' @importFrom magrittr %>%
+#' @importFrom stats as.formula na.omit setNames
+#' @importFrom utils capture.output head object.size read.csv setTxtProgressBar txtProgressBar write.csv
 NULL
 
 #' Conditional rclipboard button
