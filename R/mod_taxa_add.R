@@ -189,6 +189,13 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
 
       shiny::withProgress({
         tryCatch({
+          if (!requireNamespace("taxize", quietly = TRUE)) {
+            shiny::showNotification(
+              "Package 'taxize' is required for Tropicos search. Please install it.",
+              type = "error", duration = 8
+            )
+            return(NULL)
+          }
           tps_key <- Sys.getenv("TROPICOS_API_KEY", "15ad0b4c-f0d3-46ab-b649-178f2c75724f")
           cli::cli_alert_info("Searching Tropicos for: {search_name}")
           results <- taxize::tp_search(sci = search_name, key = tps_key)

@@ -35,9 +35,13 @@ Imports:
     pool,
     leaflet,
     plotly,
-    purrr
+    purrr,
+    shinyjs
 Suggests:
     getPass,
+    openxlsx,
+    proj4,
+    taxize,
     dm,
     ggrepel,
     measurements,
