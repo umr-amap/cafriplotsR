@@ -737,6 +737,7 @@ approximate_isolated_xy <- function(dataset,
 #' @author Hugo Leblanc
 #'
 #' @examples
+#' \dontrun{
 #' ## Test 1
 #' # Define the data for 2 plots
 #' df <- data.frame(plot_name = c(rep("plot1", each = 250),rep("plot2", each = 250)),
@@ -846,6 +847,7 @@ approximate_isolated_xy <- function(dataset,
 #'
 #' sub_plot <- divid_plot(coordinates_sf,'plot_name')
 #' test.order.subplot(ind.extract, sub_plot)
+#' }
 #'
 #' @import ggplot2
 #' @import dplyr

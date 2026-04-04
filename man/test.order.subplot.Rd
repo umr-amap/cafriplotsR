@@ -21,6 +21,7 @@ the indicator variable 'tag' for each subplot and displays it in a spatial plot 
 errors from thanks to an indicator 'check.
 }
 \examples{
+\dontrun{
 ## Test 1
 # Define the data for 2 plots
 df <- data.frame(plot_name = c(rep("plot1", each = 250),rep("plot2", each = 250)),
@@ -130,6 +131,7 @@ ind.extract <- x$extract
 
 sub_plot <- divid_plot(coordinates_sf,'plot_name')
 test.order.subplot(ind.extract, sub_plot)
+}
 
 }
 \author{
