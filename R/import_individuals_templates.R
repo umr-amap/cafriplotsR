@@ -301,11 +301,11 @@ get_individual_template <- function(method = NULL,
   )
 
   # Build sheet
-  sheet_data <- dplyr::tibble(!!!base::setNames(as.list(col_names), col_names))
+  sheet_data <- dplyr::tibble(!!!stats::setNames(as.list(col_names), col_names))
   sheet_data <- sheet_data %>%
-    dplyr::add_row(!!!base::setNames(as.list(example_row_1), col_names)) %>%
-    dplyr::add_row(!!!base::setNames(as.list(example_row_2), col_names)) %>%
-    dplyr::add_row(!!!base::setNames(as.list(example_row_3), col_names))
+    dplyr::add_row(!!!stats::setNames(as.list(example_row_1), col_names)) %>%
+    dplyr::add_row(!!!stats::setNames(as.list(example_row_2), col_names)) %>%
+    dplyr::add_row(!!!stats::setNames(as.list(example_row_3), col_names))
 
   return(sheet_data)
 }
