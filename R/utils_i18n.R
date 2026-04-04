@@ -69,22 +69,6 @@ init_translator <- function() {
 #'
 #' @return Reactive expression returning the translator
 #'
-#' @details
-#' This function wraps the translator in a reactive context that automatically updates
-#' when the language changes. Use this in your server function:
-#'
-#' ```r
-#' server <- function(input, output, session) {
-#'   current_language <- mod_language_toggle_server("language", initial = "en")
-#'
-#'   i18n <- create_reactive_translator(translator, current_language)
-#'
-#'   output$title <- renderText({
-#'     i18n()$t("app_title")
-#'   })
-#' }
-#' ```
-#'
 #' @keywords internal
 #' @export
 create_reactive_translator <- function(translator, language_reactive) {
