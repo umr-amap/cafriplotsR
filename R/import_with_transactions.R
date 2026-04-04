@@ -671,8 +671,8 @@ DBI::dbDisconnect(con)
   # Identify which columns in the data are subplot features
   # (present in data, defined in subplot_features, not flat table columns)
   subplot_feature_types <- subplot_features %>%
-    dplyr::filter(type %in% names(data)) %>%
-    dplyr::filter(!(type %in% flat_table_columns))
+    dplyr::filter(.data$type %in% names(data)) %>%
+    dplyr::filter(!(.data$type %in% flat_table_columns))
 
   if (nrow(subplot_feature_types) == 0) {
     if (progress) cli::cli_alert_info("No subplot features found in data")
@@ -689,10 +689,10 @@ DBI::dbDisconnect(con)
 
   # Separate into people features (table_colnam) and other features
   people_feature_types <- subplot_feature_types %>%
-    dplyr::filter(valuetype == "table_colnam")
+    dplyr::filter(.data$valuetype == "table_colnam")
 
   other_feature_types <- subplot_feature_types %>%
-    dplyr::filter(valuetype != "table_colnam")
+    dplyr::filter(.data$valuetype != "table_colnam")
 
   people_features <- list()
   other_features <- list()
@@ -708,9 +708,9 @@ DBI::dbDisconnect(con)
 
       # Separate comma-separated names
       feature_sep <- data %>%
-        dplyr::select(plot_name, !!rlang::sym(feature_type)) %>%
-        tidyr::separate_rows(!!rlang::sym(feature_type), sep = ",") %>%
-        dplyr::mutate(!!rlang::sym(feature_type) := stringr::str_squish(!!rlang::sym(feature_type))) %>%
+        dplyr::select("plot_name", dplyr::all_of(feature_type)) %>%
+        tidyr::separate_rows(dplyr::all_of(feature_type), sep = ",") %>%
+        dplyr::mutate(dplyr::across(dplyr::all_of(feature_type), stringr::str_squish)) %>%
         dplyr::filter(!!rlang::sym(feature_type) != "" & !is.na(!!rlang::sym(feature_type)))
 
       if (nrow(feature_sep) == 0) {
@@ -784,7 +784,7 @@ DBI::dbDisconnect(con)
 
       # Extract feature values (one row per plot)
       feature_values <- data %>%
-        dplyr::select(plot_name, !!rlang::sym(feature_type)) %>%
+        dplyr::select("plot_name", dplyr::all_of(feature_type)) %>%
         dplyr::filter(!is.na(!!rlang::sym(feature_type)) & !!rlang::sym(feature_type) != "")
 
       if (nrow(feature_values) == 0) {

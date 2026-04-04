@@ -600,7 +600,7 @@ mod_step6_preview_server <- function(id, validation_result, i18n) {
         method_lookup <- method_list()
 
         # Create ID to name mapping
-        id_to_name <- setNames(method_lookup$method, method_lookup$id_method)
+        id_to_name <- base::setNames(method_lookup$method, method_lookup$id_method)
 
         # Replace IDs with names
         enriched_data$method <- sapply(enriched_data$method, function(id) {
@@ -628,7 +628,7 @@ mod_step6_preview_server <- function(id, validation_result, i18n) {
         country_lookup <- country_list()
 
         # Create ID to name mapping
-        id_to_name <- setNames(country_lookup$country, country_lookup$id_country)
+        id_to_name <- base::setNames(country_lookup$country, country_lookup$id_country)
 
         # Replace IDs with names
         enriched_data$country <- sapply(enriched_data$country, function(id) {
@@ -662,7 +662,7 @@ mod_step6_preview_server <- function(id, validation_result, i18n) {
       ")
 
       # Create ID to name mapping
-      id_to_name <- setNames(people_lookup$colnam, people_lookup$id_table_colnam)
+      id_to_name <- base::setNames(people_lookup$colnam, people_lookup$id_table_colnam)
 
       # Process each people column
       for (col in people_cols) {

@@ -4429,7 +4429,7 @@ reverse_map_table_references <- function(data, con) {
   taxa_info <- tryCatch({
     add_taxa_table_taxa(ids = all_idtax) %>%
       dplyr::collect() %>%
-      dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp)
+      dplyr::select("idtax_n", "tax_fam", "tax_gen", "tax_esp")
   }, error = function(e) {
     cli::cli_alert_warning("Could not fetch taxonomy for idtax_n changes: {e$message}")
     return(NULL)
@@ -4441,32 +4441,32 @@ reverse_map_table_references <- function(data, con) {
 
   # Add old taxonomy
   idtax_changes <- idtax_changes %>%
-    mutate(old_value_int = as.integer(old_value)) %>%
-    left_join(
-      taxa_info %>% rename(
-        old_family = tax_fam,
-        old_genus = tax_gen,
-        old_species = tax_esp
+    dplyr::mutate(old_value_int = as.integer(.data$old_value)) %>%
+    dplyr::left_join(
+      taxa_info %>% dplyr::rename(
+        old_family = "tax_fam",
+        old_genus = "tax_gen",
+        old_species = "tax_esp"
       ),
       by = c("old_value_int" = "idtax_n")
     ) %>%
-    select(-old_value_int)
+    dplyr::select(-dplyr::all_of("old_value_int"))
 
   # Add new taxonomy
   idtax_changes <- idtax_changes %>%
-    mutate(new_value_int = as.integer(new_value)) %>%
-    left_join(
-      taxa_info %>% rename(
-        new_family = tax_fam,
-        new_genus = tax_gen,
-        new_species = tax_esp
+    dplyr::mutate(new_value_int = as.integer(.data$new_value)) %>%
+    dplyr::left_join(
+      taxa_info %>% dplyr::rename(
+        new_family = "tax_fam",
+        new_genus = "tax_gen",
+        new_species = "tax_esp"
       ),
       by = c("new_value_int" = "idtax_n")
     ) %>%
-    select(-new_value_int)
+    dplyr::select(-dplyr::all_of("new_value_int"))
 
   # Combine back with other changes (maintain original order)
-  bind_rows(idtax_changes, other_changes)
+  dplyr::bind_rows(idtax_changes, other_changes)
 }
 
 #' Display multiple changes grouped by column
@@ -5107,8 +5107,8 @@ update_records <- function(data,
     new_tax <- query_taxa(ids = vec_1$idtax_n, check_synonymy = FALSE,
                           class = NULL, extract_traits = FALSE)
     
-    vec_1 <- dplyr::left_join(vec_1, new_tax %>% dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp), by = "idtax_n")
-    vec_2 <- dplyr::left_join(vec_2, old_tax %>% dplyr::select(idtax_n, tax_fam, tax_gen, tax_esp), by = "idtax_n")
+    vec_1 <- dplyr::left_join(vec_1, new_tax %>% dplyr::select("idtax_n", "tax_fam", "tax_gen", "tax_esp"), by = "idtax_n")
+    vec_2 <- dplyr::left_join(vec_2, old_tax %>% dplyr::select("idtax_n", "tax_fam", "tax_gen", "tax_esp"), by = "idtax_n")
   }
   
   comp_tb <- 
@@ -5120,16 +5120,16 @@ update_records <- function(data,
       new_comp = unlist(vec_2, use.names = FALSE)
     )
   
-  comp_tb_html <- 
+  comp_tb_html <-
     comp_tb %>%
-    mutate(
+    dplyr::mutate(
       new = kableExtra::cell_spec(
-        new, "html",
-        color = if_else(tidyr::replace_na(current_comp, "") != tidyr::replace_na(new_comp, ""), 
+        .data$new, "html",
+        color = dplyr::if_else(tidyr::replace_na(.data$current_comp, "") != tidyr::replace_na(.data$new_comp, ""),
                         "red", "blue")
       )
     ) %>%
-    select(-new_comp, -current_comp) %>%
+    dplyr::select(-dplyr::all_of(c("new_comp", "current_comp"))) %>%
     kableExtra::kable("html", escape = FALSE) %>%
     kableExtra::kable_styling("striped", full_width = FALSE)
   

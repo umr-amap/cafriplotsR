@@ -1685,18 +1685,18 @@ add_traits_measures_features <- function(new_data,
   # Remove entries with NA values for all features
   new_data_renamed <-
     new_data_renamed %>%
-    dplyr::filter_at(dplyr::vars(!!features), dplyr::any_vars(!is.na(.)))
+    dplyr::filter(dplyr::if_any(dplyr::all_of(features), ~ !is.na(.x)))
 
   if (nrow(new_data_renamed) == 0)
     stop("no values for selected features(s)")
 
   new_data_renamed <-
     new_data_renamed %>%
-    dplyr::mutate(id_new_data = 1:nrow(.))
+    dplyr::mutate(id_new_data = dplyr::row_number())
 
   new_data_renamed <-
     new_data_renamed %>%
-    dplyr::rename(id_trait_measures := dplyr::all_of(id_trait_measures))
+    dplyr::rename_with(~ "id_trait_measures", dplyr::all_of(id_trait_measures))
 
   # Validate trait_measures exist in database
   provided_tm_ids <- unique(new_data_renamed$id_trait_measures)
@@ -1704,8 +1704,8 @@ add_traits_measures_features <- function(new_data,
 
   found_tm_ids <-
     try_open_postgres_table(table = "data_traits_measures", con = con) %>%
-    dplyr::filter(id_trait_measures %in% !!provided_tm_ids) %>%
-    dplyr::pull(id_trait_measures)
+    dplyr::filter(.data$id_trait_measures %in% !!provided_tm_ids) %>%
+    dplyr::pull("id_trait_measures")
 
   missing_tm_ids <- setdiff(provided_tm_ids, found_tm_ids)
   if (length(missing_tm_ids) > 0) {
@@ -1737,10 +1737,10 @@ add_traits_measures_features <- function(new_data,
       # Determine value type (numeric vs character)
       valuetype <-
         data_feat %>%
-        dplyr::distinct(id_trait) %>%
+        dplyr::distinct(.data$id_trait) %>%
         dplyr::left_join(
           dplyr::tbl(con, "traitlist") %>%
-            dplyr::select(valuetype, id_trait) %>%
+            dplyr::select("valuetype", "id_trait") %>%
             dplyr::collect(),
           by = c("id_trait" = "id_trait")
         )
