@@ -60,6 +60,6 @@ LazyData: true
 RoxygenNote: 7.3.3
 VignetteBuilder: knitr
 Depends: 
-    R (>= 4.0)
+    R (>= 4.1.0)
 Config/testthat/edition: 3
 URL: https://umr-amap.github.io/cafriplotsR/
