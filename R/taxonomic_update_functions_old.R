@@ -918,7 +918,7 @@ add_entry_taxa <- function(search_name_tps = NULL,
 
         update_dico_name(
           synonym_of = list(id = syn_searched$idtax_good_n),
-          id_search = new_entry$idtax_n,
+          id_searched = new_entry$idtax_n,
           ask_before_update = FALSE,
           add_backup = FALSE,
           show_results = FALSE

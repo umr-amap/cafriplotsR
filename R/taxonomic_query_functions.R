@@ -543,58 +543,58 @@ query_taxa <-
   if (is.null(res) || nrow(res) == 0) return(res)
 
   res <- res %>%
-    mutate(
-      tax_sp_level = ifelse(!is.na(tax_esp), paste(tax_gen, tax_esp), NA),
+    dplyr::mutate(
+      tax_sp_level = ifelse(!is.na(.data$tax_esp), paste(.data$tax_gen, .data$tax_esp), NA),
       tax_infra_level = ifelse(
-        !is.na(tax_esp),
+        !is.na(.data$tax_esp),
         paste0(
-          tax_gen, " ", tax_esp,
-          ifelse(!is.na(tax_rank01), paste0(" ", tax_rank01), ""),
-          ifelse(!is.na(tax_nam01), paste0(" ", tax_nam01), ""),
-          ifelse(!is.na(tax_rank02), paste0(" ", tax_rank02), ""),
-          ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), "")
+          .data$tax_gen, " ", .data$tax_esp,
+          ifelse(!is.na(.data$tax_rank01), paste0(" ", .data$tax_rank01), ""),
+          ifelse(!is.na(.data$tax_nam01), paste0(" ", .data$tax_nam01), ""),
+          ifelse(!is.na(.data$tax_rank02), paste0(" ", .data$tax_rank02), ""),
+          ifelse(!is.na(.data$tax_nam02), paste0(" ", .data$tax_nam02), "")
         ),
         NA
       ),
       tax_infra_level_auth = ifelse(
-        !is.na(tax_esp),
+        !is.na(.data$tax_esp),
         paste0(
-          tax_gen, " ", tax_esp,
-          ifelse(!is.na(author1), paste0(" ", author1), ""),
-          ifelse(!is.na(tax_rank01), paste0(" ", tax_rank01), ""),
-          ifelse(!is.na(tax_nam01), paste0(" ", tax_nam01), ""),
-          ifelse(!is.na(author2), paste0(" ", author2), ""),
-          ifelse(!is.na(tax_rank02), paste0(" ", tax_rank02), ""),
-          ifelse(!is.na(tax_nam02), paste0(" ", tax_nam02), ""),
-          ifelse(!is.na(author3), paste0(" ", author3), "")
+          .data$tax_gen, " ", .data$tax_esp,
+          ifelse(!is.na(.data$author1), paste0(" ", .data$author1), ""),
+          ifelse(!is.na(.data$tax_rank01), paste0(" ", .data$tax_rank01), ""),
+          ifelse(!is.na(.data$tax_nam01), paste0(" ", .data$tax_nam01), ""),
+          ifelse(!is.na(.data$author2), paste0(" ", .data$author2), ""),
+          ifelse(!is.na(.data$tax_rank02), paste0(" ", .data$tax_rank02), ""),
+          ifelse(!is.na(.data$tax_nam02), paste0(" ", .data$tax_nam02), ""),
+          ifelse(!is.na(.data$author3), paste0(" ", .data$author3), "")
         ),
         NA
       )
     ) %>%
     dplyr::mutate(
-      introduced_status = stringr::str_trim(introduced_status),
-      tax_sp_level = as.character(tax_sp_level),
-      tax_infra_level = as.character(tax_infra_level),
-      tax_infra_level_auth = as.character(tax_infra_level_auth)
+      introduced_status = stringr::str_trim(.data$introduced_status),
+      tax_sp_level = as.character(.data$tax_sp_level),
+      tax_infra_level = as.character(.data$tax_infra_level),
+      tax_infra_level_auth = as.character(.data$tax_infra_level_auth)
     )
 
   # Add family class information
   if ("tax_famclass" %in% names(res)) {
-    res <- res %>% dplyr::select(-tax_famclass)
+    res <- res %>% dplyr::select(-dplyr::all_of("tax_famclass"))
   }
 
   res <- res %>%
-    left_join(
+    dplyr::left_join(
       dplyr::tbl(mydb_taxa, "table_tax_famclass") %>% dplyr::collect(),
       by = c("id_tax_famclass" = "id_tax_famclass")
     ) %>%
-    dplyr::relocate(tax_famclass, .after = tax_order) %>%
-    dplyr::relocate(year_description, .after = citation) %>%
-    dplyr::relocate(data_modif_d, .after = morpho_species) %>%
-    dplyr::relocate(data_modif_m, .after = morpho_species) %>%
-    dplyr::relocate(data_modif_y, .after = morpho_species) %>%
-    dplyr::relocate(tax_sp_level, .before = idtax_n) %>%
-    dplyr::relocate(id_tax_famclass, .after = morpho_species)
+    dplyr::relocate("tax_famclass", .after = "tax_order") %>%
+    dplyr::relocate("year_description", .after = "citation") %>%
+    dplyr::relocate("data_modif_d", .after = "morpho_species") %>%
+    dplyr::relocate("data_modif_m", .after = "morpho_species") %>%
+    dplyr::relocate("data_modif_y", .after = "morpho_species") %>%
+    dplyr::relocate("tax_sp_level", .before = "idtax_n") %>%
+    dplyr::relocate("id_tax_famclass", .after = "morpho_species")
 
   return(res)
 }
@@ -699,7 +699,9 @@ query_taxa <-
 #' @param verbose logical whether results should be shown in viewer
 #'
 #' @examples
+#' \dontrun{
 #' match_tax(idtax = c(3095, 219))
+#' }
 #'
 #' @export
 match_tax <- function(idtax, queried_tax = NULL, verbose = TRUE) {
@@ -1370,39 +1372,39 @@ get_taxon_hierarchy <- function(idtax_n, con = NULL) {
     # Parent is species (tax_level = "species")
     parent_query <- parent_query %>%
       dplyr::filter(
-        tax_gen == !!tax_gen,
-        tax_fam == !!tax_fam,
-        tax_esp == !!tax_esp,
-        tax_level == "species"
+        .data$tax_gen == !!tax_gen,
+        .data$tax_fam == !!tax_fam,
+        .data$tax_esp == !!tax_esp,
+        .data$tax_level == "species"
       )
   } else if (level == "species") {
     # Parent is genus (tax_level = "genus")
     parent_query <- parent_query %>%
       dplyr::filter(
-        tax_gen == !!tax_gen,
-        tax_fam == !!tax_fam,
-        tax_level == "genus"
+        .data$tax_gen == !!tax_gen,
+        .data$tax_fam == !!tax_fam,
+        .data$tax_level == "genus"
       )
   } else if (level == "genus") {
     # Parent is family (tax_level = "family")
     parent_query <- parent_query %>%
       dplyr::filter(
-        tax_fam == !!tax_fam,
-        tax_level == "family"
+        .data$tax_fam == !!tax_fam,
+        .data$tax_level == "family"
       )
   } else if (level == "family") {
     # Parent is order (tax_level = "order")
     parent_query <- parent_query %>%
       dplyr::filter(
-        tax_order == !!tax_order,
-        tax_level == "order"
+        .data$tax_order == !!tax_order,
+        .data$tax_level == "order"
       )
   } else if (level == "order") {
     # Parent is class (tax_level IN ("class", "higher"))
     parent_query <- parent_query %>%
       dplyr::filter(
-        tax_famclass == !!tax_famclass,
-        tax_level %in% c("class", "higher")
+        .data$tax_famclass == !!tax_famclass,
+        .data$tax_level %in% c("class", "higher")
       )
   } else {
     # Class level has no parent
@@ -1410,7 +1412,7 @@ get_taxon_hierarchy <- function(idtax_n, con = NULL) {
   }
 
   result <- parent_query %>%
-    dplyr::select(idtax_n) %>%
+    dplyr::select("idtax_n") %>%
     dplyr::collect()
 
   if (nrow(result) > 0) {
@@ -1558,9 +1560,9 @@ get_taxon_hierarchy <- function(idtax_n, con = NULL) {
   new_entry <- .add_modif_field(new_entry)
   new_entry <- new_entry %>%
     dplyr::rename(
-      data_modif_m = date_modif_m,
-      data_modif_y = date_modif_y,
-      data_modif_d = date_modif_d
+      data_modif_m = "date_modif_m",
+      data_modif_y = "date_modif_y",
+      data_modif_d = "date_modif_d"
     )
 
   DBI::dbWriteTable(actual_con, "table_taxa", new_entry, append = TRUE, row.names = FALSE)

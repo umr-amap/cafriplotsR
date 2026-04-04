@@ -461,7 +461,7 @@
 
   compared_table <-
     compared_table %>%
-    mutate(perfect_match = comp_value == value_to_search)
+    dplyr::mutate(perfect_match = .data$comp_value == value_to_search)
 
 
   if(any(compared_table$perfect_match)) {
@@ -513,7 +513,7 @@
           readline(prompt = "Search pattern: ")
         sorted_matches <-
           compared_table %>%
-          filter(grepl(grep_name, comp_value, ignore.case = TRUE))
+          dplyr::filter(grepl(grep_name, .data$comp_value, ignore.case = TRUE))
 
         if (nrow(sorted_matches) == 0) {
           cat("\n")
@@ -533,8 +533,8 @@
 
         sel_loc <-
           sorted_matches %>%
-          dplyr::mutate(ID = seq(1, nrow(.), 1)) %>%
-          dplyr::relocate(ID, .before = comp_value) %>%
+          dplyr::mutate(ID = dplyr::row_number()) %>%
+          dplyr::relocate("ID", .before = "comp_value") %>%
           dplyr::slice((1 + (slide - 1) * 10):((slide) * 10))
 
       } else {
@@ -760,12 +760,15 @@ join_help_function <- function(df1, df2, col1, col2, keep_columns) {
 #'
 #' @export
 .find_ids <- function(dataset, col_new, id_col_nbr, type_data) {
-  
+
+  mydb <- call.mydb()
+  mydb_taxa <- call.mydb.taxa()
+
   ids_new_data <-
     dataset %>%
     dplyr::select(!!col_new[id_col_nbr]) %>%
     dplyr::pull()
-  
+
   if(type_data=="taxa")
     corresponding_data <-
       dplyr::tbl(mydb_taxa, "table_taxa")
@@ -781,19 +784,19 @@ join_help_function <- function(df1, df2, col1, col2, keep_columns) {
   if(type_data == "sp_trait_measures")
     corresponding_data <-
       dplyr::tbl(mydb, "taxa_traits_measures")
-  
+
   if(type_data == "plot_data")
     corresponding_data <-
       dplyr::tbl(mydb, "data_liste_plots")
-  
+
   if(type_data == "data_liste_sub_plots")
     corresponding_data <-
       dplyr::tbl(mydb, "data_liste_sub_plots")
-  
+
   if(type_data == "specimens")
     corresponding_data <-
       dplyr::tbl(mydb, "specimens")
-  
+
   if(type_data == "methodslist")
     corresponding_data <-
       dplyr::tbl(mydb, "methodslist")  
@@ -860,17 +863,17 @@ join_help_function <- function(df1, df2, col1, col2, keep_columns) {
     quo_var <- rlang::quo_name(rlang::enquo(id))
     
     select_col_new <-
-      dplyr::select(dataset, !!var_id, !!var) %>%
-      dplyr::rename(!!var_new := !!var)
-    
+      dplyr::select(dataset, !!var_id, dplyr::all_of(var_)) %>%
+      dplyr::rename_with(~ var_new, dplyr::all_of(var_))
+
     id <- "id"
     select_col_new <-
       select_col_new %>%
-      dplyr::rename_at(dplyr::vars(col_new[id_col_nbr]), ~ id)
-    
+      dplyr::rename_with(~ id, dplyr::all_of(col_new[id_col_nbr]))
+
     select_col_old <-
-      dplyr::select(corresponding_data, "id", !!var) %>%
-      dplyr::rename(!!var_old := !!var)
+      dplyr::select(corresponding_data, "id", dplyr::all_of(var_)) %>%
+      dplyr::rename_with(~ var_old, dplyr::all_of(var_))
     
     matches <-
       dplyr::left_join(select_col_new, select_col_old, by = c("id"="id"))
