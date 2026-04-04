@@ -685,7 +685,7 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
     if (!is.data.frame(result)) {
       cli::cli_alert_warning("Result is not a data frame, type: {paste(class(result), collapse=', ')}")
       cli::cli_alert_warning("Result structure:")
-      print(str(result))
+      print(utils::str(result))
       return(NULL)
     }
 
@@ -736,14 +736,14 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
     dplyr::mutate(
       full_name_no_auth = dplyr::case_when(
         # Infraspecific level with tax_nam01
-        !is.na(tax_esp) & !is.na(tax_nam01) & tax_nam01 != "" ~
-          paste(tax_gen, tax_esp, tax_rank01, tax_nam01),
+        !is.na(.data$tax_esp) & !is.na(.data$tax_nam01) & .data$tax_nam01 != "" ~
+          paste(.data$tax_gen, .data$tax_esp, .data$tax_rank01, .data$tax_nam01),
         # Species level
-        !is.na(tax_esp) & tax_esp != "" ~
-          paste(tax_gen, tax_esp),
+        !is.na(.data$tax_esp) & .data$tax_esp != "" ~
+          paste(.data$tax_gen, .data$tax_esp),
         # Genus level only
-        !is.na(tax_gen) & tax_gen != "" ~
-          tax_gen,
+        !is.na(.data$tax_gen) & .data$tax_gen != "" ~
+          .data$tax_gen,
         # Fallback
         TRUE ~ NA_character_
       )
@@ -754,12 +754,12 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
   # Create individual taxonomy lookup
   cli::cli_alert_info("Creating individual taxonomy lookup...")
   taxa_individual <- taxa_info %>%
-    dplyr::select(idtax_n, tax_gen, tax_esp, tax_fam, full_name_no_auth) %>%
+    dplyr::select("idtax_n", "tax_gen", "tax_esp", "tax_fam", "full_name_no_auth") %>%
     dplyr::rename(
-      individual_genus = tax_gen,
-      individual_species = tax_esp,
-      individual_family = tax_fam,
-      individual_taxon = full_name_no_auth
+      individual_genus = "tax_gen",
+      individual_species = "tax_esp",
+      individual_family = "tax_fam",
+      individual_taxon = "full_name_no_auth"
     )
 
   cli::cli_alert_info("Individual lookup: {nrow(taxa_individual)} rows")
@@ -767,12 +767,12 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
   # Create specimen taxonomy lookup
   cli::cli_alert_info("Creating specimen taxonomy lookup...")
   taxa_specimen <- taxa_info %>%
-    dplyr::select(idtax_n, tax_gen, tax_esp, tax_fam, full_name_no_auth) %>%
+    dplyr::select("idtax_n", "tax_gen", "tax_esp", "tax_fam", "full_name_no_auth") %>%
     dplyr::rename(
-      specimen_genus = tax_gen,
-      specimen_species = tax_esp,
-      specimen_family = tax_fam,
-      specimen_taxon = full_name_no_auth
+      specimen_genus = "tax_gen",
+      specimen_species = "tax_esp",
+      specimen_family = "tax_fam",
+      specimen_taxon = "full_name_no_auth"
     )
 
   cli::cli_alert_info("Specimen lookup: {nrow(taxa_specimen)} rows")

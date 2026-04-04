@@ -885,16 +885,16 @@ match_taxonomic_names <- function(names,
 
   # Check which matches are synonyms
   matches <- matches %>%
-    mutate(
-      is_synonym = !is.na(idtax_good_n) & idtax_n != idtax_good_n
+    dplyr::mutate(
+      is_synonym = !is.na(.data$idtax_good_n) & .data$idtax_n != .data$idtax_good_n
     )
 
   # Get accepted names for synonyms
   synonym_ids <- matches %>%
-    filter(is_synonym) %>%
-    pull(idtax_good_n) %>%
+    dplyr::filter(.data$is_synonym) %>%
+    dplyr::pull("idtax_good_n") %>%
     unique() %>%
-    na.omit()
+    stats::na.omit()
 
   if (length(synonym_ids) > 0) {
     # Build name field for accepted names

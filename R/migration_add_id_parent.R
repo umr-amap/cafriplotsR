@@ -406,9 +406,9 @@ migration_create_hierarchy_entries <- function(con = NULL, dry_run = FALSE, verb
   new_entry <- .add_modif_field(new_entry)
   new_entry <- new_entry %>%
     dplyr::rename(
-      data_modif_m = date_modif_m,
-      data_modif_y = date_modif_y,
-      data_modif_d = date_modif_d
+      data_modif_m = "date_modif_m",
+      data_modif_y = "date_modif_y",
+      data_modif_d = "date_modif_d"
     )
 
   DBI::dbWriteTable(con, "table_taxa", new_entry, append = TRUE, row.names = FALSE)

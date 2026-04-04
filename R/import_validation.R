@@ -1259,8 +1259,8 @@ validate_plot_metadata <- function(data,
     country_lookup <- country_list()
 
     # Create reverse lookups (name -> ID)
-    method_name_to_id <- setNames(method_lookup$id_method, method_lookup$method)
-    country_name_to_id <- setNames(country_lookup$id_country, country_lookup$country)
+    method_name_to_id <- base::setNames(method_lookup$id_method, method_lookup$method)
+    country_name_to_id <- base::setNames(country_lookup$id_country, country_lookup$country)
 
     # Round existing plot coordinates (3 decimals ~111m)
     existing_plots$ddlat_rounded <- round(existing_plots$ddlat, 3)

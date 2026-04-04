@@ -709,7 +709,7 @@ mod_plot_statistics_server <- function(id, results, pool_reactive, i18n) {
 
     if (length(diam_data) > 0) {
       stats$mean_dbh <- mean(diam_data, na.rm = TRUE)
-      stats$median_dbh <- median(diam_data, na.rm = TRUE)
+      stats$median_dbh <- stats::median(diam_data, na.rm = TRUE)
       stats$min_dbh <- min(diam_data, na.rm = TRUE)
       stats$max_dbh <- max(diam_data, na.rm = TRUE)
     }
@@ -839,7 +839,7 @@ mod_plot_statistics_server <- function(id, results, pool_reactive, i18n) {
     # Join specimen_links with data using id_n to get species names
     data_with_specimens <- data %>%
       dplyr::inner_join(
-        specimen_links %>% dplyr::select(id_n, id_specimen) %>% dplyr::distinct(),
+        specimen_links %>% dplyr::select("id_n", "id_specimen") %>% dplyr::distinct(),
         by = "id_n"
       )
 
@@ -879,10 +879,10 @@ mod_plot_statistics_server <- function(id, results, pool_reactive, i18n) {
   # 4. Distribution of determination years (dety) - as data for barplot
   if ("dety" %in% names(specimen_links)) {
     dety_dist <- specimen_links %>%
-      dplyr::filter(!is.na(dety)) %>%
-      dplyr::group_by(dety) %>%
+      dplyr::filter(!is.na(.data$dety)) %>%
+      dplyr::group_by(.data$dety) %>%
       dplyr::summarise(count = dplyr::n(), .groups = "drop") %>%
-      dplyr::arrange(dety)
+      dplyr::arrange(.data$dety)
 
     if (nrow(dety_dist) > 0) {
       stats$dety_distribution <- dety_dist

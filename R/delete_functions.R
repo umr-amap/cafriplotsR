@@ -2,14 +2,13 @@
 
 
 .delete_taxa <- function(id) {
-  
-  if (exists("mydb_taxa")) rm(mydb_taxa)
-  if (!exists("mydb_taxa")) call.mydb.taxa()
-  
-  # DBI::dbExecute(mydb,
+
+  mydb_taxa <- call.mydb.taxa()
+
+  # DBI::dbExecute(mydb_taxa,
   #                "DELETE FROM table_taxa WHERE idtax_n=$1", params=list(id)
   # )
-  
+
   query <- "DELETE FROM table_taxa WHERE MMM"
   query <-
     gsub(
@@ -18,7 +17,7 @@
                            paste(unique(id), collapse = "', '"), "')"),
       x = query
     )
-  
+
   rs <- DBI::dbSendQuery(mydb_taxa, query)
   DBI::dbClearResult(rs)
 }
@@ -223,9 +222,9 @@
 #' @return No values
 #' @export
 .delete_specimens <- function(id) {
-  
-  if(!exists("mydb")) call.mydb()
-  
+
+  mydb <- call.mydb()
+
   query <- "DELETE FROM specimens WHERE MMM"
   query <-
     gsub(
@@ -234,10 +233,10 @@
                            paste(unique(id), collapse = "', '"), "')"),
       x = query
     )
-  
+
   rs <- DBI::dbSendQuery(mydb, query)
   DBI::dbClearResult(rs)
-  
+
 }
 
 
@@ -254,9 +253,9 @@
 #' @return No values
 #' @export
 .delete_country <- function(id) {
-  
-  if(!exists("mydb")) call.mydb()
-  
+
+  mydb <- call.mydb()
+
   query <- "DELETE FROM table_countries WHERE MMM"
   query <-
     gsub(
@@ -265,10 +264,10 @@
                            paste(unique(id), collapse = "', '"), "')"),
       x = query
     )
-  
+
   rs <- DBI::dbSendQuery(mydb, query)
   DBI::dbClearResult(rs)
-  
+
 }
 
 
@@ -284,11 +283,9 @@
 #'
 #' @return No values
 .delete_colnam <- function(id) {
-  
-  if(!exists("mydb")) call.mydb()
-  
-  
-  
+
+  mydb <- call.mydb()
+
   DBI::dbExecute(mydb,
                  "DELETE FROM table_colnam WHERE id_table_colnam=$1", params=list(id)
   )
@@ -308,9 +305,9 @@
 #'
 #' @return No values
 .delete_trait_list <- function(id) {
-  
-  if(!exists("mydb")) call.mydb()
-  
+
+  mydb <- call.mydb()
+
   query <- "DELETE FROM traitlist WHERE MMM"
   query <-
     gsub(
@@ -319,10 +316,10 @@
                            paste(unique(id), collapse = "', '"), "')"),
       x = query
     )
-  
+
   rs <- DBI::dbSendQuery(mydb, query)
   DBI::dbClearResult(rs)
-  
+
 }
 
 
