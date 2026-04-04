@@ -1194,7 +1194,7 @@ aggregate_traits_to_genus <- function(individuals, wd_fam_level) {
   
   res_traits_to_genera <- .traits_to_genera_aggreg(
     dataset = individuals,
-    wd_fam_level = wd_fam_level
+    wd_fam_level_add = wd_fam_level
   )
   
   # Traitement des traits catégoriels
@@ -2255,14 +2255,14 @@ SpecimenFetcher <- R6::R6Class(
     # Resolve synonyms from main database (table_idtax is in main DB, not taxa DB)
     diconames_id <-
       try_open_postgres_table(table = "table_idtax", con = con) %>%
-      dplyr::select(idtax_n, idtax_good_n) %>%
-      dplyr::mutate(idtax_f = ifelse(is.na(idtax_good_n), idtax_n, idtax_good_n)) %>%
+      dplyr::select("idtax_n", "idtax_good_n") %>%
+      dplyr::mutate(idtax_f = ifelse(is.na(.data$idtax_good_n), .data$idtax_n, .data$idtax_good_n)) %>%
       dplyr::collect()
 
     # Join with specimens
     specimens <- specimens %>%
       dplyr::left_join(
-        diconames_id %>% dplyr::select(-idtax_good_n),
+        diconames_id %>% dplyr::select(-dplyr::all_of("idtax_good_n")),
         by = "idtax_n"
       )
 
@@ -2315,8 +2315,8 @@ SpecimenFetcher <- R6::R6Class(
   # Get links
   linked_ind <-
     dplyr::tbl(con, "data_link_specimens") %>%
-    dplyr::filter(id_specimen %in% !!specimen_ids) %>%
-    dplyr::select(id_n, id_specimen) %>%
+    dplyr::filter(.data$id_specimen %in% !!specimen_ids) %>%
+    dplyr::select("id_n", "id_specimen") %>%
     dplyr::collect()
 
   if (nrow(linked_ind) == 0) {

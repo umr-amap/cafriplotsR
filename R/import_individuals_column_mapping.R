@@ -972,7 +972,7 @@ map_individual_columns <- function(data = NULL,
   cli::cli_rule(paste("Column:", column_name))
 
   # Show sample values
-  sample_display <- paste(head(sample_values, 3), collapse = ", ")
+  sample_display <- paste(utils::head(sample_values, 3), collapse = ", ")
   cli::cli_alert_info("Sample values: {sample_display}")
   cat("\n")
 

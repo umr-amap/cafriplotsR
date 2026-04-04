@@ -668,14 +668,14 @@ get_table_idtax_metadata <- function(con = NULL) {
     seek_dup <- seek_dup %>% filter(is.na(tax_esp))
   }
   if (!is.na(new_rec$tax_rank01)) {
-    seek_dup <- seek_dup %>% filter(tax_rank01 == !!new_rec$tax_rank01)
+    seek_dup <- seek_dup %>% dplyr::filter(.data$tax_rank01 == !!new_rec$tax_rank01)
   } else {
-    seek_dup <- seek_dup %>% filter(is.na(tax_rank01))
+    seek_dup <- seek_dup %>% dplyr::filter(is.na(.data$tax_rank01))
   }
   if (!is.na(new_rec$tax_nam01)) {
-    seek_dup <- seek_dup %>% filter(tax_nam01 == !!new_rec$tax_nam01)
+    seek_dup <- seek_dup %>% dplyr::filter(.data$tax_nam01 == !!new_rec$tax_nam01)
   } else {
-    seek_dup <- seek_dup %>% filter(is.na(tax_nam01))
+    seek_dup <- seek_dup %>% dplyr::filter(is.na(.data$tax_nam01))
   }
 
   seek_dup <- seek_dup %>% collect()
@@ -687,10 +687,10 @@ get_table_idtax_metadata <- function(con = NULL) {
   # Add modification fields
   new_rec <- .add_modif_field(new_rec)
   new_rec <- new_rec %>%
-    rename(
-      data_modif_m = date_modif_m,
-      data_modif_y = date_modif_y,
-      data_modif_d = date_modif_d
+    dplyr::rename(
+      data_modif_m = "date_modif_m",
+      data_modif_y = "date_modif_y",
+      data_modif_d = "date_modif_d"
     )
 
   # Insert into database

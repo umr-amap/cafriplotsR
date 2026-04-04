@@ -120,12 +120,12 @@
     if (extract_individuals && is.null(meta_data)) {
       # Only need to filter out individual columns if using data (not meta_data)
       result_meta <- source_data %>%
-        dplyr::select(-matches("^(dbh|height|pom|tag|id_n)")) %>%
-        dplyr::distinct(plot_name, .keep_all = TRUE)
+        dplyr::select(-dplyr::matches("^(dbh|height|pom|tag|id_n)")) %>%
+        dplyr::distinct(.data$plot_name, .keep_all = TRUE)
     } else {
       # meta_data already has only plot-level columns
       result_meta <- source_data %>%
-        dplyr::distinct(plot_name, .keep_all = TRUE)
+        dplyr::distinct(.data$plot_name, .keep_all = TRUE)
     }
     return(result_meta)
   }
@@ -176,8 +176,8 @@
 
   # Get unique by plot
   meta_data <- source_data %>%
-    dplyr::select(any_of(keep_cols)) %>%
-    dplyr::distinct(plot_name, id_liste_plots, .keep_all = TRUE)
+    dplyr::select(dplyr::any_of(keep_cols)) %>%
+    dplyr::distinct(.data$plot_name, .data$id_liste_plots, .keep_all = TRUE)
 
   # Apply column renaming if specified
   if (!is.null(style_config$rename_columns) && !is.null(style_config$rename_columns$metadata)) {
@@ -194,7 +194,7 @@
   # Always rename id_liste_plots -> plot_id regardless of output style, so that
   # chaining is consistent: query_plots(id_plot = metadata$metadata$plot_id)
   if ("id_liste_plots" %in% names(meta_data)) {
-    meta_data <- meta_data %>% dplyr::rename(plot_id = id_liste_plots)
+    meta_data <- meta_data %>% dplyr::rename(plot_id = "id_liste_plots")
   }
 
   return(meta_data)
@@ -330,8 +330,8 @@
 
   # Basic census info
   census_info <- census_features %>%
-    dplyr::filter(plot_name %in% plots) %>%
-    dplyr::select(plot_name, typevalue, year, month) %>%
+    dplyr::filter(.data$plot_name %in% plots) %>%
+    dplyr::select("plot_name", "typevalue", "year", "month") %>%
     dplyr::distinct()
 
   # Create census_date with robust handling of missing/invalid data
@@ -339,12 +339,12 @@
     census_info <- census_info %>%
       dplyr::mutate(
         # Ensure numeric and valid ranges
-        year_num = suppressWarnings(as.integer(year)),
-        month_num = suppressWarnings(as.integer(month)),
+        year_num = suppressWarnings(as.integer(.data$year)),
+        month_num = suppressWarnings(as.integer(.data$month)),
         # Flag valid date components (year > 1900 and month 1-12)
-        valid_date = !is.na(year_num) & !is.na(month_num) &
-                     year_num > 1900 & year_num < 2100 &
-                     month_num >= 1 & month_num <= 12
+        valid_date = !is.na(.data$year_num) & !is.na(.data$month_num) &
+                     .data$year_num > 1900 & .data$year_num < 2100 &
+                     .data$month_num >= 1 & .data$month_num <= 12
       )
 
     # Create census_date only if there are valid entries (avoid as.Date error on empty/all-NA)
@@ -352,7 +352,7 @@
       census_info <- census_info %>%
         dplyr::mutate(
           census_date = dplyr::case_when(
-            valid_date ~ paste0(year_num, "-", sprintf("%02d", month_num)),
+            .data$valid_date ~ paste0(.data$year_num, "-", sprintf("%02d", .data$month_num)),
             TRUE ~ NA_character_
           )
         )
@@ -362,13 +362,13 @@
     }
 
     census_info <- census_info %>%
-      dplyr::select(-year, -month, -year_num, -month_num, -valid_date)
+      dplyr::select(-dplyr::all_of(c("year", "month", "year_num", "month_num", "valid_date")))
   }
 
   # Rename typevalue to census_number
   if ("typevalue" %in% names(census_info)) {
     census_info <- census_info %>%
-      dplyr::rename(census_number = typevalue)
+      dplyr::rename(census_number = "typevalue")
   }
 
   # Add people involved (team_leader, additional_people, principal_investigator)
@@ -377,8 +377,8 @@
   for (col in people_cols) {
     if (col %in% names(census_features)) {
       people_data <- census_features %>%
-        dplyr::filter(plot_name %in% plots) %>%
-        dplyr::select(plot_name, typevalue, !!sym(col)) %>%
+        dplyr::filter(.data$plot_name %in% plots) %>%
+        dplyr::select("plot_name", "typevalue", dplyr::all_of(col)) %>%
         dplyr::distinct()
 
       census_info <- census_info %>%
@@ -391,7 +391,7 @@
 
   # Order by plot and census number
   census_info <- census_info %>%
-    dplyr::arrange(plot_name, census_number)
+    dplyr::arrange(.data$plot_name, .data$census_number)
 
   return(census_info)
 }
@@ -467,17 +467,17 @@
         names_to = c(".value", "census"),
         names_pattern = "(.*)_census_(\\d+)"
       ) %>%
-      dplyr::mutate(census = as.integer(census))
+      dplyr::mutate(census = as.integer(.data$census))
 
     # Filter out rows with issues or missing height
     if ("issue_agg_tree_height" %in% names(hd_long)) {
       hd_long <- hd_long %>%
-        dplyr::filter(is.na(issue_agg_tree_height) | issue_agg_tree_height == "") %>%
-        dplyr::select(-issue_agg_tree_height)
+        dplyr::filter(is.na(.data$issue_agg_tree_height) | .data$issue_agg_tree_height == "") %>%
+        dplyr::select(-dplyr::all_of("issue_agg_tree_height"))
     }
 
     hd_long <- hd_long %>%
-      dplyr::filter(!is.na(tree_height))
+      dplyr::filter(!is.na(.data$tree_height))
 
     # Rename columns to final format
     # Build select dynamically to handle missing columns
@@ -496,7 +496,7 @@
 
     result <- hd_long %>%
       dplyr::select(!!!select_cols) %>%
-      dplyr::filter(!is.na(D), !is.na(H))
+      dplyr::filter(!is.na(.data$D), !is.na(.data$H))
 
   } else {
     # Single census - simpler extraction
@@ -541,7 +541,7 @@
 
     result <- data %>%
       dplyr::select(!!!select_cols) %>%
-      dplyr::filter(!is.na(D), !is.na(H))
+      dplyr::filter(!is.na(.data$D), !is.na(.data$H))
   }
 
   if (nrow(result) == 0) {

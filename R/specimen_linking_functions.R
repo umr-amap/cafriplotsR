@@ -196,15 +196,15 @@ get_linktypes <- function(con = NULL) {
 
     new_data_renamed <- new_data_renamed %>%
       dplyr::left_join(
-        linktypes %>% dplyr::select(linktype, id_linktype),
+        linktypes %>% dplyr::select(dplyr::all_of(c("linktype", "id_linktype"))),
         by = c("type" = "linktype")
       )
 
     # Check for unmapped types
     unmapped <- new_data_renamed %>%
-      dplyr::filter(is.na(id_linktype) & !is.na(type)) %>%
-      dplyr::distinct(type) %>%
-      dplyr::pull(type)
+      dplyr::filter(is.na(.data$id_linktype) & !is.na(.data$type)) %>%
+      dplyr::distinct(.data$type) %>%
+      dplyr::pull("type")
 
     if (length(unmapped) > 0) {
       cli::cli_alert_warning("Unmapped type values: {paste(unmapped, collapse = ', ')}")
@@ -231,7 +231,7 @@ get_linktypes <- function(con = NULL) {
 
   # Check for duplicates with existing links
   existing_links <- dplyr::tbl(actual_con, "data_link_specimens") %>%
-    dplyr::select(id_n, id_specimen) %>%
+    dplyr::select("id_n", "id_specimen") %>%
     dplyr::collect()
 
   check_dup <- new_data_renamed %>%
@@ -262,26 +262,26 @@ get_linktypes <- function(con = NULL) {
 
     # Batch query for specimens
     existing_specimens <- dplyr::tbl(actual_con, "specimens") %>%
-      dplyr::filter(id_specimen %in% !!all_specimen_ids) %>%
-      dplyr::select(id_specimen) %>%
+      dplyr::filter(.data$id_specimen %in% !!all_specimen_ids) %>%
+      dplyr::select("id_specimen") %>%
       dplyr::collect() %>%
-      dplyr::pull(id_specimen)
+      dplyr::pull("id_specimen")
 
     # Batch query for individuals
     existing_individuals <- dplyr::tbl(actual_con, "data_individuals") %>%
-      dplyr::filter(id_n %in% !!all_individual_ids) %>%
-      dplyr::select(id_n) %>%
+      dplyr::filter(.data$id_n %in% !!all_individual_ids) %>%
+      dplyr::select("id_n") %>%
       dplyr::collect() %>%
-      dplyr::pull(id_n)
+      dplyr::pull("id_n")
 
     # Batch query for link types (skip if table doesn't exist)
     existing_linktypes <- tryCatch({
       if (length(all_linktype_ids) > 0) {
         dplyr::tbl(actual_con, "linktypelist") %>%
-          dplyr::filter(id_linktype %in% !!all_linktype_ids) %>%
-          dplyr::select(id_linktype) %>%
+          dplyr::filter(.data$id_linktype %in% !!all_linktype_ids) %>%
+          dplyr::select("id_linktype") %>%
           dplyr::collect() %>%
-          dplyr::pull(id_linktype)
+          dplyr::pull("id_linktype")
       } else {
         integer(0)
       }
@@ -341,7 +341,7 @@ get_linktypes <- function(con = NULL) {
     )
 
   cli::cli_h3("Data to add:")
-  print(data_to_add %>% dplyr::select(-created_at))
+  print(data_to_add %>% dplyr::select(-dplyr::all_of("created_at")))
 
   if (launch_adding_data) {
     tryCatch({
