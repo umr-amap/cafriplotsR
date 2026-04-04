@@ -18,20 +18,4 @@ Reactive expression returning the translator
 Creates a reactive expression that returns the translator after setting the language.
 This is the recommended pattern for using shiny.i18n with reactive language switching.
 }
-\details{
-This function wraps the translator in a reactive context that automatically updates
-when the language changes. Use this in your server function:
-
-```r
-server <- function(input, output, session) {
-  current_language <- mod_language_toggle_server("language", initial = "en")
-
-  i18n <- create_reactive_translator(translator, current_language)
-
-  output$title <- renderText({
-    i18n()$t("app_title")
-  })
-}
-```
-}
 \keyword{internal}
