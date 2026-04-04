@@ -601,7 +601,7 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, config, con, i1
   updated_data <- data
 
   # Get reverse mappings (db_col -> user_col)
-  reverse_mappings <- base::setNames(names(mappings), unlist(mappings))
+  reverse_mappings <- stats::setNames(names(mappings), unlist(mappings))
 
   for (col_name in names(exact_matches)) {
     exact_values <- exact_matches[[col_name]]
@@ -644,7 +644,7 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, config, con, i1
     }
 
     # Create normalized name -> ID mapping (case-insensitive)
-    name_to_id <- base::setNames(
+    name_to_id <- stats::setNames(
       db_lookup$id,
       tolower(trimws(db_lookup$name))
     )
