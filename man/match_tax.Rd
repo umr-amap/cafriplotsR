@@ -20,7 +20,9 @@ tibble
 Query and standardize taxonomy for synonymies and add traits information at species and genus levels
 }
 \examples{
+\dontrun{
 match_tax(idtax = c(3095, 219))
+}
 
 }
 \author{
