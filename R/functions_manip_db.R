@@ -729,7 +729,7 @@ process_individuals <- function(plots_data,
   if (!is.null(tag)) {
     cli::cli_alert_info("Filtering by tag: {paste(tag, collapse = ', ')}")
     individuals <- individuals %>%
-      dplyr::filter(tag %in% tag)
+      dplyr::filter(tag %in% .env$tag)
   }
   
   # Exclusion des lianes
