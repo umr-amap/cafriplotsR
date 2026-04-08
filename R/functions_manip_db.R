@@ -491,8 +491,9 @@ query_plots <- function(plot_name = NULL,
 
       if (extract_coordinates && !is.null(unlist(coordinates_subplots_plot_sf))) {
         outputmap <- outputmap %>%
-          leaflet::addCircleMarkers(data = coordinates_subplots_plot_sf,
-                                    color = "red", radius = 4)
+          leaflet::addPolygons(data = coordinates_subplots_plot_sf,
+                               color = "red", weight = 2, fillOpacity = 0.1,
+                               label = ~plot_name)
       }
 
       print(outputmap)
@@ -549,8 +550,34 @@ query_plots <- function(plot_name = NULL,
 
     res <- process_stems(res, concatenate_stem)
 
+    # Fetch all-census height-diameter data for the H-D table.
+    # This is done regardless of show_multiple_census so that heights measured
+    # in non-selected censuses are always available for the height_diameter table.
+    hd_source <- tryCatch({
+      hd_all_traits <- traits_list()
+      hd_trait_ids <- hd_all_traits$id_trait[
+        hd_all_traits$trait %in% c("tree_height", "stem_diameter", "height_of_stem_diameter")
+      ]
+      if (length(hd_trait_ids) > 0 && length(unique(res$id_n)) > 0) {
+        hd_raw <- query_individual_features(
+          individual_ids = unique(res$id_n),
+          trait_ids      = hd_trait_ids,
+          include_multi_census = TRUE,
+          format         = "long",
+          issues         = issues,
+          con            = mydb
+        )
+        if (nrow(hd_raw) > 0) hd_raw else NULL
+      } else {
+        NULL
+      }
+    }, error = function(e) {
+      cli::cli_alert_warning("Could not fetch all-census H-D data: {e$message}")
+      NULL
+    })
+
   }
-  
+
   if (remove_ids & extract_individuals) {
 
     cli::cli_alert_warning("ids removed - remove_ids = {remove_ids} ")
@@ -580,6 +607,7 @@ query_plots <- function(plot_name = NULL,
       extract = NA,
       meta_data = NA,
       census_features = NA,
+      hd_source = NA,
       coordinates = NA,
       coordinates_sf = NA
     )
@@ -590,10 +618,15 @@ query_plots <- function(plot_name = NULL,
   if (nrow(res) < 100)
     print_table(res_print = res)
 
-  if(show_multiple_census && exists("census_features")) {
+  if (show_multiple_census && exists("census_features")) {
     res_list$census_features <- census_features
 
     print_table(census_features)
+  }
+
+  # Include all-census H-D source data when available
+  if (exists("hd_source") && !is.null(hd_source)) {
+    res_list$hd_source <- hd_source
   }
 
   if (extract_coordinates)

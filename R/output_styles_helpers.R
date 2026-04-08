@@ -36,6 +36,7 @@
     main_data <- data$extract
     meta_data <- data$meta_data
     census_features <- data$census_features
+    hd_source <- data$hd_source
     coordinates <- data$coordinates
     coordinates_sf <- data$coordinates_sf
   } else {
@@ -43,6 +44,7 @@
     main_data <- data
     meta_data <- NULL
     census_features <- NULL
+    hd_source <- NULL
     coordinates <- NULL
     coordinates_sf <- NULL
   }
@@ -69,7 +71,11 @@
   }
 
   if ("height_diameter" %in% style_config$additional_tables && extract_individuals) {
-    hd_pairs <- .extract_height_diameter_pairs(data = main_data, show_multiple_census)
+    hd_pairs <- .extract_height_diameter_pairs(
+      data               = main_data,
+      show_multiple_census = show_multiple_census,
+      hd_source          = hd_source
+    )
     if (!is.null(hd_pairs) && nrow(hd_pairs) > 0) {
       result$height_diameter <- hd_pairs
     }
@@ -400,96 +406,179 @@
 #' Extract height-diameter pairs from individual data
 #'
 #' @description
-#' Extracts all stem diameter and tree height pairs, handling multiple censuses
-#' by pivoting census columns to long format. Based on user's example code.
+#' Extracts all stem diameter and tree height pairs across all available censuses.
+#' When \code{hd_source} is provided (long-format all-census data), it is used as
+#' the primary source so that measurements from non-selected censuses are included.
+#' Census date is added when measurements are linked to a specific census.
 #'
-#' @param data Main query results with individual measurements
-#' @param show_multiple_census Logical: were multiple censuses shown?
+#' @param data Main query results with individual measurements (used for id/tag lookup)
+#' @param show_multiple_census Logical: were multiple censuses shown in main data?
+#' @param hd_source Long-format tibble from \code{query_individual_features} with
+#'   all-census height/diameter data. When provided, used instead of \code{data}.
 #'
-#' @return Data frame with id_n, plot_name, tag, D (dbh), H (height), POM
+#' @return Data frame with id_n, plot_name, tag, D (dbh), H (height), and optionally
+#'   POM and census_date columns
 #'
 #' @keywords internal
 #' @noRd
-.extract_height_diameter_pairs <- function(data, show_multiple_census) {
+.extract_height_diameter_pairs <- function(data, show_multiple_census, hd_source = NULL) {
 
-  # Check if height data exists (could be tree_height, height, or H depending on renaming)
-  has_height <- any(names(data) %in% c("tree_height", "height", "H"))
+  # -----------------------------------------------------------------------
+  # Path 1: use all-census long-format source when available
+  # -----------------------------------------------------------------------
+  if (!is.null(hd_source) && nrow(hd_source) > 0) {
+
+    hd_traits <- c("tree_height", "stem_diameter", "height_of_stem_diameter")
+
+    hd_long <- hd_source %>%
+      dplyr::filter(.data$trait %in% hd_traits)
+
+    if (nrow(hd_long) == 0) {
+      return(NULL)
+    }
+
+    # Build census_date from year/month/day when available
+    if ("census_year" %in% names(hd_long)) {
+      hd_long <- hd_long %>%
+        dplyr::mutate(
+          census_date = suppressWarnings(
+            lubridate::make_date(
+              year  = .data$census_year,
+              month = dplyr::coalesce(.data$census_month, 1L),
+              day   = dplyr::coalesce(.data$census_day,   1L)
+            )
+          ),
+          # Set census_date to NA when there is no census linkage
+          census_date = dplyr::if_else(is.na(.data$census_name), lubridate::NA_Date_, .data$census_date)
+        ) %>%
+        dplyr::select(-dplyr::any_of(c("census_typevalue", "census_day", "census_month", "census_year")))
+    }
+
+    # Pivot to wide: one row per (individual, census)
+    id_cols <- c("id_data_individuals", "census_name", "census_date")
+    id_cols <- intersect(id_cols, names(hd_long))
+
+    hd_wide <- hd_long %>%
+      dplyr::select(dplyr::all_of(id_cols), "trait", "traitvalue") %>%
+      dplyr::distinct() %>%
+      tidyr::pivot_wider(
+        id_cols     = dplyr::all_of(id_cols),
+        names_from  = "trait",
+        values_from = "traitvalue",
+        values_fn   = mean
+      )
+
+    if (!"tree_height" %in% names(hd_wide) || nrow(hd_wide) == 0) {
+      return(NULL)
+    }
+
+    hd_wide <- hd_wide %>%
+      dplyr::filter(!is.na(.data$tree_height))
+
+    if (nrow(hd_wide) == 0) {
+      return(NULL)
+    }
+
+    # Join with main data to get plot_name and tag
+    id_lookup <- data %>%
+      dplyr::select(dplyr::any_of(c("id_n", "plot_name", "tag"))) %>%
+      dplyr::distinct()
+
+    hd_wide <- hd_wide %>%
+      dplyr::left_join(id_lookup, by = c("id_data_individuals" = "id_n"))
+
+    # Rename to output format
+    hd_wide <- hd_wide %>%
+      dplyr::rename(
+        id_n = "id_data_individuals",
+        D    = "stem_diameter",
+        H    = "tree_height"
+      )
+
+    if ("height_of_stem_diameter" %in% names(hd_wide)) {
+      hd_wide <- hd_wide %>% dplyr::rename(POM = "height_of_stem_diameter")
+    }
+
+    keep_cols <- c("id_n", "plot_name", "tag", "D", "H",
+                   "POM", "census_name", "census_date")
+    result <- hd_wide %>%
+      dplyr::select(dplyr::any_of(keep_cols)) %>%
+      dplyr::filter(!is.na(.data$D), !is.na(.data$H))
+
+    if (nrow(result) == 0) {
+      return(NULL)
+    }
+    return(result)
+  }
+
+  # -----------------------------------------------------------------------
+  # Path 2: fall back to main_data columns (no hd_source available)
+  # -----------------------------------------------------------------------
+
+  # Check if height data exists — handle both plain and census-suffixed column names
+  has_height <- any(names(data) %in% c("tree_height", "height", "H")) ||
+                any(grepl("^tree_height_census_\\d+$", names(data)))
 
   if (!has_height) {
     return(NULL)
   }
-  
-  # Check for diameter column (could be stem_diameter, dbh, or D depending on renaming)
-  has_dbh <- any(names(data) %in% c("stem_diameter", "dbh", "D"))
+
+  # Check for diameter column
+  has_dbh <- any(names(data) %in% c("stem_diameter", "dbh", "D")) ||
+             any(grepl("^stem_diameter_census_\\d+$", names(data)))
 
   if (!has_dbh) {
     return(NULL)
   }
 
-  # If multiple censuses, need to pivot
-  if (show_multiple_census) {
+  # If census-suffixed columns exist (show_multiple_census = TRUE or detection-only fix)
+  has_census_cols <- any(grepl("^tree_height_census_\\d+$", names(data)))
+
+  if (show_multiple_census || has_census_cols) {
     # Select relevant columns
     hd_cols <- c("id_n", "plot_name", "tag", "quadrat", "locality_name")
 
-    # Add stem_diameter columns
-    diam_cols <- grep("stem_diameter_c", names(data), value = TRUE)
-    hd_cols <- c(hd_cols, diam_cols)
+    diam_cols   <- grep("stem_diameter_c",         names(data), value = TRUE)
+    height_cols <- grep("tree_height_c",           names(data), value = TRUE)
+    pom_cols    <- grep("height_of_stem_diameter_c", names(data), value = TRUE)
+    issue_cols  <- grep("issue_agg_tree_h",        names(data), value = TRUE)
 
-    # Add tree_height columns
-    height_cols <- grep("tree_height_c", names(data), value = TRUE)
-    hd_cols <- c(hd_cols, height_cols)
+    hd_cols <- intersect(c(hd_cols, diam_cols, height_cols, pom_cols, issue_cols), names(data))
 
-    # Add height_of_stem_diameter (POM) columns
-    pom_cols <- grep("height_of_stem_diameter_c", names(data), value = TRUE)
-    hd_cols <- c(hd_cols, pom_cols)
+    hd_data <- data %>% dplyr::select(dplyr::any_of(hd_cols))
 
-    # Add issue columns for filtering
-    issue_cols <- grep("issue_agg_tree_h", names(data), value = TRUE)
-    hd_cols <- c(hd_cols, issue_cols)
-
-    # Keep only available columns
-    hd_cols <- intersect(hd_cols, names(data))
-
-    hd_data <- data %>%
-      dplyr::select(any_of(hd_cols))
-
-    # Remove rows without any height data
+    # Keep only rows that have at least one non-NA height
     height_check_cols <- grep("tree_height_census", names(hd_data), value = TRUE)
     if (length(height_check_cols) > 0) {
       hd_data <- hd_data %>%
-        dplyr::filter(if_any(any_of(height_check_cols), ~ !is.na(.)))
+        dplyr::filter(dplyr::if_any(dplyr::any_of(height_check_cols), ~ !is.na(.)))
     }
 
-    # Pivot longer for census columns
+    # Pivot to long format
     hd_long <- hd_data %>%
       tidyr::pivot_longer(
-        cols = matches("_census_\\d+$"),
-        names_to = c(".value", "census"),
+        cols         = dplyr::matches("_census_\\d+$"),
+        names_to     = c(".value", "census"),
         names_pattern = "(.*)_census_(\\d+)"
       ) %>%
       dplyr::mutate(census = as.integer(.data$census))
 
-    # Filter out rows with issues or missing height
     if ("issue_agg_tree_height" %in% names(hd_long)) {
       hd_long <- hd_long %>%
         dplyr::filter(is.na(.data$issue_agg_tree_height) | .data$issue_agg_tree_height == "") %>%
         dplyr::select(-dplyr::all_of("issue_agg_tree_height"))
     }
 
-    hd_long <- hd_long %>%
-      dplyr::filter(!is.na(.data$tree_height))
+    hd_long <- hd_long %>% dplyr::filter(!is.na(.data$tree_height))
 
-    # Rename columns to final format
-    # Build select dynamically to handle missing columns
     select_cols <- list(
-      id_n = rlang::sym("id_n"),
+      id_n      = rlang::sym("id_n"),
       plot_name = rlang::sym("plot_name"),
-      tag = rlang::sym("tag"),
-      D = rlang::sym("stem_diameter"),
-      H = rlang::sym("tree_height")
+      tag       = rlang::sym("tag"),
+      D         = rlang::sym("stem_diameter"),
+      H         = rlang::sym("tree_height")
     )
 
-    # Add POM only if it exists
     if ("height_of_stem_diameter" %in% names(hd_long)) {
       select_cols$POM <- rlang::sym("height_of_stem_diameter")
     }
@@ -499,8 +588,7 @@
       dplyr::filter(!is.na(.data$D), !is.na(.data$H))
 
   } else {
-    # Single census - simpler extraction
-    # Detect actual column names (they may have been renamed)
+    # Plain single-census columns
     dbh_col <- if ("stem_diameter" %in% names(data)) {
       "stem_diameter"
     } else if ("dbh" %in% names(data)) {
@@ -517,16 +605,14 @@
       "H"
     }
 
-    # Build select dynamically to handle missing columns
     select_cols <- list(
-      id_n = rlang::sym("id_n"),
+      id_n      = rlang::sym("id_n"),
       plot_name = rlang::sym("plot_name"),
-      tag = rlang::sym("tag"),
-      D = rlang::sym(dbh_col),
-      H = rlang::sym(height_col)
+      tag       = rlang::sym("tag"),
+      D         = rlang::sym(dbh_col),
+      H         = rlang::sym(height_col)
     )
 
-    # Add POM only if it exists
     pom_col <- if ("height_of_stem_diameter" %in% names(data)) {
       "height_of_stem_diameter"
     } else if ("pom" %in% names(data)) {
