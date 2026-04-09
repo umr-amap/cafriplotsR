@@ -1158,6 +1158,9 @@ get_mode_dt <- function(x) {
 #' @param include_metadata Include trait measurement features (only available with format="long")
 #' @param include_individuals Include linked individual data
 #' @param con Database connection (optional)
+#' @param backbone Character. Which taxonomic backbone to use for synonym resolution
+#'   when fetching linked individuals. \code{"internal"} (default) uses the internal
+#'   \code{table_taxa}. \code{"wcvp"} uses WCVP via \code{wcvp_idtax_link}.
 #'
 #' @return Tibble with individual features in requested format
 #' @export
@@ -1170,12 +1173,14 @@ query_individual_features <- function(
     include_metadata = FALSE,
     include_individuals = FALSE,
     census_strategy = c("last", "first", "mean"),
-    con = NULL
+    con = NULL,
+    backbone = c("internal", "wcvp")
 ) {
 
   format <- match.arg(format)
   census_strategy <- match.arg(census_strategy)
   issues <- match.arg(issues)
+  backbone <- match.arg(backbone)
   if (is.null(con)) con <- call.mydb()
   
   # Check incompatible parameter combination
@@ -1255,7 +1260,8 @@ query_individual_features <- function(
     cli::cli_alert_info("Fetching linked individuals")
     ind_data <- fetch_linked_individuals(
       individual_ids = unique(raw_data$id_data_individuals),
-      con = con
+      con = con,
+      backbone = backbone
     )
     result <- list(
       features = result,
@@ -1893,7 +1899,9 @@ get_lookup_table_info <- function(table_name) {
 
 #' Fetch linked individual data
 #' @keywords internal
-fetch_linked_individuals <- function(individual_ids, con, chunk_size = 30000) {
+fetch_linked_individuals <- function(individual_ids, con, chunk_size = 30000,
+                                     backbone = c("internal", "wcvp")) {
+  backbone <- match.arg(backbone)
   
   if (length(individual_ids) == 0) {
     cli::cli_alert_warning("No individual IDs provided")
@@ -1902,22 +1910,22 @@ fetch_linked_individuals <- function(individual_ids, con, chunk_size = 30000) {
   
   # If small number of IDs, fetch directly
   if (length(individual_ids) <= chunk_size) {
-    return(merge_individuals_taxa(id_individual = individual_ids))
+    return(merge_individuals_taxa(id_individual = individual_ids, backbone = backbone))
   }
-  
+
   # For large number of IDs, use chunking
   chunks <- split(individual_ids, ceiling(seq_along(individual_ids) / chunk_size))
   n_chunks <- length(chunks)
-  
+
   cli::cli_alert_info("Processing {n_chunks} chunk(s) for linked individuals")
-  
+
   pb <- txtProgressBar(min = 0, max = n_chunks, style = 3)
-  
+
   results <- lapply(seq_along(chunks), function(i) {
     setTxtProgressBar(pb, i)
-    
+
     # merge_individuals_taxa returns a tibble directly
-    chunk_result <- merge_individuals_taxa(id_individual = chunks[[i]])
+    chunk_result <- merge_individuals_taxa(id_individual = chunks[[i]], backbone = backbone)
     
     return(chunk_result)
   })

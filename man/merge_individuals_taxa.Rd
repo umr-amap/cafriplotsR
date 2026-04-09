@@ -10,7 +10,8 @@ merge_individuals_taxa(
   id_tax = NULL,
   clean_columns = TRUE,
   con_taxa = NULL,
-  con = NULL
+  con = NULL,
+  backbone = c("internal", "wcvp")
 )
 }
 \arguments{
@@ -25,6 +26,9 @@ merge_individuals_taxa(
 \item{con_taxa}{connexion}
 
 \item{con}{connexion}
+
+\item{backbone}{character. \code{"internal"} (default) or \code{"wcvp"}.
+When \code{"wcvp"}, results are enriched with WCVP names via the link table.}
 }
 \value{
 A tibble with individuals and resolved taxonomy

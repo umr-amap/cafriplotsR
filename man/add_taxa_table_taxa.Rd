@@ -4,10 +4,16 @@
 \alias{add_taxa_table_taxa}
 \title{Add formatted taxa information}
 \usage{
-add_taxa_table_taxa(ids = NULL)
+add_taxa_table_taxa(ids = NULL, backbone = c("internal", "wcvp"))
 }
 \arguments{
 \item{ids}{vector of idtax_n to retrieve}
+
+\item{backbone}{character. \code{"internal"} (default) or \code{"wcvp"}.
+When \code{"wcvp"}, standard taxonomy columns (\code{tax_fam}, \code{tax_gen},
+\code{tax_esp}, etc.) are replaced with WCVP values where a link exists.
+The original internal name is kept in \code{alt_taxon_name} and a
+\code{name_source} column indicates the source per row.}
 }
 \value{
 tibble

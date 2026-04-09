@@ -7116,6 +7116,34 @@
     {
       "en": "Each row describes one output column: its original database name, a description, category, unit, and any contextual notes.",
       "fr": "Chaque ligne décrit une colonne du résultat : son nom original dans la base de données, une description, une catégorie, une unité et des notes contextuelles."
+    },
+    {
+      "en": "Choose which taxonomic backbone to use for matching:",
+      "fr": "Choisissez le référentiel taxonomique à utiliser pour la correspondance :"
+    },
+    {
+      "en": "Use WCVP Backbone",
+      "fr": "Utiliser le référentiel WCVP"
+    },
+    {
+      "en": "World Checklist of Vascular Plants - global taxonomic reference",
+      "fr": "World Checklist of Vascular Plants - référentiel taxonomique mondial"
+    },
+    {
+      "en": "Loading WCVP backbone from database...",
+      "fr": "Chargement du référentiel WCVP depuis la base de données..."
+    },
+    {
+      "en": "Loaded WCVP backbone:",
+      "fr": "Référentiel WCVP chargé :"
+    },
+    {
+      "en": "records",
+      "fr": "enregistrements"
+    },
+    {
+      "en": "Failed to load WCVP backbone. Falling back to internal backbone.",
+      "fr": "Échec du chargement du référentiel WCVP. Repli vers le référentiel interne."
     }
   ]
 }

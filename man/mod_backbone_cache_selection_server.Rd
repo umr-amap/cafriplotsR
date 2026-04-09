@@ -4,7 +4,7 @@
 \alias{mod_backbone_cache_selection_server}
 \title{Backbone Cache Selection Module - Server}
 \usage{
-mod_backbone_cache_selection_server(id, i18n, trigger)
+mod_backbone_cache_selection_server(id, i18n, trigger, wcvp_available = NULL)
 }
 \arguments{
 \item{id}{Character, module namespace ID}
@@ -12,13 +12,16 @@ mod_backbone_cache_selection_server(id, i18n, trigger)
 \item{i18n}{Reactive returning shiny.i18n translator object}
 
 \item{trigger}{Reactive that triggers cache check (e.g., button click event)}
+
+\item{wcvp_available}{Reactive logical, whether WCVP data is available in the database.
+If NULL or FALSE, the WCVP option is not shown.}
 }
 \value{
-Reactive character, user's choice: "cache", "download", or NULL
+Reactive character, user's choice: "cache", "download", "wcvp", or NULL
 }
 \description{
 Server logic for backbone cache selection. When triggered, checks if cache exists.
 If cache exists, shows modal dialog with cache metadata and lets user choose
-between cached or fresh backbone. If no cache, immediately returns "download".
+between cached, fresh, or WCVP backbone. If no cache, immediately returns "download".
 }
 \keyword{internal}

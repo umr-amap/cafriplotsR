@@ -62,7 +62,8 @@ mod_auto_matching_ui <- function(id) {
 #'
 #' @keywords internal
 mod_auto_matching_server <- function(id, data, column_name, include_authors,
-                                     min_similarity = 0.3, i18n) {
+                                     min_similarity = 0.3, i18n,
+                                     wcvp_available = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Reactive values
@@ -74,7 +75,8 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
     cache_choice <- mod_backbone_cache_selection_server(
       id = "backbone_cache",
       i18n = i18n,
-      trigger = shiny::reactive(input$start_matching)
+      trigger = shiny::reactive(input$start_matching),
+      wcvp_available = wcvp_available
     )
 
     # Reset results when data changes
@@ -169,6 +171,101 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
           shiny::removeNotification("loading_cache")
           shiny::showNotification(
             i18n()$t("Loaded backbone from cache successfully!"),
+            duration = 3,
+            type = "message"
+          )
+        }
+      }
+
+      if (choice == "wcvp") {
+        # Load WCVP backbone from database
+        shiny::showNotification(
+          i18n()$t("Loading WCVP backbone from database..."),
+          duration = NULL,
+          closeButton = FALSE,
+          id = "loading_wcvp",
+          type = "message"
+        )
+
+        mydb_taxa <- call.mydb.taxa()
+
+        wcvp_data <- tryCatch({
+          actual_con <- if (inherits(mydb_taxa, "Pool")) {
+            pool::poolCheckout(mydb_taxa)
+          } else {
+            mydb_taxa
+          }
+
+          on.exit({
+            if (inherits(mydb_taxa, "Pool") && !is.null(actual_con)) {
+              pool::poolReturn(actual_con)
+            }
+          }, add = TRUE)
+
+          DBI::dbGetQuery(actual_con,
+            "SELECT w.plant_name_id, w.taxon_name, w.taxon_status,
+                    w.accepted_plant_name_id, w.family, w.genus,
+                    w.species, w.infraspecific_rank, w.infraspecies,
+                    w.taxon_authors, w.taxon_rank,
+                    l.idtax_n
+             FROM wcvp_names w
+             LEFT JOIN wcvp_idtax_link l ON w.plant_name_id = l.plant_name_id
+             WHERE w.taxon_rank IN ('Species', 'Subspecies', 'Variety', 'Form');"
+          )
+        }, error = function(e) {
+          NULL
+        })
+
+        shiny::removeNotification("loading_wcvp")
+
+        if (is.null(wcvp_data) || nrow(wcvp_data) == 0) {
+          shiny::showNotification(
+            i18n()$t("Failed to load WCVP backbone. Falling back to internal backbone."),
+            duration = 5,
+            type = "warning"
+          )
+          choice <- "download"
+        } else {
+          # Map WCVP columns to expected backbone format
+          # accepted_plant_name_id serves same role as idtax_good_n
+          backbone <- wcvp_data %>%
+            dplyr::mutate(
+              # Use plant_name_id as the ID (idtax_n from link table may be NA)
+              idtax_n = dplyr::coalesce(as.integer(idtax_n), plant_name_id),
+              idtax_good_n = dplyr::case_when(
+                taxon_status == "Accepted" ~ NA_integer_,
+                TRUE ~ accepted_plant_name_id
+              ),
+              tax_fam = family,
+              tax_famclass = NA_character_,
+              tax_gen = genus,
+              tax_esp = species,
+              tax_rank01 = infraspecific_rank,
+              tax_nam01 = infraspecies,
+              tax_rank02 = NA_character_,
+              tax_nam02 = NA_character_,
+              tax_level = NA_character_,
+              author1 = taxon_authors,
+              # Formatted name columns
+              tax_sp_level = dplyr::case_when(
+                !is.na(infraspecies) & infraspecies != "" ~ paste(genus, species, infraspecific_rank, infraspecies),
+                !is.na(species) & species != "" ~ paste(genus, species),
+                TRUE ~ NA_character_
+              ),
+              tax_gen_level = genus,
+              tax_fam_level = family,
+              tax_class_level = NA_character_
+            ) %>%
+            dplyr::select(
+              idtax_n, idtax_good_n, tax_fam, tax_famclass, tax_gen, tax_esp,
+              tax_rank01, tax_nam01, tax_rank02, tax_nam02, tax_level, author1,
+              tax_sp_level, tax_gen_level, tax_fam_level, tax_class_level
+            )
+
+          shiny::showNotification(
+            paste0(i18n()$t("Loaded WCVP backbone:"), " ",
+                   format(nrow(backbone), big.mark = ","), " ",
+                   i18n()$t("records")),
             duration = 3,
             type = "message"
           )
