@@ -4,7 +4,7 @@
 \alias{enrich_with_taxa_info}
 \title{Enrich trait data with taxonomic information}
 \usage{
-enrich_with_taxa_info(data, con)
+enrich_with_taxa_info(data, con, backbone = "internal")
 }
 \description{
 Enrich trait data with taxonomic information

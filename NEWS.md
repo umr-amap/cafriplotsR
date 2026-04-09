@@ -2,6 +2,14 @@
 
 ### New Features
 
+* **WCVP backbone integration** — all major query functions now accept `backbone = "wcvp"` to use the World Checklist of Vascular Plants as an alternative to the internal taxonomy
+  - New file `R/wcvp_integration.R` with schema setup (`setup_wcvp_schema()`), data import (`import_wcvp_names()`), taxon matching (`match_taxa_to_wcvp()`, `save_wcvp_links()`), lookup (`get_wcvp_names()`), and status utilities (`get_wcvp_status()`, `check_wcvp_update()`)
+  - When `backbone = "wcvp"`, standard taxonomy columns (`tax_fam`, `tax_gen`, `tax_esp`, `tax_sp_level`, `tax_infra_level`, `tax_infra_level_auth`) are replaced in-place with WCVP values; two extra columns are added: `name_source` (`"wcvp"` or `"internal"`) and `alt_taxon_name` (the internal name preserved for reference)
+  - WCVP ID columns `wcvp_plant_name_id` and `wcvp_accepted_plant_name_id` are added as analogs of `idtax_n` / `idtax_good_n`; internal IDs are never replaced
+  - Taxa with no WCVP match fall back silently to the internal backbone with `name_source = "internal"`
+  - `backbone` parameter propagated through: `query_taxa()`, `add_taxa_table_taxa()`, `resolve_taxon_synonyms()`, `merge_individuals_taxa()`, `query_plots()` / `process_individuals()`, `query_individual_features()`, `query_taxa_traits()`
+  - `launch_taxonomic_match_app()`: WCVP option now appears in the backbone-selection modal when WCVP data is present in the taxa database; fixed availability check that was always returning `FALSE` due to a missing `is_current` field in `get_wcvp_status()` return value
+
 * **`describe_columns()` — new function for documenting query result columns**
   - Reverse-maps every output column back to its database origin, accounting for output style renames (e.g. `ddlat` → `latitude`), census column renames (e.g. `stem_diameter_census_1` → `dbh_census_1`), and pivot suffixes (`_mean`, `_sd`, `char_`, `issue_agg_`, `_census_N`, `_0`/`_1` pairs)
   - Accepts a `plot_query_list` (from `query_plots()`) or a plain `data.frame`; returns a named list of documentation tables (one per result table) or a single table
