@@ -300,6 +300,17 @@ app_taxonomic_match <- function(
 
       cli::cli_alert_info("Initializing app modules...")
 
+      # Check WCVP availability in the taxa database
+      wcvp_avail <- shiny::reactive({
+        tryCatch({
+          con_taxa <- call.mydb.taxa()
+          status <- get_wcvp_status(con_taxa)
+          !is.null(status) && !is.null(status$version) && !is.na(status$version)
+        }, error = function(e) {
+          FALSE
+        })
+      })
+
       # Data input module
       user_data <- mod_data_input_server(
         "data_input",
@@ -323,7 +334,8 @@ app_taxonomic_match <- function(
         column_name = shiny::reactive(column_info()$column),
         include_authors = shiny::reactive(column_info()$include_authors),
         min_similarity = min_similarity,
-        i18n = i18n
+        i18n = i18n,
+        wcvp_available = wcvp_avail
       )
 
       # Manual review module

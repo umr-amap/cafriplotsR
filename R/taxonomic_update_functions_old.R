@@ -26,6 +26,8 @@
 #' @param clean_columns logical, whether to remove redundant columns
 #' @param con_taxa connexion
 #' @param con connexion
+#' @param backbone character. \code{"internal"} (default) or \code{"wcvp"}.
+#'   When \code{"wcvp"}, results are enriched with WCVP names via the link table.
 #'
 #' @export
 merge_individuals_taxa <- function(id_individual = NULL,
@@ -33,7 +35,10 @@ merge_individuals_taxa <- function(id_individual = NULL,
                                     id_tax = NULL,
                                     clean_columns = TRUE,
                                    con_taxa = NULL,
-                                   con = NULL) {
+                                   con = NULL,
+                                   backbone = c("internal", "wcvp")) {
+
+  backbone <- match.arg(backbone)
 
   if (is.null(con_taxa)) con_taxa <- call.mydb.taxa()
   if (is.null(con)) con <- call.mydb()
@@ -219,9 +224,14 @@ merge_individuals_taxa <- function(id_individual = NULL,
 
   # Enrichissement avec le backbone taxonomique
   cli::cli_alert_info("Enriching with taxonomic backbone...")
-  taxa_extract <- add_taxa_table_taxa(ids = res_individuals_full %>% pull(idtax_individual_f)) %>%
+  taxa_extract <- add_taxa_table_taxa(
+    ids = res_individuals_full %>% pull(idtax_individual_f),
+    backbone = backbone
+  ) %>%
     collect()
 
+  # taxa_extract already has WCVP columns replaced when backbone = "wcvp"
+  # (handled inside add_taxa_table_taxa)
   res_individuals_full <- res_individuals_full %>%
     dplyr::left_join(
       taxa_extract %>% dplyr::select(-any_of(c("data_modif_d", "data_modif_m", "data_modif_y"))),

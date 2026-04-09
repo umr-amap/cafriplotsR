@@ -10,7 +10,8 @@ mod_auto_matching_server(
   column_name,
   include_authors,
   min_similarity = 0.3,
-  i18n
+  i18n,
+  wcvp_available = NULL
 )
 }
 \arguments{

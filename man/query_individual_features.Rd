@@ -13,7 +13,8 @@ query_individual_features(
   include_metadata = FALSE,
   include_individuals = FALSE,
   census_strategy = c("last", "first", "mean"),
-  con = NULL
+  con = NULL,
+  backbone = c("internal", "wcvp")
 )
 }
 \arguments{
@@ -34,6 +35,10 @@ drop flagged rows), "include" (keep rows and add issue column), or "ignore"
 \item{include_individuals}{Include linked individual data}
 
 \item{con}{Database connection (optional)}
+
+\item{backbone}{Character. Which taxonomic backbone to use for synonym resolution
+when fetching linked individuals. \code{"internal"} (default) uses the internal
+\code{table_taxa}. \code{"wcvp"} uses WCVP via \code{wcvp_idtax_link}.}
 }
 \value{
 Tibble with individual features in requested format
