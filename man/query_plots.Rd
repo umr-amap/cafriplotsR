@@ -35,6 +35,7 @@ query_plots(
   individual_features_format = c("wide", "long", "census_pairs"),
   output_style = c("auto", "minimal", "standard", "permanent_plot",
     "permanent_plot_multi_census", "transect", "full"),
+  backbone = c("internal", "wcvp"),
   con = NULL,
   con.taxa = NULL
 )

@@ -170,8 +170,11 @@ query_plots <- function(plot_name = NULL,
                         individual_features_format = c("wide", "long", "census_pairs"),
                         output_style = c("auto", "minimal", "standard",
                                          "permanent_plot", "permanent_plot_multi_census", "transect", "full"),
+                        backbone = c("internal", "wcvp"),
                         con = NULL,
                         con.taxa = NULL) {
+
+  backbone <- match.arg(backbone)
 
   # Match arguments
   census_strategy <- match.arg(census_strategy)
@@ -528,7 +531,8 @@ query_plots <- function(plot_name = NULL,
       tag = tag,
       include_liana = include_liana,
       census_strategy = census_strategy,
-      show_multiple_census = show_multiple_census
+      show_multiple_census = show_multiple_census,
+      backbone = backbone
     )
     
     res <- enrich_with_traits(individuals = res,
@@ -708,7 +712,10 @@ process_individuals <- function(plots_data,
                                 tag = NULL,
                                 include_liana = FALSE,
                                 census_strategy = c("last", "first", "mean"),
-                                show_multiple_census = FALSE) {
+                                show_multiple_census = FALSE,
+                                backbone = c("internal", "wcvp")) {
+
+  backbone <- match.arg(backbone)
 
   census_strategy <- match.arg(census_strategy)
   cli::cli_rule(left = "Processing individuals")
@@ -754,8 +761,9 @@ process_individuals <- function(plots_data,
     id_plot = plot_metadata$id_liste_plots,
     id_tax = id_tax,
     clean_columns = TRUE,
-    con_taxa = con_taxa, 
-    con = con
+    con_taxa = con_taxa,
+    con = con,
+    backbone = backbone
   )
   
   # Filtrage par tag

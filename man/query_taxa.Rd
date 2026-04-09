@@ -19,7 +19,8 @@ query_taxa(
   check_synonymy = TRUE,
   extract_traits = TRUE,
   include_children = FALSE,
-  min_similarity = 0.3
+  min_similarity = 0.3,
+  backbone = c("internal", "wcvp")
 )
 }
 \arguments{
@@ -56,6 +57,10 @@ taxa (e.g. species within a genus, infraspecific taxa within a species)
 via the `id_parent` foreign key. Default FALSE.}
 
 \item{min_similarity}{numeric (0-1) minimum similarity score for fuzzy matching (default: 0.3)}
+
+\item{backbone}{character. Which taxonomic backbone to use: \code{"internal"}
+(default) uses the internal \code{table_taxa}; \code{"wcvp"} enriches results
+with WCVP names via the link table, adding \code{wcvp_*} columns and \code{name_source}.}
 
 \item{tax_nam01}{string (currently not used in matching)}
 

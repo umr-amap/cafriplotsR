@@ -132,6 +132,10 @@ traits_taxa_list <- function(id_trait = NULL, con = NULL) {
 #'   Used for trait measurements (taxa_traits_measures, traitlist).
 #' @param con_taxa Connection to taxa database (optional, defaults to call.mydb.taxa()).
 #'   Used for synonym resolution (table_taxa) and taxonomic info enrichment.
+#' @param backbone Character. Which taxonomic backbone to use for synonym resolution.
+#'   \code{"internal"} (default) uses the internal \code{table_taxa}.
+#'   \code{"wcvp"} uses WCVP via \code{wcvp_idtax_link} and \code{wcvp_names},
+#'   falling back to internal for unlinked taxa.
 #'
 #' @return List with components:
 #'   - traits_raw: Raw trait measurements with resolved taxonomy
@@ -150,11 +154,13 @@ query_taxa_traits <- function(
     include_measurement_features = FALSE,
     include_citation = FALSE,
     con = NULL,
-    con_taxa = NULL
+    con_taxa = NULL,
+    backbone = c("internal", "wcvp")
 ) {
 
   categorical_mode <- match.arg(categorical_mode)
   format <- match.arg(format)
+  backbone <- match.arg(backbone)
 
   # Main DB for trait measurements; taxa DB for synonym resolution
   if (is.null(con)) con <- call.mydb()
@@ -194,7 +200,8 @@ query_taxa_traits <- function(
   taxon_mapping <- resolve_taxon_synonyms(
     idtax = unique(traits_raw$idtax),  # ← Only taxa with traits
     include_synonyms = include_synonyms,
-    con_taxa = con_taxa
+    con_taxa = con_taxa,
+    backbone = backbone
   )
   
   if (nrow(taxon_mapping) == 0) {
@@ -225,7 +232,7 @@ query_taxa_traits <- function(
   # 5. Optional: Add taxonomic information
   if (add_taxa_info) {
     cli::cli_alert_info("Adding taxonomic information")
-    traits_raw <- enrich_with_taxa_info(traits_raw, con_taxa) %>% as_tibble()
+    traits_raw <- enrich_with_taxa_info(traits_raw, con_taxa, backbone = backbone) %>% as_tibble()
   }
   
   # 6. Remove remarks if not requested
@@ -255,7 +262,7 @@ query_taxa_traits <- function(
       # 5. Optional: Add taxonomic information
       if (add_taxa_info) {
         cli::cli_alert_info("Adding taxonomic information")
-        tmp <- enrich_with_taxa_info(tmp, con_taxa) %>% as_tibble()
+        tmp <- enrich_with_taxa_info(tmp, con_taxa, backbone = backbone) %>% as_tibble()
       }
       tmp
       
@@ -279,7 +286,7 @@ query_taxa_traits <- function(
       # 5. Optional: Add taxonomic information
       if (add_taxa_info) {
         cli::cli_alert_info("Adding taxonomic information")
-        tmp <- enrich_with_taxa_info(tmp, con_taxa) %>% as_tibble()
+        tmp <- enrich_with_taxa_info(tmp, con_taxa, backbone = backbone) %>% as_tibble()
       }
       tmp
       
@@ -380,12 +387,12 @@ fetch_taxa_trait_measurements <- function(idtax, trait_ids = NULL, con,
 
 #' Enrich trait data with taxonomic information
 #' @keywords internal
-enrich_with_taxa_info <- function(data, con) {
-  
+enrich_with_taxa_info <- function(data, con, backbone = "internal") {
+
   taxa_ids <- unique(data$idtax)
-  
+
   # Use existing add_taxa_table_taxa function
-  taxa_info <- add_taxa_table_taxa(ids = taxa_ids) %>%
+  taxa_info <- add_taxa_table_taxa(ids = taxa_ids, backbone = backbone) %>%
     dplyr::collect()
   
   data %>%

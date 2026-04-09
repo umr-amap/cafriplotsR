@@ -4,7 +4,12 @@
 \alias{resolve_taxon_synonyms}
 \title{Resolve taxonomic synonyms}
 \usage{
-resolve_taxon_synonyms(idtax = NULL, include_synonyms = TRUE, con_taxa = NULL)
+resolve_taxon_synonyms(
+  idtax = NULL,
+  include_synonyms = TRUE,
+  con_taxa = NULL,
+  backbone = c("internal", "wcvp")
+)
 }
 \arguments{
 \item{idtax}{Vector of taxon IDs (can be synonyms)}
@@ -12,6 +17,11 @@ resolve_taxon_synonyms(idtax = NULL, include_synonyms = TRUE, con_taxa = NULL)
 \item{include_synonyms}{If TRUE, also returns traits for all synonyms}
 
 \item{con_taxa}{Connection to taxa database}
+
+\item{backbone}{Character. Which taxonomic backbone to use for synonym resolution.
+\code{"internal"} (default) uses the internal \code{table_taxa}.
+\code{"wcvp"} uses WCVP via \code{wcvp_idtax_link} and \code{wcvp_names},
+falling back to internal for unlinked taxa.}
 }
 \value{
 Tibble with columns: idtax, idtax_good
