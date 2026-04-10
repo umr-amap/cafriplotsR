@@ -634,9 +634,8 @@ add_subplot_features <- function(new_data,
       data_subplottype %>%
       dplyr::filter(!is.na(subplotype))
     
-    
-    
-    print(".add_modif_field")
+
+
     data_subplottype <-
       .add_modif_field(dataset = data_subplottype)
     
@@ -670,7 +669,6 @@ add_subplot_features <- function(new_data,
       )
     }
 
-    print("data_to_add")
     data_to_add <-
       dplyr::tibble(id_table_liste_plots = data_subplottype$id_liste_plots,
                     year = data_subplottype$year,
@@ -678,14 +676,14 @@ add_subplot_features <- function(new_data,
                     day = data_subplottype$day,
                     id_type_sub_plot = data_subplottype$id_subplottype,
                     typevalue = ifelse(rep(any(valuetype$valuetype %in% c("numeric", "table_colnam")),
-                                           nrow(data_subplottype)), data_subplottype$subplotype, NA),
+                                           nrow(data_subplottype)), suppressWarnings(as.numeric(data_subplottype$subplotype)), NA_real_),
                     typevalue_char = ifelse(rep(valuetype$valuetype == "character",
-                                                nrow(data_subplottype)), data_subplottype$subplotype, NA),
+                                                nrow(data_subplottype)), as.character(data_subplottype$subplotype), NA_character_),
                     original_subplot_name = ifelse(rep(any(colnames(data_subplottype)=="original_subplot_name"),
-                                                       nrow(data_subplottype)), data_subplottype$original_subplot_name, NA),
+                                                       nrow(data_subplottype)), as.character(data_subplottype$original_subplot_name), NA_character_),
                     issue = data_subplottype$issue,
                     comment = ifelse(rep(any(colnames(data_subplottype)=="comment"),
-                                         nrow(data_subplottype)), data_subplottype$comment, NA),
+                                         nrow(data_subplottype)), as.character(data_subplottype$comment), NA_character_),
                     date_modif_d = data_subplottype$date_modif_d,
                     date_modif_m = data_subplottype$date_modif_m,
                     date_modif_y = data_subplottype$date_modif_y)
@@ -749,9 +747,7 @@ add_subplot_features <- function(new_data,
     } else {
       continue <- TRUE
     }
-    
-    print(data_to_add)
-    
+
     if(continue) {
 
       if (ask_before_update && interactive) {
@@ -1000,13 +996,13 @@ add_subplot_observations_feat <- function(new_data,
           id_type_sub_plot = data_feat$id_subplottype,
           typevalue = ifelse(
             rep(val_type == "numeric", nrow(data_feat)),
-            data_feat$subplotype,
-            NA
+            suppressWarnings(as.numeric(data_feat$subplotype)),
+            NA_real_
           ),
           typevalue_char = ifelse(
             rep(val_type == "character", nrow(data_feat)),
             as.character(data_feat$subplotype),
-            NA
+            NA_character_
           ),
           date_modif_d = data_feat$date_modif_d,
           date_modif_m = data_feat$date_modif_m,
@@ -1806,13 +1802,13 @@ add_traits_measures_features <- function(new_data,
           id_trait = data_feat$id_trait,
           typevalue = ifelse(
             rep(val_type == "numeric", nrow(data_feat)),
-            data_feat$trait,
-            NA
+            suppressWarnings(as.numeric(data_feat$trait)),
+            NA_real_
           ),
           typevalue_char = ifelse(
             rep(val_type == "character", nrow(data_feat)),
             as.character(data_feat$trait),
-            NA
+            NA_character_
           ),
           date_modif_d = data_feat$date_modif_d,
           date_modif_m = data_feat$date_modif_m,
@@ -4133,11 +4129,11 @@ add_sp_traits_measures_features <- function(new_data,
           id_trait = data_feat$id_trait,
           typevalue = ifelse(
             rep(val_type == "numeric", nrow(data_feat)),
-            data_feat$trait, NA
+            suppressWarnings(as.numeric(data_feat$trait)), NA_real_
           ),
           typevalue_char = ifelse(
             rep(val_type == "character", nrow(data_feat)),
-            as.character(data_feat$trait), NA
+            as.character(data_feat$trait), NA_character_
           ),
           date_modif_d = data_feat$date_modif_d,
           date_modif_m = data_feat$date_modif_m,

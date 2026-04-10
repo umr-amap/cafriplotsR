@@ -271,13 +271,22 @@ mod_step6_preview_server <- function(id, validation_result, i18n) {
       }
 
       # Check for potential lat/lon reversal
-      lat_range <- range(coords_data$ddlat, na.rm = TRUE)
-      lon_range <- range(coords_data$ddlon, na.rm = TRUE)
+      # Coerce to numeric to handle non-numeric coordinate data
+      lat_numeric <- suppressWarnings(as.numeric(coords_data$ddlat))
+      lon_numeric <- suppressWarnings(as.numeric(coords_data$ddlon))
+
+      lat_range <- range(lat_numeric, na.rm = TRUE)
+      lon_range <- range(lon_numeric, na.rm = TRUE)
 
       # Detect if coordinates might be UTM (very large numbers)
-      looks_like_utm <- (abs(lat_range[1]) > 180 || abs(lat_range[2]) > 180 ||
-                         abs(lon_range[1]) > 180 || abs(lon_range[2]) > 180) &&
-                        (max(abs(lat_range), abs(lon_range)) > 1000)
+      # Only check if we have valid numeric values
+      looks_like_utm <- if (all(is.finite(lat_range)) && all(is.finite(lon_range))) {
+        (abs(lat_range[1]) > 180 || abs(lat_range[2]) > 180 ||
+         abs(lon_range[1]) > 180 || abs(lon_range[2]) > 180) &&
+        (max(abs(lat_range), abs(lon_range)) > 1000)
+      } else {
+        FALSE
+      }
 
       # Warning if coordinates seem suspicious
       warning_ui <- if (looks_like_utm) {
@@ -333,7 +342,8 @@ mod_step6_preview_server <- function(id, validation_result, i18n) {
             style = "color: #856404;"
           )
         )
-      } else if (any(abs(coords_data$ddlat) > 90) || any(abs(coords_data$ddlon) > 180)) {
+      } else if (any(suppressWarnings(abs(as.numeric(coords_data$ddlat)) > 90), na.rm = TRUE) ||
+                 any(suppressWarnings(abs(as.numeric(coords_data$ddlon)) > 180), na.rm = TRUE)) {
         shiny::div(
           class = "alert alert-danger",
           style = "margin-bottom: 10px;",
@@ -395,8 +405,19 @@ mod_step6_preview_server <- function(id, validation_result, i18n) {
         return(NULL)
       }
 
-      # Filter valid coordinates
+      # Filter valid coordinates and coerce to numeric
       coords_data <- data[!is.na(data$ddlat) & !is.na(data$ddlon), ]
+
+      if (nrow(coords_data) == 0) {
+        return(NULL)
+      }
+
+      # Coerce coordinates to numeric for map rendering
+      coords_data$ddlat <- suppressWarnings(as.numeric(coords_data$ddlat))
+      coords_data$ddlon <- suppressWarnings(as.numeric(coords_data$ddlon))
+
+      # Remove any rows with non-numeric coordinates
+      coords_data <- coords_data[!is.na(coords_data$ddlat) & !is.na(coords_data$ddlon), ]
 
       if (nrow(coords_data) == 0) {
         return(NULL)
@@ -428,10 +449,10 @@ mod_step6_preview_server <- function(id, validation_result, i18n) {
           clusterOptions = leaflet::markerClusterOptions()
         ) %>%
         leaflet::fitBounds(
-          lng1 = min(coords_data$ddlon),
-          lat1 = min(coords_data$ddlat),
-          lng2 = max(coords_data$ddlon),
-          lat2 = max(coords_data$ddlat)
+          lng1 = min(coords_data$ddlon, na.rm = TRUE),
+          lat1 = min(coords_data$ddlat, na.rm = TRUE),
+          lng2 = max(coords_data$ddlon, na.rm = TRUE),
+          lat2 = max(coords_data$ddlat, na.rm = TRUE)
         )
     })
 
