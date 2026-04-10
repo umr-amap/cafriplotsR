@@ -429,7 +429,8 @@ query_plots <- function(plot_name = NULL,
             left_join(
               res %>% select(id_liste_plots, plot_name),
               by = "id_liste_plots"
-            )
+            ) %>%
+            sf::st_as_sf()
           
           coordinates_subplots <- coord_processed$coordinates_raw %>%
             left_join(
