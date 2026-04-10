@@ -112,6 +112,11 @@
   - Fixed `pull()` and `select()` using incorrect `{{}}` embrace syntax with string variable column names
   - Changed to `rlang::sym()` for proper symbol conversion in `pull()` and `select()` calls
 
+* **Import wizard silent failure during subplot feature insertion**
+  - Fixed `add_subplot_features()` missing `id_colnam` column in `data_to_add` tibble (required by `data_liste_sub_plots` schema)
+  - Fixed `.link_colnam()` call using incorrect `id_field = "subplotype"` parameter (should be `id_field = "id_colnam"`)
+  - Added fallback: non-lookup features now get `id_colnam = NA_integer_` for proper database constraint handling
+
 ### Documentation
 
 * Newsletter text refined (EN/FR): concise TWDD description, clarified citation tracking panel wording, added function names for interactive apps

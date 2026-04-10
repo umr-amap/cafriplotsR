@@ -662,11 +662,15 @@ add_subplot_features <- function(new_data,
         data_stand = data_subplottype,
         column_searched = "subplotype",
         column_name = "colnam",
-        id_field = "subplotype",
+        id_field = "id_colnam",
         id_table_name = "id_table_colnam",
         db_connection = mydb,
         table_name = "table_colnam"
       )
+    } else {
+      # For non-table_colnam features, add empty id_colnam column
+      data_subplottype <- data_subplottype %>%
+        dplyr::mutate(id_colnam = NA_integer_)
     }
 
     data_to_add <-
@@ -675,6 +679,7 @@ add_subplot_features <- function(new_data,
                     month = data_subplottype$month,
                     day = data_subplottype$day,
                     id_type_sub_plot = data_subplottype$id_subplottype,
+                    id_colnam = data_subplottype$id_colnam,
                     typevalue = ifelse(rep(any(valuetype$valuetype %in% c("numeric", "table_colnam")),
                                            nrow(data_subplottype)), suppressWarnings(as.numeric(data_subplottype$subplotype)), NA_real_),
                     typevalue_char = ifelse(rep(valuetype$valuetype == "character",
