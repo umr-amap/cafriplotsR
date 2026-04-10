@@ -406,6 +406,22 @@ import_plot_metadata <- function(data,
       })
     }
 
+    # Extract error message with fallback
+    error_msg <- e$message
+    if (is.null(error_msg) || identical(error_msg, "")) {
+      # Try to extract more info from the error object
+      error_msg <- tryCatch(
+        {
+          if (!is.null(e$call)) {
+            sprintf("Error in: %s", paste(deparse(e$call), collapse = " "))
+          } else {
+            "Unknown error (no message available)"
+          }
+        },
+        error = function(ex) "Unknown error"
+      )
+    }
+
     # Return error
     result <- list(
       success = FALSE,
@@ -414,12 +430,12 @@ import_plot_metadata <- function(data,
       username = username,
       admin_code = NULL,
       dry_run = dry_run,
-      message = sprintf("Import failed: %s", e$message),
+      message = sprintf("Import failed: %s", error_msg),
       error = e
     )
 
     if (progress) {
-      cli::cli_alert_danger("Import failed: {e$message}")
+      cli::cli_alert_danger("Import failed: {error_msg}")
     }
 
     stop(e)

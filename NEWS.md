@@ -97,6 +97,17 @@
 * **`output_styles_config` additional keep patterns**
   - Added `position_`, `strate`, `transect_part` to default keep_patterns for transect output
 
+* **Import wizard subplot feature insertion type mismatches**
+  - Fixed `add_subplot_features()` using bare `NA` in `ifelse()` statements, causing logical-to-numeric/character type errors
+  - Now uses `NA_real_` and `NA_character_` for proper type matching with database schema
+
+* **Import wizard map preview crash on non-numeric coordinates**
+  - Fixed `mod_step6_preview.R` calling `abs()` on potentially non-numeric coordinate columns
+  - Added coercion to numeric with proper fallback handling for invalid coordinates
+
+* **Import transaction error messages unclear**
+  - Improved error handling in import transactions to capture and display actual error messages instead of empty strings
+
 ### Documentation
 
 * Newsletter text refined (EN/FR): concise TWDD description, clarified citation tracking panel wording, added function names for interactive apps
