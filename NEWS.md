@@ -108,6 +108,10 @@
 * **Import transaction error messages unclear**
   - Improved error handling in import transactions to capture and display actual error messages instead of empty strings
 
+* **`.link_table()` dynamic column selection failure**
+  - Fixed `pull()` and `select()` using incorrect `{{}}` embrace syntax with string variable column names
+  - Changed to `rlang::sym()` for proper symbol conversion in `pull()` and `select()` calls
+
 ### Documentation
 
 * Newsletter text refined (EN/FR): concise TWDD description, clarified citation tracking panel wording, added function names for interactive apps
