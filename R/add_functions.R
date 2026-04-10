@@ -778,14 +778,26 @@ add_subplot_features <- function(new_data,
     if(add_data & response) {
 
       message(paste("adding data:", nrow(data_subplottype), "rows"))
+
+      # Debug: print data structure
+      if (interactive) {
+        message("Data columns: ", paste(colnames(data_to_add), collapse = ", "))
+        message("Data types: ", paste(sapply(data_to_add, class), collapse = ", "))
+        message("First row: ", paste(lapply(data_to_add[1,], as.character), collapse = "; "))
+      }
+
       tryCatch({
         DBI::dbWriteTable(mydb, "data_liste_sub_plots",
                           data_to_add, append = TRUE, row.names = FALSE)
 
         cli::cli_alert_success("{nrow(data_to_add)} line imported in data_liste_sub_plots")
       }, error = function(e) {
-        cli::cli_alert_danger("Error inserting data into data_liste_sub_plots: {e$message}")
-        stop(e)
+        error_msg <- e$message
+        if (is.null(error_msg) || identical(error_msg, "")) {
+          error_msg <- "Unknown error - check database schema constraints"
+        }
+        cli::cli_alert_danger("Error inserting data into data_liste_sub_plots: {error_msg}")
+        stop("Subplot feature insertion failed: ", error_msg, call. = FALSE)
       })
       
       

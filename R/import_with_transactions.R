@@ -276,19 +276,23 @@ import_plot_metadata <- function(data,
             dplyr::left_join(plot_id_data, by = "plot_name")
 
           # Insert using add_subplot_features
-          add_subplot_features(
-            new_data = feature_df,
-            id_plot_name = "id_liste_plots",
-            subplottype_field = feature_type,
-            add_data = TRUE,
-            ask_before_update = FALSE,
-            interactive = interactive,
-            con = actual_con
-          )
+          tryCatch({
+            add_subplot_features(
+              new_data = feature_df,
+              id_plot_name = "id_liste_plots",
+              subplottype_field = feature_type,
+              add_data = TRUE,
+              ask_before_update = FALSE,
+              interactive = interactive,
+              con = actual_con
+            )
 
-          if (progress) {
-            cli::cli_alert_success("{nrow(feature_df)} {feature_type} records inserted")
-          }
+            if (progress) {
+              cli::cli_alert_success("{nrow(feature_df)} {feature_type} records inserted")
+            }
+          }, error = function(e) {
+            stop("Error inserting ", feature_type, ": ", e$message, call. = FALSE)
+          })
         }
       }
 
@@ -303,19 +307,23 @@ import_plot_metadata <- function(data,
             dplyr::left_join(plot_id_data, by = "plot_name")
 
           # Insert using add_subplot_features
-          add_subplot_features(
-            new_data = feature_df,
-            id_plot_name = "id_liste_plots",
-            subplottype_field = feature_type,
-            add_data = TRUE,
-            ask_before_update = FALSE,
-            interactive = interactive,
-            con = actual_con
-          )
+          tryCatch({
+            add_subplot_features(
+              new_data = feature_df,
+              id_plot_name = "id_liste_plots",
+              subplottype_field = feature_type,
+              add_data = TRUE,
+              ask_before_update = FALSE,
+              interactive = interactive,
+              con = actual_con
+            )
 
-          if (progress) {
-            cli::cli_alert_success("{nrow(feature_df)} {feature_type} records inserted")
-          }
+            if (progress) {
+              cli::cli_alert_success("{nrow(feature_df)} {feature_type} records inserted")
+            }
+          }, error = function(e) {
+            stop("Error inserting ", feature_type, ": ", e$message, call. = FALSE)
+          })
         }
       }
     }
