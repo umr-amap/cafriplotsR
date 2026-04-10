@@ -779,12 +779,17 @@ add_subplot_features <- function(new_data,
 
       message(paste("adding data:", nrow(data_subplottype), "rows"))
 
-      # Debug: print data structure
-      if (interactive) {
-        message("Data columns: ", paste(colnames(data_to_add), collapse = ", "))
-        message("Data types: ", paste(sapply(data_to_add, class), collapse = ", "))
-        message("First row: ", paste(lapply(data_to_add[1,], as.character), collapse = "; "))
+      # Always log data structure to console for debugging
+      cat("\n[DEBUG] data_to_add structure:\n")
+      cat("Columns: ", paste(colnames(data_to_add), collapse = ", "), "\n")
+      cat("Types: ", paste(sapply(data_to_add, function(x) paste(class(x), collapse="/")), collapse = ", "), "\n")
+      cat("Rows: ", nrow(data_to_add), "\n")
+      if (nrow(data_to_add) > 0) {
+        cat("First row values: ", paste(sapply(data_to_add[1,], function(x) {
+          if (is.na(x)) "NA" else as.character(x)
+        }), collapse = " | "), "\n")
       }
+      cat("\n")
 
       tryCatch({
         DBI::dbWriteTable(mydb, "data_liste_sub_plots",
@@ -796,6 +801,7 @@ add_subplot_features <- function(new_data,
         if (is.null(error_msg) || identical(error_msg, "")) {
           error_msg <- "Unknown error - check database schema constraints"
         }
+        cat("\n[ERROR] Insert failed: ", error_msg, "\n\n")
         cli::cli_alert_danger("Error inserting data into data_liste_sub_plots: {error_msg}")
         stop("Subplot feature insertion failed: ", error_msg, call. = FALSE)
       })
