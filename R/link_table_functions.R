@@ -66,9 +66,9 @@
        dplyr::left_join(all_names, by = c("name" = col_name))
 
   id_ <- data_stand %>%
-    left_join(all_names_ %>% select(name, {{id_table_name}}),
+    left_join(all_names_ %>% select(name, !!rlang::sym(id_table_name)),
               by = c("name" = "name")) %>%
-    pull({{id_table_name}})
+    pull(!!rlang::sym(id_table_name))
 
   all_names_no_match <-
     all_names_ %>%
@@ -91,7 +91,7 @@
         selected_name_id <-
           sorted_matches$sorted_matches %>%
           slice(sorted_matches$selected_name) %>%
-          pull({{id_table_name}})
+          pull(!!rlang::sym(id_table_name))
 
       } else {
 
