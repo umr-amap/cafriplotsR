@@ -673,6 +673,16 @@ add_subplot_features <- function(new_data,
         dplyr::mutate(id_colnam = NA_integer_)
     }
 
+    # Ensure issue column exists (created by .link_subplotype, may be NA)
+    if (!("issue" %in% colnames(data_subplottype))) {
+      data_subplottype <- data_subplottype %>%
+        dplyr::mutate(issue = NA_character_)
+    } else {
+      # Ensure issue is character type
+      data_subplottype <- data_subplottype %>%
+        dplyr::mutate(issue = as.character(issue))
+    }
+
     data_to_add <-
       dplyr::tibble(id_table_liste_plots = data_subplottype$id_liste_plots,
                     year = data_subplottype$year,
@@ -766,12 +776,17 @@ add_subplot_features <- function(new_data,
     }
     
     if(add_data & response) {
-      
+
       message(paste("adding data:", nrow(data_subplottype), "rows"))
-      DBI::dbWriteTable(mydb, "data_liste_sub_plots",
-                        data_to_add, append = TRUE, row.names = FALSE)
-      
-      cli::cli_alert_success("{nrow(data_to_add)} line imported in data_liste_sub_plots")
+      tryCatch({
+        DBI::dbWriteTable(mydb, "data_liste_sub_plots",
+                          data_to_add, append = TRUE, row.names = FALSE)
+
+        cli::cli_alert_success("{nrow(data_to_add)} line imported in data_liste_sub_plots")
+      }, error = function(e) {
+        cli::cli_alert_danger("Error inserting data into data_liste_sub_plots: {e$message}")
+        stop(e)
+      })
       
       
       
