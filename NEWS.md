@@ -117,6 +117,12 @@
   - Fixed `.link_colnam()` call using incorrect `id_field = "subplotype"` parameter (should be `id_field = "id_colnam"`)
   - Added fallback: non-lookup features now get `id_colnam = NA_integer_` for proper database constraint handling
 
+* **Import wizard `table_colnam` feature insertion with pre-matched IDs**
+  - Fixed `add_subplot_features()` silent failure when Shiny import wizard Step 4 pre-matches person names to `id_table_colnam` IDs
+  - When feature values are already numeric IDs (e.g., `"123, 456"` from wizard matching), bypass `.link_colnam()` to prevent it from trying to match ID strings as names and falling into an interactive `readline()` loop that hangs in Shiny
+  - Added validation of pre-matched IDs against `table_colnam` before assignment
+  - Non-numeric values still flow through `.link_colnam()` for interactive name-to-ID resolution
+
 ### Documentation
 
 * Newsletter text refined (EN/FR): concise TWDD description, clarified citation tracking panel wording, added function names for interactive apps
