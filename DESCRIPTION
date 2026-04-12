@@ -54,7 +54,9 @@ Suggests:
     rclipboard,
     ggpubr,
     foreign,
-    BIOMASS (>= 2.2.4)
+    BIOMASS (>= 2.2.4),
+    rWCVP,
+    rWCVPdata
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3
