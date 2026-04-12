@@ -656,17 +656,69 @@ add_subplot_features <- function(new_data,
       data_subplottype <-
         data_subplottype %>%
         tidyr::separate_rows(subplotype, sep = ",") %>%
-        dplyr::mutate(subplotype = stringr::str_squish(subplotype))
+        dplyr::mutate(subplotype = stringr::str_squish(as.character(subplotype))) %>%
+        dplyr::filter(!is.na(subplotype) & subplotype != "")
 
-      data_subplottype <- .link_colnam(
-        data_stand = data_subplottype,
-        column_searched = "subplotype",
-        column_name = "colnam",
-        id_field = "id_colnam",
-        id_table_name = "id_table_colnam",
-        db_connection = mydb,
-        table_name = "table_colnam"
-      )
+      # Detect whether subplotype values are already numeric IDs (e.g. from
+      # the Shiny import wizard Step 4 lookup matching, which pre-resolves
+      # person names to id_table_colnam IDs). If so, bypass .link_colnam()
+      # — calling it with numeric IDs would make .link_table() try to match
+      # "123" as a person name in table_colnam.colnam and fall into the
+      # interactive .find_cat() readline() loop, which hangs/errors silently
+      # in non-interactive Shiny context.
+      values_are_ids <-
+        nrow(data_subplottype) > 0 &&
+        !any(is.na(suppressWarnings(as.numeric(data_subplottype$subplotype))))
+
+      if (values_are_ids) {
+
+        if (verbose) cli::cli_alert_info(
+          "{subplottype} values are already numeric IDs (pre-matched); skipping .link_colnam()"
+        )
+
+        # Validate IDs against table_colnam
+        valid_ids <- dplyr::tbl(mydb, "table_colnam") %>%
+          dplyr::select(id_table_colnam) %>%
+          dplyr::collect() %>%
+          dplyr::pull(id_table_colnam)
+
+        provided_ids <- as.integer(data_subplottype$subplotype)
+        invalid_ids <- provided_ids[!(provided_ids %in% valid_ids)]
+
+        if (length(invalid_ids) > 0) {
+          stop(sprintf(
+            "Invalid %s IDs not found in table_colnam: %s",
+            subplottype,
+            paste(unique(invalid_ids), collapse = ", ")
+          ))
+        }
+
+        data_subplottype <- data_subplottype %>%
+          dplyr::mutate(id_colnam = provided_ids)
+
+      } else {
+
+        data_subplottype <- .link_colnam(
+          data_stand = data_subplottype,
+          column_searched = "subplotype",
+          column_name = "colnam",
+          id_field = "id_colnam",
+          id_table_name = "id_table_colnam",
+          db_connection = mydb,
+          table_name = "table_colnam"
+        )
+
+        # CRITICAL: .link_colnam() calls .link_table() with keep_original_value = TRUE,
+        # which renames the searched column ("subplotype") to "original_colnam".
+        # The downstream data_to_add tibble construction references
+        # data_subplottype$subplotype, which would otherwise be NULL and silently
+        # produce invalid data/errors. Restore the subplotype column here.
+        if ("original_colnam" %in% colnames(data_subplottype) &&
+            !"subplotype" %in% colnames(data_subplottype)) {
+          data_subplottype <- data_subplottype %>%
+            dplyr::rename(subplotype = original_colnam)
+        }
+      }
     } else {
       # For non-table_colnam features, add empty id_colnam column
       data_subplottype <- data_subplottype %>%
