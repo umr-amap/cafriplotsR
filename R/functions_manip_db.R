@@ -419,19 +419,33 @@ query_plots <- function(plot_name = NULL,
           dplyr::filter(coord4 == "plot")
         
         if (nrow(all_coordinates_subplots_rf) > 0) {
-          
-          coord_processed <- .process_coordinates(
-            all_coordinates = all_coordinates_subplots_rf,
-            res = res
-          )
-          
-          coordinates_subplots_plot_sf <- coord_processed$coordinates_sf %>%
-            left_join(
-              res %>% select(id_liste_plots, plot_name),
-              by = "id_liste_plots"
-            ) %>%
-            sf::st_as_sf()
-          
+
+          coord_processed <- tryCatch({
+            .process_coordinates(
+              all_coordinates = all_coordinates_subplots_rf,
+              res = res
+            )
+          }, error = function(e) {
+            cli::cli_alert_warning("Coordinate processing failed: {e$message}")
+            cli::cli_alert_info("Returning raw coordinate data without polygon corrections")
+            list(coordinates_sf = NULL, coordinates_raw = all_coordinates_subplots_rf)
+          })
+
+          # Only create sf objects if we have processed coordinates
+          if (!is.null(coord_processed$coordinates_sf) && nrow(coord_processed$coordinates_sf) > 0) {
+            coordinates_subplots_plot_sf <- coord_processed$coordinates_sf %>%
+              left_join(
+                res %>% select(id_liste_plots, plot_name),
+                by = "id_liste_plots"
+              ) %>%
+              tryCatch({
+                sf::st_as_sf()
+              }, error = function(e) {
+                cli::cli_alert_warning("Could not convert processed coordinates to sf object: {e$message}")
+                return(NULL)
+              })
+          }
+
           coordinates_subplots <- coord_processed$coordinates_raw %>%
             left_join(
               res %>% select(id_liste_plots, plot_name),
@@ -493,7 +507,7 @@ query_plots <- function(plot_name = NULL,
           options = leaflet::layersControlOptions(collapsed = FALSE)
         )
 
-      if (extract_coordinates && !is.null(unlist(coordinates_subplots_plot_sf))) {
+      if (extract_coordinates && exists("coordinates_subplots_plot_sf") && !is.null(coordinates_subplots_plot_sf)) {
         outputmap <- outputmap %>%
           leaflet::addPolygons(data = coordinates_subplots_plot_sf,
                                color = "red", weight = 2, fillOpacity = 0.1,
@@ -634,10 +648,10 @@ query_plots <- function(plot_name = NULL,
     res_list$hd_source <- hd_source
   }
 
-  if (extract_coordinates)
+  if (extract_coordinates && exists("coordinates_subplots"))
     res_list$coordinates <- coordinates_subplots
 
-  if (extract_coordinates)
+  if (extract_coordinates && exists("coordinates_subplots_plot_sf"))
     res_list$coordinates_sf <- coordinates_subplots_plot_sf
 
   res_list <- res_list[!is.na(res_list)]
@@ -1357,11 +1371,11 @@ reorganize_individual_columns <- function(individuals) {
 }
 
 .process_coordinates <- function(all_coordinates, res) {
-  
+
   all_plots_coord <- unique(all_coordinates$id_table_liste_plots)
   coordinates_sf_list <- vector('list', length(all_plots_coord))
   coordinates_data_list <- vector('list', length(all_plots_coord))
-  
+
   for (j in seq_along(all_plots_coord)) {
     id_plot <- all_plots_coord[j]
     grouped <- all_coordinates %>%
@@ -1379,28 +1393,60 @@ reorganize_individual_columns <- function(individuals) {
         Xrel = coord1 - min(coord1),
         Yrel = coord2 - min(coord2)
       )
-    
+
     if (nrow(grouped) == 0) next
-    
+
     if (!requireNamespace("BIOMASS", quietly = TRUE))
       stop("Package 'BIOMASS' is required for GPS coordinate correction. Install it with install.packages('BIOMASS').")
-    cor_coord <- suppressMessages(suppressWarnings(BIOMASS::correctCoordGPS(
-      longlat = grouped[, c("typevalue_ddlon", "typevalue_ddlat")],
-      rangeX = c(0, diff(range(grouped$coord1))),
-      rangeY = c(0, diff(range(grouped$coord2))),
-      coordRel = grouped %>% select(Xrel, Yrel),
-      drawPlot = FALSE, rmOutliers = TRUE
-    )))
-    
-    poly_plot <- st_as_sf(cor_coord$polygon) %>%
-      st_set_crs(cor_coord$codeUTM) %>%
-      st_transform(4326) %>%
-      mutate(id_liste_plots = id_plot)
-    
-    coordinates_sf_list[[j]] <- poly_plot
+
+    # Wrap BIOMASS function in tryCatch to handle graphics/device issues
+    cor_coord <- tryCatch({
+      suppressMessages(suppressWarnings(BIOMASS::correctCoordGPS(
+        longlat = grouped[, c("typevalue_ddlon", "typevalue_ddlat")],
+        rangeX = c(0, diff(range(grouped$coord1))),
+        rangeY = c(0, diff(range(grouped$coord2))),
+        coordRel = grouped %>% select(Xrel, Yrel),
+        drawPlot = FALSE, rmOutliers = TRUE
+      )))
+    }, error = function(e) {
+      # Handle graphics parameter errors from BIOMASS
+      if (grepl("par.*pin|graphique.*pin", e$message, ignore.case = TRUE)) {
+        cli::cli_alert_warning("BIOMASS coordinate correction encountered graphics device issue")
+        cli::cli_alert_info("Proceeding with raw coordinates instead of corrected plot polygons")
+        return(NULL)
+      } else {
+        stop(e)
+      }
+    })
+
+    if (is.null(cor_coord)) {
+      # If BIOMASS failed, just use raw data without polygon correction
+      coordinates_data_list[[j]] <- grouped
+      next
+    }
+
+    # Wrap CRS operations in tryCatch to handle PROJ database issues
+    poly_plot <- tryCatch({
+      st_as_sf(cor_coord$polygon) %>%
+        st_set_crs(cor_coord$codeUTM) %>%
+        st_transform(4326) %>%
+        mutate(id_liste_plots = id_plot)
+    }, error = function(e) {
+      if (grepl("proj\\.db|Cannot find proj", e$message, ignore.case = TRUE)) {
+        cli::cli_alert_warning("PROJ database not found - cannot transform coordinates to standard format")
+        cli::cli_alert_info("Ensure PROJ library is properly installed (try: system('proj'))")
+        return(NULL)
+      } else {
+        stop(e)
+      }
+    })
+
+    if (!is.null(poly_plot)) {
+      coordinates_sf_list[[j]] <- poly_plot
+    }
     coordinates_data_list[[j]] <- grouped
   }
-  
+
   list(
     coordinates_sf = do.call(bind_rows, coordinates_sf_list),
     coordinates_raw = bind_rows(coordinates_data_list)
