@@ -7144,6 +7144,34 @@
     {
       "en": "Failed to load WCVP backbone. Falling back to internal backbone.",
       "fr": "Échec du chargement du référentiel WCVP. Repli vers le référentiel interne."
+    },
+    {
+      "en": "Morphotaxon",
+      "fr": "Morphotaxon"
+    },
+    {
+      "en": "Other attributes",
+      "fr": "Autres attributs"
+    },
+    {
+      "en": "WCVP Link",
+      "fr": "Lien WCVP"
+    },
+    {
+      "en": "WCVP ID:",
+      "fr": "ID WCVP :"
+    },
+    {
+      "en": "WCVP Status:",
+      "fr": "Statut WCVP :"
+    },
+    {
+      "en": "WCVP Name:",
+      "fr": "Nom WCVP :"
+    },
+    {
+      "en": "Not linked to WCVP",
+      "fr": "Non lié au WCVP"
     }
   ]
 }

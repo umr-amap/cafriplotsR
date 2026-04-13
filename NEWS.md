@@ -47,6 +47,12 @@
   - Step 6: Import execution with dry-run support — bulk insert via single `dbAppendTable()` in explicit transaction for measurements; `update_records()` for multi-stem `stem_grouping` updates; context-aware labels (import vs update)
   - Full EN/FR internationalization
 
+* **Taxonomic Backbone app (`launch_taxo_backbone_app()`) enhancements**
+  - Browse & Search tab now displays **morphotaxon status** (Yes/No) in the selected taxon info panel
+  - WCVP link information displayed when available: **WCVP ID**, **WCVP Status** (Accepted/Synonym), and **WCVP Name** from the WCVP database
+  - Update Taxa tab now allows modifying the **morphotaxon status** via a checkbox in the "Other attributes" section
+  - When toggling only morphotaxon status with no other field changes, the update now correctly bypasses the `update_dico_name()` call and applies the morpho_species change via direct SQL
+
 * **`add_subplot_features()` people resolution**
   - For features with `valuetype == "table_colnam"` (team_leader, additional_people, etc.), comma-delimited person names are now split and matched to `table_colnam` IDs before insertion
 
