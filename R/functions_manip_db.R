@@ -433,17 +433,18 @@ query_plots <- function(plot_name = NULL,
 
           # Only create sf objects if we have processed coordinates
           if (!is.null(coord_processed$coordinates_sf) && nrow(coord_processed$coordinates_sf) > 0) {
-            coordinates_subplots_plot_sf <- coord_processed$coordinates_sf %>%
+            sf_joined <- coord_processed$coordinates_sf %>%
               left_join(
                 res %>% select(id_liste_plots, plot_name),
                 by = "id_liste_plots"
-              ) %>%
-              tryCatch({
-                sf::st_as_sf()
-              }, error = function(e) {
+              )
+            coordinates_subplots_plot_sf <- tryCatch(
+              sf::st_as_sf(sf_joined),
+              error = function(e) {
                 cli::cli_alert_warning("Could not convert processed coordinates to sf object: {e$message}")
-                return(NULL)
-              })
+                NULL
+              }
+            )
           }
 
           coordinates_subplots <- coord_processed$coordinates_raw %>%
