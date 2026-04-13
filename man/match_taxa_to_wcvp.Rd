@@ -27,8 +27,8 @@ match_taxa_to_wcvp(
 \item{author_match}{Character. How to use author strings during exact name matching.
 \itemize{
   \item \code{"none"} (default): ignore authors entirely.
-  \item \code{"exact"}: authors must match character-for-character
-    (via \code{rWCVP::wcvp_match_exact(author_col)}). Reduces false positives
+  \item \code{"exact"}: authors must match character-for-character.
+    Reduces false positives
     but misses any formatting difference.
   \item \code{"fuzzy"}: exact name match first, then Jaro-Winkler author
     similarity to select among homonyms and filter below \code{author_threshold}.
@@ -54,8 +54,8 @@ A tibble with columns: \code{idtax_n}, \code{taxon_name_internal},
   \code{plant_name_id}, \code{wcvp_taxon_name}, \code{match_type}, \code{match_score}.
 }
 \description{
-Matches taxa from the internal \code{table_taxa} to WCVP names using
-exact and optionally fuzzy matching via \code{rWCVP}.
+Matches taxa from the internal \code{table_taxa} to WCVP names already
+uploaded in the database, using exact and optionally fuzzy matching.
 }
 \details{
 Returns a tibble for review. Does NOT write to the database automatically.

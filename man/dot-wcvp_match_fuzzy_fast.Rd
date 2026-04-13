@@ -17,7 +17,7 @@
 \arguments{
 \item{names_df}{data.frame with at least a column named \code{name_col}.}
 
-\item{wcvp_names}{Full \code{rWCVPdata::wcvp_names} data frame (all 31 columns).}
+\item{wcvp_names}{data.frame of WCVP names (from database or \code{rWCVPdata}).}
 
 \item{name_col}{Character. Column in \code{names_df} holding taxon names.}
 
