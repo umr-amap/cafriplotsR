@@ -24,18 +24,16 @@ mod_backbone_cache_selection_ui <- function(id) {
 #' @description
 #' Server logic for backbone cache selection. When triggered, checks if cache exists.
 #' If cache exists, shows modal dialog with cache metadata and lets user choose
-#' between cached, fresh, or WCVP backbone. If no cache, immediately returns "download".
+#' between cached or fresh internal backbone. If no cache, immediately returns "download".
 #'
 #' @param id Character, module namespace ID
 #' @param i18n Reactive returning shiny.i18n translator object
 #' @param trigger Reactive that triggers cache check (e.g., button click event)
-#' @param wcvp_available Reactive logical, whether WCVP data is available in the database.
-#'   If NULL or FALSE, the WCVP option is not shown.
 #'
-#' @return Reactive character, user's choice: "cache", "download", "wcvp", or NULL
+#' @return Reactive character, user's choice: "cache", "download", or NULL
 #'
 #' @keywords internal
-mod_backbone_cache_selection_server <- function(id, i18n, trigger, wcvp_available = NULL) {
+mod_backbone_cache_selection_server <- function(id, i18n, trigger) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -43,16 +41,9 @@ mod_backbone_cache_selection_server <- function(id, i18n, trigger, wcvp_availabl
 
     shiny::observeEvent(trigger(), {
       has_cache <- cache_exists()
-      has_wcvp <- if (!is.null(wcvp_available) && is.reactive(wcvp_available)) {
-        wcvp_available()
-      } else if (!is.null(wcvp_available)) {
-        wcvp_available
-      } else {
-        FALSE
-      }
 
-      if (has_cache || has_wcvp) {
-        metadata <- if (has_cache) get_cache_metadata() else NULL
+      if (has_cache) {
+        metadata <- get_cache_metadata()
 
         shiny::showModal(
           shiny::modalDialog(
@@ -64,8 +55,8 @@ mod_backbone_cache_selection_server <- function(id, i18n, trigger, wcvp_availabl
             shiny::div(
               style = "padding: 10px;",
 
-              # Cache info (only if cache exists)
-              if (has_cache && !is.null(metadata)) {
+              # Cache info
+              if (!is.null(metadata)) {
                 shiny::tagList(
                   shiny::p(i18n()$t("A cached version of the taxonomic backbone is available.")),
                   shiny::div(
@@ -90,57 +81,35 @@ mod_backbone_cache_selection_server <- function(id, i18n, trigger, wcvp_availabl
                 )
               },
 
-              shiny::p(i18n()$t("Choose which taxonomic backbone to use for matching:")),
+              shiny::p(i18n()$t("Choose which backbone version to use for matching:")),
 
               # Action buttons
               shiny::div(
-                style = "display: flex; flex-direction: column; gap: 10px; margin-top: 20px;",
+                style = "display: flex; gap: 10px; margin-top: 20px;",
 
-                # Row 1: Cache + Download
-                shiny::div(
-                  style = "display: flex; gap: 10px;",
-
-                  if (has_cache && !is.null(metadata)) {
-                    shiny::actionButton(
-                      inputId = ns("use_cache"),
-                      label = i18n()$t("Use Cached Backbone"),
-                      icon = shiny::icon("database"),
-                      class = "btn-primary",
-                      style = "flex: 1;"
-                    )
-                  },
-
+                if (!is.null(metadata)) {
                   shiny::actionButton(
-                    inputId = ns("download_fresh"),
-                    label = i18n()$t("Download Fresh Backbone"),
-                    icon = shiny::icon("download"),
-                    class = "btn-default",
+                    inputId = ns("use_cache"),
+                    label = i18n()$t("Use Cached Backbone"),
+                    icon = shiny::icon("database"),
+                    class = "btn-primary",
                     style = "flex: 1;"
                   )
-                ),
+                },
 
-                # Row 2: WCVP option (only if available)
-                if (has_wcvp) {
-                  shiny::div(
-                    style = "border-top: 1px solid #ddd; padding-top: 10px;",
-                    shiny::actionButton(
-                      inputId = ns("use_wcvp"),
-                      label = i18n()$t("Use WCVP Backbone"),
-                      icon = shiny::icon("globe"),
-                      class = "btn-success",
-                      style = "width: 100%;"
-                    ),
-                    shiny::helpText(
-                      i18n()$t("World Checklist of Vascular Plants - global taxonomic reference")
-                    )
-                  )
-                }
+                shiny::actionButton(
+                  inputId = ns("download_fresh"),
+                  label = i18n()$t("Download Fresh Backbone"),
+                  icon = shiny::icon("download"),
+                  class = "btn-default",
+                  style = "flex: 1;"
+                )
               )
             )
           )
         )
       } else {
-        # No cache and no WCVP
+        # No cache — go straight to download
         user_choice("download")
       }
     })
@@ -152,11 +121,6 @@ mod_backbone_cache_selection_server <- function(id, i18n, trigger, wcvp_availabl
 
     shiny::observeEvent(input$download_fresh, {
       user_choice("download")
-      shiny::removeModal()
-    })
-
-    shiny::observeEvent(input$use_wcvp, {
-      user_choice("wcvp")
       shiny::removeModal()
     })
 
