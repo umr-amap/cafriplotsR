@@ -47,6 +47,14 @@
   - Step 6: Import execution with dry-run support — bulk insert via single `dbAppendTable()` in explicit transaction for measurements; `update_records()` for multi-stem `stem_grouping` updates; context-aware labels (import vs update)
   - Full EN/FR internationalization
 
+* **Taxonomic Matching app (`launch_taxonomic_match_app()`) WCVP integration refactored**
+  - WCVP is no longer offered as a backbone selection option during auto-matching (removed from modal)
+  - Only internal backbone is used for the matching process (automated via `mod_backbone_cache_selection`)
+  - New sidebar checkbox "Use WCVP names in output" allows users to enrich matched results with WCVP taxonomic names when available
+  - WCVP enrichment happens immediately after matching completes, so corrected names display WCVP values in Review and Export tabs
+  - Gracefully falls back to internal names when WCVP data is unavailable
+  - Checkbox appears conditionally only when WCVP tables exist in the taxa database
+
 * **Taxonomic Backbone app (`launch_taxo_backbone_app()`) enhancements**
   - Browse & Search tab now displays **morphotaxon status** (Yes/No) in the selected taxon info panel
   - WCVP link information displayed when available: **WCVP ID**, **WCVP Status** (Accepted/Synonym), and **WCVP Name** from the WCVP database

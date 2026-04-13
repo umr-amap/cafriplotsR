@@ -126,6 +126,9 @@ app_taxonomic_match <- function(
           mod_column_select_ui("column_select"),
           shiny::hr(),
 
+          # Output Options
+          shiny::uiOutput("wcvp_option_ui"),
+
           # Progress Tracker
           mod_progress_tracker_ui("progress")
         ),
@@ -311,6 +314,27 @@ app_taxonomic_match <- function(
         })
       })
 
+      # Render WCVP output option in sidebar
+      output$wcvp_option_ui <- shiny::renderUI({
+        ns_main <- function(id) id  # top-level inputs don't need a namespace
+
+        if (isTRUE(wcvp_avail())) {
+          shiny::tagList(
+            shiny::h5(
+              shiny::icon("globe"),
+              i18n()$t("Output options"),
+              style = "margin-bottom: 6px;"
+            ),
+            shiny::checkboxInput(
+              inputId = "use_wcvp_names",
+              label   = i18n()$t("Use WCVP names in output (when available, otherwise internal names)"),
+              value   = FALSE
+            ),
+            shiny::hr()
+          )
+        }
+      })
+
       # Data input module
       user_data <- mod_data_input_server(
         "data_input",
@@ -328,6 +352,8 @@ app_taxonomic_match <- function(
 
       # Auto matching module
       # Use data from column_info (may be modified with combined column)
+      use_wcvp_names <- shiny::reactive(isTRUE(input$use_wcvp_names))
+
       match_results <- mod_auto_matching_server(
         "auto_match",
         data = shiny::reactive(column_info()$data),
@@ -335,7 +361,7 @@ app_taxonomic_match <- function(
         include_authors = shiny::reactive(column_info()$include_authors),
         min_similarity = min_similarity,
         i18n = i18n,
-        wcvp_available = wcvp_avail
+        use_wcvp_names = use_wcvp_names
       )
 
       # Manual review module
