@@ -587,6 +587,18 @@ mod_taxa_search_server <- function(id, pool, i18n,
       }
     })
 
+    # WCVP info for the selected taxon (fetched reactively)
+    wcvp_info_reactive <- shiny::reactive({
+      shiny::req(rv$selected_row)
+      taxon <- rv$selected_row[1, ]
+      tryCatch({
+        get_wcvp_names(taxon$idtax_n, con_taxa = pool())
+      }, error = function(e) {
+        cli::cli_alert_warning("Could not fetch WCVP info: {e$message}")
+        NULL
+      })
+    })
+
     # Selected taxon info
     output$selected_info <- shiny::renderUI({
       shiny::req(rv$selected_row)
@@ -694,10 +706,38 @@ mod_taxa_search_server <- function(id, pool, i18n,
                 accepted_name_info,
                 shiny::br()
               )
-            }
+            },
+            shiny::strong(i18n()$t("Morphotaxon:")), " ",
+            if (isTRUE(taxon$morpho_species)) i18n()$t("Yes") else i18n()$t("No"),
+            shiny::br()
           )
         ),
         shiny::hr(),
+        # WCVP info section
+        local({
+          wcvp <- wcvp_info_reactive()
+          if (!is.null(wcvp) && nrow(wcvp) > 0 && !is.na(wcvp$wcvp_plant_name_id[1])) {
+            w <- wcvp[1, ]
+            shiny::tagList(
+              shiny::strong(i18n()$t("WCVP Link")), shiny::br(),
+              shiny::strong(i18n()$t("WCVP ID:")), " ", w$wcvp_plant_name_id, shiny::br(),
+              shiny::strong(i18n()$t("WCVP Status:")), " ", w$wcvp_taxon_status %||% "N/A", shiny::br(),
+              shiny::strong(i18n()$t("WCVP Name:")), " ", w$wcvp_taxon_name %||% "N/A", shiny::br(),
+              shiny::hr()
+            )
+          } else {
+            shiny::tagList(
+              shiny::span(
+                class = "text-muted",
+                style = "font-size: 0.9em;",
+                shiny::icon("unlink"),
+                " ",
+                i18n()$t("Not linked to WCVP")
+              ),
+              shiny::hr()
+            )
+          }
+        }),
         shiny::p(
           class = "text-muted",
           style = "font-size: 0.9em; margin-bottom: 0;",

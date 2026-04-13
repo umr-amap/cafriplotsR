@@ -95,7 +95,9 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
                 na_display <- function(x) if (is.null(x) || is.na(x)) "N/A" else as.character(x)
                 shiny::tagList(
                   shiny::strong(i18n()$t("Order:")), " ", na_display(taxon$tax_order), shiny::br(),
-                  shiny::strong(i18n()$t("Class:")), " ", na_display(taxon$tax_famclass), shiny::br()
+                  shiny::strong(i18n()$t("Class:")), " ", na_display(taxon$tax_famclass), shiny::br(),
+                  shiny::strong(i18n()$t("Morphotaxon:")), " ",
+                  if (isTRUE(taxon$morpho_species)) i18n()$t("Yes") else i18n()$t("No"), shiny::br()
                 )
               },
               if (!is.null(selected_taxon()$idtax_good_n) && !is.na(selected_taxon()$idtax_good_n)) {
@@ -204,6 +206,18 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
               )
             ),
 
+            shiny::h6(i18n()$t("Other attributes")),
+            shiny::fluidRow(
+              shiny::column(
+                4,
+                shiny::checkboxInput(
+                  ns("new_morpho_species"),
+                  i18n()$t("Morphotaxon"),
+                  value = FALSE
+                )
+              )
+            ),
+
             shiny::div(
               id = ns("modified_fields_display"),
               shiny::uiOutput(ns("modified_fields_ui"))
@@ -259,6 +273,10 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
       shiny::updateTextInput(session, "new_tax_famclass", value = na_to_empty(taxon$tax_famclass))
       shiny::updateSelectInput(session, "new_tax_rank1", selected = na_to_empty(taxon$tax_rank1))
       shiny::updateTextInput(session, "new_tax_name1", value = na_to_empty(taxon$tax_name1))
+      shiny::updateCheckboxInput(
+        session, "new_morpho_species",
+        value = isTRUE(taxon$morpho_species)
+      )
 
       rv$show_form <- TRUE
     })
@@ -303,6 +321,9 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
       if (!is.null(input$new_tax_name1) && trimws(input$new_tax_name1) != na_to_empty(taxon$tax_name1)) {
         modified$tax_name1 <- list(old = taxon$tax_name1, new = trimws(input$new_tax_name1))
       }
+      if (!is.null(input$new_morpho_species) && !identical(input$new_morpho_species, isTRUE(taxon$morpho_species))) {
+        modified$morpho_species <- list(old = isTRUE(taxon$morpho_species), new = input$new_morpho_species)
+      }
 
       rv$modified_fields <- modified
     })
@@ -329,9 +350,9 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
             shiny::tags$li(
               shiny::strong(field, ":"),
               " ",
-              shiny::code(if (is.null(change$old)) "NULL" else change$old),
+              shiny::code(if (is.null(change$old)) "NULL" else as.character(change$old)),
               " → ",
-              shiny::code(if (change$new == "") "NULL" else change$new)
+              shiny::code(if (is.character(change$new) && change$new == "") "NULL" else as.character(change$new))
             )
           })
         )
@@ -535,8 +556,26 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
         update_params$new_tax_name1 <- if (rv$modified_fields$tax_name1$new == "") NA else rv$modified_fields$tax_name1$new
       }
 
-      # Call update_dico_name
-      do.call(update_dico_name, update_params)
+      # Call update_dico_name only if there are fields it handles (it errors if nothing to update)
+      dico_fields <- c("tax_gen", "tax_esp", "tax_fam", "tax_order", "tax_famclass", "tax_rank1", "tax_name1")
+      has_dico_changes <- any(dico_fields %in% names(rv$modified_fields))
+      if (has_dico_changes) {
+        do.call(update_dico_name, update_params)
+      }
+
+      # Handle morpho_species separately via direct SQL (not supported by update_dico_name)
+      if (!is.null(rv$modified_fields$morpho_species)) {
+        actual_con <- if (inherits(pool_conn, "Pool")) pool::poolCheckout(pool_conn) else pool_conn
+        on.exit({
+          if (inherits(pool_conn, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+        }, add = TRUE)
+        DBI::dbExecute(
+          actual_con,
+          "UPDATE table_taxa SET morpho_species = $1 WHERE idtax_n = $2",
+          params = list(rv$modified_fields$morpho_species$new, taxon$idtax_n)
+        )
+        cli::cli_alert_success("Updated morpho_species to {rv$modified_fields$morpho_species$new}")
+      }
 
       shiny::showNotification(
         i18n()$t("Taxon updated successfully!"),
@@ -592,7 +631,22 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
       if (!is.null(rv$modified_fields$tax_rank1)) update_params$new_tax_rank1 <- if (rv$modified_fields$tax_rank1$new == "") NA else rv$modified_fields$tax_rank1$new
       if (!is.null(rv$modified_fields$tax_name1)) update_params$new_tax_name1 <- if (rv$modified_fields$tax_name1$new == "") NA else rv$modified_fields$tax_name1$new
 
-      do.call(update_dico_name, update_params)
+      # Call update_dico_name only if there are fields it handles
+      dico_fields <- c("tax_gen", "tax_esp", "tax_fam", "tax_order", "tax_famclass", "tax_rank1", "tax_name1")
+      has_dico_changes <- any(dico_fields %in% names(rv$modified_fields))
+      if (has_dico_changes) {
+        do.call(update_dico_name, update_params)
+      }
+
+      # Handle morpho_species separately via direct SQL (not supported by update_dico_name)
+      if (!is.null(rv$modified_fields$morpho_species)) {
+        DBI::dbExecute(
+          actual_con,
+          "UPDATE table_taxa SET morpho_species = $1 WHERE idtax_n = $2",
+          params = list(rv$modified_fields$morpho_species$new, taxon$idtax_n)
+        )
+        cli::cli_alert_success("Updated morpho_species to {rv$modified_fields$morpho_species$new}")
+      }
 
       # STEP 3: Update id_parent if we found/created a new parent
       if (!is.null(new_parent_id)) {
