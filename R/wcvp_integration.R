@@ -328,7 +328,7 @@ import_wcvp_names <- function(con_taxa = NULL,
 
 #' Exact name match with fuzzy author disambiguation
 #'
-#' Internal helper. Runs \code{rWCVP::wcvp_match_exact} without author filtering,
+#' Internal helper. Runs \code{._wcvp_match_exact_db} without author filtering,
 #' then adds fuzzy author similarity (Jaro-Winkler via \pkg{stringdist}) and:
 #' \itemize{
 #'   \item When a name has multiple WCVP hits, selects the hit with the highest
@@ -340,14 +340,14 @@ import_wcvp_names <- function(con_taxa = NULL,
 #'
 #' @param names_df data.frame with columns \code{name_col}, \code{author_col},
 #'   and \code{id_col}.
-#' @param wcvp_names Full \code{rWCVPdata::wcvp_names} data frame.
+#' @param wcvp_names data.frame of WCVP names (from database or \code{rWCVPdata}).
 #' @param name_col Character. Column in \code{names_df} holding taxon names.
 #' @param author_col Character. Column in \code{names_df} holding author strings.
 #' @param id_col Character. Unique row identifier column.
 #' @param author_threshold Numeric (0–1). Minimum author similarity to keep a
 #'   match when author info is present on both sides. Default 0.6.
 #'
-#' @return Same column structure as \code{rWCVP::wcvp_match_exact}, plus an
+#' @return Same column structure as \code{._wcvp_match_exact_db}, plus an
 #'   \code{author_similarity} column.
 #'
 #' @keywords internal
@@ -356,7 +356,7 @@ import_wcvp_names <- function(con_taxa = NULL,
                                      author_threshold = 0.6) {
 
   # Step 1: exact name match, no author filter — keeps all homonym hits
-  result <- rWCVP::wcvp_match_exact(
+  result <- ._wcvp_match_exact_db(
     names_df   = names_df,
     wcvp_names = wcvp_names,
     name_col   = name_col,
@@ -428,7 +428,7 @@ import_wcvp_names <- function(con_taxa = NULL,
 #' }
 #'
 #' @param names_df data.frame with at least a column named \code{name_col}.
-#' @param wcvp_names Full \code{rWCVPdata::wcvp_names} data frame (all 31 columns).
+#' @param wcvp_names data.frame of WCVP names (from database or \code{rWCVPdata}).
 #' @param name_col Character. Column in \code{names_df} holding taxon names.
 #' @param fuzzy_threshold Numeric (0-1). Minimum normalised similarity to report
 #'   a match.  Matches below this value are returned as NA rows.  Default 0.9.
@@ -575,21 +575,16 @@ import_wcvp_names <- function(con_taxa = NULL,
       cl <- parallel::makeCluster(n_cores)
       on.exit(parallel::stopCluster(cl), add = TRUE)
 
-      # Workers load rWCVPdata themselves — avoids serialising the ~200 MB wcvp_dt
-      # object over PSOCK sockets, which causes "write error to connection".
+      # Export the WCVP data table and matching variables to workers
       parallel::clusterEvalQ(cl, {
         library(data.table)    # nolint
         library(stringdist)    # nolint
-        library(rWCVPdata)     # nolint
-        wcvp_dt         <<- data.table::as.data.table(rWCVPdata::wcvp_names)
-        data.table::setkey(wcvp_dt, genus)
-        wcvp_genera_set <<- unique(wcvp_dt[["genus"]])
       })
 
-      # Export only the small per-run variables (character vectors, not the big table)
       parallel::clusterExport(
         cl,
-        varlist = c("input_names", "input_genera", "fuzzy_threshold", "genus_threshold"),
+        varlist = c("input_names", "input_genera", "fuzzy_threshold",
+                     "genus_threshold", "wcvp_dt", "wcvp_genera_set"),
         envir   = environment()
       )
 
@@ -627,10 +622,121 @@ import_wcvp_names <- function(con_taxa = NULL,
 }
 
 
+#' Exact Name Match (Database-Compatible Version)
+#'
+#' Database-compatible replacement for \code{rWCVP::wcvp_match_exact}.
+#' Matches input names (from \code{names_df}) to WCVP taxon names using
+#' exact string comparison, with optional author matching.
+#'
+#' @param names_df data.frame with columns \code{name_col}, optionally \code{author_col},
+#'   and \code{id_col}.
+#' @param wcvp_names data.frame of WCVP names with columns: \code{taxon_name},
+#'   \code{plant_name_id}, \code{taxon_authors}, \code{taxon_rank}, \code{taxon_status},
+#'   \code{ipni_id}, \code{accepted_plant_name_id}.
+#' @param name_col Character. Column in \code{names_df} holding taxon names.
+#' @param author_col Character or NULL. Column in \code{names_df} holding authors.
+#'   If NULL, author matching is skipped. Default NULL.
+#' @param id_col Character. Unique identifier column in \code{names_df}
+#'   (used to disambiguate rows with identical names).
+#'
+#' @return data.frame with one row per input name and columns:
+#'   \code{name}, \code{wcvp_id}, \code{wcvp_name}, \code{wcvp_authors},
+#'   \code{wcvp_rank}, \code{wcvp_status}, \code{wcvp_homotypic},
+#'   \code{wcvp_ipni_id}, \code{wcvp_accepted_id}, \code{match_type},
+#'   \code{match_similarity}, \code{match_edit_distance}, \code{id_col}.
+#'   Unmatched rows have NA in WCVP columns.
+#'
+#' @keywords internal
+._wcvp_match_exact_db <- function(names_df, wcvp_names, name_col,
+                                   author_col = NULL, id_col) {
+
+  input_names <- names_df[[name_col]]
+  input_ids <- names_df[[id_col]]
+
+  # Ensure wcvp_names is a data.frame with required columns
+  if (!is.data.frame(wcvp_names)) {
+    wcvp_names <- as.data.frame(wcvp_names)
+  }
+
+  required_cols <- c("taxon_name", "plant_name_id", "taxon_authors",
+                     "taxon_rank", "taxon_status", "ipni_id", "accepted_plant_name_id")
+  missing_cols <- setdiff(required_cols, names(wcvp_names))
+  if (length(missing_cols) > 0) {
+    stop("wcvp_names missing columns: ", paste(missing_cols, collapse = ", "))
+  }
+
+  # Build input data frame for joining
+  input_df <- data.frame(
+    name     = input_names,
+    .row_id  = input_ids,
+    stringsAsFactors = FALSE
+  )
+  if (!is.null(author_col)) {
+    input_df$.author <- names_df[[author_col]]
+  }
+
+  # Join on exact taxon_name match — returns multiple rows per input when
+  # there are homonyms in WCVP (needed by ._wcvp_match_fuzzy_author)
+  matched <- merge(
+    input_df,
+    wcvp_names[, required_cols, drop = FALSE],
+    by.x = "name", by.y = "taxon_name",
+    all.x = TRUE
+  )
+
+  # Apply exact author filtering when requested
+  if (!is.null(author_col)) {
+    has_author <- !is.na(matched$.author) & matched$.author != ""
+    has_wcvp_author <- !is.na(matched$taxon_authors)
+    both_have <- has_author & has_wcvp_author
+
+    # Nullify WCVP columns where author doesn't match exactly
+    mismatch <- both_have & matched$.author != matched$taxon_authors
+    wcvp_cols <- c("plant_name_id", "taxon_authors", "taxon_rank",
+                   "taxon_status", "ipni_id", "accepted_plant_name_id")
+    matched[mismatch, wcvp_cols] <- NA
+    matched$.author <- NULL
+  }
+
+  # Build output in the expected column format
+  has_match <- !is.na(matched$plant_name_id)
+  n_matches_per_name <- stats::ave(
+    as.integer(has_match), matched$.row_id,
+    FUN = function(x) sum(x, na.rm = TRUE)
+  )
+
+  out <- data.frame(
+    name                = matched$name,
+    wcvp_id             = ifelse(has_match, as.integer(matched$plant_name_id), NA_integer_),
+    wcvp_name           = ifelse(has_match, matched$name, NA_character_),
+    wcvp_authors        = ifelse(has_match, as.character(matched$taxon_authors), NA_character_),
+    wcvp_rank           = ifelse(has_match, as.character(matched$taxon_rank), NA_character_),
+    wcvp_status         = ifelse(has_match, as.character(matched$taxon_status), NA_character_),
+    wcvp_homotypic      = NA,
+    wcvp_ipni_id        = ifelse(has_match, as.character(matched$ipni_id), NA_character_),
+    wcvp_accepted_id    = ifelse(has_match, as.integer(matched$accepted_plant_name_id), NA_integer_),
+    match_type          = ifelse(has_match, "exact", NA_character_),
+    match_similarity    = ifelse(has_match, 1.0, NA_real_),
+    match_edit_distance = ifelse(has_match, 0L, NA_integer_),
+    multiple_matches    = n_matches_per_name > 1,
+    stringsAsFactors    = FALSE
+  )
+  out[[id_col]] <- matched$.row_id
+
+  # For unmatched names, collapse to single row (no duplicates from merge)
+  # Keep all rows for matched names (homonyms needed by fuzzy_author)
+  unmatched <- out[!has_match, ]
+  unmatched <- unmatched[!duplicated(unmatched[[id_col]]), ]
+  out <- rbind(out[has_match, ], unmatched)
+
+  out
+}
+
+
 #' Match Internal Taxa to WCVP Names
 #'
-#' Matches taxa from the internal \code{table_taxa} to WCVP names using
-#' exact and optionally fuzzy matching via \code{rWCVP}.
+#' Matches taxa from the internal \code{table_taxa} to WCVP names already
+#' uploaded in the database, using exact and optionally fuzzy matching.
 #'
 #' Returns a tibble for review. Does NOT write to the database automatically.
 #' Use \code{save_wcvp_links()} to persist reviewed matches.
@@ -642,8 +748,8 @@ import_wcvp_names <- function(con_taxa = NULL,
 #' @param author_match Character. How to use author strings during exact name matching.
 #'   \itemize{
 #'     \item \code{"none"} (default): ignore authors entirely.
-#'     \item \code{"exact"}: authors must match character-for-character
-#'       (via \code{rWCVP::wcvp_match_exact(author_col)}). Reduces false positives
+#'     \item \code{"exact"}: authors must match character-for-character.
+#'       Reduces false positives
 #'       but misses any formatting difference.
 #'     \item \code{"fuzzy"}: exact name match first, then Jaro-Winkler author
 #'       similarity to select among homonyms and filter below \code{author_threshold}.
@@ -683,13 +789,6 @@ match_taxa_to_wcvp <- function(con_taxa = NULL,
                                verbose = TRUE) {
 
   author_match <- match.arg(author_match)
-
-  if (!requireNamespace("rWCVP", quietly = TRUE)) {
-    stop("Package 'rWCVP' is required. Install with: install.packages('rWCVP')", call. = FALSE)
-  }
-  if (!requireNamespace("rWCVPdata", quietly = TRUE)) {
-    stop("Package 'rWCVPdata' is required. Install with: install.packages('rWCVPdata')", call. = FALSE)
-  }
 
   if (is.null(con_taxa)) con_taxa <- call.mydb.taxa()
 
@@ -780,9 +879,24 @@ match_taxa_to_wcvp <- function(con_taxa = NULL,
 
   if (verbose) cli::cli_alert_info("Matching {nrow(internal_taxa)} taxa against WCVP...")
 
-  # Use full rWCVPdata::wcvp_names for matching — the DB copy is a trimmed subset
-  # and rWCVP matching functions require all 31 original columns.
-  wcvp_db <- rWCVPdata::wcvp_names
+  # Fetch WCVP data from database instead of rWCVPdata package
+  if (verbose) cli::cli_alert_info("Fetching WCVP data from database...")
+  wcvp_db <- tryCatch({
+    dplyr::tbl(actual_con, "wcvp_names") %>%
+      dplyr::collect() %>%
+      as.data.frame()
+  }, error = function(e) {
+    cli::cli_alert_warning("Could not fetch WCVP from database: {e$message}")
+    if (!requireNamespace("rWCVPdata", quietly = TRUE)) {
+      stop("WCVP data not found in database and rWCVPdata package not available", call. = FALSE)
+    }
+    cli::cli_alert_info("Falling back to rWCVPdata package...")
+    rWCVPdata::wcvp_names
+  })
+
+  if (nrow(wcvp_db) == 0) {
+    stop("No WCVP data available. Please run setup_wcvp_schema() and import_wcvp_names() first.", call. = FALSE)
+  }
 
   all_matches <- dplyr::tibble(
     idtax_n = integer(), taxon_name_internal = character(),
@@ -835,7 +949,7 @@ match_taxa_to_wcvp <- function(con_taxa = NULL,
           author_threshold = author_threshold
         )
       } else {
-        rWCVP::wcvp_match_exact(
+        ._wcvp_match_exact_db(
           names_df   = names_df,
           wcvp_names = wcvp_db,
           name_col   = "name",

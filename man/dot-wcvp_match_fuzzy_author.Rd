@@ -17,7 +17,7 @@
 \item{names_df}{data.frame with columns \code{name_col}, \code{author_col},
 and \code{id_col}.}
 
-\item{wcvp_names}{Full \code{rWCVPdata::wcvp_names} data frame.}
+\item{wcvp_names}{data.frame of WCVP names (from database or \code{rWCVPdata}).}
 
 \item{name_col}{Character. Column in \code{names_df} holding taxon names.}
 
@@ -29,11 +29,11 @@ and \code{id_col}.}
 match when author info is present on both sides. Default 0.6.}
 }
 \value{
-Same column structure as \code{rWCVP::wcvp_match_exact}, plus an
+Same column structure as \code{._wcvp_match_exact_db}, plus an
   \code{author_similarity} column.
 }
 \description{
-Internal helper. Runs \code{rWCVP::wcvp_match_exact} without author filtering,
+Internal helper. Runs \code{._wcvp_match_exact_db} without author filtering,
 then adds fuzzy author similarity (Jaro-Winkler via \pkg{stringdist}) and:
 \itemize{
   \item When a name has multiple WCVP hits, selects the hit with the highest
