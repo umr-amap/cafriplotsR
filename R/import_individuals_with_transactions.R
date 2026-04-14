@@ -215,8 +215,9 @@ import_individual_data <- function(individuals_data,
       if (progress) cli::cli_h2("Step 4: {ifelse(dry_run, 'Preview', 'Inserting')} individual features")
 
       if (dry_run) {
+        n_feature_records_dry <- .count_feature_records(features_data)
         if (progress) {
-          cli::cli_alert_info("Would insert {nrow(features_data)} feature records")
+          cli::cli_alert_info("Would insert {n_feature_records_dry} stem attribute records (from {nrow(features_data)} individuals x trait columns)")
           cat("\nFeatures preview (first 3 rows):\n")
           print(utils::head(features_data, 3))
         }
@@ -255,22 +256,31 @@ import_individual_data <- function(individuals_data,
     # Get unique plot names
     plot_names <- unique(individuals_data$plot_name)
 
+    # Compute true feature count (long format: one record per individual x trait)
+    n_feat <- if (!is.null(features_data)) {
+      if (dry_run) {
+        .count_feature_records(features_data)
+      } else {
+        if (!is.null(features_prepared)) nrow(features_prepared) else .count_feature_records(features_data)
+      }
+    } else {
+      0L
+    }
+
     # Success!
     result <- list(
       success = TRUE,
       n_individuals = nrow(individuals_data),
-      n_features = if (!is.null(features_data)) nrow(features_data) else 0,
+      n_features = n_feat,
       plot_names = plot_names,
       username = username,
       dry_run = dry_run,
       message = if (dry_run) {
-        sprintf("Dry run completed. Would import %d individuals and %d feature records.",
-                nrow(individuals_data),
-                if (!is.null(features_data)) nrow(features_data) else 0)
+        sprintf("Dry run completed. Would import %d individuals and %d stem attributes.",
+                nrow(individuals_data), n_feat)
       } else {
-        sprintf("Successfully imported %d individuals and %d feature records.",
-                nrow(individuals_data),
-                if (!is.null(features_data)) nrow(features_data) else 0)
+        sprintf("Successfully imported %d individuals and %d stem attributes.",
+                nrow(individuals_data), n_feat)
       }
     )
 
@@ -414,6 +424,26 @@ import_individual_data <- function(individuals_data,
   }
 
   return(as.data.frame(prepared_data))
+}
+
+
+#' Count Expected Feature Records (Internal)
+#'
+#' Counts the number of non-NA trait values in wide-format features_data,
+#' matching the skip-if-NA logic in .prepare_features_data(). Used for dry-run
+#' reporting without executing the full prepare step.
+#'
+#' @param features_data Wide-format data frame (one row per individual, one
+#'   column per trait plus linking columns).
+#' @return Integer: number of stem attribute records that would be inserted.
+#' @keywords internal
+.count_feature_records <- function(features_data) {
+  if (is.null(features_data) || nrow(features_data) == 0L) return(0L)
+  linking_cols <- c("plot_name", "tag", "sous_plot_name", ".row_idx",
+                    "census_date", "census_id", "id_individuals")
+  trait_cols <- setdiff(names(features_data), linking_cols)
+  if (length(trait_cols) == 0L) return(0L)
+  sum(!is.na(features_data[, trait_cols, drop = FALSE]))
 }
 
 
