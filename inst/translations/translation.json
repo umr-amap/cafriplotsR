@@ -7172,6 +7172,22 @@
     {
       "en": "Not linked to WCVP",
       "fr": "Non lié au WCVP"
+    },
+    {
+      "en": "Warning - Duplicate Column Mapping:",
+      "fr": "Avertissement - Mappage en double de colonnes :"
+    },
+    {
+      "en": "The following required column(s) have been mapped more than once:",
+      "fr": "Les colonnes requises suivantes ont été mappées plusieurs fois :"
+    },
+    {
+      "en": "The following optional column(s) have been mapped more than once:",
+      "fr": "Les colonnes optionnelles suivantes ont été mappées plusieurs fois :"
+    },
+    {
+      "en": "This is allowed and all mapped columns will be imported. The warning is informational only.",
+      "fr": "Cela est autorisé et toutes les colonnes mappées seront importées. Cet avertissement est purement informatif."
     }
   ]
 }

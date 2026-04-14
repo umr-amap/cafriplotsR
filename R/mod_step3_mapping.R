@@ -545,18 +545,27 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
 
       missing_required <- setdiff(required_cols, mapped_db_cols)
 
-      # Check for duplicate source columns (same user column mapped multiple times)
+      # Check for duplicate target mappings (same DB column mapped from multiple user columns)
       user_cols <- unlist(current_mappings())
       user_cols_no_na <- user_cols[!is.na(user_cols)]
-      duplicate_user_cols <- user_cols_no_na[duplicated(user_cols_no_na)]
-      has_duplicates <- length(duplicate_user_cols) > 0
+      duplicate_user_cols <- unique(user_cols_no_na[duplicated(user_cols_no_na)])
+
+      # Split duplicates: those involving required columns are errors; others are warnings
+      dup_error   <- intersect(duplicate_user_cols, required_cols)
+      dup_warning <- setdiff(duplicate_user_cols, required_cols)
+      has_dup_error   <- length(dup_error) > 0
+      has_dup_warning <- length(dup_warning) > 0
 
       list(
-        valid = length(missing_required) == 0 && !has_duplicates,
+        valid = length(missing_required) == 0 && !has_dup_error,
         missing_required = missing_required,
         n_mapped = length(current_mappings()),
-        duplicate_columns = unique(duplicate_user_cols),
-        has_duplicates = has_duplicates
+        duplicate_columns = duplicate_user_cols,
+        has_duplicates = has_dup_error || has_dup_warning,
+        dup_error_columns   = dup_error,
+        dup_warning_columns = dup_warning,
+        has_dup_error   = has_dup_error,
+        has_dup_warning = has_dup_warning
       )
     })
 
@@ -577,7 +586,7 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
       ui_elements <- list()
 
       # Main validation message (required columns)
-      if (val$valid && !val$has_duplicates) {
+      if (val$valid && !val$has_dup_error) {
         # Build list of required columns with code tags
         required_cols <- config()$import_config$required_columns
         required_cols_tags <- list()
@@ -631,17 +640,15 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
         )
       }
 
-      # Error for duplicate column mappings
-      if (val$has_duplicates) {
-        # Build list of duplicate columns with code tags and commas
+      # Error for duplicate mappings on required columns
+      if (val$has_dup_error) {
         dup_cols_tags <- list()
-        for (i in seq_along(val$duplicate_columns)) {
-          dup_cols_tags[[length(dup_cols_tags) + 1]] <- shiny::tags$code(val$duplicate_columns[i])
-          if (i < length(val$duplicate_columns)) {
+        for (i in seq_along(val$dup_error_columns)) {
+          dup_cols_tags[[length(dup_cols_tags) + 1]] <- shiny::tags$code(val$dup_error_columns[i])
+          if (i < length(val$dup_error_columns)) {
             dup_cols_tags[[length(dup_cols_tags) + 1]] <- ", "
           }
         }
-
         ui_elements[[length(ui_elements) + 1]] <- shiny::div(
           class = "alert alert-danger",
           style = "margin-top: 15px;",
@@ -649,12 +656,37 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
           shiny::strong(paste0(" ", i18n()$t("Duplicate Column Mapping Detected:"), " ")),
           shiny::br(),
           shiny::br(),
-          i18n()$t("The following column(s) have been mapped more than once:"),
+          i18n()$t("The following required column(s) have been mapped more than once:"),
           " ",
           shiny::tagList(dup_cols_tags),
           shiny::br(),
           shiny::br(),
           i18n()$t("Each column from your data can only be mapped to one database column. Please review your mappings and ensure no column is selected multiple times.")
+        )
+      }
+
+      # Warning for duplicate mappings on non-required columns
+      if (val$has_dup_warning) {
+        dup_warn_tags <- list()
+        for (i in seq_along(val$dup_warning_columns)) {
+          dup_warn_tags[[length(dup_warn_tags) + 1]] <- shiny::tags$code(val$dup_warning_columns[i])
+          if (i < length(val$dup_warning_columns)) {
+            dup_warn_tags[[length(dup_warn_tags) + 1]] <- ", "
+          }
+        }
+        ui_elements[[length(ui_elements) + 1]] <- shiny::div(
+          class = "alert alert-warning",
+          style = "margin-top: 15px;",
+          shiny::icon("exclamation-triangle"),
+          shiny::strong(paste0(" ", i18n()$t("Warning - Duplicate Column Mapping:"), " ")),
+          shiny::br(),
+          shiny::br(),
+          i18n()$t("The following optional column(s) have been mapped more than once:"),
+          " ",
+          shiny::tagList(dup_warn_tags),
+          shiny::br(),
+          shiny::br(),
+          i18n()$t("This is allowed and all mapped columns will be imported. The warning is informational only.")
         )
       }
 
