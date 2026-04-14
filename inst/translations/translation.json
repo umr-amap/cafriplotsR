@@ -7188,6 +7188,138 @@
     {
       "en": "This is allowed and all mapped columns will be imported. The warning is informational only.",
       "fr": "Cela est autorisé et toutes les colonnes mappées seront importées. Cet avertissement est purement informatif."
+    },
+    {
+      "en": "Step 3: Compute Stem Vital Status",
+      "fr": "Étape 3 : Calculer le statut vital des tiges"
+    },
+    {
+      "en": "Prerequisite: This step must be run AFTER adding new measurements and recruits for the census.",
+      "fr": "Prérequis : Cette étape doit être exécutée APRÈS l'ajout des nouvelles mesures et recrues pour le recensement."
+    },
+    {
+      "en": "Stem vital status is computed from all available evidence (stem diameters, observation notes, RainFor flags). Running this step before new measurements are entered will produce incomplete results.",
+      "fr": "Le statut vital des tiges est calculé à partir de toutes les preuves disponibles (diamètres des tiges, notes d'observation, indicateurs RainFor). Exécuter cette étape avant la saisie des nouvelles mesures produira des résultats incomplets."
+    },
+    {
+      "en": "What this step does:",
+      "fr": "Ce que fait cette étape :"
+    },
+    {
+      "en": "Fetches all evidence traits (diameter, observations, RainFor flags) for every stem of the selected plots",
+      "fr": "Récupère tous les traits de preuve (diamètre, observations, indicateurs RainFor) pour chaque tige des placettes sélectionnées"
+    },
+    {
+      "en": "Applies the evidence hierarchy: observations > flag2_rainfor > diameter pattern > flag1_rainfor",
+      "fr": "Applique la hiérarchie des preuves : observations > flag2_rainfor > schéma de diamètre > flag1_rainfor"
+    },
+    {
+      "en": "Retroactively corrects 'presumed_dead' to 'alive' when a stem is remeasured at a later census",
+      "fr": "Corrige rétroactivement 'présumé mort' en 'vivant' lorsqu'une tige est remesurée lors d'un recensement ultérieur"
+    },
+    {
+      "en": "Shows the full status table for your review before any database write",
+      "fr": "Affiche le tableau de statut complet pour votre validation avant toute écriture en base de données"
+    },
+    {
+      "en": "Compute Stem Status",
+      "fr": "Calculer le statut des tiges"
+    },
+    {
+      "en": "Computing stem vital status...",
+      "fr": "Calcul du statut vital des tiges..."
+    },
+    {
+      "en": "Fetching individual IDs...",
+      "fr": "Récupération des identifiants individuels..."
+    },
+    {
+      "en": "Computing status for %d stems...",
+      "fr": "Calcul du statut pour %d tiges..."
+    },
+    {
+      "en": "Error fetching individuals:",
+      "fr": "Erreur lors de la récupération des individus :"
+    },
+    {
+      "en": "No individuals found for the selected plots.",
+      "fr": "Aucun individu trouvé pour les placettes sélectionnées."
+    },
+    {
+      "en": "Error computing stem status:",
+      "fr": "Erreur lors du calcul du statut des tiges :"
+    },
+    {
+      "en": "Status computed for %d stem × census rows.",
+      "fr": "Statut calculé pour %d lignes tige × recensement."
+    },
+    {
+      "en": "Done!",
+      "fr": "Terminé !"
+    },
+    {
+      "en": "Status Summary",
+      "fr": "Résumé des statuts"
+    },
+    {
+      "en": "Total rows",
+      "fr": "Lignes totales"
+    },
+    {
+      "en": "Alive",
+      "fr": "Vivant"
+    },
+    {
+      "en": "Dead",
+      "fr": "Mort"
+    },
+    {
+      "en": "Presumed dead",
+      "fr": "Présumé mort"
+    },
+    {
+      "en": "Not yet measured",
+      "fr": "Pas encore mesuré"
+    },
+    {
+      "en": "Retroactive corrections",
+      "fr": "Corrections rétroactives"
+    },
+    {
+      "en": "%d retroactive correction(s) applied:",
+      "fr": "%d correction(s) rétroactive(s) appliquée(s) :"
+    },
+    {
+      "en": "stems previously classified as 'presumed_dead' were corrected to 'alive' because they were remeasured at a later census.",
+      "fr": "des tiges précédemment classées comme 'présumé mort' ont été corrigées en 'vivant' car elles ont été remesurées lors d'un recensement ultérieur."
+    },
+    {
+      "en": "Review Status Table",
+      "fr": "Examiner le tableau de statuts"
+    },
+    {
+      "en": "Table confirmed. Click Next to proceed to the import step.",
+      "fr": "Tableau confirmé. Cliquez sur Suivant pour passer à l'étape d'importation."
+    },
+    {
+      "en": "Review the table above. If the status values look correct, confirm to proceed.",
+      "fr": "Examinez le tableau ci-dessus. Si les valeurs de statut semblent correctes, confirmez pour continuer."
+    },
+    {
+      "en": "Confirm — Table Looks Correct",
+      "fr": "Confirmer — Le tableau semble correct"
+    },
+    {
+      "en": "Status table confirmed. You can now proceed to the import step.",
+      "fr": "Tableau de statuts confirmé. Vous pouvez maintenant passer à l'étape d'importation."
+    },
+    {
+      "en": "Writing stem_status for %d row(s) — please wait...",
+      "fr": "Écriture du statut des tiges pour %d ligne(s) — veuillez patienter..."
+    },
+    {
+      "en": "stem_status records to write: %d",
+      "fr": "enregistrements de statut des tiges à écrire : %d"
     }
   ]
 }

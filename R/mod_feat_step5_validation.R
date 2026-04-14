@@ -66,6 +66,24 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
 
     validation_result <- shiny::reactiveVal(NULL)
 
+    # For compute_stem_status mode: auto-validate as soon as data is ready
+    # (the user already reviewed and confirmed the table in step 3)
+    shiny::observe({
+      shiny::req(matched_data(), feature_config())
+      shiny::req(identical(tryCatch(operation_mode(), error = function(e) NULL), "compute_stem_status"))
+      data <- matched_data()
+      validation_result(list(
+        valid   = TRUE,
+        data    = data,
+        errors  = data.frame(row = integer(), column = character(),
+                             issue = character(), stringsAsFactors = FALSE),
+        warnings = data.frame(row = integer(), column = character(),
+                              warning = character(), stringsAsFactors = FALSE),
+        n_rows  = nrow(data),
+        mode    = "compute_stem_status"
+      ))
+    })
+
     shiny::observeEvent(input$run_validation, {
       shiny::req(matched_data(), feature_config(), selected_plots(), con())
 
@@ -82,9 +100,9 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
         warnings <- data.frame(row = integer(), column = character(),
                                warning = character(), stringsAsFactors = FALSE)
 
-        # 1. Validate plots exist and are accessible (skip for multi-stems which use plot_name)
-        if (mode == "define_multi_stems") {
-          # Multi-stems use plot_name directly; validated in section 2c
+        # 1. Validate plots exist and are accessible (skip for modes that use their own linking)
+        if (mode %in% c("define_multi_stems", "compute_stem_status")) {
+          # These modes don't use id_liste_plots in the feature data
         } else if (!"id_liste_plots" %in% names(data)) {
           errors <- rbind(errors, data.frame(
             row = 0, column = "id_liste_plots",

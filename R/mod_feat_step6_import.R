@@ -47,7 +47,8 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
 
     # Dynamic header and buttons based on operation mode
     is_update_mode <- shiny::reactive({
-      identical(tryCatch(operation_mode(), error = function(e) NULL), "define_multi_stems")
+      mode <- tryCatch(operation_mode(), error = function(e) NULL)
+      mode %in% c("define_multi_stems", "compute_stem_status")
     })
 
     output$step6_header <- shiny::renderUI({
@@ -185,6 +186,8 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
 
       label <- if (identical(mode, "define_multi_stems")) {
         sprintf(i18n()$t("Updating %d record(s) in database — please wait..."), n_rows)
+      } else if (identical(mode, "compute_stem_status")) {
+        sprintf(i18n()$t("Writing stem_status for %d row(s) — please wait..."), n_rows)
       } else if (identical(mode, "add_measurements")) {
         sprintf(i18n()$t("Inserting %d measurement(s) into database — please wait..."), n_rows)
       } else {
@@ -217,12 +220,14 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
       if (is.null(res)) return(NULL)
 
       mode <- tryCatch(operation_mode(), error = function(e) NULL)
-      update_mode <- identical(mode, "define_multi_stems")
+      update_mode <- mode %in% c("define_multi_stems", "compute_stem_status")
 
       if (res$dry_run) {
         # Context-aware label for record count
-        record_label <- if (update_mode) {
+        record_label <- if (identical(mode, "define_multi_stems")) {
           i18n()$t("Records to update: %d")
+        } else if (identical(mode, "compute_stem_status")) {
+          i18n()$t("stem_status records to write: %d")
         } else if (identical(mode, "add_measurements")) {
           i18n()$t("Measurement records to create: %d")
         } else {
@@ -323,6 +328,11 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
     # ---- Multi-stems mode ----
     if (mode == "define_multi_stems") {
       return(.execute_multi_stems_import(data, con, dry_run, i18n))
+    }
+
+    # ---- Compute stem status mode ----
+    if (mode == "compute_stem_status") {
+      return(.execute_stem_status_import(data, config, con, dry_run, i18n))
     }
 
     # For census mode: subplottype_field is "census", and people are features
@@ -808,6 +818,94 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
       n_subplot_records = 0,
       n_people_records = 0,
       message = sprintf(t("Import failed, no data was written: %s"), e$message)
+    ))
+  })
+}
+
+
+#' Execute stem vital status upsert
+#'
+#' Re-runs \code{compute_stem_vital_status()} with \code{add_data = TRUE} for
+#' the individuals stored in \code{config$individual_ids}. Existing
+#' \code{stem_status} records for those individuals are deleted and replaced.
+#'
+#' @param data Status tibble (already computed in step 3; used only for the
+#'   dry-run preview).
+#' @param config Feature configuration list; must contain
+#'   \code{individual_ids} (integer vector).
+#' @param con Database connection
+#' @param dry_run Logical
+#' @param i18n Translator object
+#' @return List with import results
+#' @keywords internal
+.execute_stem_status_import <- function(data, config, con, dry_run = TRUE, i18n = NULL) {
+
+  t <- function(x) if (!is.null(i18n)) i18n$t(x) else x
+
+  individual_ids <- config$individual_ids
+
+  if (is.null(individual_ids) || length(individual_ids) == 0) {
+    return(list(
+      dry_run = dry_run,
+      success = FALSE,
+      n_subplot_records = 0,
+      n_people_records  = 0,
+      message = t("No individual IDs found in configuration.")
+    ))
+  }
+
+  n_stems   <- length(unique(individual_ids))
+  n_rows    <- nrow(data)
+  n_to_write <- sum(!is.na(data$stem_vital_status) & !is.na(data$id_sub_plots))
+
+  if (dry_run) {
+    preview <- data %>%
+      dplyr::select(
+        id_n, plot_name, census_name, census_date,
+        stem_vital_status, missing, evidence_source
+      ) %>%
+      utils::head(50)
+
+    return(list(
+      dry_run           = TRUE,
+      success           = TRUE,
+      n_subplot_records = n_to_write,
+      n_people_records  = 0,
+      preview           = preview,
+      message           = sprintf(
+        t("Dry run: %d stem_status record(s) would be written for %d stem(s) across %d census rows."),
+        n_to_write, n_stems, n_rows
+      )
+    ))
+  }
+
+  # Live: re-call compute_stem_vital_status with add_data = TRUE
+  tryCatch({
+    compute_stem_vital_status(
+      individual_ids = individual_ids,
+      add_data       = TRUE,
+      dry_run        = FALSE,
+      con            = con
+    )
+
+    return(list(
+      dry_run           = FALSE,
+      success           = TRUE,
+      n_subplot_records = n_to_write,
+      n_people_records  = 0,
+      message           = sprintf(
+        t("Successfully wrote stem_status for %d stem(s) (%d record(s) inserted)."),
+        n_stems, n_to_write
+      )
+    ))
+  }, error = function(e) {
+    cli::cli_alert_danger("Stem status import failed: {e$message}")
+    return(list(
+      dry_run           = FALSE,
+      success           = FALSE,
+      n_subplot_records = 0,
+      n_people_records  = 0,
+      message           = sprintf(t("Import failed: %s"), e$message)
     ))
   })
 }
