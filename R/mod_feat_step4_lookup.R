@@ -215,11 +215,14 @@ mod_feat_step4_lookup_server <- function(id, feature_data, feature_config, con, 
       )
     })
 
-    # Initialize matcher server (always, regardless of whether it's visible)
+    # Initialize matcher server (always, regardless of whether it's visible).
+    # Pass people_columns from feature_config explicitly so that mod_lookup_matcher
+    # never needs to auto-detect them — this guarantees "Create New Entry" appears.
     matcher_result <- mod_lookup_matcher_server(
       "matcher",
-      invalid_values = non_exact,
-      con = con
+      invalid_values       = non_exact,
+      con                  = con,
+      people_cols_override = shiny::reactive(feature_config()$people_columns)
     )
 
     # ---- Apply matches when user confirms in matcher ----
