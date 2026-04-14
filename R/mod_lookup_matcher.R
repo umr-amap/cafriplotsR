@@ -56,9 +56,13 @@ mod_lookup_matcher_ui <- function(id) {
 #' @param id Module namespace ID
 #' @param invalid_values Reactive list of invalid values by column (e.g., list(method = c("val1", "val2")))
 #' @param con Reactive database connection pool
+#' @param people_cols_override Optional character vector (or reactive returning one) of additional
+#'   column names that should be treated as people columns (allow_add_new = TRUE). Useful when the
+#'   caller already knows which columns are people columns and wants to bypass auto-detection.
 #' @return Reactive list of resolved matches
 #' @keywords internal
-mod_lookup_matcher_server <- function(id, invalid_values, con) {
+mod_lookup_matcher_server <- function(id, invalid_values, con,
+                                      people_cols_override = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Storage for user selections
@@ -83,6 +87,13 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
         )
       }
 
+      # Resolve people_cols_override (may be reactive or plain vector)
+      extra_people_cols <- if (is.reactive(people_cols_override)) {
+        tryCatch(people_cols_override(), error = function(e) NULL)
+      } else {
+        people_cols_override
+      }
+
       # Cache for storing lookup data
       cache <- list()
 
@@ -99,7 +110,7 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
         }
 
         # Get lookup table info
-        lookup_info <- .get_lookup_info(col_name, con())
+        lookup_info <- .get_lookup_info(col_name, con(), extra_people_cols = extra_people_cols)
 
         # Store suggestions for each value in cache
         cli::cli_alert_info("Building cache for {col_name}...")
@@ -733,15 +744,17 @@ mod_lookup_matcher_server <- function(id, invalid_values, con) {
 
 #' Get Lookup Table Info
 #' @keywords internal
-.get_lookup_info <- function(column_name, con) {
+.get_lookup_info <- function(column_name, con, extra_people_cols = NULL) {
 
   # Check if this is a people column (feature with valuetype == table_colnam)
   # OR a special hardcoded people column (like "collector")
   is_people_column <- FALSE
 
-  # First check hardcoded special columns that are always people columns
+  # First check hardcoded special columns that are always people columns,
+  # plus any caller-supplied overrides (e.g. from the feature wizard config)
   special_people_cols <- c("principal_investigator", "data_manager",
-                          "additional_people", "team_leader", "collector")
+                          "additional_people", "team_leader", "collector",
+                          extra_people_cols)
 
   if (column_name %in% special_people_cols) {
     is_people_column <- TRUE
