@@ -287,7 +287,7 @@ mod_step7_import_server <- function(id, validation_result, mappings, config, con
             if (is_individuals && !is.null(result$n_features)) {
               shiny::tagList(
                 shiny::br(),
-                sprintf("(%d trait measurements)", result$n_features)
+                sprintf("(%d stem attributes)", result$n_features)
               )
             }
           ),
