@@ -138,7 +138,7 @@ compute_stem_vital_status <- function(
             i.tag,
             p.plot_name
      FROM data_individuals i
-     LEFT JOIN data_liste_plots p ON i.id_table_liste_plots_n = p.id_table_liste_plots
+     LEFT JOIN data_liste_plots p ON i.id_table_liste_plots_n = p.id_liste_plots
      WHERE i.id_n IN ({individual_ids*})",
     individual_ids = individual_ids, .con = con
   )) %>% tibble::as_tibble()
@@ -477,11 +477,11 @@ compute_stem_vital_status <- function(
       by = c("id_table_liste_plots", "census_name")
     ) %>%
     dplyr::left_join(
-      ind_base %>% dplyr::select(id_n, plot_name),
+      ind_base %>% dplyr::select(id_n, plot_name, tag),
       by = "id_n"
     ) %>%
     dplyr::select(
-      id_n, id_table_liste_plots, id_sub_plots, plot_name,
+      id_n, id_table_liste_plots, id_sub_plots, plot_name, tag,
       census_name, census_date, stem_vital_status, missing, evidence_source
     ) %>%
     dplyr::mutate(evidence_source = stringr::str_squish(evidence_source))

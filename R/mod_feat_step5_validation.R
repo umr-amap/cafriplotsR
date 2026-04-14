@@ -72,15 +72,21 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
       shiny::req(matched_data(), feature_config())
       shiny::req(identical(tryCatch(operation_mode(), error = function(e) NULL), "compute_stem_status"))
       data <- matched_data()
+      empty_errors   <- data.frame(row = integer(), column = character(),
+                                   issue = character(), stringsAsFactors = FALSE)
+      empty_warnings <- data.frame(row = integer(), column = character(),
+                                   warning = character(), stringsAsFactors = FALSE)
       validation_result(list(
-        valid   = TRUE,
-        data    = data,
-        errors  = data.frame(row = integer(), column = character(),
-                             issue = character(), stringsAsFactors = FALSE),
-        warnings = data.frame(row = integer(), column = character(),
-                              warning = character(), stringsAsFactors = FALSE),
-        n_rows  = nrow(data),
-        mode    = "compute_stem_status"
+        valid    = TRUE,
+        data     = data,
+        errors   = empty_errors,
+        warnings = empty_warnings,
+        summary  = list(
+          total_rows = nrow(data),
+          errors     = 0L,
+          warnings   = 0L
+        ),
+        mode     = "compute_stem_status"
       ))
     })
 

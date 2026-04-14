@@ -461,6 +461,88 @@ process_openforis_census <- function(data_dir = NULL,
     )
   }
 
+  # ---- Add "observations" rows from free-text 'comment' column ----
+  if ("comment" %in% names(all_for_meas)) {
+    comment_rows <- all_for_meas[
+      !is.na(all_for_meas$comment) & nzchar(trimws(all_for_meas$comment)),
+      c("plot_name", "tag"),
+      drop = FALSE
+    ]
+    if (nrow(comment_rows) > 0) {
+      comment_rows$trait_name     <- "observation"
+      comment_rows$traitvalue     <- NA_real_
+      comment_rows$traitvalue_char <- trimws(
+        all_for_meas$comment[
+          !is.na(all_for_meas$comment) & nzchar(trimws(all_for_meas$comment))
+        ]
+      )
+      measurement_parts$comments <- comment_rows
+      cli::cli_alert_info(
+        "Extracted {nrow(comment_rows)} 'observation' row(s) from 'comment' column"
+      )
+    }
+  }
+
+  # ---- Build "observations" rows from stem_status == 2 + stem_status2 ----
+  if ("stem_status" %in% names(all_for_meas) && "stem_status2" %in% names(all_for_meas)) {
+    mask_ss2 <- !is.na(all_for_meas$stem_status) &
+                as.character(all_for_meas$stem_status) == "2" &
+                !is.na(all_for_meas$stem_status2) &
+                nzchar(trimws(as.character(all_for_meas$stem_status2)))
+
+    if (any(mask_ss2)) {
+      ss2_rows <- all_for_meas[mask_ss2, , drop = FALSE]
+      ss2_code <- trimws(as.character(ss2_rows$stem_status2))
+
+      obs_str <- vapply(seq_len(nrow(ss2_rows)), function(i) {
+        code <- ss2_code[i]
+        if (code == "2") {
+          # Broken main stem — try remaining_main_axis
+          val <- if ("remaining_main_axis" %in% names(ss2_rows)) {
+            v <- ss2_rows$remaining_main_axis[i]
+            if (!is.na(v) && nzchar(trimws(as.character(v)))) trimws(as.character(v)) else NA_character_
+          } else NA_character_
+          if (!is.na(val)) {
+            paste0("broken main stem, ", val, " m remaining axis")
+          } else {
+            "broken main stem"
+          }
+        } else if (code == "1") {
+          # Part of crown lost — try crown_left
+          val <- if ("crown_left" %in% names(ss2_rows)) {
+            v <- ss2_rows$crown_left[i]
+            if (!is.na(v) && nzchar(trimws(as.character(v)))) trimws(as.character(v)) else NA_character_
+          } else NA_character_
+          if (!is.na(val)) {
+            paste0("part of crown lost, ", val, "% crown remaining")
+          } else {
+            "part of crown lost"
+          }
+        } else if (code == "3") {
+          "uprooted tree"
+        } else {
+          NA_character_
+        }
+      }, character(1))
+
+      valid <- !is.na(obs_str)
+      if (any(valid)) {
+        stem_status_obs <- data.frame(
+          plot_name    = ss2_rows$plot_name[valid],
+          tag          = ss2_rows$tag[valid],
+          trait_name   = "observation",
+          traitvalue   = NA_real_,
+          traitvalue_char = obs_str[valid],
+          stringsAsFactors = FALSE
+        )
+        measurement_parts$stem_status_obs <- stem_status_obs
+        cli::cli_alert_info(
+          "Built {nrow(stem_status_obs)} 'observation' row(s) from stem_status2 codes"
+        )
+      }
+    }
+  }
+
   # ---- Combine all measurement parts ----
   measurements <- do.call(rbind, measurement_parts)
   if (!is.null(measurements)) {

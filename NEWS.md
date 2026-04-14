@@ -129,6 +129,12 @@
 * **Import wizard silent failure during subplot feature insertion**
   - Fixed `add_subplot_features()` missing `id_colnam` column in `data_to_add` tibble (required by `data_liste_sub_plots` schema)
   - Fixed `.link_colnam()` call using incorrect `id_field = "subplotype"` parameter (should be `id_field = "id_colnam"`)
+
+* **Feature Wizard compute_stem_status mode column mismatches**
+  - Fixed `compute_stem_vital_status()` using incorrect column name `p.id_table_liste_plots` in LEFT JOIN (correct: `p.id_liste_plots`)
+  - Fixed step 1 plot selection module passing `id_liste_plots` but step 3 expecting `id_table_liste_plots`
+  - Fixed step 3 result missing `tag` column in final output; now propagated through joins for display in review table
+  - Fixed step 5 validation auto-validation for `compute_stem_status` mode missing `$summary` sub-list structure, causing "argument is of length zero" error
   - Added fallback: non-lookup features now get `id_colnam = NA_integer_` for proper database constraint handling
 
 * **Import wizard `table_colnam` feature insertion with pre-matched IDs**
