@@ -182,6 +182,34 @@ mod_feat_step2_choose_mode_ui <- function(id, i18n) {
             shiny::tags$li(i18n$t("Updates stem_grouping in database"))
           )
         )
+      ),
+
+      # Compute Stem Status card
+      shiny::column(
+        6,
+        shiny::div(
+          id = ns("card_stem_status"),
+          class = "mode-card",
+          onclick = sprintf(
+            "Shiny.setInputValue('%s', 'compute_stem_status', {priority: 'event'})",
+            ns("mode_selected")
+          ),
+          shiny::h4(
+            shiny::icon("heartbeat", style = "color: #dc3545; margin-right: 10px;"),
+            i18n$t("Compute Stem Status")
+          ),
+          shiny::p(
+            i18n$t("Compute or recompute vital status (alive / dead / presumed_dead) for all stems of the selected plots. Run AFTER adding new measurements and recruits for a census."),
+            style = "color: #6c757d;"
+          ),
+          shiny::tags$ul(
+            style = "color: #6c757d; font-size: 14px;",
+            shiny::tags$li(i18n$t("Uses diameter, observations, and RainFor flags")),
+            shiny::tags$li(i18n$t("Retroactively corrects presumed_dead → alive")),
+            shiny::tags$li(i18n$t("Review table before any database write")),
+            shiny::tags$li(i18n$t("Run after adding measurements for a census"))
+          )
+        )
       )
     ),
 
@@ -203,7 +231,7 @@ mod_feat_step2_choose_mode_server <- function(id, i18n) {
     ns <- session$ns
 
     selected_mode <- shiny::reactiveVal(NULL)
-    all_card_ids <- c("card_census", "card_features", "card_measurements", "card_recruits", "card_multi_stems")
+    all_card_ids <- c("card_census", "card_features", "card_measurements", "card_recruits", "card_multi_stems", "card_stem_status")
 
     shiny::observeEvent(input$mode_selected, {
       mode <- input$mode_selected
@@ -211,11 +239,12 @@ mod_feat_step2_choose_mode_server <- function(id, i18n) {
 
       # Map mode to card id
       card_id <- switch(mode,
-        new_census         = "card_census",
-        add_features       = "card_features",
-        add_measurements   = "card_measurements",
-        add_recruits       = "card_recruits",
-        define_multi_stems = "card_multi_stems"
+        new_census          = "card_census",
+        add_features        = "card_features",
+        add_measurements    = "card_measurements",
+        add_recruits        = "card_recruits",
+        define_multi_stems  = "card_multi_stems",
+        compute_stem_status = "card_stem_status"
       )
 
       # Update card styling via JS: remove 'selected' from all, add to chosen
@@ -232,11 +261,12 @@ mod_feat_step2_choose_mode_server <- function(id, i18n) {
       if (is.null(mode)) return(NULL)
 
       label <- switch(mode,
-        new_census         = i18n()$t("New Census"),
-        add_features       = i18n()$t("Add Plot Features"),
-        add_measurements   = i18n()$t("Add Individual Measurements"),
-        add_recruits       = i18n()$t("Add Recruits"),
-        define_multi_stems = i18n()$t("Define Multi-Stems")
+        new_census          = i18n()$t("New Census"),
+        add_features        = i18n()$t("Add Plot Features"),
+        add_measurements    = i18n()$t("Add Individual Measurements"),
+        add_recruits        = i18n()$t("Add Recruits"),
+        define_multi_stems  = i18n()$t("Define Multi-Stems"),
+        compute_stem_status = i18n()$t("Compute Stem Status")
       )
 
       shiny::div(

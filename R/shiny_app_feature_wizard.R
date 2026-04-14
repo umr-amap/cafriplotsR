@@ -303,6 +303,8 @@ feature_wizard_server <- function(input, output, session, translator) {
           mod_feat_step3_measurements_ui("fw_step3_meas", i18n())
         } else if (identical(mode, "define_multi_stems")) {
           mod_feat_step3_multi_stems_ui("fw_step3_ms", i18n())
+        } else if (identical(mode, "compute_stem_status")) {
+          mod_feat_step3_stem_status_ui("fw_step3_ss", i18n())
         } else if (identical(mode, "add_recruits")) {
           ns_fw <- session$ns
           shiny::tagList(
@@ -373,7 +375,7 @@ feature_wizard_server <- function(input, output, session, translator) {
   })
 
   # Modes that skip step 4 (no lookup matching needed)
-  skip_step4_modes <- c("add_measurements", "define_multi_stems")
+  skip_step4_modes <- c("add_measurements", "define_multi_stems", "compute_stem_status")
 
   shiny::observeEvent(input$fw_btn_back, {
     new_step <- rv$step - 1
@@ -503,6 +505,25 @@ feature_wizard_server <- function(input, output, session, translator) {
       rv$import_result <- NULL
     })
 
+    # Step 3: Compute stem status mode
+    step3_ss_result <- mod_feat_step3_stem_status_server(
+      "fw_step3_ss",
+      selected_plots = shiny::reactive(rv$selected_plots),
+      con = pool_main_reactive,
+      i18n = i18n
+    )
+
+    shiny::observeEvent(step3_ss_result(), {
+      shiny::req(step3_ss_result())
+      rv$feature_data <- step3_ss_result()$data
+      rv$feature_config <- step3_ss_result()$config
+      # Reset downstream
+      rv$matched_data <- NULL
+      rv$lookup_complete <- FALSE
+      rv$validation_result <- NULL
+      rv$import_result <- NULL
+    })
+
     # Step 4: Lookup matching
     step4_result <- mod_feat_step4_lookup_server(
       "fw_step4",
@@ -520,7 +541,7 @@ feature_wizard_server <- function(input, output, session, translator) {
 
     # For modes that skip step 4, pass feature data through as matched data
     shiny::observe({
-      shiny::req(rv$operation_mode %in% c("add_measurements", "define_multi_stems"))
+      shiny::req(rv$operation_mode %in% c("add_measurements", "define_multi_stems", "compute_stem_status"))
       shiny::req(!is.null(rv$feature_data))
       rv$matched_data <- rv$feature_data
       rv$lookup_complete <- TRUE
