@@ -96,7 +96,7 @@ mod_feat_step3_stem_status_server <- function(id, selected_plots, con, i18n) {
         shiny::setProgress(0.1, message = i18n()$t("Fetching individual IDs..."))
 
         # Retrieve all individual IDs for the selected plots
-        plot_ids <- plots$id_table_liste_plots
+        plot_ids <- plots$id_liste_plots
 
         ind_ids <- tryCatch({
           DBI::dbGetQuery(con(), glue::glue_sql(
@@ -239,7 +239,7 @@ mod_feat_step3_stem_status_server <- function(id, selected_plots, con, i18n) {
 
       display <- res %>%
         dplyr::select(
-          id_n, plot_name, census_name, census_date,
+          id_n, plot_name, tag, census_name, census_date,
           stem_vital_status, missing, evidence_source
         ) %>%
         dplyr::mutate(
@@ -252,7 +252,7 @@ mod_feat_step3_stem_status_server <- function(id, selected_plots, con, i18n) {
         rownames = FALSE,
         class    = "display cell-border stripe",
         colnames = c(
-          "id_n", "Plot", "Census", "Date",
+          "id_n", "Plot", "Tag", "Census", "Date",
           "Status", "Missing", "Evidence", "Retroactive correction"
         )
       ) %>%
