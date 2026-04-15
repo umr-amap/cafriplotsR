@@ -3930,7 +3930,7 @@ get_column_routing <- function(table_type, con) {
       table = "data_traits_measures",
       id_column = "id_trait_measures",
       backup_table = "followup_updates_traits_measures",
-      direct_columns = c("references", "year", "month", "day", "measurementremarks", 
+      direct_columns = c("id_sub_plots", "references", "year", "month", "day", "measurementremarks",
                          "measurementmethod", "traitvalue", "traitvalue_char", "issue"),
       feature_columns = c()
     ),
