@@ -303,6 +303,16 @@ mod_herbarium_parser_server <- function(id, individuals_data, i18n) {
 
   parsed_df <- dplyr::bind_rows(parsed_list)
 
+  # Deduplicate: for individuals with both link types, keep only type_individual
+  # (type_individual has higher confidence than referenced_individual)
+  parsed_df <- parsed_df %>%
+    dplyr::group_by(id_n) %>%
+    dplyr::filter(
+      dplyr::n() == 1 | link_type == "type_individual"
+    ) %>%
+    dplyr::slice(1) %>%  # In case type_individual itself appears more than once
+    dplyr::ungroup()
+
   return(parsed_df)
 }
 
