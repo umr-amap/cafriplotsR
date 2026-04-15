@@ -496,16 +496,11 @@ compute_stem_vital_status <- function(
 
   if (!add_data) return(status_for_db)
 
-  # ── 12. DB upsert (delete existing + insert new) ──────────────────────────
+  # ── 12. DB upsert ────────────────────────────────────────────────────────────
 
-  stem_status_trait <- DBI::dbGetQuery(
-    con, "SELECT id_trait FROM traitlist WHERE trait = 'stem_status'"
-  )
-  if (nrow(stem_status_trait) == 0)
-    stop("Trait 'stem_status' not found in traitlist. Run add_trait() first.")
-  stem_status_trait_id <- stem_status_trait$id_trait
+  stem_status_trait_id <- 107L  # id_trait for 'stem_status' in traitlist
 
-  rows_to_insert <- status_for_db %>%
+  rows_with_status <- status_for_db %>%
     dplyr::filter(!is.na(stem_vital_status), !is.na(id_sub_plots))
 
   if (dry_run) {
@@ -516,38 +511,151 @@ compute_stem_vital_status <- function(
       issues         = "include",
       con            = con
     )
+    n_existing  <- nrow(existing)
+    n_to_write  <- nrow(rows_with_status)
+
+    # Estimate splits (for the message only, no DB changes)
+    if (n_existing == 0) {
+      n_update <- 0
+      n_insert <- n_to_write
+      n_delete <- 0
+    } else {
+      status_joined <- rows_with_status %>%
+        dplyr::left_join(
+          existing %>% dplyr::select(id_trait_measures, id_data_individuals, id_sub_plots),
+          by = c("id_n" = "id_data_individuals", "id_sub_plots")
+        )
+      n_update <- sum(!is.na(status_joined$id_trait_measures))
+      n_insert <- n_to_write - n_update
+      n_delete <- sum(!existing$id_trait_measures %in% status_joined$id_trait_measures[!is.na(status_joined$id_trait_measures)])
+    }
+
     message(sprintf(
-      "[dry_run] Would delete %d existing stem_status record(s) and insert %d new one(s).",
-      nrow(existing),
-      nrow(rows_to_insert)
+      "[dry_run] Would update %d, insert %d, delete %d stem_status record(s) (existing: %d).",
+      n_update, n_insert, n_delete, n_existing
     ))
     return(invisible(status_for_db))
   }
 
-  message("Deleting existing stem_status records for the given individuals...")
-  safe_delete_individual_features(
+  # Fetch existing stem_status records for these individuals (id_trait = 107)
+  existing <- query_individual_features(
     individual_ids = individual_ids,
     trait_ids      = stem_status_trait_id,
-    dry_run        = FALSE,
-    force          = TRUE,
+    format         = "long",
+    issues         = "include",
     con            = con
   )
 
-  if (nrow(rows_to_insert) == 0) {
-    message("No rows to insert (all statuses are NA or lack a census subplot link).")
-    return(invisible(status_for_db))
+  # Handle case where no existing records are found (empty tibble)
+  if (nrow(existing) == 0) {
+    # No existing records: treat all rows with status as new inserts
+    to_update <- rows_with_status %>% dplyr::slice(0)  # Empty, same structure
+    to_insert <- rows_with_status
+    stale_ids <- integer()
+  } else {
+    # Join to find which rows have existing records
+    status_joined <- rows_with_status %>%
+      dplyr::left_join(
+        existing %>% dplyr::select(id_trait_measures, id_data_individuals, id_sub_plots),
+        by = c("id_n" = "id_data_individuals", "id_sub_plots" = "id_sub_plots")
+      )
+
+    to_update <- status_joined %>% dplyr::filter(!is.na(id_trait_measures))
+    to_insert <- status_joined %>% dplyr::filter(is.na(id_trait_measures))
+
+    # Stale records: exist in DB but not matched by new non-NA computation
+    stale_ids <- setdiff(existing$id_trait_measures,
+                         to_update$id_trait_measures)
   }
 
-  message(sprintf("Inserting %d stem_status record(s)...", nrow(rows_to_insert)))
-  add_traits_measures(
-    new_data          = rows_to_insert %>%
-      dplyr::select(id_n, stem_vital_status, evidence_source, id_sub_plots),
-    id_individual_col = "id_n",
-    traits_field      = "stem_vital_status",
-    features_field    = "evidence_source",
-    id_sub_plots_col  = "id_sub_plots",
-    add_data          = TRUE
-  )
+  # ── UPDATE existing records ──
+  if (nrow(to_update) > 0) {
+    message(sprintf("Updating %d existing stem_status record(s)...", nrow(to_update)))
+
+    temp_tbl <- paste0("tmp_stem_status_", as.integer(Sys.time()))
+    update_data <- to_update %>%
+      dplyr::select(id_trait_measures, traitvalue_char = stem_vital_status)
+
+    DBI::dbWriteTable(con, temp_tbl, update_data, temporary = TRUE, overwrite = TRUE)
+    DBI::dbExecute(con, glue::glue_sql(
+      "UPDATE data_traits_measures t
+         SET traitvalue_char = tmp.traitvalue_char
+         FROM {`temp_tbl`} tmp
+        WHERE t.id_trait_measures = tmp.id_trait_measures",
+      .con = con
+    ))
+
+    # Update evidence_source (stored as 'observations', id_trait = 13) in data_ind_measures_feat
+    ev_trait_id <- 13L
+    update_feat <- to_update %>%
+      dplyr::select(id_trait_measures, typevalue_char = evidence_source)
+    feat_temp_tbl <- paste0("tmp_stem_feat_", as.integer(Sys.time()))
+    DBI::dbWriteTable(con, feat_temp_tbl, update_feat, temporary = TRUE, overwrite = TRUE)
+    DBI::dbExecute(con, glue::glue_sql(
+      "UPDATE data_ind_measures_feat f
+         SET typevalue_char = tmp.typevalue_char
+         FROM {`feat_temp_tbl`} tmp
+        WHERE f.id_trait_measures = tmp.id_trait_measures
+          AND f.id_trait = {ev_trait_id}",
+      ev_trait_id = ev_trait_id, .con = con
+    ))
+  }
+
+  # ── INSERT new records (non-interactive, mirrors .execute_measurements_import) ──
+  if (nrow(to_insert) > 0) {
+    message(sprintf("Inserting %d new stem_status record(s)...", nrow(to_insert)))
+
+    today_d <- as.integer(format(Sys.Date(), "%d"))
+    today_m <- as.integer(format(Sys.Date(), "%m"))
+    today_y <- as.integer(format(Sys.Date(), "%Y"))
+
+    # Pool-safe connection for RETURNING query
+    is_pool <- inherits(con, "Pool")
+    actual_con <- if (is_pool) pool::poolCheckout(con) else con
+    on.exit(if (is_pool) pool::poolReturn(actual_con), add = TRUE)
+
+    new_records <- data.frame(
+      id_table_liste_plots = as.integer(to_insert$id_table_liste_plots),
+      id_data_individuals  = as.integer(to_insert$id_n),
+      id_sub_plots         = as.integer(to_insert$id_sub_plots),
+      traitid              = 107L,
+      traitvalue           = NA_real_,
+      traitvalue_char      = as.character(to_insert$stem_vital_status),
+      date_modif_d         = today_d,
+      date_modif_m         = today_m,
+      date_modif_y         = today_y,
+      stringsAsFactors     = FALSE
+    )
+
+    # INSERT into data_traits_measures, get back id_trait_measures
+    inserted_ids <- .execute_trait_insert_with_returning(new_records, actual_con)
+    # inserted_ids has columns: id_trait_measures, id_data_individuals
+
+    # INSERT evidence_source into data_ind_measures_feat (id_trait = 13L = 'observations')
+    feat_records <- data.frame(
+      id_trait_measures = as.integer(inserted_ids$id_trait_measures),
+      id_trait          = 13L,
+      typevalue         = NA_real_,
+      typevalue_char    = as.character(to_insert$evidence_source),
+      date_modif_d      = today_d,
+      date_modif_m      = today_m,
+      date_modif_y      = today_y,
+      stringsAsFactors  = FALSE
+    )
+    DBI::dbWriteTable(actual_con, "data_ind_measures_feat", feat_records,
+                      append = TRUE, row.names = FALSE)
+  }
+
+  # ── DELETE stale records ──
+  if (length(stale_ids) > 0) {
+    message(sprintf("Removing %d stale stem_status record(s) (no longer applicable)...", length(stale_ids)))
+    safe_delete_individual_features(
+      id_trait_measures = stale_ids,
+      dry_run           = FALSE,
+      force             = TRUE,
+      con               = con
+    )
+  }
 
   invisible(status_for_db)
 }
