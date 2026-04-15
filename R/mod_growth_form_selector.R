@@ -55,15 +55,25 @@ mod_growth_form_selector_server <- function(id, pool, i18n) {
       shiny::req(pool())
 
       tryCatch({
-        # Get connection
-        actual_con <- if (inherits(pool(), "Pool")) {
-          pool::poolCheckout(pool())
+        # traitlist lives in the main database (plots_transects), not the taxa
+        # database (rainbio). Use pool_main from .db_env when available;
+        # fall back to the supplied pool so the module still works in other
+        # contexts where pool IS the main database.
+        active_pool <- if (!is.null(.db_env$pool_main)) {
+          .db_env$pool_main
         } else {
           pool()
         }
 
+        # Get connection
+        actual_con <- if (inherits(active_pool, "Pool")) {
+          pool::poolCheckout(active_pool)
+        } else {
+          active_pool
+        }
+
         on.exit({
-          if (inherits(pool(), "Pool") && !is.null(actual_con)) {
+          if (inherits(active_pool, "Pool") && !is.null(actual_con)) {
             pool::poolReturn(actual_con)
           }
         }, add = TRUE)
