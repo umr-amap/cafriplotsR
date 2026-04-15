@@ -64,10 +64,86 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
     validated_data <- shiny::reactiveVal(NULL)
     user_decisions <- shiny::reactiveValues()
     validation_complete <- shiny::reactiveVal(FALSE)
-    # Trigger to force table re-render when decisions change
+    # Trigger to update table data via replaceData (preserves sort order)
     decisions_changed <- shiny::reactiveVal(0)
-    # Track current page to preserve position when table re-renders
-    current_page_start <- shiny::reactiveVal(0)
+    # Proxy for updating table data without full re-render
+    proxy <- DT::dataTableProxy("review_table", session = session)
+
+    # Internal helper: build the display data.frame for the review table.
+    # Accepts plain (non-reactive) values so it can be called from both
+    # renderDataTable (with isolate) and the replaceData observer.
+    .build_display_data <- function(validated_input, decisions_list,
+                                    filter_match_val, filter_priority_val,
+                                    i18n_obj) {
+      validated <- validated_input
+      validated$original_row_index <- seq_len(nrow(validated))
+
+      if (!is.null(filter_match_val) && filter_match_val != "all") {
+        validated <- validated %>% dplyr::filter(taxonomic_match == filter_match_val)
+      }
+      if (!is.null(filter_priority_val) && filter_priority_val != "all") {
+        validated <- validated %>% dplyr::filter(validation_status == filter_priority_val)
+      }
+
+      display_data <- validated
+      display_data$action <- sapply(seq_len(nrow(validated)), function(i) {
+        original_idx <- validated$original_row_index[i]
+        row_id <- paste0("row_", original_idx)
+        decision <- decisions_list[[paste0(row_id, "_decision")]]
+        if (is.null(decision) || decision == "accept") {
+          sprintf(
+            '<button class="btn btn-xs btn-warning" onclick="Shiny.setInputValue(\'validator-toggle_row\', %d, {priority: \'event\'})">&#x2717; Reject</button>',
+            original_idx
+          )
+        } else {
+          sprintf(
+            '<button class="btn btn-xs btn-success" onclick="Shiny.setInputValue(\'validator-toggle_row\', %d, {priority: \'event\'})">&#x2713; Accept</button>',
+            original_idx
+          )
+        }
+      })
+
+      display_data$selection_status <- sapply(seq_len(nrow(validated)), function(i) {
+        original_idx <- validated$original_row_index[i]
+        row_id <- paste0("row_", original_idx)
+        decision <- decisions_list[[paste0(row_id, "_decision")]]
+        if (is.null(decision) || decision == "accept") "\u2713 Selected" else "\u2717 Rejected"
+      })
+
+      display_cols <- c(
+        "action", "selection_status",
+        "id_n", "tag", "plot_name",
+        "collector_name", "extracted_number",
+        "individual_family", "individual_genus", "individual_species",
+        "specimen_family", "specimen_genus", "specimen_species",
+        "difference_indicator", "taxonomic_match", "validation_status", "link_type"
+      )
+      display_data <- display_data %>% dplyr::select(dplyr::any_of(display_cols))
+
+      if (nrow(display_data) == 0) return(NULL)
+
+      cn <- colnames(display_data)
+      cn[cn == "action"]              <- i18n_obj$t("Action")
+      cn[cn == "selection_status"]    <- i18n_obj$t("Status")
+      cn[cn == "id_n"]                <- "ID"
+      cn[cn == "tag"]                 <- i18n_obj$t("Tag")
+      cn[cn == "plot_name"]           <- i18n_obj$t("Plot")
+      cn[cn == "collector_name"]      <- i18n_obj$t("Collector")
+      cn[cn == "extracted_number"]    <- i18n_obj$t("Number")
+      cn[cn == "individual_family"]   <- i18n_obj$t("Ind. Family")
+      cn[cn == "individual_genus"]    <- i18n_obj$t("Ind. Genus")
+      cn[cn == "individual_species"]  <- i18n_obj$t("Ind. Species")
+      cn[cn == "specimen_family"]     <- i18n_obj$t("Spec. Family")
+      cn[cn == "specimen_genus"]      <- i18n_obj$t("Spec. Genus")
+      cn[cn == "specimen_species"]    <- i18n_obj$t("Spec. Species")
+      cn[cn == "difference_indicator"] <- i18n_obj$t("Difference")
+      cn[cn == "taxonomic_match"]     <- i18n_obj$t("Match Type")
+      cn[cn == "validation_status"]   <- i18n_obj$t("Validation")
+      cn[cn == "link_type"]           <- i18n_obj$t("Link Type")
+      colnames(display_data) <- cn
+
+      display_data
+    }
 
     # Validate taxonomy when button clicked
     shiny::observeEvent(input$validate_taxonomy, {
@@ -316,13 +392,6 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
         row_id <- paste0("row_", i)
         user_decisions[[paste0(row_id, "_decision")]] <- "accept"
       }
-
-      # Save current page position before re-render
-      if (!is.null(input$review_table_state)) {
-        current_page_start(input$review_table_state$start)
-      }
-
-      # Trigger table update
       decisions_changed(decisions_changed() + 1)
 
       shiny::showNotification(
@@ -341,13 +410,6 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
         row_id <- paste0("row_", i)
         user_decisions[[paste0(row_id, "_decision")]] <- "reject"
       }
-
-      # Save current page position before re-render
-      if (!is.null(input$review_table_state)) {
-        current_page_start(input$review_table_state$start)
-      }
-
-      # Trigger table update
       decisions_changed(decisions_changed() + 1)
 
       shiny::showNotification(
@@ -370,13 +432,6 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
           n_rejected <- n_rejected + 1
         }
       }
-
-      # Save current page position before re-render
-      if (!is.null(input$review_table_state)) {
-        current_page_start(input$review_table_state$start)
-      }
-
-      # Trigger table update
       decisions_changed(decisions_changed() + 1)
 
       shiny::showNotification(
@@ -393,20 +448,12 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
       row_idx <- input$toggle_row
       row_id <- paste0("row_", row_idx)
 
-      # Toggle the decision
       current_decision <- user_decisions[[paste0(row_id, "_decision")]]
       if (is.null(current_decision) || current_decision == "accept") {
         user_decisions[[paste0(row_id, "_decision")]] <- "reject"
       } else {
         user_decisions[[paste0(row_id, "_decision")]] <- "accept"
       }
-
-      # Save current page position before re-render
-      if (!is.null(input$review_table_state)) {
-        current_page_start(input$review_table_state$start)
-      }
-
-      # Trigger table re-render to update button
       decisions_changed(decisions_changed() + 1)
     })
 
@@ -460,104 +507,24 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
     output$review_table <- DT::renderDataTable({
       shiny::req(validated_data())
 
-      # Depend on decisions_changed to trigger re-render
-      decisions_changed()
+      # Read decisions via isolate so changes to individual decisions do NOT
+      # trigger a full table re-render (which would reset sort order).
+      # The replaceData observer below handles incremental updates.
+      current_decisions <- shiny::isolate(shiny::reactiveValuesToList(user_decisions))
 
-      validated <- validated_data()
-
-      # Add original row index before filtering
-      validated$original_row_index <- seq_len(nrow(validated))
-
-      # Apply filters
-      if (!is.null(input$filter_match) && input$filter_match != "all") {
-        validated <- validated %>%
-          dplyr::filter(taxonomic_match == input$filter_match)
-      }
-
-      if (!is.null(input$filter_priority) && input$filter_priority != "all") {
-        validated <- validated %>%
-          dplyr::filter(validation_status == input$filter_priority)
-      }
-
-      # Add selection status and action buttons based on user decisions
-      display_data <- validated
-      display_data$action <- sapply(seq_len(nrow(validated)), function(i) {
-        original_idx <- validated$original_row_index[i]
-        row_id <- paste0("row_", original_idx)
-        decision <- user_decisions[[paste0(row_id, "_decision")]]
-
-        # Create toggle button with current state
-        if (is.null(decision) || decision == "accept") {
-          # Currently selected - show button to reject
-          sprintf('<button class="btn btn-xs btn-warning" onclick="Shiny.setInputValue(\'validator-toggle_row\', %d, {priority: \'event\'})">✗ Reject</button>',
-                  original_idx)
-        } else {
-          # Currently rejected - show button to accept
-          sprintf('<button class="btn btn-xs btn-success" onclick="Shiny.setInputValue(\'validator-toggle_row\', %d, {priority: \'event\'})">✓ Accept</button>',
-                  original_idx)
-        }
-      })
-
-      display_data$selection_status <- sapply(seq_len(nrow(validated)), function(i) {
-        original_idx <- validated$original_row_index[i]
-        row_id <- paste0("row_", original_idx)
-        decision <- user_decisions[[paste0(row_id, "_decision")]]
-        if (is.null(decision) || decision == "accept") {
-          "✓ Selected"
-        } else {
-          "✗ Rejected"
-        }
-      })
-
-      # Select columns to display with all taxonomic details
-      # Use any_of() to handle missing columns gracefully
-      display_cols <- c(
-        "action",
-        "selection_status",
-        "id_n", "tag", "plot_name",
-        "collector_name", "extracted_number",
-        "individual_family", "individual_genus", "individual_species",
-        "specimen_family", "specimen_genus", "specimen_species",
-        "difference_indicator",
-        "taxonomic_match", "validation_status",
-        "link_type"
+      display_data <- .build_display_data(
+        validated_data(), current_decisions,
+        input$filter_match, input$filter_priority, i18n()
       )
 
-      display_data <- display_data %>%
-        dplyr::select(dplyr::any_of(display_cols))
-
-      # Check if display_data is empty
-      if (nrow(display_data) == 0) {
+      if (is.null(display_data) || nrow(display_data) == 0) {
         return(DT::datatable(data.frame(Message = "No data to display")))
       }
-
-      # Rename columns for display with translations
-      colnames_translated <- colnames(display_data)
-      colnames_translated[colnames_translated == "action"] <- i18n()$t("Action")
-      colnames_translated[colnames_translated == "selection_status"] <- i18n()$t("Status")
-      colnames_translated[colnames_translated == "id_n"] <- "ID"
-      colnames_translated[colnames_translated == "tag"] <- i18n()$t("Tag")
-      colnames_translated[colnames_translated == "plot_name"] <- i18n()$t("Plot")
-      colnames_translated[colnames_translated == "collector_name"] <- i18n()$t("Collector")
-      colnames_translated[colnames_translated == "extracted_number"] <- i18n()$t("Number")
-      colnames_translated[colnames_translated == "individual_family"] <- i18n()$t("Ind. Family")
-      colnames_translated[colnames_translated == "individual_genus"] <- i18n()$t("Ind. Genus")
-      colnames_translated[colnames_translated == "individual_species"] <- i18n()$t("Ind. Species")
-      colnames_translated[colnames_translated == "specimen_family"] <- i18n()$t("Spec. Family")
-      colnames_translated[colnames_translated == "specimen_genus"] <- i18n()$t("Spec. Genus")
-      colnames_translated[colnames_translated == "specimen_species"] <- i18n()$t("Spec. Species")
-      colnames_translated[colnames_translated == "difference_indicator"] <- i18n()$t("Difference")
-      colnames_translated[colnames_translated == "taxonomic_match"] <- i18n()$t("Match Type")
-      colnames_translated[colnames_translated == "validation_status"] <- i18n()$t("Validation")
-      colnames_translated[colnames_translated == "link_type"] <- i18n()$t("Link Type")
-
-      colnames(display_data) <- colnames_translated
 
       DT::datatable(
         display_data,
         options = list(
           pageLength = 10,
-          displayStart = current_page_start(),  # Preserve page position
           scrollX = TRUE,
           dom = 'frtip',
           columnDefs = list(
@@ -570,29 +537,26 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
           )
         ),
         rownames = FALSE,
-        escape = FALSE,  # Allow HTML in action column
+        escape = FALSE,
         class = 'cell-border stripe compact hover',
-        selection = 'none'  # Disable row selection - use buttons instead
+        selection = 'none'
       ) %>%
-        # Style selection status column (using translated name)
         DT::formatStyle(
           i18n()$t("Status"),
           backgroundColor = DT::styleEqual(
-            c("✓ Selected", "✗ Rejected"),
+            c("\u2713 Selected", "\u2717 Rejected"),
             c("#d4edda", "#f8d7da")
           ),
           fontWeight = "bold",
           color = DT::styleEqual(
-            c("✓ Selected", "✗ Rejected"),
+            c("\u2713 Selected", "\u2717 Rejected"),
             c("#155724", "#721c24")
           )
         ) %>%
-        # Style family columns (using translated names)
         DT::formatStyle(
           c(i18n()$t("Ind. Family"), i18n()$t("Spec. Family")),
           fontWeight = "bold"
         ) %>%
-        # Style taxonomic match column (using translated name)
         DT::formatStyle(
           i18n()$t("Match Type"),
           backgroundColor = DT::styleEqual(
@@ -600,7 +564,6 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
             c("#d4edda", "#fff3cd", "#ffeaa7", "#f8d7da")
           )
         ) %>%
-        # Style validation status column (using translated name)
         DT::formatStyle(
           i18n()$t("Validation"),
           backgroundColor = DT::styleEqual(
@@ -609,6 +572,23 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
           )
         )
     })
+
+    # When a decision is toggled (accept/reject), update only the table data
+    # via replaceData so the current sort order and page are preserved.
+    shiny::observeEvent(decisions_changed(), {
+      shiny::req(validated_data())
+
+      current_decisions <- shiny::reactiveValuesToList(user_decisions)
+
+      display_data <- .build_display_data(
+        validated_data(), current_decisions,
+        input$filter_match, input$filter_priority, i18n()
+      )
+
+      if (!is.null(display_data) && nrow(display_data) > 0) {
+        DT::replaceData(proxy, display_data, rownames = FALSE, resetPaging = FALSE)
+      }
+    }, ignoreInit = TRUE)
 
     # Return validated links and status
     return(list(
