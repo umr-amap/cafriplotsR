@@ -114,3 +114,98 @@ test_that("compute_mortality errors when both plot_ids and plot_names are NULL",
     "Either plot_ids or plot_names must be provided"
   )
 })
+
+test_that("compute_growth returns summary and individual data from mocked query results", {
+  query_result <- list(
+    extract = make_growth_query_extract(),
+    census_features = data.frame(plot_name = "P1", stringsAsFactors = FALSE)
+  )
+
+  testthat::local_mocked_bindings(.package = "CafriplotsR", 
+    query_plots = function(...) query_result
+  )
+
+  result <- compute_growth(plot_ids = 1, con = structure(list(), class = "mock_con"))
+
+  expect_type(result, "list")
+  expect_true(all(c("summary", "individuals") %in% names(result)))
+  expect_equal(nrow(result$summary), 1)
+  expect_equal(result$summary$plot_name[[1]], "P1")
+  expect_equal(result$summary$n_individuals[[1]], 1)
+  expect_equal(result$summary$n_valid[[1]], 1)
+  expect_equal(result$summary$n_excluded[[1]], 0)
+  expect_equal(result$summary$mean_growth_mm_yr[[1]], 10)
+  expect_equal(nrow(result$individuals), 1)
+  expect_equal(result$individuals$growthrate[[1]], 10)
+  expect_true(all(c("tax_fam", "tax_gen", "tax_sp_level", "idtax_n") %in% names(result$individuals)))
+})
+
+test_that("compute_growth supports exponential method and summary-only output", {
+  query_result <- list(
+    extract = make_growth_query_extract(),
+    census_features = data.frame(plot_name = "P1", stringsAsFactors = FALSE)
+  )
+
+  testthat::local_mocked_bindings(.package = "CafriplotsR", 
+    query_plots = function(...) query_result
+  )
+
+  result <- compute_growth(plot_ids = 1, con = structure(list(), class = "mock_con"), method = "E", return_individual = FALSE)
+
+  expect_true("summary" %in% names(result))
+  expect_false("individuals" %in% names(result))
+  expect_equal(result$summary$mean_growth_mm_yr[[1]], log(210 / 200))
+})
+
+test_that("compute_growth errors when query results do not include multiple censuses", {
+  query_result <- list(
+    extract = data.frame(id_table_liste_plots_n = 1L, plot_name = "P1", stringsAsFactors = FALSE),
+    census_features = data.frame(plot_name = "P1", stringsAsFactors = FALSE)
+  )
+
+  testthat::local_mocked_bindings(.package = "CafriplotsR", 
+    query_plots = function(...) query_result
+  )
+
+  expect_error(
+    compute_growth(plot_ids = 1, con = structure(list(), class = "mock_con")),
+    "Need at least 2 censuses"
+  )
+})
+
+test_that("compute_mortality returns mortality and recruitment summaries from mocked data", {
+  query_result <- list(
+    extract = make_growth_query_extract(),
+    census_features = data.frame(plot_name = "P1", stringsAsFactors = FALSE)
+  )
+
+  testthat::local_mocked_bindings(.package = "CafriplotsR", 
+    query_plots = function(...) query_result
+  )
+
+  result <- compute_mortality(plot_ids = 1, con = structure(list(), class = "mock_con"))
+
+  expect_type(result, "list")
+  expect_true(all(c("summary", "dead_individuals", "recruits") %in% names(result)))
+  expect_equal(nrow(result$summary), 1)
+  expect_equal(result$summary$N_outset[[1]], 2)
+  expect_equal(result$summary$N_dead[[1]], 1)
+  expect_equal(result$summary$N_survivor[[1]], 1)
+  expect_equal(result$summary$N_recruits[[1]], 1)
+  expect_equal(nrow(result$dead_individuals), 1)
+  expect_equal(nrow(result$recruits), 1)
+  expect_equal(result$dead_individuals$dbh_at_death_cm[[1]], 18)
+  expect_equal(result$recruits$dbh_at_recruitment_cm[[1]], 12)
+})
+
+test_that("compute_mortality errors when query result lacks census_features", {
+  testthat::local_mocked_bindings(.package = "CafriplotsR", 
+    query_plots = function(...) list(extract = make_growth_query_extract())
+  )
+
+  expect_error(
+    compute_mortality(plot_ids = 1, con = structure(list(), class = "mock_con")),
+    "No census data found"
+  )
+})
+

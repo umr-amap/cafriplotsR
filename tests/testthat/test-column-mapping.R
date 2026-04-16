@@ -138,3 +138,87 @@ test_that(".fuzzy_match_column returns similarity score", {
   expect_true(is.numeric(result$similarity))
   expect_true(result$similarity > 0 && result$similarity <= 1)
 })
+
+test_that("get_import_column_routing adds import config and subplot validation rules", {
+  testthat::local_mocked_bindings(.package = "CafriplotsR", 
+    call.mydb = function() structure(list(), class = "mock_con"),
+    get_column_routing = function(table_type, con) {
+      list(
+        direct_columns = c("plot_name", "method", "country"),
+        subplot_features = c("plot_area"),
+        feature_columns = character(0)
+      )
+    },
+    .get_column_descriptions = function(con, table_type = "plots") {
+      list(plot_name = list(description = "Plot name", category = "Identification"))
+    },
+    subplot_list = function(con) {
+      data.frame(
+        type = "plot_area",
+        valuetype = "numeric",
+        minallowedvalue = 0.5,
+        maxallowedvalue = 10,
+        expectedunit = "ha",
+        stringsAsFactors = FALSE
+      )
+    }
+  )
+
+  config <- get_import_column_routing("plots", con = NULL)
+
+  expect_true("import_config" %in% names(config))
+  expect_equal(config$import_config$required_columns, c("plot_name", "method", "country"))
+  expect_true("plot_area" %in% names(config$import_config$validation_rules))
+  expect_equal(config$import_config$validation_rules$plot_area$min, 0.5)
+  expect_equal(config$import_config$validation_rules$plot_area$expectedunit, "ha")
+})
+
+test_that("map_user_columns maps exact, synonym, fuzzy, and unmapped columns", {
+  user_data <- data.frame(
+    plot_name = "P1",
+    Latitude = 1.2,
+    countri = "Gabon",
+    mystery = "x",
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+  config <- list(
+    direct_columns = c("plot_name", "country", "ddlat"),
+    subplot_features = character(0),
+    feature_columns = character(0),
+    import_config = list(column_synonyms = .get_column_synonyms())
+  )
+
+  result <- map_user_columns(user_data, config, similarity_threshold = 0.6, interactive = FALSE)
+
+  expect_equal(result$mappings[["plot_name"]], "plot_name")
+  expect_equal(result$mappings[["Latitude"]], "ddlat")
+  expect_equal(result$methods[["Latitude"]], "synonym")
+  expect_equal(result$mappings[["countri"]], "country")
+  expect_equal(result$methods[["countri"]], "fuzzy")
+  expect_true(is.na(result$mappings[["mystery"]]))
+  expect_true("mystery" %in% result$unmapped)
+})
+
+test_that("map_user_columns deduplicates competing mappings to same target", {
+  user_data <- data.frame(
+    plot_name = "P1",
+    `plot name` = "P1-alt",
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+  config <- list(
+    direct_columns = c("plot_name"),
+    subplot_features = character(0),
+    feature_columns = character(0),
+    import_config = list(column_synonyms = .get_column_synonyms())
+  )
+
+  result <- map_user_columns(user_data, config, interactive = FALSE)
+
+  expect_equal(result$mappings[["plot_name"]], "plot_name")
+  expect_true(is.na(result$mappings[["plot name"]]))
+  expect_equal(result$methods[["plot name"]], "none")
+})
+
+

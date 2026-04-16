@@ -121,3 +121,24 @@ make_multi_census_data <- function() {
     stringsAsFactors          = FALSE
   )
 }
+
+#' Growth/mortality data with two census intervals and mixed outcomes.
+#' Includes one survivor, one dead individual, and one recruit.
+make_growth_query_extract <- function() {
+  data.frame(
+    id_table_liste_plots_n    = c(1L, 1L, 1L),
+    plot_name                 = c("P1", "P1", "P1"),
+    id_n                      = c(101L, 102L, 103L),
+    tag                       = c("T1", "T2", "T3"),
+    tax_fam                   = c("Fabaceae", "Meliaceae", "Annonaceae"),
+    tax_gen                   = c("Gilbertiodendron", "Entandrophragma", "Greenwayodendron"),
+    tax_sp_level              = c("dewevrei", "utile", "suaveolens"),
+    idtax_n                   = c(11L, 12L, 13L),
+    stem_diameter_census_1    = c(20, 18, NA),
+    stem_diameter_census_2    = c(21, 0, 12),
+    date_census_julian_1      = c(0, 0, 0),
+    date_census_julian_2      = c(365.25, 365.25, 365.25),
+    stringsAsFactors          = FALSE
+  )
+}
+
