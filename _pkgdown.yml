@@ -127,6 +127,17 @@ reference:
       - get_primary_specimen_link
       - get_ref_specimen_ind
 
+  - title: "WCVP Integration"
+    desc: "Functions for integrating with the World Checklist of Vascular Plants (WCVP)"
+    contents:
+      - check_wcvp_update
+      - get_wcvp_names
+      - get_wcvp_status
+      - import_wcvp_names
+      - match_taxa_to_wcvp
+      - save_wcvp_links
+      - setup_wcvp_schema
+
   - title: "Data Adding"
     desc: "Add new plots, individuals, traits, specimens, and taxa to the database"
     contents:

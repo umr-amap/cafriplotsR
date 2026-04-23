@@ -299,12 +299,14 @@ shiny_app_taxo_backbone <- function(pool_taxa = NULL, language = "fr") {
       # Use login module for authentication
       login_output <- mod_database_login_server("login")
 
-      pool_reactive <- login_output$pool_taxa  # NOTE: taxa DB, not main DB!
+      pool_reactive      <- login_output$pool_taxa   # taxa DB
+      pool_main_reactive <- login_output$pool_main   # main DB (for taxa_traits_measures)
       authenticated_reactive <- login_output$authenticated
       is_public_reactive <- login_output$is_public
     } else {
       # Pool provided, mark as authenticated
-      pool_reactive <- shiny::reactive(pool_taxa)
+      pool_reactive      <- shiny::reactive(pool_taxa)
+      pool_main_reactive <- shiny::reactive(.db_env$pool_main)   # best-effort fallback
       authenticated_reactive <- shiny::reactive(TRUE)
       is_public_reactive <- shiny::reactive(FALSE)
 
@@ -554,6 +556,7 @@ shiny_app_taxo_backbone <- function(pool_taxa = NULL, language = "fr") {
       mod_taxa_add_server(
         "add",
         pool = pool_reactive,
+        pool_main = pool_main_reactive,
         has_write_permission = has_write_permission,
         i18n = i18n
       )
