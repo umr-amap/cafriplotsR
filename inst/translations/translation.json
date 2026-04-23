@@ -7320,6 +7320,486 @@
     {
       "en": "stem_status records to write: %d",
       "fr": "enregistrements de statut des tiges à écrire : %d"
+    },
+    {
+      "en": "Step 1: Search External Databases (Optional)",
+      "fr": "Étape 1 : Rechercher dans les bases externes (optionnel)"
+    },
+    {
+      "en": "Search Tropicos and/or the WCVP backbone to auto-fill taxonomic information, or skip to manual entry",
+      "fr": "Rechercher dans Tropicos et/ou le backbone WCVP pour remplir automatiquement les informations taxonomiques, ou passer à la saisie manuelle"
+    },
+    {
+      "en": "Search Tropicos & WCVP",
+      "fr": "Rechercher Tropicos & WCVP"
+    },
+    {
+      "en": "Tropicos",
+      "fr": "Tropicos"
+    },
+    {
+      "en": "WCVP Backbone",
+      "fr": "Backbone WCVP"
+    },
+    {
+      "en": "No WCVP results yet - enter a name and click Search",
+      "fr": "Aucun résultat WCVP - saisissez un nom et cliquez sur Rechercher"
+    },
+    {
+      "en": "No match found in WCVP backbone",
+      "fr": "Aucune correspondance trouvée dans le backbone WCVP"
+    },
+    {
+      "en": "Fuzzy match",
+      "fr": "Correspondance approchée"
+    },
+    {
+      "en": "%d result(s)",
+      "fr": "%d résultat(s)"
+    },
+    {
+      "en": "Use Tropicos Result",
+      "fr": "Utiliser le résultat Tropicos"
+    },
+    {
+      "en": "Use WCVP Result",
+      "fr": "Utiliser le résultat WCVP"
+    },
+    {
+      "en": "WCVP ID %s selected — will be linked after taxon creation",
+      "fr": "ID WCVP %s sélectionné — sera lié après la création du taxon"
+    },
+    {
+      "en": "Please select a result from the WCVP table",
+      "fr": "Veuillez sélectionner un résultat dans le tableau WCVP"
+    },
+    {
+      "en": "WCVP data loaded (ID: %s) - proceed to next step",
+      "fr": "Données WCVP chargées (ID : %s) - passez à l'étape suivante"
+    },
+    {
+      "en": "WCVP backbone link will be created: plant_name_id = %s",
+      "fr": "Un lien backbone WCVP sera créé : plant_name_id = %s"
+    },
+    {
+      "en": "WCVP link saved (plant_name_id: %s)",
+      "fr": "Lien WCVP enregistré (plant_name_id : %s)"
+    },
+    {
+      "en": "Warning: WCVP link not saved:",
+      "fr": "Avertissement : lien WCVP non enregistré :"
+    },
+    {
+      "en": "Searching Tropicos & WCVP...",
+      "fr": "Recherche dans Tropicos & WCVP..."
+    },
+    {
+      "en": "Tropicos search error:",
+      "fr": "Erreur de recherche Tropicos :"
+    },
+    {
+      "en": "WCVP backbone link will be created (auto): plant_name_id = %s",
+      "fr": "Un lien backbone WCVP sera créé automatiquement : plant_name_id = %s"
+    },
+    {
+      "en": "Validate WCVP match only",
+      "fr": "Valider uniquement la correspondance WCVP"
+    },
+    {
+      "en": "Fill form fields from this row and validate WCVP link",
+      "fr": "Remplir les champs du formulaire depuis cette ligne et valider le lien WCVP"
+    },
+    {
+      "en": "Keep existing form fields but record this WCVP ID as the backbone link",
+      "fr": "Conserver les champs existants mais enregistrer cet ID WCVP comme lien backbone"
+    },
+    {
+      "en": "WCVP match validated (ID: %s) — link will be saved after taxon creation",
+      "fr": "Correspondance WCVP validée (ID : %s) — le lien sera enregistré après la création du taxon"
+    },
+    {
+      "en": "%d existing backbone taxon/taxa share the same WCVP accepted name:",
+      "fr": "%d taxon(s) du backbone interne partage(nt) le même nom accepté WCVP :"
+    },
+    {
+      "en": "You will be able to set synonymy relationships in Step 5 after adding the new taxon.",
+      "fr": "Vous pourrez définir les relations de synonymie à l’étape 5 après avoir ajouté le nouveau taxon."
+    },
+    {
+      "en": "WCVP-suggested synonymies",
+      "fr": "Synonymies suggérées par WCVP"
+    },
+    {
+      "en": "These backbone taxa share the same WCVP accepted name as the taxon you just added. Select those you want to set as synonyms of this new entry.",
+      "fr": "Ces taxons du backbone partagent le même nom accepté WCVP que le taxon que vous venez d’ajouter. Sélectionnez ceux que vous souhaitez définir comme synonymes de cette nouvelle entrée."
+    },
+    {
+      "en": "Set selected as synonyms of new taxon",
+      "fr": "Définir la sélection comme synonymes du nouveau taxon"
+    },
+    {
+      "en": "Set %d taxon/taxa as synonym(s) of new entry",
+      "fr": "Définition de %d taxon(s) comme synonyme(s) de la nouvelle entrée"
+    },
+    {
+      "en": "Setting WCVP-suggested synonymies...",
+      "fr": "Définition des synonymies suggérées par WCVP…"
+    },
+    {
+      "en": "Configure how individual tree data should be extracted and formatted.",
+      "fr": "Configurez comment les données individuelles des arbres doivent être extraites et formatées."
+    },
+    {
+      "en": "Each section is independent — hover the",
+      "fr": "Chaque section est indépendante — survolez les"
+    },
+    {
+      "en": "icons for explanations.",
+      "fr": "icônes pour les explications."
+    },
+    {
+      "en": "Choose which column preset to use in the extracted data.",
+      "fr": "Choisissez le preset de colonnes à utiliser dans les données extraites."
+    },
+    {
+      "en": "Select the preset that best matches your analysis workflow.",
+      "fr": "Sélectionnez le preset qui correspond le mieux à votre flux d'analyse."
+    },
+    {
+      "en": "Auto-detect from plot method",
+      "fr": "Détection automatique selon la méthode du plot"
+    },
+    {
+      "en": "Automatically selects the best format based on the plot method: transect data use the transect preset, permanent plots use permanent_plot, etc.",
+      "fr": "Sélectionne automatiquement le meilleur format selon la méthode du plot : les transects utilisent le preset transect, les plots permanents utilisent permanent_plot, etc."
+    },
+    {
+      "en": "Minimal",
+      "fr": "Minimal"
+    },
+    {
+      "en": "Only essential columns: plot name, species tag, and DBH. Best for quick summaries.",
+      "fr": "Seulement les colonnes essentielles : nom du plot, tag de l'espèce et DBH. Idéal pour des résumés rapides."
+    },
+    {
+      "en": "Standard",
+      "fr": "Standard"
+    },
+    {
+      "en": "Common columns for general ecological analysis: dates, coordinates, and main measurements.",
+      "fr": "Colonnes communes pour l'analyse écologique générale : dates, coordonnées et mesures principales."
+    },
+    {
+      "en": "Permanent Plot — single census",
+      "fr": "Plot permanent — recensement unique"
+    },
+    {
+      "en": "Structured for permanent plot monitoring with one census per individual row.",
+      "fr": "Structuré pour le suivi de plots permanents avec un recensement par ligne individuelle."
+    },
+    {
+      "en": "Permanent Plot — multi-census",
+      "fr": "Plot permanent — multi-recensement"
+    },
+    {
+      "en": "Preserves all census columns side by side. Best for time-series and growth-rate analysis.",
+      "fr": "Conserve toutes les colonnes de recensement côte à côte. Idéal pour l'analyse de séries temporelles et de taux de croissance."
+    },
+    {
+      "en": "Transect",
+      "fr": "Transect"
+    },
+    {
+      "en": "Simplified format optimised for walk-survey transect data (no census dimension).",
+      "fr": "Format simplifié optimisé pour les données de transects (sans dimension de recensement)."
+    },
+    {
+      "en": "Every available column included. Largest output; use for complete data export.",
+      "fr": "Toutes les colonnes disponibles incluses. Sortie la plus volumineuse ; à utiliser pour une exportation complète des données."
+    },
+    {
+      "en": "Control how data from multiple census visits is aggregated or laid out in the output.",
+      "fr": "Contrôlez comment les données de plusieurs visites de recensement sont agrégées ou disposées dans la sortie."
+    },
+    {
+      "en": "When an individual has been measured several times, keep:",
+      "fr": "Lorsqu'un individu a été mesuré plusieurs fois, conserver :"
+    },
+    {
+      "en": "Applies to plots with multiple census visits. Controls which measurement(s) appear in the output.",
+      "fr": "S'applique aux plots avec plusieurs visites de recensement. Contrôle quelle(s) mesure(s) apparaît dans la sortie."
+    },
+    {
+      "en": "Last (most recent) census",
+      "fr": "Dernier recensement (le plus récent)"
+    },
+    {
+      "en": "Keep only the most recent measurement per individual.",
+      "fr": "Conserver uniquement la mesure la plus récente par individu."
+    },
+    {
+      "en": "First (earliest) census",
+      "fr": "Premier recensement (le plus ancien)"
+    },
+    {
+      "en": "Keep only the earliest measurement per individual.",
+      "fr": "Conserver uniquement la mesure la plus ancienne par individu."
+    },
+    {
+      "en": "Mean across all censuses",
+      "fr": "Moyenne sur tous les recensements"
+    },
+    {
+      "en": "Average numeric values across all census dates per individual.",
+      "fr": "Moyenne des valeurs numériques sur toutes les dates de recensement par individu."
+    },
+    {
+      "en": "Multiple census columns",
+      "fr": "Colonnes multi-recensement"
+    },
+    {
+      "en": "Creates separate columns per census visit (e.g. dbh_2010, dbh_2015). Only meaningful for permanent multi-census plots.",
+      "fr": "Crée des colonnes séparées par visite de recensement (ex. dbh_2010, dbh_2015). Pertinent uniquement pour les plots permanents multi-recensements."
+    },
+    {
+      "en": "Show each census as separate columns",
+      "fr": "Afficher chaque recensement dans des colonnes séparées"
+    },
+    {
+      "en": "Individual features format — main extraction",
+      "fr": "Format des attributs individuels — extraction principale"
+    },
+    {
+      "en": "Controls the layout of individual-level features included alongside the main tree data. This is completely independent from the advanced query section below.",
+      "fr": "Contrôle la disposition des attributs individuels inclus avec les données principales des arbres. Complètement indépendant de la section de requête avancée ci-dessous."
+    },
+    {
+      "en": "Wide — one row per individual",
+      "fr": "Large — une ligne par individu"
+    },
+    {
+      "en": "Features become columns. Compact; multiple observations per individual are aggregated.",
+      "fr": "Les attributs deviennent des colonnes. Compact ; plusieurs observations par individu sont agrégées."
+    },
+    {
+      "en": "Long — one row per measurement",
+      "fr": "Long — une ligne par mesure"
+    },
+    {
+      "en": "Each observation gets its own row. No aggregation; full detail but more rows.",
+      "fr": "Chaque observation obtient sa propre ligne. Aucune agrégation ; détail complet mais plus de lignes."
+    },
+    {
+      "en": "Census pairs — one row per census interval",
+      "fr": "Paires de recensement — une ligne par intervalle"
+    },
+    {
+      "en": "Pairs consecutive censuses per individual. Columns include dbh0, dbh1, date0, date1, elapsed days.",
+      "fr": "Apparie les recensements consécutifs par individu. Colonnes : dbh0, dbh1, date0, date1, jours écoulés."
+    },
+    {
+      "en": "Data Organisation",
+      "fr": "Organisation des données"
+    },
+    {
+      "en": "Fine-tune the structure and cleanliness of the extracted output.",
+      "fr": "Affinez la structure et la propreté de la sortie extraite."
+    },
+    {
+      "en": "Multiple stems",
+      "fr": "Tiges multiples"
+    },
+    {
+      "en": "For multi-stemmed trees: merge all stem measurements into one row, values separated by semicolons. When unchecked, each stem gets its own row.",
+      "fr": "Pour les arbres multi-tiges : fusionner toutes les mesures des tiges en une ligne, valeurs séparées par des points-virgules. Si décoché, chaque tige obtient sa propre ligne."
+    },
+    {
+      "en": "Concatenate stems per individual",
+      "fr": "Concaténer les tiges par individu"
+    },
+    {
+      "en": "Database ID columns",
+      "fr": "Colonnes d'identifiants de la base de données"
+    },
+    {
+      "en": "Internal IDs (id_n, id_plot, etc.) are useful for cross-referencing with the database but add clutter to analysis datasets.",
+      "fr": "Les identifiants internes (id_n, id_plot, etc.) sont utiles pour les références croisées avec la base de données, mais alourdissent les jeux de données d'analyse."
+    },
+    {
+      "en": "Remove internal ID columns",
+      "fr": "Supprimer les colonnes d'identifiants internes"
+    },
+    {
+      "en": "Flagged record handling",
+      "fr": "Gestion des enregistrements signalés"
+    },
+    {
+      "en": "Some records are flagged as potentially problematic (e.g. biologically implausible DBH growth between censuses). Choose how they appear in the output.",
+      "fr": "Certains enregistrements sont signalés comme potentiellement problématiques (ex. croissance du DBH biologiquement invraisemblable entre recensements). Choisissez comment ils apparaissent dans la sortie."
+    },
+    {
+      "en": "Remove flagged records (recommended for analysis)",
+      "fr": "Supprimer les enregistrements signalés (recommandé pour l'analyse)"
+    },
+    {
+      "en": "Keep flagged records and add flag columns",
+      "fr": "Conserver les enregistrements signalés et ajouter des colonnes de signalement"
+    },
+    {
+      "en": "Ignore flags — include all records without flag columns",
+      "fr": "Ignorer les signalements — inclure tous les enregistrements sans colonnes de signalement"
+    },
+    {
+      "en": "Optionally enrich the extraction with linked datasets joined to individual tree records.",
+      "fr": "Enrichissez optionnellement l'extraction avec des jeux de données liés aux enregistrements d'arbres individuels."
+    },
+    {
+      "en": "Taxonomic traits",
+      "fr": "Traits taxonomiques"
+    },
+    {
+      "en": "Joins species-level traits (e.g. wood density, leaf area index) from the trait database to each individual row.",
+      "fr": "Joint les traits au niveau de l'espèce (ex. densité du bois, indice de surface foliaire) de la base de traits à chaque ligne individuelle."
+    },
+    {
+      "en": "Include taxonomic traits",
+      "fr": "Inclure les traits taxonomiques"
+    },
+    {
+      "en": "Individual-level features",
+      "fr": "Attributs individuels"
+    },
+    {
+      "en": "Appends individual-level observations linked to each tree (e.g. phenology codes, damage records, buttress presence).",
+      "fr": "Ajoute les observations au niveau individuel liées à chaque arbre (ex. codes phénologiques, dommages, présence de contreforts)."
+    },
+    {
+      "en": "Include individual features",
+      "fr": "Inclure les attributs individuels"
+    },
+    {
+      "en": "Subplot features",
+      "fr": "Attributs des sous-plots"
+    },
+    {
+      "en": "Appends subplot-level information linked to the plot (e.g. soil samples, observer notes, census date metadata).",
+      "fr": "Ajoute les informations au niveau sous-plot liées au plot (ex. échantillons de sol, notes d'observateur, métadonnées de date de recensement)."
+    },
+    {
+      "en": "Include subplot features",
+      "fr": "Inclure les attributs des sous-plots"
+    },
+    {
+      "en": "Genus fallback for traits",
+      "fr": "Repli au niveau du genre pour les traits"
+    },
+    {
+      "en": "When a species has no trait data in the database, substitute with the genus-level average value.",
+      "fr": "Lorsqu'une espèce n'a pas de données de traits dans la base de données, substituer par la valeur moyenne au niveau du genre."
+    },
+    {
+      "en": "Fall back to genus-level traits",
+      "fr": "Utiliser les traits au niveau du genre en repli"
+    },
+    {
+      "en": "Advanced — Query Individual Features Separately",
+      "fr": "Avancé — Interroger les attributs individuels séparément"
+    },
+    {
+      "en": "click to expand",
+      "fr": "cliquer pour développer"
+    },
+    {
+      "en": "This optional step queries all attributes linked to each individual tree — trait measurements, phenological observations, etc. — and returns them as a dedicated table.",
+      "fr": "Cette étape optionnelle interroge tous les attributs liés à chaque arbre individuel — mesures de traits, observations phénologiques, etc. — et les retourne sous forme de tableau dédié."
+    },
+    {
+      "en": "The result is independent from the main extraction above and can use a different format.",
+      "fr": "Le résultat est indépendant de l'extraction principale ci-dessus et peut utiliser un format différent."
+    },
+    {
+      "en": "Prerequisite:",
+      "fr": "Prérequis :"
+    },
+    {
+      "en": "Run the main extraction first (button above). This step uses the individual IDs from that result.",
+      "fr": "Exécutez d'abord l'extraction principale (bouton ci-dessus). Cette étape utilise les identifiants individuels de ce résultat."
+    },
+    {
+      "en": "Trait selection",
+      "fr": "Sélection des traits"
+    },
+    {
+      "en": "Choose whether to retrieve all trait types or restrict to specific ones identified by their database IDs.",
+      "fr": "Choisissez de récupérer tous les types de traits ou de les restreindre à des types spécifiques identifiés par leurs identifiants de base de données."
+    },
+    {
+      "en": "Specific traits only (enter IDs below)",
+      "fr": "Traits spécifiques uniquement (entrer les identifiants ci-dessous)"
+    },
+    {
+      "en": "Enter comma-separated trait IDs from the database to restrict the query.",
+      "fr": "Entrez des identifiants de traits séparés par des virgules pour restreindre la requête."
+    },
+    {
+      "en": "Trait IDs (comma-separated)",
+      "fr": "Identifiants de traits (séparés par des virgules)"
+    },
+    {
+      "en": "e.g. 1, 2, 5, 10",
+      "fr": "ex. 1, 2, 5, 10"
+    },
+    {
+      "en": "Output format for this table",
+      "fr": "Format de sortie pour ce tableau"
+    },
+    {
+      "en": "Controls the shape of this separate individual features table. Completely independent from the format chosen in the Census Handling section above.",
+      "fr": "Contrôle la forme de ce tableau d'attributs individuels séparé. Complètement indépendant du format choisi dans la section Gestion des recensements ci-dessus."
+    },
+    {
+      "en": "Wide — measurements as columns",
+      "fr": "Large — mesures en colonnes"
+    },
+    {
+      "en": "One row per individual; each trait is a column. Values are aggregated if multiple observations exist.",
+      "fr": "Une ligne par individu ; chaque trait est une colonne. Les valeurs sont agrégées si plusieurs observations existent."
+    },
+    {
+      "en": "Long — measurements as rows",
+      "fr": "Long — mesures en lignes"
+    },
+    {
+      "en": "One row per measurement. No aggregation; the most complete representation.",
+      "fr": "Une ligne par mesure. Aucune agrégation ; la représentation la plus complète."
+    },
+    {
+      "en": "Pairs consecutive censuses per individual. Columns: dbh0, dbh1, date0, date1, elapsed days, stem status.",
+      "fr": "Apparie les recensements consécutifs par individu. Colonnes : dbh0, dbh1, date0, date1, jours écoulés, statut de tige."
+    },
+    {
+      "en": "Multi-census data",
+      "fr": "Données multi-recensement"
+    },
+    {
+      "en": "Include features recorded at multiple census dates rather than only the selected census.",
+      "fr": "Inclure les attributs enregistrés à plusieurs dates de recensement plutôt que seulement le recensement sélectionné."
+    },
+    {
+      "en": "Measurement metadata",
+      "fr": "Métadonnées de mesure"
+    },
+    {
+      "en": "Add columns with observer name, recording date, and method for each measurement.",
+      "fr": "Ajouter des colonnes avec le nom de l'observateur, la date d'enregistrement et la méthode pour chaque mesure."
+    },
+    {
+      "en": "One row per measurement. Most complete representation — no aggregation, no information loss.",
+      "fr": "Une ligne par mesure. Représentation la plus complète — aucune agrégation, aucune perte d'information."
+    },
+    {
+      "en": "Simplified format optimised for transect walk surveys",
+      "fr": "Format simplifié optimisé pour les relevés en transect"
     }
   ]
 }

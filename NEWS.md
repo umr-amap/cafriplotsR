@@ -2,6 +2,14 @@
 
 ### New Features
 
+* **`mod_extraction_config` — UI redesign with CSS-only tooltips and section cards**
+  - Replaced dynamically-rendered UI with a static layout featuring coloured section cards (`.cfg-card`) and collapsible advanced options via native `<details>`
+  - Added CSS-only question-mark tooltips (`.tip`) requiring no JavaScript
+
+* **`mod_taxa_add` — WCVP backbone search integrated into Step 1**
+  - `mod_taxa_add_server()` gains a `pool_main` parameter and new reactive values (`wcvp_results`, `wcvp_selected_id`, `wcvp_synonymy_candidates`)
+  - Step 1 now searches both Tropicos and the WCVP backbone simultaneously; results are displayed in separate panels with distinct visual styling
+
 * **WCVP backbone integration** — all major query functions now accept `backbone = "wcvp"` to use the World Checklist of Vascular Plants as an alternative to the internal taxonomy
   - New file `R/wcvp_integration.R` with schema setup (`setup_wcvp_schema()`), data import (`import_wcvp_names()`), taxon matching (`match_taxa_to_wcvp()`, `save_wcvp_links()`), lookup (`get_wcvp_names()`), and status utilities (`get_wcvp_status()`, `check_wcvp_update()`)
   - When `backbone = "wcvp"`, standard taxonomy columns (`tax_fam`, `tax_gen`, `tax_esp`, `tax_sp_level`, `tax_infra_level`, `tax_infra_level_auth`) are replaced in-place with WCVP values; two extra columns are added: `name_source` (`"wcvp"` or `"internal"`) and `alt_taxon_name` (the internal name preserved for reference)

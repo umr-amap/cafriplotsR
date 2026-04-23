@@ -28,13 +28,16 @@ mod_taxa_add_ui <- function(id) {
 #'
 #' @keywords internal
 #' @export
-mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
+mod_taxa_add_server <- function(id, pool, pool_main = NULL, has_write_permission, i18n) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
     # Reactive values
     rv <- shiny::reactiveValues(
       tropicos_results = NULL,
+      wcvp_results = NULL,             # Search results from WCVP backbone
+      wcvp_selected_id = NULL,         # plant_name_id of the WCVP row chosen by user
+      wcvp_synonymy_candidates = NULL, # Existing internal taxa that share the same WCVP accepted name
       current_step = 1,
       form_data = list(),
       new_taxon_id = NULL,
@@ -118,12 +121,13 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
       )
     })
 
-    # Step 1: Tropicos Search
+    # Step 1: Tropicos + WCVP Search
     step1_tropicos_ui <- function(ns, i18n) {
       shiny::tagList(
-        shiny::h5(i18n()$t("Step 1: Search Tropicos Database (Optional)")),
-        shiny::p(i18n()$t("Search Tropicos to auto-fill taxonomic information, or skip to manual entry")),
+        shiny::h5(i18n()$t("Step 1: Search External Databases (Optional)")),
+        shiny::p(i18n()$t("Search Tropicos and/or the WCVP backbone to auto-fill taxonomic information, or skip to manual entry")),
 
+        # Shared search input
         shiny::wellPanel(
           shiny::fluidRow(
             shiny::column(
@@ -139,13 +143,26 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
               shiny::br(),
               shiny::actionButton(
                 ns("btn_search_tropicos"),
-                i18n()$t("Search Tropicos"),
+                i18n()$t("Search Tropicos & WCVP"),
                 icon = shiny::icon("search"),
                 class = "btn-primary btn-block"
               )
             )
-          ),
+          )
+        ),
+
+        # Tropicos results
+        shiny::wellPanel(
+          style = "border-left: 4px solid #007bff;",
+          shiny::h6(shiny::icon("leaf"), " ", i18n()$t("Tropicos")),
           shiny::uiOutput(ns("tropicos_results_ui"))
+        ),
+
+        # WCVP results
+        shiny::wellPanel(
+          style = "border-left: 4px solid #28a745;",
+          shiny::h6(shiny::icon("globe"), " ", i18n()$t("WCVP Backbone")),
+          shiny::uiOutput(ns("wcvp_results_ui"))
         ),
 
         shiny::hr(),
@@ -173,7 +190,7 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
       )
     }
 
-    # Search Tropicos
+    # Search Tropicos + WCVP
     shiny::observeEvent(input$btn_search_tropicos, {
       shiny::req(input$tropicos_search)
 
@@ -188,43 +205,51 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
       }
 
       shiny::withProgress({
+
+        # -- Tropicos --
         tryCatch({
           if (!requireNamespace("taxize", quietly = TRUE)) {
             shiny::showNotification(
               "Package 'taxize' is required for Tropicos search. Please install it.",
               type = "error", duration = 8
             )
-            return(NULL)
-          }
-          tps_key <- Sys.getenv("TROPICOS_API_KEY", "15ad0b4c-f0d3-46ab-b649-178f2c75724f")
-          cli::cli_alert_info("Searching Tropicos for: {search_name}")
-          results <- taxize::tp_search(sci = search_name, key = tps_key)
-
-          if (ncol(results) == 1) {
-            shiny::showNotification(
-              i18n()$t("No results found on Tropicos"),
-              type = "warning",
-              duration = 5
-            )
-            rv$tropicos_results <- NULL
           } else {
-            rv$tropicos_results <- results
-            shiny::showNotification(
-              sprintf(i18n()$t("Found %d results"), nrow(results)),
-              type = "message",
-              duration = 3
-            )
+            tps_key <- Sys.getenv("TROPICOS_API_KEY", "15ad0b4c-f0d3-46ab-b649-178f2c75724f")
+            cli::cli_alert_info("Searching Tropicos for: {search_name}")
+            results <- taxize::tp_search(sci = search_name, key = tps_key)
+
+            if (ncol(results) == 1) {
+              rv$tropicos_results <- NULL
+            } else {
+              rv$tropicos_results <- results
+            }
           }
         }, error = function(e) {
           cli::cli_alert_danger("Tropicos search failed: {e$message}")
           shiny::showNotification(
-            paste(i18n()$t("Search error:"), e$message),
-            type = "error",
-            duration = 10
+            paste(i18n()$t("Tropicos search error:"), e$message),
+            type = "warning",
+            duration = 8
           )
           rv$tropicos_results <- NULL
         })
-      }, message = i18n()$t("Searching Tropicos..."))
+
+        # -- WCVP --
+        tryCatch({
+          rv$wcvp_results <- .search_wcvp_backbone(search_name, pool())
+          # Immediately check synonymy candidates for the best result
+          rv$wcvp_synonymy_candidates <- NULL
+          if (!is.null(rv$wcvp_results) && nrow(rv$wcvp_results) > 0) {
+            best_id <- rv$wcvp_results$plant_name_id[1L]
+            rv$wcvp_synonymy_candidates <- .check_wcvp_synonymy_candidates(best_id, pool())
+          }
+        }, error = function(e) {
+          cli::cli_alert_danger("WCVP search failed: {e$message}")
+          rv$wcvp_results <- NULL
+          rv$wcvp_synonymy_candidates <- NULL
+        })
+
+      }, message = i18n()$t("Searching Tropicos & WCVP..."))
     })
 
     # Display Tropicos results
@@ -246,9 +271,9 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
         shiny::br(),
         shiny::actionButton(
           ns("btn_use_selected"),
-          i18n()$t("Use Selected Result"),
+          i18n()$t("Use Tropicos Result"),
           icon = shiny::icon("check"),
-          class = "btn-success"
+          class = "btn-primary"
         )
       )
     })
@@ -291,8 +316,216 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
         rv$form_data$tax_name1 <- strsplit(result$scientificname, " ")[[1]][4]
       }
 
+      # Clear any previously selected WCVP ID (user chose Tropicos)
+      rv$wcvp_selected_id <- NULL
+      rv$form_data$wcvp_plant_name_id <- NULL
+
       shiny::showNotification(
         i18n()$t("Tropicos data loaded - proceed to next step"),
+        type = "message"
+      )
+    })
+
+    # ---- WCVP results UI ----
+    output$wcvp_results_ui <- shiny::renderUI({
+      if (is.null(rv$wcvp_results)) {
+        return(
+          shiny::div(
+            class = "alert alert-info",
+            shiny::icon("info-circle"),
+            " ",
+            i18n()$t("No WCVP results yet - enter a name and click Search")
+          )
+        )
+      }
+
+      if (nrow(rv$wcvp_results) == 0) {
+        return(
+          shiny::div(
+            class = "alert alert-warning",
+            shiny::icon("exclamation-triangle"),
+            " ",
+            i18n()$t("No match found in WCVP backbone")
+          )
+        )
+      }
+
+      # Badge showing match type
+      match_types <- unique(rv$wcvp_results$match_type)
+      badge_class <- if ("exact" %in% match_types) "badge badge-success" else "badge badge-warning"
+      badge_label <- if ("exact" %in% match_types) i18n()$t("Exact match") else i18n()$t("Fuzzy match")
+
+      shiny::tagList(
+        shiny::div(
+          shiny::span(class = badge_class, badge_label),
+          shiny::span(
+            class = "text-muted",
+            style = "margin-left: 8px; font-size: 0.9em;",
+            sprintf(i18n()$t("%d result(s)"), nrow(rv$wcvp_results))
+          )
+        ),
+        shiny::br(),
+        DT::DTOutput(ns("wcvp_table")),
+        shiny::br(),
+        shiny::fluidRow(
+          shiny::column(
+            6,
+            shiny::actionButton(
+              ns("btn_use_wcvp"),
+              i18n()$t("Use WCVP Result"),
+              icon = shiny::icon("check"),
+              class = "btn-success",
+              title = i18n()$t("Fill form fields from this row and validate WCVP link")
+            )
+          ),
+          shiny::column(
+            6,
+            shiny::actionButton(
+              ns("btn_validate_wcvp"),
+              i18n()$t("Validate WCVP match only"),
+              icon = shiny::icon("link"),
+              class = "btn-outline-success",
+              title = i18n()$t("Keep existing form fields but record this WCVP ID as the backbone link")
+            )
+          )
+        ),
+        shiny::uiOutput(ns("wcvp_selected_badge_ui")),
+        shiny::uiOutput(ns("wcvp_synonymy_preview_ui"))
+      )
+    })
+
+    # WCVP results table
+    output$wcvp_table <- DT::renderDT({
+      shiny::req(rv$wcvp_results)
+      display_cols <- c(
+        "plant_name_id", "taxon_name", "taxon_authors", "taxon_rank",
+        "taxon_status", "family", "genus", "species",
+        "infraspecific_rank", "infraspecies", "accepted_plant_name_id", "match_type"
+      )
+      cols_present <- intersect(display_cols, names(rv$wcvp_results))
+      DT::datatable(
+        rv$wcvp_results[, cols_present, drop = FALSE],
+        selection = list(mode = "single"),
+        options = list(pageLength = 5, scrollX = TRUE, dom = "tp"),
+        rownames = FALSE
+      )
+    })
+
+    # Warning shown in Step 1 when synonymy candidates exist in internal backbone
+    output$wcvp_synonymy_preview_ui <- shiny::renderUI({
+      cands <- rv$wcvp_synonymy_candidates
+      if (is.null(cands) || nrow(cands) == 0) return(NULL)
+
+      names_txt <- paste(
+        paste0(cands$tax_gen, " ", cands$tax_esp,
+               ifelse(!is.na(cands$tax_nam01) & cands$tax_nam01 != "",
+                      paste0(" ", cands$tax_rank01, " ", cands$tax_nam01), ""),
+               " (ID: ", cands$idtax_n, ")"),
+        collapse = ", "
+      )
+
+      shiny::div(
+        class = "alert alert-warning",
+        style = "margin-top: 8px;",
+        shiny::icon("exclamation-triangle"),
+        " ",
+        shiny::strong(
+          sprintf(i18n()$t("%d existing backbone taxon/taxa share the same WCVP accepted name:"),
+                  nrow(cands))
+        ),
+        shiny::br(),
+        shiny::span(class = "text-muted", names_txt),
+        shiny::br(),
+        shiny::tags$small(i18n()$t("You will be able to set synonymy relationships in Step 5 after adding the new taxon."))
+      )
+    })
+
+    # Badge confirming which WCVP record is currently selected
+    output$wcvp_selected_badge_ui <- shiny::renderUI({
+      if (is.null(rv$wcvp_selected_id)) return(NULL)
+      shiny::div(
+        class = "alert alert-success",
+        style = "margin-top: 6px; padding: 6px 12px;",
+        shiny::icon("link"),
+        " ",
+        sprintf(
+          i18n()$t("WCVP ID %s selected — will be linked after taxon creation"),
+          rv$wcvp_selected_id
+        )
+      )
+    })
+
+    # Use selected WCVP result
+    shiny::observeEvent(input$btn_use_wcvp, {
+      shiny::req(rv$wcvp_results)
+      selected <- input$wcvp_table_rows_selected
+
+      # Default to first row if none selected
+      if (length(selected) == 0) selected <- 1L
+
+      result <- rv$wcvp_results[selected, ]
+
+      # Populate form fields from WCVP
+      rv$form_data$tax_gen <- result$genus
+      rv$form_data$tax_esp <- result$species
+      rv$form_data$tax_fam <- result$family
+      rv$form_data$author1 <- result$taxon_authors
+      rv$form_data$tax_tax <- paste(result$taxon_name, result$taxon_authors)
+
+      if (!is.na(result$infraspecific_rank) && nchar(trimws(result$infraspecific_rank)) > 0) {
+        rv$form_data$tax_rank1 <- result$infraspecific_rank
+        rv$form_data$tax_name1 <- result$infraspecies
+      } else {
+        rv$form_data$tax_rank1 <- NULL
+        rv$form_data$tax_name1 <- NULL
+      }
+
+      # Store WCVP plant_name_id for later link insertion
+      rv$wcvp_selected_id <- as.integer(result$plant_name_id)
+      rv$form_data$wcvp_plant_name_id <- as.integer(result$plant_name_id)
+
+      # Re-run synonymy check for this specific row if it differs from best result
+      if (is.null(rv$wcvp_synonymy_candidates) ||
+          (nrow(rv$wcvp_results) > 0 && rv$wcvp_results$plant_name_id[1L] != result$plant_name_id)) {
+        rv$wcvp_synonymy_candidates <- .check_wcvp_synonymy_candidates(
+          as.integer(result$plant_name_id), pool()
+        )
+      }
+
+      shiny::showNotification(
+        sprintf(
+          i18n()$t("WCVP data loaded (ID: %s) - proceed to next step"),
+          result$plant_name_id
+        ),
+        type = "message"
+      )
+    })
+
+    # Validate WCVP match (link only — does not fill form fields)
+    shiny::observeEvent(input$btn_validate_wcvp, {
+      shiny::req(rv$wcvp_results)
+      selected <- input$wcvp_table_rows_selected
+
+      # Default to first row if none selected
+      if (length(selected) == 0) selected <- 1L
+
+      result <- rv$wcvp_results[selected, ]
+      rv$wcvp_selected_id <- as.integer(result$plant_name_id)
+      rv$form_data$wcvp_plant_name_id <- as.integer(result$plant_name_id)
+
+      # Re-run synonymy check for this specific row if it differs from best result
+      if (is.null(rv$wcvp_synonymy_candidates) ||
+          (nrow(rv$wcvp_results) > 0 && rv$wcvp_results$plant_name_id[1L] != result$plant_name_id)) {
+        rv$wcvp_synonymy_candidates <- .check_wcvp_synonymy_candidates(
+          as.integer(result$plant_name_id), pool()
+        )
+      }
+
+      shiny::showNotification(
+        sprintf(
+          i18n()$t("WCVP match validated (ID: %s) — link will be saved after taxon creation"),
+          result$plant_name_id
+        ),
         type = "message"
       )
     })
@@ -574,95 +807,58 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
             }
           }, add = TRUE)
 
-          # Direct minimal query for family-level taxon (no traits!)
-          # Family-level taxa have genus = NA/NULL and species = NA/NULL
-          # Class is stored as FK to table_tax_famclass
-          family_entry <- dplyr::tbl(actual_con, "table_taxa") %>%
-            dplyr::filter(tax_fam == !!family_name) %>%
-            dplyr::filter(is.na(tax_gen)) %>%
-            dplyr::filter(is.na(tax_esp)) %>%
-            dplyr::select(-tax_famclass) %>%
-            dplyr::left_join(
-              dplyr::tbl(actual_con, "table_tax_famclass"),
-              by = "id_tax_famclass"
-            ) %>%
-            dplyr::select(tax_fam, tax_order, id_tax_famclass, tax_famclass) %>%
-            dplyr::distinct() %>%
-            dplyr::collect()
+          # Navigate the hierarchy using id_parent to get canonical order and class.
+          # Steps:
+          #   1. Find the accepted family entry (tax_level = 'family', idtax_good_n IS NULL)
+          #   2. Follow id_parent to the order-level entry → get tax_order name
+          #   3. Get class via id_tax_famclass → table_tax_famclass join on the family entry
+          family_row <- DBI::dbGetQuery(actual_con,
+            "SELECT f.idtax_n, f.id_parent, f.id_tax_famclass,
+                    COALESCE(p.tax_order, f.tax_order) AS tax_order,
+                    tc.tax_famclass
+             FROM table_taxa f
+             LEFT JOIN table_taxa p  ON p.idtax_n = f.id_parent
+             LEFT JOIN table_tax_famclass tc ON tc.id_tax_famclass = f.id_tax_famclass
+             WHERE LOWER(f.tax_fam) = LOWER($1)
+               AND f.tax_level = 'family'
+               AND f.idtax_good_n IS NULL
+             LIMIT 1",
+            params = list(family_name)
+          )
 
-          if (nrow(family_entry) > 0) {
-            # Found family in backbone - use its order and class
+          if (nrow(family_row) > 0) {
+            order_val <- if (!is.na(family_row$tax_order[1]) && nchar(family_row$tax_order[1]) > 0)
+              family_row$tax_order[1] else NA_character_
+            class_val <- if (!is.na(family_row$tax_famclass[1]) && nchar(family_row$tax_famclass[1]) > 0)
+              family_row$tax_famclass[1] else NA_character_
 
-            # DIAGNOSTIC: Print what we found
-            cli::cli_alert_info("Family entry found with {nrow(family_entry)} row(s)")
-            cli::cli_alert_info("Columns: {paste(names(family_entry), collapse = ', ')}")
-            cli::cli_alert_info("First row data:")
-            print(family_entry[1, ])
-
-            # Extract order: remove NAs, select most frequent
-            order_values <- family_entry$tax_order[!is.na(family_entry$tax_order)]
-            if (length(order_values) > 0) {
-              # Get most frequent value (mode)
-              order_val <- names(sort(table(order_values), decreasing = TRUE))[1]
-            } else {
-              order_val <- NA_character_
-            }
-
-            # Extract class: remove NAs, select most frequent
-            class_values <- family_entry$tax_famclass[!is.na(family_entry$tax_famclass)]
-            if (length(class_values) > 0) {
-              # Get most frequent value (mode)
-              class_val <- names(sort(table(class_values), decreasing = TRUE))[1]
-            } else {
-              class_val <- NA_character_
-            }
-
-            # DIAGNOSTIC: Print extracted values
-            cli::cli_alert_info("Extracted order_val: {if(is.na(order_val)) 'NA' else order_val}")
-            cli::cli_alert_info("Extracted class_val: {if(is.na(class_val)) 'NA' else class_val}")
-
-            # Auto-fill if fields are empty
-            if (!is.na(order_val) && (is.null(input$tax_order) || nchar(trimws(input$tax_order)) == 0)) {
-              cli::cli_alert_info("Updating order field with: {order_val}")
+            # Always update order and class when family changes —
+            # previous taxon's values may still be in the fields
+            if (!is.na(order_val)) {
               shiny::updateTextInput(session, "tax_order", value = order_val)
               rv$order_required <- FALSE
             }
-
-            if (!is.na(class_val) && (is.null(input$tax_famclass) || nchar(trimws(input$tax_famclass)) == 0)) {
-              cli::cli_alert_info("Updating class field with: {class_val}")
+            if (!is.na(class_val)) {
               shiny::updateTextInput(session, "tax_famclass", value = class_val)
               rv$class_required <- FALSE
             }
 
-            # If order or class is missing from family entry, require manual input
-            if (is.na(order_val)) {
-              cli::cli_alert_warning("Order is NA in family entry - requiring manual input")
-              rv$order_required <- TRUE
-            }
-            if (is.na(class_val)) {
-              cli::cli_alert_warning("Class is NA in family entry - requiring manual input")
-              rv$class_required <- TRUE
-            }
+            rv$order_required <- is.na(order_val)
+            rv$class_required <- is.na(class_val)
 
-            cli::cli_alert_success("Family found in backbone: {family_name}")
+            cli::cli_alert_success("Family found: {family_name} → order={if(is.na(order_val)) 'NA' else order_val}, class={if(is.na(class_val)) 'NA' else class_val}")
 
           } else {
-            # Try fuzzy matching with LIKE pattern (no traits!)
-            similar_families <- dplyr::tbl(actual_con, "table_taxa") %>%
-              dplyr::filter(is.na(tax_gen)) %>%
-              dplyr::filter(is.na(tax_esp)) %>%
-              dplyr::left_join(
-                dplyr::tbl(actual_con, "table_tax_famclass"),
-                by = "id_tax_famclass"
-              ) %>%
-              dplyr::select(tax_fam, tax_order, tax_famclass) %>%
-              dplyr::distinct() %>%
-              dplyr::collect() %>%
-              dplyr::filter(grepl(family_name, tax_fam, ignore.case = TRUE))
+            # Try fuzzy match to suggest correct spelling
+            similar_families <- DBI::dbGetQuery(actual_con,
+              "SELECT DISTINCT tax_fam FROM table_taxa
+               WHERE tax_level = 'family' AND tax_fam ILIKE $1
+               LIMIT 5",
+              params = list(paste0("%", family_name, "%"))
+            )
 
             if (nrow(similar_families) > 0) {
-              # Found similar family names
-              suggestions <- paste(head(similar_families$tax_fam, 5), collapse = ", ")
+              suggestions <- paste(similar_families$tax_fam, collapse = ", ")
               shiny::showNotification(
                 paste0(i18n()$t("Family not found. Did you mean:"), " ", suggestions, "?"),
                 type = "warning",
@@ -676,10 +872,9 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
               )
             }
 
-            # Mark fields as required since family not found
             rv$order_required <- TRUE
             rv$class_required <- TRUE
-            cli::cli_alert_warning("Family '{family_name}' not found in backbone as family-level taxon")
+            cli::cli_alert_warning("Family '{family_name}' not found in backbone")
           }
 
         }, error = function(e) {
@@ -894,6 +1089,19 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
           )
         ),
 
+        # WCVP link info — only when user explicitly validated a match
+        if (!is.null(rv$wcvp_selected_id)) {
+          shiny::div(
+            class = "alert alert-success",
+            shiny::icon("link"),
+            " ",
+            sprintf(
+              i18n()$t("WCVP backbone link will be created: plant_name_id = %s"),
+              rv$wcvp_selected_id
+            )
+          )
+        },
+
         shiny::div(
           class = "alert alert-info",
           shiny::icon("info-circle"),
@@ -982,6 +1190,9 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
 
             cli::cli_alert_info("Adding growth forms...")
 
+            # taxa_traits_measures lives in the main DB; fall back to taxa pool if needed
+            growth_pool <- if (!is.null(pool_main) && !is.null(pool_main())) pool_main() else pool()
+
             tryCatch({
               # Add growth forms directly (non-interactive)
               .add_growth_forms_noninteractive(
@@ -989,7 +1200,7 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
                 growth_form_selections = growth_form_module$growth_form_selections(),
                 basisofrecord = growth_form_module$basisofrecord(),
                 measurementremarks = growth_form_module$measurementremarks(),
-                pool = pool()
+                pool = growth_pool
               )
 
               cli::cli_alert_success("Growth forms added successfully")
@@ -1036,6 +1247,50 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
             duration = 10
           )
         })
+
+        # Save WCVP backbone link — runs AFTER the outer tryCatch so that a growth
+        # form failure does not prevent the link from being created.
+        # Uses rv$new_taxon_id (set inside the tryCatch before growth forms run).
+        cli::cli_alert_info("WCVP link check: wcvp_selected_id={if(is.null(rv$wcvp_selected_id)) 'NULL' else rv$wcvp_selected_id}, new_taxon_id={if(is.null(rv$new_taxon_id)) 'NULL' else rv$new_taxon_id}")
+        if (!is.null(rv$wcvp_selected_id) && !is.null(rv$new_taxon_id)) {
+          wcvp_id_to_link <- rv$wcvp_selected_id
+          saved_taxon_id  <- rv$new_taxon_id
+          # Derive match_type from the search results (manual if row no longer in results)
+          wcvp_match_type <- "manual"
+          if (!is.null(rv$wcvp_results) && nrow(rv$wcvp_results) > 0) {
+            hit <- rv$wcvp_results[rv$wcvp_results$plant_name_id == wcvp_id_to_link, ]
+            if (nrow(hit) > 0) wcvp_match_type <- hit$match_type[1L]
+          }
+          tryCatch({
+            cli::cli_alert_info(
+              "Saving WCVP link ({wcvp_match_type}): idtax_n={saved_taxon_id} -> plant_name_id={wcvp_id_to_link}"
+            )
+            match_row <- data.frame(
+              idtax_n       = as.integer(saved_taxon_id),
+              plant_name_id = as.integer(wcvp_id_to_link),
+              match_type    = wcvp_match_type,
+              match_score   = if (wcvp_match_type == "exact") 1.0 else NA_real_,
+              stringsAsFactors = FALSE
+            )
+            save_wcvp_links(match_row, con_taxa = pool(), replace = FALSE, verbose = FALSE)
+            shiny::showNotification(
+              sprintf(
+                i18n()$t("WCVP link saved (plant_name_id: %s)"),
+                wcvp_id_to_link
+              ),
+              type = "message",
+              duration = 5
+            )
+          }, error = function(e) {
+            cli::cli_alert_warning("Could not save WCVP link: {e$message}")
+            shiny::showNotification(
+              paste(i18n()$t("Warning: WCVP link not saved:"), e$message),
+              type = "warning",
+              duration = 10
+            )
+          })
+        }
+
       }, message = i18n()$t("Adding taxon to database..."))
     })
 
@@ -1054,6 +1309,47 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
             sprintf(i18n()$t("New taxon ID: %s"), rv$new_taxon_id)
           }
         ),
+
+        # WCVP-SUGGESTED SYNONYMIES (shown only when candidates exist)
+        if (!is.null(rv$wcvp_synonymy_candidates) && nrow(rv$wcvp_synonymy_candidates) > 0) {
+          cands <- rv$wcvp_synonymy_candidates
+          checkbox_choices <- setNames(
+            as.character(cands$idtax_n),
+            paste0(
+              cands$tax_gen, " ", cands$tax_esp,
+              ifelse(!is.na(cands$tax_nam01) & cands$tax_nam01 != "",
+                     paste0(" ", cands$tax_rank01, " ", cands$tax_nam01), ""),
+              " (ID: ", cands$idtax_n,
+              " | WCVP: ", cands$wcvp_name, " [", cands$taxon_status, "]",
+              ")"
+            )
+          )
+          shiny::tagList(
+            shiny::wellPanel(
+              style = "border-left: 4px solid #fd7e14; background-color: #fff8f0;",
+              shiny::h6(
+                shiny::icon("sitemap"), " ",
+                i18n()$t("WCVP-suggested synonymies")
+              ),
+              shiny::p(
+                class = "text-muted",
+                i18n()$t("These backbone taxa share the same WCVP accepted name as the taxon you just added. Select those you want to set as synonyms of this new entry.")
+              ),
+              shiny::checkboxGroupInput(
+                ns("wcvp_synonym_ids"),
+                label = NULL,
+                choices = checkbox_choices
+              ),
+              shiny::actionButton(
+                ns("btn_confirm_wcvp_synonymies"),
+                i18n()$t("Set selected as synonyms of new taxon"),
+                icon = shiny::icon("check-double"),
+                class = "btn-warning"
+              )
+            ),
+            shiny::hr()
+          )
+        },
 
         # OPTION 1: Set EXISTING taxon as synonym of NEW (most common)
         shiny::wellPanel(
@@ -1161,8 +1457,8 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
         paste0(
           rv$existing_taxon_matches$tax_gen, " ",
           rv$existing_taxon_matches$tax_esp,
-          ifelse(!is.na(rv$existing_taxon_matches$tax_infrasp_type) & rv$existing_taxon_matches$tax_infrasp_type != "",
-                 paste0(" ", rv$existing_taxon_matches$tax_infrasp_type, " ", rv$existing_taxon_matches$tax_infrasp),
+          ifelse(!is.na(rv$existing_taxon_matches$tax_rank01) & rv$existing_taxon_matches$tax_rank01 != "",
+                 paste0(" ", rv$existing_taxon_matches$tax_rank01, " ", rv$existing_taxon_matches$tax_nam01),
                  ""),
           " (ID: ", rv$existing_taxon_matches$idtax_n, ")"
         )
@@ -1196,8 +1492,8 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
         paste0(
           rv$accepted_taxon_matches$tax_gen, " ",
           rv$accepted_taxon_matches$tax_esp,
-          ifelse(!is.na(rv$accepted_taxon_matches$tax_infrasp_type) & rv$accepted_taxon_matches$tax_infrasp_type != "",
-                 paste0(" ", rv$accepted_taxon_matches$tax_infrasp_type, " ", rv$accepted_taxon_matches$tax_infrasp),
+          ifelse(!is.na(rv$accepted_taxon_matches$tax_rank01) & rv$accepted_taxon_matches$tax_rank01 != "",
+                 paste0(" ", rv$accepted_taxon_matches$tax_rank01, " ", rv$accepted_taxon_matches$tax_nam01),
                  ""),
           " (ID: ", rv$accepted_taxon_matches$idtax_n, ")"
         )
@@ -1472,11 +1768,72 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
       }, message = i18n()$t("Setting synonym relationship..."))
     })
 
+    # WCVP-suggested: set all selected as synonyms of the new taxon
+    shiny::observeEvent(input$btn_confirm_wcvp_synonymies, {
+      shiny::req(rv$new_taxon_id)
+      selected_ids <- as.integer(input$wcvp_synonym_ids)
+
+      if (length(selected_ids) == 0) {
+        shiny::showNotification(
+          i18n()$t("No taxa selected"),
+          type = "warning"
+        )
+        return()
+      }
+
+      shiny::withProgress({
+        tryCatch({
+          pool_conn <- pool()
+          actual_con <- pool::poolCheckout(pool_conn)
+          on.exit(pool::poolReturn(actual_con), add = TRUE)
+
+          n_updated <- 0L
+          for (existing_id in selected_ids) {
+            # Check for cascade synonyms already pointing to this existing taxon
+            cascade <- DBI::dbGetQuery(
+              actual_con,
+              sprintf(
+                "SELECT idtax_n FROM table_taxa WHERE idtax_good_n = %d AND idtax_n != %d",
+                existing_id, existing_id
+              )
+            )
+            all_ids <- c(existing_id, cascade$idtax_n)
+            sql <- sprintf(
+              "UPDATE table_taxa SET idtax_good_n = %d WHERE idtax_n IN (%s)",
+              rv$new_taxon_id,
+              paste(all_ids, collapse = ", ")
+            )
+            n_updated <- n_updated + DBI::dbExecute(actual_con, sql)
+          }
+
+          shiny::showNotification(
+            sprintf(i18n()$t("Set %d taxon/taxa as synonym(s) of new entry"), n_updated),
+            type = "message",
+            duration = 5
+          )
+
+          # Clear candidates so the panel disappears
+          rv$wcvp_synonymy_candidates <- NULL
+
+        }, error = function(e) {
+          cli::cli_alert_danger("Failed to set WCVP synonymies: {e$message}")
+          shiny::showNotification(
+            paste(i18n()$t("Error setting synonymies:"), e$message),
+            type = "error",
+            duration = 10
+          )
+        })
+      }, message = i18n()$t("Setting WCVP-suggested synonymies..."))
+    })
+
     # Finish and reset
     shiny::observeEvent(input$btn_finish, {
       rv$form_data <- list()
       rv$current_step <- 1
       rv$tropicos_results <- NULL
+      rv$wcvp_results <- NULL
+      rv$wcvp_selected_id <- NULL
+      rv$wcvp_synonymy_candidates <- NULL
       rv$new_taxon_id <- NULL
       rv$existing_check <- NULL
 
@@ -1611,4 +1968,201 @@ mod_taxa_add_server <- function(id, pool, has_write_permission, i18n) {
 
   cli::cli_alert_success("All growth forms added for taxon {idtax}")
   return(invisible(NULL))
+}
+
+
+#' Search WCVP Backbone for a Scientific Name
+#'
+#' Find Internal Backbone Taxa That Share the Same WCVP Accepted Name
+#'
+#' Given a \code{plant_name_id} from \code{wcvp_names}, retrieves all other
+#' WCVP entries that share the same \code{accepted_plant_name_id} and are
+#' already linked to internal backbone taxa via \code{wcvp_idtax_link}.
+#' These are potential synonyms of the taxon being added.
+#'
+#' @param plant_name_id Integer. WCVP plant_name_id of the matched taxon.
+#' @param con_taxa Database connection (or Pool) to the taxa database.
+#'
+#' @return A data frame with columns \code{idtax_n}, \code{plant_name_id},
+#'   \code{wcvp_name}, \code{taxon_status}, \code{taxon_authors},
+#'   \code{match_type}, \code{tax_gen}, \code{tax_esp}, \code{tax_fam},
+#'   \code{tax_rank01}, \code{tax_nam01}, \code{idtax_good_n},
+#'   or an empty data frame on error / no matches.
+#'
+#' @keywords internal
+.check_wcvp_synonymy_candidates <- function(plant_name_id, con_taxa) {
+  tryCatch({
+    actual_con <- if (inherits(con_taxa, "Pool")) {
+      pool::poolCheckout(con_taxa)
+    } else {
+      con_taxa
+    }
+    on.exit({
+      if (inherits(con_taxa, "Pool") && !is.null(actual_con)) {
+        pool::poolReturn(actual_con)
+      }
+    }, add = TRUE)
+
+    # Check required tables exist
+    ok <- tryCatch({
+      DBI::dbGetQuery(actual_con, "SELECT 1 FROM wcvp_names LIMIT 0;")
+      DBI::dbGetQuery(actual_con, "SELECT 1 FROM wcvp_idtax_link LIMIT 0;")
+      TRUE
+    }, error = function(e) FALSE)
+
+    if (!ok) return(data.frame())
+
+    sql <- "
+      WITH accepted AS (
+        SELECT accepted_plant_name_id
+        FROM wcvp_names
+        WHERE plant_name_id = $1
+      ),
+      co_synonyms AS (
+        SELECT wn.plant_name_id, wn.taxon_name, wn.taxon_status, wn.taxon_authors
+        FROM wcvp_names wn
+        JOIN accepted a ON wn.accepted_plant_name_id = a.accepted_plant_name_id
+        WHERE wn.plant_name_id != $1
+      ),
+      linked AS (
+        SELECT cs.plant_name_id, cs.taxon_name, cs.taxon_status, cs.taxon_authors,
+               lnk.idtax_n, lnk.match_type
+        FROM co_synonyms cs
+        JOIN wcvp_idtax_link lnk ON lnk.plant_name_id = cs.plant_name_id
+      )
+      SELECT
+        l.idtax_n,
+        l.plant_name_id,
+        l.taxon_name   AS wcvp_name,
+        l.taxon_status,
+        l.taxon_authors,
+        l.match_type,
+        tt.tax_gen,
+        tt.tax_esp,
+        tt.tax_fam,
+        tt.tax_rank01,
+        tt.tax_nam01,
+        tt.idtax_good_n
+      FROM linked l
+      JOIN table_taxa tt ON tt.idtax_n = l.idtax_n
+      ORDER BY tt.tax_gen, tt.tax_esp
+    "
+
+    result <- DBI::dbGetQuery(actual_con, sql, params = list(as.integer(plant_name_id)))
+    result
+
+  }, error = function(e) {
+    message("Could not check WCVP synonymy candidates: ", e$message)
+    data.frame()
+  })
+}
+
+
+#' Queries the \code{wcvp_names} table (taxa database) for a given name.
+#' First tries an exact case-insensitive match on \code{taxon_name}; if
+#' nothing is found, falls back to a genus-level filter with a prefix
+#' match on \code{species}, annotating rows with a \code{match_type}
+#' column (\code{"exact"} or \code{"fuzzy"}).
+#'
+#' Returns \code{NULL} silently if the \code{wcvp_names} table is absent.
+#'
+#' @param name Character. Scientific name to search (e.g. \code{"Gilbertiodendron dewevrei"}).
+#' @param con_taxa Database connection (or Pool) to the taxa database.
+#'
+#' @return A data frame of matching WCVP records with an extra
+#'   \code{match_type} column, or \code{NULL} if the table does not exist.
+#'
+#' @keywords internal
+.search_wcvp_backbone <- function(name, con_taxa) {
+
+  actual_con <- if (inherits(con_taxa, "Pool")) {
+    pool::poolCheckout(con_taxa)
+  } else {
+    con_taxa
+  }
+
+  on.exit({
+    if (inherits(con_taxa, "Pool") && !is.null(actual_con)) {
+      pool::poolReturn(actual_con)
+    }
+  }, add = TRUE)
+
+  # Check table exists
+  table_exists <- tryCatch({
+    DBI::dbGetQuery(actual_con, "SELECT 1 FROM wcvp_names LIMIT 0;")
+    TRUE
+  }, error = function(e) FALSE)
+
+  if (!table_exists) return(NULL)
+
+  cols <- paste(
+    "plant_name_id, taxon_name, taxon_authors, taxon_rank, taxon_status,",
+    "family, genus, species, infraspecific_rank, infraspecies, accepted_plant_name_id"
+  )
+
+  parts <- strsplit(trimws(name), "\\s+")[[1]]
+  genus  <- parts[1]
+
+  # 1. Exact match on taxon_name
+  sql_exact <- paste0(
+    "SELECT ", cols, ", 'exact' AS match_type ",
+    "FROM wcvp_names ",
+    "WHERE LOWER(taxon_name) = LOWER($1) ",
+    "LIMIT 30"
+  )
+  results <- DBI::dbGetQuery(actual_con, sql_exact, params = list(trimws(name)))
+
+  # For a binomial search (genus + species only), also include infraspecific taxa
+  # that have the same genus and species epithet.  These are returned even when
+  # an exact binomial match was found, so the user can select a variety/subsp.
+  if (length(parts) == 2) {
+    species_epithet <- parts[2]
+    sql_infrasp <- paste0(
+      "SELECT ", cols, ", 'exact' AS match_type ",
+      "FROM wcvp_names ",
+      "WHERE LOWER(genus) = LOWER($1) AND LOWER(species) = LOWER($2) ",
+      "  AND infraspecific_rank IS NOT NULL AND infraspecific_rank <> '' ",
+      "ORDER BY infraspecific_rank, infraspecies ",
+      "LIMIT 50"
+    )
+    infrasp_results <- DBI::dbGetQuery(
+      actual_con, sql_infrasp,
+      params = list(genus, species_epithet)
+    )
+    if (nrow(infrasp_results) > 0) {
+      results <- rbind(results, infrasp_results)
+    }
+  }
+
+  if (nrow(results) > 0) return(results)
+
+  # 2. Fuzzy fallback: genus exact + species prefix (first 4 chars).
+  #    This already returns both binomials and infraspecifics that share
+  #    the same genus/species columns.
+  if (length(parts) >= 2) {
+    species_prefix <- substr(parts[2], 1, 4)
+    sql_fuzzy <- paste0(
+      "SELECT ", cols, ", 'fuzzy' AS match_type ",
+      "FROM wcvp_names ",
+      "WHERE LOWER(genus) = LOWER($1) AND LOWER(species) LIKE LOWER($2) ",
+      "ORDER BY species, infraspecific_rank NULLS FIRST, infraspecies ",
+      "LIMIT 50"
+    )
+    results <- DBI::dbGetQuery(
+      actual_con, sql_fuzzy,
+      params = list(genus, paste0(species_prefix, "%"))
+    )
+  } else {
+    # Only genus provided
+    sql_genus <- paste0(
+      "SELECT ", cols, ", 'fuzzy' AS match_type ",
+      "FROM wcvp_names ",
+      "WHERE LOWER(genus) = LOWER($1) ",
+      "ORDER BY species, infraspecific_rank NULLS FIRST, infraspecies ",
+      "LIMIT 50"
+    )
+    results <- DBI::dbGetQuery(actual_con, sql_genus, params = list(genus))
+  }
+
+  results
 }
