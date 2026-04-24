@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,31 @@
 <div class="section level4">
 <h4 id="new-features-1-9-5">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-5"></a></h4>
 <ul><li>
+<strong><code>mod_extraction_config</code> — UI redesign with CSS-only tooltips and section cards</strong>
+<ul><li>Replaced dynamically-rendered UI with a static layout featuring coloured section cards (<code>.cfg-card</code>) and collapsible advanced options via native <code>&lt;details&gt;</code>
+</li>
+<li>Added CSS-only question-mark tooltips (<code>.tip</code>) requiring no JavaScript</li>
+</ul></li>
+<li>
+<strong><code>mod_taxa_add</code> — WCVP backbone search integrated into Step 1</strong>
+<ul><li>
+<code><a href="../reference/mod_taxa_add_server.html">mod_taxa_add_server()</a></code> gains a <code>pool_main</code> parameter and new reactive values (<code>wcvp_results</code>, <code>wcvp_selected_id</code>, <code>wcvp_synonymy_candidates</code>)</li>
+<li>Step 1 now searches both Tropicos and the WCVP backbone simultaneously; results are displayed in separate panels with distinct visual styling</li>
+</ul></li>
+<li>
+<strong>WCVP backbone integration</strong> — all major query functions now accept <code>backbone = "wcvp"</code> to use the World Checklist of Vascular Plants as an alternative to the internal taxonomy
+<ul><li>New file <code>R/wcvp_integration.R</code> with schema setup (<code><a href="../reference/setup_wcvp_schema.html">setup_wcvp_schema()</a></code>), data import (<code><a href="../reference/import_wcvp_names.html">import_wcvp_names()</a></code>), taxon matching (<code><a href="../reference/match_taxa_to_wcvp.html">match_taxa_to_wcvp()</a></code>, <code><a href="../reference/save_wcvp_links.html">save_wcvp_links()</a></code>), lookup (<code><a href="../reference/get_wcvp_names.html">get_wcvp_names()</a></code>), and status utilities (<code><a href="../reference/get_wcvp_status.html">get_wcvp_status()</a></code>, <code><a href="../reference/check_wcvp_update.html">check_wcvp_update()</a></code>)</li>
+<li>When <code>backbone = "wcvp"</code>, standard taxonomy columns (<code>tax_fam</code>, <code>tax_gen</code>, <code>tax_esp</code>, <code>tax_sp_level</code>, <code>tax_infra_level</code>, <code>tax_infra_level_auth</code>) are replaced in-place with WCVP values; two extra columns are added: <code>name_source</code> (<code>"wcvp"</code> or <code>"internal"</code>) and <code>alt_taxon_name</code> (the internal name preserved for reference)</li>
+<li>WCVP ID columns <code>wcvp_plant_name_id</code> and <code>wcvp_accepted_plant_name_id</code> are added as analogs of <code>idtax_n</code> / <code>idtax_good_n</code>; internal IDs are never replaced</li>
+<li>Taxa with no WCVP match fall back silently to the internal backbone with <code>name_source = "internal"</code>
+</li>
+<li>
+<code>backbone</code> parameter propagated through: <code><a href="../reference/query_taxa.html">query_taxa()</a></code>, <code><a href="../reference/add_taxa_table_taxa.html">add_taxa_table_taxa()</a></code>, <code><a href="../reference/resolve_taxon_synonyms.html">resolve_taxon_synonyms()</a></code>, <code><a href="../reference/merge_individuals_taxa.html">merge_individuals_taxa()</a></code>, <code><a href="../reference/query_plots.html">query_plots()</a></code> / <code><a href="../reference/process_individuals.html">process_individuals()</a></code>, <code><a href="../reference/query_individual_features.html">query_individual_features()</a></code>, <code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code>
+</li>
+<li>
+<code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>: WCVP option now appears in the backbone-selection modal when WCVP data is present in the taxa database; fixed availability check that was always returning <code>FALSE</code> due to a missing <code>is_current</code> field in <code><a href="../reference/get_wcvp_status.html">get_wcvp_status()</a></code> return value</li>
+</ul></li>
+<li>
 <strong><code><a href="../reference/describe_columns.html">describe_columns()</a></code> — new function for documenting query result columns</strong>
 <ul><li>Reverse-maps every output column back to its database origin, accounting for output style renames (e.g. <code>ddlat</code> → <code>latitude</code>), census column renames (e.g. <code>stem_diameter_census_1</code> → <code>dbh_census_1</code>), and pivot suffixes (<code>_mean</code>, <code>_sd</code>, <code>char_</code>, <code>issue_agg_</code>, <code>_census_N</code>, <code>_0</code>/<code>_1</code> pairs)</li>
 <li>Accepts a <code>plot_query_list</code> (from <code><a href="../reference/query_plots.html">query_plots()</a></code>) or a plain <code>data.frame</code>; returns a named list of documentation tables (one per result table) or a single table</li>
@@ -80,6 +105,22 @@
 <li>Step 5: Validation with context-aware checks — duplicate detection (numeric traits only), previous census value comparison with <code>issue</code> column, issue summary table by trait; multi-stems uses pre-resolved IDs with “tag not found” as warning</li>
 <li>Step 6: Import execution with dry-run support — bulk insert via single <code><a href="https://dbi.r-dbi.org/reference/dbAppendTable.html" class="external-link">dbAppendTable()</a></code> in explicit transaction for measurements; <code><a href="../reference/update_records.html">update_records()</a></code> for multi-stem <code>stem_grouping</code> updates; context-aware labels (import vs update)</li>
 <li>Full EN/FR internationalization</li>
+</ul></li>
+<li>
+<strong>Taxonomic Matching app (<code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>) WCVP integration refactored</strong>
+<ul><li>WCVP is no longer offered as a backbone selection option during auto-matching (removed from modal)</li>
+<li>Only internal backbone is used for the matching process (automated via <code>mod_backbone_cache_selection</code>)</li>
+<li>New sidebar checkbox “Use WCVP names in output” allows users to enrich matched results with WCVP taxonomic names when available</li>
+<li>WCVP enrichment happens immediately after matching completes, so corrected names display WCVP values in Review and Export tabs</li>
+<li>Gracefully falls back to internal names when WCVP data is unavailable</li>
+<li>Checkbox appears conditionally only when WCVP tables exist in the taxa database</li>
+</ul></li>
+<li>
+<strong>Taxonomic Backbone app (<code><a href="../reference/launch_taxo_backbone_app.html">launch_taxo_backbone_app()</a></code>) enhancements</strong>
+<ul><li>Browse &amp; Search tab now displays <strong>morphotaxon status</strong> (Yes/No) in the selected taxon info panel</li>
+<li>WCVP link information displayed when available: <strong>WCVP ID</strong>, <strong>WCVP Status</strong> (Accepted/Synonym), and <strong>WCVP Name</strong> from the WCVP database</li>
+<li>Update Taxa tab now allows modifying the <strong>morphotaxon status</strong> via a checkbox in the “Other attributes” section</li>
+<li>When toggling only morphotaxon status with no other field changes, the update now correctly bypasses the <code><a href="../reference/update_dico_name.html">update_dico_name()</a></code> call and applies the morpho_species change via direct SQL</li>
 </ul></li>
 <li>
 <strong><code><a href="../reference/add_subplot_features.html">add_subplot_features()</a></code> people resolution</strong>
@@ -135,6 +176,46 @@
 <li>
 <strong><code>output_styles_config</code> additional keep patterns</strong>
 <ul><li>Added <code>position_</code>, <code>strate</code>, <code>transect_part</code> to default keep_patterns for transect output</li>
+</ul></li>
+<li>
+<strong>Import wizard subplot feature insertion type mismatches</strong>
+<ul><li>Fixed <code><a href="../reference/add_subplot_features.html">add_subplot_features()</a></code> using bare <code>NA</code> in <code><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse()</a></code> statements, causing logical-to-numeric/character type errors</li>
+<li>Now uses <code>NA_real_</code> and <code>NA_character_</code> for proper type matching with database schema</li>
+</ul></li>
+<li>
+<strong>Import wizard map preview crash on non-numeric coordinates</strong>
+<ul><li>Fixed <code>mod_step6_preview.R</code> calling <code><a href="https://rdrr.io/r/base/MathFun.html" class="external-link">abs()</a></code> on potentially non-numeric coordinate columns</li>
+<li>Added coercion to numeric with proper fallback handling for invalid coordinates</li>
+</ul></li>
+<li>
+<strong>Import transaction error messages unclear</strong>
+<ul><li>Improved error handling in import transactions to capture and display actual error messages instead of empty strings</li>
+</ul></li>
+<li>
+<strong><code><a href="../reference/dot-link_table.html">.link_table()</a></code> dynamic column selection failure</strong>
+<ul><li>Fixed <code><a href="https://dplyr.tidyverse.org/reference/pull.html" class="external-link">pull()</a></code> and <code><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select()</a></code> using incorrect <code>{{}}</code> embrace syntax with string variable column names</li>
+<li>Changed to <code><a href="https://rlang.r-lib.org/reference/sym.html" class="external-link">rlang::sym()</a></code> for proper symbol conversion in <code><a href="https://dplyr.tidyverse.org/reference/pull.html" class="external-link">pull()</a></code> and <code><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select()</a></code> calls</li>
+</ul></li>
+<li>
+<strong>Import wizard silent failure during subplot feature insertion</strong>
+<ul><li>Fixed <code><a href="../reference/add_subplot_features.html">add_subplot_features()</a></code> missing <code>id_colnam</code> column in <code>data_to_add</code> tibble (required by <code>data_liste_sub_plots</code> schema)</li>
+<li>Fixed <code>.link_colnam()</code> call using incorrect <code>id_field = "subplotype"</code> parameter (should be <code>id_field = "id_colnam"</code>)</li>
+</ul></li>
+<li>
+<strong>Feature Wizard compute_stem_status mode column mismatches</strong>
+<ul><li>Fixed <code><a href="../reference/compute_stem_vital_status.html">compute_stem_vital_status()</a></code> using incorrect column name <code>p.id_table_liste_plots</code> in LEFT JOIN (correct: <code>p.id_liste_plots</code>)</li>
+<li>Fixed step 1 plot selection module passing <code>id_liste_plots</code> but step 3 expecting <code>id_table_liste_plots</code>
+</li>
+<li>Fixed step 3 result missing <code>tag</code> column in final output; now propagated through joins for display in review table</li>
+<li>Fixed step 5 validation auto-validation for <code>compute_stem_status</code> mode missing <code>$summary</code> sub-list structure, causing “argument is of length zero” error</li>
+<li>Added fallback: non-lookup features now get <code>id_colnam = NA_integer_</code> for proper database constraint handling</li>
+</ul></li>
+<li>
+<strong>Import wizard <code>table_colnam</code> feature insertion with pre-matched IDs</strong>
+<ul><li>Fixed <code><a href="../reference/add_subplot_features.html">add_subplot_features()</a></code> silent failure when Shiny import wizard Step 4 pre-matches person names to <code>id_table_colnam</code> IDs</li>
+<li>When feature values are already numeric IDs (e.g., <code>"123, 456"</code> from wizard matching), bypass <code>.link_colnam()</code> to prevent it from trying to match ID strings as names and falling into an interactive <code><a href="https://rdrr.io/r/base/readline.html" class="external-link">readline()</a></code> loop that hangs in Shiny</li>
+<li>Added validation of pre-matched IDs against <code>table_colnam</code> before assignment</li>
+<li>Non-numeric values still flow through <code>.link_colnam()</code> for interactive name-to-ID resolution</li>
 </ul></li>
 </ul></div>
 <div class="section level4">

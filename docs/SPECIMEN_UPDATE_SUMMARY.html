@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -78,7 +78,7 @@
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Prepare your data with id_specimen + fields to update</span></span>
-<span><span class="va">update_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span></span>
+<span><span class="va">update_data</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="op">(</span></span>
 <span>  id_specimen <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1234</span>, <span class="fl">5678</span><span class="op">)</span>,</span>
 <span>  idtax_n <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">98765</span>, <span class="fl">43210</span><span class="op">)</span>,</span>
 <span>  detby <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Smith, J."</span>, <span class="st">"Doe, A."</span><span class="op">)</span>,</span>
@@ -106,7 +106,7 @@
 <h3 id="with-collector-name-matching">With Collector Name Matching<a class="anchor" aria-label="anchor" href="#with-collector-name-matching"></a></h3>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># If you have collector names instead of IDs</span></span>
-<span><span class="va">update_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://tibble.tidyverse.org/reference/tibble.html" class="external-link">tibble</a></span><span class="op">(</span></span>
+<span><span class="va">update_data</span> <span class="op">&lt;-</span> <span class="fu">tibble</span><span class="op">(</span></span>
 <span>  id_specimen <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1234</span>, <span class="fl">5678</span><span class="op">)</span>,</span>
 <span>  colnam <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Dauby, G."</span>, <span class="st">"Leblanc, H."</span><span class="op">)</span>,  <span class="co"># Will be auto-matched to id_colnam</span></span>
 <span>  idtax_n <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">98765</span>, <span class="fl">43210</span><span class="op">)</span></span>
@@ -219,7 +219,7 @@
 <span><span class="va">suffix_normalized</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/trimws.html" class="external-link">trimws</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/chartr.html" class="external-link">tolower</a></span><span class="op">(</span><span class="va">suffix_parsed</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Step 3: Try exact match</span></span>
-<span><span class="va">specimens</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu">join</span><span class="op">(</span>by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"colnam"</span>, <span class="st">"colnbr_numeric"</span>, <span class="st">"suffix_normalized"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">specimens</span> <span class="op">%&gt;%</span> <span class="fu">join</span><span class="op">(</span>by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"colnam"</span>, <span class="st">"colnbr_numeric"</span>, <span class="st">"suffix_normalized"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Step 4: If no match, try fuzzy matching (similarity &gt;= 0.7)</span></span>
 <span><span class="fu">stringdist</span><span class="op">(</span><span class="va">suffix_new</span>, <span class="va">suffix_db</span>, method <span class="op">=</span> <span class="st">"lv"</span><span class="op">)</span></span></code></pre></div>
@@ -252,8 +252,8 @@
 <p><strong>New workflow:</strong></p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/update_records.html">update_records</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="va">new_ident</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">id_specimen</span>, <span class="va">colnam</span>, <span class="va">idtax_n</span>, <span class="va">detby</span>, <span class="va">dety</span>, <span class="va">detm</span>, <span class="va">detd</span><span class="op">)</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">new_ident</span> <span class="op">%&gt;%</span></span>
+<span>    <span class="fu">select</span><span class="op">(</span><span class="va">id_specimen</span>, <span class="va">colnam</span>, <span class="va">idtax_n</span>, <span class="va">detby</span>, <span class="va">dety</span>, <span class="va">detm</span>, <span class="va">detd</span><span class="op">)</span>,</span>
 <span>  table_type <span class="op">=</span> <span class="st">"specimens"</span>,</span>
 <span>  execute <span class="op">=</span> <span class="cn">FALSE</span>  <span class="co"># Preview first, then set to TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>

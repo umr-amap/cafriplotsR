@@ -13,7 +13,7 @@ exact matching is used by default."><meta property="og:image" content="https://u
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -63,7 +63,8 @@ exact matching is used by default.</p>
 <span>  check_synonymy <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  extract_traits <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  include_children <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  min_similarity <span class="op">=</span> <span class="fl">0.3</span></span>
+<span>  min_similarity <span class="op">=</span> <span class="fl">0.3</span>,</span>
+<span>  backbone <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"internal"</span>, <span class="st">"wcvp"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -133,6 +134,12 @@ via the `id_parent` foreign key. Default FALSE.</p></dd>
 
 <dt id="arg-min-similarity">min_similarity<a class="anchor" aria-label="anchor" href="#arg-min-similarity"></a></dt>
 <dd><p>numeric (0-1) minimum similarity score for fuzzy matching (default: 0.3)</p></dd>
+
+
+<dt id="arg-backbone">backbone<a class="anchor" aria-label="anchor" href="#arg-backbone"></a></dt>
+<dd><p>character. Which taxonomic backbone to use: <code>"internal"</code>
+(default) uses the internal <code>table_taxa</code>; <code>"wcvp"</code> enriches results
+with WCVP names via the link table, adding <code>wcvp_*</code> columns and <code>name_source</code>.</p></dd>
 
 
 <dt id="arg-tax-nam-">tax_nam01<a class="anchor" aria-label="anchor" href="#arg-tax-nam-"></a></dt>

@@ -89,6 +89,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/check_hierarchy_consistency.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/check_table_idtax_staleness.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/check_taxa_permissions.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/check_wcvp_update.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/choose_growth_form.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/choose_prompt.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/cleanup_connections.html</loc></url>
@@ -129,6 +130,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-apply_column_mapping.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-apply_long_mapping.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-apply_people_id_conversion.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-apply_wcvp_backbone.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-apply_wide_mapping.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-auto_detect_col.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-auto_match_columns.html</loc></url>
@@ -261,6 +263,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-render_wide_trait_mapping_ui.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-resolve_lookup_column.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-resolve_synonyms.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-resolve_synonyms_wcvp.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-review_individual_mappings_interactive.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-review_mappings_interactive.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-select_individual_column.html</loc></url>
@@ -288,6 +291,9 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-validate_taxonomy_ids.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-validate_trait_values.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-validate_unique_constraints.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-wcvp_match_fuzzy_author.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-wcvp_match_fuzzy_fast.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-_wcvp_match_exact_db.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/enrich_census_info.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/enrich_individual_traits.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/enrich_measurement_features.html</loc></url>
@@ -342,6 +348,8 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_username_secure.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_user_accessible_plots.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_user_emails.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_wcvp_names.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/get_wcvp_status.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/grant_all_table_permissions.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/grant_lookup_table_permissions.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/grant_plot_insert_permissions.html</loc></url>
@@ -349,6 +357,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/growth_computing.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/import_individual_data.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/import_plot_metadata.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/import_wcvp_names.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/import_wizard_server.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/import_wizard_ui.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/index.html</loc></url>
@@ -373,6 +382,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/map_individual_columns.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/map_user_columns.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/match_tax.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/match_taxa_to_wcvp.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/match_taxonomic_names.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/merge_individuals_taxa.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/method_list.html</loc></url>
@@ -568,10 +578,12 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/safe_delete_specimen_links.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/safe_delete_taxa_traits.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/save_backbone_cache.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/save_wcvp_links.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/setup_add_person_function.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/setup_db_credentials.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/setup_import_wizard_permissions.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/setup_user_permissions.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/setup_wcvp_schema.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/shiny_app_query_plots.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/shiny_app_specimen_import_wizard.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/shiny_app_specimen_linking.html</loc></url>

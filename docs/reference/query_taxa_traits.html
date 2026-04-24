@@ -11,7 +11,7 @@ accepted taxon name."><meta property="og:image" content="https://umr-amap.github
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,7 +56,8 @@ accepted taxon name.</p>
 <span>  include_measurement_features <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  include_citation <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  con <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  con_taxa <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  con_taxa <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  backbone <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"internal"</span>, <span class="st">"wcvp"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -104,6 +105,13 @@ Used for trait measurements (taxa_traits_measures, traitlist).</p></dd>
 <dt id="arg-con-taxa">con_taxa<a class="anchor" aria-label="anchor" href="#arg-con-taxa"></a></dt>
 <dd><p>Connection to taxa database (optional, defaults to call.mydb.taxa()).
 Used for synonym resolution (table_taxa) and taxonomic info enrichment.</p></dd>
+
+
+<dt id="arg-backbone">backbone<a class="anchor" aria-label="anchor" href="#arg-backbone"></a></dt>
+<dd><p>Character. Which taxonomic backbone to use for synonym resolution.
+<code>"internal"</code> (default) uses the internal <code>table_taxa</code>.
+<code>"wcvp"</code> uses WCVP via <code>wcvp_idtax_link</code> and <code>wcvp_names</code>,
+falling back to internal for unlinked taxa.</p></dd>
 
 </dl></div>
     <div class="section level2">
