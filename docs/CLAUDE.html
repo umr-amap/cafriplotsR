@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -437,31 +437,18 @@
 <p>Traits have <code>valuetype</code> field: - <code>"numeric"</code>: Stored in <code>traitvalue</code> column - <code>"categorical"</code>: Stored in <code>traitvalue_char</code> column - <code>"ordinal"</code>, <code>"character"</code>: Also use <code>traitvalue_char</code> - <code>"integer"</code>: Uses <code>traitvalue</code> (numeric) - <code>"table_colnam"</code>: References lookup table (treated as numeric ID)</p>
 </div>
 <div class="section level3">
-<h3 id="categorical-aggregation-modes">Categorical Aggregation Modes<a class="anchor" aria-label="anchor" href="#categorical-aggregation-modes"></a></h3>
-<p>When pivoting categorical traits to wide format: - <code>"mode"</code>: Most frequent value per taxon/individual - <code>"concat"</code>: All unique values concatenated</p>
-</div>
-<div class="section level3">
 <h3 id="legacy-function-wrappers">Legacy Function Wrappers<a class="anchor" aria-label="anchor" href="#legacy-function-wrappers"></a></h3>
 <p>Some functions have legacy wrappers for backward compatibility: - <code><a href="reference/query_traits_measures.html">query_traits_measures()</a></code> → wraps <code><a href="reference/query_taxa_traits.html">query_taxa_traits()</a></code> - These emit warnings suggesting migration to new functions</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="rmarkdown-tutorials">RMarkdown Tutorials<a class="anchor" aria-label="anchor" href="#rmarkdown-tutorials"></a></h2>
-<p>The repository contains several <code>.Rmd</code> tutorial files (see <code>tuto_database.Rmd</code>, <code>tuto_db.Rmd</code>) which demonstrate package usage.</p>
+<p>The repository contains several <code>.Rmd</code> tutorial files in .vignette directory</p>
 </div>
 <div class="section level2">
 <h2 id="package-metadata">Package Metadata<a class="anchor" aria-label="anchor" href="#package-metadata"></a></h2>
-<ul><li>
-<strong>Version</strong>: 1</li>
-<li>
-<strong>Authors</strong>: Gilles Dauby, Hugo Leblanc</li>
-<li>
-<strong>License</strong>: GPL-2</li>
-<li>
-<strong>Minimum R version</strong>: 4.0</li>
-<li>
-<strong>roxygen2 version</strong>: 7.3.2</li>
-</ul></div>
+<p>see DESCRIPTION file</p>
+</div>
 </div>
 <div class="section level1">
 <h1 id="section">============================================<a class="anchor" aria-label="anchor" href="#section"></a></h1>
@@ -479,7 +466,7 @@
 </blockquote>
 <div class="section level2">
 <h2 id="project-overview">Project Overview<a class="anchor" aria-label="anchor" href="#project-overview"></a></h2>
-<p>This is an R package under development. Core principles: - <strong>CRAN Compliance</strong>: Package will pass R CMD check - <strong>Modern R</strong>: Contemporary best practices and patterns - <strong>Quality Standards</strong>: Testing, documentation, style - <strong>Reproducibility</strong>: Version control, dependency management</p>
+<p>See readme.md</p>
 </div>
 <div class="section level2">
 <h2 id="essential-commands">Essential Commands<a class="anchor" aria-label="anchor" href="#essential-commands"></a></h2>
@@ -488,17 +475,14 @@
 <div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/load_all.html" class="external-link">load_all</a></span><span class="op">(</span><span class="op">)</span>           <span class="co"># Load package (Cmd+Shift+L in RStudio)</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">test</a></span><span class="op">(</span><span class="op">)</span>               <span class="co"># Run test suite (Cmd+Shift+T)</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/check.html" class="external-link">check</a></span><span class="op">(</span><span class="op">)</span>              <span class="co"># R CMD check (Cmd+Shift+E)</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/document.html" class="external-link">document</a></span><span class="op">(</span><span class="op">)</span>           <span class="co"># Update docs from roxygen2 (Cmd+Shift+D)</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/build.html" class="external-link">build</a></span><span class="op">(</span><span class="op">)</span>              <span class="co"># Build package tarball</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/install.html" class="external-link">install</a></span><span class="op">(</span><span class="op">)</span>            <span class="co"># Install package locally</span></span></code></pre></div>
+<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/document.html" class="external-link">document</a></span><span class="op">(</span><span class="op">)</span>           <span class="co"># Update docs from roxygen2 (Cmd+Shift+D)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="testing--coverage">Testing &amp; Coverage<a class="anchor" aria-label="anchor" href="#testing--coverage"></a></h3>
 <div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">testthat</span><span class="fu">::</span><span class="fu"><a href="https://testthat.r-lib.org/reference/test_file.html" class="external-link">test_file</a></span><span class="op">(</span><span class="st">"tests/testthat/test-X.R"</span><span class="op">)</span>  <span class="co"># Test one file</span></span>
-<span><span class="fu">covr</span><span class="fu">::</span><span class="fu">package_coverage</span><span class="op">(</span><span class="op">)</span>                         <span class="co"># Coverage report</span></span>
-<span><span class="fu">covr</span><span class="fu">::</span><span class="fu">report</span><span class="op">(</span><span class="op">)</span>                                   <span class="co"># View in browser</span></span></code></pre></div>
+<span><span class="fu">covr</span><span class="fu">::</span><span class="fu"><a href="http://covr.r-lib.org/reference/package_coverage.html" class="external-link">package_coverage</a></span><span class="op">(</span><span class="op">)</span>                         <span class="co"># Coverage report</span></span>
+<span><span class="fu">covr</span><span class="fu">::</span><span class="fu"><a href="http://covr.r-lib.org/reference/report.html" class="external-link">report</a></span><span class="op">(</span><span class="op">)</span>                                   <span class="co"># View in browser</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="code-quality">Code Quality<a class="anchor" aria-label="anchor" href="#code-quality"></a></h3>
@@ -585,56 +569,7 @@
 <li>All exported functions: Have tests</li>
 <li>Critical functionality: 100% coverage</li>
 <li>Error handling: Tested</li>
-</ul><p>Check with:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">covr</span><span class="fu">::</span><span class="fu">package_coverage</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="common-pitfalls-to-avoid">Common Pitfalls to Avoid<a class="anchor" aria-label="anchor" href="#common-pitfalls-to-avoid"></a></h2>
-<div class="section level3">
-<h3 id="x-dont-do-this">❌ DON’T DO THIS<a class="anchor" aria-label="anchor" href="#x-dont-do-this"></a></h3>
-<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Using library() in package code</span></span>
-<span><span class="va">my_function</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span>  <span class="co"># WRONG!</span></span>
-<span>  <span class="va">data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="co"># Modifying global options without reset</span></span>
-<span><span class="va">my_function</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>scipen <span class="op">=</span> <span class="fl">999</span><span class="op">)</span>  <span class="co"># Will affect user's session!</span></span>
-<span>  <span class="co"># ... code ...</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="co"># Using T/F instead of TRUE/FALSE</span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="va">x</span> <span class="op">==</span> <span class="cn">T</span><span class="op">)</span> <span class="op">{</span> <span class="op">}</span>  <span class="co"># WRONG! T can be overwritten</span></span>
-<span></span>
-<span><span class="co"># Using = for assignment in function calls</span></span>
-<span><span class="fu">my_function</span><span class="op">(</span>x <span class="op">=</span> <span class="fl">1</span><span class="op">)</span>  <span class="co"># OK</span></span>
-<span><span class="va">x</span> <span class="op">=</span> <span class="fl">1</span>               <span class="co"># Bad style, use &lt;-</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="white_check_mark-do-this-instead">✅ DO THIS INSTEAD<a class="anchor" aria-label="anchor" href="#white_check_mark-do-this-instead"></a></h3>
-<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Use :: notation</span></span>
-<span><span class="va">my_function</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span><span class="va">data</span>, x <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="co"># Save and restore options</span></span>
-<span><span class="va">my_function</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">old_opts</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>scipen <span class="op">=</span> <span class="fl">999</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span><span class="va">old_opts</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span>  <span class="co"># ... code ...</span></span>
-<span><span class="op">}</span></span>
-<span></span>
-<span><span class="co"># Use TRUE/FALSE</span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Logic.html" class="external-link">isTRUE</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span> <span class="op">}</span></span>
-<span></span>
-<span><span class="co"># Use &lt;- for assignment</span></span>
-<span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fl">1</span></span></code></pre></div>
-</div>
+</ul></div>
 </div>
 <div class="section level2">
 <h2 id="git-workflow">Git Workflow<a class="anchor" aria-label="anchor" href="#git-workflow"></a></h2>
@@ -654,14 +589,6 @@
 <div class="section level3">
 <h3 id="commit-messages">Commit Messages<a class="anchor" aria-label="anchor" href="#commit-messages"></a></h3>
 <p>Follow <a href="https://www.conventionalcommits.org/" class="external-link">Conventional Commits</a>:</p>
-<pre><code>feat: Add new_function() for data processing
-
-- Implements algorithm from Smith et al. (2020)
-- Includes input validation
-- Adds comprehensive tests
-- Updates documentation
-
-Closes #42</code></pre>
 <p>Types: <code>feat</code>, <code>fix</code>, <code>docs</code>, <code>test</code>, <code>refactor</code>, <code>style</code>, <code>chore</code></p>
 </div>
 <div class="section level3">
@@ -704,7 +631,7 @@ Closes #42</code></pre>
 <h2 id="performance-considerations">Performance Considerations<a class="anchor" aria-label="anchor" href="#performance-considerations"></a></h2>
 <div class="section level3">
 <h3 id="vectorization">Vectorization<a class="anchor" aria-label="anchor" href="#vectorization"></a></h3>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># GOOD - Vectorized</span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sum.html" class="external-link">sum</a></span><span class="op">(</span><span class="va">x</span> <span class="op">*</span> <span class="va">y</span><span class="op">)</span></span>
 <span></span>
@@ -724,7 +651,7 @@ Closes #42</code></pre>
 </ul></div>
 <div class="section level3">
 <h3 id="profiling">Profiling<a class="anchor" aria-label="anchor" href="#profiling"></a></h3>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Profile code</span></span>
 <span><span class="fu">profvis</span><span class="fu">::</span><span class="fu"><a href="https://profvis.r-lib.org/reference/profvis.html" class="external-link">profvis</a></span><span class="op">(</span><span class="op">{</span></span>
 <span>  <span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">my_function</span><span class="op">(</span><span class="va">data</span><span class="op">)</span></span>
@@ -741,21 +668,21 @@ Closes #42</code></pre>
 <h2 id="documentation-website-pkgdown">Documentation Website (pkgdown)<a class="anchor" aria-label="anchor" href="#documentation-website-pkgdown"></a></h2>
 <div class="section level3">
 <h3 id="id__pkgdownyml-structure">_pkgdown.yml Structure<a class="anchor" aria-label="anchor" href="#id__pkgdownyml-structure"></a></h3>
-<div class="sourceCode" id="cb28"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a><span class="fu">template</span><span class="kw">:</span></span>
-<span id="cb28-2"><a href="#cb28-2" tabindex="-1"></a><span class="at">  </span><span class="fu">bootstrap</span><span class="kw">:</span><span class="at"> </span><span class="dv">5</span></span>
-<span id="cb28-3"><a href="#cb28-3" tabindex="-1"></a><span class="at">  </span></span>
-<span id="cb28-4"><a href="#cb28-4" tabindex="-1"></a><span class="fu">reference</span><span class="kw">:</span></span>
-<span id="cb28-5"><a href="#cb28-5" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">title</span><span class="kw">:</span><span class="at"> </span><span class="st">"Main Functions"</span></span>
-<span id="cb28-6"><a href="#cb28-6" tabindex="-1"></a><span class="at">    </span><span class="fu">desc</span><span class="kw">:</span><span class="at"> </span><span class="st">"Core package functionality"</span></span>
-<span id="cb28-7"><a href="#cb28-7" tabindex="-1"></a><span class="at">    </span><span class="fu">contents</span><span class="kw">:</span></span>
-<span id="cb28-8"><a href="#cb28-8" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> main_function</span></span>
-<span id="cb28-9"><a href="#cb28-9" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> helper_function</span></span>
-<span id="cb28-10"><a href="#cb28-10" tabindex="-1"></a><span class="at">      </span></span>
-<span id="cb28-11"><a href="#cb28-11" tabindex="-1"></a><span class="fu">articles</span><span class="kw">:</span></span>
-<span id="cb28-12"><a href="#cb28-12" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">title</span><span class="kw">:</span><span class="at"> </span><span class="st">"Vignettes"</span></span>
-<span id="cb28-13"><a href="#cb28-13" tabindex="-1"></a><span class="at">    </span><span class="fu">contents</span><span class="kw">:</span></span>
-<span id="cb28-14"><a href="#cb28-14" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> getting-started</span></span>
-<span id="cb28-15"><a href="#cb28-15" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> advanced-usage</span></span></code></pre></div>
+<div class="sourceCode" id="cb24"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a><span class="fu">template</span><span class="kw">:</span></span>
+<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a><span class="at">  </span><span class="fu">bootstrap</span><span class="kw">:</span><span class="at"> </span><span class="dv">5</span></span>
+<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a><span class="at">  </span></span>
+<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a><span class="fu">reference</span><span class="kw">:</span></span>
+<span id="cb24-5"><a href="#cb24-5" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">title</span><span class="kw">:</span><span class="at"> </span><span class="st">"Main Functions"</span></span>
+<span id="cb24-6"><a href="#cb24-6" tabindex="-1"></a><span class="at">    </span><span class="fu">desc</span><span class="kw">:</span><span class="at"> </span><span class="st">"Core package functionality"</span></span>
+<span id="cb24-7"><a href="#cb24-7" tabindex="-1"></a><span class="at">    </span><span class="fu">contents</span><span class="kw">:</span></span>
+<span id="cb24-8"><a href="#cb24-8" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> main_function</span></span>
+<span id="cb24-9"><a href="#cb24-9" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> helper_function</span></span>
+<span id="cb24-10"><a href="#cb24-10" tabindex="-1"></a><span class="at">      </span></span>
+<span id="cb24-11"><a href="#cb24-11" tabindex="-1"></a><span class="fu">articles</span><span class="kw">:</span></span>
+<span id="cb24-12"><a href="#cb24-12" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">title</span><span class="kw">:</span><span class="at"> </span><span class="st">"Vignettes"</span></span>
+<span id="cb24-13"><a href="#cb24-13" tabindex="-1"></a><span class="at">    </span><span class="fu">contents</span><span class="kw">:</span></span>
+<span id="cb24-14"><a href="#cb24-14" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> getting-started</span></span>
+<span id="cb24-15"><a href="#cb24-15" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> advanced-usage</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -779,27 +706,26 @@ Use: “The calculate_mean() function fails when all values are NA. Add proper h
 </ol></div>
 <div class="section level3">
 <h3 id="reference-files">Reference Files<a class="anchor" aria-label="anchor" href="#reference-files"></a></h3>
-<p>“Look at how we handle input validation in R/utils.R”<br>
-“Follow the same testing pattern as test-main.R”</p>
+<p>“Look at how we handle input validation in R/utils.R”</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="common-commands-shortlist">Common Commands Shortlist<a class="anchor" aria-label="anchor" href="#common-commands-shortlist"></a></h2>
-<div class="sourceCode" id="cb29"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="co"># Quick development cycle</span></span>
-<span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a><span class="ex">R</span> <span class="at">-e</span> <span class="st">"devtools::load_all(); devtools::test()"</span></span>
-<span id="cb29-3"><a href="#cb29-3" tabindex="-1"></a></span>
-<span id="cb29-4"><a href="#cb29-4" tabindex="-1"></a><span class="co"># Before committing</span></span>
-<span id="cb29-5"><a href="#cb29-5" tabindex="-1"></a><span class="ex">R</span> <span class="at">-e</span> <span class="st">"styler::style_pkg(); devtools::test(); devtools::check()"</span></span>
-<span id="cb29-6"><a href="#cb29-6" tabindex="-1"></a></span>
-<span id="cb29-7"><a href="#cb29-7" tabindex="-1"></a><span class="co"># Documentation</span></span>
-<span id="cb29-8"><a href="#cb29-8" tabindex="-1"></a><span class="ex">R</span> <span class="at">-e</span> <span class="st">"devtools::document(); pkgdown::build_site()"</span></span>
-<span id="cb29-9"><a href="#cb29-9" tabindex="-1"></a></span>
-<span id="cb29-10"><a href="#cb29-10" tabindex="-1"></a><span class="co"># Coverage</span></span>
-<span id="cb29-11"><a href="#cb29-11" tabindex="-1"></a><span class="ex">R</span> <span class="at">-e</span> <span class="st">"covr::report()"</span></span></code></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a><span class="co"># Quick development cycle</span></span>
+<span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a><span class="ex">R</span> <span class="at">-e</span> <span class="st">"devtools::load_all(); devtools::test()"</span></span>
+<span id="cb25-3"><a href="#cb25-3" tabindex="-1"></a></span>
+<span id="cb25-4"><a href="#cb25-4" tabindex="-1"></a><span class="co"># Before committing</span></span>
+<span id="cb25-5"><a href="#cb25-5" tabindex="-1"></a><span class="ex">R</span> <span class="at">-e</span> <span class="st">"styler::style_pkg(); devtools::test(); devtools::check()"</span></span>
+<span id="cb25-6"><a href="#cb25-6" tabindex="-1"></a></span>
+<span id="cb25-7"><a href="#cb25-7" tabindex="-1"></a><span class="co"># Documentation</span></span>
+<span id="cb25-8"><a href="#cb25-8" tabindex="-1"></a><span class="ex">R</span> <span class="at">-e</span> <span class="st">"devtools::document(); pkgdown::build_site()"</span></span>
+<span id="cb25-9"><a href="#cb25-9" tabindex="-1"></a></span>
+<span id="cb25-10"><a href="#cb25-10" tabindex="-1"></a><span class="co"># Coverage</span></span>
+<span id="cb25-11"><a href="#cb25-11" tabindex="-1"></a><span class="ex">R</span> <span class="at">-e</span> <span class="st">"covr::report()"</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="quality-checklist">Quality Checklist<a class="anchor" aria-label="anchor" href="#quality-checklist"></a></h2>
-<p>Before every commit: - [ ] Code follows tidyverse style - [ ] All tests pass - [ ] Coverage &gt;80% - [ ] R CMD check passes (0 errors, 0 warnings) - [ ] Documentation complete - [ ] Examples work - [ ] NEWS.md updated (if user-facing change)</p>
+<p>Before every commit: - [ ] Code follows tidyverse style - [ ] NEWS.md updated (if user-facing change)</p>
 </div>
 <div class="section level2">
 <h2 id="quick-reference-links">Quick Reference Links<a class="anchor" aria-label="anchor" href="#quick-reference-links"></a></h2>
