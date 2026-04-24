@@ -940,6 +940,20 @@ map_user_columns <- function(user_data,
       mapping_confidence[user_col] <- best$final_score
     } else {
       # No match found
+      if (user_col_clean == "dbh") {
+        cli::cli_alert_warning("DEBUG: No match found for 'dbh'")
+        cli::cli_alert_info("  feature_cols length: {length(feature_cols)}")
+        if (length(feature_cols) > 0) {
+          cli::cli_alert_info("  feature_cols sample: {paste(head(feature_cols, 5), collapse=', ')}")
+        }
+        cli::cli_alert_info("  synonyms count: {length(synonyms)}")
+        # Check if stem_diameter is in synonyms
+        if ("stem_diameter" %in% names(synonyms)) {
+          cli::cli_alert_info("  stem_diameter synonyms: {paste(synonyms[['stem_diameter']], collapse=', ')}")
+        } else {
+          cli::cli_alert_warning("  'stem_diameter' NOT in synonyms keys!")
+        }
+      }
       mapping_methods[user_col] <- "none"
       mapping_confidence[user_col] <- 0
     }
@@ -1202,7 +1216,15 @@ map_user_columns <- function(user_data,
     syn_f <- .find_synonym_match(user_col_clean, feat_synonyms)
     if (!is.null(syn_f)) {
       add_candidate(syn_f, "synonym", "feature", 0.9)
+    } else if (user_col_clean == "dbh") {
+      # DEBUG: Help understand why dbh isn't matching
+      message("DEBUG .score_candidates: user_col_clean='dbh' - no feature synonym match")
+      message("  feat_synonyms keys: ", paste(names(feat_synonyms), collapse=", "))
     }
+  } else if (user_col_clean == "dbh") {
+    message("DEBUG .score_candidates: user_col_clean='dbh' - feat_synonyms is empty!")
+    message("  feature_cols: ", paste(feature_cols, collapse=", "))
+    message("  synonyms keys with 'stem': ", paste(grep("stem", names(synonyms), value=TRUE), collapse=", "))
   }
 
   # 6. Fuzzy match in feature columns
