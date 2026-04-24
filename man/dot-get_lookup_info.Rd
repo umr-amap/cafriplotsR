@@ -4,7 +4,7 @@
 \alias{.get_lookup_info}
 \title{Get Lookup Table Info}
 \usage{
-.get_lookup_info(column_name, con)
+.get_lookup_info(column_name, con, extra_people_cols = NULL)
 }
 \description{
 Get Lookup Table Info

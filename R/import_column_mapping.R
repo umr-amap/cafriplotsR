@@ -695,9 +695,23 @@ get_import_column_routing <- function(table_type = "plots", con = NULL) {
     # Add import-specific configuration
     message("get_import_column_routing: Building import_config")
 
-    # Get column synonyms
+    # Get column synonyms (merged by import type for better matching)
     message("get_import_column_routing: Getting column synonyms")
-    col_synonyms <- .get_column_synonyms()
+    col_synonyms <- if (table_type == "individuals") {
+      # For individuals: merge all synonyms (direct columns + traits + features)
+      c(
+        .get_column_synonyms(),
+        .get_individual_column_synonyms(),
+        .get_trait_column_synonyms(),
+        .get_individual_feature_synonyms()
+      )
+    } else {
+      # For plots: merge base columns with subplot feature synonyms
+      c(
+        .get_column_synonyms(),
+        .get_subplot_feature_synonyms()
+      )
+    }
 
     # Get column descriptions
     message("get_import_column_routing: Getting column descriptions")
@@ -894,43 +908,41 @@ map_user_columns <- function(user_data,
 
   synonyms <- config$import_config$column_synonyms
 
+  # Separate direct and feature columns for scoring
+  direct_cols <- config$direct_columns
+  feature_cols <- c(
+    if (!is.null(config$subplot_features)) config$subplot_features else character(0),
+    if (!is.null(config$feature_columns)) config$feature_columns else character(0)
+  )
+  required_cols <- config$import_config$required_columns
+
+  # Storage for mapping alternatives (for potential future UI enhancements)
+  mapping_alternatives <- setNames(vector("list", length(user_cols)), user_cols)
+
   for (user_col in user_cols) {
 
     # Clean column name for matching
     user_col_clean <- tolower(trimws(user_col))
 
-    # 1. EXACT MATCH
-    if (user_col %in% schema_cols || user_col_clean %in% tolower(schema_cols)) {
-      exact_match <- schema_cols[tolower(schema_cols) == user_col_clean]
-      if (length(exact_match) > 0) {
-        mappings[user_col] <- exact_match[1]
-        mapping_methods[user_col] <- "exact"
-        mapping_confidence[user_col] <- 1.0
-        next
-      }
-    }
+    # Score all candidates using category-aware scoring
+    candidates <- .score_candidates(
+      user_col_clean, direct_cols, feature_cols,
+      synonyms, required_cols, similarity_threshold
+    )
 
-    # 2. SYNONYM MATCH (including domain-specific!)
-    synonym_match <- .find_synonym_match(user_col_clean, synonyms)
-    if (!is.null(synonym_match)) {
-      mappings[user_col] <- synonym_match
-      mapping_methods[user_col] <- "synonym"
-      mapping_confidence[user_col] <- 1.0
-      next
-    }
+    mapping_alternatives[[user_col]] <- candidates
 
-    # 3. FUZZY MATCH
-    fuzzy_result <- .fuzzy_match_column(user_col_clean, schema_cols, similarity_threshold)
-    if (!is.null(fuzzy_result$match)) {
-      mappings[user_col] <- fuzzy_result$match
-      mapping_methods[user_col] <- "fuzzy"
-      mapping_confidence[user_col] <- fuzzy_result$similarity
-      next
+    # Select best match if any candidates found
+    if (!is.null(candidates) && length(candidates) > 0) {
+      best <- candidates[[1]]
+      mappings[user_col] <- best$match
+      mapping_methods[user_col] <- best$method
+      mapping_confidence[user_col] <- best$final_score
+    } else {
+      # No match found
+      mapping_methods[user_col] <- "none"
+      mapping_confidence[user_col] <- 0
     }
-
-    # 4. NO MATCH
-    mapping_methods[user_col] <- "none"
-    mapping_confidence[user_col] <- 0
   }
 
   # -------------------------------------------------------------------
@@ -980,7 +992,8 @@ map_user_columns <- function(user_data,
     mappings = mappings,
     methods = mapping_methods,
     confidence = mapping_confidence,
-    unmapped = user_cols[is.na(mappings)]
+    unmapped = user_cols[is.na(mappings)],
+    alternatives = mapping_alternatives
   )
 
   # Print summary
@@ -1050,8 +1063,10 @@ map_user_columns <- function(user_data,
         next
       }
 
-      # Check if synonym is contained in user column name
-      if (grepl(synonym_norm, user_col_normalized, fixed = TRUE)) {
+      # Check if synonym is contained in user column name at word boundaries
+      # Use regex to match word boundaries or string start/end
+      pattern <- sprintf("(^|_|-)%s(_|-|$)", synonym_norm)
+      if (grepl(pattern, user_col_normalized)) {
         # Calculate similarity to target column for tiebreaking
         similarity <- stringdist::stringsim(user_col_clean, target_col)
 
@@ -1102,6 +1117,113 @@ map_user_columns <- function(user_data,
   }
 
   return(NULL)
+}
+
+
+#' Score All Candidate Column Matches (Internal Helper)
+#'
+#' Evaluates all possible matches across exact, synonym, and fuzzy strategies
+#' for both direct and feature columns. Returns candidates ranked by final score.
+#'
+#' @param user_col_clean Cleaned user column name
+#' @param direct_cols Direct database columns
+#' @param feature_cols All feature columns (subplot + trait features)
+#' @param synonyms Synonym dictionary (names are target columns, values are synonym lists)
+#' @param required_cols Required column names
+#' @param similarity_threshold Fuzzy match threshold
+#'
+#' @return List of candidate matches, each with: match, method, category, base_score, final_score.
+#'         Sorted descending by final_score. Returns NULL if no candidates found.
+#'
+#' @keywords internal
+.score_candidates <- function(user_col_clean, direct_cols, feature_cols,
+                              synonyms, required_cols, similarity_threshold = 0.6) {
+
+  candidates <- list()
+
+  # Helper to add a candidate
+  add_candidate <- function(match, method, category, base_score) {
+    if (!is.na(match) && !is.null(match) && match != "") {
+      candidates[[length(candidates) + 1]] <<- list(
+        match = match,
+        method = method,
+        category = category,
+        base_score = base_score
+      )
+    }
+  }
+
+  # Category multipliers
+  multipliers <- c(
+    required_direct = 2.0,
+    direct = 1.5,
+    feature = 1.0
+  )
+
+  # ========== DIRECT COLUMNS ==========
+
+  # 1. Exact match in direct columns
+  exact_d <- direct_cols[tolower(direct_cols) == user_col_clean]
+  if (length(exact_d) > 0) {
+    cat <- if (exact_d[1] %in% required_cols) "required_direct" else "direct"
+    add_candidate(exact_d[1], "exact", cat, 1.0)
+  }
+
+  # 2. Synonym match in direct columns
+  # Filter synonyms to only include direct column targets
+  dir_synonyms <- synonyms[names(synonyms) %in% direct_cols]
+  if (length(dir_synonyms) > 0) {
+    syn_d <- .find_synonym_match(user_col_clean, dir_synonyms)
+    if (!is.null(syn_d)) {
+      cat <- if (syn_d %in% required_cols) "required_direct" else "direct"
+      add_candidate(syn_d, "synonym", cat, 0.9)
+    }
+  }
+
+  # 3. Fuzzy match in direct columns
+  fz_d <- .fuzzy_match_column(user_col_clean, direct_cols, similarity_threshold)
+  if (!is.null(fz_d$match)) {
+    cat <- if (fz_d$match %in% required_cols) "required_direct" else "direct"
+    add_candidate(fz_d$match, "fuzzy", cat, fz_d$similarity)
+  }
+
+  # ========== FEATURE COLUMNS ==========
+
+  # 4. Exact match in feature columns
+  exact_f <- feature_cols[tolower(feature_cols) == user_col_clean]
+  if (length(exact_f) > 0) {
+    add_candidate(exact_f[1], "exact", "feature", 1.0)
+  }
+
+  # 5. Synonym match in feature columns
+  # Filter synonyms to only include feature column targets
+  feat_synonyms <- synonyms[names(synonyms) %in% feature_cols]
+  if (length(feat_synonyms) > 0) {
+    syn_f <- .find_synonym_match(user_col_clean, feat_synonyms)
+    if (!is.null(syn_f)) {
+      add_candidate(syn_f, "synonym", "feature", 0.9)
+    }
+  }
+
+  # 6. Fuzzy match in feature columns
+  fz_f <- .fuzzy_match_column(user_col_clean, feature_cols, similarity_threshold)
+  if (!is.null(fz_f$match)) {
+    add_candidate(fz_f$match, "fuzzy", "feature", fz_f$similarity)
+  }
+
+  # Return NULL if no candidates found
+  if (length(candidates) == 0) {
+    return(NULL)
+  }
+
+  # Apply multipliers and compute final scores
+  for (i in seq_along(candidates)) {
+    candidates[[i]]$final_score <-
+      candidates[[i]]$base_score * multipliers[candidates[[i]]$category]
+  }
+
+  # Sort descending by final_score
+  candidates[order(-sapply(candidates, function(x) x$final_score))]
 }
 
 

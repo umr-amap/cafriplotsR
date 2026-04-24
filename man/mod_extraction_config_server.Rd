@@ -14,9 +14,11 @@ mod_extraction_config_server(id, selected_plots, i18n)
 \item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
-A reactive list containing:
-  - options: Named list of extraction options
-  - execute_trigger: Reactive counter that increments on execute
+A reactive list with:
+  \item{options}{Named list of extraction options}
+  \item{execute_trigger}{Reactive counter incremented on extract}
+  \item{individual_features_options}{Named list of advanced query options}
+  \item{individual_features_trigger}{Reactive counter incremented on query}
 }
 \description{
 Server logic for extraction configuration

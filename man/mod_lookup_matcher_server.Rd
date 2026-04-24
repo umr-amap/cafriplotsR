@@ -4,7 +4,7 @@
 \alias{mod_lookup_matcher_server}
 \title{Lookup Matcher Module - Server}
 \usage{
-mod_lookup_matcher_server(id, invalid_values, con)
+mod_lookup_matcher_server(id, invalid_values, con, people_cols_override = NULL)
 }
 \arguments{
 \item{id}{Module namespace ID}
@@ -12,6 +12,10 @@ mod_lookup_matcher_server(id, invalid_values, con)
 \item{invalid_values}{Reactive list of invalid values by column (e.g., list(method = c("val1", "val2")))}
 
 \item{con}{Reactive database connection pool}
+
+\item{people_cols_override}{Optional character vector (or reactive returning one) of additional
+column names that should be treated as people columns (allow_add_new = TRUE). Useful when the
+caller already knows which columns are people columns and wants to bypass auto-detection.}
 }
 \value{
 Reactive list of resolved matches
