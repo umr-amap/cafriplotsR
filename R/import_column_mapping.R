@@ -670,17 +670,12 @@ get_schema_choices_grouped <- function(column_descriptions, schema_columns,
 get_import_column_routing <- function(table_type = "plots", con = NULL) {
 
   tryCatch({
-    message("get_import_column_routing: Starting for table_type = ", table_type)
-
     if (is.null(con)) {
-      message("get_import_column_routing: Creating new connection")
       con <- call.mydb()
     }
 
     # Get base routing config
-    message("get_import_column_routing: Calling get_column_routing()")
     base_config <- get_column_routing(table_type, con)
-    message("get_import_column_routing: Base config retrieved successfully")
 
     # Set required and recommended columns based on table type
     if (table_type == "individuals") {
@@ -693,30 +688,26 @@ get_import_column_routing <- function(table_type = "plots", con = NULL) {
     }
 
     # Add import-specific configuration
-    message("get_import_column_routing: Building import_config")
 
     # Get column synonyms (merged by import type for better matching)
-    message("get_import_column_routing: Getting column synonyms")
     col_synonyms <- if (table_type == "individuals") {
       # For individuals: merge all synonyms (direct columns + traits + features)
-      c(
-        .get_column_synonyms(),
-        .get_individual_column_synonyms(),
-        .get_trait_column_synonyms(),
-        .get_individual_feature_synonyms()
-      )
+      # Use modifyList to properly merge with later lists overwriting earlier ones
+      # This ensures trait_column_synonyms (with "dbh") overwrites column_synonyms (without "dbh")
+      col_syn <- .get_column_synonyms()
+      col_syn <- modifyList(col_syn, .get_individual_column_synonyms())
+      col_syn <- modifyList(col_syn, .get_trait_column_synonyms())
+      col_syn <- modifyList(col_syn, .get_individual_feature_synonyms())
+      col_syn
     } else {
       # For plots: merge base columns with subplot feature synonyms
-      c(
-        .get_column_synonyms(),
-        .get_subplot_feature_synonyms()
-      )
+      col_syn <- .get_column_synonyms()
+      col_syn <- modifyList(col_syn, .get_subplot_feature_synonyms())
+      col_syn
     }
 
     # Get column descriptions
-    message("get_import_column_routing: Getting column descriptions")
     col_descriptions <- .get_column_descriptions(con, table_type)
-    message("get_import_column_routing: Column descriptions retrieved")
 
     base_config$import_config <- list(
 
@@ -845,7 +836,6 @@ get_import_column_routing <- function(table_type = "plots", con = NULL) {
     }
   }
 
-  message("get_import_column_routing: Completed successfully")
   return(base_config)
 
   }, error = function(e) {
@@ -939,21 +929,6 @@ map_user_columns <- function(user_data,
       mapping_methods[user_col] <- best$method
       mapping_confidence[user_col] <- best$final_score
     } else {
-      # No match found
-      if (user_col_clean == "dbh") {
-        cli::cli_alert_warning("DEBUG: No match found for 'dbh'")
-        cli::cli_alert_info("  feature_cols length: {length(feature_cols)}")
-        if (length(feature_cols) > 0) {
-          cli::cli_alert_info("  feature_cols sample: {paste(head(feature_cols, 5), collapse=', ')}")
-        }
-        cli::cli_alert_info("  synonyms count: {length(synonyms)}")
-        # Check if stem_diameter is in synonyms
-        if ("stem_diameter" %in% names(synonyms)) {
-          cli::cli_alert_info("  stem_diameter synonyms: {paste(synonyms[['stem_diameter']], collapse=', ')}")
-        } else {
-          cli::cli_alert_warning("  'stem_diameter' NOT in synonyms keys!")
-        }
-      }
       mapping_methods[user_col] <- "none"
       mapping_confidence[user_col] <- 0
     }
@@ -1216,15 +1191,7 @@ map_user_columns <- function(user_data,
     syn_f <- .find_synonym_match(user_col_clean, feat_synonyms)
     if (!is.null(syn_f)) {
       add_candidate(syn_f, "synonym", "feature", 0.9)
-    } else if (user_col_clean == "dbh") {
-      # DEBUG: Help understand why dbh isn't matching
-      message("DEBUG .score_candidates: user_col_clean='dbh' - no feature synonym match")
-      message("  feat_synonyms keys: ", paste(names(feat_synonyms), collapse=", "))
     }
-  } else if (user_col_clean == "dbh") {
-    message("DEBUG .score_candidates: user_col_clean='dbh' - feat_synonyms is empty!")
-    message("  feature_cols: ", paste(feature_cols, collapse=", "))
-    message("  synonyms keys with 'stem': ", paste(grep("stem", names(synonyms), value=TRUE), collapse=", "))
   }
 
   # 6. Fuzzy match in feature columns

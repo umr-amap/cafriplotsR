@@ -8,7 +8,18 @@
       "Bash(Rscript -e \"roxygen2::roxygenise(roclets = ''namespace'')\")",
       "Bash(Rscript:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(grep -E \"\\\\.\\(R|r\\)$\")",
+      "Bash(grep -r \"\\\\$[a-zA-Z_]\" /d/MonDossierR/database.transects/plotsdatabase/R/mod_step5_validation.R)",
+      "Bash(grep *)",
+      "Bash(R --slave -e \"devtools::document\\(\\)\")",
+      "Bash(R --slave -f test_category_aware_scoring.R)",
+      "Bash(R --slave -f test_scoring_simple.R)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Bash(git branch *)",
+      "Bash(R --slave --vanilla -e \"devtools::document\\(\\)\")",
+      "Bash(R --quiet -e \"source\\('test_mapping_fix.R'\\)\")"
     ],
     "deny": [],
     "ask": []
