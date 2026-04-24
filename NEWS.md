@@ -88,6 +88,11 @@
   - New function `.score_candidates()` evaluates all alternatives for each user column; alternatives stored in result for potential future UI enhancements
   - All schema columns remain available in Step 3 dropdown for user override (no columns hidden from choices)
 
+* **Import Wizard synonym dictionary merging for individuals**
+  - Fixed synonym dictionary merging to use `modifyList()` instead of `c()` when combining base column synonyms with trait-specific and feature-specific synonyms
+  - This ensures trait-specific definitions (e.g., `stem_diameter` with "dbh" synonym) properly override base definitions
+  - Fixes "dbh" column now correctly mapping to "stem_diameter" via synonym match
+
 * **`query_plots()` dead/presumed_dead individual filtering at `census_strategy = "first"/"last"`**
   - When `show_multiple_census = FALSE` and `census_strategy` is `"first"` or `"last"`,
     individuals with `stem_status` of `"dead"` or `"presumed_dead"` at the selected census
