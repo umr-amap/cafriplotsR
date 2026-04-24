@@ -4,7 +4,7 @@
 \alias{mod_taxa_add_server}
 \title{Taxa Add Module - Server}
 \usage{
-mod_taxa_add_server(id, pool, has_write_permission, i18n)
+mod_taxa_add_server(id, pool, pool_main = NULL, has_write_permission, i18n)
 }
 \arguments{
 \item{id}{Module namespace ID}

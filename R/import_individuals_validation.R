@@ -88,7 +88,9 @@ validate_individual_data <- function(individuals_data,
     close_on_exit <- TRUE
   }
 
+  hdr <- .get_debug_header()
   cli::cli_h1("Validating Individual Data")
+  message(hdr, " validate_individual_data() start")
 
   # Store original data
   original_individuals <- individuals_data
@@ -276,10 +278,16 @@ validate_individual_data <- function(individuals_data,
   required_cols <- c("plot_name", "idtax_n", "original_tax_name")
   warning_only_cols <- c("idtax_n", "original_tax_name")  # Convert errors to warnings for these
 
-  required_check <- .validate_required_fields_individuals(
-    validated_individuals,
-    required_cols,
-    warning_only_cols = warning_only_cols
+  required_check <- tryCatch(
+    .validate_required_fields_individuals(
+      validated_individuals,
+      required_cols,
+      warning_only_cols = warning_only_cols
+    ),
+    error = function(e) {
+      message(hdr, " ERROR in .validate_required_fields_individuals: ", conditionMessage(e))
+      stop(paste0("[required fields check] ", conditionMessage(e)), call. = FALSE)
+    }
   )
 
   # Separate errors and warnings
@@ -292,36 +300,72 @@ validate_individual_data <- function(individuals_data,
 
   # 2. Tag validation (numeric, not 0, after auto-generation)
   cli::cli_alert_info("Checking tag values...")
-  tag_check <- .validate_tag_values(validated_individuals)
+  tag_check <- tryCatch(
+    .validate_tag_values(validated_individuals),
+    error = function(e) {
+      message(hdr, " ERROR in .validate_tag_values: ", conditionMessage(e))
+      stop(paste0("[tag values check] ", conditionMessage(e)), call. = FALSE)
+    }
+  )
   errors <- c(errors, tag_check$errors)
   warnings <- c(warnings, tag_check$warnings)
 
   # 3. Plot existence and access
   cli::cli_alert_info("Checking plot existence and access...")
-  plot_check <- .validate_plot_access(data = validated_individuals, con)
+  plot_check <- tryCatch(
+    .validate_plot_access(data = validated_individuals, con),
+    error = function(e) {
+      message(hdr, " ERROR in .validate_plot_access: ", conditionMessage(e))
+      stop(paste0("[plot access check] ", conditionMessage(e)), call. = FALSE)
+    }
+  )
   errors <- c(errors, plot_check$errors)
   warnings <- c(warnings, plot_check$warnings)
 
   # 4. Taxonomy validation (idtax_n exists in taxa database)
   cli::cli_alert_info("Checking taxonomy IDs...")
-  taxa_check <- .validate_taxonomy_ids(validated_individuals, con)
+  taxa_check <- tryCatch(
+    .validate_taxonomy_ids(validated_individuals, con),
+    error = function(e) {
+      message(hdr, " ERROR in .validate_taxonomy_ids: ", conditionMessage(e))
+      stop(paste0("[taxonomy IDs check] ", conditionMessage(e)), call. = FALSE)
+    }
+  )
   errors <- c(errors, taxa_check$errors)
   warnings <- c(warnings, taxa_check$warnings)
 
   # 5. Tag uniqueness within plot (in import data)
   cli::cli_alert_info("Checking tag uniqueness within plots...")
-  unique_check <- .validate_tag_uniqueness_import(validated_individuals)
+  unique_check <- tryCatch(
+    .validate_tag_uniqueness_import(validated_individuals),
+    error = function(e) {
+      message(hdr, " ERROR in .validate_tag_uniqueness_import: ", conditionMessage(e))
+      stop(paste0("[tag uniqueness check] ", conditionMessage(e)), call. = FALSE)
+    }
+  )
   warnings <- c(warnings, unique_check)  # Warning only - duplicate tags may be intentional
 
   # 6. Tag conflicts with existing database
   cli::cli_alert_info("Checking for conflicts with existing individuals...")
-  conflict_check <- .validate_tag_conflicts_database(validated_individuals, con)
+  conflict_check <- tryCatch(
+    .validate_tag_conflicts_database(validated_individuals, con),
+    error = function(e) {
+      message(hdr, " ERROR in .validate_tag_conflicts_database: ", conditionMessage(e))
+      stop(paste0("[tag conflicts check] ", conditionMessage(e)), call. = FALSE)
+    }
+  )
   warnings <- c(warnings, conflict_check)  # Warnings for now, user can decide
 
   # 7. Method-specific validation
   if (!is.null(method)) {
     cli::cli_alert_info("Checking method-specific requirements...")
-    method_check <- .validate_method_requirements(validated_individuals, method)
+    method_check <- tryCatch(
+      .validate_method_requirements(validated_individuals, method),
+      error = function(e) {
+        message(hdr, " ERROR in .validate_method_requirements: ", conditionMessage(e))
+        stop(paste0("[method requirements check] ", conditionMessage(e)), call. = FALSE)
+      }
+    )
     errors <- c(errors, method_check)
   }
 
@@ -334,23 +378,41 @@ validate_individual_data <- function(individuals_data,
 
     # 1. Linking columns present
     cli::cli_alert_info("Checking linking columns...")
-    linking_check <- .validate_feature_linking_columns(features_data = validated_features)
+    linking_check <- tryCatch(
+      .validate_feature_linking_columns(features_data = validated_features),
+      error = function(e) {
+        message(hdr, " ERROR in .validate_feature_linking_columns: ", conditionMessage(e))
+        stop(paste0("[feature linking columns check] ", conditionMessage(e)), call. = FALSE)
+      }
+    )
     if (length(linking_check) > 0) {
       errors <- c(errors, linking_check)
     }
 
     # 2. Features match individuals in import
     cli::cli_alert_info("Checking feature-individual linkage...")
-    linkage_check <- .validate_feature_individual_linkage(
-      validated_features,
-      validated_individuals
+    linkage_check <- tryCatch(
+      .validate_feature_individual_linkage(
+        validated_features,
+        validated_individuals
+      ),
+      error = function(e) {
+        message(hdr, " ERROR in .validate_feature_individual_linkage: ", conditionMessage(e))
+        stop(paste0("[feature-individual linkage check] ", conditionMessage(e)), call. = FALSE)
+      }
     )
     errors <- c(errors, linkage_check$errors)
     warnings <- c(warnings, linkage_check$warnings)
 
     # 3. Trait value types and ranges
     cli::cli_alert_info("Checking trait value types and ranges...")
-    trait_check <- .validate_trait_values(validated_features, con)
+    trait_check <- tryCatch(
+      .validate_trait_values(validated_features, con),
+      error = function(e) {
+        message(hdr, " ERROR in .validate_trait_values: ", conditionMessage(e))
+        stop(paste0("[trait values check] ", conditionMessage(e)), call. = FALSE)
+      }
+    )
     errors <- c(errors, trait_check$errors)
     warnings <- c(warnings, trait_check$warnings)
 
@@ -433,6 +495,8 @@ validate_individual_data <- function(individuals_data,
     changes_made = all_changes
   )
 
+  message(hdr, " validate_individual_data() complete — valid=", is_valid,
+          ", errors=", nrow(errors_df), ", warnings=", nrow(warnings_df))
   invisible(result)
 }
 

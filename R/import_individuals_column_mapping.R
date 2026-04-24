@@ -189,6 +189,41 @@
 }
 
 
+#' Get Individual Feature Synonym Dictionary
+#'
+#' Returns synonyms for individual-level feature/subplot columns.
+#' These are features specific to individual trees, like quadrat location and census details.
+#'
+#' @return Named list where names are standard feature names and values are
+#'   character vectors of synonyms
+#'
+#' @keywords internal
+.get_individual_feature_synonyms <- function() {
+  list(
+    # Quadrat/subplot location for individuals
+    quadrat = c(
+      "subplot", "sub_plot", "sub-plot", "subplotid", "subplot_id",
+      "quadrat_id", "quadratid", "quadrat.id",
+      "quarter", "cell", "sector", "block", "quadrat_name",
+      "sous_parcelle", "sous-parcelle", "sous parcelle",
+      "section", "unit", "sub_unit", "subplot_name",
+      "plot_section", "plot_division", "microsection"
+    ),
+
+    # Census ID for individuals
+    census_id = c(
+      "census", "censusid", "census.id", "census_code",
+      "census_number", "census_no", "censusnumber",
+      "campaign", "campaignid", "campaign.id", "campaign_code",
+      "survey_id", "surveyid", "survey.id", "survey_code",
+      "measurement_id", "measurementid", "measurement.id",
+      "visit", "visit_id", "visitid", "visit.id",
+      "round", "round_id", "roundid", "round.id"
+    )
+  )
+}
+
+
 #' Map Individual Data Columns
 #'
 #' Automatically maps user column names from individual data import files

@@ -1,4 +1,26 @@
 
+#' Build a debug header string with package/R version and timestamp
+#'
+#' Used internally to prefix error and diagnostic messages with reproducible
+#' version context, making it easier to correlate user-reported errors to
+#' specific package releases.
+#'
+#' @return A character string of the form
+#'   `[CafriplotsR vX.Y.Z | R M.m | YYYY-MM-DD HH:MM:SS]`
+#' @keywords internal
+.get_debug_header <- function() {
+  pkg_ver <- tryCatch(
+    as.character(utils::packageVersion("CafriplotsR")),
+    error = function(e) "unknown"
+  )
+  paste0(
+    "[CafriplotsR v", pkg_ver,
+    " | R ", R.version$major, ".", R.version$minor,
+    " | ", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "]"
+  )
+}
+
+
 #' Choose from prompt
 #'
 #' @description

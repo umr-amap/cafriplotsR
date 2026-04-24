@@ -148,11 +148,31 @@ mod_step5_validation_server <- function(id, data, mappings, config, con, i18n) {
             )
           }
         }, error = function(e) {
-          cli::cli_alert_danger("Validation failed: {e$message}")
+          hdr <- .get_debug_header()
+          call_str <- paste(deparse(conditionCall(e)), collapse = "")
+
+          # Dump full diagnostic context to R console for developer
+          message(hdr)
+          message("ERROR in Step 5 validation [import type: ",
+                  if (is_individuals) "individuals" else "plots", "]")
+          message("  message : ", conditionMessage(e))
+          message("  call    : ", call_str)
+          message("  data    : ", nrow(data()), " rows x ", ncol(data()), " cols")
+          message("  columns : ", paste(names(data()), collapse = ", "))
+
+          cli::cli_alert_danger("Validation failed: {conditionMessage(e)}")
+
+          # Show user-facing notification that includes version for bug reports
           shiny::showNotification(
-            paste(i18n()$t("Validation error:"), e$message),
+            shiny::tagList(
+              shiny::strong(i18n()$t("Validation error:")),
+              shiny::br(),
+              conditionMessage(e),
+              shiny::br(),
+              shiny::tags$small(hdr, style = "color: #999; font-family: monospace;")
+            ),
             type = "error",
-            duration = 10
+            duration = 15
           )
           return(NULL)
         })
@@ -160,6 +180,25 @@ mod_step5_validation_server <- function(id, data, mappings, config, con, i18n) {
         shiny::setProgress(1, message = i18n()$t("Validation complete!"))
 
         if (!is.null(result)) {
+          # Guard against malformed return value (e.g. if a sub-function returned
+          # an atomic vector instead of a list, $-access would throw elsewhere)
+          expected_names <- c("valid", "summary", "errors", "warnings", "changes_made")
+          if (!is.list(result) || !all(expected_names %in% names(result))) {
+            hdr <- .get_debug_header()
+            message(hdr)
+            message("ERROR: validate_individual_data() returned unexpected structure")
+            message("  class : ", paste(class(result), collapse = ", "))
+            message("  names : ", paste(names(result), collapse = ", "))
+            shiny::showNotification(
+              shiny::tagList(
+                shiny::strong("Internal error: unexpected validation result structure"),
+                shiny::br(),
+                shiny::tags$small(hdr, style = "color: #999; font-family: monospace;")
+              ),
+              type = "error",
+              duration = 15
+            )
+          } else {
           validation_result(result)
 
           cli::cli_alert_success("Validation complete: {result$summary$errors} errors, {result$summary$warnings} warnings")
@@ -177,6 +216,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con, i18n) {
               duration = 10
             )
           }
+          } # end else (valid result structure)
         }
 
       }, message = i18n()$t("Running validation..."))
@@ -196,7 +236,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con, i18n) {
             shiny::div(
               class = "card",
               style = "padding: 20px; background-color: #f8f9fa; border-left: 4px solid #007bff; text-align: center;",
-              shiny::h3(result$summary$total_rows, style = "margin: 0; color: #007bff;"),
+              shiny::h3(result$summary$total_individuals, style = "margin: 0; color: #007bff;"),
               shiny::p(i18n()$t("Total Rows"), style = "margin: 5px 0 0 0; color: #6c757d;")
             )
           ),
@@ -226,7 +266,7 @@ mod_step5_validation_server <- function(id, data, mappings, config, con, i18n) {
             shiny::div(
               class = "card",
               style = "padding: 20px; background-color: #f8f9fa; border-left: 4px solid #17a2b8; text-align: center;",
-              shiny::h3(result$summary$changes_applied, style = "margin: 0; color: #17a2b8;"),
+              shiny::h3(result$summary$changes_made, style = "margin: 0; color: #17a2b8;"),
               shiny::p(i18n()$t("Auto-Fixed"), style = "margin: 5px 0 0 0; color: #6c757d;")
             )
           )

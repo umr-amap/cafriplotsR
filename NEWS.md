@@ -80,6 +80,14 @@
 
 ### Bug Fixes
 
+* **Import Wizard Step 3 — column auto-mapping with category-aware scoring**
+  - Fixed "plot" column mapping to "plot_name" (direct) instead of feature "plot"
+  - Fixed "subplot" column mapping to "quadrat" (individual feature) instead of no match
+  - Replaced first-match-wins sequential strategy with category-aware scoring: all possible matches across exact/synonym/fuzzy are scored; direct/required columns get multiplier bonuses (2.0x for required direct, 1.5x for other direct, 1.0x for features)
+  - Added word-boundary aware pattern matching in synonym resolution to prevent "plot" from matching within "subplot"
+  - New function `.score_candidates()` evaluates all alternatives for each user column; alternatives stored in result for potential future UI enhancements
+  - All schema columns remain available in Step 3 dropdown for user override (no columns hidden from choices)
+
 * **`query_plots()` dead/presumed_dead individual filtering at `census_strategy = "first"/"last"`**
   - When `show_multiple_census = FALSE` and `census_strategy` is `"first"` or `"last"`,
     individuals with `stem_status` of `"dead"` or `"presumed_dead"` at the selected census
