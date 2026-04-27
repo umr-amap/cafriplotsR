@@ -482,6 +482,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                       tid <- data$traitid[i]
                       new_val <- data$traitvalue[i]
                       if (is.na(tag_val) || is.na(plot_id) || is.na(tid) || is.na(new_val)) next
+                      if (!"id_sub_plots" %in% names(data) || is.na(data$id_sub_plots[i])) next
 
                       ind_match <- db_inds_lookup[
                         as.character(db_inds_lookup$tag) == as.character(tag_val) &
