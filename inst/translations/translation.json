@@ -7800,6 +7800,70 @@
     {
       "en": "Simplified format optimised for transect walk surveys",
       "fr": "Format simplifié optimisé pour les relevés en transect"
+    },
+    {
+      "en": "Map Data Columns to Feature Types",
+      "fr": "Associer les colonnes de données aux types de caractéristiques"
+    },
+    {
+      "en": "For each remaining column in your file, choose the feature type it contains, or skip.",
+      "fr": "Pour chaque colonne restante de votre fichier, choisissez le type de caractéristique qu'elle contient, ou ignorez-la."
+    },
+    {
+      "en": "Skip / choose feature type...",
+      "fr": "Ignorer / choisir un type de caractéristique..."
+    },
+    {
+      "en": "No feature columns mapped. Please assign at least one column to a feature type.",
+      "fr": "Aucune colonne de caractéristique associée. Veuillez assigner au moins une colonne à un type de caractéristique."
+    },
+    {
+      "en": "--- Skip ---",
+      "fr": "--- Ignorer ---"
+    },
+    {
+      "en": "Sample:",
+      "fr": "Exemple :"
+    },
+    {
+      "en": "(empty)",
+      "fr": "(vide)"
+    },
+    {
+      "en": "Role:",
+      "fr": "Rôle :"
+    },
+    {
+      "en": "Trait data",
+      "fr": "Donnée de trait"
+    },
+    {
+      "en": "Metadata (features_field)",
+      "fr": "Métadonnée (features_field)"
+    },
+    {
+      "en": "No columns designated as trait data. Please assign at least one column as 'Trait data'.",
+      "fr": "Aucune colonne désignée comme donnée de trait. Veuillez désigner au moins une colonne comme 'Donnée de trait'."
+    },
+    {
+      "en": "Additional column roles",
+      "fr": "Rôles des colonnes supplémentaires"
+    },
+    {
+      "en": "Select the role for each additional column. Columns designated as 'features_field' will be linked to each measurement as metadata.",
+      "fr": "Sélectionnez le rôle de chaque colonne supplémentaire. Les colonnes désignées comme 'features_field' seront liées à chaque mesure en tant que métadonnée."
+    },
+    {
+      "en": "Keep as metadata",
+      "fr": "Conserver comme métadonnée"
+    },
+    {
+      "en": "Use as features_field",
+      "fr": "Utiliser comme features_field"
+    },
+    {
+      "en": "No census selected. Measurements will be added without linking to any census.",
+      "fr": "Aucun recensement sélectionné. Les mesures seront ajoutées sans lien avec un recensement."
     }
   ]
 }

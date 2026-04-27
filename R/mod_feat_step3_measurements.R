@@ -58,11 +58,15 @@ mod_feat_step3_measurements_ui <- function(id, i18n) {
     # Column mapping UI — appears after upload
     shiny::uiOutput(ns("column_mapping_ui")),
 
+    # Button to create a new individual feature/trait (shown after file upload)
+    shiny::uiOutput(ns("create_feature_button")),
+
     # Trait name mapping UI — appears after column mapping
     shiny::uiOutput(ns("trait_mapping_ui")),
 
     # Census selection
     shiny::uiOutput(ns("census_selector_ui")),
+    shiny::uiOutput(ns("census_warning")),
 
     shiny::hr(),
 
@@ -145,6 +149,204 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
         census_choices(censuses)
       }, error = function(e) {
         cli::cli_alert_warning("Could not load census data: {e$message}")
+      })
+    })
+
+    # Create new feature button — shown once a file is uploaded
+    output$create_feature_button <- shiny::renderUI({
+      shiny::req(uploaded_raw())
+      shiny::div(
+        style = "margin: 10px 0 15px 0;",
+        shiny::actionButton(
+          ns("show_create_trait"),
+          shiny::tagList(shiny::icon("plus"), " ", i18n()$t("Create New Feature")),
+          class = "btn-success btn-sm"
+        ),
+        shiny::tags$small(
+          " — ",
+          i18n()$t("Create a new feature entry in the traitlist. It will immediately become available in the mapping above."),
+          style = "color: #6c757d;"
+        )
+      )
+    })
+
+    # Show modal when button clicked
+    shiny::observeEvent(input$show_create_trait, {
+      category_choices <- c(
+        "Stem-level trait", "Stem status", "Leaf trait",
+        "Wood trait", "Phenology", "Classification",
+        "Vitality", "Other trait"
+      )
+      shiny::showModal(shiny::modalDialog(
+        title = shiny::tagList(
+          shiny::icon("plus-circle"), " ",
+          i18n()$t("Create New Feature/Attribute")
+        ),
+        size = "l",
+        shiny::fluidRow(
+          shiny::column(6,
+            shiny::textInput(
+              ns("new_trait_name"),
+              i18n()$t("Feature Name *"),
+              placeholder = "e.g., crown_diameter, bark_thickness"
+            ),
+            shiny::tags$small(
+              i18n()$t("Use lowercase, underscores (not spaces), no special characters"),
+              style = "color: #6c757d; display: block; margin-top: -10px; margin-bottom: 10px;"
+            ),
+            shiny::selectInput(
+              ns("new_trait_valuetype"),
+              i18n()$t("Value Type *"),
+              choices = c("numeric", "integer", "categorical", "character", "logical", "ordinal"),
+              selected = "numeric"
+            ),
+            shiny::textInput(
+              ns("new_trait_unit"),
+              i18n()$t("Expected Unit (optional)"),
+              placeholder = "e.g., cm, m, kg, %"
+            ),
+            shiny::conditionalPanel(
+              condition = sprintf(
+                "input['%s'] == 'numeric' || input['%s'] == 'integer'",
+                ns("new_trait_valuetype"), ns("new_trait_valuetype")
+              ),
+              shiny::textInput(
+                ns("new_trait_min"),
+                i18n()$t("Minimum Allowed Value (optional)"),
+                placeholder = "e.g., 0"
+              ),
+              shiny::textInput(
+                ns("new_trait_max"),
+                i18n()$t("Maximum Allowed Value (optional)"),
+                placeholder = "e.g., 100"
+              )
+            )
+          ),
+          shiny::column(6,
+            shiny::textAreaInput(
+              ns("new_trait_description"),
+              i18n()$t("Description *"),
+              placeholder = "Describe what this feature measures or represents",
+              rows = 3
+            ),
+            shiny::selectInput(
+              ns("new_trait_category"),
+              i18n()$t("Category"),
+              choices = category_choices,
+              selected = category_choices[1]
+            ),
+            shiny::conditionalPanel(
+              condition = sprintf(
+                "input['%s'] == 'categorical' || input['%s'] == 'ordinal'",
+                ns("new_trait_valuetype"), ns("new_trait_valuetype")
+              ),
+              shiny::textInput(
+                ns("new_trait_levels"),
+                i18n()$t("Factor Levels (comma-separated)"),
+                placeholder = "e.g., small, medium, large"
+              )
+            )
+          )
+        ),
+        footer = shiny::tagList(
+          shiny::modalButton(i18n()$t("Cancel")),
+          shiny::actionButton(
+            ns("create_trait_confirm"),
+            shiny::tagList(shiny::icon("check"), " ", i18n()$t("Create Feature")),
+            class = "btn-primary"
+          )
+        )
+      ))
+    })
+
+    # Handle trait creation
+    shiny::observeEvent(input$create_trait_confirm, {
+      shiny::req(input$new_trait_name, input$new_trait_valuetype, input$new_trait_description)
+
+      if (trimws(input$new_trait_name) == "" || trimws(input$new_trait_description) == "") {
+        shiny::showNotification(
+          i18n()$t("Feature name and description are required"),
+          type = "error"
+        )
+        return()
+      }
+
+      sanitized_name <- gsub("[^a-z0-9_]", "", gsub(" ", "_", tolower(trimws(input$new_trait_name))))
+
+      if (nchar(sanitized_name) == 0) {
+        shiny::showNotification(
+          i18n()$t("Feature name contains only invalid characters. Please use letters, numbers, and underscores."),
+          type = "error"
+        )
+        return()
+      }
+
+      new_min <- if (!is.null(input$new_trait_min) && trimws(input$new_trait_min) != "") {
+        suppressWarnings(as.numeric(input$new_trait_min))
+      } else {
+        NULL
+      }
+      new_max <- if (!is.null(input$new_trait_max) && trimws(input$new_trait_max) != "") {
+        suppressWarnings(as.numeric(input$new_trait_max))
+      } else {
+        NULL
+      }
+      new_unit <- if (!is.null(input$new_trait_unit) && trimws(input$new_trait_unit) != "") {
+        trimws(input$new_trait_unit)
+      } else {
+        NULL
+      }
+      new_levels <- if (!is.null(input$new_trait_levels) && trimws(input$new_trait_levels) != "") {
+        trimws(input$new_trait_levels)
+      } else {
+        NULL
+      }
+
+      shiny::withProgress(message = i18n()$t("Creating new feature..."), {
+        tryCatch({
+          add_trait(
+            new_trait        = sanitized_name,
+            new_valuetype    = input$new_trait_valuetype,
+            new_traitdescription = trimws(input$new_trait_description),
+            new_minallowedvalue  = new_min,
+            new_maxallowedvalue  = new_max,
+            new_expectedunit     = new_unit,
+            new_factorlevels     = new_levels,
+            new_category         = input$new_trait_category,
+            con         = con(),
+            interactive = FALSE
+          )
+
+          # Reload trait list so the new entry (with its DB id) is immediately available
+          tryCatch({
+            actual_con <- if (inherits(con(), "Pool")) pool::poolCheckout(con()) else con()
+            traits_fresh <- DBI::dbGetQuery(actual_con,
+              "SELECT id_trait, trait, valuetype, traitdescription, category,
+                      expectedunit, minallowedvalue, maxallowedvalue, factorlevels
+               FROM traitlist ORDER BY trait")
+            if (inherits(con(), "Pool")) pool::poolReturn(actual_con)
+            available_traits(traits_fresh)
+          }, error = function(e2) {
+            cli::cli_alert_warning("Could not refresh trait list: {e2$message}")
+          })
+
+          shiny::showNotification(
+            sprintf(
+              i18n()$t("Feature '%s' created successfully! It's now available in the dropdown."),
+              sanitized_name
+            ),
+            type = "message",
+            duration = 5
+          )
+          shiny::removeModal()
+
+        }, error = function(e) {
+          shiny::showNotification(
+            paste(i18n()$t("Error creating feature:"), e$message),
+            type = "error",
+            duration = 10
+          )
+        })
       })
     })
 
@@ -407,6 +609,23 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
           )
         )
       )
+    })
+
+    # Warning when no census is selected
+    output$census_warning <- shiny::renderUI({
+      censuses <- census_choices()
+      if (is.null(censuses) || nrow(censuses) == 0) return(NULL)
+      ids <- input$census_ids
+      if (is.null(ids) || length(ids) == 0) {
+        shiny::div(
+          class = "alert alert-warning",
+          style = "margin-top: 5px;",
+          shiny::icon("info-circle"), " ",
+          i18n()$t("No census selected. Measurements will be added without linking to any census.")
+        )
+      } else {
+        NULL
+      }
     })
 
     # Apply mapping
@@ -792,7 +1011,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
               style = "text-align: center; padding-top: 15px;"
             )
           ),
-          # Right: trait dropdown + description output
+          # Right: trait dropdown + description output + role
           shiny::column(7,
             shiny::selectizeInput(
               ns(paste0("trait_map_", safe_col)),
@@ -802,7 +1021,21 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
               width = "100%",
               options = list(placeholder = "(Skip this column)", allowEmptyOption = TRUE)
             ),
-            shiny::uiOutput(ns(paste0("trait_desc_", safe_col)))
+            shiny::uiOutput(ns(paste0("trait_desc_", safe_col))),
+            shiny::radioButtons(
+              ns(paste0("col_role_", safe_col)),
+              label = shiny::tags$small(
+                shiny::icon("tag", style = "color: #6c757d;"),
+                " ", i18n$t("Role:"),
+                style = "color: #6c757d; font-weight: 600;"
+              ),
+              choices = setNames(
+                c("trait", "feature"),
+                c(i18n$t("Trait data"), i18n$t("Metadata (features_field)"))
+              ),
+              selected = "trait",
+              inline = TRUE
+            )
           )
         )
       )
@@ -858,6 +1091,13 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   # Get value column for sample preview
   value_col <- input$map_value_num
   has_value_col <- !is.null(value_col) && value_col != "" && value_col %in% names(raw)
+
+  # Compute extra columns (not mapped to any key role) for optional features_field designation
+  key_cols_long <- c(input$map_plot_name, input$map_tag,
+                     input$map_trait_type, input$map_value_num, input$map_value_char)
+  key_cols_long <- key_cols_long[!is.null(key_cols_long) &
+                                   nchar(trimws(as.character(key_cols_long))) > 0]
+  extra_cols_long <- setdiff(names(raw), key_cols_long)
 
   shiny::tagList(
     shiny::hr(),
@@ -927,7 +1167,38 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
           )
         )
       )
-    })
+    }),
+    # Extra columns: let user designate as features_field (measurement metadata)
+    if (length(extra_cols_long) > 0) shiny::tagList(
+      shiny::hr(),
+      shiny::h5(
+        shiny::icon("columns"), " ",
+        i18n$t("Additional column roles"),
+        style = "color: #495057;"
+      ),
+      shiny::p(
+        i18n$t("Select the role for each additional column. Columns designated as 'features_field' will be linked to each measurement as metadata."),
+        style = "color: #6c757d; font-size: 13px;"
+      ),
+      lapply(extra_cols_long, function(col) {
+        safe_col <- gsub("[^a-zA-Z0-9]", "_", col)
+        shiny::fluidRow(
+          shiny::column(4, shiny::strong(col, style = "font-size: 13px;")),
+          shiny::column(8,
+            shiny::radioButtons(
+              ns(paste0("meta_role_", safe_col)),
+              label = NULL,
+              choices = setNames(
+                c("meta", "feature"),
+                c(i18n$t("Keep as metadata"), i18n$t("Use as features_field"))
+              ),
+              selected = "meta",
+              inline = TRUE
+            )
+          )
+        )
+      })
+    )
   )
 }
 
@@ -955,13 +1226,39 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
     return(NULL)
   }
 
+  # Split mapped columns into traits_field and features_field by role.
+  # The role selector only applies when >1 column is mapped; a single mapped
+  # column is always traits_field (no features_field possible).
+  total_mapped <- length(trait_mappings)
+  traits_field_cols  <- character(0)
+  features_field_cols <- character(0)
+
+  for (col in names(trait_mappings)) {
+    safe_col <- gsub("[^a-zA-Z0-9]", "_", col)
+    role <- input[[paste0("col_role_", safe_col)]]
+    if (total_mapped > 1 && !is.null(role) && role == "feature") {
+      features_field_cols <- c(features_field_cols, col)
+    } else {
+      traits_field_cols <- c(traits_field_cols, col)
+    }
+  }
+  if (length(traits_field_cols) == 0) {
+    shiny::showNotification(
+      i18n$t("No columns designated as trait data. Please assign at least one column as 'Trait data'."),
+      type = "error"
+    )
+    return(NULL)
+  }
+  features_field_final <- if (length(features_field_cols) > 0) features_field_cols else NULL
+
   # Build trait ID lookup
   trait_id_lookup <- setNames(traits$id_trait, traits$trait)
 
-  # Pivot wide to long format for storage
+  # Pivot wide to long format for storage (traits_field only; features_field
+  # columns are carried forward as per-row metadata on each measurement row)
   rows <- list()
   for (i in seq_len(nrow(df))) {
-    for (user_col in names(trait_mappings)) {
+    for (user_col in traits_field_cols) {
       trait_name <- trait_mappings[[user_col]]
       trait_id <- trait_id_lookup[[trait_name]]
       if (is.null(trait_id)) next
@@ -982,6 +1279,10 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
         traitvalue_char = if (!vtype %in% c("numeric", "integer")) as.character(val) else NA_character_,
         stringsAsFactors = FALSE
       )
+      # Carry features_field column values to each measurement row
+      for (feat_col in features_field_cols) {
+        row[[feat_col]] <- df[[feat_col]][i]
+      }
       rows[[length(rows) + 1]] <- row
     }
   }
@@ -1007,7 +1308,10 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   config <- list(
     mode = "add_measurements",
     format = "wide",
-    trait_mappings = trait_mappings,
+    trait_mappings = trait_mappings[traits_field_cols],
+    features_field_mappings = if (length(features_field_cols) > 0) trait_mappings[features_field_cols] else NULL,
+    traits_field = traits_field_cols,
+    features_field = features_field_final,
     people_columns = character(0)
   )
 
@@ -1130,11 +1434,23 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   metadata_cols <- setdiff(names(df), already_mapped)
   result <- df[, c(intersect(keep_cols, names(df)), metadata_cols), drop = FALSE]
 
+  # Determine features_field from metadata column role inputs
+  features_field_long <- character(0)
+  for (col in metadata_cols) {
+    safe_col <- gsub("[^a-zA-Z0-9]", "_", col)
+    role <- input[[paste0("meta_role_", safe_col)]]
+    if (!is.null(role) && role == "feature") {
+      features_field_long <- c(features_field_long, col)
+    }
+  }
+  features_field_final <- if (length(features_field_long) > 0) features_field_long else NULL
+
   config <- list(
     mode = "add_measurements",
     format = "long",
     trait_name_map = trait_name_map,
     metadata_columns = metadata_cols,
+    features_field = features_field_final,
     people_columns = character(0)
   )
 

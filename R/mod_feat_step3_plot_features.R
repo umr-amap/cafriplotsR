@@ -347,18 +347,11 @@ mod_feat_step3_plot_features_server <- function(id, selected_plots, operation_mo
           list(id = "map_additional_people",      label = i18n()$t("Additional people column"))
         )
       } else {
-        feat_choices <- if (!is.null(feat_list)) feat_list$type else character(0)
-        expected <- c(
-          list(
-            list(id = "map_plot_name", label = i18n()$t("Plot name column *")),
-            list(id = "map_year",      label = i18n()$t("Year column")),
-            list(id = "map_month",     label = i18n()$t("Month column")),
-            list(id = "map_day",       label = i18n()$t("Day column"))
-          ),
-          lapply(feat_choices, function(ft) {
-            list(id = paste0("map_feat_", ft),
-                 label = sprintf(i18n()$t("Column for feature: %s"), ft))
-          })
+        expected <- list(
+          list(id = "map_plot_name", label = i18n()$t("Plot name column *")),
+          list(id = "map_year",      label = i18n()$t("Year column")),
+          list(id = "map_month",     label = i18n()$t("Month column")),
+          list(id = "map_day",       label = i18n()$t("Day column"))
         )
       }
 
@@ -382,6 +375,15 @@ mod_feat_step3_plot_features_server <- function(id, selected_plots, operation_mo
             )
           )
         }),
+        if (mode != "new_census") shiny::tagList(
+          shiny::hr(),
+          shiny::h4(shiny::icon("tags"), " ", i18n()$t("Map Data Columns to Feature Types")),
+          shiny::p(
+            i18n()$t("For each remaining column in your file, choose the feature type it contains, or skip."),
+            style = "color:#6c757d;"
+          ),
+          shiny::uiOutput(ns("feat_col_detail_ui"))
+        ) else NULL,
         shiny::div(
           style = "margin-top: 15px;",
           shiny::actionButton(
@@ -391,6 +393,85 @@ mod_feat_step3_plot_features_server <- function(id, selected_plots, operation_mo
           )
         )
       )
+    })
+
+    # Per-xlsx-column feature type mapping (add_features mode only)
+    output$feat_col_detail_ui <- shiny::renderUI({
+      raw  <- uploaded_raw()
+      mode <- operation_mode()
+      if (is.null(raw) || mode == "new_census") return(NULL)
+
+      feat_list <- available_features()
+      user_cols <- names(raw)
+
+      # Build grouped choices: DB feature types by category + special options
+      if (!is.null(feat_list) && nrow(feat_list) > 0) {
+        categories <- unique(feat_list$category)
+        feat_choices_grouped <- lapply(categories, function(cat) {
+          types_in_cat <- feat_list$type[feat_list$category == cat]
+          setNames(types_in_cat, types_in_cat)
+        })
+        names(feat_choices_grouped) <- categories
+        all_choices <- c(
+          list("--- Skip ---" = ""),
+          feat_choices_grouped
+        )
+      } else {
+        all_choices <- c("--- Skip ---" = "")
+      }
+
+      # Synonyms for auto-matching
+      synonyms <- tryCatch(
+        c(.get_subplot_feature_synonyms(), .get_column_synonyms()),
+        error = function(e) .get_subplot_feature_synonyms()
+      )
+
+      lapply(user_cols, function(orig_col) {
+        safe_col  <- gsub("[^a-zA-Z0-9]", "_", orig_col)
+        col_lower <- tolower(orig_col)
+
+        # Auto-match: direct name or synonym lookup
+        auto_feat <- ""
+        if (!is.null(feat_list) && nrow(feat_list) > 0) {
+          direct <- feat_list$type[tolower(feat_list$type) == col_lower]
+          if (length(direct) > 0) {
+            auto_feat <- direct[1]
+          } else {
+            for (feat_type in feat_list$type) {
+              syns <- synonyms[[feat_type]]
+              if (!is.null(syns) && col_lower %in% tolower(syns)) {
+                auto_feat <- feat_type
+                break
+              }
+            }
+          }
+        }
+
+        sample_vals <- head(raw[[orig_col]][!is.na(raw[[orig_col]])], 3)
+        sample_str  <- if (length(sample_vals) > 0) paste(sample_vals, collapse = ", ") else i18n()$t("(empty)")
+
+        shiny::fluidRow(
+          shiny::column(5,
+            shiny::div(
+              style = "padding: 8px; background: #f8f9fa; border-radius: 4px; margin-bottom: 5px;",
+              shiny::strong(orig_col),
+              shiny::br(),
+              shiny::span(style = "color:#6c757d; font-size:0.85em;",
+                          i18n()$t("Sample:"), " ", sample_str)
+            )
+          ),
+          shiny::column(7,
+            shiny::selectizeInput(
+              ns(paste0("col_feat_", safe_col)),
+              label   = NULL,
+              choices = all_choices,
+              selected = auto_feat,
+              multiple = FALSE,
+              options  = list(placeholder = i18n()$t("Skip / choose feature type..."))
+            )
+          )
+        )
+      })
     })
 
     # Apply mapping and build prepared data
@@ -477,19 +558,33 @@ mod_feat_step3_plot_features_server <- function(id, selected_plots, operation_mo
           )
 
         } else {
-          # add_features mode: rename feature columns
+          # add_features mode: iterate over xlsx columns, read col_feat_* inputs
           df$last_census <- NULL
           people_cols  <- c()
           feature_cols <- c()
 
-          all_feat_types <- if (!is.null(feat_list)) feat_list$type else character(0)
-          for (ft in all_feat_types) {
-            mapped <- input[[paste0("map_feat_", ft)]]
-            if (!is.null(mapped) && mapped != "") {
-              if (mapped != ft && mapped %in% names(df)) names(df)[names(df) == mapped] <- ft
-              if (ft %in% people_types) people_cols <- c(people_cols, ft)
-              else feature_cols <- c(feature_cols, ft)
+          # Key columns already remapped above — skip them
+          key_cols_used <- c(plot_col, input$map_year, input$map_month, input$map_day)
+          key_cols_used <- key_cols_used[!is.null(key_cols_used) & nchar(trimws(key_cols_used)) > 0]
+
+          for (orig_col in names(raw)) {
+            if (orig_col %in% key_cols_used) next
+            safe_col <- gsub("[^a-zA-Z0-9]", "_", orig_col)
+            ft <- input[[paste0("col_feat_", safe_col)]]
+            if (is.null(ft) || ft == "") next
+            if (orig_col %in% names(df) && orig_col != ft) {
+              names(df)[names(df) == orig_col] <- ft
             }
+            if (ft %in% people_types) people_cols <- c(people_cols, ft)
+            else feature_cols <- c(feature_cols, ft)
+          }
+
+          if (length(c(feature_cols, people_cols)) == 0) {
+            shiny::showNotification(
+              i18n()$t("No feature columns mapped. Please assign at least one column to a feature type."),
+              type = "error"
+            )
+            return()
           }
 
           config <- list(
@@ -498,7 +593,7 @@ mod_feat_step3_plot_features_server <- function(id, selected_plots, operation_mo
             col_names_select = intersect(c("year", "month", "day"), names(df)),
             col_names_corresp = intersect(c("year", "month", "day"), names(df)),
             people_columns = people_cols,
-            features_field = if (length(people_cols) > 0) people_cols else NULL
+            features_field = NULL
           )
         }
 

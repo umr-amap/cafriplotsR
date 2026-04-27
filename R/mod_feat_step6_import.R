@@ -737,6 +737,11 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
     if (n_unmatched > 0) {
       msg <- paste0(msg, sprintf(" %d row(s) unmatched (skipped).", n_unmatched))
     }
+    feat_preview <- config$features_field
+    if (!is.null(feat_preview) && length(feat_preview) > 0) {
+      msg <- paste0(msg, sprintf(" Metadata columns to be linked as features: %s.",
+        paste(feat_preview, collapse = ", ")))
+    }
 
     return(list(
       dry_run = TRUE,
@@ -789,13 +794,76 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
     if ("issue" %in% names(matched)) records$issue <- as.character(matched$issue)
 
     DBI::dbBegin(actual_con)
-    DBI::dbAppendTable(actual_con, "data_traits_measures", records)
-    DBI::dbCommit(actual_con)
 
-    inserted <- nrow(records)
+    # Insert into data_traits_measures with RETURNING so we get the generated IDs
+    # needed to link feature records. Row order of inserted_ids matches matched.
+    inserted_ids <- .execute_trait_insert_with_returning(records, actual_con)
+    inserted <- nrow(inserted_ids)
     cli::cli_alert_success("Inserted {inserted} measurement(s)")
 
+    # Insert feature records (features_field columns) linked via id_trait_measures
+    features_field <- config$features_field
+    features_field_mappings <- config$features_field_mappings  # NULL for long format
+    n_feat_inserted <- 0L
+
+    if (!is.null(features_field) && length(features_field) > 0) {
+
+      # Resolve each original column name to its traitlist name
+      feat_trait_names <- vapply(features_field, function(fc) {
+        if (!is.null(features_field_mappings) && fc %in% names(features_field_mappings))
+          features_field_mappings[[fc]]
+        else
+          fc
+      }, character(1))
+
+      # Single query for all trait metadata
+      quoted <- paste(
+        vapply(feat_trait_names, function(nm) paste0("'", gsub("'", "''", nm), "'"), character(1)),
+        collapse = ","
+      )
+      trait_meta <- DBI::dbGetQuery(actual_con,
+        sprintf("SELECT id_trait, trait, valuetype FROM traitlist WHERE trait IN (%s)", quoted))
+
+      for (i in seq_along(features_field)) {
+        feat_col    <- features_field[i]
+        trait_name  <- feat_trait_names[i]
+        ti          <- trait_meta[trait_meta$trait == trait_name, , drop = FALSE]
+
+        if (nrow(ti) == 0) {
+          cli::cli_alert_warning("features_field '{feat_col}' (trait '{trait_name}') not in traitlist — skipped")
+          next
+        }
+
+        trait_id  <- as.integer(ti$id_trait[1])
+        is_num    <- ti$valuetype[1] %in% c("numeric", "integer", "table_colnam")
+
+        feat_vals <- matched[[feat_col]]
+        has_val   <- !is.na(feat_vals)
+        if (!any(has_val)) next
+
+        feat_records <- data.frame(
+          id_trait_measures = as.integer(inserted_ids$id_trait_measures[has_val]),
+          id_trait          = trait_id,
+          typevalue         = if (is_num) suppressWarnings(as.numeric(feat_vals[has_val])) else NA_real_,
+          typevalue_char    = if (!is_num) as.character(feat_vals[has_val]) else NA_character_,
+          date_modif_d      = today_d,
+          date_modif_m      = today_m,
+          date_modif_y      = today_y,
+          stringsAsFactors  = FALSE
+        )
+
+        DBI::dbAppendTable(actual_con, "data_ind_measures_feat", feat_records)
+        n_feat_inserted <- n_feat_inserted + nrow(feat_records)
+        cli::cli_alert_success("Inserted {nrow(feat_records)} feature record(s) for '{feat_col}'")
+      }
+    }
+
+    DBI::dbCommit(actual_con)
+
     msg <- sprintf(t("Successfully inserted %d measurement(s)."), inserted)
+    if (n_feat_inserted > 0) {
+      msg <- paste0(msg, sprintf(" %d feature record(s) linked.", n_feat_inserted))
+    }
     if (n_unmatched > 0) {
       msg <- paste0(msg, sprintf(" %d row(s) skipped (unmatched individuals).", n_unmatched))
     }
