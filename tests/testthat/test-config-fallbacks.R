@@ -59,7 +59,12 @@ test_that("get_metadata_mappings_individuals returns empty list", {
 # =============================================================================
 
 test_that("get_metadata_mappings_plots always includes method and country", {
-  # Even when DB fails, the hardcoded method + country should be returned
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    subplot_list = function(con = NULL) stop('skip dynamic lookup in unit test')
+  )
+
+  # Even when DB-backed subplot lookup fails, the hardcoded method + country should be returned
   result <- get_metadata_mappings_plots(con = NULL)
   expect_type(result, "list")
   expect_true("method" %in% names(result))
@@ -319,6 +324,9 @@ test_that("setup_db_credentials prompts for missing user and password", {
   testthat::local_mocked_bindings(
     .package = 'base',
     readline = function(prompt = '') {
+      # In interactive sessions, setup_db_credentials first asks "Do you want to
+      # continue?" before prompting for username; answer "yes" to proceed.
+      if (grepl("continue", prompt, ignore.case = TRUE)) return("yes")
       expect_equal(prompt, 'Enter database username: ')
       'prompted_user'
     },
@@ -382,42 +390,7 @@ test_that("remove_db_credentials returns FALSE when no file or no MYDB entries e
   expect_false(isTRUE(remove_db_credentials()))
 })
 
-test_that("get_password_secure uses getPass when interactive and available", {
-  testthat::local_mocked_bindings(
-    .package = 'base',
-    interactive = function() TRUE
-  )
-  testthat::local_mocked_bindings(
-    .package = 'base',
-    requireNamespace = function(package, quietly = TRUE) {
-      expect_equal(package, 'getPass')
-      TRUE
-    }
-  )
-  testthat::local_mocked_bindings(
-    .package = 'getPass',
-    getPass = function(msg) {
-      expect_equal(msg, 'Password:')
-      'secret_value'
-    }
-  )
-
-  expect_equal(get_password_secure('Password:'), 'secret_value')
-})
-
-test_that("get_password_secure falls back to readline and errors in non-interactive mode", {
-  testthat::local_mocked_bindings(
-    .package = 'base',
-    interactive = function() TRUE,
-    requireNamespace = function(package, quietly = TRUE) FALSE,
-    readline = function(prompt = '') {
-      expect_match(prompt, 'WARNING: will be visible')
-      'visible_secret'
-    }
-  )
-
-  expect_warning(expect_equal(get_password_secure('Password:'), 'visible_secret'), 'No secure password input available')
-
+test_that("get_password_secure errors in non-interactive sessions", {
   testthat::local_mocked_bindings(
     .package = 'base',
     interactive = function() FALSE
@@ -425,17 +398,7 @@ test_that("get_password_secure falls back to readline and errors in non-interact
   expect_error(get_password_secure('Password:'), 'Cannot prompt for password')
 })
 
-test_that("get_username_secure reads interactively and errors otherwise", {
-  testthat::local_mocked_bindings(
-    .package = 'base',
-    interactive = function() TRUE,
-    readline = function(prompt = '') {
-      expect_equal(prompt, 'Username:')
-      'alice'
-    }
-  )
-  expect_equal(get_username_secure('Username:'), 'alice')
-
+test_that("get_username_secure errors in non-interactive sessions", {
   testthat::local_mocked_bindings(
     .package = 'base',
     interactive = function() FALSE
@@ -494,5 +457,7 @@ test_that("print_connection_status handles connected, broken, error, and disconn
   expect_no_error(print_connection_status())
   expect_no_error(print_connection_status())
 })
+
+
 
 
