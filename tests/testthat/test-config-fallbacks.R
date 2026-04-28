@@ -287,3 +287,212 @@ test_that("cleanup_connections disconnects DBs, closes pools, and clears cached 
   expect_equal(sort(calls), sort(c('disconnect:main', 'disconnect:taxa', 'poolClose:pool_main', 'poolClose:pool_taxa')))
   expect_equal(length(ls(envir = credentials)), 0)
 })
+
+test_that("setup_db_credentials writes credentials to .Renviron and removes prior MYDB entries", {
+  home_dir <- withr::local_tempdir()
+  renviron_path <- file.path(home_dir, '.Renviron')
+  writeLines(c('OTHER_VAR=keep', 'MYDB_USER=old', 'MYDB_PASS=oldpass'), renviron_path)
+
+  testthat::local_mocked_bindings(
+    .package = 'base',
+    interactive = function() FALSE,
+    path.expand = function(path) {
+      if (identical(path, '~')) home_dir else path
+    }
+  )
+
+  result <- setup_db_credentials(user = 'new_user', pass = 'new_pass')
+  lines <- readLines(renviron_path)
+
+  expect_true(isTRUE(result))
+  expect_equal(sum(grepl('^MYDB_USER=', lines)), 1)
+  expect_equal(sum(grepl('^MYDB_PASS=', lines)), 1)
+  expect_true('MYDB_USER=new_user' %in% lines)
+  expect_true('MYDB_PASS=new_pass' %in% lines)
+  expect_true('OTHER_VAR=keep' %in% lines)
+})
+
+test_that("setup_db_credentials prompts for missing user and password", {
+  home_dir <- withr::local_tempdir()
+  renviron_path <- file.path(home_dir, '.Renviron')
+
+  testthat::local_mocked_bindings(
+    .package = 'base',
+    readline = function(prompt = '') {
+      expect_equal(prompt, 'Enter database username: ')
+      'prompted_user'
+    },
+    path.expand = function(path) {
+      if (identical(path, '~')) home_dir else path
+    }
+  )
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    get_password_secure = function(prompt) {
+      expect_equal(prompt, 'Enter database password: ')
+      'prompted_pass'
+    }
+  )
+
+  result <- setup_db_credentials(user = NULL, pass = NULL)
+  lines <- readLines(renviron_path)
+
+  expect_true(isTRUE(result))
+  expect_true('MYDB_USER=prompted_user' %in% lines)
+  expect_true('MYDB_PASS=prompted_pass' %in% lines)
+})
+
+test_that("remove_db_credentials removes stored MYDB entries and clears in-memory cache", {
+  home_dir <- withr::local_tempdir()
+  renviron_path <- file.path(home_dir, '.Renviron')
+  writeLines(c('OTHER_VAR=keep', 'MYDB_USER=user1', 'MYDB_PASS=pass1'), renviron_path)
+  credentials$user_db <- 'cached_user'
+  credentials$password <- 'cached_pass'
+  on.exit(rm(list = ls(envir = credentials), envir = credentials), add = TRUE)
+
+  testthat::local_mocked_bindings(
+    .package = 'base',
+    path.expand = function(path) {
+      if (identical(path, '~')) home_dir else path
+    }
+  )
+
+  result <- remove_db_credentials()
+  lines <- readLines(renviron_path)
+
+  expect_true(isTRUE(result))
+  expect_equal(lines, 'OTHER_VAR=keep')
+  expect_equal(length(ls(envir = credentials)), 0)
+})
+
+test_that("remove_db_credentials returns FALSE when no file or no MYDB entries exist", {
+  home_dir <- withr::local_tempdir()
+  renviron_path <- file.path(home_dir, '.Renviron')
+
+  testthat::local_mocked_bindings(
+    .package = 'base',
+    path.expand = function(path) {
+      if (identical(path, '~')) home_dir else path
+    }
+  )
+
+  expect_false(isTRUE(remove_db_credentials()))
+
+  writeLines('OTHER_VAR=keep', renviron_path)
+  expect_false(isTRUE(remove_db_credentials()))
+})
+
+test_that("get_password_secure uses getPass when interactive and available", {
+  testthat::local_mocked_bindings(
+    .package = 'base',
+    interactive = function() TRUE
+  )
+  testthat::local_mocked_bindings(
+    .package = 'base',
+    requireNamespace = function(package, quietly = TRUE) {
+      expect_equal(package, 'getPass')
+      TRUE
+    }
+  )
+  testthat::local_mocked_bindings(
+    .package = 'getPass',
+    getPass = function(msg) {
+      expect_equal(msg, 'Password:')
+      'secret_value'
+    }
+  )
+
+  expect_equal(get_password_secure('Password:'), 'secret_value')
+})
+
+test_that("get_password_secure falls back to readline and errors in non-interactive mode", {
+  testthat::local_mocked_bindings(
+    .package = 'base',
+    interactive = function() TRUE,
+    requireNamespace = function(package, quietly = TRUE) FALSE,
+    readline = function(prompt = '') {
+      expect_match(prompt, 'WARNING: will be visible')
+      'visible_secret'
+    }
+  )
+
+  expect_warning(expect_equal(get_password_secure('Password:'), 'visible_secret'), 'No secure password input available')
+
+  testthat::local_mocked_bindings(
+    .package = 'base',
+    interactive = function() FALSE
+  )
+  expect_error(get_password_secure('Password:'), 'Cannot prompt for password')
+})
+
+test_that("get_username_secure reads interactively and errors otherwise", {
+  testthat::local_mocked_bindings(
+    .package = 'base',
+    interactive = function() TRUE,
+    readline = function(prompt = '') {
+      expect_equal(prompt, 'Username:')
+      'alice'
+    }
+  )
+  expect_equal(get_username_secure('Username:'), 'alice')
+
+  testthat::local_mocked_bindings(
+    .package = 'base',
+    interactive = function() FALSE
+  )
+  expect_error(get_username_secure('Username:'), 'Cannot prompt for username')
+})
+
+test_that("check_taxa_permissions handles read-only, writable, and broken connections", {
+  testthat::local_mocked_bindings(
+    .package = 'DBI',
+    dbGetQuery = function(con, sql) data.frame(test = 1),
+    dbExecute = function(con, sql) stop('write denied')
+  )
+  expect_no_error(check_taxa_permissions(structure(list(), class = 'mock_con')))
+
+  calls <- character()
+  testthat::local_mocked_bindings(
+    .package = 'DBI',
+    dbGetQuery = function(con, sql) data.frame(test = 1),
+    dbExecute = function(con, sql) {
+      calls <<- c(calls, sql)
+      1L
+    }
+  )
+  expect_no_error(check_taxa_permissions(structure(list(), class = 'mock_con')))
+  expect_equal(length(calls), 2)
+
+  testthat::local_mocked_bindings(
+    .package = 'DBI',
+    dbGetQuery = function(con, sql) stop('cannot connect')
+  )
+  expect_no_error(check_taxa_permissions(structure(list(), class = 'mock_con')))
+})
+
+test_that("print_connection_status handles connected, broken, error, and disconnected states", {
+  infos <- list(
+    list(
+      main = list(status = 'connected', database = 'plots_transects', user = 'alice', connection_valid = TRUE),
+      taxa = list(status = 'disconnected')
+    ),
+    list(
+      main = list(status = 'connected', database = 'plots_transects', user = 'alice', connection_valid = FALSE),
+      taxa = list(status = 'error', message = 'boom')
+    )
+  )
+  idx <- 0L
+
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    get_connection_info = function() {
+      idx <<- idx + 1L
+      infos[[idx]]
+    }
+  )
+
+  expect_no_error(print_connection_status())
+  expect_no_error(print_connection_status())
+})
+
+
