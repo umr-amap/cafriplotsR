@@ -65,3 +65,4 @@ Depends:
     R (>= 4.1.0)
 Config/testthat/edition: 3
 URL: https://umr-amap.github.io/cafriplotsR/
+Additional_repositories: https://matildabrown.github.io/drat
