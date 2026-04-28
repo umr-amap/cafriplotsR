@@ -1043,19 +1043,31 @@ map_user_columns <- function(user_data,
   best_match <- NULL
   best_match_score <- 0
 
-  for (target_col in names(synonyms)) {
-    synonym_list_normalized <- sapply(synonyms[[target_col]], normalize)
+  # Separator-preserving form: keep underscores/dashes for word boundary detection.
+  # Full normalization (used in STEP 1) strips underscores, so "elevation_meters_asl"
+  # becomes "elevationmetersasl" — making the boundary regex unreliable. Keeping
+  # separators here lets us correctly detect that "elevation_meters" ends at a real
+  # word boundary in "elevation_meters_asl".
+  to_sep_form <- function(x) {
+    x <- gsub("[^a-z0-9_-]", "_", tolower(trimws(x)))
+    x <- gsub("[_-]+", "_", x)
+    gsub("^_|_$", "", x)
+  }
+  user_col_with_sep <- to_sep_form(user_col_clean)
 
-    for (synonym_norm in synonym_list_normalized) {
+  for (target_col in names(synonyms)) {
+    for (synonym in synonyms[[target_col]]) {
+      synonym_norm <- normalize(synonym)
+
       # Skip very short synonyms to avoid false positives (e.g., "y", "x", "h")
       if (nchar(synonym_norm) < 3) {
         next
       }
 
       # Check if synonym is contained in user column name at word boundaries
-      # Use regex to match word boundaries or string start/end
-      pattern <- sprintf("(^|_|-)%s(_|-|$)", synonym_norm)
-      if (grepl(pattern, user_col_normalized)) {
+      synonym_with_sep <- to_sep_form(synonym)
+      pattern <- sprintf("(^|_)%s(_|$)", synonym_with_sep)
+      if (grepl(pattern, user_col_with_sep)) {
         # Calculate similarity to target column for tiebreaking
         similarity <- stringdist::stringsim(user_col_clean, target_col)
 
