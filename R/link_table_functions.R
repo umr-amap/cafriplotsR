@@ -55,7 +55,7 @@
     dplyr::distinct(data_stand, name) %>% filter(name != "")
 
   all_names <-
-    try_open_postgres_table(table = table_name, con = db_connection) %>%
+    try_open_postgres_table(table = table_name, con = mydb) %>%
     # dplyr::tbl(mydb, "table_countries") %>%
     dplyr::collect() %>%
     select(!!sym(id_table_name), !!sym(column_name), all_of(keep_columns))
@@ -909,5 +909,7 @@ join_help_function <- function(df1, df2, col1, col2, keep_columns) {
   
   return(list(corresponding_data_full, all_tb_update))
 }
+
+
 
 

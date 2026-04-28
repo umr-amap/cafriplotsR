@@ -275,3 +275,273 @@ test_that("standardize_taxonomic_batch errors for missing name column", {
     "Column"
   )
 })
+
+test_that('.match_single_name_sql prefers exact matches before later strategies', {
+  parsed <- list(
+    input_name = 'Garcinia kola',
+    original_input = 'Garcinia kola',
+    genus = 'Garcinia'
+  )
+
+  calls <- character()
+
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    .match_exact_sql = function(parsed, con, include_authors, max_matches) {
+      calls <<- c(calls, 'exact')
+      tibble::tibble(
+        input_name = parsed$input_name,
+        matched_name = 'Garcinia kola',
+        idtax_n = 1L,
+        idtax_good_n = 1L,
+        match_method = 'exact',
+        match_score = 1,
+        tax_gen = 'Garcinia',
+        tax_esp = 'kola',
+        tax_fam = 'Clusiaceae',
+        tax_level = 'species'
+      )
+    },
+    .match_genus_constrained_sql = function(...) {
+      calls <<- c(calls, 'genus')
+      tibble::tibble()
+    },
+    .match_fuzzy_sql = function(...) {
+      calls <<- c(calls, 'fuzzy')
+      tibble::tibble()
+    }
+  )
+
+  result <- CafriplotsR:::.match_single_name_sql(parsed, structure(list(), class = 'mock_con'), 'auto', 5, 0.3, FALSE, FALSE)
+
+  expect_equal(calls, 'exact')
+  expect_equal(result$match_rank, 1L)
+  expect_equal(result$match_method, 'exact')
+})
+
+test_that('.match_single_name_sql returns a no_match row when all strategies fail', {
+  parsed <- list(
+    input_name = 'Unknown species',
+    original_input = 'Unknown species',
+    genus = 'Unknown'
+  )
+
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    .match_exact_sql = function(...) tibble::tibble(),
+    .match_genus_constrained_sql = function(...) tibble::tibble(),
+    .match_fuzzy_sql = function(...) tibble::tibble()
+  )
+
+  result <- CafriplotsR:::.match_single_name_sql(parsed, structure(list(), class = 'mock_con'), 'auto', 5, 0.3, FALSE, FALSE)
+
+  expect_equal(nrow(result), 1)
+  expect_equal(result$match_method, 'no_match')
+  expect_true(is.na(result$idtax_n))
+  expect_equal(result$match_rank, 1)
+})
+
+test_that('.match_exact_sql handles class and species-level result formatting', {
+  mock_con <- structure(list(), class = 'mock_con')
+  fetch_calls <- 0L
+
+  testthat::local_mocked_bindings(
+    .package = 'glue',
+    glue_sql = function(..., .con = NULL) 'SELECT mocked SQL'
+  )
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    func_try_fetch = function(con, sql) {
+      fetch_calls <<- fetch_calls + 1L
+      if (fetch_calls == 1L) {
+        tibble::tibble(
+          idtax_n = c(1L, 2L),
+          idtax_good_n = c(1L, 2L),
+          tax_gen = c(NA_character_, NA_character_),
+          tax_esp = c(NA_character_, NA_character_),
+          tax_fam = c('Fabaceae', 'Fabaceae'),
+          tax_level = c('higher', 'higher'),
+          matched_name = c('Magnoliopsida', 'Magnoliopsida'),
+          similarity_score = c(1, 1)
+        )
+      } else {
+        tibble::tibble(
+          idtax_n = 10L,
+          idtax_good_n = 10L,
+          tax_gen = 'Garcinia',
+          tax_esp = 'kola',
+          tax_fam = 'Clusiaceae',
+          tax_level = 'species',
+          tax_rank01 = NA_character_,
+          tax_nam01 = NA_character_,
+          tax_rank02 = NA_character_,
+          tax_nam02 = NA_character_,
+          author1 = NA_character_,
+          author2 = NA_character_,
+          author3 = NA_character_,
+          matched_name = 'Garcinia kola',
+          similarity_score = 1
+        )
+      }
+    }
+  )
+
+  class_result <- CafriplotsR:::.match_exact_sql(
+    list(rank = 'class', full_name_no_auth = 'Magnoliopsida', input_name = 'Magnoliopsida', original_input = 'Magnoliopsida'),
+    mock_con,
+    FALSE,
+    5
+  )
+  species_result <- CafriplotsR:::.match_exact_sql(
+    list(rank = 'species', full_name_no_auth = 'Garcinia kola', input_name = 'Garcinia kola', original_input = 'Garcinia kola'),
+    mock_con,
+    FALSE,
+    5
+  )
+
+  expect_equal(nrow(class_result), 1)
+  expect_equal(class_result$match_method, 'exact')
+  expect_equal(class_result$matched_name, 'Magnoliopsida')
+  expect_equal(species_result$matched_name, 'Garcinia kola')
+  expect_equal(species_result$tax_gen, 'Garcinia')
+})
+
+test_that('.match_genus_constrained_sql returns empty for missing genus and formats matches otherwise', {
+  mock_con <- structure(list(), class = 'mock_con')
+
+  empty_result <- CafriplotsR:::.match_genus_constrained_sql(
+    list(genus = NA_character_, input_name = 'Unknown', original_input = 'Unknown'),
+    mock_con,
+    0.3,
+    FALSE,
+    5
+  )
+  expect_equal(nrow(empty_result), 0)
+
+  fetch_calls <- 0L
+  testthat::local_mocked_bindings(
+    .package = 'glue',
+    glue_sql = function(..., .con = NULL) 'SELECT mocked SQL'
+  )
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    func_try_fetch = function(con, sql) {
+      fetch_calls <<- fetch_calls + 1L
+      if (fetch_calls == 1L) {
+        tibble::tibble(tax_gen = 'Garcinia', genus_sim = 0.92)
+      } else {
+        tibble::tibble(
+          idtax_n = 10L,
+          idtax_good_n = 10L,
+          tax_gen = 'Garcinia',
+          tax_esp = 'kola',
+          tax_fam = 'Clusiaceae',
+          tax_level = 'species',
+          tax_rank01 = NA_character_,
+          tax_nam01 = NA_character_,
+          tax_rank02 = NA_character_,
+          tax_nam02 = NA_character_,
+          author1 = NA_character_,
+          author2 = NA_character_,
+          author3 = NA_character_,
+          matched_name = 'Garcinia kola',
+          similarity_score = 0.91
+        )
+      }
+    }
+  )
+
+  matched <- CafriplotsR:::.match_genus_constrained_sql(
+    list(genus = 'Garcinia', input_name = 'Garcinea kola', original_input = 'Garcinea kola'),
+    mock_con,
+    0.3,
+    FALSE,
+    5
+  )
+
+  expect_equal(matched$match_method, 'genus_constrained')
+  expect_equal(matched$match_score, 0.91)
+  expect_equal(matched$input_name, 'Garcinea kola')
+})
+
+test_that('.match_fuzzy_sql handles order fallback errors and class-level fuzzy matches', {
+  mock_con <- structure(list(), class = 'mock_con')
+
+  testthat::local_mocked_bindings(
+    .package = 'glue',
+    glue_sql = function(..., .con = NULL) 'SELECT mocked SQL'
+  )
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    func_try_fetch = function(con, sql) stop('tax_order missing')
+  )
+
+  order_result <- CafriplotsR:::.match_fuzzy_sql(
+    list(rank = 'order', full_name_no_auth = 'Malpighiales', input_name = 'Malpighiales', original_input = 'Malpighiales'),
+    mock_con,
+    0.3,
+    FALSE,
+    5
+  )
+  expect_equal(nrow(order_result), 0)
+
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    func_try_fetch = function(con, sql) {
+      tibble::tibble(
+        idtax_n = 1L,
+        idtax_good_n = 1L,
+        tax_gen = NA_character_,
+        tax_esp = NA_character_,
+        tax_fam = 'Fabaceae',
+        tax_level = 'higher',
+        matched_name = 'Magnoliopsida',
+        similarity_score = 0.88
+      )
+    }
+  )
+
+  class_result <- CafriplotsR:::.match_fuzzy_sql(
+    list(rank = 'class', full_name_no_auth = 'Magnoliopsda', input_name = 'Magnoliopsda', original_input = 'Magnoliopsda'),
+    mock_con,
+    0.3,
+    FALSE,
+    5
+  )
+
+  expect_equal(class_result$match_method, 'fuzzy')
+  expect_equal(class_result$match_score, 0.88)
+  expect_equal(class_result$matched_name, 'Magnoliopsida')
+})
+
+test_that('.add_synonym_info_sql annotates synonyms and preserves accepted taxa', {
+  matches <- tibble::tibble(
+    input_name = c('Synonym name', 'Accepted name'),
+    matched_name = c('Synonym name', 'Accepted name'),
+    idtax_n = c(10L, 20L),
+    idtax_good_n = c(11L, 20L),
+    match_method = c('exact', 'exact'),
+    match_score = c(1, 1),
+    tax_gen = c('Garcinia', 'Gilbertiodendron'),
+    tax_esp = c('kola', 'dewevrei'),
+    tax_fam = c('Clusiaceae', 'Fabaceae'),
+    tax_level = c('species', 'species')
+  )
+
+  testthat::local_mocked_bindings(
+    .package = 'glue',
+    glue_sql = function(..., .con = NULL) 'SELECT mocked SQL'
+  )
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    func_try_fetch = function(con, sql) {
+      tibble::tibble(idtax_n = 11L, accepted_name = 'Garcinia kola')
+    }
+  )
+
+  result <- CafriplotsR:::.add_synonym_info_sql(matches, structure(list(), class = 'mock_con'))
+
+  expect_equal(result$is_synonym, c(TRUE, FALSE))
+  expect_equal(result$accepted_name[[1]], 'Garcinia kola')
+  expect_true(is.na(result$accepted_name[[2]]))
+})

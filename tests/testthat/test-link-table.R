@@ -214,3 +214,67 @@ test_that(".link_table uses provided db_connection instead of calling call.mydb"
 
   expect_equal(result$id_method, 1L)
 })
+
+test_that(".find_similar_string ranks the closest matches first", {
+  compared <- tibble::tibble(
+    comp_value = c("Cameroon", "Gabon", "Congo")
+  )
+
+  result <- CafriplotsR:::.find_similar_string("Cameroun", compared, "comp_value")
+
+  expect_equal(result$comp_value[[1]], "Cameroon")
+  expect_true(all(diff(result$dist) <= 0))
+})
+
+test_that(".find_cat returns an exact match without interactive input", {
+  compared <- tibble::tibble(
+    id_country = c(10L, 20L),
+    country = c("Cameroon", "Gabon")
+  )
+
+  testthat::local_mocked_bindings(
+    .package = "base",
+    readline = function(prompt = "") stop("readline should not be called for exact matches")
+  )
+
+  result <- CafriplotsR:::.find_cat(
+    value_to_search = "Gabon",
+    compared_table = compared,
+    column_name = "country"
+  )
+
+  expect_equal(result$selected_name, 2L)
+  expect_equal(result$sorted_matches$comp_value, c("Cameroon", "Gabon"))
+  expect_true(result$sorted_matches$perfect_match[[2]])
+})
+
+test_that(".link_table calls call.mydb when no connection is provided", {
+  lookup <- tibble::tibble(
+    id_method = 1L,
+    method = "transect"
+  )
+  mock_con <- structure(list(name = "created"), class = "mock_con")
+
+  testthat::local_mocked_bindings(
+    call.mydb = function() mock_con,
+    try_open_postgres_table = function(table, con) {
+      expect_identical(con, mock_con)
+      lookup
+    },
+    .find_cat = function(...) stop(".find_cat should not be called for exact matches"),
+    .package = "CafriplotsR"
+  )
+
+  data <- tibble::tibble(method_in = "transect")
+
+  result <- CafriplotsR:::.link_table(
+    data_stand = data,
+    column_searched = "method_in",
+    column_name = "method",
+    id_field = "id_method",
+    id_table_name = "id_method",
+    table_name = "methodslist"
+  )
+
+  expect_equal(result$id_method, 1L)
+})

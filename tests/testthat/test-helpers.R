@@ -1,6 +1,49 @@
 # Tests for R/helpers.R pure utility functions
 
 # =============================================================================
+# .get_debug_header()
+# =============================================================================
+
+test_that(".get_debug_header includes package, R version, and timestamp context", {
+  header <- CafriplotsR:::.get_debug_header()
+
+  expect_match(header, "^\\[CafriplotsR v")
+  expect_match(header, paste0("R ", R.version$major, "\\.", sub("\\..*$", "", R.version$minor)))
+  expect_match(header, "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\]$")
+})
+
+# =============================================================================
+# choose_prompt()
+# =============================================================================
+
+test_that("choose_prompt defaults to the first choice on empty input", {
+  testthat::local_mocked_bindings(
+    .package = "base",
+    readline = function(prompt = "") ""
+  )
+
+  expect_true(choose_prompt(message = "Select an option"))
+})
+
+test_that("choose_prompt maps the third choice to NA", {
+  testthat::local_mocked_bindings(
+    .package = "base",
+    readline = function(prompt = "") "3"
+  )
+
+  expect_true(is.na(choose_prompt()))
+})
+
+test_that("choose_prompt returns NULL for invalid input", {
+  testthat::local_mocked_bindings(
+    .package = "base",
+    readline = function(prompt = "") "9"
+  )
+
+  expect_null(choose_prompt())
+})
+
+# =============================================================================
 # replace_NA()
 # =============================================================================
 
@@ -166,4 +209,22 @@ test_that("species_plot_matrix respects custom column names", {
   result <- species_plot_matrix(df, tax_col = "species", plot_col = "site")
   expect_equal(nrow(result), 2)
   expect_true(all(c("S1", "S2") %in% colnames(result)))
+})
+
+# =============================================================================
+# join_help_function()
+# =============================================================================
+
+test_that("join_help_function keeps requested lookup columns using remapped keys", {
+  df1 <- tibble::tibble(id_country = c(10L, 20L, 30L))
+  df2 <- tibble::tibble(
+    id = c(10L, 20L),
+    iso3 = c("CMR", "GAB"),
+    region = c("Central Africa", "Central Africa")
+  )
+
+  result <- join_help_function(df1, df2, "id_country", "id", keep_columns = c("iso3", "region"))
+
+  expect_equal(result$iso3, c("CMR", "GAB", NA))
+  expect_equal(result$region, c("Central Africa", "Central Africa", NA))
 })
