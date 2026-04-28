@@ -125,11 +125,18 @@ test_that("create_db_config writes config file and loads defaults", {
   expect_equal(get('db_name_taxa', envir = .GlobalEnv), 'rainbio')
 })
 test_that("create_db_config falls back to in-memory defaults when file creation fails", {
+  # Use an existing *file* as a parent path component — creating a subdirectory
+  # inside a file is impossible on all platforms, making cat() fail reliably
+  # without relying on platform-specific paths or filesystem permissions.
+  parent_file <- withr::local_tempfile()
+  writeLines("", parent_file)
+  bad_path <- file.path(parent_file, "impossible", "config.R")
+
   on.exit({
     rm(list = intersect(c('db_host', 'db_port', 'db_name', 'db_name_taxa', 'db_connect_timeout', 'db_max_retries'), ls(.GlobalEnv)), envir = .GlobalEnv)
   }, add = TRUE)
 
-  result <- create_db_config(config_path = 'Z:/__definitely_missing__/<>/config.R')
+  result <- create_db_config(config_path = bad_path)
 
   expect_false(isTRUE(result))
   expect_equal(get('db_host', envir = .GlobalEnv), 'dg474899-001.dbaas.ovh.net')
