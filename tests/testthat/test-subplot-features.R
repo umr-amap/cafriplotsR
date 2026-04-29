@@ -96,3 +96,68 @@ test_that('aggregate_plot_features combines numeric, character, and census-deriv
   expect_equal(result$forest_type[result$id_table_liste_plots == 2], 'Dry forest')
   expect_equal(result$date_census_1[result$id_table_liste_plots == 1], as.Date('2020-01-01'))
 })
+
+test_that('aggregate_table_plot_features resolves lookup values before collapsing text', {
+  input <- tibble::tibble(
+    id_table_liste_plots = c(1L, 1L, 2L),
+    type = c('collector', 'collector', 'collector'),
+    valuetype = c('table_colnam', 'table_colnam', 'table_colnam'),
+    typevalue = c('101', '102', '103'),
+    typevalue_char = c(NA_character_, NA_character_, NA_character_)
+  )
+
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    resolve_table_references = function(data, con) {
+      data$typevalue_char <- c('Alice', 'Bob', 'Alice')
+      data
+    }
+  )
+
+  result <- aggregate_table_plot_features(input, con = structure(list(), class = 'mock_con'))
+
+  expect_s3_class(result, 'tbl_df')
+  expect_equal(result$collector[result$id_table_liste_plots == 1], 'Alice, Bob')
+  expect_equal(result$collector[result$id_table_liste_plots == 2], 'Alice')
+})
+
+test_that('aggregate_plot_features includes table-valuetype features and returns ids when nothing aggregates', {
+  data_with_table <- tibble::tibble(
+    id_table_liste_plots = c(1L, 1L, 2L),
+    valuetype = c('table_colnam', 'table_colnam', 'table_colnam'),
+    type = c('collector', 'collector', 'collector'),
+    typevalue = c('101', '102', '103'),
+    typevalue_char = c(NA_character_, NA_character_, NA_character_),
+    day = c(NA_integer_, NA_integer_, NA_integer_),
+    month = c(NA_integer_, NA_integer_, NA_integer_),
+    year = c(NA_integer_, NA_integer_, NA_integer_)
+  )
+
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    aggregate_table_plot_features = function(data, con) {
+      tibble::tibble(id_table_liste_plots = c(1L, 2L), collector = c('Alice, Bob', 'Alice'))
+    }
+  )
+
+  result_table <- aggregate_plot_features(data_with_table, con = structure(list(), class = 'mock_con'))
+  expect_s3_class(result_table, 'tbl_df')
+  expect_equal(result_table$collector[result_table$id_table_liste_plots == 1], 'Alice, Bob')
+  expect_equal(result_table$collector[result_table$id_table_liste_plots == 2], 'Alice')
+
+  no_features <- tibble::tibble(
+    id_table_liste_plots = c(1L, 2L),
+    valuetype = c('character', 'character'),
+    type = c('forest_type', 'forest_type'),
+    typevalue = c(NA_character_, NA_character_),
+    typevalue_char = c(NA_character_, NA_character_),
+    day = c(NA_integer_, NA_integer_),
+    month = c(NA_integer_, NA_integer_),
+    year = c(NA_integer_, NA_integer_)
+  )
+
+  result_empty <- aggregate_plot_features(no_features, con = NULL)
+  expect_equal(names(result_empty), 'id_table_liste_plots')
+  expect_equal(nrow(result_empty), 0)
+})
+
