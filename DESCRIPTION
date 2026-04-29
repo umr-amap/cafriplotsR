@@ -53,7 +53,6 @@ Suggests:
     covr,
     rclipboard,
     ggpubr,
-    foreign,
     BIOMASS (>= 2.2.4)
 Encoding: UTF-8
 LazyData: true
