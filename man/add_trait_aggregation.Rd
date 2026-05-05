@@ -59,3 +59,4 @@ Invisible integer: the new `id_aggregation`.
 \description{
 Add an aggregation rule
 }
+\keyword{internal}
