@@ -2,6 +2,17 @@
 
 ### New Features
 
+* **Aggregated taxa traits from individual measurements** (`R/aggregate_individual_traits.R`)
+  - New `rebuild_aggregated_taxa_traits()` aggregates individual-level measurements (`data_traits_measures`) into taxa-level rows in `taxa_traits_measures`, driven by declarative rules in a new `trait_aggregation_config` table
+  - Config CRUD helpers: `add_trait_aggregation()`, `remove_trait_aggregation()`, `list_trait_aggregations()`
+  - Aggregation kernel `.compute_aggregate()` supports `mean`, `median`, `min`, `max`, `sum`, `sd`, `percentile` (with `method_param`), `mode`, `concat`, `count`
+  - Auto-derived target traits preserve the transformation method in the trait identity (e.g. `stem_diameter_p95`); pass `target_trait_id = source_trait_id` to keep the original trait name, or an explicit integer to write into a chosen trait
+  - Aggregation is restricted to taxa identified at species or lower (configurable via `allowed_tax_levels`)
+  - RLS-safe insert path via parametrised `INSERT` (replaces `dbWriteTable`/`COPY`, which PostgreSQL refuses on RLS-protected tables)
+  - Citation `CafriplotsR_aggregated` (auto-managed, `is_public = FALSE`) tags all aggregated rows; `RESTRICTIVE` RLS policy hides them from the public role
+  - Migration / rollback helpers in `inst/scripts/migrate_add_aggregated_traits.R`
+
+
 * **`mod_extraction_config` — UI redesign with CSS-only tooltips and section cards**
   - Replaced dynamically-rendered UI with a static layout featuring coloured section cards (`.cfg-card`) and collapsible advanced options via native `<details>`
   - Added CSS-only question-mark tooltips (`.tip`) requiring no JavaScript
