@@ -20,3 +20,4 @@ Invisible TRUE on success.
 Soft-delete: sets `is_active = FALSE`. Use `hard = TRUE` to actually delete
 the row.
 }
+\keyword{internal}

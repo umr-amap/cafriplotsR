@@ -13,6 +13,68 @@ Updates on major milestones for the CafriplotsR package and the Central African 
 
 ---
 
+## May 2026
+
+### New capabilities
+
+**Switch between the internal taxonomic backbone and WCVP**
+
+CafriplotsR now ships with support for a second taxonomic backbone: the **World Checklist of Vascular Plants (WCVP)**. The internal Cafriplots backbone remains the default — it is the reference used to assemble the database, link individuals, and curate taxa-level trait data — but you can now operate in WCVP space whenever you need to, for example, compare with, or contribute to, a global reference.
+
+The backbone is selected at query time via a single argument:
+
+```r
+con <- call.mydb()
+query_plots(country = "GABON", backbone = "wcvp", extr)
+query_taxa(species = "Dacryodes edulis", backbone = "wcvp", check_synonymy = F)
+```
+When `backbone = "wcvp"`, the standard taxonomy columns are replaced **in place** with the WCVP values. Two extra columns make the substitution transparent:
+
+- `name_source` — `"wcvp"` if the taxon resolved to a WCVP name, `"internal"` if it fell back silently to the Cafriplots backbone (no WCVP match)
+- `alt_taxon_name` — the original internal name preserved alongside, so you can always trace back to the Cafriplots reference
+
+
+The current version of the WCVP can be checked using the following code line (this is the most recent one from early January 2026):
+```r
+con.taxa <- call.mydb.taxa()
+get_wcvp_status(con_taxa = con.taxa)
+```
+
+Internal IDs (`idtax_n`, `idtax_good_n`) are **never** overwritten; the WCVP analogues (`wcvp_plant_name_id`, `wcvp_accepted_plant_name_id`) are added as separate columns. This keeps every row anchored to both reference systems at once.
+
+The same toggle is available in the interactive apps:
+
+- **`launch_taxonomic_match_app()`** — the backbone-selection modal now offers WCVP as an alternative whenever WCVP data are present in the taxa database.
+- **`launch_query_plots()`** — extraction can be run in WCVP space; the source of every taxonomic name is documented in the output tables via `name_source`.
+
+The motivation is the same as for citation tracking: **transparency about taxonomic provenance**. Whenever data leave the database, the user knows exactly which reference system was used to interpret each name, and can switch backbones without re-importing or re-curating anything.
+
+**Aggregated taxa-level traits from individual measurements**
+
+The package now closes the second half of the *virtuous circle* presented in Barcelona: individual-level measurements (DBH, height, crown diameter, bark thickness…) recorded in plots can be **aggregated by taxon** and exposed as taxa-level traits, ready to be grafted onto any future query — exactly like the existing wood-density or seed-mass traits coming from external compilations.
+
+Aggregation is **declarative**: a small configuration table (`trait_aggregation_config`) holds rules such as *"take the 95th percentile of stem diameter, restricted to individuals identified at species level or below, with at least 5 measurements"*. The pipeline reads the rules, computes the aggregated value per taxon, and writes the result into `taxa_traits_measures`:
+
+```r
+add_trait_aggregation(
+  source_trait_id = 1,         # stem_diameter
+  method          = "percentile",
+  method_param    = 95,
+  min_n           = 5
+)
+rebuild_aggregated_taxa_traits(con, con_taxa)
+```
+
+Supported methods: `mean`, `median`, `min`, `max`, `sum`, `sd`, `percentile`, `mode`, `concat`, `count`.
+
+To keep the transformation method visible — so that p95 of DBH and the raw DBH never get mixed up, and so that several methods on the same source can coexist — aggregated rows are written into **derived traits** named after the source plus the method (e.g. `stem_diameter_p95`, `stem_diameter_max`). If you would rather keep the original trait name, you can pass `target_trait_id = source_trait_id` explicitly.
+
+Once written, these aggregated traits behave **exactly like any other taxa-level trait**: `query_taxa_traits()` returns them transparently, and `query_individual_features()` / `query_plots()` graft them onto your individuals through the usual taxa link. From the user's perspective, there is no second pipeline to run.
+
+> **Public access and data sovereignty.** Aggregated traits are tagged with a dedicated, **non-public** citation (`CafriplotsR_aggregated`) and the row-level security policy on `taxa_traits_measures` is `RESTRICTIVE`: the public role cannot see them. They are visible only to authenticated users with appropriate permissions. This preserves the principle stated in the Barcelona presentation — **only aggregated summaries circulate, raw plot data never leaves your network, and the public-facing portal sees neither**.
+
+---
+
 ## March 2026
 
 ### New data
