@@ -47,3 +47,4 @@ Old aggregated rows tied to the same citation **and** to one of the touched
 output trait ids are deleted in the same transaction before the new rows
 are inserted, so the table always reflects the latest rebuild.
 }
+\keyword{internal}

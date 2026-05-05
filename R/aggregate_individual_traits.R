@@ -43,7 +43,6 @@
 #'   `value_char` (character) — exactly one is non-NA depending on the
 #'   method's output type. For `"count"` and `"n"`, returns `value_num`.
 #' @keywords internal
-#' @export
 .compute_aggregate <- function(values, method, method_param = NULL) {
 
   out <- list(value_num = NA_real_, value_char = NA_character_, n = 0L)
@@ -156,7 +155,7 @@
 #' @param include_inactive Logical. If TRUE, also return rules with
 #'   `is_active = FALSE`.
 #' @return Tibble with one row per rule, joined to trait names.
-#' @export
+#' @keywords internal
 list_trait_aggregations <- function(con = NULL, include_inactive = FALSE) {
 
   if (is.null(con)) con <- call.mydb()
@@ -221,7 +220,7 @@ list_trait_aggregations <- function(con = NULL, include_inactive = FALSE) {
 #' @param notes Character. Free-text description.
 #' @param con Connection (admin/write privileges).
 #' @return Invisible integer: the new `id_aggregation`.
-#' @export
+#' @keywords internal
 add_trait_aggregation <- function(source_trait_id,
                                   method,
                                   target_trait_id = NULL,
@@ -295,7 +294,7 @@ add_trait_aggregation <- function(source_trait_id,
 #' @param hard If TRUE, DELETE the row instead of flipping `is_active`.
 #' @param con Connection.
 #' @return Invisible TRUE on success.
-#' @export
+#' @keywords internal
 remove_trait_aggregation <- function(id, hard = FALSE, con = NULL) {
 
   if (is.null(con)) con <- call.mydb()
@@ -698,7 +697,7 @@ remove_trait_aggregation <- function(id, hard = FALSE, con = NULL) {
 #' @param execute If FALSE (default), a DRY RUN: rows are computed and shown
 #'   but no DELETE/INSERT runs. Set to TRUE to apply.
 #' @return Invisible tibble of all rows that were (or would be) inserted.
-#' @export
+#' @keywords internal
 rebuild_aggregated_taxa_traits <- function(con                 = NULL,
                                            con_taxa            = NULL,
                                            rule_ids            = NULL,
