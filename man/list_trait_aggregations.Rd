@@ -21,3 +21,4 @@ Returns one row per rule with both `source_trait_id` / `source_trait` and
 config (meaning "same as source"), the returned `effective_target_trait_id`
 is filled with `source_trait_id` to make downstream filtering trivial.
 }
+\keyword{internal}

@@ -13,6 +13,63 @@ Actualités sur les grandes étapes du package CafriplotsR et de la base de donn
 
 ---
 
+## Mai 2026
+
+### Nouvelles fonctionnalités
+
+**Basculer entre le référentiel taxonomique interne et WCVP**
+
+CafriplotsR intègre désormais un second référentiel taxonomique de premier plan : le **World Checklist of Vascular Plants (WCVP)**. Le référentiel interne Cafriplots reste le référentiel par défaut — c'est lui qui sert à assembler la base, lier les individus et curer les données de traits — mais il est maintenant possible de travailler dans l'espace WCVP dès que l'on souhaite comparer avec, ou contribuer à, un référentiel mondial.
+
+Le référentiel se choisit au moment de la requête, via un seul argument :
+
+```r
+query_individual_features(con, backbone = "wcvp")
+query_taxa_traits(con, backbone = "wcvp")
+```
+
+Lorsque `backbone = "wcvp"`, les colonnes taxonomiques standard (`tax_fam`, `tax_gen`, `tax_esp`, niveaux infraspécifiques et auteur) sont remplacées **sur place** par les valeurs WCVP. Deux colonnes supplémentaires rendent cette substitution transparente :
+
+- `name_source` — `"wcvp"` si le taxon a été résolu vers un nom WCVP, `"internal"` si le repli silencieux vers le référentiel Cafriplots a été nécessaire (pas de correspondance WCVP)
+- `alt_taxon_name` — le nom interne d'origine conservé en parallèle, pour pouvoir toujours remonter au référentiel Cafriplots
+
+Les identifiants internes (`idtax_n`, `idtax_good_n`) ne sont **jamais** écrasés ; les analogues WCVP (`wcvp_plant_name_id`, `wcvp_accepted_plant_name_id`) sont ajoutés comme colonnes séparées. Chaque ligne reste donc ancrée simultanément aux deux systèmes de référence.
+
+Le même choix est disponible dans les applications interactives :
+
+- **`launch_taxonomic_match_app()`** — la fenêtre de sélection du référentiel propose désormais WCVP comme alternative dès que les données WCVP sont présentes dans la base taxonomique.
+- **`launch_query_plots()`** — l'extraction peut être lancée dans l'espace WCVP ; la source de chaque nom taxonomique est documentée dans les tables de sortie via `name_source`.
+
+> **Procédure d'installation :** la procédure d'import WCVP, à effectuer une seule fois (schéma, import des noms, appariement flou, liens), est documentée dans `inst/docs/wcvp_setup_workflow.R`. Une fois les données chargées, le statut est rapporté par `get_wcvp_status()` et la fraîcheur peut être vérifiée avec `check_wcvp_update()`.
+
+La motivation est la même que pour le suivi des citations : **la transparence sur la provenance taxonomique**. Lorsque les données quittent la base, l'utilisateur sait exactement quel référentiel a été utilisé pour interpréter chaque nom, et peut basculer entre référentiels sans avoir à ré-importer ni re-curer quoi que ce soit.
+
+**Traits agrégés au niveau taxonomique à partir des mesures individuelles**
+
+Le package referme désormais la seconde moitié du *cercle vertueux* présenté à Barcelone : les mesures individuelles (DBH, hauteur, diamètre de couronne, épaisseur d'écorce…) enregistrées dans les placettes peuvent être **agrégées par taxon** et exposées comme traits au niveau taxon, prêtes à être greffées sur toute requête future — exactement comme les traits de densité du bois ou de masse des graines provenant de compilations externes.
+
+L'agrégation est **déclarative** : une petite table de configuration (`trait_aggregation_config`) contient des règles du type *« prendre le 95ᵉ percentile du diamètre de tige, en restreignant aux individus identifiés au niveau espèce ou en dessous, avec au moins 5 mesures »*. Le pipeline lit les règles, calcule la valeur agrégée par taxon, et écrit le résultat dans `taxa_traits_measures` :
+
+```r
+add_trait_aggregation(
+  source_trait_id = 1,         # stem_diameter
+  method          = "percentile",
+  method_param    = 95,
+  min_n           = 5
+)
+rebuild_aggregated_taxa_traits(con, con_taxa)
+```
+
+Méthodes supportées : `mean`, `median`, `min`, `max`, `sum`, `sd`, `percentile`, `mode`, `concat`, `count`.
+
+Pour que la méthode de transformation reste visible — afin que le p95 du DBH et le DBH brut ne soient jamais confondus, et que plusieurs méthodes appliquées à la même source puissent coexister — les lignes agrégées sont écrites dans des **traits dérivés** dont le nom reprend la source et la méthode (par ex. `stem_diameter_p95`, `stem_diameter_max`). Si vous préférez conserver le nom du trait d'origine, il suffit de passer explicitement `target_trait_id = source_trait_id`.
+
+Une fois écrits, ces traits agrégés se comportent **exactement comme n'importe quel autre trait au niveau taxon** : `query_taxa_traits()` les renvoie de manière transparente, et `query_individual_features()` / `query_plots()` les greffent sur vos individus via le lien taxonomique habituel. Du point de vue de l'utilisateur, il n'y a pas de second pipeline à exécuter.
+
+> **Accès public et souveraineté des données.** Les traits agrégés sont marqués par une citation dédiée et **non publique** (`CafriplotsR_aggregated`), et la politique de sécurité au niveau ligne sur `taxa_traits_measures` est `RESTRICTIVE` : le rôle public ne peut pas les voir. Ils ne sont visibles que par les utilisateurs authentifiés disposant des permissions adéquates. Cela préserve le principe énoncé dans la présentation de Barcelone : **seuls les résumés agrégés circulent, les données brutes des placettes ne quittent jamais votre réseau, et le portail public n'en voit aucune**.
+
+---
+
 ## Mars 2026
 
 ### Nouvelles données
