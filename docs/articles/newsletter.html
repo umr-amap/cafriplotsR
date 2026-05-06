@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -71,6 +71,119 @@
 Central African forest plots database.</p>
 <hr>
 <div class="section level3">
+<h3 id="may-2026">May 2026<a class="anchor" aria-label="anchor" href="#may-2026"></a>
+</h3>
+<div class="section level4">
+<h4 id="new-capabilities">New capabilities<a class="anchor" aria-label="anchor" href="#new-capabilities"></a>
+</h4>
+<p><strong>Switch between the internal taxonomic backbone and
+WCVP</strong></p>
+<p>CafriplotsR now ships with support for a second taxonomic backbone:
+the <strong>World Checklist of Vascular Plants (WCVP)</strong>. The
+internal Cafriplots backbone remains the default — it is the reference
+used to assemble the database, link individuals, and curate taxa-level
+trait data — but you can now operate in WCVP space whenever you need to,
+for example, compare with, or contribute to, a global reference.</p>
+<p>The backbone is selected at query time via a single argument:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"GABON"</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span>, extract_individuals <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/query_taxa.html">query_taxa</a></span><span class="op">(</span>species <span class="op">=</span> <span class="st">"Dacryodes edulis"</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span>, check_synonymy <span class="op">=</span> <span class="cn">F</span><span class="op">)</span></span></code></pre></div>
+<p>When <code>backbone = "wcvp"</code>, the standard taxonomy columns
+are replaced <strong>in place</strong> with the WCVP values. Two extra
+columns make the substitution transparent:</p>
+<ul>
+<li>
+<code>name_source</code> — <code>"wcvp"</code> if the taxon resolved
+to a WCVP name, <code>"internal"</code> if it fell back silently to the
+Cafriplots backbone (no WCVP match)</li>
+<li>
+<code>alt_taxon_name</code> — the original internal name preserved
+alongside, so you can always trace back to the Cafriplots reference</li>
+</ul>
+<p>The current version of the WCVP can be checked using the following
+code line (this is the most recent one from early January 2026):</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">con.taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/get_wcvp_status.html">get_wcvp_status</a></span><span class="op">(</span>con_taxa <span class="op">=</span> <span class="va">con.taxa</span><span class="op">)</span></span></code></pre></div>
+<p>Internal IDs (<code>idtax_n</code>, <code>idtax_good_n</code>) are
+<strong>never</strong> overwritten; the WCVP analogues
+(<code>wcvp_plant_name_id</code>,
+<code>wcvp_accepted_plant_name_id</code>) are added as separate columns.
+This keeps every row anchored to both reference systems at once.</p>
+<p>The same toggle is available in the interactive apps:</p>
+<ul>
+<li>
+<strong><code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code></strong> — the
+backbone-selection modal now offers WCVP as an alternative whenever WCVP
+data are present in the taxa database.</li>
+<li>
+<strong><code>launch_query_plots()</code></strong> — extraction can
+be run in WCVP space; the source of every taxonomic name is documented
+in the output tables via <code>name_source</code>.</li>
+</ul>
+<p><strong>Why keep the internal backbone as default?</strong> No global
+backbone is perfect, and the internal Cafriplots backbone has one
+advantage: it is <strong>adaptable to the data it serves</strong>. It
+accommodates morpho-species, names not yet formally published, and taxa
+simply not yet present in WCVP or WorldFlora. A network working on
+Central African forests cannot afford to be blocked every time a global
+checklist lags behind a recent revision or ignores a locally relevant
+entity. The strategy is therefore <strong>not to switch entirely to a
+global reference</strong>, but to make it easy to <strong>move between
+backbones</strong> depending on the use case — local curation and import
+on the internal backbone, comparison and contribution on a global one.
+Only WCVP is wired in for now; additional backbones (e.g. WorldFlora)
+can be plugged in following the same pattern.</p>
+<p>The motivation is the same as for citation tracking:
+<strong>transparency about taxonomic provenance</strong>. Whenever data
+leave the database, the user knows exactly which reference system was
+used to interpret each name, and can switch backbones without
+re-importing or re-curating anything.</p>
+<p><strong>Aggregated taxa-level traits from individual
+measurements</strong></p>
+<p>Individual-level measurements (DBH, height,…) recorded in plots can
+be <strong>aggregated by taxon</strong> and exposed as taxa-level
+traits, ready to be grafted onto any future query — exactly like the
+existing wood-density or others taxa-level coming from external
+compilations.</p>
+<p>For example, the stem diameter measurements collected across all
+contributing plots have been aggregated into a new taxa-level trait
+<code>stem_diameter_p95</code> — the <strong>95th percentile of DBH per
+species</strong>, restricted to taxa with at least 5 measurements (and
+to individuals identified at species level or below). This gives a
+robust estimate of the upper diameter range each species typically
+reaches in the network.</p>
+<p>Once written, these aggregated traits behave <strong>exactly like any
+other taxa-level trait</strong>: <code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code>
+returns them transparently, and <code><a href="../reference/query_individual_features.html">query_individual_features()</a></code>
+/ <code><a href="../reference/query_plots.html">query_plots()</a></code> graft them onto your individuals through
+the usual taxa link. From the user’s perspective, there is no second
+pipeline to run.</p>
+<p><strong>The virtuous circle for contributors.</strong> This is where
+contributing data to the database becomes a two-way exchange. When you
+import your inventory, you immediately benefit from every taxa-level
+trait already accumulated — wood density, leaf traits, conservation
+status, and now aggregated structural traits like
+<code>stem_diameter_p95</code>. In return, the individual measurements
+in your dataset feed back into the next aggregation: each new DBH or
+height value improves the <strong>coverage</strong> (more species
+crossing the minimum-n threshold) and <strong>accuracy</strong> (tighter
+percentile estimates) of these aggregated traits for everyone. The more
+contributors, the richer and sharper the shared trait layer becomes —
+while raw plot data stays under your control.</p>
+<p><strong>Public access.</strong> Aggregated traits are tagged with a
+dedicated, <strong>non-public</strong> citation
+(<code>CafriplotsR_aggregated</code>) and the row-level security policy
+on <code>taxa_traits_measures</code> is <code>RESTRICTIVE</code>: the
+public role cannot see them. They are visible only to authenticated
+users with appropriate permissions. This preserves the principle —
+<strong>only aggregated summaries circulate, raw plot data never leaves
+your network, and the public-facing portal sees neither</strong>.</p>
+<hr>
+</div>
+</div>
+<div class="section level3">
 <h3 id="march-2026">March 2026<a class="anchor" aria-label="anchor" href="#march-2026"></a>
 </h3>
 <div class="section level4">
@@ -97,7 +210,7 @@ xylarium Wood Density Database (TWDD). <em>Scientific Data</em>, 13,
 </blockquote>
 </div>
 <div class="section level4">
-<h4 id="new-capabilities">New capabilities<a class="anchor" aria-label="anchor" href="#new-capabilities"></a>
+<h4 id="new-capabilities-1">New capabilities<a class="anchor" aria-label="anchor" href="#new-capabilities-1"></a>
 </h4>
 <p><strong>Citation tracking for taxa-level traits</strong></p>
 <p>Taxa-level trait measurements stored in the database are now linked
