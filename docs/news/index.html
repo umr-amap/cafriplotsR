@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,20 @@
 <div class="section level4">
 <h4 id="new-features-1-9-5">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-5"></a></h4>
 <ul><li>
+<strong>Aggregated taxa traits from individual measurements</strong> (<code>R/aggregate_individual_traits.R</code>)
+<ul><li>New <code><a href="../reference/rebuild_aggregated_taxa_traits.html">rebuild_aggregated_taxa_traits()</a></code> aggregates individual-level measurements (<code>data_traits_measures</code>) into taxa-level rows in <code>taxa_traits_measures</code>, driven by declarative rules in a new <code>trait_aggregation_config</code> table</li>
+<li>Config CRUD helpers: <code><a href="../reference/add_trait_aggregation.html">add_trait_aggregation()</a></code>, <code><a href="../reference/remove_trait_aggregation.html">remove_trait_aggregation()</a></code>, <code><a href="../reference/list_trait_aggregations.html">list_trait_aggregations()</a></code>
+</li>
+<li>Aggregation kernel <code><a href="../reference/dot-compute_aggregate.html">.compute_aggregate()</a></code> supports <code>mean</code>, <code>median</code>, <code>min</code>, <code>max</code>, <code>sum</code>, <code>sd</code>, <code>percentile</code> (with <code>method_param</code>), <code>mode</code>, <code>concat</code>, <code>count</code>
+</li>
+<li>Auto-derived target traits preserve the transformation method in the trait identity (e.g. <code>stem_diameter_p95</code>); pass <code>target_trait_id = source_trait_id</code> to keep the original trait name, or an explicit integer to write into a chosen trait</li>
+<li>Aggregation is restricted to taxa identified at species or lower (configurable via <code>allowed_tax_levels</code>)</li>
+<li>RLS-safe insert path via parametrised <code>INSERT</code> (replaces <code>dbWriteTable</code>/<code>COPY</code>, which PostgreSQL refuses on RLS-protected tables)</li>
+<li>Citation <code>CafriplotsR_aggregated</code> (auto-managed, <code>is_public = FALSE</code>) tags all aggregated rows; <code>RESTRICTIVE</code> RLS policy hides them from the public role</li>
+<li>Migration / rollback helpers in <code>inst/scripts/migrate_add_aggregated_traits.R</code>
+</li>
+</ul></li>
+<li>
 <strong><code>mod_extraction_config</code> — UI redesign with CSS-only tooltips and section cards</strong>
 <ul><li>Replaced dynamically-rendered UI with a static layout featuring coloured section cards (<code>.cfg-card</code>) and collapsible advanced options via native <code>&lt;details&gt;</code>
 </li>
@@ -138,6 +152,21 @@
 <div class="section level4">
 <h4 id="bug-fixes-1-9-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5"></a></h4>
 <ul><li>
+<strong>Import Wizard Step 3 — column auto-mapping with category-aware scoring</strong>
+<ul><li>Fixed “plot” column mapping to “plot_name” (direct) instead of feature “plot”</li>
+<li>Fixed “subplot” column mapping to “quadrat” (individual feature) instead of no match</li>
+<li>Replaced first-match-wins sequential strategy with category-aware scoring: all possible matches across exact/synonym/fuzzy are scored; direct/required columns get multiplier bonuses (2.0x for required direct, 1.5x for other direct, 1.0x for features)</li>
+<li>Added word-boundary aware pattern matching in synonym resolution to prevent “plot” from matching within “subplot”</li>
+<li>New function <code><a href="../reference/dot-score_candidates.html">.score_candidates()</a></code> evaluates all alternatives for each user column; alternatives stored in result for potential future UI enhancements</li>
+<li>All schema columns remain available in Step 3 dropdown for user override (no columns hidden from choices)</li>
+</ul></li>
+<li>
+<strong>Import Wizard synonym dictionary merging for individuals</strong>
+<ul><li>Fixed synonym dictionary merging to use <code><a href="https://rdrr.io/r/utils/modifyList.html" class="external-link">modifyList()</a></code> instead of <code><a href="https://rdrr.io/r/base/c.html" class="external-link">c()</a></code> when combining base column synonyms with trait-specific and feature-specific synonyms</li>
+<li>This ensures trait-specific definitions (e.g., <code>stem_diameter</code> with “dbh” synonym) properly override base definitions</li>
+<li>Fixes “dbh” column now correctly mapping to “stem_diameter” via synonym match</li>
+</ul></li>
+<li>
 <strong><code><a href="../reference/query_plots.html">query_plots()</a></code> dead/presumed_dead individual filtering at <code>census_strategy = "first"/"last"</code></strong>
 <ul><li>When <code>show_multiple_census = FALSE</code> and <code>census_strategy</code> is <code>"first"</code> or <code>"last"</code>, individuals with <code>stem_status</code> of <code>"dead"</code> or <code>"presumed_dead"</code> at the selected census are now automatically removed from the result</li>
 <li>A warning is emitted when no <code>stem_status</code> data is found (requires the stem_status workflow to have been run for the plot)</li>
