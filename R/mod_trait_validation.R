@@ -254,17 +254,44 @@ mod_trait_validation_server <- function(id, data, mapping, pool, i18n) {
                 sprintf("Converted to character for categorical trait '%s'", trait_name))
             }
 
-            # -- Factor levels check --
+            # -- Factor levels check (case-insensitive, auto-correct case) --
             fl <- info$factorlevels[1]
             if (!is.na(fl) && nchar(trimws(fl)) > 0) {
               allowed_levels <- trimws(strsplit(fl, ",")[[1]])
               char_vals <- as.character(non_na_vals)
-              unmatched <- setdiff(unique(char_vals), allowed_levels)
-              if (length(unmatched) > 0) {
+              unique_vals <- unique(char_vals)
+
+              # Build case-insensitive lookup: user value -> canonical allowed level
+              case_map <- setNames(
+                sapply(unique_vals, function(v) {
+                  idx <- match(tolower(v), tolower(allowed_levels))
+                  if (!is.na(idx)) allowed_levels[idx] else NA_character_
+                }),
+                unique_vals
+              )
+
+              # Auto-correct values that differ only in case
+              to_fix <- names(case_map)[!is.na(case_map) & names(case_map) != case_map]
+              for (v in to_fix) {
+                mask <- !is.na(cleaned_df[[user_col]]) &
+                        as.character(cleaned_df[[user_col]]) == v
+                if (any(mask)) {
+                  cleaned_df[[user_col]][mask] <- case_map[[v]]
+                  add_change(user_col,
+                    paste(sum(mask), "row(s)"),
+                    v, case_map[[v]],
+                    "case corrected to match allowed factor level")
+                }
+              }
+
+              # Warn only for values with no case-insensitive match
+              truly_unmatched <- unique_vals[is.na(case_map)]
+              if (length(truly_unmatched) > 0) {
+                n_bad <- sum(char_vals %in% truly_unmatched)
                 add_warning(user_col, "invalid_levels",
                   sprintf("Column '%s': %d value(s) not in allowed factor levels",
-                          user_col, sum(char_vals %in% unmatched)),
-                  paste("Unknown levels:", paste(utils::head(unmatched, 10), collapse = ", "),
+                          user_col, n_bad),
+                  paste("Unknown levels:", paste(utils::head(truly_unmatched, 10), collapse = ", "),
                         "| Allowed:", paste(utils::head(allowed_levels, 10), collapse = ", ")))
               }
             }
