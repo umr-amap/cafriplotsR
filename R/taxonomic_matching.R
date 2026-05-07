@@ -174,17 +174,41 @@ parse_taxonomic_name <- function(name) {
     }
   }
 
-  # Extract infraspecific parts (everything after genus+species)
+  # Extract infraspecific parts (everything after genus+species), stopping at authors.
+  # Authors are recognised as: uppercase-initial words, parenthesised tokens, or
+  # anything that follows the recognised infraspecific rank abbreviations only.
+  infraspecific_rank_abbrevs <- c("var", "subsp", "ssp", "f", "fo", "cv", "subvar",
+                                   "nothovar", "nothosubsp", "nothof", "nothosp")
+  infraspecific_rank_pattern <- paste0(
+    "^(", paste(infraspecific_rank_abbrevs, collapse = "|"), ")\\.?$"
+  )
+
   infraspecific <- NA_character_
+  full_name_parts <- c(genus)
+  if (!is.na(species)) full_name_parts <- c(full_name_parts, species)
+
   if (length(parts) >= infraspecific_start) {
-    infraspecific <- paste(parts[infraspecific_start:length(parts)], collapse = " ")
+    remaining <- parts[infraspecific_start:length(parts)]
+    infra_parts <- character(0)
+    i <- 1
+    while (i <= length(remaining)) {
+      token <- remaining[i]
+      # Stop if we hit an author indicator:
+      # - starts with uppercase AND is not a recognised rank abbreviation
+      # - starts with "(" (parenthesised author)
+      is_rank_abbrev <- grepl(infraspecific_rank_pattern, token, ignore.case = TRUE)
+      starts_upper  <- grepl("^[A-Z(]", token)
+      if (starts_upper && !is_rank_abbrev) break  # author name starts here
+      infra_parts <- c(infra_parts, token)
+      i <- i + 1
+    }
+    if (length(infra_parts) > 0) {
+      infraspecific <- paste(infra_parts, collapse = " ")
+      full_name_parts <- c(full_name_parts, infra_parts)
+    }
   }
 
-  # Build full name without authors
-  full_parts <- c(genus)
-  if (!is.na(species)) full_parts <- c(full_parts, species)
-  if (!is.na(infraspecific) && infraspecific != "") full_parts <- c(full_parts, infraspecific)
-  full_name_no_auth <- paste(full_parts, collapse = " ")
+  full_name_no_auth <- paste(full_name_parts, collapse = " ")
 
   return(list(
     rank = rank,
@@ -552,6 +576,20 @@ match_taxonomic_names <- function(names,
       END", .con = con)
   }
 
+  # Always match backbone names without authors against input without authors.
+  # (When include_authors=TRUE the full name_field with authors is returned as
+  #  matched_name, but the WHERE filter uses the no-author version so names like
+  #  "Garcinia kola Heckel" still find "Garcinia kola".)
+  name_field_no_auth <- glue::glue_sql("
+    CASE WHEN tax_esp IS NOT NULL THEN
+      concat(tax_gen, ' ', tax_esp,
+             COALESCE(' ' || tax_rank01, ''),
+             COALESCE(' ' || tax_nam01, ''),
+             COALESCE(' ' || tax_rank02, ''),
+             COALESCE(' ' || tax_nam02, ''))
+    ELSE tax_gen
+    END", .con = con)
+
   sql <- glue::glue_sql("
     SELECT
       idtax_n,
@@ -570,9 +608,9 @@ match_taxonomic_names <- function(names,
       {name_field} AS matched_name,
       1.0 AS similarity_score
     FROM table_taxa
-    WHERE lower({name_field}) = lower({search_name})
+    WHERE lower({name_field_no_auth}) = lower({search_name})
     LIMIT {max_matches}
-  ", search_name = parsed$input_name, max_matches = max_matches, .con = con)
+  ", search_name = parsed$full_name_no_auth, max_matches = max_matches, .con = con)
 
   result <- func_try_fetch(con = con, sql = sql)
 
@@ -647,6 +685,19 @@ match_taxonomic_names <- function(names,
       END", .con = con)
   }
 
+  # For SIMILARITY comparison always use the no-author backbone name vs the
+  # input without authors so that "Garcinia kola Heckel" correctly scores
+  # against "Garcinia kola" at 1.0 rather than ~0.59.
+  name_field_no_auth <- glue::glue_sql("
+    CASE WHEN tax_esp IS NOT NULL THEN
+      concat(tax_gen, ' ', tax_esp,
+             COALESCE(' ' || tax_rank01, ''),
+             COALESCE(' ' || tax_nam01, ''),
+             COALESCE(' ' || tax_rank02, ''),
+             COALESCE(' ' || tax_nam02, ''))
+    ELSE tax_gen
+    END", .con = con)
+
   sql_species <- glue::glue_sql("
     SELECT
       idtax_n,
@@ -663,13 +714,13 @@ match_taxonomic_names <- function(names,
       author2,
       author3,
       {name_field} AS matched_name,
-      SIMILARITY(lower({name_field}), lower({search_name})) AS similarity_score
+      SIMILARITY(lower({name_field_no_auth}), lower({search_name})) AS similarity_score
     FROM table_taxa
     WHERE tax_gen IN ({genera_list*})
-      AND SIMILARITY(lower({name_field}), lower({search_name})) >= {min_sim}
+      AND SIMILARITY(lower({name_field_no_auth}), lower({search_name})) >= {min_sim}
     ORDER BY similarity_score DESC, tax_esp IS NOT NULL DESC
     LIMIT {max_matches}
-  ", search_name = parsed$input_name, genera_list = genera_list,
+  ", search_name = parsed$full_name_no_auth, genera_list = genera_list,
      min_sim = min_similarity, max_matches = max_matches, .con = con)
 
   result <- func_try_fetch(con = con, sql = sql_species)
@@ -835,6 +886,17 @@ match_taxonomic_names <- function(names,
       END", .con = con)
   }
 
+  # SIMILARITY filter uses the no-author backbone name vs input without authors.
+  name_field_no_auth <- glue::glue_sql("
+    CASE WHEN tax_esp IS NOT NULL THEN
+      concat(tax_gen, ' ', tax_esp,
+             COALESCE(' ' || tax_rank01, ''),
+             COALESCE(' ' || tax_nam01, ''),
+             COALESCE(' ' || tax_rank02, ''),
+             COALESCE(' ' || tax_nam02, ''))
+    ELSE tax_gen
+    END", .con = con)
+
   sql <- glue::glue_sql("
     SELECT
       idtax_n,
@@ -851,12 +913,12 @@ match_taxonomic_names <- function(names,
       author2,
       author3,
       {name_field} AS matched_name,
-      SIMILARITY(lower({name_field}), lower({search_name})) AS similarity_score
+      SIMILARITY(lower({name_field_no_auth}), lower({search_name})) AS similarity_score
     FROM table_taxa
-    WHERE SIMILARITY(lower({name_field}), lower({search_name})) >= {min_sim}
+    WHERE SIMILARITY(lower({name_field_no_auth}), lower({search_name})) >= {min_sim}
     ORDER BY similarity_score DESC, tax_esp IS NOT NULL DESC
     LIMIT {max_matches}
-  ", search_name = parsed$input_name, min_sim = min_similarity,
+  ", search_name = parsed$full_name_no_auth, min_sim = min_similarity,
      max_matches = max_matches, .con = con)
 
   result <- func_try_fetch(con = con, sql = sql)
