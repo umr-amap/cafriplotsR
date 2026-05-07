@@ -87,7 +87,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
 
     # Review status
     output$review_status <- shiny::renderUI({
-      req(unmatched_names())
+      req(!is.null(unmatched_names()))
 
       unmatched <- unmatched_names()
 
