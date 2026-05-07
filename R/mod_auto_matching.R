@@ -553,6 +553,8 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
           )
 
           for (i in start_idx:length(still_unmatched)) {
+            if (session$isEnded()) break
+
             name <- still_unmatched[i]
 
             shiny::showNotification(
