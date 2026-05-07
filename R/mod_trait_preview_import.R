@@ -19,6 +19,23 @@ mod_trait_preview_import_ui <- function(id) {
     shiny::uiOutput(ns("measurementremarks_input")),
     shiny::hr(),
 
+    # Option: expand comma-separated categorical values
+    shiny::div(
+      style = "padding: 10px; background: #f8f9fa; border-left: 4px solid #6c757d; border-radius: 4px; margin-bottom: 15px;",
+      shiny::checkboxInput(
+        ns("expand_comma"),
+        label = shiny::tagList(
+          shiny::icon("expand-alt", style = "color: #495057;"),
+          shiny::tags$strong(" Expand comma-separated categorical values into separate rows"),
+          shiny::tags$small(
+            " — e.g. 'Dioecious, hermaphrodite' becomes two rows",
+            style = "color: #6c757d;"
+          )
+        ),
+        value = FALSE
+      )
+    ),
+
     # Loading spinner — visible immediately, hidden once prepared_data() resolves
     shiny::div(
       id = ns("loading_preview"),
@@ -445,20 +462,31 @@ mod_trait_preview_import_server <- function(id, data, mapping, pool, i18n) {
           val <- df[[user_col]][row_i]
           if (is.na(val)) next
 
-          row_data <- list(
-            idtax = df[[idtax_col]][row_i],
-            trait = trait_name,
-            value = as.character(val),
-            valuetype = valuetype
-          )
-
-          # Add metadata
-          for (meta_user_col in names(meta_cols)) {
-            db_col <- meta_cols[meta_user_col]
-            row_data[[db_col]] <- as.character(df[[meta_user_col]][row_i])
+          # Non-numeric traits with comma-separated values expand into multiple rows
+          # (only when the user has opted in via the expand_comma checkbox)
+          single_vals <- if (isTRUE(input$expand_comma) && valuetype != "numeric" && grepl(",", as.character(val))) {
+            parts <- trimws(strsplit(as.character(val), ",")[[1]])
+            parts[nchar(parts) > 0]
+          } else {
+            as.character(val)
           }
 
-          preview_rows <- c(preview_rows, list(as.data.frame(row_data, stringsAsFactors = FALSE)))
+          for (single_val in single_vals) {
+            row_data <- list(
+              idtax = df[[idtax_col]][row_i],
+              trait = trait_name,
+              value = single_val,
+              valuetype = valuetype
+            )
+
+            # Add metadata
+            for (meta_user_col in names(meta_cols)) {
+              db_col <- meta_cols[meta_user_col]
+              row_data[[db_col]] <- as.character(df[[meta_user_col]][row_i])
+            }
+
+            preview_rows <- c(preview_rows, list(as.data.frame(row_data, stringsAsFactors = FALSE)))
+          }
         }
       }
 
@@ -604,7 +632,8 @@ mod_trait_preview_import_server <- function(id, data, mapping, pool, i18n) {
           basis_col = basisofrecord_col(),
           basis_resolved = resolved_basisofrecord(),
           measurementremarks = if (needs_measurementremarks()) input$global_measurementremarks else NULL,
-          id_citation = selected_id_citation()
+          id_citation = selected_id_citation(),
+          expand_comma = isTRUE(input$expand_comma)
         )
 
         import_state$dry_run_result <- result
@@ -666,7 +695,8 @@ mod_trait_preview_import_server <- function(id, data, mapping, pool, i18n) {
           basis_col = basisofrecord_col(),
           basis_resolved = resolved_basisofrecord(),
           measurementremarks = if (needs_measurementremarks()) input$global_measurementremarks else NULL,
-          id_citation = selected_id_citation()
+          id_citation = selected_id_citation(),
+          expand_comma = isTRUE(input$expand_comma)
         )
 
         import_state$result <- list(
@@ -744,7 +774,8 @@ mod_trait_preview_import_server <- function(id, data, mapping, pool, i18n) {
                                   basis_col = NULL,
                                   basis_resolved = NULL,
                                   measurementremarks = NULL,
-                                  id_citation = NA_integer_) {
+                                  id_citation = NA_integer_,
+                                  expand_comma = FALSE) {
 
   idtax_col    <- mapping$idtax_col
   trait_cols   <- mapping$trait_cols    # named: user_col = traitlist name
@@ -781,6 +812,14 @@ mod_trait_preview_import_server <- function(id, data, mapping, pool, i18n) {
     trait_name <- trait_cols[user_col]
     if (user_col != trait_name) {
       names(new_data)[names(new_data) == user_col] <- trait_name
+    }
+  }
+
+  # Expand comma-separated values in non-numeric trait columns (opt-in)
+  if (isTRUE(expand_comma)) {
+    traits_info <- mapping$available_traits
+    if (!is.null(traits_info) && nrow(traits_info) > 0 && length(trait_cols) > 0) {
+      new_data <- .expand_comma_trait_rows(new_data, unname(trait_cols), traits_info)
     }
   }
 
@@ -824,4 +863,43 @@ mod_trait_preview_import_server <- function(id, data, mapping, pool, i18n) {
     n_inserted = if (add_data) n_prepared else 0,
     traits_processed = unname(trait_cols)
   )
+}
+
+
+# =============================================================================
+# Helper: Expand comma-separated values in non-numeric trait columns
+# =============================================================================
+
+#' @keywords internal
+.expand_comma_trait_rows <- function(df, trait_names, traits_info) {
+  # trait_names: character vector of column names in df (already renamed to trait names)
+  # traits_info: data.frame with columns: trait, valuetype
+
+  for (col_name in trait_names) {
+    if (!col_name %in% names(df)) next
+
+    trait_info <- traits_info[traits_info$trait == col_name, ]
+    valuetype <- if (nrow(trait_info) > 0) trait_info$valuetype[1] else "unknown"
+
+    if (valuetype == "numeric") next
+
+    vals <- df[[col_name]]
+    has_comma <- !is.na(vals) & grepl(",", as.character(vals))
+    if (!any(has_comma)) next
+
+    expanded <- lapply(seq_len(nrow(df)), function(i) {
+      v <- df[[col_name]][i]
+      if (is.na(v) || !grepl(",", as.character(v))) return(df[i, , drop = FALSE])
+      parts <- trimws(strsplit(as.character(v), ",")[[1]])
+      parts <- parts[nchar(parts) > 0]
+      rows <- df[rep(i, length(parts)), , drop = FALSE]
+      rows[[col_name]] <- parts
+      rows
+    })
+
+    df <- do.call(rbind, expanded)
+    rownames(df) <- NULL
+  }
+
+  df
 }
