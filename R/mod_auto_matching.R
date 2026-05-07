@@ -283,9 +283,17 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         # Only clean names that are not NA
         cleaned_names <- sapply(unique_names_to_match, clean_taxonomic_name)
 
+        # Also compute full_name_no_auth (strips author names) for pre-matching joins.
+        # This ensures "Garcinia kola Heckel" matches the backbone entry "Garcinia kola".
+        prematch_names <- sapply(cleaned_names, function(n) {
+          if (is.na(n) || n == "") return(n)
+          parse_taxonomic_name(n)$full_name_no_auth
+        })
+
         input_df <- data.frame(
           input_name = unique_names_to_match,        # Original input name (excluding NAs)
           cleaned_name = cleaned_names,              # Cleaned name for matching
+          prematch_name = prematch_names,            # Name without authors for backbone joins
           stringsAsFactors = FALSE
         )
 
@@ -312,17 +320,17 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             match_score = 1.0
           )
 
-        # Match cleaned names to unique species
+        # Match against backbone using the author-stripped name for reliable joins
         matches_species <- input_df %>%
           dplyr::left_join(
             unique_species,
-            by = c("cleaned_name" = "tax_sp_level")
+            by = c("prematch_name" = "tax_sp_level")
           )
 
         # STEP 4: Batch exact matching on genus level (where unique, for unmatched)
         unmatched_after_species <- matches_species %>%
           dplyr::filter(is.na(idtax_n)) %>%
-          dplyr::select(input_name, cleaned_name)
+          dplyr::select(input_name, cleaned_name, prematch_name)
 
         unique_genera <- backbone %>%
           dplyr::filter(tax_level == "genus", !is.na(tax_gen_level)) %>%  # Genus-level taxa
@@ -345,13 +353,13 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         matches_genus <- unmatched_after_species %>%
           dplyr::left_join(
             unique_genera,
-            by = c("cleaned_name" = "tax_gen_level")
+            by = c("prematch_name" = "tax_gen_level")
           )
 
         # STEP 5: Batch exact matching on family level (where unique, for unmatched)
         unmatched_after_genus <- matches_genus %>%
           dplyr::filter(is.na(idtax_n)) %>%
-          dplyr::select(input_name, cleaned_name)
+          dplyr::select(input_name, cleaned_name, prematch_name)
 
         unique_families <- backbone %>%
           dplyr::filter(tax_level == "family", !is.na(tax_fam_level)) %>%  # Family-level taxa
@@ -373,13 +381,13 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         matches_family <- unmatched_after_genus %>%
           dplyr::left_join(
             unique_families,
-            by = c("cleaned_name" = "tax_fam_level")
+            by = c("prematch_name" = "tax_fam_level")
           )
 
         # STEP 5.5: Batch exact matching on class level (where unique, for unmatched)
         unmatched_after_family <- matches_family %>%
           dplyr::filter(is.na(idtax_n)) %>%
-          dplyr::select(input_name, cleaned_name)
+          dplyr::select(input_name, cleaned_name, prematch_name)
 
         unique_classes <- backbone %>%
           dplyr::filter(tax_level == "higher", !is.na(tax_class_level)) %>%  # Class-level taxa
@@ -406,7 +414,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         matches_class <- unmatched_after_family %>%
           dplyr::left_join(
             unique_classes,
-            by = c("cleaned_name" = "tax_class_level")
+            by = c("prematch_name" = "tax_class_level")
           )
 
         # STEP 6: Combine all batch exact matches
