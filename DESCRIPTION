@@ -36,7 +36,8 @@ Imports:
     leaflet,
     plotly,
     purrr,
-    shinyjs
+    shinyjs,
+    later
 Suggests:
     getPass,
     openxlsx,

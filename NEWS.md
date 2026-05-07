@@ -1,4 +1,4 @@
-# CafriplotsR 1.9.5 (Development)
+# CafriplotsR 1.9.8 (Development)
 
 ### New Features
 
@@ -65,6 +65,11 @@
   - Step 5: Validation with context-aware checks — duplicate detection (numeric traits only), previous census value comparison with `issue` column, issue summary table by trait; multi-stems uses pre-resolved IDs with "tag not found" as warning
   - Step 6: Import execution with dry-run support — bulk insert via single `dbAppendTable()` in explicit transaction for measurements; `update_records()` for multi-stem `stem_grouping` updates; context-aware labels (import vs update)
   - Full EN/FR internationalization
+
+* **Taxonomic Matching app (`launch_taxonomic_match_app()`) — auto-matching checkpoint/resume**
+  - Matching progress is saved to a temp file after each name; closing the browser mid-session no longer loses work
+  - On next launch with the same dataset and column, the app detects the saved checkpoint and offers to resume from where it stopped or start fresh
+  - Fuzzy matching loop exits immediately when the browser is closed (previously kept running in R until completion)
 
 * **Taxonomic Matching app (`launch_taxonomic_match_app()`) WCVP integration refactored**
   - WCVP is no longer offered as a backbone selection option during auto-matching (removed from modal)
