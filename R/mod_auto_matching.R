@@ -2,6 +2,58 @@
 #
 # Automatically matches taxonomic names against the backbone database
 
+# ---------------------------------------------------------------------------
+# Checkpoint helpers
+# ---------------------------------------------------------------------------
+
+.checkpoint_dir <- function() {
+  d <- file.path(tempdir(), "cafriplotsr_checkpoints")
+  if (!dir.exists(d)) dir.create(d, recursive = TRUE)
+  d
+}
+
+.checkpoint_path <- function(input_hash) {
+  file.path(.checkpoint_dir(), paste0("taxo_chk_", input_hash, ".rds"))
+}
+
+# Simple hash: collision-unlikely for practical species lists
+.compute_input_hash <- function(names) {
+  sorted <- sort(unique(as.character(names[!is.na(names)])))
+  sprintf("n%d_c%d_s%d",
+          length(sorted),
+          sum(nchar(sorted)),
+          sum(utf8ToInt(substr(paste(sorted, collapse = ""), 1L, 500L))))
+}
+
+.save_matching_checkpoint <- function(input_hash, best_matches, fuzzy_results,
+                                      still_unmatched, current_index, total_names) {
+  saveRDS(
+    list(
+      input_hash     = input_hash,
+      best_matches   = best_matches,
+      fuzzy_results  = fuzzy_results,
+      still_unmatched = still_unmatched,
+      current_index  = current_index,
+      total_names    = total_names,
+      timestamp      = Sys.time()
+    ),
+    .checkpoint_path(input_hash)
+  )
+}
+
+.load_matching_checkpoint <- function(input_hash) {
+  path <- .checkpoint_path(input_hash)
+  if (file.exists(path)) tryCatch(readRDS(path), error = function(e) NULL) else NULL
+}
+
+.delete_matching_checkpoint <- function(input_hash) {
+  path <- .checkpoint_path(input_hash)
+  if (file.exists(path)) file.remove(path)
+  invisible(NULL)
+}
+
+# ---------------------------------------------------------------------------
+
 #' Auto Matching Module - UI
 #'
 #' @param id Character, module ID
@@ -67,25 +119,31 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
   shiny::moduleServer(id, function(input, output, session) {
 
     # Reactive values
-    matched_data <- shiny::reactiveVal(NULL)
-    match_stats <- shiny::reactiveVal(NULL)
+    matched_data        <- shiny::reactiveVal(NULL)
+    match_stats         <- shiny::reactiveVal(NULL)
     matching_in_progress <- shiny::reactiveVal(FALSE)
 
-    # Cache selection module
+    # Checkpoint / resume state
+    resume_mode         <- shiny::reactiveVal(NULL)   # "resume" | "fresh"
+    pending_input_hash  <- shiny::reactiveVal(NULL)
+    trigger_cache_modal <- shiny::reactiveVal(NULL)
+
+    # Cache selection module — triggered after resume choice is made
     cache_choice <- mod_backbone_cache_selection_server(
       id = "backbone_cache",
       i18n = i18n,
-      trigger = shiny::reactive(input$start_matching)
+      trigger = shiny::reactive(trigger_cache_modal())
     )
 
     # Reset results when data changes
     shiny::observe({
       data()  # Trigger on data change
 
-      # Reset all reactive values
       matched_data(NULL)
       match_stats(NULL)
       matching_in_progress(FALSE)
+      resume_mode(NULL)
+      pending_input_hash(NULL)
     })
 
     # Module title
@@ -124,30 +182,97 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       }
     })
 
-    # Matching logic - Button click handler
-    # This just sets the progress flag and shows spinner
-    # The cache module (initialized above) handles the modal
-    # All matching logic is in observeEvent(cache_choice()) below
+    # -----------------------------------------------------------------------
+    # Step 1 — button click: check for checkpoint, show resume modal if found
+    # -----------------------------------------------------------------------
     shiny::observeEvent(input$start_matching, {
-      req(data())
-      req(column_name())
+      req(data(), column_name())
 
       matching_in_progress(TRUE)
       shinybusy::show_spinner()
+
+      # Compute hash for the current input
+      raw_names <- data() %>%
+        dplyr::pull(!!rlang::sym(column_name())) %>%
+        unique()
+      h <- .compute_input_hash(raw_names)
+      pending_input_hash(h)
+
+      # Check for an existing checkpoint
+      chk <- .load_matching_checkpoint(h)
+
+      if (!is.null(chk)) {
+        pct_done <- round(chk$current_index / max(length(chk$still_unmatched), 1L) * 100)
+        shiny::showModal(shiny::modalDialog(
+          title = i18n()$t("Interrupted matching found"),
+          shiny::p(
+            i18n()$t("An interrupted matching session was found for this dataset:"),
+            shiny::br(),
+            shiny::strong(sprintf(
+              "%d / %d %s (%d%%)",
+              chk$current_index,
+              length(chk$still_unmatched),
+              i18n()$t("names processed by fuzzy matching"),
+              pct_done
+            )),
+            shiny::br(),
+            shiny::em(format(chk$timestamp, "%Y-%m-%d %H:%M"))
+          ),
+          shiny::p(i18n()$t("Do you want to resume where you left off, or start fresh?")),
+          footer = shiny::tagList(
+            shiny::actionButton(
+              session$ns("btn_resume_matching"),
+              label = shiny::tagList(shiny::icon("play-circle"), i18n()$t("Resume")),
+              class = "btn-primary"
+            ),
+            shiny::actionButton(
+              session$ns("btn_fresh_matching"),
+              label = shiny::tagList(shiny::icon("redo"), i18n()$t("Start Fresh")),
+              class = "btn-warning"
+            )
+          ),
+          easyClose = FALSE
+        ))
+      } else {
+        # No checkpoint — go straight to cache selection
+        resume_mode("fresh")
+      }
     })
 
-    # Cache-based matching logic
-    # Triggered after user chooses cache or download in the modal
+    # Resume modal: user chose "Resume"
+    shiny::observeEvent(input$btn_resume_matching, {
+      shiny::removeModal()
+      resume_mode("resume")
+    })
+
+    # Resume modal: user chose "Start Fresh"
+    shiny::observeEvent(input$btn_fresh_matching, {
+      shiny::removeModal()
+      h <- pending_input_hash()
+      if (!is.null(h)) .delete_matching_checkpoint(h)
+      resume_mode("fresh")
+    })
+
+    # Once resume choice is made, open the backbone cache modal
+    shiny::observeEvent(resume_mode(), {
+      req(resume_mode())
+      trigger_cache_modal((trigger_cache_modal() %||% 0L) + 1L)
+    })
+
+    # -----------------------------------------------------------------------
+    # Step 2 — backbone loaded: run matching (fresh or resumed)
+    # -----------------------------------------------------------------------
     shiny::observeEvent(cache_choice(), {
-      req(cache_choice())
+      req(cache_choice(), resume_mode(), pending_input_hash())
 
-      choice <- cache_choice()
+      choice     <- cache_choice()
+      input_hash <- pending_input_hash()
+      rm_mode    <- resume_mode()
 
-      # Handle backbone loading based on user choice
+      # --- Load backbone (always needed for synonym resolution) ---
       backbone <- NULL
 
       if (choice == "cache") {
-        # Load from cache
         shiny::showNotification(
           i18n()$t("Loading taxonomic backbone from cache..."),
           duration = 3,
@@ -158,7 +283,6 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         backbone <- load_backbone_cache()
 
         if (is.null(backbone)) {
-          # Cache load failed, fall back to download
           shiny::removeNotification("loading_cache")
           shiny::showNotification(
             i18n()$t("Cache load failed, downloading fresh backbone..."),
@@ -177,7 +301,6 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       }
 
       if (choice == "download") {
-        # Download fresh backbone
         shiny::showNotification(
           i18n()$t("Downloading taxonomic backbone from database... This may take a moment."),
           duration = NULL,
@@ -208,24 +331,18 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
 
         shiny::removeNotification("download_backbone")
 
-        # Add formatted name columns
         backbone <- backbone %>%
           dplyr::mutate(
-            # Full species-level name (genus + species + infraspecific)
             tax_sp_level = dplyr::case_when(
               !is.na(tax_nam01) & tax_nam01 != "" ~ paste(tax_gen, tax_esp, tax_rank01, tax_nam01),
               !is.na(tax_esp) & tax_esp != "" ~ paste(tax_gen, tax_esp),
               TRUE ~ NA_character_
             ),
-            # Genus-level name (just genus)
-            tax_gen_level = tax_gen,
-            # Family-level name (just family)
-            tax_fam_level = tax_fam,
-            # Class-level name (just class)
+            tax_gen_level   = tax_gen,
+            tax_fam_level   = tax_fam,
             tax_class_level = tax_famclass
           )
 
-        # Cache the backbone for future use
         shiny::showNotification(
           i18n()$t("Caching backbone for future use..."),
           duration = 2,
@@ -240,296 +357,274 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       }
 
       tryCatch({
-        # Get user data
-        user_df <- data()
-        col_name <- column_name()
+        user_df      <- data()
+        col_name     <- column_name()
         incl_authors <- include_authors() %||% FALSE
-        # Convert percentage (0-100) from UI to decimal (0-1) for internal use
-        # If input$min_similarity is NULL, use the default min_similarity parameter (already in 0-1 range)
         min_sim <- if (!is.null(input$min_similarity)) {
           input$min_similarity / 100
         } else {
           min_similarity
         }
 
-        # Extract unique names from selected column
-        # Convert actual NA values to string "NA" so they can be reviewed and assigned taxonomy
-        unique_names <- user_df %>%
-          dplyr::pull(!!rlang::sym(col_name)) %>%
-          unique() %>%
-          # Convert actual NA to character "NA" so they can be matched/reviewed
-          {ifelse(is.na(.), "NA", .)}
+        # --- Decide: restore checkpoint or run exact matching from scratch ---
 
-        # All names (including "NA") should be matched
-        unique_names_to_match <- unique_names
+        best_matches    <- NULL
+        fuzzy_results   <- list()
+        still_unmatched <- character(0)
+        start_idx       <- 1L
+        total_names     <- 0L
 
-        total_names <- length(unique_names)
-        total_names_to_match <- length(unique_names_to_match)
+        if (rm_mode == "resume") {
+          chk <- .load_matching_checkpoint(input_hash)
+          if (!is.null(chk)) {
+            best_matches    <- chk$best_matches
+            fuzzy_results   <- chk$fuzzy_results
+            still_unmatched <- chk$still_unmatched
+            total_names     <- chk$total_names
+            start_idx       <- chk$current_index + 1L
 
-        if (total_names_to_match == 0) {
-          shiny::showNotification(
-            i18n()$t("No data loaded"),
-            type = "warning"
-          )
-          matching_in_progress(FALSE)
-          shinybusy::hide_spinner()
-          cache_choice(NULL)
-          return(NULL)
+            shiny::showNotification(
+              paste0(
+                i18n()$t("Resuming from name"),
+                " ", start_idx, " / ", length(still_unmatched)
+              ),
+              duration = 4,
+              type = "message"
+            )
+          } else {
+            # Checkpoint disappeared — fall back to fresh
+            rm_mode <- "fresh"
+          }
         }
 
-        # Backbone already loaded above (from cache or fresh download)
-        # STEP 2: Clean input names before matching (remove sp., cf., etc.)
-        # Store both original and cleaned names for mapping back later
-        # Only clean names that are not NA
-        cleaned_names <- sapply(unique_names_to_match, clean_taxonomic_name)
+        if (rm_mode == "fresh") {
+          unique_names <- user_df %>%
+            dplyr::pull(!!rlang::sym(col_name)) %>%
+            unique() %>%
+            {ifelse(is.na(.), "NA", .)}
 
-        # Also compute full_name_no_auth (strips author names) for pre-matching joins.
-        # This ensures "Garcinia kola Heckel" matches the backbone entry "Garcinia kola".
-        prematch_names <- sapply(cleaned_names, function(n) {
-          if (is.na(n) || n == "") return(n)
-          parse_taxonomic_name(n)$full_name_no_auth
-        })
+          unique_names_to_match <- unique_names
+          total_names           <- length(unique_names)
 
-        input_df <- data.frame(
-          input_name = unique_names_to_match,        # Original input name (excluding NAs)
-          cleaned_name = cleaned_names,              # Cleaned name for matching
-          prematch_name = prematch_names,            # Name without authors for backbone joins
-          stringsAsFactors = FALSE
-        )
+          if (total_names == 0) {
+            shiny::showNotification(
+              i18n()$t("No data loaded"),
+              type = "warning"
+            )
+            matching_in_progress(FALSE)
+            shinybusy::hide_spinner()
+            resume_mode(NULL)
+            pending_input_hash(NULL)
+            trigger_cache_modal(NULL)
+            cache_choice(NULL)
+            return(NULL)
+          }
 
-        # STEP 3: Batch exact matching on species level (where unique)
-        # First identify unique species names in backbone
-        unique_species <- backbone %>%
-          dplyr::filter(!is.na(tax_sp_level)) %>%
-          dplyr::group_by(tax_sp_level) %>%
-          dplyr::filter(dplyr::n() == 1) %>%  # Only unique matches
-          dplyr::ungroup() %>%
-          dplyr::select(
-            tax_sp_level,
-            idtax_n,
-            idtax_good_n,
-            tax_fam,
-            tax_gen,
-            tax_esp,
-            tax_rank01,
-            tax_nam01
-          ) %>%
-          dplyr::mutate(
-            matched_name = tax_sp_level,
-            match_method = "exact",
-            match_score = 1.0
+          cleaned_names  <- sapply(unique_names_to_match, clean_taxonomic_name)
+          prematch_names <- sapply(cleaned_names, function(n) {
+            if (is.na(n) || n == "") return(n)
+            parse_taxonomic_name(n)$full_name_no_auth
+          })
+
+          input_df <- data.frame(
+            input_name    = unique_names_to_match,
+            cleaned_name  = cleaned_names,
+            prematch_name = prematch_names,
+            stringsAsFactors = FALSE
           )
 
-        # Match against backbone using the author-stripped name for reliable joins
-        matches_species <- input_df %>%
-          dplyr::left_join(
-            unique_species,
-            by = c("prematch_name" = "tax_sp_level")
-          )
+          # STEP 3: Batch exact — species level
+          unique_species <- backbone %>%
+            dplyr::filter(!is.na(tax_sp_level)) %>%
+            dplyr::group_by(tax_sp_level) %>%
+            dplyr::filter(dplyr::n() == 1) %>%
+            dplyr::ungroup() %>%
+            dplyr::select(
+              tax_sp_level, idtax_n, idtax_good_n,
+              tax_fam, tax_gen, tax_esp, tax_rank01, tax_nam01
+            ) %>%
+            dplyr::mutate(
+              matched_name = tax_sp_level,
+              match_method = "exact",
+              match_score  = 1.0
+            )
 
-        # STEP 4: Batch exact matching on genus level (where unique, for unmatched)
-        unmatched_after_species <- matches_species %>%
-          dplyr::filter(is.na(idtax_n)) %>%
-          dplyr::select(input_name, cleaned_name, prematch_name)
+          matches_species <- input_df %>%
+            dplyr::left_join(unique_species, by = c("prematch_name" = "tax_sp_level"))
 
-        unique_genera <- backbone %>%
-          dplyr::filter(tax_level == "genus", !is.na(tax_gen_level)) %>%  # Genus-level taxa
-          dplyr::group_by(tax_gen_level) %>%
-          dplyr::filter(dplyr::n() == 1) %>%  # Only unique matches
-          dplyr::ungroup() %>%
-          dplyr::select(
-            tax_gen_level,
-            idtax_n,
-            idtax_good_n,
-            tax_fam,
-            tax_gen
-          ) %>%
-          dplyr::mutate(
-            matched_name = tax_gen_level,
-            match_method = "exact",
-            match_score = 1.0
-          )
+          # STEP 4: Batch exact — genus level
+          unmatched_after_species <- matches_species %>%
+            dplyr::filter(is.na(idtax_n)) %>%
+            dplyr::select(input_name, cleaned_name, prematch_name)
 
-        matches_genus <- unmatched_after_species %>%
-          dplyr::left_join(
-            unique_genera,
-            by = c("prematch_name" = "tax_gen_level")
-          )
+          unique_genera <- backbone %>%
+            dplyr::filter(tax_level == "genus", !is.na(tax_gen_level)) %>%
+            dplyr::group_by(tax_gen_level) %>%
+            dplyr::filter(dplyr::n() == 1) %>%
+            dplyr::ungroup() %>%
+            dplyr::select(tax_gen_level, idtax_n, idtax_good_n, tax_fam, tax_gen) %>%
+            dplyr::mutate(
+              matched_name = tax_gen_level,
+              match_method = "exact",
+              match_score  = 1.0
+            )
 
-        # STEP 5: Batch exact matching on family level (where unique, for unmatched)
-        unmatched_after_genus <- matches_genus %>%
-          dplyr::filter(is.na(idtax_n)) %>%
-          dplyr::select(input_name, cleaned_name, prematch_name)
+          matches_genus <- unmatched_after_species %>%
+            dplyr::left_join(unique_genera, by = c("prematch_name" = "tax_gen_level"))
 
-        unique_families <- backbone %>%
-          dplyr::filter(tax_level == "family", !is.na(tax_fam_level)) %>%  # Family-level taxa
-          dplyr::group_by(tax_fam_level) %>%
-          dplyr::filter(dplyr::n() == 1) %>%  # Only unique matches
-          dplyr::ungroup() %>%
-          dplyr::select(
-            tax_fam_level,
-            idtax_n,
-            idtax_good_n,
-            tax_fam
-          ) %>%
-          dplyr::mutate(
-            matched_name = tax_fam_level,
-            match_method = "exact",
-            match_score = 1.0
-          )
+          # STEP 5: Batch exact — family level
+          unmatched_after_genus <- matches_genus %>%
+            dplyr::filter(is.na(idtax_n)) %>%
+            dplyr::select(input_name, cleaned_name, prematch_name)
 
-        matches_family <- unmatched_after_genus %>%
-          dplyr::left_join(
-            unique_families,
-            by = c("prematch_name" = "tax_fam_level")
-          )
+          unique_families <- backbone %>%
+            dplyr::filter(tax_level == "family", !is.na(tax_fam_level)) %>%
+            dplyr::group_by(tax_fam_level) %>%
+            dplyr::filter(dplyr::n() == 1) %>%
+            dplyr::ungroup() %>%
+            dplyr::select(tax_fam_level, idtax_n, idtax_good_n, tax_fam) %>%
+            dplyr::mutate(
+              matched_name = tax_fam_level,
+              match_method = "exact",
+              match_score  = 1.0
+            )
 
-        # STEP 5.5: Batch exact matching on class level (where unique, for unmatched)
-        unmatched_after_family <- matches_family %>%
-          dplyr::filter(is.na(idtax_n)) %>%
-          dplyr::select(input_name, cleaned_name, prematch_name)
+          matches_family <- unmatched_after_genus %>%
+            dplyr::left_join(unique_families, by = c("prematch_name" = "tax_fam_level"))
 
-        unique_classes <- backbone %>%
-          dplyr::filter(tax_level == "higher", !is.na(tax_class_level)) %>%  # Class-level taxa
-          dplyr::group_by(tax_class_level) %>%
-          dplyr::filter(dplyr::n() == 1) %>%  # Only unique matches
-          dplyr::ungroup() %>%
-          dplyr::select(
-            tax_class_level,
-            idtax_n,
-            idtax_good_n
-          ) %>%
-          dplyr::mutate(
-            matched_name = tax_class_level,
-            match_method = "exact",
-            match_score = 1.0,
-            # Add missing columns to match structure of other levels
-            tax_fam = NA_character_,
-            tax_gen = NA_character_,
-            tax_esp = NA_character_,
-            tax_rank01 = NA_character_,
-            tax_nam01 = NA_character_
-          )
+          # STEP 5.5: Batch exact — class level
+          unmatched_after_family <- matches_family %>%
+            dplyr::filter(is.na(idtax_n)) %>%
+            dplyr::select(input_name, cleaned_name, prematch_name)
 
-        matches_class <- unmatched_after_family %>%
-          dplyr::left_join(
-            unique_classes,
-            by = c("prematch_name" = "tax_class_level")
-          )
+          unique_classes <- backbone %>%
+            dplyr::filter(tax_level == "higher", !is.na(tax_class_level)) %>%
+            dplyr::group_by(tax_class_level) %>%
+            dplyr::filter(dplyr::n() == 1) %>%
+            dplyr::ungroup() %>%
+            dplyr::select(tax_class_level, idtax_n, idtax_good_n) %>%
+            dplyr::mutate(
+              matched_name = tax_class_level,
+              match_method = "exact",
+              match_score  = 1.0,
+              tax_fam      = NA_character_,
+              tax_gen      = NA_character_,
+              tax_esp      = NA_character_,
+              tax_rank01   = NA_character_,
+              tax_nam01    = NA_character_
+            )
 
-        # STEP 6: Combine all batch exact matches
-        # Update matches_species with genus matches
-        matches_species <- matches_species %>%
-          dplyr::rows_update(
-            matches_genus %>% dplyr::filter(!is.na(idtax_n)),
-            by = "input_name",
-            unmatched = "ignore"
-          )
+          matches_class <- unmatched_after_family %>%
+            dplyr::left_join(unique_classes, by = c("prematch_name" = "tax_class_level"))
 
-        # Update with family matches
-        matches_species <- matches_species %>%
-          dplyr::rows_update(
-            matches_family %>% dplyr::filter(!is.na(idtax_n)),
-            by = "input_name",
-            unmatched = "ignore"
-          )
+          # STEP 6: Combine all exact matches
+          matches_species <- matches_species %>%
+            dplyr::rows_update(
+              matches_genus %>% dplyr::filter(!is.na(idtax_n)),
+              by = "input_name", unmatched = "ignore"
+            ) %>%
+            dplyr::rows_update(
+              matches_family %>% dplyr::filter(!is.na(idtax_n)),
+              by = "input_name", unmatched = "ignore"
+            ) %>%
+            dplyr::rows_update(
+              matches_class %>% dplyr::filter(!is.na(idtax_n)),
+              by = "input_name", unmatched = "ignore"
+            )
 
-        # Update with class matches
-        matches_species <- matches_species %>%
-          dplyr::rows_update(
-            matches_class %>% dplyr::filter(!is.na(idtax_n)),
-            by = "input_name",
-            unmatched = "ignore"
-          )
+          best_matches <- matches_species
 
-        best_matches <- matches_species
+          still_unmatched <- best_matches %>%
+            dplyr::filter(is.na(idtax_n)) %>%
+            dplyr::pull(input_name)
 
-        # STEP 7: Fuzzy matching for remaining unmatched names
-        # Now includes "NA" strings since we convert actual NA to "NA"
-        still_unmatched <- best_matches %>%
-          dplyr::filter(is.na(idtax_n)) %>%  # No match found yet
-          dplyr::pull(input_name)
+          fuzzy_results <- list()
+          start_idx     <- 1L
+        }
 
-        if (length(still_unmatched) > 0) {
-          # Show notification about fuzzy matching
+        # --- STEP 7: Fuzzy matching (shared path for fresh and resume) ---
+
+        if (start_idx <= length(still_unmatched)) {
           shiny::showNotification(
-            paste0("Starting fuzzy matching for ", length(still_unmatched), " unmatched name(s)... This may take some time."),
+            paste0(
+              i18n()$t("Starting fuzzy matching for"),
+              " ", length(still_unmatched), " ",
+              i18n()$t("unmatched name(s)... This may take some time.")
+            ),
             duration = NULL,
             closeButton = FALSE,
             id = "fuzzy_matching",
             type = "message"
           )
 
-          # Process names one by one to show progress
-          fuzzy_results <- list()
-
-          for (i in seq_along(still_unmatched)) {
+          for (i in start_idx:length(still_unmatched)) {
             name <- still_unmatched[i]
 
-            # Update progress notification
             shiny::showNotification(
-              paste0("Fuzzy matching: ", i, " of ", length(still_unmatched), " (", name, ")"),
+              paste0(
+                i18n()$t("Fuzzy matching:"), " ", i,
+                " / ", length(still_unmatched),
+                " (", name, ")"
+              ),
               duration = 2,
               id = "fuzzy_progress",
               type = "message"
             )
 
-            # Match this name
             match_result <- match_taxonomic_names(
-              names = name,
-              method = "hierarchical",
-              max_matches = 1,
+              names          = name,
+              method         = "hierarchical",
+              max_matches    = 1,
               min_similarity = min_sim,
               include_synonyms = TRUE,
-              return_scores = TRUE,
+              return_scores  = TRUE,
               include_authors = incl_authors,
-              con = NULL,
-              verbose = FALSE
+              con            = NULL,
+              verbose        = FALSE
             )
 
             fuzzy_results[[i]] <- match_result
+
+            # Persist progress — survives laptop sleep / crash
+            .save_matching_checkpoint(
+              input_hash, best_matches, fuzzy_results,
+              still_unmatched, i, total_names
+            )
           }
 
-          # Combine all fuzzy results
-          fuzzy_matches <- dplyr::bind_rows(fuzzy_results) %>%
-            dplyr::filter(match_rank == 1) %>%
-            dplyr::distinct(input_name, .keep_all = TRUE)  # Ensure unique input_name for join
-
-          # Remove fuzzy matching notification
           shiny::removeNotification("fuzzy_matching")
           shiny::removeNotification("fuzzy_progress")
 
-          # Update best_matches with fuzzy results
+          # Merge fuzzy results into best_matches
+          fuzzy_matches <- dplyr::bind_rows(fuzzy_results) %>%
+            dplyr::filter(match_rank == 1) %>%
+            dplyr::distinct(input_name, .keep_all = TRUE)
+
           if (nrow(fuzzy_matches) > 0) {
             fuzzy_for_update <- fuzzy_matches %>%
               dplyr::select(
-                input_name,
-                idtax_n,
-                idtax_good_n,
-                matched_name,
-                match_method,
-                match_score,
-                tax_fam,
-                tax_gen,
-                tax_esp
+                input_name, idtax_n, idtax_good_n,
+                matched_name, match_method, match_score,
+                tax_fam, tax_gen, tax_esp
               )
 
             best_matches <- best_matches %>%
               dplyr::rows_update(
                 fuzzy_for_update,
-                by = "input_name",
-                unmatched = "ignore"
+                by = "input_name", unmatched = "ignore"
               )
           }
         }
 
-        # Add synonym information
+        # Matching complete — remove checkpoint file
+        .delete_matching_checkpoint(input_hash)
+
+        # --- Synonym information ---
         best_matches <- best_matches %>%
           dplyr::mutate(
             is_synonym = idtax_n != idtax_good_n & !is.na(idtax_n) & !is.na(idtax_good_n)
           )
 
-        # Get accepted names for synonyms
         if (any(best_matches$is_synonym, na.rm = TRUE)) {
           synonym_ids <- best_matches %>%
             dplyr::filter(is_synonym) %>%
@@ -541,75 +636,59 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             dplyr::mutate(
               accepted_name = dplyr::case_when(
                 !is.na(tax_nam01) & tax_nam01 != "" ~ paste(tax_gen, tax_esp, tax_rank01, tax_nam01),
-                !is.na(tax_esp) & tax_esp != "" ~ paste(tax_gen, tax_esp),
-                !is.na(tax_gen) ~ tax_gen,
-                TRUE ~ tax_fam
+                !is.na(tax_esp)   & tax_esp != ""   ~ paste(tax_gen, tax_esp),
+                !is.na(tax_gen)                     ~ tax_gen,
+                TRUE                                ~ tax_fam
               )
             ) %>%
             dplyr::select(idtax_n, accepted_name) %>%
-            dplyr::distinct(idtax_n, .keep_all = TRUE)  # Ensure unique keys for join
+            dplyr::distinct(idtax_n, .keep_all = TRUE)
 
           best_matches <- best_matches %>%
-            dplyr::left_join(
-              accepted_names,
-              by = c("idtax_good_n" = "idtax_n")
-            )
+            dplyr::left_join(accepted_names, by = c("idtax_good_n" = "idtax_n"))
         } else {
           best_matches$accepted_name <- NA_character_
         }
 
-        # Calculate statistics
-        n_exact <- sum(best_matches$match_method == "exact", na.rm = TRUE)
-        n_genus <- sum(best_matches$match_method == "genus_constrained", na.rm = TRUE)
-        n_fuzzy <- sum(best_matches$match_method == "fuzzy", na.rm = TRUE)
+        # --- Statistics ---
+        n_exact    <- sum(best_matches$match_method == "exact",              na.rm = TRUE)
+        n_genus    <- sum(best_matches$match_method == "genus_constrained",  na.rm = TRUE)
+        n_fuzzy    <- sum(best_matches$match_method == "fuzzy",              na.rm = TRUE)
         n_unmatched <- sum(is.na(best_matches$idtax_n))
 
         stats <- list(
           total_names = total_names,
-          n_exact = n_exact,
-          n_genus = n_genus,
-          n_fuzzy = n_fuzzy,
+          n_exact     = n_exact,
+          n_genus     = n_genus,
+          n_fuzzy     = n_fuzzy,
           n_unmatched = n_unmatched
         )
 
         match_stats(stats)
 
-        # Add match results to user data
-        # Rename matched columns to avoid conflicts
+        # --- Join with user data ---
         best_matches_for_join <- best_matches %>%
           dplyr::select(
-            input_name,
-            idtax_n,
-            idtax_good_n,
-            matched_name,
-            match_method,
-            match_score,
-            is_synonym,
-            accepted_name
+            input_name, idtax_n, idtax_good_n,
+            matched_name, match_method, match_score,
+            is_synonym, accepted_name
           ) %>%
-          dplyr::distinct(input_name, .keep_all = TRUE) %>%  # Ensure unique keys for join
-          dplyr::rename(
-            !!col_name := input_name
-          )
+          dplyr::distinct(input_name, .keep_all = TRUE) %>%
+          dplyr::rename(!!col_name := input_name)
 
-        # Join with user data
         updated_data <- user_df %>%
-          dplyr::left_join(
-            best_matches_for_join,
-            by = col_name
-          )
+          dplyr::left_join(best_matches_for_join, by = col_name)
 
-        # Add corrected_name column (use accepted_name if synonym, otherwise matched_name)
         updated_data <- updated_data %>%
           dplyr::mutate(
             corrected_name = dplyr::case_when(
               is_synonym & !is.na(accepted_name) ~ accepted_name,
-              !is.na(matched_name) ~ matched_name,
-              TRUE ~ NA_character_
+              !is.na(matched_name)               ~ matched_name,
+              TRUE                               ~ NA_character_
             )
           )
 
-        # Enrich with WCVP names if requested
+        # --- Optional WCVP enrichment ---
         if (isTRUE(!is.null(use_wcvp_names) && use_wcvp_names())) {
           matched_ids <- unique(stats::na.omit(updated_data$idtax_n))
 
@@ -636,12 +715,8 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
                 dplyr::left_join(
                   wcvp_info %>%
                     dplyr::select(
-                      idtax_n,
-                      wcvp_taxon_name,
-                      wcvp_family,
-                      wcvp_taxon_authors,
-                      wcvp_taxon_status,
-                      name_source
+                      idtax_n, wcvp_taxon_name, wcvp_family,
+                      wcvp_taxon_authors, wcvp_taxon_status, name_source
                     ),
                   by = "idtax_n"
                 ) %>%
@@ -676,7 +751,10 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         shinybusy::hide_spinner()
         matching_in_progress(FALSE)
 
-        # Reset cache choice for next run
+        # Reset resume state
+        resume_mode(NULL)
+        pending_input_hash(NULL)
+        trigger_cache_modal(NULL)
         cache_choice(NULL)
 
         shiny::showNotification(
@@ -688,9 +766,8 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       }, error = function(e) {
         shinybusy::hide_spinner()
         matching_in_progress(FALSE)
-
-        # Reset cache choice for next run
-        cache_choice(NULL)
+        resume_mode(NULL)
+        pending_input_hash(NULL)
 
         shiny::showNotification(
           paste(i18n()$t("Error:"), e$message),
@@ -768,21 +845,19 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         req(matched_data())
         req(match_stats())
 
-        # Get unmatched names (including no_match results AND NA values)
-        # Include NA values so they can be reviewed and assigned an idtax_n
         col_name <- column_name()
         unmatched <- matched_data() %>%
           dplyr::filter(
-            is.na(idtax_n),  # No match found
-            !!rlang::sym(col_name) != ""  # But not empty string
+            is.na(idtax_n),
+            !!rlang::sym(col_name) != ""
           ) %>%
           dplyr::distinct(!!rlang::sym(col_name)) %>%
           dplyr::pull(!!rlang::sym(col_name))
 
         list(
-          data = matched_data(),
+          data      = matched_data(),
           unmatched = unmatched,
-          stats = match_stats()
+          stats     = match_stats()
         )
       })
     )

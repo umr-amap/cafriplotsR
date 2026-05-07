@@ -7864,6 +7864,42 @@
     {
       "en": "No census selected. Measurements will be added without linking to any census.",
       "fr": "Aucun recensement sélectionné. Les mesures seront ajoutées sans lien avec un recensement."
+    },
+    {
+      "en": "Interrupted matching found",
+      "fr": "Correspondance interrompue trouvée"
+    },
+    {
+      "en": "An interrupted matching session was found for this dataset:",
+      "fr": "Une session de correspondance interrompue a été trouvée pour ce jeu de données :"
+    },
+    {
+      "en": "names processed by fuzzy matching",
+      "fr": "noms traités par correspondance floue"
+    },
+    {
+      "en": "Do you want to resume where you left off, or start fresh?",
+      "fr": "Voulez-vous reprendre là où vous en étiez, ou recommencer depuis le début ?"
+    },
+    {
+      "en": "Resume",
+      "fr": "Reprendre"
+    },
+    {
+      "en": "Start Fresh",
+      "fr": "Recommencer"
+    },
+    {
+      "en": "Resuming from name",
+      "fr": "Reprise à partir du nom"
+    },
+    {
+      "en": "Starting fuzzy matching for",
+      "fr": "Démarrage de la correspondance floue pour"
+    },
+    {
+      "en": "unmatched name(s)... This may take some time.",
+      "fr": "nom(s) non appariés... Cela peut prendre du temps."
     }
   ]
 }
