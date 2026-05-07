@@ -553,6 +553,10 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
           )
 
           for (i in start_idx:length(still_unmatched)) {
+            # Flush httpuv's pending event queue so the browser-disconnect event
+            # can be processed mid-loop (otherwise session$isEnded() stays FALSE
+            # because Shiny's event loop is blocked by this synchronous for loop).
+            tryCatch(later::run_now(timeoutSecs = 0), error = function(e) NULL)
             if (session$isEnded()) break
 
             name <- still_unmatched[i]
@@ -591,6 +595,8 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
 
           shiny::removeNotification("fuzzy_matching")
           shiny::removeNotification("fuzzy_progress")
+
+          if (session$isEnded()) return(NULL)
 
           # Merge fuzzy results into best_matches
           fuzzy_matches <- dplyr::bind_rows(fuzzy_results) %>%
