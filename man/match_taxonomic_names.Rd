@@ -13,6 +13,7 @@ match_taxonomic_names(
   return_scores = TRUE,
   include_authors = FALSE,
   con = NULL,
+  backbone = NULL,
   verbose = TRUE
 )
 }
@@ -31,7 +32,13 @@ match_taxonomic_names(
 
 \item{include_authors}{Try matching with author names (default: FALSE)}
 
-\item{con}{Database connection (if NULL, will call call.mydb.taxa())}
+\item{con}{Database connection. If NULL and `backbone` is also NULL, the
+function will try the cached backbone first and fall back to opening a
+database connection via `call.mydb.taxa()`.}
+
+\item{backbone}{Optional cached backbone tibble (as returned by
+`load_backbone_cache()`). When supplied, all matching runs in R against
+this in-memory backbone — no database round-trips, works fully offline.}
 
 \item{verbose}{Show progress messages (default: TRUE)}
 }
