@@ -29,6 +29,9 @@ mod_fuzzy_suggestions_ui <- function(id) {
 #' @param min_similarity Reactive or numeric, minimum similarity threshold
 #' @param include_authors Reactive or logical, whether to include author names
 #' @param i18n Reactive returning shiny.i18n translator
+#' @param backbone Reactive returning the cached backbone tibble (or NULL).
+#'   When non-NULL, all per-level searches run R-side without DB access —
+#'   required for offline mode.
 #'
 #' @return Reactive integer, idtax_n of selected suggestion (or NULL)
 #'
@@ -36,7 +39,8 @@ mod_fuzzy_suggestions_ui <- function(id) {
 mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny::reactive(10),
                                          min_similarity = shiny::reactive(0.3),
                                          include_authors = shiny::reactive(FALSE),
-                                         i18n) {
+                                         i18n,
+                                         backbone = shiny::reactive(NULL)) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Reactive values
@@ -61,6 +65,8 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       # Get the selected level filter
       level_filter <- input$filter_level %||% "all"
 
+      bb <- backbone()  # NULL when online without cache routing, tibble when offline
+
       # Based on level filter, do targeted searches or use hierarchical matching
       if (level_filter == "all") {
         # Use standard hierarchical matching for "all levels"
@@ -73,10 +79,14 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
           return_scores = TRUE,
           include_authors = incl_auth,
           con = NULL,
+          backbone = bb,
           verbose = FALSE
         )
+      } else if (!is.null(bb)) {
+        # Offline / cached-backbone path: R-side per-level fuzzy search
+        matches <- .level_fuzzy_search_r(bb, name, level_filter, min_sim, max_results = 50L)
       } else {
-        # For specific level, do direct database fuzzy search
+        # Online path: direct database fuzzy search
         mydb_taxa <- call.mydb.taxa()
 
         if (level_filter == "family") {
@@ -422,4 +432,98 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
     # Return selected ID
     return(selected_id)
   })
+}
+
+
+#' R-side per-level fuzzy search on cached backbone
+#'
+#' Mirrors the per-level SQL queries in `mod_fuzzy_suggestions_server` for
+#' the offline/cached-backbone code path. Returns a tibble with the same
+#' columns the SQL path produces so downstream rendering doesn't change.
+#'
+#' @keywords internal
+.level_fuzzy_search_r <- function(backbone, name, level_filter, min_sim,
+                                  max_results = 50L) {
+  if (is.null(backbone) || nrow(backbone) == 0L) return(tibble::tibble())
+
+  if (level_filter == "family") {
+    cand <- backbone %>%
+      dplyr::filter(!is.na(.data$tax_fam), .data$tax_level == "family") %>%
+      dplyr::distinct(.data$tax_fam, .keep_all = TRUE)
+    if (nrow(cand) == 0L) return(tibble::tibble())
+    sc <- .trigram_sim(cand$tax_fam, name)
+    keep <- which(sc >= min_sim)
+    if (length(keep) == 0L) return(tibble::tibble())
+    ord <- order(sc[keep], decreasing = TRUE)
+    keep <- keep[ord[seq_len(min(max_results, length(ord)))]]
+    out <- cand[keep, , drop = FALSE]
+    out$matched_name <- out$tax_fam
+    out$match_score <- sc[keep]
+
+  } else if (level_filter == "genus") {
+    cand <- backbone %>%
+      dplyr::filter(!is.na(.data$tax_gen), .data$tax_level == "genus") %>%
+      dplyr::distinct(.data$tax_gen, .keep_all = TRUE)
+    if (nrow(cand) == 0L) return(tibble::tibble())
+    sc <- .trigram_sim(cand$tax_gen, name)
+    keep <- which(sc >= min_sim)
+    if (length(keep) == 0L) return(tibble::tibble())
+    ord <- order(sc[keep], decreasing = TRUE)
+    keep <- keep[ord[seq_len(min(max_results, length(ord)))]]
+    out <- cand[keep, , drop = FALSE]
+    out$matched_name <- out$tax_gen
+    out$match_score <- sc[keep]
+
+  } else if (level_filter == "higher") {
+    cand <- backbone %>%
+      dplyr::filter(!is.na(.data$tax_famclass), .data$tax_level == "higher") %>%
+      dplyr::distinct(.data$tax_famclass, .keep_all = TRUE)
+    if (nrow(cand) == 0L) return(tibble::tibble())
+    sc <- .trigram_sim(cand$tax_famclass, name)
+    keep <- which(sc >= min_sim)
+    if (length(keep) == 0L) return(tibble::tibble())
+    ord <- order(sc[keep], decreasing = TRUE)
+    keep <- keep[ord[seq_len(min(max_results, length(ord)))]]
+    out <- cand[keep, , drop = FALSE]
+    out$matched_name <- out$tax_famclass
+    out$match_score <- sc[keep]
+
+  } else if (level_filter == "order") {
+    # Cache does not include tax_order — order-level fuzzy not supported offline
+    return(tibble::tibble())
+
+  } else {
+    # species / infraspecific: filter the hierarchical match by level
+    matches <- match_taxonomic_names(
+      names           = name,
+      method          = "hierarchical",
+      max_matches     = max_results,
+      min_similarity  = min_sim,
+      include_synonyms = TRUE,
+      return_scores   = TRUE,
+      include_authors = FALSE,
+      con             = NULL,
+      backbone        = backbone,
+      verbose         = FALSE
+    )
+    if (nrow(matches) == 0L) return(matches)
+    return(matches %>% dplyr::filter(.data$tax_level == level_filter))
+  }
+
+  # Shape to the columns the consumer expects (mirrors SQL path)
+  tibble::tibble(
+    idtax_n      = out$idtax_n,
+    idtax_good_n = out$idtax_good_n,
+    tax_gen      = out$tax_gen,
+    tax_esp      = if ("tax_esp" %in% names(out)) out$tax_esp else NA_character_,
+    tax_fam      = out$tax_fam,
+    tax_level    = out$tax_level,
+    matched_name = out$matched_name,
+    match_score  = out$match_score,
+    input_name   = name,
+    match_method = "fuzzy",
+    match_rank   = 1L,
+    is_synonym   = !is.na(out$idtax_good_n) & out$idtax_n != out$idtax_good_n,
+    accepted_name = NA_character_
+  )
 }

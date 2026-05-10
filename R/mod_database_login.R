@@ -68,6 +68,11 @@ mod_database_login_ui <- function(id) {
         shiny::uiOutput(ns("public_connect_button")),
         shiny::uiOutput(ns("public_access_notice")),
 
+        # Offline (cached backbone) button + notice — only shown when a
+        # cache exists on disk
+        shiny::uiOutput(ns("offline_connect_button")),
+        shiny::uiOutput(ns("offline_access_notice")),
+
         # Hidden output for conditional panel
         shiny::textOutput(ns("has_saved_credentials"))
       )
@@ -126,7 +131,8 @@ mod_database_login_server <- function(id) {
       pool_taxa = NULL,
       error_message = NULL,
       has_saved = FALSE,
-      is_public = FALSE
+      is_public = FALSE,
+      is_offline = FALSE
     )
 
     # Check for saved credentials on startup
@@ -285,6 +291,44 @@ mod_database_login_server <- function(id) {
         shiny::strong(t("Read-only access:")),
         " ",
         t("Public authentication gives access to taxonomy and traits only. Adding or modifying data is not available.")
+      )
+    })
+
+    # Offline (cached backbone) — only render if a cache exists on disk
+    output$offline_connect_button <- shiny::renderUI({
+      input$language
+      if (!cache_exists()) return(NULL)
+      shiny::tagList(
+        shiny::hr(style = "margin-top: 15px; margin-bottom: 10px;"),
+        shiny::actionButton(
+          ns("connect_offline"),
+          shiny::tagList(
+            shiny::icon("plane-slash"),
+            paste0(" ", t("Use offline (cached backbone)"))
+          ),
+          class = "btn-outline-secondary btn-block",
+          style = "margin-bottom: 8px;"
+        )
+      )
+    })
+
+    output$offline_access_notice <- shiny::renderUI({
+      input$language
+      if (!cache_exists()) return(NULL)
+      meta <- tryCatch(get_cache_metadata(), error = function(e) NULL)
+      age <- if (!is.null(meta)) meta$age_display else NULL
+      shiny::div(
+        class = "alert alert-info",
+        style = "font-size: 0.85em; margin-top: 5px; margin-bottom: 0; padding: 8px 12px;",
+        shiny::icon("info-circle"),
+        " ",
+        shiny::strong(t("Offline mode:")),
+        " ",
+        t("Taxonomic matching only - Traits and WCVP enrichment require a database connection."),
+        if (!is.null(age)) shiny::tagList(
+          shiny::br(),
+          shiny::tags$small(paste0(t("Cache from:"), " ", age))
+        )
       )
     })
 
@@ -523,6 +567,39 @@ mod_database_login_server <- function(id) {
       }, message = t("Connecting as public user..."))
     })
 
+    # Offline (cached backbone) connect handler — bypasses DB entirely
+    shiny::observeEvent(input$connect_offline, {
+      rv$error_message <- NULL
+
+      if (!cache_exists()) {
+        rv$error_message <- t("No cached backbone found. Connect online once to download it.")
+        return()
+      }
+
+      # Sanity-check the cache loads
+      bb <- tryCatch(load_backbone_cache(), error = function(e) NULL)
+      if (is.null(bb)) {
+        rv$error_message <- t("Cached backbone is invalid. Please connect online to refresh it.")
+        return()
+      }
+
+      rv$pool_main     <- NULL
+      rv$pool_taxa     <- NULL
+      rv$authenticated <- TRUE
+      rv$is_public     <- FALSE
+      rv$is_offline    <- TRUE
+
+      # Don't store NULL pools in .db_env; just clear any stale references
+      .db_env$pool_main <- NULL
+      .db_env$pool_taxa <- NULL
+
+      shiny::showNotification(
+        t("Offline mode - using cached taxonomic backbone."),
+        type = "message",
+        duration = 5
+      )
+    })
+
     # Note: Pool cleanup is handled by cleanup_connections() in the main app's
     # onSessionEnded callback. Removing duplicate cleanup here prevents
     # "Can't access reactive value outside of reactive consumer" errors
@@ -535,7 +612,8 @@ mod_database_login_server <- function(id) {
         pool_main     = shiny::reactive(rv$pool_main),
         pool_taxa     = shiny::reactive(rv$pool_taxa),
         language      = shiny::reactive(input$language %||% "fr"),
-        is_public     = shiny::reactive(rv$is_public)
+        is_public     = shiny::reactive(rv$is_public),
+        is_offline    = shiny::reactive(rv$is_offline)
       )
     )
   })

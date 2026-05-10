@@ -115,7 +115,8 @@ mod_auto_matching_ui <- function(id) {
 #' @keywords internal
 mod_auto_matching_server <- function(id, data, column_name, include_authors,
                                      min_similarity = 0.3, i18n,
-                                     use_wcvp_names = NULL) {
+                                     use_wcvp_names = NULL,
+                                     is_offline = shiny::reactive(FALSE)) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Reactive values
@@ -253,10 +254,16 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       resume_mode("fresh")
     })
 
-    # Once resume choice is made, open the backbone cache modal
+    # Once resume choice is made, open the backbone cache modal — except in
+    # offline mode, where "download fresh" is not an option, so auto-pick the
+    # cache without prompting.
     shiny::observeEvent(resume_mode(), {
       req(resume_mode())
-      trigger_cache_modal((trigger_cache_modal() %||% 0L) + 1L)
+      if (isTRUE(is_offline())) {
+        cache_choice("cache")
+      } else {
+        trigger_cache_modal((trigger_cache_modal() %||% 0L) + 1L)
+      }
     })
 
     # -----------------------------------------------------------------------
@@ -284,6 +291,21 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
 
         if (is.null(backbone)) {
           shiny::removeNotification("loading_cache")
+          if (isTRUE(is_offline())) {
+            # Offline mode: cannot fall back to download — abort with a clear msg
+            shiny::showNotification(
+              i18n()$t("Cached backbone is invalid. Please connect online to refresh it."),
+              duration = 8,
+              type = "error"
+            )
+            shinybusy::hide_spinner()
+            matching_in_progress(FALSE)
+            resume_mode(NULL)
+            pending_input_hash(NULL)
+            trigger_cache_modal(NULL)
+            cache_choice(NULL)
+            return(NULL)
+          }
           shiny::showNotification(
             i18n()$t("Cache load failed, downloading fresh backbone..."),
             duration = 5,
@@ -581,6 +603,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
               return_scores  = TRUE,
               include_authors = incl_authors,
               con            = NULL,
+              backbone       = backbone,
               verbose        = FALSE
             )
 

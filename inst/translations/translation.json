@@ -7900,6 +7900,34 @@
     {
       "en": "unmatched name(s)... This may take some time.",
       "fr": "nom(s) non appariés... Cela peut prendre du temps."
+    },
+    {
+      "en": "Use offline (cached backbone)",
+      "fr": "Utiliser hors ligne (referentiel en cache)"
+    },
+    {
+      "en": "Offline mode:",
+      "fr": "Mode hors ligne :"
+    },
+    {
+      "en": "Taxonomic matching only - Traits and WCVP enrichment require a database connection.",
+      "fr": "Appariement taxonomique uniquement - l'enrichissement par traits et WCVP necessite une connexion a la base."
+    },
+    {
+      "en": "Cache from:",
+      "fr": "Cache du :"
+    },
+    {
+      "en": "No cached backbone found. Connect online once to download it.",
+      "fr": "Aucun referentiel en cache. Connectez-vous une fois en ligne pour le telecharger."
+    },
+    {
+      "en": "Cached backbone is invalid. Please connect online to refresh it.",
+      "fr": "Le referentiel en cache est invalide. Veuillez vous connecter en ligne pour le rafraichir."
+    },
+    {
+      "en": "Offline mode - using cached taxonomic backbone.",
+      "fr": "Mode hors ligne - utilisation du referentiel taxonomique en cache."
     }
   ]
 }
