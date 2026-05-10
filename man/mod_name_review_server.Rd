@@ -10,7 +10,8 @@ mod_name_review_server(
   mode = "interactive",
   max_suggestions = 10,
   min_similarity = 0.3,
-  i18n
+  i18n,
+  backbone = shiny::reactive(NULL)
 )
 }
 \arguments{
@@ -25,6 +26,10 @@ mod_name_review_server(
 \item{min_similarity}{Numeric, minimum similarity threshold}
 
 \item{i18n}{Reactive returning shiny.i18n translator}
+
+\item{backbone}{Reactive returning the cached backbone tibble (or NULL).
+When non-NULL, custom searches and selection lookups go through the
+cached backbone — required for offline mode.}
 }
 \value{
 Reactive list with updated match results

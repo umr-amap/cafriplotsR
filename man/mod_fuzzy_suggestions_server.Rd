@@ -10,7 +10,8 @@ mod_fuzzy_suggestions_server(
   max_suggestions = shiny::reactive(10),
   min_similarity = shiny::reactive(0.3),
   include_authors = shiny::reactive(FALSE),
-  i18n
+  i18n,
+  backbone = shiny::reactive(NULL)
 )
 }
 \arguments{
@@ -25,6 +26,10 @@ mod_fuzzy_suggestions_server(
 \item{include_authors}{Reactive or logical, whether to include author names}
 
 \item{i18n}{Reactive returning shiny.i18n translator}
+
+\item{backbone}{Reactive returning the cached backbone tibble (or NULL).
+When non-NULL, all per-level searches run R-side without DB access —
+required for offline mode.}
 }
 \value{
 Reactive integer, idtax_n of selected suggestion (or NULL)
