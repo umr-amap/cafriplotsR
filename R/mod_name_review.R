@@ -46,13 +46,17 @@ mod_name_review_ui <- function(id) {
 #' @param max_suggestions Integer, maximum suggestions per name
 #' @param min_similarity Numeric, minimum similarity threshold
 #' @param i18n Reactive returning shiny.i18n translator
+#' @param backbone Reactive returning the cached backbone tibble (or NULL).
+#'   When non-NULL, custom searches and selection lookups go through the
+#'   cached backbone — required for offline mode.
 #'
 #' @return Reactive list with updated match results
 #'
 #' @keywords internal
 mod_name_review_server <- function(id, match_results, mode = "interactive",
                                    max_suggestions = 10, min_similarity = 0.3,
-                                   i18n) {
+                                   i18n,
+                                   backbone = shiny::reactive(NULL)) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Reactive values
@@ -202,7 +206,8 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       max_suggestions = shiny::reactive(max_suggestions),
       min_similarity = shiny::reactive(min_similarity),
       include_authors = shiny::reactive(FALSE),
-      i18n = i18n
+      i18n = i18n,
+      backbone = backbone
     )
 
     # Manual input option
@@ -332,50 +337,54 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
 
       idtax <- selected_suggestion()
       name <- current_name()
+      bb <- backbone()
 
-      # Look up the taxon details directly by idtax_n
-      mydb_taxa <- call.mydb.taxa()
+      # Look up the taxon details by idtax_n — prefer cache when offline
+      matched_row <- if (!is.null(bb)) {
+        .lookup_taxon_in_backbone(bb, idtax)
+      } else {
+        mydb_taxa <- call.mydb.taxa()
+        sql <- glue::glue_sql("
+          SELECT
+            t.idtax_n,
+            t.idtax_good_n,
+            t.tax_gen,
+            t.tax_esp,
+            t.tax_fam,
+            t.tax_famclass,
+            t.tax_level,
+            CASE
+              WHEN t.tax_level = 'species' THEN CONCAT_WS(' ', t.tax_gen, t.tax_esp)
+              WHEN t.tax_level = 'genus' THEN t.tax_gen
+              WHEN t.tax_level = 'family' THEN t.tax_fam
+              WHEN t.tax_level = 'higher' THEN t.tax_famclass
+              WHEN t.tax_level = 'infraspecific' THEN CONCAT_WS(' ', t.tax_gen, t.tax_esp, t.tax_rank01, t.tax_nam01)
+              ELSE COALESCE(t.tax_gen, t.tax_fam, t.tax_famclass)
+            END AS matched_name,
+            a.tax_gen AS accepted_gen,
+            a.tax_esp AS accepted_esp,
+            a.tax_fam AS accepted_fam,
+            a.tax_famclass AS accepted_famclass,
+            a.tax_level AS accepted_level,
+            CASE
+              WHEN a.tax_level = 'species' THEN CONCAT_WS(' ', a.tax_gen, a.tax_esp)
+              WHEN a.tax_level = 'genus' THEN a.tax_gen
+              WHEN a.tax_level = 'family' THEN a.tax_fam
+              WHEN a.tax_level = 'higher' THEN a.tax_famclass
+              WHEN a.tax_level = 'infraspecific' THEN CONCAT_WS(' ', a.tax_gen, a.tax_esp, a.tax_rank01, a.tax_nam01)
+              ELSE COALESCE(a.tax_gen, a.tax_fam, a.tax_famclass)
+            END AS accepted_name
+          FROM table_taxa t
+          LEFT JOIN table_taxa a ON t.idtax_good_n = a.idtax_n
+          WHERE t.idtax_n = {idtax}
+        ", idtax = idtax, .con = mydb_taxa)
 
-      sql <- glue::glue_sql("
-        SELECT
-          t.idtax_n,
-          t.idtax_good_n,
-          t.tax_gen,
-          t.tax_esp,
-          t.tax_fam,
-          t.tax_famclass,
-          t.tax_level,
-          CASE
-            WHEN t.tax_level = 'species' THEN CONCAT_WS(' ', t.tax_gen, t.tax_esp)
-            WHEN t.tax_level = 'genus' THEN t.tax_gen
-            WHEN t.tax_level = 'family' THEN t.tax_fam
-            WHEN t.tax_level = 'higher' THEN t.tax_famclass
-            WHEN t.tax_level = 'infraspecific' THEN CONCAT_WS(' ', t.tax_gen, t.tax_esp, t.tax_rank01, t.tax_nam01)
-            ELSE COALESCE(t.tax_gen, t.tax_fam, t.tax_famclass)
-          END AS matched_name,
-          a.tax_gen AS accepted_gen,
-          a.tax_esp AS accepted_esp,
-          a.tax_fam AS accepted_fam,
-          a.tax_famclass AS accepted_famclass,
-          a.tax_level AS accepted_level,
-          CASE
-            WHEN a.tax_level = 'species' THEN CONCAT_WS(' ', a.tax_gen, a.tax_esp)
-            WHEN a.tax_level = 'genus' THEN a.tax_gen
-            WHEN a.tax_level = 'family' THEN a.tax_fam
-            WHEN a.tax_level = 'higher' THEN a.tax_famclass
-            WHEN a.tax_level = 'infraspecific' THEN CONCAT_WS(' ', a.tax_gen, a.tax_esp, a.tax_rank01, a.tax_nam01)
-            ELSE COALESCE(a.tax_gen, a.tax_fam, a.tax_famclass)
-          END AS accepted_name
-        FROM table_taxa t
-        LEFT JOIN table_taxa a ON t.idtax_good_n = a.idtax_n
-        WHERE t.idtax_n = {idtax}
-      ", idtax = idtax, .con = mydb_taxa)
-
-      matched_row <- tryCatch({
-        func_try_fetch(con = mydb_taxa, sql = sql)
-      }, error = function(e) {
-        tibble()
-      })
+        tryCatch({
+          func_try_fetch(con = mydb_taxa, sql = sql)
+        }, error = function(e) {
+          tibble()
+        })
+      }
 
       if (nrow(matched_row) > 0) {
         is_synonym <- matched_row$idtax_n != matched_row$idtax_good_n
@@ -418,49 +427,55 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
 
       custom <- input$custom_name
       level_filter <- input$custom_level %||% "all"
+      bb <- backbone()
 
-      # If user specified "higher" level, do direct database search for class names
+      # If user specified "higher" level, search for class names —
+      # prefer cached backbone when offline
       if (level_filter == "higher") {
-        mydb_taxa <- call.mydb.taxa()
+        if (!is.null(bb)) {
+          all_matches <- .level_fuzzy_search_r(bb, custom, "higher",
+                                               min_sim = 0.3, max_results = 50L)
+        } else {
+          mydb_taxa <- call.mydb.taxa()
 
-        # Direct fuzzy search on tax_famclass column
-        sql <- glue::glue_sql("
-          SELECT DISTINCT ON (tax_famclass)
-            idtax_n,
-            idtax_good_n,
-            tax_gen,
-            tax_esp,
-            tax_fam,
-            tax_level,
-            tax_famclass AS matched_name,
-            SIMILARITY(lower(tax_famclass), lower({search_name})) AS match_score
-          FROM table_taxa
-          WHERE tax_famclass IS NOT NULL
-            AND tax_level = 'higher'
-            AND SIMILARITY(lower(tax_famclass), lower({search_name})) >= 0.3
-          ORDER BY tax_famclass, match_score DESC
-          LIMIT 50
-        ", search_name = custom, .con = mydb_taxa)
+          sql <- glue::glue_sql("
+            SELECT DISTINCT ON (tax_famclass)
+              idtax_n,
+              idtax_good_n,
+              tax_gen,
+              tax_esp,
+              tax_fam,
+              tax_level,
+              tax_famclass AS matched_name,
+              SIMILARITY(lower(tax_famclass), lower({search_name})) AS match_score
+            FROM table_taxa
+            WHERE tax_famclass IS NOT NULL
+              AND tax_level = 'higher'
+              AND SIMILARITY(lower(tax_famclass), lower({search_name})) >= 0.3
+            ORDER BY tax_famclass, match_score DESC
+            LIMIT 50
+          ", search_name = custom, .con = mydb_taxa)
 
-        all_matches <- tryCatch({
-          result <- func_try_fetch(con = mydb_taxa, sql = sql)
-          if (nrow(result) > 0) {
-            result %>%
-              dplyr::mutate(
-                input_name = custom,
-                match_method = "fuzzy",
-                match_rank = 1,
-                is_synonym = FALSE,
-                accepted_name = NA_character_
-              )
-          } else {
+          all_matches <- tryCatch({
+            result <- func_try_fetch(con = mydb_taxa, sql = sql)
+            if (nrow(result) > 0) {
+              result %>%
+                dplyr::mutate(
+                  input_name = custom,
+                  match_method = "fuzzy",
+                  match_rank = 1,
+                  is_synonym = FALSE,
+                  accepted_name = NA_character_
+                )
+            } else {
+              tibble()
+            }
+          }, error = function(e) {
             tibble()
-          }
-        }, error = function(e) {
-          tibble()
-        })
+          })
+        }
       } else {
-        # Use standard hierarchical matching
+        # Use standard hierarchical matching (R-side when bb is non-NULL)
         all_matches <- match_taxonomic_names(
           names = custom,
           method = "hierarchical",  # Tries exact first, then fuzzy
@@ -469,6 +484,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
           include_synonyms = TRUE,
           return_scores = TRUE,
           con = NULL,
+          backbone = bb,
           verbose = FALSE
         )
 
@@ -826,4 +842,60 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       })
     )
   })
+}
+
+
+#' Look up a single idtax_n in the cached backbone, returning a tibble with
+#' the same shape as the SQL self-join used in the online path
+#'
+#' Mirrors the SQL `SELECT t.*, a.* FROM table_taxa t LEFT JOIN table_taxa a
+#' ON t.idtax_good_n = a.idtax_n` lookup, returning matched_name and
+#' accepted_name fields built from the backbone columns.
+#'
+#' @keywords internal
+.lookup_taxon_in_backbone <- function(backbone, idtax) {
+  if (is.null(backbone) || nrow(backbone) == 0L) return(tibble::tibble())
+
+  hit <- backbone %>% dplyr::filter(.data$idtax_n == idtax) %>% dplyr::slice(1L)
+  if (nrow(hit) == 0L) return(tibble::tibble())
+
+  acc <- backbone %>% dplyr::filter(.data$idtax_n == hit$idtax_good_n) %>% dplyr::slice(1L)
+
+  build_label <- function(row) {
+    if (nrow(row) == 0L) return(NA_character_)
+    lvl <- row$tax_level
+    if (!is.na(lvl) && lvl == "species" && !is.na(row$tax_esp)) {
+      paste(row$tax_gen, row$tax_esp)
+    } else if (!is.na(lvl) && lvl == "genus") {
+      row$tax_gen
+    } else if (!is.na(lvl) && lvl == "family") {
+      row$tax_fam
+    } else if (!is.na(lvl) && lvl == "higher") {
+      row$tax_famclass
+    } else if (!is.na(lvl) && lvl == "infraspecific" && !is.na(row$tax_esp)) {
+      paste(c(row$tax_gen, row$tax_esp,
+              if (!is.na(row$tax_rank01)) row$tax_rank01,
+              if (!is.na(row$tax_nam01)) row$tax_nam01),
+            collapse = " ")
+    } else {
+      dplyr::coalesce(row$tax_gen, row$tax_fam, row$tax_famclass)
+    }
+  }
+
+  tibble::tibble(
+    idtax_n           = hit$idtax_n,
+    idtax_good_n      = hit$idtax_good_n,
+    tax_gen           = hit$tax_gen,
+    tax_esp           = hit$tax_esp,
+    tax_fam           = hit$tax_fam,
+    tax_famclass      = hit$tax_famclass,
+    tax_level         = hit$tax_level,
+    matched_name      = build_label(hit),
+    accepted_gen      = if (nrow(acc) > 0L) acc$tax_gen      else NA_character_,
+    accepted_esp      = if (nrow(acc) > 0L) acc$tax_esp      else NA_character_,
+    accepted_fam      = if (nrow(acc) > 0L) acc$tax_fam      else NA_character_,
+    accepted_famclass = if (nrow(acc) > 0L) acc$tax_famclass else NA_character_,
+    accepted_level    = if (nrow(acc) > 0L) acc$tax_level    else NA_character_,
+    accepted_name     = build_label(acc)
+  )
 }

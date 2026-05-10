@@ -207,11 +207,13 @@ app_taxonomic_match <- function(
       pool_main_reactive <- login_output$pool_main
       pool_taxa_reactive <- login_output$pool_taxa
       authenticated_reactive <- login_output$authenticated
+      is_offline_reactive <- login_output$is_offline
     } else {
       # Pool provided, mark as authenticated
       pool_taxa_reactive <- shiny::reactive(pool_taxa)
       pool_main_reactive <- shiny::reactive(NULL)  # Not needed for taxonomic matching
       authenticated_reactive <- shiny::reactive(TRUE)
+      is_offline_reactive <- shiny::reactive(FALSE)
 
       # Store in global env
       .db_env$pool_taxa <- pool_taxa
@@ -246,6 +248,17 @@ app_taxonomic_match <- function(
     rv <- shiny::reactiveValues(
       modules_initialized = FALSE
     )
+
+    # Cached backbone is loaded once for offline mode and passed down to
+    # modules that would otherwise hit the DB (review, fuzzy suggestions).
+    # In online mode this stays NULL — modules use their normal SQL paths.
+    app_backbone <- shiny::reactive({
+      if (isTRUE(is_offline_reactive())) {
+        load_backbone_cache()
+      } else {
+        NULL
+      }
+    })
 
     # Create reactive translator (shiny.i18n recommended pattern)
     i18n <- shiny::reactive({
@@ -303,8 +316,10 @@ app_taxonomic_match <- function(
 
       cli::cli_alert_info("Initializing app modules...")
 
-      # Check WCVP availability in the taxa database
+      # Check WCVP availability in the taxa database — skip entirely when
+      # offline (no connection means no WCVP enrichment regardless).
       wcvp_avail <- shiny::reactive({
+        if (isTRUE(is_offline_reactive())) return(FALSE)
         tryCatch({
           con_taxa <- call.mydb.taxa()
           status <- get_wcvp_status(con_taxa)
@@ -361,17 +376,19 @@ app_taxonomic_match <- function(
         include_authors = shiny::reactive(column_info()$include_authors),
         min_similarity = min_similarity,
         i18n = i18n,
-        use_wcvp_names = use_wcvp_names
+        use_wcvp_names = use_wcvp_names,
+        is_offline = is_offline_reactive
       )
 
-      # Manual review module
+      # Manual review module — pass cached backbone for offline custom search
       reviewed_results <- mod_name_review_server(
         "review",
         match_results = match_results,
         mode = mode,
         max_suggestions = max_suggestions,
         min_similarity = min_similarity,
-        i18n = i18n
+        i18n = i18n,
+        backbone = app_backbone
       )
 
       # Progress tracker module (uses reviewed_results to include manual reviews)
@@ -401,6 +418,18 @@ app_taxonomic_match <- function(
       rv$modules_initialized <- TRUE
       cli::cli_alert_success("All modules initialized successfully!")
     })  # Close the observe block for module initialization
+
+    # Offline mode: hide tabs that require live DB access (Traits enrichment).
+    # WCVP option in the sidebar is already conditional on get_wcvp_status()
+    # which silently returns FALSE without a DB, so it self-hides.
+    shiny::observe({
+      shiny::req(authenticated_reactive() == TRUE)
+      if (isTRUE(is_offline_reactive())) {
+        shiny::hideTab("main_tabs", "traits")
+      } else {
+        shiny::showTab("main_tabs", "traits")
+      }
+    })
   }
 
   # Return Shiny app object

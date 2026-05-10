@@ -2,6 +2,15 @@
 
 ### New Features
 
+* **Offline mode for `launch_taxonomic_match_app()`** — auto-matching and manual review now work without a live database connection
+  - New "Use offline (cached backbone)" button on the login screen, shown automatically when a backbone cache is present on disk (`mod_database_login.R`)
+  - `match_taxonomic_names()` gains a `backbone` parameter; when supplied (or when a cache exists and no `con` is given) all matching runs in R via `stringdist`'s trigram-Jaccard, mirroring PostgreSQL's `pg_trgm` `SIMILARITY()` — no network round-trips
+  - Auto-matching, fuzzy suggestions, and the Review tab's custom search are all routed through the cached backbone in offline mode (`mod_auto_matching.R`, `mod_fuzzy_suggestions.R`, `mod_name_review.R`)
+  - Traits enrichment and WCVP option are hidden when offline (require live DB)
+  - Performance: R-side path is typically faster than the SQL-side per-name loop on slow connections (no network round-trips). For online users with a cache, matching also uses the R-side path by default
+  - Validation script: `tools/validate_r_vs_sql_similarity.R` to compare R-side vs SQL-side similarity scores
+  - Tests: 37 new unit tests in `tests/testthat/test-r-side-matching.R` against a synthetic backbone (no DB required)
+
 * **Aggregated taxa traits from individual measurements** (`R/aggregate_individual_traits.R`)
   - New `rebuild_aggregated_taxa_traits()` aggregates individual-level measurements (`data_traits_measures`) into taxa-level rows in `taxa_traits_measures`, driven by declarative rules in a new `trait_aggregation_config` table
   - Config CRUD helpers: `add_trait_aggregation()`, `remove_trait_aggregation()`, `list_trait_aggregations()`

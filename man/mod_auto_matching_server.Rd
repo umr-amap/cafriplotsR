@@ -11,7 +11,8 @@ mod_auto_matching_server(
   include_authors,
   min_similarity = 0.3,
   i18n,
-  use_wcvp_names = NULL
+  use_wcvp_names = NULL,
+  is_offline = shiny::reactive(FALSE)
 )
 }
 \arguments{
