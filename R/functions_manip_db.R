@@ -506,7 +506,8 @@ query_plots <- function(plot_name = NULL,
         leaflet::addLayersControl(
           baseGroups = map_types,
           options = leaflet::layersControlOptions(collapsed = FALSE)
-        )
+        ) %>%
+        leaflet::addScaleBar(position = "bottomleft")
 
       if (extract_coordinates && exists("coordinates_subplots_plot_sf") && !is.null(coordinates_subplots_plot_sf)) {
         outputmap <- outputmap %>%
