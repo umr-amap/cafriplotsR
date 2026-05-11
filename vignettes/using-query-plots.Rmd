@@ -1,8 +1,8 @@
 ---
-title: "Using query_plots() to Access Plot Data"
+title: "Using the Plot Query App and query_plots()"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Using query_plots() to Access Plot Data}
+  %\VignetteIndexEntry{Using the Plot Query App and query_plots()}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -11,720 +11,620 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  eval = FALSE,  # Set to FALSE to prevent execution during pkgdown build
+  eval = FALSE,
   message = FALSE,
   warning = FALSE
 )
 ```
 
 ```{r setup}
-library(tidyverse)
 library(CafriplotsR)
 ```
 
-## Introduction
+## Overview
 
-The `query_plots()` function is the primary entry point for accessing forest plot data from the Central African plot database. This vignette demonstrates how to use the function's various features, including the new **output styles system** introduced in version 1.5.
+CafriplotsR offers two complementary ways to access forest plot data:
 
-## Database Connection
+1. **Interactive Shiny app** (`launch_query_plots_app()`) — point-and-click interface with live map, plot selection, and download
+2. **R function** (`query_plots()`) — reproducible, scriptable access for automated workflows
 
-Before querying data, establish connections to both databases:
+A key bridge between the two is the **"Equivalent R Code"** panel in the app, which shows the exact `query_plots()` call that reproduces what you configured interactively.
 
+---
 
-```{r connection-t, eval=T, echo=F, warning=FALSE, message=FALSE}
-library(tidyverse)
-devtools::load_all()
-# Connect to the main database
-mydb <- call.mydb(use_env_credentials = T)
-
-# Connect to the taxa database
-mydb_taxa <- call.mydb.taxa(use_env_credentials = T)
-
-```
-
-```{r connection}
-# Connect to the main database
-mydb <- call.mydb()
-
-# Connect to the taxa database
-mydb_taxa <- call.mydb.taxa()
-```
-
-The package will prompt for credentials interactively, or you can use environment variables via `use_env_credentials = TRUE`.
-
-## Interactive Shiny Application
-
-CafriplotsR provides an interactive Shiny application for users who prefer a graphical interface over writing R code. The app wraps `query_plots()` with an intuitive two-stage workflow.
+## Part 1 — Interactive Shiny App
 
 ### Launching the App
 
-```{r launch-app, eval=FALSE}
-# Launch the interactive query app
+```{r launch-app}
+# Launch with default language (French)
 launch_query_plots_app()
 
-# Or specify language (French or English)
-launch_query_plots_app(language = "fr")  # French (default)
-launch_query_plots_app(language = "en")  # English
+# Launch in English
+launch_query_plots_app(language = "en")
+
+# Launch in browser on a specific port
+launch_query_plots_app(language = "en", launch.browser = TRUE, port = 8080)
+
+# Reuse an existing connection pool (avoids repeated login prompts)
+pool <- create_pool_main()
+launch_query_plots_app(pool_main = pool)
 ```
+
+The app will prompt for database credentials if no pool is provided. Use
+`setup_db_credentials()` to store credentials in `~/.Renviron` to skip the
+prompt on future sessions.
 
 ### App Overview
 
-When you first launch the app, you'll see the main interface with a navigation bar containing three tabs:
+The app has four tabs accessible from the top navigation bar:
 
-![Application initial view](images/app-query-initial-view.png)
+| Tab | Purpose |
+|-----|---------|
+| Query Builder | Define filters and execute the metadata query |
+| Results & Extraction | Map, table, plot selection, extraction config, download |
+| Statistics | Summary statistics and charts for extracted data |
+| About | App documentation and package information |
 
-The app uses a **tabbed workflow**:
+The language toggle (**EN** / **FR**) is always visible in the top-right corner.
+The switch is instant and affects all UI elements.
 
-1. **Query Builder** - Define filters and search criteria
-2. **Results & Extraction** - View results, select plots, extract individuals
-3. **About** - App documentation and package information
+![App initial view — login screen and navigation bar](images/app-query-initial-view.png)
 
-### Phase 1: Query Builder
+> **Screenshot to add:** full app view *after* login, showing the four-tab
+> navigation bar (`app-query-nav-tabs.png`).
 
-#### Setting Up Filters
+---
 
-The Query Builder tab provides various filtering options to find plots of interest:
+### Tab 1 — Query Builder
 
-![Filter panel](images/app-query-filters.png)
+#### Basic Filters
 
-**Basic Filters:**
+![Query Builder — filter panel](images/app-query-filters.png)
 
-- **Country**: Multi-select dropdown of available countries
-- **Method**: Filter by inventory method (1 ha plot, Long Transect, etc.)
-- **Plot Name(s)**: Text search (comma-separated for multiple plots)
-- **Locality**: Search by locality name
-- **Individual Tag**: Search by tree tag number
+- **Country** — multi-select dropdown of available countries
+- **Method** — inventory method (e.g., "1 ha plot", "Long Transect")
+- **Plot Name(s)** — partial or exact text search; comma-separate multiple names
+- **Locality** — search by locality name
+- **Individual Tag** — search by tree tag number
 
 #### Advanced Filters
 
-Click on "Advanced Filters" to expand additional search options:
+Click **Advanced Filters** to expand additional options:
 
-![Advanced filters](images/app-query-advanced-filters.png)
+![Query Builder — advanced filters](images/app-query-advanced-filters.png)
 
-- **Plot ID**: Search by database plot ID
-- **Individual ID**: Search by specific individual ID
-- **Taxon ID**: Filter by taxonomic ID
-- **Specimen ID**: Search by herbarium specimen ID
-- **Exact match**: Toggle for strict text matching
+- **Plot ID** — search by internal database plot ID
+- **Individual ID** — search by specific individual ID
+- **Taxon ID** — filter by taxonomic ID
+- **Specimen ID** — search by herbarium specimen ID
+- **Exact match** — toggle for strict text matching (default: partial)
 
 #### Executing the Query
 
-After setting your filters, click **"Execute Query"** to retrieve plot metadata. The app shows a summary of active filters before execution.
+Click **Execute Query** to retrieve plot metadata. The app automatically
+switches to the **Results & Extraction** tab and shows the number of plots
+found.
 
-### Phase 2: Results & Extraction
+![Demo: full query workflow](images/app-query-example.gif)
 
-#### Interactive Map
+---
 
-Query results are displayed on an interactive map with multiple basemap options:
+### Tab 2 — Results & Extraction
+
+This tab has five stacked sections that guide you from visualising results to
+downloading data.
+
+#### Section A — Interactive Map
 
 ![Interactive map with plot markers](images/app-query-map-view.png)
 
-**Map features:**
+- **Basemap layers** — OpenStreetMap, Satellite, Physical
+- **Clickable markers** — show plot name, country, method, area
+- Map and table are synchronised: selecting rows in the table highlights the
+  corresponding markers
 
-- **Basemap layers**: OpenStreetMap, Satellite, Physical
-- **Clickable markers**: Click to see plot details
-- **Popup information**: Plot name, country, method, area
-
-#### Metadata Table
-
-Below the map, a sortable and searchable table displays all plot metadata:
+#### Section B — Metadata Table
 
 ![Plot metadata table](images/app-query-metadata-table.png)
 
-**Table features:**
+A sortable, searchable table of all plot metadata returned by the query. Click
+column headers to sort; use the search box to filter rows.
 
-- **Search**: Filter table contents
-- **Sort**: Click column headers to sort
-- **Pagination**: Navigate through large result sets
-- **Row selection**: Click rows to select/deselect plots
+#### Section C — Plot Selection
 
-#### Selecting Plots
+![Plot selection — selected rows highlighted](images/app-query-plot-selection.png)
 
-Select specific plots for individual extraction by clicking rows in the table:
+Click rows to select or deselect individual plots. A counter shows the number
+of selected plots. All plots are pre-selected by default.
 
-![Selected plots highlighted](images/app-query-plot-selection.png)
+#### Section D — Extraction Configuration
 
-- Selected rows are highlighted
-- A counter shows the number of selected plots
-- By default, all plots are selected
-
-### Phase 3: Configure Extraction
-
-#### Output Style
-
-Choose how the extracted data should be formatted:
+After selecting plots, configure how individual tree data should be extracted:
 
 ![Extraction configuration panel](images/app-query-extraction-config.png)
 
-**Available styles:**
+**Output Style** — controls which columns and tables are returned:
 
-| Style | Description |
-|-------|-------------|
-| Auto-detect | Automatically selects based on plot method |
-| Minimal | Essential columns only (plot, tag, species, dbh) |
-| Standard | Common columns for general ecological analysis |
-| Permanent Plot | Single census format for permanent plot monitoring |
-| Permanent Plot (multi-census) | Preserves all census columns |
-| Transect | Simplified format for walk surveys |
-| Full | Complete dataset with all columns |
+| Style | Best for |
+|-------|----------|
+| Auto-detect | Let the app choose based on the plot method |
+| Minimal | Quick exploration — essential columns only |
+| Standard | General ecological analysis |
+| Permanent Plot | Single-census permanent plot monitoring |
+| Permanent Plot (multi-census) | Time-series format with `_census_N` columns |
+| Transect | Walk survey format |
+| Full | Complete dataset, all columns |
 
-#### Census Handling
+**Census Handling:**
 
-Configure how multiple censuses should be handled:
+![Census options](images/app-query-census-options.png)
 
-![Census handling options](images/app-query-census-options.png)
+- **Census Strategy** — Last (default), First, or Mean across censuses
+- **Show multiple census data** — creates `dbh_census_1`, `dbh_census_2`, …
+  columns; automatically selects the *Permanent Plot (multi-census)* style
+- **Individual features format**:
+  - *Wide* (default) — one row per individual, traits as columns; values are
+    aggregated when multiple measurements exist for the same individual
+  - *Long* — one row per measurement; includes `trait`, `traitvalue`,
+    `census_name`, and `census_date` columns
+  - *Census pairs* — one row per consecutive pair of censuses per individual;
+    useful for computing growth rates
 
-- **Census Strategy**: Last census, First census, or Mean across censuses
-- **Show multiple census data**: Creates separate columns for each census (e.g., dbh_census_1, dbh_census_2)
-- **Individual features format**: Controls the row structure of individual-level measurements:
-  - *Wide* (default): one row per individual, with one column per trait — values are aggregated when multiple measurements exist for the same individual
-  - *Long*: one row per measurement — if an individual has two diameter records (e.g. two censuses), it appears in two rows. The output includes `trait`, `traitvalue` / `traitvalue_char`, `valuetype`, `census_name`, and `census_date` columns (`NA` when the measurement is not linked to a census). Census filtering (`census_strategy`) is still applied in long format.
+**Data Organisation:**
 
-#### Data Organization
+- **Concatenate multiple stems** — combine multi-stemmed tree measurements
+- **Remove database IDs** — hide internal ID columns for cleaner output
+- **Issues handling** — remove, include, or ignore flagged records
+- **Include issue flags** — add quality flag columns to the output
 
-Control output structure:
+> **Note:** `"long"` and `"census pairs"` formats are incompatible with
+> *Concatenate multiple stems*; that option is automatically disabled when
+> either long-format mode is selected.
 
-- **Concatenate multiple stems**: Combine data from multi-stemmed trees
-- **Remove database IDs**: Hide internal ID columns for cleaner output
-- **Remove observations with issues**: Exclude flagged problematic records
-- **Include issue flags**: Add quality flag columns to output
-
-#### Additional Data
-
-Select what extra information to include:
+**Additional Data:**
 
 ![Additional data options](images/app-query-additional-data.png)
 
-- **Extract taxonomic traits**: Wood density, growth form, etc.
-- **Extract individual-level features**: Tree-specific measurements
-- **Extract subplot-level features**: Subplot characteristics
-- **Fallback to genus-level traits**: Use genus data when species unavailable
+- **Extract taxonomic traits** — wood density, growth form, etc.
+- **Extract individual-level features** — tree-specific measurements
+- **Extract subplot-level features** — subplot characteristics
+- **Fallback to genus-level traits** — use genus data when species traits are
+  unavailable
 
-### Phase 4: Extract and Download
+Click **Extract Individuals from Selected Plots** to run the extraction.
 
-#### Extraction Results
+#### Section E — Results Display and Download
 
-Click **"Extract Individuals from Selected Plots"** to retrieve detailed tree data:
+Results are organised in tabs: **Individuals**, **Metadata**, **Censuses**,
+and **Height-Diameter** (when applicable).
 
-![Results display with tabs](images/app-query-results-display.png)
+> **Screenshot to add:** results display showing the four result tabs after
+> extraction (`app-query-results-display.png`).
 
-Results are organized in tabs:
-
-- **Individuals**: Tree-level measurements
-- **Metadata**: Plot information
-- **Censuses**: Census dates and details (if applicable)
-- **Height-Diameter**: H-D pairs for allometry (if applicable)
-
-#### Download Options
-
-Export your data in multiple formats:
+Download your data using the download panel:
 
 ![Download panel](images/app-query-download-panel.png)
 
-**Available formats:**
+| Format | Notes |
+|--------|-------|
+| Excel (.xlsx) | Multi-sheet workbook, one sheet per table |
+| CSV (zipped) | Separate CSV files in a ZIP archive |
+| R Object (.rds) | Native R format; preserves list structure and data types |
+| Shapefile (.zip) | Spatial data (requires coordinate columns) |
 
-- **Excel (.xlsx)**: Multi-sheet workbook
-- **CSV (zipped)**: Separate CSV files in a ZIP archive
-- **R Object (.rds)**: Native R format preserving data types
-- **Shapefile (.zip)**: Spatial data (if coordinates available)
+Use the checkboxes to select which tables to include before downloading.
 
-Select which tables to include in your export using the checkboxes.
+#### Section F — Equivalent R Code
 
-### Viewing the Equivalent R Code
+After running a query or extraction, the **Equivalent R Code** panel shows the
+exact `query_plots()` calls that reproduce your results:
 
-A key feature of the app is the **"Equivalent R Code"** panel, displayed after running queries:
-
-![Code preview panel](images/app-query-code-preview.png)
-
-This shows the exact R code you would use with `query_plots()` to reproduce the same results programmatically.
-
-**Code sections:**
-
-1. **Metadata Query**: Code to retrieve plot metadata with your filters
-2. **Individual Extraction**: Code to extract tree data with your options
-3. **Complete Workflow Script**: Full script combining both steps
+![R code preview panel](images/app-query-code-preview.png)
 
 ![Complete workflow script](images/app-query-code-complete.png)
 
-**Why this matters:**
+Three code sections are provided:
 
-- **Learning**: Understand how app options map to function parameters
-- **Reproducibility**: Save the exact code for your analysis documentation
-- **Scripting**: Copy code for automated workflows
-- **Collaboration**: Share query parameters with colleagues
+1. **Metadata Query** — filter and retrieve plot metadata
+2. **Individual Extraction** — extract tree data with your chosen options
+3. **Complete Workflow Script** — both steps in a single ready-to-run script
 
-Click **"Copy to clipboard"** to copy any code section.
+Click **Copy to clipboard** to copy any section directly into your R editor.
 
-### About Page
+---
 
-The About tab provides app documentation and package information:
+### Tab 3 — Statistics
+
+The Statistics tab displays summary cards and charts that update automatically
+once individual data has been extracted:
+
+- Total number of **plots** extracted
+- Total number of **individuals** (stems)
+- Number of **species**
+- Number of **families**
+- **Diameter distribution** histogram (when DBH data are available)
+
+> **Screenshot to add:** Statistics tab showing the four summary cards and the
+> diameter histogram (`app-query-statistics.png`).
+
+---
+
+### Tab 4 — About
+
+The About tab contains a description of the app's features and package
+metadata (version, authors, links to documentation and repository).
 
 ![About page](images/app-query-about-page.png)
 
-### App vs. Function: When to Use Each
+> **Screenshot to update:** the About page now shows version 1.7.2 and the
+> updated authors list — retake if your existing screenshot is from an older
+> version.
 
-| Use Case | Recommendation |
-|----------|----------------|
-| Quick data exploration | Use the app |
-| Interactive plot selection on a map | Use the app |
-| Learning function parameters | Start with the app, copy generated code |
-| Reproducible analysis scripts | Use `query_plots()` |
-| Automated data pipelines | Use `query_plots()` |
-| Processing many queries | Use `query_plots()` |
+---
 
-### Language Selection
+### From App to Script
 
-The app supports **bilingual operation** (French and English). French is the default language.
+The typical workflow is:
 
-A language toggle is located in the top-right corner:
+1. Use the app to explore plots and configure options interactively
+2. Copy the generated code from the **Equivalent R Code** panel
+3. Paste it into your analysis script for reproducible, automated runs
 
-- Click **"FR"** for French interface
-- Click **"EN"** for English interface
+```{r app-to-script}
+# Example code generated by the app after selecting Cameroon 1-ha plots
 
-The switch is instant and affects all UI elements.
-
-### Example: From App to Script
-
-Here's how the app helps you build reproducible queries:
-
-1. **In the app**: Select Cameroon, filter by "1 ha plot" method, extract with traits
-
-2. **Copy the generated code**:
-
-```{r app-to-script, eval=FALSE}
-# Query plot metadata
+# Step 1: query metadata
 metadata <- query_plots(
-  country = c("Cameroon"),
-  method = c("1 ha plot"),
+  country = "Cameroon",
+  method = "1 ha plot",
   extract_individuals = FALSE
 )
 
-# Extract individual tree data from selected plots
-individuals <- query_plots(
+# Step 2: extract individuals from selected plots
+result <- query_plots(
   id_plot = c(1, 5, 12),
   extract_individuals = TRUE,
   output_style = "permanent_plot",
   extract_traits = TRUE,
-  extract_individual_features = TRUE
+  census_strategy = "last"
 )
 ```
-3. **Use in your analysis script** for reproducible research
 
-## Basic Usage
+### App vs. Function: When to Use Each
 
-### Query Plot Metadata Only
+| Use case | Recommendation |
+|----------|----------------|
+| First exploration, unknown plot IDs | App |
+| Interactive map selection | App |
+| Learning function parameters | App — copy generated code |
+| Reproducible analysis scripts | `query_plots()` |
+| Automated data pipelines | `query_plots()` |
+| Batch processing many queries | `query_plots()` |
 
-To retrieve only plot-level information without individual tree data:
+---
 
-```{r basic-metadata, eval=TRUE, results='hide'}
-# Query by plot name
+## Part 2 — `query_plots()` Function
+
+### Database Connection
+
+```{r connection}
+# Recommended: interactive credential prompt
+mydb <- call.mydb()
+
+# Use credentials stored in ~/.Renviron
+mydb <- call.mydb(use_env_credentials = TRUE)
+```
+
+The taxa database connection is created automatically inside `query_plots()`
+when needed. Supply it explicitly via `con.taxa` to reuse an existing
+connection and avoid repeated prompts:
+
+```{r connection-taxa}
+mydb      <- call.mydb()
+mydb_taxa <- call.mydb.taxa()
+
+result <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  con      = mydb,
+  con.taxa = mydb_taxa
+)
+```
+
+### Basic Usage
+
+#### Metadata only (no tree data)
+
+```{r basic-metadata}
 plots <- query_plots(
   plot_name = "mbalmayo001",
   extract_individuals = FALSE
 )
-
+plots$metadata
 ```
 
-```{r, eval=TRUE, message=TRUE}
-# View the structure
-plots
-```
+#### Including individual trees
 
-
-
-### Query Plots with Individual Trees
-
-To include individual tree/stem measurements:
-
-```{r with-individuals, eval=TRUE, results='hide'}
-plots_with_trees <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = TRUE
-)
-
-
-```
-
-
-```{r, eval=TRUE, message=TRUE}
-# The result is a structured list
-plots_with_trees
-```
-
-## Output Styles System (v1.5+)
-
-Starting in version 1.5, `query_plots()` returns **structured lists** instead of flat data frames. The structure adapts automatically based on the inventory method.
-
-### Available Output Styles
-
-- **`minimal`**: Essential plot metadata only, no features or traits
-- **`standard`**: Standard analysis output with common features (default for unknown methods)
-- **`permanent_plot`**: Organized tables for permanent plot monitoring (single census)
-- **`permanent_plot_multi_census`**: Multi-census data with _census_N columns
-- **`transect`**: Simplified output for transect/walk surveys
-- **`full`**: Complete export with all columns (preserves v1.4 behavior)
-
-### Auto-Detection Based on Method
-
-The output style is automatically detected from the plot's `method` field:
-
-```{r auto-detection}
-# For a permanent plot (method = "1 ha plot")
-perm_plot <- query_plots(
-  plot_name = "mbalmayo",
-  extract_individuals = TRUE
-)
-
-# Automatically uses 'permanent_plot' style
-# Returns: $metadata, $individuals, $censuses, $height_diameter
-names(perm_plot)
-```
-
-### Manual Style Selection
-
-Override automatic detection by specifying `output_style`:
-
-```{r manual-style}
-# Force minimal output
-minimal_output <- query_plots(
-  plot_name = "mbalmayo",
-  extract_individuals = TRUE,
-  output_style = "minimal"
-)
-
-# Force full output (v1.4 behavior - flat data frame)
-full_output <- query_plots(
-  plot_name = "mbalmayo",
-  extract_individuals = TRUE,
-  output_style = "full"
-)
-```
-
-### Understanding the Structured Output
-
-For permanent plots with `extract_individuals = TRUE`:
-
-```{r structured-output}
+```{r with-individuals}
 result <- query_plots(
   plot_name = "mbalmayo001",
   extract_individuals = TRUE
 )
 
-# Metadata table: plot-level information
-result$metadata
-#   plot_id | plot_name | country | latitude | longitude | elevation | ...
-
-# Individuals table: tree measurements
-result$individuals
-#   id_n | plot_name | tag | family | genus | species | dbh | height | ...
-
-# Censuses table: census information
-result$censuses
-#   plot_name | census_number | census_date | team_leader | ...
-
-# Height-diameter pairs: for allometric analysis
-result$height_diameter
-#   id_n | plot_name | tag | D | H | POM | census
-
-# Spatial data (if show_all_coordinates = TRUE)
-result$coordinates_sf
+names(result)       # e.g. metadata, individuals, censuses, height_diameter
+result$individuals  # one row per stem
+result$censuses     # census dates and team information
 ```
 
-## Filtering Options
+### Output Styles
 
-### By Location
+`query_plots()` always returns a **named list**. The tables included depend on
+`output_style`:
 
-```{r filter-location}
-# By country
-cameroon_plots <- query_plots(
-  country = "Cameroon",
-  extract_individuals = FALSE
-)
+| `output_style` | Tables returned | Typical use |
+|----------------|-----------------|-------------|
+| `"auto"` | Detected from plot method | Default — recommended |
+| `"minimal"` | `metadata`, `individuals` (essential cols) | Quick exploration |
+| `"standard"` | `metadata`, `individuals`, `censuses` | General analysis |
+| `"permanent_plot"` | `metadata`, `individuals`, `censuses`, `height_diameter` | Single-census monitoring |
+| `"permanent_plot_multi_census"` | Same + `_census_N` columns | Time-series analysis |
+| `"transect"` | `metadata`, `individuals` (simplified) | Walk surveys |
+| `"full"` | All columns in a single `extract` table | Complete export |
 
-# By locality
-dja_plots <- query_plots(
-  locality_name = "Dja",
-  extract_individuals = FALSE
-)
-
-```
-
-### By Method
-
-```{r filter-method}
-# Get all permanent plots
-permanent_plots <- query_plots(
-  method = "1 ha plot",
-  extract_individuals = FALSE
-)
-
-# Get all transects
-transects <- query_plots(
-  method = "Long Transect",
-  extract_individuals = FALSE
-)
-```
-
-### By Plot ID
-
-```{r filter-id}
-# Query specific plot IDs
-plots_by_id <- query_plots(
-  id_plot = c(1, 2, 3),
-  extract_individuals = TRUE
-)
-```
-
-## Working with Individual Tree Data
-
-### Basic Tree Extraction
-
-```{r individuals-basic}
-trees <- query_plots(
+```{r styles}
+# Auto-detect from method (recommended)
+result_auto <- query_plots(
   plot_name = "mbalmayo001",
   extract_individuals = TRUE
 )
 
-# Access individual tree data
-trees$individuals
-```
-
-
-## Handling Multiple Censuses
-
-### Show Multiple Census Data
-
-By default, only the most recent census is returned. To see all censuses:
-
-```{r multiple-census}
-multi_census <- query_plots(
-  plot_name = "mbalmayo",
+# Force a specific style
+result_perm <- query_plots(
+  plot_name = "mbalmayo001",
   extract_individuals = TRUE,
-  show_multiple_census = TRUE
+  output_style = "permanent_plot"
 )
 
-# Automatically uses 'permanent_plot_multi_census' style
-# Census-specific columns: dbh_census_1, dbh_census_2, height_census_1, ...
-head(multi_census$individuals)
-
-# Censuses table shows all census dates
-multi_census$censuses
-
-# Height-diameter table has one row per measurement
-multi_census$height_diameter
+# Full output — single flat table accessible via $extract
+result_full <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  output_style = "full"
+)
+names(result_full$extract)
 ```
 
-### Long Format: One Row per Measurement
+### Filtering Options
 
-The default output (`individual_features_format = "wide"`) places each trait in its own column, aggregating when multiple measurements exist. Use `"long"` to keep every measurement on its own row instead:
+```{r filters}
+# By country
+query_plots(country = "Cameroon", extract_individuals = FALSE)
 
-```{r long-format}
-trees_long <- query_plots(
+# By method
+query_plots(method = "1 ha plot", extract_individuals = FALSE)
+
+# Multiple countries or methods
+query_plots(country = c("Cameroon", "Gabon"), extract_individuals = FALSE)
+
+# By locality
+query_plots(locality_name = "Dja", extract_individuals = FALSE)
+
+# By plot ID (most efficient when IDs are already known)
+query_plots(id_plot = c(1, 2, 3), extract_individuals = TRUE)
+
+# By individual tag (implies extract_individuals = TRUE)
+query_plots(plot_name = "mbalmayo001", tag = "1234")
+
+# By taxon ID
+query_plots(plot_name = "mbalmayo001", id_tax = 115, extract_individuals = TRUE)
+
+# By herbarium specimen ID
+query_plots(id_specimen = 42, extract_individuals = TRUE)
+
+# Exact plot name match (default is partial)
+query_plots(plot_name = "mbalmayo001", exact_match = TRUE, extract_individuals = FALSE)
+```
+
+### Handling Multiple Censuses
+
+```{r multiple-census}
+# Last census only (default)
+last <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  census_strategy = "last"
+)
+
+# First census
+first <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  census_strategy = "first"
+)
+
+# Mean values across all censuses
+averaged <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  census_strategy = "mean"
+)
+
+# All censuses as separate columns (dbh_census_1, dbh_census_2, …)
+multi <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  show_multiple_census = TRUE   # automatically uses permanent_plot_multi_census style
+)
+multi$censuses   # census dates
+head(multi$individuals)
+```
+
+### Individual Features Format
+
+Three row structures are available:
+
+```{r format-wide}
+# Wide (default): one row per individual, traits as columns
+wide <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  individual_features_format = "wide"
+)
+```
+
+```{r format-long}
+# Long: one row per measurement
+long <- query_plots(
   plot_name = "mbalmayo001",
   extract_individuals = TRUE,
   individual_features_format = "long"
 )
-
-# Each row is one measurement for one individual
-# Columns: trait, traitvalue / traitvalue_char, valuetype,
-#          census_name (e.g. "census_3"), census_date (NA if not census-linked)
-trees_long$individuals |>
+# Extra columns: trait, traitvalue, traitvalue_char, valuetype, census_name, census_date
+long$individuals |>
   dplyr::select(plot_name, tag, tax_sp_level, trait, traitvalue, census_name, census_date)
 ```
 
-In long format, an individual with two diameter measurements (e.g. from two censuses) appears in two rows. Measurements not linked to any census (e.g. position coordinates) have `census_name = NA` and `census_date = NA`.
+```{r format-census-pairs}
+# Census pairs: one row per consecutive census pair per individual
+# Useful for computing diameter growth between censuses
+pairs <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  individual_features_format = "census_pairs"
+)
+# Output style is automatically set to "census_pairs"
+```
 
-Census filtering still applies: with `census_strategy = "last"` (the default), only measurements from the most recent census are returned for census-linked traits, while non-census measurements are always included.
+### Taxonomic Backbone
 
-```{r long-format-first-census}
-# Long format keeping only the first census
-trees_long_first <- query_plots(
+```{r backbone}
+# Internal taxonomy (default)
+result_internal <- query_plots(
   plot_name = "mbalmayo001",
   extract_individuals = TRUE,
-  individual_features_format = "long",
-  census_strategy = "first"
+  backbone = "internal"
+)
+
+# WCVP (World Checklist of Vascular Plants)
+result_wcvp <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  backbone = "wcvp"
 )
 ```
 
-Long format is particularly useful when you need to work with raw measurement values rather than aggregated summaries, or when you want to compute your own statistics across multiple measurements.
+### Additional Data Options
 
-## Column Renaming
-
-The output styles automatically rename database columns to user-friendly names:
-
-```{r column-names}
+```{r additional-data}
 result <- query_plots(
   plot_name = "mbalmayo001",
-  extract_individuals = TRUE
+  extract_individuals = TRUE,
+  extract_traits            = TRUE,   # taxonomic traits (wood density, growth form …)
+  extract_individual_features = TRUE, # tree-level measurements
+  extract_subplot_features  = TRUE,   # subplot characteristics
+  traits_to_genera          = FALSE,  # fall back to genus-level when species traits absent
+  wd_fam_level              = FALSE,  # fall back to family-level wood density
+  include_liana             = FALSE   # set TRUE to keep lianas in the output
 )
-
-# Database names → User-friendly names
-# ddlat → latitude
-# ddlon → longitude
-# tax_fam → family
-# tax_gen → genus
-# tax_sp_level → species
-# stem_diameter → dbh
-# tree_height → height
-
-names(result$metadata)
-names(result$individuals)
 ```
 
-## Spatial Data
+### Spatial Data
 
-### Plot Coordinates
-
-By default, returns one coordinate per plot:
-
-```{r default-coords}
-plots <- query_plots(
-  country = "Gabon",
-  extract_individuals = FALSE
-)
-
+```{r coordinates}
+# Default: one representative coordinate per plot
+plots <- query_plots(country = "Gabon", extract_individuals = FALSE)
 plots$metadata[, c("plot_name", "latitude", "longitude")]
-```
 
-### All Coordinates
-
-Some plots have multiple coordinate points (corners, subplot centers):
-
-```{r all-coords}
-plots_all_coords <- query_plots(
+# All coordinate points (corners, subplot centres …)
+all_coords <- query_plots(
   plot_name = "mbalmayo",
-  extract_individuals = FALSE,
-  show_all_coordinates = TRUE
+  extract_individuals   = FALSE,
+  extract_coordinates   = TRUE   # replaces deprecated show_all_coordinates
 )
-
-# Returns sf object with all coordinate points
-plots_all_coords$coordinates_sf
+all_coords$coordinates_sf        # sf object
 ```
 
-### Interactive Map
-
-Visualize plot locations:
+> **Note:** `show_all_coordinates` was deprecated in v1.9.4. Use
+> `extract_coordinates` instead.
 
 ```{r map}
-query_plots(
-  country = "Cameroon",
-  extract_individuals = FALSE,
-  map = TRUE
-)
+# Display an interactive Leaflet map (opens in the RStudio Viewer)
+query_plots(country = "Cameroon", extract_individuals = FALSE, map = TRUE)
 ```
-
-## Advanced Options
 
 ### Keeping Database IDs
 
-By default, internal IDs are removed. To keep them:
-
 ```{r keep-ids}
-with_ids <- query_plots(
+result <- query_plots(
   plot_name = "mbalmayo001",
   extract_individuals = TRUE,
-  remove_ids = FALSE, output_style = "full"
+  remove_ids   = FALSE,
+  output_style = "full"
 )
-
-# Now includes id_liste_plots, id_census, etc.
-names(with_ids$extract)
+names(result$extract)  # includes id_liste_plots, id_census, id_n …
 ```
 
-### Filtering by Individual ID
+### Handling Data Quality Issues
 
-Extract specific individuals:
-
-```{r filter-individual}
-specific_trees <- query_plots(
-  id_individual = c(1001, 1002, 1003),
-  extract_individuals = TRUE
+```{r issues}
+# Remove flagged records (default)
+clean <- query_plots(
+  plot_name = "mbalmayo001", extract_individuals = TRUE,
+  issues = "remove"
 )
-```
 
-### Filtering by Taxon
+# Include all records regardless of flags
+all_records <- query_plots(
+  plot_name = "mbalmayo001", extract_individuals = TRUE,
+  issues = "include"
+)
 
-Extract individuals of specific taxa:
-
-```{r filter-taxon}
-species_trees <- query_plots(
-  plot_name = "mbalmayo001",
-  id_tax = c(115),  # Taxon IDs
-  extract_individuals = TRUE
+# Keep flagged records but add quality flag columns
+with_flags <- query_plots(
+  plot_name = "mbalmayo001", extract_individuals = TRUE,
+  issues = "ignore"
 )
 ```
 
-## Custom Output Styles
-
-The `keep_patterns` and `remove_patterns` options in style configurations allow customization (NOY YET IMPLEMENTED):
-
-```{r custom-patterns}
-# In your custom style configuration:
-# keep_patterns = c("^feat_wood", "^trait_leaf")
-# This keeps wood features and leaf traits while removing others
-```
-
-## Combining Options
-
-Complex queries combining multiple filters:
+### Complex Query Example
 
 ```{r complex-query}
-complex_result <- query_plots(
-  country = "Cameroon",
+result <- query_plots(
+  country      = "Cameroon",
   locality_name = "Dja",
-  method = "1 ha plot",
-  extract_individuals = TRUE,
-  extract_traits = TRUE,
+  method       = "1 ha plot",
+  extract_individuals         = TRUE,
+  extract_traits              = TRUE,
   extract_individual_features = TRUE,
-  show_multiple_census = TRUE,
-  show_all_coordinates = TRUE,
-  remove_ids = FALSE,
-  output_style = "permanent_plot_multi_census"
+  show_multiple_census        = TRUE,
+  extract_coordinates         = TRUE,
+  remove_ids                  = FALSE,
+  output_style                = "permanent_plot_multi_census"
 )
 
-# Returns comprehensive structured output
-names(complex_result)
+names(result)
 ```
-
-
-
-
-
 
 ## Performance Tips
 
-1. **Start with metadata only**: Use `extract_individuals = FALSE` when exploring
-2. **Use specific filters**: Reduce query time by filtering by plot_name or id_plot
-3. **Limit traits**: Only use `extract_traits = TRUE` when needed
-4. **Choose appropriate style**: Use `minimal` or `standard` for quick analyses
+1. Start with `extract_individuals = FALSE` to explore metadata before pulling tree data
+2. Filter by `id_plot` when plot IDs are already known — it is the most efficient route
+3. Enable `extract_traits` and `extract_individual_features` only when needed
+4. Choose the most specific `output_style` to avoid loading unused columns
 
 ## Troubleshooting
-
-### Empty Results
-
-If your query returns no data:
 
 ```{r troubleshoot}
 # Check connection status
 print_connection_status()
 
-# Run diagnostic
+# Run a full connection diagnostic
 db_diagnostic()
 
-# Verify plot access (row-level security)
-# You can only access plots you have permission for
+# Close all connections and clear cached credentials
+cleanup_connections()
 ```
 
-### Switching Back to v1.4 Behavior
-
-If you need the old flat data frame output:
-
-```{r legacy-behavior}
-flat_output <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = TRUE,
-  output_style = "full"
-)
-
-# Returns a single data frame instead of structured list
-```
-
+Row-level security is enforced on the database: you can only access plots and
+individuals that your database account has permission to view.
