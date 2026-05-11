@@ -197,10 +197,21 @@ Click **Extract Individuals from Selected Plots** to run the extraction.
 #### Section E — Results Display and Download
 
 Results are organised in tabs: **Individuals**, **Metadata**, **Censuses**,
-and **Height-Diameter** (when applicable).
+**Height-Diameter** (when applicable), and **Column Documentation**.
 
-> **Screenshot to add:** results display showing the four result tabs after
-> extraction (`app-query-results-display.png`).
+> **Screenshot to add:** results display showing the result tabs after
+> extraction, with the Column Documentation tab visible
+> (`app-query-results-display.png`).
+
+The **Column Documentation** tab is always present after extraction. It contains
+a searchable table describing every output column: its original database name,
+a plain-language description, category, unit, and any contextual notes. This
+is the fastest way to understand what each column means without consulting
+external documentation.
+
+The column documentation table is also **exportable**: select it via the
+download checkboxes to include it as an additional sheet in Excel exports, a
+separate CSV in the ZIP archive, or an element of the RDS list.
 
 Download your data using the download panel:
 
