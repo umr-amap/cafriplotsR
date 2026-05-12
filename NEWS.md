@@ -2,6 +2,15 @@
 
 ### New Features
 
+* **Inspectable and customisable `output_style` for `query_plots()`** — built-in styles are now transparent and users can define their own
+  - `list_output_styles()` returns a tibble summarising every built-in style (description, additional tables, column/pattern counts)
+  - `get_output_style(name)` returns the configuration of a built-in style as a `plot_output_style` object with a dedicated print method that groups fields by purpose (column selection, pattern filters, renames, additional tables, flags); use `unclass()` to see the raw list
+  - `output_style(...)` builds a custom style; pass `based_on = "<built-in>"` to inherit and override only the fields you care about (replace, not append, semantics — pass `character()` to clear a vector field while keeping the rest)
+  - `validate_output_style()` checks the shape of a custom config; called automatically by the constructor and by `query_plots()` when a raw list is passed
+  - `query_plots(output_style = ...)` accepts a built-in name string, a `plot_output_style` object, or a raw list. The `"permanent_plot" → "permanent_plot_multi_census"` auto-upgrade and the `census_pairs` override only apply to character input; custom objects are respected as-is
+  - Custom styles live only in the current R session (no registry, no disk cache); to reuse, assign to a variable, `saveRDS()`, or put the constructor call in `.Rprofile`
+  - Tests: 42 new unit tests in `tests/testthat/test-output-styles-custom.R`
+
 * **Offline mode for `launch_taxonomic_match_app()`** — auto-matching and manual review now work without a live database connection
   - New "Use offline (cached backbone)" button on the login screen, shown automatically when a backbone cache is present on disk (`mod_database_login.R`)
   - `match_taxonomic_names()` gains a `backbone` parameter; when supplied (or when a cache exists and no `con` is given) all matching runs in R via `stringdist`'s trigram-Jaccard, mirroring PostgreSQL's `pg_trgm` `SIMILARITY()` — no network round-trips
