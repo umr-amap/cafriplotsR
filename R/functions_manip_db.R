@@ -109,10 +109,20 @@ method_list <- function() {
 #'   `date_census0`, `date_census1`, `time` (days between the two censuses).
 #'   All available censuses are used regardless of `show_multiple_census`.
 #'   Incompatible with `concatenate_stem = TRUE`.
-#' @param output_style Character. Output formatting style. Options: "auto", "minimal", "standard",
-#'   "permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.
-#'   When `individual_features_format = "census_pairs"` this argument is ignored and
-#'   the `"census_pairs"` style is applied automatically.
+#' @param output_style Either a character scalar -- one of `"auto"`,
+#'   `"minimal"`, `"standard"`, `"permanent_plot"`,
+#'   `"permanent_plot_multi_census"`, `"transect"`, `"full"`,
+#'   `"census_pairs"` -- or a `plot_output_style` object built with
+#'   [output_style()]. Defaults to `"auto"`, which picks a style from
+#'   the `method` field of the queried plots. When
+#'   `individual_features_format = "census_pairs"`, character values
+#'   (other than `"full"`) are overridden to `"census_pairs"`; a custom
+#'   `plot_output_style` object is respected as-is.
+#'   Use [list_output_styles()] for an overview of available built-in
+#'   styles, [get_output_style()] to inspect what a style does, and
+#'   [output_style()] to build a custom one (typically with `based_on`
+#'   to inherit from a built-in and override a few fields). The
+#'   configuration schema is documented in [output_style()].
 #' @param con Optional database connection to main database. If NULL, will call call.mydb() to establish connection.
 #'   If you've already connected with `mydb <- call.mydb()`, pass `con = mydb` to avoid re-prompting.
 #' @param con.taxa Optional database connection to taxa database. If NULL, will check for `mydb.taxa` in calling environment,
@@ -168,8 +178,7 @@ query_plots <- function(plot_name = NULL,
                         exact_match = FALSE,
                         census_strategy = c("last", "first", "mean"),
                         individual_features_format = c("wide", "long", "census_pairs"),
-                        output_style = c("auto", "minimal", "standard",
-                                         "permanent_plot", "permanent_plot_multi_census", "transect", "full"),
+                        output_style = "auto",
                         backbone = c("internal", "wcvp"),
                         con = NULL,
                         con.taxa = NULL) {
@@ -179,8 +188,12 @@ query_plots <- function(plot_name = NULL,
   # Match arguments
   census_strategy <- match.arg(census_strategy)
   individual_features_format <- match.arg(individual_features_format)
-  output_style <- match.arg(output_style)
   issues <- match.arg(issues)
+
+  # Validate `output_style`: accepts a character name (incl. "auto"), a
+  # `plot_output_style` object built with output_style(), or a raw list
+  # that passes validate_output_style().
+  output_style <- .validate_query_plots_output_style(output_style)
 
   if (individual_features_format %in% c("long", "census_pairs") && isTRUE(concatenate_stem)) {
     cli::cli_alert_warning(
@@ -660,21 +673,38 @@ query_plots <- function(plot_name = NULL,
   if (length(res_list) == 1)
     res_list <- res_list[[1]]
 
-  # Apply output style
-  if (output_style == "auto") {
+  # Apply output style ---------------------------------------------------
+  # `output_style` can be a character ("auto" or a built-in name) or a
+  # `plot_output_style` object (custom). Compute a display name and an
+  # "is_full" flag without forcing string semantics on custom objects.
+  is_custom_style <- inherits(output_style, "plot_output_style")
+
+  if (!is_custom_style && identical(output_style, "auto")) {
     detected_style <- .detect_style_from_method(data = res_meta_data)
     cli::cli_alert_info("Auto-detected output style: '{detected_style}' based on method field")
     output_style <- detected_style
   }
 
   # census_pairs individual format requires its own output style config
-  # (unless the user explicitly requested "full" style)
-  if (individual_features_format == "census_pairs" && output_style != "full") {
+  # (unless the user explicitly requested "full" style). Custom style
+  # objects are respected as-is -- the user made an explicit choice.
+  if (!is_custom_style &&
+      individual_features_format == "census_pairs" &&
+      !identical(output_style, "full")) {
     output_style <- "census_pairs"
   }
 
+  is_full <- (!is_custom_style && identical(output_style, "full")) ||
+             (is_custom_style && identical(attr(output_style, "style_name"), "full"))
+
+  style_display_name <- if (is_custom_style) {
+    attr(output_style, "style_name") %||% "<custom>"
+  } else {
+    output_style
+  }
+
   # Apply style restructuring (unless "full")
-  if (output_style != "full") {
+  if (!is_full) {
     res_list <- .apply_output_style(
       data = res_list,
       style = output_style,
@@ -685,7 +715,7 @@ query_plots <- function(plot_name = NULL,
     # Inform user about restructuring
     if (inherits(res_list, "plot_query_list")) {
       cli::cli_alert_success(
-        "Output restructured using '{output_style}' style. Use names() to see available tables."
+        "Output restructured using '{style_display_name}' style. Use names() to see available tables."
       )
     }
   } else {

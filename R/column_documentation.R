@@ -219,7 +219,13 @@ describe_columns <- function(result, con = NULL) {
 #' @noRd
 .invert_style_renames <- function(style, table_type) {
 
-  style_config <- .plot_output_styles[[style]]
+  # Accept either a built-in style name or a plot_output_style object
+  if (inherits(style, "plot_output_style")) {
+    style_config <- unclass(style)
+    style        <- attr(style, "style_name") %||% "<custom>"
+  } else {
+    style_config <- .plot_output_styles[[style]]
+  }
 
   if (is.null(style_config) || is.null(style_config$rename_columns)) {
     result <- character(0)
@@ -254,7 +260,11 @@ describe_columns <- function(result, con = NULL) {
 #' @noRd
 .invert_census_renames <- function(style) {
 
-  style_config <- .plot_output_styles[[style]]
+  if (inherits(style, "plot_output_style")) {
+    style_config <- unclass(style)
+  } else {
+    style_config <- .plot_output_styles[[style]]
+  }
 
   if (is.null(style_config) || is.null(style_config$census_column_renames)) {
     return(character(0))

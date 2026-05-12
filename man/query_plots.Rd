@@ -33,8 +33,7 @@ query_plots(
   exact_match = FALSE,
   census_strategy = c("last", "first", "mean"),
   individual_features_format = c("wide", "long", "census_pairs"),
-  output_style = c("auto", "minimal", "standard", "permanent_plot",
-    "permanent_plot_multi_census", "transect", "full"),
+  output_style = "auto",
   backbone = c("internal", "wcvp"),
   con = NULL,
   con.taxa = NULL
@@ -120,10 +119,20 @@ census pairs of its plot, receiving `NA` at any census where it has no measureme
 All available censuses are used regardless of `show_multiple_census`.
 Incompatible with `concatenate_stem = TRUE`.}
 
-\item{output_style}{Character. Output formatting style. Options: "auto", "minimal", "standard",
-"permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.
-When `individual_features_format = "census_pairs"` this argument is ignored and
-the `"census_pairs"` style is applied automatically.}
+\item{output_style}{Either a character scalar -- one of `"auto"`,
+`"minimal"`, `"standard"`, `"permanent_plot"`,
+`"permanent_plot_multi_census"`, `"transect"`, `"full"`,
+`"census_pairs"` -- or a `plot_output_style` object built with
+[output_style()]. Defaults to `"auto"`, which picks a style from
+the `method` field of the queried plots. When
+`individual_features_format = "census_pairs"`, character values
+(other than `"full"`) are overridden to `"census_pairs"`; a custom
+`plot_output_style` object is respected as-is.
+Use [list_output_styles()] for an overview of available built-in
+styles, [get_output_style()] to inspect what a style does, and
+[output_style()] to build a custom one (typically with `based_on`
+to inherit from a built-in and override a few fields). The
+configuration schema is documented in [output_style()].}
 
 \item{con}{Optional database connection to main database. If NULL, will call call.mydb() to establish connection.
 If you've already connected with `mydb <- call.mydb()`, pass `con = mydb` to avoid re-prompting.}
