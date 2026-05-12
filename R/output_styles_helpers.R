@@ -15,20 +15,36 @@
 #' @noRd
 .apply_output_style <- function(data, style, extract_individuals, show_multiple_census = FALSE) {
 
-  # Adjust style based on show_multiple_census for permanent plots
-  if (style == "permanent_plot" && show_multiple_census) {
-    style <- "permanent_plot_multi_census"
+  # Resolve `style` -> (style_name, style_config). Supports:
+  #   * character scalar matching a built-in name
+  #   * a plot_output_style object (custom, built with output_style())
+  if (inherits(style, "plot_output_style")) {
+    style_name   <- attr(style, "style_name") %||% "<custom>"
+    style_config <- unclass(style)
+  } else if (is.character(style) && length(style) == 1L) {
+    style_name   <- style
+    style_config <- .plot_output_styles[[style_name]]
+    if (is.null(style_config)) {
+      cli::cli_alert_warning("Unknown style '{style_name}', using 'standard'")
+      style_name   <- "standard"
+      style_config <- .plot_output_styles[[style_name]]
+    }
+  } else {
+    cli::cli_alert_warning("Invalid `style` input, using 'standard'")
+    style_name   <- "standard"
+    style_config <- .plot_output_styles[[style_name]]
+  }
+
+  # Adjust style based on show_multiple_census for permanent plots — only when
+  # the user requested the built-in "permanent_plot" by name. Custom styles
+  # built with output_style() are respected as-is.
+  if (identical(style_name, "permanent_plot") && show_multiple_census) {
+    style_name   <- "permanent_plot_multi_census"
+    style_config <- .plot_output_styles[[style_name]]
     cli::cli_alert_info("Using 'permanent_plot_multi_census' style for multiple census data")
   }
 
-  # Get style configuration
-  style_config <- .plot_output_styles[[style]]
-
-  if (is.null(style_config)) {
-    cli::cli_alert_warning("Unknown style '{style}', using 'standard'")
-    style <- "standard"
-    style_config <- .plot_output_styles[[style]]
-  }
+  style <- style_name  # keep `style` name used by downstream attribute setters
 
   # Handle data structure (could be data frame or list from current query_plots)
   if (is.list(data) && !is.data.frame(data)) {
