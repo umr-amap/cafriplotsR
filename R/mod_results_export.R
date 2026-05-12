@@ -188,6 +188,9 @@ mod_results_export_server <- function(id, results, original_data, i18n) {
       req(results())
 
       data <- results()$data
+      if ("match_score" %in% names(data)) {
+        data$match_score <- round(data$match_score, 2)
+      }
       n_rows <- nrow(data)
 
       shiny::div(

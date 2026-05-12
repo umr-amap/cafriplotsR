@@ -1,8 +1,8 @@
 ---
-title: "Utiliser query_plots() pour Accéder aux Données de Parcelles"
+title: "Utiliser l'application et query_plots()"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Utiliser query_plots() pour Accéder aux Données de Parcelles}
+  %\VignetteIndexEntry{Utiliser l'application et query_plots()}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -18,711 +18,670 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(tidyverse)
 library(CafriplotsR)
 ```
 
-## Introduction
+## Vue d'ensemble
 
-La fonction `query_plots()` est le point d'entrée principal pour accéder aux données de parcelles forestières de la base de données des parcelles d'Afrique centrale. Cette vignette montre comment utiliser les différentes fonctionnalités de la fonction, y compris le nouveau **système de styles de sortie** introduit dans la version 1.5.
+CafriplotsR offre deux approches complémentaires pour accéder aux données de
+parcelles forestières :
 
-## Connexion à la Base de Données
+1. **Application Shiny interactive** (`launch_query_plots_app()`) — interface
+   pointer-cliquer avec carte en direct, sélection de parcelles et téléchargement
+2. **Fonction R** (`query_plots()`) — accès reproductible et scriptable pour
+   les flux de travail automatisés
 
-Avant d'interroger les données, établissez les connexions aux deux bases de données :
+Le panneau **"Code R équivalent"** de l'application fait le lien entre les
+deux : il affiche l'appel exact à `query_plots()` qui reproduit ce que vous
+avez configuré de manière interactive.
 
+---
 
-```{r connection-t, eval=T, echo=F, warning=FALSE, message=FALSE}
-library(tidyverse)
-devtools::load_all()
-# Se connecter à la base de données principale
-mydb <- call.mydb(use_env_credentials = T)
-
-# Se connecter à la base de données taxonomique
-mydb_taxa <- call.mydb.taxa(use_env_credentials = T)
-
-```
-
-```{r connection}
-# Se connecter à la base de données principale
-mydb <- call.mydb()
-
-# Se connecter à la base de données taxonomique
-mydb_taxa <- call.mydb.taxa()
-```
-
-Le package demandera les identifiants de manière interactive, ou vous pouvez utiliser les variables d'environnement via `use_env_credentials = TRUE`.
-
-## Utilisation de Base
-
-### Interroger Uniquement les Métadonnées de Parcelles
-
-Pour récupérer uniquement les informations au niveau de la parcelle sans les données d'arbres individuels :
-
-```{r basic-metadata, eval=TRUE, results='hide'}
-# Interroger par nom de parcelle
-plots <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = FALSE
-)
-
-```
-
-```{r, eval=TRUE, message=TRUE}
-# Voir la structure
-plots
-```
-
-
-
-### Interroger les Parcelles avec les Arbres Individuels
-
-Pour inclure les mesures d'arbres/tiges individuels :
-
-```{r with-individuals, eval=TRUE, results='hide'}
-plots_with_trees <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = TRUE
-)
-
-
-```
-
-
-```{r, eval=TRUE, message=TRUE}
-# Le résultat est une liste structurée
-plots_with_trees
-```
-
-## Système de Styles de Sortie (v1.5+)
-
-À partir de la version 1.5, `query_plots()` retourne des **listes structurées** au lieu de data frames plats. La structure s'adapte automatiquement en fonction de la méthode d'inventaire.
-
-### Styles de Sortie Disponibles
-
-- **`minimal`** : Métadonnées essentielles de parcelle uniquement, pas de caractéristiques ni de traits
-- **`standard`** : Sortie d'analyse standard avec les caractéristiques communes (par défaut pour les méthodes inconnues)
-- **`permanent_plot`** : Tables organisées pour le suivi de parcelles permanentes (recensement unique)
-- **`permanent_plot_multi_census`** : Données multi-recensement avec colonnes _census_N
-- **`transect`** : Sortie simplifiée pour les transects/relevés pédestres
-- **`full`** : Export complet avec toutes les colonnes (préserve le comportement v1.4)
-
-### Détection Automatique Basée sur la Méthode
-
-Le style de sortie est automatiquement détecté à partir du champ `method` de la parcelle :
-
-```{r auto-detection}
-# Pour une parcelle permanente (method = "1 ha plot")
-perm_plot <- query_plots(
-  plot_name = "mbalmayo",
-  extract_individuals = TRUE
-)
-
-# Utilise automatiquement le style 'permanent_plot'
-# Retourne : $metadata, $individuals, $censuses, $height_diameter
-names(perm_plot)
-```
-
-### Sélection Manuelle du Style
-
-Outrepassez la détection automatique en spécifiant `output_style` :
-
-```{r manual-style}
-# Forcer une sortie minimale
-minimal_output <- query_plots(
-  plot_name = "mbalmayo",
-  extract_individuals = TRUE,
-  output_style = "minimal"
-)
-
-# Forcer une sortie complète (comportement v1.4 - data frame plat)
-full_output <- query_plots(
-  plot_name = "mbalmayo",
-  extract_individuals = TRUE,
-  output_style = "full"
-)
-```
-
-### Comprendre la Sortie Structurée
-
-Pour les parcelles permanentes avec `extract_individuals = TRUE` :
-
-```{r structured-output}
-result <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = TRUE
-)
-
-# Table des métadonnées : informations au niveau de la parcelle
-result$metadata
-#   plot_id | plot_name | country | latitude | longitude | elevation | ...
-
-# Table des individus : mesures d'arbres
-result$individuals
-#   id_n | plot_name | tag | family | genus | species | dbh | height | ...
-
-# Table des recensements : informations de recensement
-result$censuses
-#   plot_name | census_number | census_date | team_leader | ...
-
-# Paires hauteur-diamètre : pour l'analyse allométrique
-result$height_diameter
-#   id_n | plot_name | tag | D | H | POM | census
-
-# Données spatiales (si show_all_coordinates = TRUE)
-result$coordinates_sf
-```
-
-## Options de Filtrage
-
-### Par Localisation
-
-```{r filter-location}
-# Par pays
-cameroon_plots <- query_plots(
-  country = "Cameroon",
-  extract_individuals = FALSE
-)
-
-# Par localité
-dja_plots <- query_plots(
-  locality_name = "Dja",
-  extract_individuals = FALSE
-)
-
-```
-
-### Par Méthode
-
-```{r filter-method}
-# Obtenir toutes les parcelles permanentes
-permanent_plots <- query_plots(
-  method = "1 ha plot",
-  extract_individuals = FALSE
-)
-
-# Obtenir tous les transects
-transects <- query_plots(
-  method = "Long Transect",
-  extract_individuals = FALSE
-)
-```
-
-### Par ID de Parcelle
-
-```{r filter-id}
-# Interroger des IDs de parcelles spécifiques
-plots_by_id <- query_plots(
-  id_plot = c(1, 2, 3),
-  extract_individuals = TRUE
-)
-```
-
-## Travailler avec les Données d'Arbres Individuels
-
-### Extraction Basique des Arbres
-
-```{r individuals-basic}
-trees <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = TRUE
-)
-
-# Accéder aux données d'arbres individuels
-trees$individuals
-```
-
-
-## Gestion des Recensements Multiples
-
-### Afficher les Données de Recensements Multiples
-
-Par défaut, seul le recensement le plus récent est retourné. Pour voir tous les recensements :
-
-```{r multiple-census}
-multi_census <- query_plots(
-  plot_name = "mbalmayo",
-  extract_individuals = TRUE,
-  show_multiple_census = TRUE
-)
-
-# Utilise automatiquement le style 'permanent_plot_multi_census'
-# Colonnes spécifiques au recensement : dbh_census_1, dbh_census_2, height_census_1, ...
-head(multi_census$individuals)
-
-# La table des recensements montre toutes les dates de recensement
-multi_census$censuses
-
-# La table hauteur-diamètre a une ligne par mesure
-multi_census$height_diameter
-```
-
-### Format Long : Une Ligne par Mesure
-
-La sortie par défaut (`individual_features_format = "wide"`) place chaque trait dans sa propre colonne en agrégeant les valeurs lorsque plusieurs mesures existent. Utilisez `"long"` pour conserver chaque mesure sur sa propre ligne :
-
-```{r long-format}
-arbres_long <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = TRUE,
-  individual_features_format = "long"
-)
-
-# Chaque ligne correspond à une mesure pour un individu
-# Colonnes : trait, traitvalue / traitvalue_char, valuetype,
-#            census_name (ex. "census_3"), census_date (NA si non lié à un recensement)
-arbres_long$individuals |>
-  dplyr::select(plot_name, tag, tax_sp_level, trait, traitvalue, census_name, census_date)
-```
-
-En format long, un individu ayant deux mesures de diamètre (ex. issus de deux recensements) apparaît sur deux lignes. Les mesures non liées à un recensement (ex. coordonnées de position) ont `census_name = NA` et `census_date = NA`.
-
-Le filtrage des recensements reste actif : avec `census_strategy = "last"` (valeur par défaut), seules les mesures du recensement le plus récent sont retournées pour les traits liés à un recensement, tandis que les mesures non recensées sont toujours incluses.
-
-```{r long-format-premier-recensement}
-# Format long avec uniquement le premier recensement
-arbres_long_premier <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = TRUE,
-  individual_features_format = "long",
-  census_strategy = "first"
-)
-```
-
-Le format long est particulièrement utile lorsque vous souhaitez travailler avec les valeurs brutes des mesures plutôt qu'avec des agrégats, ou calculer vos propres statistiques sur plusieurs mesures.
-
-## Renommage des Colonnes
-
-Les styles de sortie renomment automatiquement les colonnes de la base de données en noms conviviaux :
-
-```{r column-names}
-result <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = TRUE
-)
-
-# Noms de base de données → Noms conviviaux
-# ddlat → latitude
-# ddlon → longitude
-# tax_fam → family
-# tax_gen → genus
-# tax_sp_level → species
-# stem_diameter → dbh
-# tree_height → height
-
-names(result$metadata)
-names(result$individuals)
-```
-
-## Données Spatiales
-
-### Coordonnées de Parcelle
-
-Par défaut, retourne une coordonnée par parcelle :
-
-```{r default-coords}
-plots <- query_plots(
-  country = "Gabon",
-  extract_individuals = FALSE
-)
-
-plots$metadata[, c("plot_name", "latitude", "longitude")]
-```
-
-### Toutes les Coordonnées
-
-Certaines parcelles ont plusieurs points de coordonnées (coins, centres de sous-parcelles) :
-
-```{r all-coords}
-plots_all_coords <- query_plots(
-  plot_name = "mbalmayo",
-  extract_individuals = FALSE,
-  show_all_coordinates = TRUE
-)
-
-# Retourne un objet sf avec tous les points de coordonnées
-plots_all_coords$coordinates_sf
-```
-
-### Carte Interactive
-
-Visualiser les emplacements des parcelles :
-
-```{r map}
-query_plots(
-  country = "Cameroon",
-  extract_individuals = FALSE,
-  map = TRUE
-)
-```
-
-## Options Avancées
-
-### Conserver les IDs de Base de Données
-
-Par défaut, les IDs internes sont supprimés. Pour les conserver :
-
-```{r keep-ids}
-with_ids <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = TRUE,
-  remove_ids = FALSE, output_style = "full"
-)
-
-# Inclut maintenant id_liste_plots, id_census, etc.
-names(with_ids$extract)
-```
-
-### Filtrage par ID d'Individu
-
-Extraire des individus spécifiques :
-
-```{r filter-individual}
-specific_trees <- query_plots(
-  id_individual = c(1001, 1002, 1003),
-  extract_individuals = TRUE
-)
-```
-
-### Filtrage par Taxon
-
-Extraire les individus de taxons spécifiques :
-
-```{r filter-taxon}
-species_trees <- query_plots(
-  plot_name = "mbalmayo001",
-  id_tax = c(115),  # IDs de taxons
-  extract_individuals = TRUE
-)
-```
-
-## Styles de Sortie Personnalisés
-
-Les options `keep_patterns` et `remove_patterns` dans les configurations de style permettent la personnalisation (PAS ENCORE IMPLÉMENTÉ) :
-
-```{r custom-patterns}
-# Dans votre configuration de style personnalisé :
-# keep_patterns = c("^feat_wood", "^trait_leaf")
-# Ceci garde les caractéristiques du bois et les traits foliaires tout en supprimant les autres
-```
-
-## Combinaison d'Options
-
-Requêtes complexes combinant plusieurs filtres :
-
-```{r complex-query}
-complex_result <- query_plots(
-  country = "Cameroon",
-  locality_name = "Dja",
-  method = "1 ha plot",
-  extract_individuals = TRUE,
-  extract_traits = TRUE,
-  extract_individual_features = TRUE,
-  show_multiple_census = TRUE,
-  show_all_coordinates = TRUE,
-  remove_ids = FALSE,
-  output_style = "permanent_plot_multi_census"
-)
-
-# Retourne une sortie structurée complète
-names(complex_result)
-```
-
-
-
-
-
-## Conseils de Performance
-
-1. **Commencer par les métadonnées uniquement** : Utilisez `extract_individuals = FALSE` lors de l'exploration
-2. **Utiliser des filtres spécifiques** : Réduisez le temps de requête en filtrant par plot_name ou id_plot
-3. **Limiter les traits** : N'utilisez `extract_traits = TRUE` que lorsque nécessaire
-4. **Choisir le style approprié** : Utilisez `minimal` ou `standard` pour des analyses rapides
-
-## Dépannage
-
-### Résultats Vides
-
-Si votre requête ne retourne pas de données :
-
-```{r troubleshoot}
-# Vérifier le statut de connexion
-print_connection_status()
-
-# Exécuter le diagnostic
-db_diagnostic()
-
-# Vérifier l'accès aux parcelles (sécurité au niveau des lignes)
-# Vous ne pouvez accéder qu'aux parcelles pour lesquelles vous avez la permission
-```
-
-### Revenir au Comportement v1.4
-
-Si vous avez besoin de l'ancienne sortie en data frame plat :
-
-```{r legacy-behavior}
-flat_output <- query_plots(
-  plot_name = "mbalmayo001",
-  extract_individuals = TRUE,
-  output_style = "full"
-)
-
-# Retourne un seul data frame au lieu d'une liste structurée
-```
-
-## Application Shiny Interactive
-
-CafriplotsR fournit une application Shiny interactive pour les utilisateurs qui préfèrent une interface graphique à l'écriture de code R. L'application encapsule `query_plots()` avec un flux de travail intuitif en deux étapes.
+## Partie 1 — Application Shiny Interactive
 
 ### Lancement de l'Application
 
-```{r launch-app, eval=FALSE}
-# Lancer l'application de requête interactive
+```{r launch-app}
+# Lancer avec la langue par défaut (français)
 launch_query_plots_app()
 
-# Ou spécifier la langue (Français ou Anglais)
-launch_query_plots_app(language = "fr")  # Français (par défaut)
-launch_query_plots_app(language = "en")  # Anglais
+# Lancer en anglais
+launch_query_plots_app(language = "en")
+
+# Lancer dans le navigateur sur un port spécifique
+launch_query_plots_app(language = "fr", launch.browser = TRUE, port = 8080)
+
+# Réutiliser un pool de connexion existant (évite les invites répétées)
+pool <- create_pool_main()
+launch_query_plots_app(pool_main = pool)
 ```
 
-### Aperçu de l'Application
+L'application demandera les identifiants de connexion si aucun pool n'est
+fourni. Utilisez `setup_db_credentials()` pour stocker les identifiants dans
+`~/.Renviron` et éviter cette étape lors des sessions futures.
 
-Lorsque vous lancez l'application, vous verrez l'interface principale avec une barre de navigation contenant trois onglets :
+### Vue d'Ensemble de l'Application
 
-![Vue initiale de l'application](images/app-query-initial-view-fr.png)
+L'application dispose de quatre onglets accessibles depuis la barre de
+navigation supérieure :
 
-L'application utilise un **flux de travail par onglets** :
+| Onglet | Rôle |
+|--------|------|
+| Constructeur de requête | Définir les filtres et exécuter la requête de métadonnées |
+| Résultats & Extraction | Carte, tableau, sélection de parcelles, configuration de l'extraction, téléchargement |
+| Statistiques | Statistiques synthétiques et graphiques pour les données extraites |
+| À propos | Documentation de l'application et informations sur le package |
 
-1. **Constructeur de requête** - Définir les filtres et critères de recherche
-2. **Résultats & Extraction** - Visualiser les résultats, sélectionner des parcelles, extraire les individus
-3. **À propos** - Documentation de l'application et informations sur le package
+Le sélecteur de langue (**EN** / **FR**) est toujours visible dans le coin
+supérieur droit. Le changement est instantané et affecte tous les éléments de
+l'interface.
 
-### Phase 1 : Constructeur de Requête
+![Vue initiale de l'application — écran de connexion et barre de navigation](images/app-query-initial-view-fr.png)
 
-#### Configuration des Filtres
+> **Capture d'écran à ajouter :** vue complète de l'application *après* la
+> connexion, montrant la barre de navigation à quatre onglets
+> (`app-query-nav-tabs-fr.png`).
 
-L'onglet Constructeur de requête propose diverses options de filtrage pour trouver les parcelles d'intérêt :
+---
 
-![Panneau de filtres](images/app-query-filters-fr.png)
+### Onglet 1 — Constructeur de Requête
 
-**Filtres de base :**
+#### Filtres de Base
 
-- **Pays** : Menu déroulant multi-sélection des pays disponibles
-- **Méthode** : Filtrer par méthode d'inventaire (1 ha plot, Long Transect, etc.)
-- **Nom(s) de parcelle** : Recherche textuelle (séparés par des virgules pour plusieurs parcelles)
-- **Localité** : Recherche par nom de localité
-- **Étiquette individuelle** : Recherche par numéro d'étiquette d'arbre
+![Constructeur de requête — panneau de filtres](images/app-query-filters-fr.png)
+
+- **Pays** — menu déroulant multi-sélection des pays disponibles
+- **Méthode** — méthode d'inventaire (ex. « 1 ha plot », « Long Transect »)
+- **Nom(s) de parcelle** — recherche partielle ou exacte ; séparer plusieurs
+  noms par des virgules
+- **Localité** — recherche par nom de localité
+- **Étiquette individuelle** — recherche par numéro d'étiquette d'arbre
 
 #### Filtres Avancés
 
-Cliquez sur "Filtres avancés" pour développer les options de recherche supplémentaires :
+Cliquez sur **Filtres avancés** pour développer les options supplémentaires :
 
-![Filtres avancés](images/app-query-advanced-filters-fr.png)
+![Constructeur de requête — filtres avancés](images/app-query-advanced-filters-fr.png)
 
-- **ID de parcelle** : Recherche par ID de parcelle dans la base de données
-- **ID individuel** : Recherche par ID d'individu spécifique
-- **ID de taxon** : Filtrer par ID taxonomique
-- **ID de spécimen** : Recherche par ID de spécimen d'herbier
-- **Correspondance exacte** : Basculer pour une correspondance stricte du texte
+- **ID de parcelle** — recherche par ID interne de parcelle
+- **ID individuel** — recherche par ID d'individu spécifique
+- **ID de taxon** — filtrer par ID taxonomique
+- **ID de spécimen** — recherche par ID de spécimen d'herbier
+- **Correspondance exacte** — basculer pour une correspondance stricte
+  (par défaut : partielle)
 
 #### Exécution de la Requête
 
-Après avoir configuré vos filtres, cliquez sur **"Exécuter la requête"** pour récupérer les métadonnées des parcelles. L'application affiche un résumé des filtres actifs avant l'exécution.
+Cliquez sur **Exécuter la requête** pour récupérer les métadonnées des
+parcelles. L'application bascule automatiquement vers l'onglet **Résultats &
+Extraction** et affiche le nombre de parcelles trouvées.
 
-### Phase 2 : Résultats & Extraction
+![Démonstration : flux de travail complet de requête](images/app-query-example.gif)
 
-#### Carte Interactive
+---
 
-Les résultats de la requête sont affichés sur une carte interactive avec plusieurs options de fond de carte :
+### Onglet 2 — Résultats & Extraction
+
+Cet onglet comporte cinq sections empilées qui vous guident de la
+visualisation des résultats jusqu'au téléchargement des données.
+
+#### Section A — Carte Interactive
 
 ![Carte interactive avec marqueurs de parcelles](images/app-query-map-view-fr.png)
 
-**Fonctionnalités de la carte :**
+- **Fonds de carte** — OpenStreetMap, Satellite, Physique
+- **Marqueurs cliquables** — affichent le nom de la parcelle, le pays, la
+  méthode et la superficie
+- La carte et le tableau sont synchronisés : sélectionner des lignes dans le
+  tableau met en évidence les marqueurs correspondants
 
-- **Couches de fond de carte** : OpenStreetMap, Satellite, Physique
-- **Marqueurs cliquables** : Cliquez pour voir les détails de la parcelle
-- **Information contextuelle** : Nom de parcelle, pays, méthode, superficie
-
-#### Tableau des Métadonnées
-
-Sous la carte, un tableau triable et consultable affiche toutes les métadonnées des parcelles :
+#### Section B — Tableau des Métadonnées
 
 ![Tableau des métadonnées de parcelles](images/app-query-metadata-table-fr.png)
 
-**Fonctionnalités du tableau :**
+Un tableau DT triable et consultable de toutes les métadonnées de parcelles
+retournées par la requête. Cliquez sur les en-têtes de colonnes pour trier ;
+utilisez la zone de recherche pour filtrer les lignes.
 
-- **Recherche** : Filtrer le contenu du tableau
-- **Tri** : Cliquez sur les en-têtes de colonnes pour trier
-- **Pagination** : Naviguer dans les grands ensembles de résultats
-- **Sélection de lignes** : Cliquez sur les lignes pour sélectionner/désélectionner des parcelles
+#### Section C — Sélection des Parcelles
 
-#### Sélection des Parcelles
+![Sélection des parcelles — lignes sélectionnées en surbrillance](images/app-query-plot-selection-fr.png)
 
-Sélectionnez des parcelles spécifiques pour l'extraction individuelle en cliquant sur les lignes du tableau :
+Cliquez sur les lignes pour sélectionner ou désélectionner des parcelles. Un
+compteur affiche le nombre de parcelles sélectionnées. Toutes les parcelles
+sont pré-sélectionnées par défaut.
 
-![Parcelles sélectionnées en surbrillance](images/app-query-plot-selection-fr.png)
+#### Section D — Configuration de l'Extraction
 
-- Les lignes sélectionnées sont mises en surbrillance
-- Un compteur affiche le nombre de parcelles sélectionnées
-- Par défaut, toutes les parcelles sont sélectionnées
+Après avoir sélectionné les parcelles, configurez comment les données
+individuelles d'arbres doivent être extraites :
 
-### Phase 3 : Configuration de l'Extraction
+![Panneau de configuration de l'extraction](images/app-query-extraction-config.png)
 
-#### Style de Sortie
+**Style de sortie** — contrôle les colonnes et les tables retournées :
 
-Choisissez comment les données extraites doivent être formatées :
+| Style | Idéal pour |
+|-------|------------|
+| Détection automatique | Laisser l'application choisir selon la méthode de parcelle |
+| Minimal | Exploration rapide — colonnes essentielles uniquement |
+| Standard | Analyse écologique générale |
+| Parcelle permanente | Suivi de parcelles permanentes à recensement unique |
+| Parcelle permanente (multi-recensements) | Format séries temporelles avec colonnes `_census_N` |
+| Transect | Format relevé pédestre |
+| Complet | Ensemble de données complet, toutes les colonnes |
 
-![Panneau de configuration d'extraction](images/app-query-extraction-config.png)
+**Gestion des recensements :**
 
-**Styles disponibles :**
+![Options de recensement](images/app-query-census-options.png)
 
-| Style | Description |
-|-------|-------------|
-| Détection automatique | Sélectionne automatiquement selon la méthode de parcelle |
-| Minimal | Colonnes essentielles uniquement (parcelle, étiquette, espèce, dhp) |
-| Standard | Colonnes communes pour l'analyse écologique générale |
-| Parcelle permanente | Format recensement unique pour le suivi de parcelles permanentes |
-| Parcelle permanente (multi-recensements) | Préserve toutes les colonnes de recensement |
-| Transect | Format simplifié pour les relevés pédestres |
-| Complet | Ensemble de données complet avec toutes les colonnes |
+- **Stratégie de recensement** — Dernier (par défaut), Premier, ou Moyenne
+  entre tous les recensements
+- **Afficher les données multi-recensements** — crée des colonnes
+  `dbh_census_1`, `dbh_census_2`, … ; sélectionne automatiquement le style
+  *Parcelle permanente (multi-recensements)*
+- **Format des données individuelles** :
+  - *Large* (par défaut) — une ligne par individu, traits en colonnes ;
+    valeurs agrégées lorsque plusieurs mesures existent pour un même individu
+  - *Long* — une ligne par mesure ; inclut les colonnes `trait`, `traitvalue`,
+    `census_name` et `census_date`
+  - *Paires de recensements* — une ligne par paire consécutive de recensements
+    par individu ; utile pour calculer les taux de croissance
 
-#### Gestion des Recensements
+**Organisation des données :**
 
-Configurez comment les recensements multiples doivent être gérés :
+- **Concaténer les tiges multiples** — combiner les mesures des arbres à
+  tiges multiples
+- **Supprimer les IDs de base de données** — masquer les colonnes d'ID
+  internes pour une sortie plus lisible
+- **Gestion des problèmes** — supprimer, inclure ou ignorer les enregistrements
+  signalés
+- **Inclure les drapeaux de problèmes** — ajouter des colonnes de drapeaux de
+  qualité à la sortie
 
-![Options de gestion des recensements](images/app-query-census-options.png)
+> **Note :** les formats *Long* et *Paires de recensements* sont incompatibles
+> avec *Concaténer les tiges multiples* ; cette option est automatiquement
+> désactivée lorsqu'un de ces modes est sélectionné.
 
-- **Stratégie de recensement** : Dernier recensement, Premier recensement, ou Moyenne entre les recensements
-- **Afficher les données de recensements multiples** : Crée des colonnes séparées pour chaque recensement (ex. dbh_census_1, dbh_census_2)
-- **Format des données individuelles** : Contrôle la structure des lignes pour les mesures individuelles :
-  - *Large* (par défaut) : une ligne par individu, avec une colonne par trait — les valeurs sont agrégées lorsque plusieurs mesures existent pour un même individu
-  - *Long* : une ligne par mesure — si un individu a deux enregistrements de diamètre (ex. deux recensements), il apparaît sur deux lignes. La sortie inclut les colonnes `trait`, `traitvalue` / `traitvalue_char`, `valuetype`, `census_name` et `census_date` (`NA` si la mesure n'est pas liée à un recensement). Le filtrage des recensements (`census_strategy`) reste appliqué en format long.
-
-#### Organisation des Données
-
-Contrôlez la structure de sortie :
-
-- **Concaténer les tiges multiples** : Combiner les données des arbres à tiges multiples
-- **Supprimer les IDs de base de données** : Masquer les colonnes d'ID internes pour une sortie plus claire
-- **Supprimer les observations avec problèmes** : Exclure les enregistrements problématiques signalés
-- **Inclure les drapeaux de problèmes** : Ajouter des colonnes de drapeaux de qualité à la sortie
-
-#### Données Additionnelles
-
-Sélectionnez quelles informations supplémentaires inclure :
+**Données additionnelles :**
 
 ![Options de données additionnelles](images/app-query-additional-data.png)
 
-- **Extraire les traits taxonomiques** : Densité du bois, forme de croissance, etc.
-- **Extraire les caractéristiques au niveau individuel** : Mesures spécifiques aux arbres
-- **Extraire les caractéristiques au niveau sous-parcelle** : Caractéristiques des sous-parcelles
-- **Utiliser les traits au niveau du genre** : Utiliser les données du genre quand l'espèce n'est pas disponible
+- **Extraire les traits taxonomiques** — densité du bois, forme de croissance,
+  etc.
+- **Extraire les caractéristiques individuelles** — mesures spécifiques aux
+  arbres
+- **Extraire les caractéristiques de sous-parcelle** — caractéristiques des
+  sous-parcelles
+- **Utiliser les traits au niveau du genre** — utiliser les données du genre
+  lorsque les traits de l'espèce sont indisponibles
 
-### Phase 4 : Extraction et Téléchargement
+Cliquez sur **Extraire les individus des parcelles sélectionnées** pour lancer
+l'extraction.
 
-#### Résultats d'Extraction
+#### Section E — Affichage des Résultats et Téléchargement
 
-Cliquez sur **"Extraire les individus des parcelles sélectionnées"** pour récupérer les données détaillées des arbres :
+Les résultats sont organisés en onglets : **Individus**, **Métadonnées**,
+**Recensements**, **Hauteur-Diamètre** (si applicable), et
+**Documentation des colonnes**.
 
-Les résultats sont organisés en onglets :
+> **Capture d'écran à ajouter :** affichage des résultats après extraction,
+> montrant les onglets de résultats dont l'onglet Documentation des colonnes
+> (`app-query-results-display.png`).
 
-- **Individus** : Mesures au niveau de l'arbre
-- **Métadonnées** : Informations de parcelle
-- **Recensements** : Dates et détails des recensements (si applicable)
-- **Hauteur-Diamètre** : Paires H-D pour l'allométrie (si applicable)
+L'onglet **Documentation des colonnes** est toujours présent après une
+extraction. Il contient un tableau consultable décrivant chaque colonne de
+sortie : son nom d'origine dans la base de données, une description en langage
+naturel, la catégorie, l'unité et des notes contextuelles. C'est le moyen le
+plus rapide de comprendre la signification de chaque colonne sans consulter
+une documentation externe.
 
-#### Options de Téléchargement
+Ce tableau est également **exportable** : cochez-le dans les options de
+téléchargement pour l'inclure en tant que feuille supplémentaire dans un
+export Excel, fichier CSV séparé dans l'archive ZIP, ou élément de la liste
+RDS.
 
-Exportez vos données dans plusieurs formats :
+Téléchargez vos données via le panneau de téléchargement :
 
 ![Panneau de téléchargement](images/app-query-download-panel.png)
 
-**Formats disponibles :**
+| Format | Notes |
+|--------|-------|
+| Excel (.xlsx) | Classeur multi-feuilles, une feuille par table |
+| CSV (compressé) | Fichiers CSV séparés dans une archive ZIP |
+| Objet R (.rds) | Format natif R ; préserve la structure de liste et les types de données |
+| Shapefile (.zip) | Données spatiales (nécessite des colonnes de coordonnées) |
 
-- **Excel (.xlsx)** : Classeur multi-feuilles
-- **CSV (compressé)** : Fichiers CSV séparés dans une archive ZIP
-- **Objet R (.rds)** : Format natif R préservant les types de données
-- **Shapefile (.zip)** : Données spatiales (si coordonnées disponibles)
+Utilisez les cases à cocher pour sélectionner les tables à inclure avant de
+télécharger.
 
-Sélectionnez les tableaux à inclure dans votre export en utilisant les cases à cocher.
+#### Section F — Code R Équivalent
 
-### Visualisation du Code R Équivalent
-
-Une fonctionnalité clé de l'application est le panneau **"Code R équivalent"**, affiché après l'exécution des requêtes :
+Après l'exécution d'une requête ou d'une extraction, le panneau **Code R
+équivalent** affiche les appels exacts à `query_plots()` qui reproduisent
+vos résultats :
 
 ![Panneau de prévisualisation du code](images/app-query-code-preview.png)
 
-Ceci montre le code R exact que vous utiliseriez avec `query_plots()` pour reproduire les mêmes résultats de manière programmatique.
-
-**Sections de code :**
-
-1. **Requête de métadonnées** : Code pour récupérer les métadonnées de parcelles avec vos filtres
-2. **Extraction individuelle** : Code pour extraire les données d'arbres avec vos options
-3. **Script de flux de travail complet** : Script complet combinant les deux étapes
-
 ![Script de flux de travail complet](images/app-query-code-complete.png)
 
-**Pourquoi c'est important :**
+Trois sections de code sont disponibles :
 
-- **Apprentissage** : Comprendre comment les options de l'application correspondent aux paramètres de fonction
-- **Reproductibilité** : Sauvegarder le code exact pour la documentation de votre analyse
-- **Scripting** : Copier le code pour des flux de travail automatisés
-- **Collaboration** : Partager les paramètres de requête avec vos collègues
+1. **Requête de métadonnées** — filtrer et récupérer les métadonnées de
+   parcelles
+2. **Extraction individuelle** — extraire les données d'arbres avec les
+   options choisies
+3. **Script de flux de travail complet** — les deux étapes dans un script
+   prêt à l'emploi
 
-Cliquez sur **"Copier dans le presse-papiers"** pour copier n'importe quelle section de code.
+Cliquez sur **Copier dans le presse-papiers** pour copier n'importe quelle
+section directement dans votre éditeur R.
 
-### Page À Propos
+---
 
-L'onglet À propos fournit la documentation de l'application et les informations sur le package :
+### Onglet 3 — Statistiques
+
+L'onglet Statistiques affiche des cartes synthétiques et des graphiques mis à
+jour automatiquement dès que les données individuelles ont été extraites :
+
+- Nombre total de **parcelles** extraites
+- Nombre total d'**individus** (tiges)
+- Nombre d'**espèces**
+- Nombre de **familles**
+- Histogramme de la **distribution des diamètres** (lorsque les données de
+  DHP sont disponibles)
+
+> **Capture d'écran à ajouter :** onglet Statistiques montrant les quatre
+> cartes synthétiques et l'histogramme de diamètres
+> (`app-query-statistics.png`).
+
+---
+
+### Onglet 4 — À Propos
+
+L'onglet À propos contient une description des fonctionnalités de l'application
+et les métadonnées du package (version, auteurs, liens vers la documentation
+et le dépôt).
 
 ![Page À propos](images/app-query-about-page-fr.png)
+
+> **Capture d'écran à mettre à jour :** la page À propos affiche désormais la
+> version 1.7.2 et la liste des auteurs mise à jour — refaire si votre capture
+> existante date d'une version antérieure.
+
+---
+
+### De l'Application au Script
+
+Le flux de travail typique est :
+
+1. Utiliser l'application pour explorer les parcelles et configurer les options
+   de manière interactive
+2. Copier le code généré depuis le panneau **Code R équivalent**
+3. Coller dans votre script d'analyse pour des exécutions reproductibles et
+   automatisées
+
+```{r app-to-script}
+# Exemple de code généré par l'application après sélection de parcelles
+# d'1 ha au Cameroun
+
+# Étape 1 : requête de métadonnées
+metadata <- query_plots(
+  country = "Cameroon",
+  method  = "1 ha plot",
+  extract_individuals = FALSE
+)
+
+# Étape 2 : extraction des individus des parcelles sélectionnées
+result <- query_plots(
+  id_plot             = c(1, 5, 12),
+  extract_individuals = TRUE,
+  output_style        = "permanent_plot",
+  extract_traits      = TRUE,
+  census_strategy     = "last"
+)
+```
 
 ### Application vs Fonction : Quand Utiliser Chacune
 
 | Cas d'utilisation | Recommandation |
 |-------------------|----------------|
-| Exploration rapide des données | Utiliser l'application |
-| Sélection interactive de parcelles sur une carte | Utiliser l'application |
-| Apprentissage des paramètres de fonction | Commencer avec l'application, copier le code généré |
-| Scripts d'analyse reproductibles | Utiliser `query_plots()` |
-| Pipelines de données automatisés | Utiliser `query_plots()` |
-| Traitement de nombreuses requêtes | Utiliser `query_plots()` |
+| Première exploration, IDs de parcelles inconnus | Application |
+| Sélection interactive sur carte | Application |
+| Apprentissage des paramètres de la fonction | Application — copier le code généré |
+| Scripts d'analyse reproductibles | `query_plots()` |
+| Pipelines de données automatisés | `query_plots()` |
+| Traitement en masse de nombreuses requêtes | `query_plots()` |
 
-### Sélection de la Langue
+---
 
-L'application supporte le **fonctionnement bilingue** (Français et Anglais). Le français est la langue par défaut.
+## Partie 2 — Fonction `query_plots()`
 
-Un sélecteur de langue est situé dans le coin supérieur droit :
+### Connexion à la Base de Données
 
-- Cliquez sur **"FR"** pour l'interface française
-- Cliquez sur **"EN"** pour l'interface anglaise
+```{r connection}
+# Recommandé : invite interactive de saisie des identifiants
+mydb <- call.mydb()
 
-Le changement est instantané et affecte tous les éléments de l'interface.
+# Utiliser les identifiants stockés dans ~/.Renviron
+mydb <- call.mydb(use_env_credentials = TRUE)
+```
 
-### Exemple : De l'Application au Script
+La connexion à la base de données taxonomique est créée automatiquement par
+`query_plots()` lorsqu'elle est nécessaire. Fournissez-la explicitement via
+`con.taxa` pour réutiliser une connexion existante et éviter les invites
+répétées :
 
-Voici comment l'application vous aide à construire des requêtes reproductibles :
+```{r connection-taxa}
+mydb      <- call.mydb()
+mydb_taxa <- call.mydb.taxa()
 
-1. **Dans l'application** : Sélectionnez Cameroun, filtrez par méthode "1 ha plot", extrayez avec les traits
-
-2. **Copiez le code généré** :
-
-```{r app-to-script, eval=FALSE}
-# Requête de métadonnées de parcelles
-metadata <- query_plots(
-  country = c("Cameroon"),
-  method = c("1 ha plot"),
-  extract_individuals = FALSE
-)
-
-# Extraction des données d'arbres individuels des parcelles sélectionnées
-individuals <- query_plots(
-  id_plot = c(1, 5, 12),
+result <- query_plots(
+  plot_name = "mbalmayo001",
   extract_individuals = TRUE,
-  output_style = "permanent_plot",
-  extract_traits = TRUE,
-  extract_individual_features = TRUE
+  con      = mydb,
+  con.taxa = mydb_taxa
 )
 ```
 
-3. **Utilisez dans votre script d'analyse** pour une recherche reproductible
+### Utilisation de Base
 
+#### Métadonnées uniquement (sans données d'arbres)
+
+```{r basic-metadata}
+plots <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = FALSE
+)
+plots$metadata
+```
+
+#### Avec les arbres individuels
+
+```{r with-individuals}
+result <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE
+)
+
+names(result)       # ex. metadata, individuals, censuses, height_diameter
+result$individuals  # une ligne par tige
+result$censuses     # dates de recensement et informations d'équipe
+```
+
+### Styles de Sortie
+
+`query_plots()` retourne toujours une **liste nommée**. Les tables incluses
+dépendent de `output_style` :
+
+| `output_style` | Tables retournées | Utilisation typique |
+|----------------|-------------------|---------------------|
+| `"auto"` | Détectées depuis la méthode de parcelle | Par défaut — recommandé |
+| `"minimal"` | `metadata`, `individuals` (colonnes essentielles) | Exploration rapide |
+| `"standard"` | `metadata`, `individuals`, `censuses` | Analyse générale |
+| `"permanent_plot"` | `metadata`, `individuals`, `censuses`, `height_diameter` | Suivi mono-recensement |
+| `"permanent_plot_multi_census"` | Idem + colonnes `_census_N` | Analyse de séries temporelles |
+| `"transect"` | `metadata`, `individuals` (simplifié) | Relevés pédestres |
+| `"full"` | Toutes les colonnes dans une table `extract` unique | Export complet |
+
+```{r styles}
+# Détection automatique depuis la méthode (recommandé)
+result_auto <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE
+)
+
+# Forcer un style spécifique
+result_perm <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  output_style = "permanent_plot"
+)
+
+# Sortie complète — table unique accessible via $extract
+result_full <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  output_style = "full"
+)
+names(result_full$extract)
+```
+
+### Options de Filtrage
+
+```{r filters}
+# Par pays
+query_plots(country = "Cameroon", extract_individuals = FALSE)
+
+# Par méthode
+query_plots(method = "1 ha plot", extract_individuals = FALSE)
+
+# Plusieurs pays ou méthodes
+query_plots(country = c("Cameroon", "Gabon"), extract_individuals = FALSE)
+
+# Par localité
+query_plots(locality_name = "Dja", extract_individuals = FALSE)
+
+# Par ID de parcelle (le plus efficace lorsque les IDs sont connus)
+query_plots(id_plot = c(1, 2, 3), extract_individuals = TRUE)
+
+# Par étiquette individuelle (implique extract_individuals = TRUE)
+query_plots(plot_name = "mbalmayo001", tag = "1234")
+
+# Par ID de taxon
+query_plots(plot_name = "mbalmayo001", id_tax = 115, extract_individuals = TRUE)
+
+# Par ID de spécimen d'herbier
+query_plots(id_specimen = 42, extract_individuals = TRUE)
+
+# Correspondance exacte du nom de parcelle (partielle par défaut)
+query_plots(plot_name = "mbalmayo001", exact_match = TRUE, extract_individuals = FALSE)
+```
+
+### Gestion des Recensements Multiples
+
+```{r multiple-census}
+# Dernier recensement uniquement (par défaut)
+dernier <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  census_strategy = "last"
+)
+
+# Premier recensement
+premier <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  census_strategy = "first"
+)
+
+# Valeurs moyennes sur tous les recensements
+moyenne <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  census_strategy = "mean"
+)
+
+# Tous les recensements en colonnes séparées (dbh_census_1, dbh_census_2, …)
+multi <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  show_multiple_census = TRUE   # bascule automatiquement sur le style multi-recensement
+)
+multi$censuses          # dates de recensement
+head(multi$individuals)
+```
+
+### Format des Données Individuelles
+
+Trois structures de lignes sont disponibles :
+
+```{r format-wide}
+# Large (par défaut) : une ligne par individu, traits en colonnes
+large <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  individual_features_format = "wide"
+)
+```
+
+```{r format-long}
+# Long : une ligne par mesure
+long <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  individual_features_format = "long"
+)
+# Colonnes supplémentaires : trait, traitvalue, traitvalue_char, valuetype,
+#                            census_name, census_date
+long$individuals |>
+  dplyr::select(plot_name, tag, tax_sp_level, trait, traitvalue, census_name, census_date)
+```
+
+```{r format-census-pairs}
+# Paires de recensements : une ligne par paire consécutive de recensements
+# Utile pour calculer la croissance en diamètre entre recensements
+paires <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals = TRUE,
+  individual_features_format = "census_pairs"
+)
+# Le style de sortie est automatiquement réglé sur "census_pairs"
+```
+
+### Référentiel Taxonomique
+
+```{r backbone}
+# Taxonomie interne (par défaut)
+result_interne <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  backbone = "internal"
+)
+
+# WCVP (World Checklist of Vascular Plants)
+result_wcvp <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  backbone = "wcvp"
+)
+```
+
+### Options de Données Additionnelles
+
+```{r additional-data}
+result <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  extract_traits              = TRUE,   # traits taxonomiques (densité du bois, forme de croissance…)
+  extract_individual_features = TRUE,   # mesures au niveau de l'arbre
+  extract_subplot_features    = TRUE,   # caractéristiques de sous-parcelle
+  traits_to_genera            = FALSE,  # utiliser le genre si les traits de l'espèce sont absents
+  wd_fam_level                = FALSE,  # utiliser la densité du bois au niveau de la famille
+  include_liana               = FALSE   # mettre TRUE pour conserver les lianes dans la sortie
+)
+```
+
+### Données Spatiales
+
+```{r coordinates}
+# Par défaut : une coordonnée représentative par parcelle
+plots <- query_plots(country = "Gabon", extract_individuals = FALSE)
+plots$metadata[, c("plot_name", "latitude", "longitude")]
+
+# Tous les points de coordonnées (coins, centres de sous-parcelles…)
+tous_coords <- query_plots(
+  plot_name = "mbalmayo",
+  extract_individuals  = FALSE,
+  extract_coordinates  = TRUE   # remplace le paramètre déprécié show_all_coordinates
+)
+tous_coords$coordinates_sf       # objet sf
+```
+
+> **Note :** `show_all_coordinates` a été déprécié en v1.9.4. Utilisez
+> `extract_coordinates` à la place.
+
+```{r map}
+# Afficher une carte Leaflet interactive (s'ouvre dans le visualiseur RStudio)
+query_plots(country = "Cameroon", extract_individuals = FALSE, map = TRUE)
+```
+
+### Conserver les IDs de Base de Données
+
+```{r keep-ids}
+result <- query_plots(
+  plot_name = "mbalmayo001",
+  extract_individuals = TRUE,
+  remove_ids   = FALSE,
+  output_style = "full"
+)
+names(result$extract)  # inclut id_liste_plots, id_census, id_n…
+```
+
+### Gestion des Problèmes de Qualité
+
+```{r issues}
+# Supprimer les enregistrements signalés (par défaut)
+propre <- query_plots(
+  plot_name = "mbalmayo001", extract_individuals = TRUE,
+  issues = "remove"
+)
+
+# Inclure tous les enregistrements quel que soit leur statut
+tous <- query_plots(
+  plot_name = "mbalmayo001", extract_individuals = TRUE,
+  issues = "include"
+)
+
+# Conserver les enregistrements signalés avec des colonnes de drapeaux
+avec_drapeaux <- query_plots(
+  plot_name = "mbalmayo001", extract_individuals = TRUE,
+  issues = "ignore"
+)
+```
+
+### Exemple de Requête Complexe
+
+```{r complex-query}
+result <- query_plots(
+  country       = "Cameroon",
+  locality_name = "Dja",
+  method        = "1 ha plot",
+  extract_individuals         = TRUE,
+  extract_traits              = TRUE,
+  extract_individual_features = TRUE,
+  show_multiple_census        = TRUE,
+  extract_coordinates         = TRUE,
+  remove_ids                  = FALSE,
+  output_style                = "permanent_plot_multi_census"
+)
+
+names(result)
+```
+
+## Conseils de Performance
+
+1. Commencer par `extract_individuals = FALSE` pour explorer les métadonnées
+   avant de charger les données d'arbres
+2. Filtrer par `id_plot` lorsque les IDs sont déjà connus — c'est la route la
+   plus efficace
+3. N'activer `extract_traits = TRUE` et `extract_individual_features = TRUE`
+   que lorsque c'est nécessaire
+4. Choisir le `output_style` le plus spécifique pour éviter de charger des
+   colonnes inutiles
+
+## Dépannage
+
+```{r troubleshoot}
+# Vérifier le statut de la connexion
+print_connection_status()
+
+# Exécuter un diagnostic complet de la connexion
+db_diagnostic()
+
+# Fermer toutes les connexions et effacer les identifiants en cache
+cleanup_connections()
+```
+
+La sécurité au niveau des lignes est appliquée sur la base de données : vous
+ne pouvez accéder qu'aux parcelles et aux individus pour lesquels votre compte
+de base de données dispose des permissions nécessaires.
