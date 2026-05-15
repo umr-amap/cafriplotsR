@@ -31,6 +31,9 @@ rsconnect/
 *.gpkg-wal
 *.kml
 
+# But keep packaged ontology files
+!inst/ontology/*.csv
+
 # Ignore working markdown documentation in root (keep README.md, NEWS.md, CLAUDE.md)
 ADD_PLOT_FEATURES_IMPLEMENTATION.md
 BUGFIX_*.md
