@@ -1,7 +1,7 @@
 Package: CafriplotsR
 Type: Package
 Title: Tools for Exploring, Managing and Standardizing Vegetation Inventories in Central Africa
-Version: 1.9.8
+Version: 1.9.9
 Authors@R: c(person("Gilles", "Dauby", email = "gilles.dauby@ird.fr", role = c("aut", "cre", "fnd", "cph"), comment = c(ORCID = "0000-0002-9498-413X")), person("Hugo", "Leblanc", role = "ctb"), person("Pierre", "Ploton", role = c("cph", "ctb")))
 Description: Exploring and updating the database containing plot data from Central Africa. This package contains several function for manipulating tree inventories data from Central Africa. Access is restricted.
 License: GPL-2
