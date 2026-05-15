@@ -781,63 +781,55 @@ standardize_observations <- function(
 }
 
 
-#' Insert the \code{mortality_risk_flag} trait into \code{traitlist}
-#'
-#' One-time bootstrap. Creates a categorical trait whose factor levels are the
-#' 20 tokens used by \code{\link{standardize_observations}}. Safe to call
-#' multiple times — does nothing if the trait already exists.
-#'
-#' @param con Database connection.
-#' @return Invisible integer — the trait ID.
-#' @export
-bootstrap_mortality_risk_flag_trait <- function(con = NULL) {
 
-  if (is.null(con)) con <- call.mydb()
-
-  existing <- .resolve_mortality_trait_id(con, "mortality_risk_flag")
-  if (!is.na(existing)) {
-    message(sprintf(
-      "Trait 'mortality_risk_flag' already exists (id_trait = %d).", existing
-    ))
-    return(invisible(existing))
-  }
-
-  factor_levels <- paste(
-    "broken_stem", "broken_crown",
-    "dying", "leaning", "lying", "uprooted",
-    "defoliated_high", "defoliated_low",
-    "large_liana_high_load", "small_liana_high_load",
-    "large_liana_low_load", "small_liana_low_load",
-    "strangler", "damaged_leaves", "hollow",
-    "wounded_elephant", "wounded_exploitation",
-    "wounded_human", "wounded_unknown",
-    "termites", "fungi", "burnt",
-    sep = ", "
-  )
-
-  description <- paste(
-    "Mortality risk indicator derived from standardized free-text",
-    "observations. Multiple rows per individual x census allowed (one row",
-    "per token). Source phrases are recorded in data_ind_measures_feat",
-    "as 'observations'."
-  )
-
-  is_pool    <- inherits(con, "Pool")
-  actual_con <- if (is_pool) pool::poolCheckout(con) else con
-  on.exit(if (is_pool) pool::poolReturn(actual_con), add = TRUE)
-
-  insert_sql <- glue::glue_sql(
-    "INSERT INTO traitlist (trait, valuetype, factorlevels, traitdescription)
-     VALUES ({trait}, {vt}, {fl}, {desc}) RETURNING id_trait",
-    trait = "mortality_risk_flag",
-    vt    = "categorical",
-    fl    = factor_levels,
-    desc  = description,
-    .con  = actual_con
-  )
-  new_id <- DBI::dbGetQuery(actual_con, insert_sql)$id_trait[1]
-  message(sprintf(
-    "Inserted trait 'mortality_risk_flag' with id_trait = %d.", new_id
-  ))
-  invisible(as.integer(new_id))
-}
+# bootstrap_mortality_risk_flag_trait <- function(con = NULL) {
+# 
+#   if (is.null(con)) con <- call.mydb()
+# 
+#   existing <- .resolve_mortality_trait_id(con, "mortality_risk_flag")
+#   if (!is.na(existing)) {
+#     message(sprintf(
+#       "Trait 'mortality_risk_flag' already exists (id_trait = %d).", existing
+#     ))
+#     return(invisible(existing))
+#   }
+# 
+#   factor_levels <- paste(
+#     "broken_stem", "broken_crown",
+#     "dying", "leaning", "lying", "uprooted",
+#     "defoliated_high", "defoliated_low",
+#     "large_liana_high_load", "small_liana_high_load",
+#     "large_liana_low_load", "small_liana_low_load",
+#     "strangler", "damaged_leaves", "hollow",
+#     "wounded_elephant", "wounded_exploitation",
+#     "wounded_human", "wounded_unknown",
+#     "termites", "fungi", "burnt",
+#     sep = ", "
+#   )
+# 
+#   description <- paste(
+#     "Mortality risk indicator derived from standardized free-text",
+#     "observations. Multiple rows per individual x census allowed (one row",
+#     "per token). Source phrases are recorded in data_ind_measures_feat",
+#     "as 'observations'."
+#   )
+# 
+#   is_pool    <- inherits(con, "Pool")
+#   actual_con <- if (is_pool) pool::poolCheckout(con) else con
+#   on.exit(if (is_pool) pool::poolReturn(actual_con), add = TRUE)
+# 
+#   insert_sql <- glue::glue_sql(
+#     "INSERT INTO traitlist (trait, valuetype, factorlevels, traitdescription)
+#      VALUES ({trait}, {vt}, {fl}, {desc}) RETURNING id_trait",
+#     trait = "mortality_risk_flag",
+#     vt    = "categorical",
+#     fl    = factor_levels,
+#     desc  = description,
+#     .con  = actual_con
+#   )
+#   new_id <- DBI::dbGetQuery(actual_con, insert_sql)$id_trait[1]
+#   message(sprintf(
+#     "Inserted trait 'mortality_risk_flag' with id_trait = %d.", new_id
+#   ))
+#   invisible(as.integer(new_id))
+# }
