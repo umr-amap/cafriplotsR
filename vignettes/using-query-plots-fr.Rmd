@@ -411,17 +411,18 @@ result$censuses     # dates de recensement et informations d'équipe
 ### Styles de Sortie
 
 `query_plots()` retourne toujours une **liste nommée**. Les tables incluses
-dépendent de `output_style` :
+et les colonnes conservées dépendent de `output_style`. Styles intégrés :
 
-| `output_style` | Tables retournées | Utilisation typique |
-|----------------|-------------------|---------------------|
-| `"auto"` | Détectées depuis la méthode de parcelle | Par défaut — recommandé |
-| `"minimal"` | `metadata`, `individuals` (colonnes essentielles) | Exploration rapide |
-| `"standard"` | `metadata`, `individuals`, `censuses` | Analyse générale |
-| `"permanent_plot"` | `metadata`, `individuals`, `censuses`, `height_diameter` | Suivi mono-recensement |
-| `"permanent_plot_multi_census"` | Idem + colonnes `_census_N` | Analyse de séries temporelles |
-| `"transect"` | `metadata`, `individuals` (simplifié) | Relevés pédestres |
-| `"full"` | Toutes les colonnes dans une table `extract` unique | Export complet |
+| `output_style` | Description | Tables additionnelles |
+|----------------|-------------|-----------------------|
+| `"auto"` | Détecté depuis la `method` de la parcelle (défaut) | variable |
+| `"minimal"` | Métadonnées essentielles uniquement | — |
+| `"standard"` | Sortie générale pour analyse | — |
+| `"permanent_plot"` | Suivi de parcelle permanente, recensement unique / le plus récent | `censuses`, `height_diameter` |
+| `"permanent_plot_multi_census"` | Format multi-recensement large (colonnes `_census_N`) | `censuses`, `height_diameter` |
+| `"transect"` | Sortie simplifiée pour transects / relevés pédestres | — |
+| `"census_pairs"` | Une ligne par paire de recensements consécutifs par individu | — |
+| `"full"` | Conserve toutes les colonnes des tables metadata et individuals | — |
 
 ```{r styles}
 # Détection automatique depuis la méthode (recommandé)
@@ -437,13 +438,112 @@ result_perm <- query_plots(
   output_style = "permanent_plot"
 )
 
-# Sortie complète — table unique accessible via $extract
+# Le style "full" conserve toutes les colonnes des tables metadata et individuals
 result_full <- query_plots(
   plot_name = "mbalmayo001",
   extract_individuals = TRUE,
   output_style = "full"
 )
-names(result_full$extract)
+names(result_full$individuals)
+```
+
+#### Inspecter les styles intégrés
+
+Deux fonctions utilitaires permettent de découvrir le contenu de chaque style
+sans quitter R :
+
+```{r inspect-styles}
+# Tableau récapitulatif de tous les styles intégrés
+list_output_styles()
+
+# Configuration complète d'un style, avec une méthode print() lisible
+get_output_style("permanent_plot")
+
+# Retirer la classe pour accéder aux champs programmatiquement
+cfg <- unclass(get_output_style("permanent_plot"))
+cfg$metadata_columns
+cfg$remove_patterns
+```
+
+`list_output_styles()` renvoie un tibble avec une ligne par style et le
+nombre de colonnes explicites / motifs regex. `get_output_style()` renvoie un
+objet `plot_output_style` dont la méthode `print` regroupe les champs par
+catégorie (sélection de colonnes, filtres regex, renommages, tables
+additionnelles, indicateurs).
+
+#### Styles de sortie personnalisés
+
+Si aucun style intégré ne convient, construisez le vôtre avec
+`output_style()` et passez l'objet résultant directement à `query_plots()` :
+
+```{r custom-style-from-scratch}
+mon_style <- output_style(
+  description         = "IDs et espèces uniquement",
+  metadata_columns    = c("plot_name", "country", "id_liste_plots"),
+  individuals_columns = c("id_n", "tag", "tax_fam", "tax_gen", "tax_sp_level")
+)
+
+result <- query_plots(
+  plot_name           = "mbalmayo001",
+  extract_individuals = TRUE,
+  output_style        = mon_style
+)
+```
+
+Utilisez `based_on` pour partir d'un style existant et n'écraser que les
+champs souhaités. **La sémantique est « remplacer, pas ajouter »** : tout
+champ fourni remplace entièrement la valeur du parent. Pour effacer un champ
+vectoriel tout en héritant du reste, passez un vecteur vide
+(`remove_patterns = character()`) ; pour hériter sans modification, ne
+spécifiez pas l'argument.
+
+```{r custom-style-inherit}
+# Partir de permanent_plot, mais supprimer toutes les colonnes trait_*
+perm_no_traits <- output_style(
+  based_on        = "permanent_plot",
+  remove_patterns = c(
+    "^id_(?!n|liste_plots)", "^date_modif",
+    "_census_\\d+$", "^trait_"
+  )
+)
+perm_no_traits   # affichage formaté
+
+result <- query_plots(
+  plot_name           = "mbalmayo001",
+  extract_individuals = TRUE,
+  output_style        = perm_no_traits
+)
+```
+
+Les objets de style personnalisé n'existent que dans la session R courante.
+Pour les réutiliser, assignez-les à une variable, sauvegardez-les avec
+`saveRDS()`, ou placez l'appel constructeur dans votre `.Rprofile` ou dans
+un script de projet.
+
+#### `keep_patterns` et `remove_patterns`
+
+Au-delà des listes explicites `metadata_columns` / `individuals_columns`,
+chaque style accepte deux filtres regex appliqués en plus de la sélection
+de colonnes :
+
+- **`keep_patterns`** — expressions régulières compatibles Perl. Toute
+  colonne dont le nom correspond à **au moins un** motif est *ajoutée* à
+  la liste des colonnes conservées (utile pour récupérer des familles
+  entières de colonnes, par ex. `^feat_` ou `wood_density`).
+- **`remove_patterns`** — appliqués **après** `keep_patterns` pour
+  supprimer des colonnes. Souvent utilisés pour retirer les identifiants
+  internes (`"^id_(?!n|liste_plots)"`), les horodatages de modification
+  (`"^date_modif"`) ou les colonnes par recensement
+  (`"_census_\\d+$"`).
+
+```{r keep-remove-patterns}
+# Conserver toutes les colonnes wood_density et stem_diameter,
+# supprimer les IDs internes
+mon_style <- output_style(
+  based_on        = "standard",
+  keep_patterns   = c("wood_density", "stem_diameter"),
+  remove_patterns = c("^id_(?!n|liste_plots)", "^date_modif")
+)
 ```
 
 ### Options de Filtrage
