@@ -48,7 +48,7 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
     # Dynamic header and buttons based on operation mode
     is_update_mode <- shiny::reactive({
       mode <- tryCatch(operation_mode(), error = function(e) NULL)
-      mode %in% c("define_multi_stems", "compute_stem_status")
+      mode %in% c("define_multi_stems", "compute_stem_status", "standardize_observations")
     })
 
     output$step6_header <- shiny::renderUI({
@@ -188,6 +188,8 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
         sprintf(i18n()$t("Updating %d record(s) in database — please wait..."), n_rows)
       } else if (identical(mode, "compute_stem_status")) {
         sprintf(i18n()$t("Writing stem_status for %d row(s) — please wait..."), n_rows)
+      } else if (identical(mode, "standardize_observations")) {
+        sprintf(i18n()$t("Writing %d standardized observation row(s) — please wait..."), n_rows)
       } else if (identical(mode, "add_measurements")) {
         sprintf(i18n()$t("Inserting %d measurement(s) into database — please wait..."), n_rows)
       } else {
@@ -228,6 +230,8 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
           i18n()$t("Records to update: %d")
         } else if (identical(mode, "compute_stem_status")) {
           i18n()$t("stem_status records to write: %d")
+        } else if (identical(mode, "standardize_observations")) {
+          i18n()$t("Standardized observation records to write: %d")
         } else if (identical(mode, "add_measurements")) {
           i18n()$t("Measurement records to create: %d")
         } else {
@@ -333,6 +337,11 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
     # ---- Compute stem status mode ----
     if (mode == "compute_stem_status") {
       return(.execute_stem_status_import(data, config, con, dry_run, i18n))
+    }
+
+    # ---- Standardize observations mode ----
+    if (mode == "standardize_observations") {
+      return(.execute_standardize_observations_import(data, config, con, dry_run, i18n))
     }
 
     # For census mode: subplottype_field is "census", and people are features
@@ -968,6 +977,83 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
     ))
   }, error = function(e) {
     cli::cli_alert_danger("Stem status import failed: {e$message}")
+    return(list(
+      dry_run           = FALSE,
+      success           = FALSE,
+      n_subplot_records = 0,
+      n_people_records  = 0,
+      message           = sprintf(t("Import failed: %s"), e$message)
+    ))
+  })
+}
+
+
+#' Execute standardize_observations import
+#'
+#' Re-runs \code{\link{standardize_observations}} with \code{add_data = TRUE}
+#' for the confirmed individuals; dawkins rows flagged \code{skip_existing}
+#' are dropped, mortality_risk_flag duplicates are de-duped on (id_n,
+#' id_sub_plots, std_value).
+#'
+#' @keywords internal
+.execute_standardize_observations_import <- function(data, config, con,
+                                                     dry_run = TRUE,
+                                                     i18n    = NULL) {
+  t <- function(x) if (!is.null(i18n)) i18n$t(x) else x
+
+  individual_ids <- config$individual_ids
+  if (is.null(individual_ids) || length(individual_ids) == 0) {
+    return(list(
+      dry_run           = dry_run,
+      success           = FALSE,
+      n_subplot_records = 0,
+      n_people_records  = 0,
+      message           = t("No individual IDs found in configuration.")
+    ))
+  }
+
+  n_rows     <- nrow(data)
+  n_writable <- sum(!data$skip_existing & !is.na(data$id_sub_plots))
+  n_stems    <- length(unique(individual_ids))
+
+  if (dry_run) {
+    preview <- data %>%
+      dplyr::select(id_n, plot_name, tag, census_name, census_date,
+                    trait, std_value, source_phrases, skip_existing) %>%
+      utils::head(50)
+
+    return(list(
+      dry_run           = TRUE,
+      success           = TRUE,
+      n_subplot_records = n_writable,
+      n_people_records  = 0,
+      preview           = preview,
+      message           = sprintf(
+        t("Dry run: up to %d standardized row(s) would be written for %d stem(s) (%d row(s) skipped — existing dawkins values)."),
+        n_writable, n_stems, sum(data$skip_existing)
+      )
+    ))
+  }
+
+  tryCatch({
+    standardize_observations(
+      individual_ids = individual_ids,
+      add_data       = TRUE,
+      dry_run        = FALSE,
+      con            = con
+    )
+    return(list(
+      dry_run           = FALSE,
+      success           = TRUE,
+      n_subplot_records = n_writable,
+      n_people_records  = 0,
+      message           = sprintf(
+        t("Successfully wrote standardized observations for %d stem(s) (up to %d row(s))."),
+        n_stems, n_writable
+      )
+    ))
+  }, error = function(e) {
+    cli::cli_alert_danger("Standardize observations import failed: {e$message}")
     return(list(
       dry_run           = FALSE,
       success           = FALSE,

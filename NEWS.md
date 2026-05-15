@@ -2,6 +2,14 @@
 
 ### New Features
 
+* **Standardize free-text observations into mortality and dawkins traits** (`R/observations_standardization.R`, `R/mod_feat_step_observations.R`)
+  - New `standardize_observations()` parses the free-text `observations` trait (id 13) and decodes `flag1_rainfor` (id 19) into two derived traits: `mortality_risk_flag` (multi-token; one DB row per matched token) and `dawkins_index` (id 15; never overwrites existing values)
+  - Editable regex ontology shipped in `inst/ontology/observations_ontology.csv` (22 mortality tokens + 5 dawkins classes); `.gitignore` updated with `!inst/ontology/*.csv` exception so the file is tracked
+  - PCRE word-boundary preprocessor `.fix_word_boundaries()` converts `\b` to unicode-safe `(?<![[:alpha:]])` / `(?![[:alpha:]])` so accented French tokens (cassé, déraciné) match correctly
+  - `flag1_rainfor` letter codes are decoded via `.flag1_to_mortality_map()` and merged with text-derived tokens; source provenance is preserved in the comment (`"text: ..."` vs `"flag1_rainfor: b"`)
+  - `bootstrap_mortality_risk_flag_trait()` inserts the new categorical trait into `traitlist` with 22 factor levels including the distinct `uprooted` category
+  - Wizard integration: new "Standardize Observations" card in `launch_feature_wizard()` step 2 under a new **Derived / Computed Traits** section alongside Compute Stem Status; step 3 module (`mod_feat_step3_standardize_obs_*`) provides compute → review derived rows → review unresolved phrases → confirm flow; step 4 (lookup) is skipped; step 6 dispatches to `.execute_standardize_observations_import()`
+
 * **Inspectable and customisable `output_style` for `query_plots()`** — built-in styles are now transparent and users can define their own
   - `list_output_styles()` returns a tibble summarising every built-in style (description, additional tables, column/pattern counts)
   - `get_output_style(name)` returns the configuration of a built-in style as a `plot_output_style` object with a dedicated print method that groups fields by purpose (column selection, pattern filters, renames, additional tables, flags); use `unclass()` to see the raw list
