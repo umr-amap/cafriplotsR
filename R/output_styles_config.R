@@ -88,7 +88,8 @@
                       "phenology",
                       "succession_guild",
                       "census_date",
-                      "stem_status"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
+                      "stem_status",
+                      "mortality_risk_flag"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n|liste_plots)", "^date_modif", "_census_\\d+$"),  # Remove census suffix columns
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,  # Features go to census table
@@ -134,7 +135,8 @@
                       "light",
                       "position_",
                       "census_date",
-                      "stem_status"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
+                      "stem_status",
+                      "mortality_risk_flag"),  # Optional: patterns to keep (e.g., "^feat_", "^trait_")
     remove_patterns = c("^id_(?!n|liste_plots)", "^date_modif"),
     additional_tables = c("censuses", "height_diameter"),
     keep_all_features = FALSE,
@@ -206,6 +208,7 @@
                       "succession_guild",
                       "census_date",
                       "stem_status",
+                      "mortality_risk_flag",
                       "date_"),
     remove_patterns = c("^id_(?!n|liste_plots)", "^date_modif"),
     additional_tables = c(),
