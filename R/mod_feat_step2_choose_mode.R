@@ -182,8 +182,14 @@ mod_feat_step2_choose_mode_ui <- function(id, i18n) {
             shiny::tags$li(i18n$t("Updates stem_grouping in database"))
           )
         )
-      ),
+      )
+    ),
 
+    # ---- Row 4: Derived / computed traits ----
+    shiny::h5(i18n$t("Derived / Computed Traits"),
+              style = "color: #495057; margin-top: 25px; margin-bottom: 10px;"),
+
+    shiny::fluidRow(
       # Compute Stem Status card
       shiny::column(
         6,
@@ -210,6 +216,35 @@ mod_feat_step2_choose_mode_ui <- function(id, i18n) {
             shiny::tags$li(i18n$t("Run after adding measurements for a census"))
           )
         )
+      ),
+
+      # Standardize Observations card
+      shiny::column(
+        6,
+        shiny::div(
+          id = ns("card_standardize_obs"),
+          class = "mode-card",
+          onclick = sprintf(
+            "Shiny.setInputValue('%s', 'standardize_observations', {priority: 'event'})",
+            ns("mode_selected")
+          ),
+          shiny::h4(
+            shiny::icon("magnifying-glass-chart",
+                        style = "color: #20c997; margin-right: 10px;"),
+            i18n$t("Standardize Observations")
+          ),
+          shiny::p(
+            i18n$t("Parse free-text 'observations' into standardized rows for mortality_risk_flag (multi-token) and dawkins_index (single value). Existing dawkins values are never overwritten."),
+            style = "color: #6c757d;"
+          ),
+          shiny::tags$ul(
+            style = "color: #6c757d; font-size: 14px;",
+            shiny::tags$li(i18n$t("Regex ontology (editable CSV in inst/ontology/)")),
+            shiny::tags$li(i18n$t("Splits 'cassé bas; beaucoup de lianes' into atomic phrases")),
+            shiny::tags$li(i18n$t("Review derived rows + unresolved phrases before DB write")),
+            shiny::tags$li(i18n$t("Original 'observations' trait is not modified"))
+          )
+        )
       )
     ),
 
@@ -231,7 +266,7 @@ mod_feat_step2_choose_mode_server <- function(id, i18n) {
     ns <- session$ns
 
     selected_mode <- shiny::reactiveVal(NULL)
-    all_card_ids <- c("card_census", "card_features", "card_measurements", "card_recruits", "card_multi_stems", "card_stem_status")
+    all_card_ids <- c("card_census", "card_features", "card_measurements", "card_recruits", "card_multi_stems", "card_stem_status", "card_standardize_obs")
 
     shiny::observeEvent(input$mode_selected, {
       mode <- input$mode_selected
@@ -241,10 +276,11 @@ mod_feat_step2_choose_mode_server <- function(id, i18n) {
       card_id <- switch(mode,
         new_census          = "card_census",
         add_features        = "card_features",
-        add_measurements    = "card_measurements",
-        add_recruits        = "card_recruits",
-        define_multi_stems  = "card_multi_stems",
-        compute_stem_status = "card_stem_status"
+        add_measurements         = "card_measurements",
+        add_recruits             = "card_recruits",
+        define_multi_stems       = "card_multi_stems",
+        compute_stem_status      = "card_stem_status",
+        standardize_observations = "card_standardize_obs"
       )
 
       # Update card styling via JS: remove 'selected' from all, add to chosen
@@ -263,10 +299,11 @@ mod_feat_step2_choose_mode_server <- function(id, i18n) {
       label <- switch(mode,
         new_census          = i18n()$t("New Census"),
         add_features        = i18n()$t("Add Plot Features"),
-        add_measurements    = i18n()$t("Add Individual Measurements"),
-        add_recruits        = i18n()$t("Add Recruits"),
-        define_multi_stems  = i18n()$t("Define Multi-Stems"),
-        compute_stem_status = i18n()$t("Compute Stem Status")
+        add_measurements         = i18n()$t("Add Individual Measurements"),
+        add_recruits             = i18n()$t("Add Recruits"),
+        define_multi_stems       = i18n()$t("Define Multi-Stems"),
+        compute_stem_status      = i18n()$t("Compute Stem Status"),
+        standardize_observations = i18n()$t("Standardize Observations")
       )
 
       shiny::div(
