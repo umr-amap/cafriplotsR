@@ -80,3 +80,40 @@ pre {
   color: #2C5F2D !important;
   border-left: 3px solid #2C5F2D;
 }
+
+/* Make "On this page" sidebar visible */
+.toc-sidebar {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.toc {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.toc-item {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Article sidebar styling */
+.article-sidebar {
+  opacity: 1 !important;
+}
+
+.template-article .toc {
+  color: #555555;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.template-article .toc a {
+  color: #2C5F2D;
+  text-decoration: none;
+}
+
+.template-article .toc a:hover {
+  color: #97BC62;
+  text-decoration: underline;
+}

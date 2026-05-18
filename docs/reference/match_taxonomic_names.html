@@ -19,7 +19,7 @@ SIMILARITY function, making it much faster especially with slow connections."><m
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -66,6 +66,7 @@ SIMILARITY function, making it much faster especially with slow connections.</p>
 <span>  return_scores <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  include_authors <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  con <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  backbone <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -103,7 +104,15 @@ SIMILARITY function, making it much faster especially with slow connections.</p>
 
 
 <dt id="arg-con">con<a class="anchor" aria-label="anchor" href="#arg-con"></a></dt>
-<dd><p>Database connection (if NULL, will call call.mydb.taxa())</p></dd>
+<dd><p>Database connection. If NULL and `backbone` is also NULL, the
+function will try the cached backbone first and fall back to opening a
+database connection via `call.mydb.taxa()`.</p></dd>
+
+
+<dt id="arg-backbone">backbone<a class="anchor" aria-label="anchor" href="#arg-backbone"></a></dt>
+<dd><p>Optional cached backbone tibble (as returned by
+`load_backbone_cache()`). When supplied, all matching runs in R against
+this in-memory backbone — no database round-trips, works fully offline.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
