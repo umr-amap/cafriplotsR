@@ -9,7 +9,7 @@ with options to include associated traits and metadata, and to generate interact
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -71,8 +71,7 @@ with options to include associated traits and metadata, and to generate interact
 <span>  exact_match <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  census_strategy <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"last"</span>, <span class="st">"first"</span>, <span class="st">"mean"</span><span class="op">)</span>,</span>
 <span>  individual_features_format <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"wide"</span>, <span class="st">"long"</span>, <span class="st">"census_pairs"</span><span class="op">)</span>,</span>
-<span>  output_style <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"minimal"</span>, <span class="st">"standard"</span>, <span class="st">"permanent_plot"</span>,</span>
-<span>    <span class="st">"permanent_plot_multi_census"</span>, <span class="st">"transect"</span>, <span class="st">"full"</span><span class="op">)</span>,</span>
+<span>  output_style <span class="op">=</span> <span class="st">"auto"</span>,</span>
 <span>  backbone <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"internal"</span>, <span class="st">"wcvp"</span><span class="op">)</span>,</span>
 <span>  con <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  con.taxa <span class="op">=</span> <span class="cn">NULL</span></span>
@@ -215,10 +214,20 @@ Incompatible with `concatenate_stem = TRUE`.</p></dd>
 
 
 <dt id="arg-output-style">output_style<a class="anchor" aria-label="anchor" href="#arg-output-style"></a></dt>
-<dd><p>Character. Output formatting style. Options: "auto", "minimal", "standard",
-"permanent_plot", "permanent_plot_multi_census", "transect", "full". Optional.
-When `individual_features_format = "census_pairs"` this argument is ignored and
-the `"census_pairs"` style is applied automatically.</p></dd>
+<dd><p>Either a character scalar – one of `"auto"`,
+`"minimal"`, `"standard"`, `"permanent_plot"`,
+`"permanent_plot_multi_census"`, `"transect"`, `"full"`,
+`"census_pairs"` – or a `plot_output_style` object built with
+[output_style()]. Defaults to `"auto"`, which picks a style from
+the `method` field of the queried plots. When
+`individual_features_format = "census_pairs"`, character values
+(other than `"full"`) are overridden to `"census_pairs"`; a custom
+`plot_output_style` object is respected as-is.
+Use [list_output_styles()] for an overview of available built-in
+styles, [get_output_style()] to inspect what a style does, and
+[output_style()] to build a custom one (typically with `based_on`
+to inherit from a built-in and override a few fields). The
+configuration schema is documented in [output_style()].</p></dd>
 
 
 <dt id="arg-con">con<a class="anchor" aria-label="anchor" href="#arg-con"></a></dt>

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,10 +33,50 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="1.9.5" id="cafriplotsr-195-development">CafriplotsR 1.9.5 (Development)<a class="anchor" aria-label="anchor" href="#cafriplotsr-195-development"></a></h2>
+<h2 class="pkg-version" data-toc-text="1.9.8" id="cafriplotsr-198-development">CafriplotsR 1.9.8 (Development)<a class="anchor" aria-label="anchor" href="#cafriplotsr-198-development"></a></h2>
 <div class="section level4">
-<h4 id="new-features-1-9-5">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-5"></a></h4>
+<h4 id="new-features-1-9-8">New Features<a class="anchor" aria-label="anchor" href="#new-features-1-9-8"></a></h4>
 <ul><li>
+<strong>Standardize free-text observations into mortality and dawkins traits</strong> (<code>R/observations_standardization.R</code>, <code>R/mod_feat_step_observations.R</code>)
+<ul><li>New <code><a href="../reference/standardize_observations.html">standardize_observations()</a></code> parses the free-text <code>observations</code> trait (id 13) and decodes <code>flag1_rainfor</code> (id 19) into two derived traits: <code>mortality_risk_flag</code> (multi-token; one DB row per matched token) and <code>dawkins_index</code> (id 15; never overwrites existing values)</li>
+<li>Editable regex ontology shipped in <code>inst/ontology/observations_ontology.csv</code> (22 mortality tokens + 5 dawkins classes); <code>.gitignore</code> updated with <code>!inst/ontology/*.csv</code> exception so the file is tracked</li>
+<li>PCRE word-boundary preprocessor <code><a href="../reference/dot-fix_word_boundaries.html">.fix_word_boundaries()</a></code> converts <code>\b</code> to unicode-safe <code>(?&lt;![[:alpha:]])</code> / <code>(?![[:alpha:]])</code> so accented French tokens (cassé, déraciné) match correctly</li>
+<li>
+<code>flag1_rainfor</code> letter codes are decoded via <code><a href="../reference/dot-flag1_to_mortality_map.html">.flag1_to_mortality_map()</a></code> and merged with text-derived tokens; source provenance is preserved in the comment (<code>"text: ..."</code> vs <code>"flag1_rainfor: b"</code>)</li>
+<li>
+<code>bootstrap_mortality_risk_flag_trait()</code> inserts the new categorical trait into <code>traitlist</code> with 22 factor levels including the distinct <code>uprooted</code> category</li>
+<li>Wizard integration: new “Standardize Observations” card in <code><a href="../reference/launch_feature_wizard.html">launch_feature_wizard()</a></code> step 2 under a new <strong>Derived / Computed Traits</strong> section alongside Compute Stem Status; step 3 module (<code>mod_feat_step3_standardize_obs_*</code>) provides compute → review derived rows → review unresolved phrases → confirm flow; step 4 (lookup) is skipped; step 6 dispatches to <code><a href="../reference/dot-execute_standardize_observations_import.html">.execute_standardize_observations_import()</a></code>
+</li>
+</ul></li>
+<li>
+<strong>Inspectable and customisable <code>output_style</code> for <code><a href="../reference/query_plots.html">query_plots()</a></code></strong> — built-in styles are now transparent and users can define their own
+<ul><li>
+<code><a href="../reference/list_output_styles.html">list_output_styles()</a></code> returns a tibble summarising every built-in style (description, additional tables, column/pattern counts)</li>
+<li>
+<code>get_output_style(name)</code> returns the configuration of a built-in style as a <code>plot_output_style</code> object with a dedicated print method that groups fields by purpose (column selection, pattern filters, renames, additional tables, flags); use <code><a href="https://rdrr.io/r/base/class.html" class="external-link">unclass()</a></code> to see the raw list</li>
+<li>
+<code>output_style(...)</code> builds a custom style; pass <code>based_on = "&lt;built-in&gt;"</code> to inherit and override only the fields you care about (replace, not append, semantics — pass <code><a href="https://rdrr.io/r/base/character.html" class="external-link">character()</a></code> to clear a vector field while keeping the rest)</li>
+<li>
+<code><a href="../reference/validate_output_style.html">validate_output_style()</a></code> checks the shape of a custom config; called automatically by the constructor and by <code><a href="../reference/query_plots.html">query_plots()</a></code> when a raw list is passed</li>
+<li>
+<code>query_plots(output_style = ...)</code> accepts a built-in name string, a <code>plot_output_style</code> object, or a raw list. The <code>"permanent_plot" → "permanent_plot_multi_census"</code> auto-upgrade and the <code>census_pairs</code> override only apply to character input; custom objects are respected as-is</li>
+<li>Custom styles live only in the current R session (no registry, no disk cache); to reuse, assign to a variable, <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code>, or put the constructor call in <code>.Rprofile</code>
+</li>
+<li>Tests: 42 new unit tests in <code>tests/testthat/test-output-styles-custom.R</code>
+</li>
+</ul></li>
+<li>
+<strong>Offline mode for <code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code></strong> — auto-matching and manual review now work without a live database connection
+<ul><li>New “Use offline (cached backbone)” button on the login screen, shown automatically when a backbone cache is present on disk (<code>mod_database_login.R</code>)</li>
+<li>
+<code><a href="../reference/match_taxonomic_names.html">match_taxonomic_names()</a></code> gains a <code>backbone</code> parameter; when supplied (or when a cache exists and no <code>con</code> is given) all matching runs in R via <code>stringdist</code>’s trigram-Jaccard, mirroring PostgreSQL’s <code>pg_trgm</code> <code>SIMILARITY()</code> — no network round-trips</li>
+<li>Auto-matching, fuzzy suggestions, and the Review tab’s custom search are all routed through the cached backbone in offline mode (<code>mod_auto_matching.R</code>, <code>mod_fuzzy_suggestions.R</code>, <code>mod_name_review.R</code>)</li>
+<li>Traits enrichment and WCVP option are hidden when offline (require live DB)</li>
+<li>Performance: R-side path is typically faster than the SQL-side per-name loop on slow connections (no network round-trips). For online users with a cache, matching also uses the R-side path by default</li>
+<li>R-side trigram-Jaccard agrees with PostgreSQL <code>pg_trgm</code> <code>SIMILARITY()</code> at correlation ~0.99 (mean delta ~0.03) on representative names, so existing <code>min_similarity</code> thresholds carry over without retuning</li>
+<li>Tests: 37 new unit tests in <code>tests/testthat/test-r-side-matching.R</code> against a synthetic backbone (no DB required)</li>
+</ul></li>
+<li>
 <strong>Aggregated taxa traits from individual measurements</strong> (<code>R/aggregate_individual_traits.R</code>)
 <ul><li>New <code><a href="../reference/rebuild_aggregated_taxa_traits.html">rebuild_aggregated_taxa_traits()</a></code> aggregates individual-level measurements (<code>data_traits_measures</code>) into taxa-level rows in <code>taxa_traits_measures</code>, driven by declarative rules in a new <code>trait_aggregation_config</code> table</li>
 <li>Config CRUD helpers: <code><a href="../reference/add_trait_aggregation.html">add_trait_aggregation()</a></code>, <code><a href="../reference/remove_trait_aggregation.html">remove_trait_aggregation()</a></code>, <code><a href="../reference/list_trait_aggregations.html">list_trait_aggregations()</a></code>
@@ -121,6 +161,12 @@
 <li>Full EN/FR internationalization</li>
 </ul></li>
 <li>
+<strong>Taxonomic Matching app (<code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>) — auto-matching checkpoint/resume</strong>
+<ul><li>Matching progress is saved to a temp file after each name; closing the browser mid-session no longer loses work</li>
+<li>On next launch with the same dataset and column, the app detects the saved checkpoint and offers to resume from where it stopped or start fresh</li>
+<li>Fuzzy matching loop exits immediately when the browser is closed (previously kept running in R until completion)</li>
+</ul></li>
+<li>
 <strong>Taxonomic Matching app (<code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code>) WCVP integration refactored</strong>
 <ul><li>WCVP is no longer offered as a backbone selection option during auto-matching (removed from modal)</li>
 <li>Only internal backbone is used for the matching process (automated via <code>mod_backbone_cache_selection</code>)</li>
@@ -150,7 +196,7 @@
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="bug-fixes-1-9-5">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5"></a></h4>
+<h4 id="bug-fixes-1-9-8">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-8"></a></h4>
 <ul><li>
 <strong>Import Wizard Step 3 — column auto-mapping with category-aware scoring</strong>
 <ul><li>Fixed “plot” column mapping to “plot_name” (direct) instead of feature “plot”</li>
@@ -248,7 +294,7 @@
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="documentation-1-9-5">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-9-5"></a></h4>
+<h4 id="documentation-1-9-8">Documentation<a class="anchor" aria-label="anchor" href="#documentation-1-9-8"></a></h4>
 <ul><li><p>Newsletter text refined (EN/FR): concise TWDD description, clarified citation tracking panel wording, added function names for interactive apps</p></li>
 <li>
 <p><strong>Structured citation tracking for taxa-level trait measurements</strong></p>
@@ -306,15 +352,15 @@
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="bug-fixes-1-9-5-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5-1"></a></h4>
+<h4 id="bug-fixes-1-9-8-1">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-8-1"></a></h4>
 <ul><li>
 <strong><code><a href="../reference/pivot_numeric_traits.html">pivot_numeric_traits()</a></code> namespace fix</strong>
 <ul><li>
-<code><a href="https://stringr.tidyverse.org/reference/str_remove.html" class="external-link">str_remove()</a></code> qualified as <code><a href="https://stringr.tidyverse.org/reference/str_remove.html" class="external-link">stringr::str_remove()</a></code> to avoid ambiguity when package is not attached</li>
+<code>str_remove()</code> qualified as <code><a href="https://stringr.tidyverse.org/reference/str_remove.html" class="external-link">stringr::str_remove()</a></code> to avoid ambiguity when package is not attached</li>
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="code-refactoring-1-9-5">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-9-5"></a></h4>
+<h4 id="code-refactoring-1-9-8">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-9-8"></a></h4>
 <ul><li>
 <strong><code><a href="../reference/safe_delete_plot.html">safe_delete_plot()</a></code> batch transactions</strong>
 <ul><li>Replaced single large transaction covering all deletions with per-batch transactions (batch size 2000)</li>
@@ -355,7 +401,7 @@
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="bug-fixes-1-9-5-2">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-5-2"></a></h4>
+<h4 id="bug-fixes-1-9-8-2">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-8-2"></a></h4>
 <ul><li>
 <strong><code>.traits_to_genera_aggreg()</code> incorrect <code>source</code> assignment</strong>
 <ul><li>Fixed hardcoded <code>source = "species"</code> for all non-NA trait values; traits assigned via a genus-level <code>idtax</code> were incorrectly labelled as species-level</li>
@@ -404,7 +450,7 @@
 </ul></li>
 </ul></div>
 <div class="section level4">
-<h4 id="code-refactoring-1-9-5-1">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-9-5-1"></a></h4>
+<h4 id="code-refactoring-1-9-8-1">Code Refactoring<a class="anchor" aria-label="anchor" href="#code-refactoring-1-9-8-1"></a></h4>
 <ul><li>Switched all trait operations from taxa database (<code>rainbio</code>) to main database (<code>plots_transects</code>)</li>
 <li>Updated <code>R/taxa_traits_function.R</code>, <code>R/delete_functions.R</code>, <code>R/updates_tables_functions.R</code>, <code>R/link_table_functions.R</code>, <code>R/individual_features_function.R</code>, <code>R/mod_taxa_add.R</code>, <code>R/mod_growth_form_selector.R</code>
 </li>
@@ -563,7 +609,7 @@
 <h4 id="bug-fixes-1-9-3">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-1-9-3"></a></h4>
 <ul><li>
 <strong>Fixed missing <code>stringr::</code> namespace prefix in coordinate extraction</strong>
-<ul><li>Added <code>stringr::</code> prefix to <code><a href="https://stringr.tidyverse.org/reference/str_split.html" class="external-link">str_split()</a></code> calls in coordinate extraction code</li>
+<ul><li>Added <code>stringr::</code> prefix to <code>str_split()</code> calls in coordinate extraction code</li>
 <li>Fixes “impossible de trouver la fonction ‘str_split’” error in <code><a href="../reference/query_plots.html">query_plots()</a></code> with <code>show_all_coordinates = TRUE</code>
 </li>
 <li>Affects <code>functions_manip_db.R</code> lines 351-354 in coordinate processing</li>
@@ -573,7 +619,7 @@
 <li>
 <strong>Fixed missing <code>purrr</code> dependency for coordinate extraction</strong>
 <ul><li>Added <code>purrr</code> to package Imports (required by <code><a href="../reference/query_plots.html">query_plots()</a></code> with <code>show_all_coordinates = TRUE</code>)</li>
-<li>Fixed unnamespaced <code><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">map_chr()</a></code> calls to use <code><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">purrr::map_chr()</a></code> in coordinate processing</li>
+<li>Fixed unnamespaced <code>map_chr()</code> calls to use <code><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">purrr::map_chr()</a></code> in coordinate processing</li>
 <li>Resolves “dépendance ‘tidytable’ pas chargée (necessaire pour coordinates)” error message</li>
 <li>Affects <code>functions_manip_db.R</code> coordinate extraction when querying subplot coordinates</li>
 </ul></li>

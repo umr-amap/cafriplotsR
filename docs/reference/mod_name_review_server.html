@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,7 +45,8 @@
 <span>  mode <span class="op">=</span> <span class="st">"interactive"</span>,</span>
 <span>  max_suggestions <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>  min_similarity <span class="op">=</span> <span class="fl">0.3</span>,</span>
-<span>  <span class="va">i18n</span></span>
+<span>  <span class="va">i18n</span>,</span>
+<span>  backbone <span class="op">=</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/reactive.html" class="external-link">reactive</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -75,6 +76,12 @@
 
 <dt id="arg-i-n">i18n<a class="anchor" aria-label="anchor" href="#arg-i-n"></a></dt>
 <dd><p>Reactive returning shiny.i18n translator</p></dd>
+
+
+<dt id="arg-backbone">backbone<a class="anchor" aria-label="anchor" href="#arg-backbone"></a></dt>
+<dd><p>Reactive returning the cached backbone tibble (or NULL).
+When non-NULL, custom searches and selection lookups go through the
+cached backbone — required for offline mode.</p></dd>
 
 </dl></div>
     <div class="section level2">

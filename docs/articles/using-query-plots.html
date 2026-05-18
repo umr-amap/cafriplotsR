@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Using query_plots() to Access Plot Data • CafriplotsR</title>
+<title>Using the Plot Query App and query_plots() • CafriplotsR</title>
 <!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
 <link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
@@ -16,7 +16,7 @@
 <script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
-<meta property="og:title" content="Using query_plots() to Access Plot Data">
+<meta property="og:title" content="Using the Plot Query App and query_plots()">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,7 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-      <img src="../logo.png" class="logo" alt=""><h1>Using query_plots() to Access Plot Data</h1>
+      <img src="../logo.png" class="logo" alt=""><h1>Using the Plot Query App and query_plots()</h1>
             
       
 
@@ -65,972 +65,984 @@
     
     
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tidyverse.tidyverse.org" class="external-link">tidyverse</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
-<h2 id="introduction">Introduction<a class="anchor" aria-label="anchor" href="#introduction"></a>
+<h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>The <code><a href="../reference/query_plots.html">query_plots()</a></code> function is the primary entry point
-for accessing forest plot data from the Central African plot database.
-This vignette demonstrates how to use the function’s various features,
-including the new <strong>output styles system</strong> introduced in
-version 1.5.</p>
+<p>CafriplotsR offers two complementary ways to access forest plot
+data:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Interactive Shiny app</strong>
+(<code><a href="../reference/launch_query_plots_app.html">launch_query_plots_app()</a></code>) — point-and-click interface with
+live map, plot selection, and download</li>
+<li>
+<strong>R function</strong> (<code><a href="../reference/query_plots.html">query_plots()</a></code>) —
+reproducible, scriptable access for automated workflows</li>
+</ol>
+<p>A key bridge between the two is the <strong>“Equivalent R
+Code”</strong> panel in the app, which shows the exact
+<code><a href="../reference/query_plots.html">query_plots()</a></code> call that reproduces what you configured
+interactively.</p>
+<hr>
 </div>
 <div class="section level2">
-<h2 id="database-connection">Database Connection<a class="anchor" aria-label="anchor" href="#database-connection"></a>
+<h2 id="part-1-interactive-shiny-app">Part 1 — Interactive Shiny App<a class="anchor" aria-label="anchor" href="#part-1-interactive-shiny-app"></a>
 </h2>
-<p>Before querying data, establish connections to both databases:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Connect to the main database</span></span>
-<span><span class="va">mydb</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Connect to the taxa database</span></span>
-<span><span class="va">mydb_taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>The package will prompt for credentials interactively, or you can use
-environment variables via <code>use_env_credentials = TRUE</code>.</p>
-</div>
-<div class="section level2">
-<h2 id="interactive-shiny-application">Interactive Shiny Application<a class="anchor" aria-label="anchor" href="#interactive-shiny-application"></a>
-</h2>
-<p>CafriplotsR provides an interactive Shiny application for users who
-prefer a graphical interface over writing R code. The app wraps
-<code><a href="../reference/query_plots.html">query_plots()</a></code> with an intuitive two-stage workflow.</p>
 <div class="section level3">
 <h3 id="launching-the-app">Launching the App<a class="anchor" aria-label="anchor" href="#launching-the-app"></a>
 </h3>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Launch the interactive query app</span></span>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Launch with default language (French)</span></span>
 <span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Or specify language (French or English)</span></span>
-<span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span>  <span class="co"># French (default)</span></span>
-<span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"en"</span><span class="op">)</span>  <span class="co"># English</span></span></code></pre></div>
+<span><span class="co"># Launch in English</span></span>
+<span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"en"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Launch in browser on a specific port</span></span>
+<span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"en"</span>, launch.browser <span class="op">=</span> <span class="cn">TRUE</span>, port <span class="op">=</span> <span class="fl">8080</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Reuse an existing connection pool (avoids repeated login prompts)</span></span>
+<span><span class="va">pool</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/create_pool_main.html">create_pool_main</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/launch_query_plots_app.html">launch_query_plots_app</a></span><span class="op">(</span>pool_main <span class="op">=</span> <span class="va">pool</span><span class="op">)</span></span></code></pre></div>
+<p>The app will prompt for database credentials if no pool is provided.
+Use <code><a href="../reference/setup_db_credentials.html">setup_db_credentials()</a></code> to store credentials in
+<code>~/.Renviron</code> to skip the prompt on future sessions.</p>
 </div>
 <div class="section level3">
 <h3 id="app-overview">App Overview<a class="anchor" aria-label="anchor" href="#app-overview"></a>
 </h3>
-<p>When you first launch the app, you’ll see the main interface with a
-navigation bar containing three tabs:</p>
+<p>The app has four tabs accessible from the top navigation bar:</p>
+<table class="table">
+<colgroup>
+<col width="35%">
+<col width="64%">
+</colgroup>
+<thead><tr class="header">
+<th>Tab</th>
+<th>Purpose</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Query Builder</td>
+<td>Define filters and execute the metadata query</td>
+</tr>
+<tr class="even">
+<td>Results &amp; Extraction</td>
+<td>Map, table, plot selection, extraction config, download</td>
+</tr>
+<tr class="odd">
+<td>Statistics</td>
+<td>Summary statistics and charts for extracted data</td>
+</tr>
+<tr class="even">
+<td>About</td>
+<td>App documentation and package information</td>
+</tr>
+</tbody>
+</table>
+<p>The language toggle (<strong>EN</strong> / <strong>FR</strong>) is
+always visible in the top-right corner. The switch is instant and
+affects all UI elements.</p>
 <div class="float">
-<img src="images/app-query-initial-view.png" alt="Application initial view"><div class="figcaption">Application initial view</div>
+<img src="images/app-query-initial-view.png" alt="App initial view — login screen and navigation bar"><div class="figcaption">App initial view — login screen and navigation
+bar</div>
 </div>
-<p>The app uses a <strong>tabbed workflow</strong>:</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Query Builder</strong> - Define filters and search
-criteria</li>
-<li>
-<strong>Results &amp; Extraction</strong> - View results, select
-plots, extract individuals</li>
-<li>
-<strong>About</strong> - App documentation and package
-information</li>
-</ol>
+<blockquote>
+<p><strong>Screenshot to add:</strong> full app view <em>after</em>
+login, showing the four-tab navigation bar
+(<code>app-query-nav-tabs.png</code>).</p>
+</blockquote>
+<hr>
 </div>
 <div class="section level3">
-<h3 id="phase-1-query-builder">Phase 1: Query Builder<a class="anchor" aria-label="anchor" href="#phase-1-query-builder"></a>
+<h3 id="tab-1-query-builder">Tab 1 — Query Builder<a class="anchor" aria-label="anchor" href="#tab-1-query-builder"></a>
 </h3>
 <div class="section level4">
-<h4 id="setting-up-filters">Setting Up Filters<a class="anchor" aria-label="anchor" href="#setting-up-filters"></a>
+<h4 id="basic-filters">Basic Filters<a class="anchor" aria-label="anchor" href="#basic-filters"></a>
 </h4>
-<p>The Query Builder tab provides various filtering options to find
-plots of interest:</p>
 <div class="float">
-<img src="images/app-query-filters.png" alt="Filter panel"><div class="figcaption">Filter panel</div>
+<img src="images/app-query-filters.png" alt="Query Builder — filter panel"><div class="figcaption">Query Builder — filter panel</div>
 </div>
-<p><strong>Basic Filters:</strong></p>
 <ul>
 <li>
-<strong>Country</strong>: Multi-select dropdown of available
+<strong>Country</strong> — multi-select dropdown of available
 countries</li>
 <li>
-<strong>Method</strong>: Filter by inventory method (1 ha plot, Long
-Transect, etc.)</li>
+<strong>Method</strong> — inventory method (e.g., “1 ha plot”, “Long
+Transect”)</li>
 <li>
-<strong>Plot Name(s)</strong>: Text search (comma-separated for
-multiple plots)</li>
+<strong>Plot Name(s)</strong> — partial or exact text search;
+comma-separate multiple names</li>
 <li>
-<strong>Locality</strong>: Search by locality name</li>
+<strong>Locality</strong> — search by locality name</li>
 <li>
-<strong>Individual Tag</strong>: Search by tree tag number</li>
+<strong>Individual Tag</strong> — search by tree tag number</li>
 </ul>
 </div>
 <div class="section level4">
 <h4 id="advanced-filters">Advanced Filters<a class="anchor" aria-label="anchor" href="#advanced-filters"></a>
 </h4>
-<p>Click on “Advanced Filters” to expand additional search options:</p>
+<p>Click <strong>Advanced Filters</strong> to expand additional
+options:</p>
 <div class="float">
-<img src="images/app-query-advanced-filters.png" alt="Advanced filters"><div class="figcaption">Advanced filters</div>
+<img src="images/app-query-advanced-filters.png" alt="Query Builder — advanced filters"><div class="figcaption">Query Builder — advanced filters</div>
 </div>
 <ul>
 <li>
-<strong>Plot ID</strong>: Search by database plot ID</li>
+<strong>Plot ID</strong> — search by internal database plot ID</li>
 <li>
-<strong>Individual ID</strong>: Search by specific individual
+<strong>Individual ID</strong> — search by specific individual
 ID</li>
 <li>
-<strong>Taxon ID</strong>: Filter by taxonomic ID</li>
+<strong>Taxon ID</strong> — filter by taxonomic ID</li>
 <li>
-<strong>Specimen ID</strong>: Search by herbarium specimen ID</li>
+<strong>Specimen ID</strong> — search by herbarium specimen ID</li>
 <li>
-<strong>Exact match</strong>: Toggle for strict text matching</li>
+<strong>Exact match</strong> — toggle for strict text matching
+(default: partial)</li>
 </ul>
 </div>
 <div class="section level4">
 <h4 id="executing-the-query">Executing the Query<a class="anchor" aria-label="anchor" href="#executing-the-query"></a>
 </h4>
-<p>After setting your filters, click <strong>“Execute Query”</strong> to
-retrieve plot metadata. The app shows a summary of active filters before
-execution.</p>
+<p>Click <strong>Execute Query</strong> to retrieve plot metadata. The
+app automatically switches to the <strong>Results &amp;
+Extraction</strong> tab and shows the number of plots found.</p>
+<div class="float">
+<img src="images/app-query-example.gif" alt="Demo: full query workflow"><div class="figcaption">Demo: full query workflow</div>
+</div>
+<hr>
 </div>
 </div>
 <div class="section level3">
-<h3 id="phase-2-results-extraction">Phase 2: Results &amp; Extraction<a class="anchor" aria-label="anchor" href="#phase-2-results-extraction"></a>
+<h3 id="tab-2-results-extraction">Tab 2 — Results &amp; Extraction<a class="anchor" aria-label="anchor" href="#tab-2-results-extraction"></a>
 </h3>
+<p>This tab has five stacked sections that guide you from visualising
+results to downloading data.</p>
 <div class="section level4">
-<h4 id="interactive-map">Interactive Map<a class="anchor" aria-label="anchor" href="#interactive-map"></a>
+<h4 id="section-a-interactive-map">Section A — Interactive Map<a class="anchor" aria-label="anchor" href="#section-a-interactive-map"></a>
 </h4>
-<p>Query results are displayed on an interactive map with multiple
-basemap options:</p>
 <div class="float">
 <img src="images/app-query-map-view.png" alt="Interactive map with plot markers"><div class="figcaption">Interactive map with plot markers</div>
 </div>
-<p><strong>Map features:</strong></p>
 <ul>
 <li>
-<strong>Basemap layers</strong>: OpenStreetMap, Satellite,
+<strong>Basemap layers</strong> — OpenStreetMap, Satellite,
 Physical</li>
 <li>
-<strong>Clickable markers</strong>: Click to see plot details</li>
-<li>
-<strong>Popup information</strong>: Plot name, country, method,
-area</li>
+<strong>Clickable markers</strong> — show plot name, country,
+method, area</li>
+<li>Map and table are synchronised: selecting rows in the table
+highlights the corresponding markers</li>
 </ul>
 </div>
 <div class="section level4">
-<h4 id="metadata-table">Metadata Table<a class="anchor" aria-label="anchor" href="#metadata-table"></a>
+<h4 id="section-b-metadata-table">Section B — Metadata Table<a class="anchor" aria-label="anchor" href="#section-b-metadata-table"></a>
 </h4>
-<p>Below the map, a sortable and searchable table displays all plot
-metadata:</p>
 <div class="float">
 <img src="images/app-query-metadata-table.png" alt="Plot metadata table"><div class="figcaption">Plot metadata table</div>
 </div>
-<p><strong>Table features:</strong></p>
-<ul>
-<li>
-<strong>Search</strong>: Filter table contents</li>
-<li>
-<strong>Sort</strong>: Click column headers to sort</li>
-<li>
-<strong>Pagination</strong>: Navigate through large result sets</li>
-<li>
-<strong>Row selection</strong>: Click rows to select/deselect
-plots</li>
-</ul>
+<p>A sortable, searchable table of all plot metadata returned by the
+query. Click column headers to sort; use the search box to filter
+rows.</p>
 </div>
 <div class="section level4">
-<h4 id="selecting-plots">Selecting Plots<a class="anchor" aria-label="anchor" href="#selecting-plots"></a>
+<h4 id="section-c-plot-selection">Section C — Plot Selection<a class="anchor" aria-label="anchor" href="#section-c-plot-selection"></a>
 </h4>
-<p>Select specific plots for individual extraction by clicking rows in
-the table:</p>
 <div class="float">
-<img src="images/app-query-plot-selection.png" alt="Selected plots highlighted"><div class="figcaption">Selected plots highlighted</div>
+<img src="images/app-query-plot-selection.png" alt="Plot selection — selected rows highlighted"><div class="figcaption">Plot selection — selected rows highlighted</div>
 </div>
-<ul>
-<li>Selected rows are highlighted</li>
-<li>A counter shows the number of selected plots</li>
-<li>By default, all plots are selected</li>
-</ul>
+<p>Click rows to select or deselect individual plots. A counter shows
+the number of selected plots. All plots are pre-selected by default.</p>
 </div>
-</div>
-<div class="section level3">
-<h3 id="phase-3-configure-extraction">Phase 3: Configure Extraction<a class="anchor" aria-label="anchor" href="#phase-3-configure-extraction"></a>
-</h3>
 <div class="section level4">
-<h4 id="output-style">Output Style<a class="anchor" aria-label="anchor" href="#output-style"></a>
+<h4 id="section-d-extraction-configuration">Section D — Extraction Configuration<a class="anchor" aria-label="anchor" href="#section-d-extraction-configuration"></a>
 </h4>
-<p>Choose how the extracted data should be formatted:</p>
+<p>After selecting plots, configure how individual tree data should be
+extracted:</p>
 <div class="float">
 <img src="images/app-query-extraction-config.png" alt="Extraction configuration panel"><div class="figcaption">Extraction configuration panel</div>
 </div>
-<p><strong>Available styles:</strong></p>
+<p><strong>Output Style</strong> — controls which columns and tables are
+returned:</p>
 <table class="table">
+<colgroup>
+<col width="41%">
+<col width="58%">
+</colgroup>
 <thead><tr class="header">
 <th>Style</th>
-<th>Description</th>
+<th>Best for</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
 <td>Auto-detect</td>
-<td>Automatically selects based on plot method</td>
+<td>Let the app choose based on the plot method</td>
 </tr>
 <tr class="even">
 <td>Minimal</td>
-<td>Essential columns only (plot, tag, species, dbh)</td>
+<td>Quick exploration — essential columns only</td>
 </tr>
 <tr class="odd">
 <td>Standard</td>
-<td>Common columns for general ecological analysis</td>
+<td>General ecological analysis</td>
 </tr>
 <tr class="even">
 <td>Permanent Plot</td>
-<td>Single census format for permanent plot monitoring</td>
+<td>Single-census permanent plot monitoring</td>
 </tr>
 <tr class="odd">
 <td>Permanent Plot (multi-census)</td>
-<td>Preserves all census columns</td>
+<td>Time-series format with <code>_census_N</code> columns</td>
 </tr>
 <tr class="even">
 <td>Transect</td>
-<td>Simplified format for walk surveys</td>
+<td>Walk survey format</td>
 </tr>
 <tr class="odd">
 <td>Full</td>
-<td>Complete dataset with all columns</td>
+<td>Complete dataset, all columns</td>
 </tr>
 </tbody>
 </table>
-</div>
-<div class="section level4">
-<h4 id="census-handling">Census Handling<a class="anchor" aria-label="anchor" href="#census-handling"></a>
-</h4>
-<p>Configure how multiple censuses should be handled:</p>
+<p><strong>Census Handling:</strong></p>
 <div class="float">
-<img src="images/app-query-census-options.png" alt="Census handling options"><div class="figcaption">Census handling options</div>
+<img src="images/app-query-census-options.png" alt="Census options"><div class="figcaption">Census options</div>
 </div>
 <ul>
 <li>
-<strong>Census Strategy</strong>: Last census, First census, or Mean
+<strong>Census Strategy</strong> — Last (default), First, or Mean
 across censuses</li>
 <li>
-<strong>Show multiple census data</strong>: Creates separate columns
-for each census (e.g., dbh_census_1, dbh_census_2)</li>
+<strong>Show multiple census data</strong> — creates
+<code>dbh_census_1</code>, <code>dbh_census_2</code>, … columns;
+automatically selects the <em>Permanent Plot (multi-census)</em>
+style</li>
 <li>
-<strong>Individual features format</strong>: Controls the row
-structure of individual-level measurements:
+<strong>Individual features format</strong>:
 <ul>
 <li>
-<em>Wide</em> (default): one row per individual, with one column per
-trait — values are aggregated when multiple measurements exist for the
-same individual</li>
+<em>Wide</em> (default) — one row per individual, traits as columns;
+values are aggregated when multiple measurements exist for the same
+individual</li>
 <li>
-<em>Long</em>: one row per measurement — if an individual has two
-diameter records (e.g. two censuses), it appears in two rows. The output
-includes <code>trait</code>, <code>traitvalue</code> /
-<code>traitvalue_char</code>, <code>valuetype</code>,
-<code>census_name</code>, and <code>census_date</code> columns
-(<code>NA</code> when the measurement is not linked to a census). Census
-filtering (<code>census_strategy</code>) is still applied in long
-format.</li>
+<em>Long</em> — one row per measurement; includes
+<code>trait</code>, <code>traitvalue</code>, <code>census_name</code>,
+and <code>census_date</code> columns</li>
+<li>
+<em>Census pairs</em> — one row per consecutive pair of censuses per
+individual; useful for computing growth rates</li>
 </ul>
 </li>
 </ul>
-</div>
-<div class="section level4">
-<h4 id="data-organization">Data Organization<a class="anchor" aria-label="anchor" href="#data-organization"></a>
-</h4>
-<p>Control output structure:</p>
+<p><strong>Data Organisation:</strong></p>
 <ul>
 <li>
-<strong>Concatenate multiple stems</strong>: Combine data from
-multi-stemmed trees</li>
+<strong>Concatenate multiple stems</strong> — combine multi-stemmed
+tree measurements</li>
 <li>
-<strong>Remove database IDs</strong>: Hide internal ID columns for
+<strong>Remove database IDs</strong> — hide internal ID columns for
 cleaner output</li>
 <li>
-<strong>Remove observations with issues</strong>: Exclude flagged
-problematic records</li>
+<strong>Issues handling</strong> — remove, include, or ignore
+flagged records</li>
 <li>
-<strong>Include issue flags</strong>: Add quality flag columns to
-output</li>
+<strong>Include issue flags</strong> — add quality flag columns to
+the output</li>
 </ul>
-</div>
-<div class="section level4">
-<h4 id="additional-data">Additional Data<a class="anchor" aria-label="anchor" href="#additional-data"></a>
-</h4>
-<p>Select what extra information to include:</p>
+<blockquote>
+<p><strong>Note:</strong> <code>"long"</code> and
+<code>"census pairs"</code> formats are incompatible with
+<em>Concatenate multiple stems</em>; that option is automatically
+disabled when either long-format mode is selected.</p>
+</blockquote>
+<p><strong>Additional Data:</strong></p>
 <div class="float">
 <img src="images/app-query-additional-data.png" alt="Additional data options"><div class="figcaption">Additional data options</div>
 </div>
 <ul>
 <li>
-<strong>Extract taxonomic traits</strong>: Wood density, growth
+<strong>Extract taxonomic traits</strong> — wood density, growth
 form, etc.</li>
 <li>
-<strong>Extract individual-level features</strong>: Tree-specific
+<strong>Extract individual-level features</strong> — tree-specific
 measurements</li>
 <li>
-<strong>Extract subplot-level features</strong>: Subplot
+<strong>Extract subplot-level features</strong> — subplot
 characteristics</li>
 <li>
-<strong>Fallback to genus-level traits</strong>: Use genus data when
-species unavailable</li>
+<strong>Fallback to genus-level traits</strong> — use genus data
+when species traits are unavailable</li>
 </ul>
-</div>
-</div>
-<div class="section level3">
-<h3 id="phase-4-extract-and-download">Phase 4: Extract and Download<a class="anchor" aria-label="anchor" href="#phase-4-extract-and-download"></a>
-</h3>
-<div class="section level4">
-<h4 id="extraction-results">Extraction Results<a class="anchor" aria-label="anchor" href="#extraction-results"></a>
-</h4>
-<p>Click <strong>“Extract Individuals from Selected Plots”</strong> to
-retrieve detailed tree data:</p>
-<div class="float">
-<img src="images/app-query-results-display.png" alt="Results display with tabs"><div class="figcaption">Results display with tabs</div>
-</div>
-<p>Results are organized in tabs:</p>
-<ul>
-<li>
-<strong>Individuals</strong>: Tree-level measurements</li>
-<li>
-<strong>Metadata</strong>: Plot information</li>
-<li>
-<strong>Censuses</strong>: Census dates and details (if
-applicable)</li>
-<li>
-<strong>Height-Diameter</strong>: H-D pairs for allometry (if
-applicable)</li>
-</ul>
+<p>Click <strong>Extract Individuals from Selected Plots</strong> to run
+the extraction.</p>
 </div>
 <div class="section level4">
-<h4 id="download-options">Download Options<a class="anchor" aria-label="anchor" href="#download-options"></a>
+<h4 id="section-e-results-display-and-download">Section E — Results Display and Download<a class="anchor" aria-label="anchor" href="#section-e-results-display-and-download"></a>
 </h4>
-<p>Export your data in multiple formats:</p>
+<p>Results are organised in tabs: <strong>Individuals</strong>,
+<strong>Metadata</strong>, <strong>Censuses</strong>,
+<strong>Height-Diameter</strong> (when applicable), and <strong>Column
+Documentation</strong>.</p>
+<blockquote>
+<p><strong>Screenshot to add:</strong> results display showing the
+result tabs after extraction, with the Column Documentation tab visible
+(<code>app-query-results-display.png</code>).</p>
+</blockquote>
+<p>The <strong>Column Documentation</strong> tab is always present after
+extraction. It contains a searchable table describing every output
+column: its original database name, a plain-language description,
+category, unit, and any contextual notes. This is the fastest way to
+understand what each column means without consulting external
+documentation.</p>
+<p>The column documentation table is also <strong>exportable</strong>:
+select it via the download checkboxes to include it as an additional
+sheet in Excel exports, a separate CSV in the ZIP archive, or an element
+of the RDS list.</p>
+<p>Download your data using the download panel:</p>
 <div class="float">
 <img src="images/app-query-download-panel.png" alt="Download panel"><div class="figcaption">Download panel</div>
 </div>
-<p><strong>Available formats:</strong></p>
-<ul>
-<li>
-<strong>Excel (.xlsx)</strong>: Multi-sheet workbook</li>
-<li>
-<strong>CSV (zipped)</strong>: Separate CSV files in a ZIP
-archive</li>
-<li>
-<strong>R Object (.rds)</strong>: Native R format preserving data
-types</li>
-<li>
-<strong>Shapefile (.zip)</strong>: Spatial data (if coordinates
-available)</li>
-</ul>
-<p>Select which tables to include in your export using the
-checkboxes.</p>
+<table class="table">
+<colgroup>
+<col width="53%">
+<col width="46%">
+</colgroup>
+<thead><tr class="header">
+<th>Format</th>
+<th>Notes</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>Excel (.xlsx)</td>
+<td>Multi-sheet workbook, one sheet per table</td>
+</tr>
+<tr class="even">
+<td>CSV (zipped)</td>
+<td>Separate CSV files in a ZIP archive</td>
+</tr>
+<tr class="odd">
+<td>R Object (.rds)</td>
+<td>Native R format; preserves list structure and data types</td>
+</tr>
+<tr class="even">
+<td>Shapefile (.zip)</td>
+<td>Spatial data (requires coordinate columns)</td>
+</tr>
+</tbody>
+</table>
+<p>Use the checkboxes to select which tables to include before
+downloading.</p>
 </div>
-</div>
-<div class="section level3">
-<h3 id="viewing-the-equivalent-r-code">Viewing the Equivalent R Code<a class="anchor" aria-label="anchor" href="#viewing-the-equivalent-r-code"></a>
-</h3>
-<p>A key feature of the app is the <strong>“Equivalent R Code”</strong>
-panel, displayed after running queries:</p>
+<div class="section level4">
+<h4 id="section-f-equivalent-r-code">Section F — Equivalent R Code<a class="anchor" aria-label="anchor" href="#section-f-equivalent-r-code"></a>
+</h4>
+<p>After running a query or extraction, the <strong>Equivalent R
+Code</strong> panel shows the exact <code><a href="../reference/query_plots.html">query_plots()</a></code> calls
+that reproduce your results:</p>
 <div class="float">
-<img src="images/app-query-code-preview.png" alt="Code preview panel"><div class="figcaption">Code preview panel</div>
+<img src="images/app-query-code-preview.png" alt="R code preview panel"><div class="figcaption">R code preview panel</div>
 </div>
-<p>This shows the exact R code you would use with
-<code><a href="../reference/query_plots.html">query_plots()</a></code> to reproduce the same results
-programmatically.</p>
-<p><strong>Code sections:</strong></p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Metadata Query</strong>: Code to retrieve plot metadata with
-your filters</li>
-<li>
-<strong>Individual Extraction</strong>: Code to extract tree data
-with your options</li>
-<li>
-<strong>Complete Workflow Script</strong>: Full script combining
-both steps</li>
-</ol>
 <div class="float">
 <img src="images/app-query-code-complete.png" alt="Complete workflow script"><div class="figcaption">Complete workflow script</div>
 </div>
-<p><strong>Why this matters:</strong></p>
-<ul>
+<p>Three code sections are provided:</p>
+<ol style="list-style-type: decimal">
 <li>
-<strong>Learning</strong>: Understand how app options map to
-function parameters</li>
+<strong>Metadata Query</strong> — filter and retrieve plot
+metadata</li>
 <li>
-<strong>Reproducibility</strong>: Save the exact code for your
-analysis documentation</li>
+<strong>Individual Extraction</strong> — extract tree data with your
+chosen options</li>
 <li>
-<strong>Scripting</strong>: Copy code for automated workflows</li>
-<li>
-<strong>Collaboration</strong>: Share query parameters with
-colleagues</li>
-</ul>
-<p>Click <strong>“Copy to clipboard”</strong> to copy any code
-section.</p>
+<strong>Complete Workflow Script</strong> — both steps in a single
+ready-to-run script</li>
+</ol>
+<p>Click <strong>Copy to clipboard</strong> to copy any section directly
+into your R editor.</p>
+<hr>
+</div>
 </div>
 <div class="section level3">
-<h3 id="about-page">About Page<a class="anchor" aria-label="anchor" href="#about-page"></a>
+<h3 id="tab-3-statistics">Tab 3 — Statistics<a class="anchor" aria-label="anchor" href="#tab-3-statistics"></a>
 </h3>
-<p>The About tab provides app documentation and package information:</p>
+<p>The Statistics tab displays summary cards and charts that update
+automatically once individual data has been extracted:</p>
+<ul>
+<li>Total number of <strong>plots</strong> extracted</li>
+<li>Total number of <strong>individuals</strong> (stems)</li>
+<li>Number of <strong>species</strong>
+</li>
+<li>Number of <strong>families</strong>
+</li>
+<li>
+<strong>Diameter distribution</strong> histogram (when DBH data are
+available)</li>
+</ul>
+<blockquote>
+<p><strong>Screenshot to add:</strong> Statistics tab showing the four
+summary cards and the diameter histogram
+(<code>app-query-statistics.png</code>).</p>
+</blockquote>
+<hr>
+</div>
+<div class="section level3">
+<h3 id="tab-4-about">Tab 4 — About<a class="anchor" aria-label="anchor" href="#tab-4-about"></a>
+</h3>
+<p>The About tab contains a description of the app’s features and
+package metadata (version, authors, links to documentation and
+repository).</p>
 <div class="float">
 <img src="images/app-query-about-page.png" alt="About page"><div class="figcaption">About page</div>
 </div>
+<blockquote>
+<p><strong>Screenshot to update:</strong> the About page now shows
+version 1.7.2 and the updated authors list — retake if your existing
+screenshot is from an older version.</p>
+</blockquote>
+<hr>
+</div>
+<div class="section level3">
+<h3 id="from-app-to-script">From App to Script<a class="anchor" aria-label="anchor" href="#from-app-to-script"></a>
+</h3>
+<p>The typical workflow is:</p>
+<ol style="list-style-type: decimal">
+<li>Use the app to explore plots and configure options
+interactively</li>
+<li>Copy the generated code from the <strong>Equivalent R Code</strong>
+panel</li>
+<li>Paste it into your analysis script for reproducible, automated
+runs</li>
+</ol>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Example code generated by the app after selecting Cameroon 1-ha plots</span></span>
+<span></span>
+<span><span class="co"># Step 1: query metadata</span></span>
+<span><span class="va">metadata</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  country <span class="op">=</span> <span class="st">"Cameroon"</span>,</span>
+<span>  method <span class="op">=</span> <span class="st">"1 ha plot"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Step 2: extract individuals from selected plots</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  id_plot <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">5</span>, <span class="fl">12</span><span class="op">)</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  output_style <span class="op">=</span> <span class="st">"permanent_plot"</span>,</span>
+<span>  extract_traits <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  census_strategy <span class="op">=</span> <span class="st">"last"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="app-vs--function-when-to-use-each">App vs. Function: When to Use Each<a class="anchor" aria-label="anchor" href="#app-vs--function-when-to-use-each"></a>
 </h3>
 <table class="table">
-<colgroup>
-<col width="38%">
-<col width="61%">
-</colgroup>
 <thead><tr class="header">
-<th>Use Case</th>
+<th>Use case</th>
 <th>Recommendation</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>Quick data exploration</td>
-<td>Use the app</td>
+<td>First exploration, unknown plot IDs</td>
+<td>App</td>
 </tr>
 <tr class="even">
-<td>Interactive plot selection on a map</td>
-<td>Use the app</td>
+<td>Interactive map selection</td>
+<td>App</td>
 </tr>
 <tr class="odd">
 <td>Learning function parameters</td>
-<td>Start with the app, copy generated code</td>
+<td>App — copy generated code</td>
 </tr>
 <tr class="even">
 <td>Reproducible analysis scripts</td>
-<td>Use <code><a href="../reference/query_plots.html">query_plots()</a></code>
-</td>
+<td><code><a href="../reference/query_plots.html">query_plots()</a></code></td>
 </tr>
 <tr class="odd">
 <td>Automated data pipelines</td>
-<td>Use <code><a href="../reference/query_plots.html">query_plots()</a></code>
-</td>
+<td><code><a href="../reference/query_plots.html">query_plots()</a></code></td>
 </tr>
 <tr class="even">
-<td>Processing many queries</td>
-<td>Use <code><a href="../reference/query_plots.html">query_plots()</a></code>
-</td>
+<td>Batch processing many queries</td>
+<td><code><a href="../reference/query_plots.html">query_plots()</a></code></td>
 </tr>
 </tbody>
 </table>
+<hr>
 </div>
-<div class="section level3">
-<h3 id="language-selection">Language Selection<a class="anchor" aria-label="anchor" href="#language-selection"></a>
-</h3>
-<p>The app supports <strong>bilingual operation</strong> (French and
-English). French is the default language.</p>
-<p>A language toggle is located in the top-right corner:</p>
-<ul>
-<li>Click <strong>“FR”</strong> for French interface</li>
-<li>Click <strong>“EN”</strong> for English interface</li>
-</ul>
-<p>The switch is instant and affects all UI elements.</p>
 </div>
+<div class="section level2">
+<h2 id="part-2-query_plots-function">Part 2 — <code>query_plots()</code> Function<a class="anchor" aria-label="anchor" href="#part-2-query_plots-function"></a>
+</h2>
 <div class="section level3">
-<h3 id="example-from-app-to-script">Example: From App to Script<a class="anchor" aria-label="anchor" href="#example-from-app-to-script"></a>
+<h3 id="database-connection">Database Connection<a class="anchor" aria-label="anchor" href="#database-connection"></a>
 </h3>
-<p>Here’s how the app helps you build reproducible queries:</p>
-<ol style="list-style-type: decimal">
-<li><p><strong>In the app</strong>: Select Cameroon, filter by “1 ha
-plot” method, extract with traits</p></li>
-<li><p><strong>Copy the generated code</strong>:</p></li>
-</ol>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Query plot metadata</span></span>
-<span><span class="va">metadata</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  country <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Cameroon"</span><span class="op">)</span>,</span>
-<span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"1 ha plot"</span><span class="op">)</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># Recommended: interactive credential prompt</span></span>
+<span><span class="va">mydb</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Extract individual tree data from selected plots</span></span>
-<span><span class="va">individuals</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  id_plot <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">5</span>, <span class="fl">12</span><span class="op">)</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  output_style <span class="op">=</span> <span class="st">"permanent_plot"</span>,</span>
-<span>  extract_traits <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  extract_individual_features <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<ol start="3" style="list-style-type: decimal">
-<li>
-<strong>Use in your analysis script</strong> for reproducible
-research</li>
-</ol>
-</div>
-</div>
-<div class="section level2">
-<h2 id="basic-usage">Basic Usage<a class="anchor" aria-label="anchor" href="#basic-usage"></a>
-</h2>
-<div class="section level3">
-<h3 id="query-plot-metadata-only">Query Plot Metadata Only<a class="anchor" aria-label="anchor" href="#query-plot-metadata-only"></a>
-</h3>
-<p>To retrieve only plot-level information without individual tree
-data:</p>
+<span><span class="co"># Use credentials stored in ~/.Renviron</span></span>
+<span><span class="va">mydb</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span>use_env_credentials <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<p>The taxa database connection is created automatically inside
+<code><a href="../reference/query_plots.html">query_plots()</a></code> when needed. Supply it explicitly via
+<code>con.taxa</code> to reuse an existing connection and avoid repeated
+prompts:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Query by plot name</span></span>
-<span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="va">mydb</span>      <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">mydb_taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  con      <span class="op">=</span> <span class="va">mydb</span>,</span>
+<span>  con.taxa <span class="op">=</span> <span class="va">mydb_taxa</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="basic-usage">Basic Usage<a class="anchor" aria-label="anchor" href="#basic-usage"></a>
+</h3>
+<div class="section level4">
+<h4 id="metadata-only-no-tree-data">Metadata only (no tree data)<a class="anchor" aria-label="anchor" href="#metadata-only-no-tree-data"></a>
+</h4>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># View the structure</span></span>
-<span><span class="va">plots</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">Query Results</span> <span style="color: #00BBBB;">───────────────────────────────────────────────────────────────</span></span></span>
-<span><span class="co">#&gt; Output style: <span style="font-weight: bold;">permanent_plot</span> - Organized output for permanent plot monitoring</span></span>
-<span><span class="co">#&gt; (single or most recent census)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">$metadata</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; 1 rows × 16 columns</span></span>
-<span><span class="co">#&gt; Columns: plot_id, plot_name, country, locality_name, method, latitude,</span></span>
-<span><span class="co">#&gt; longitude, elevation, ...</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="font-style: italic;">Access tables with: $metadata, $individuals, etc.</span></span></span>
-<span><span class="co">#&gt; <span style="font-style: italic;">Use names(result) to see all available tables</span></span></span></code></pre></div>
+<span><span class="op">)</span></span>
+<span><span class="va">plots</span><span class="op">$</span><span class="va">metadata</span></span></code></pre></div>
 </div>
-<div class="section level3">
-<h3 id="query-plots-with-individual-trees">Query Plots with Individual Trees<a class="anchor" aria-label="anchor" href="#query-plots-with-individual-trees"></a>
-</h3>
-<p>To include individual tree/stem measurements:</p>
+<div class="section level4">
+<h4 id="including-individual-trees">Including individual trees<a class="anchor" aria-label="anchor" href="#including-individual-trees"></a>
+</h4>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">plots_with_trees</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># The result is a structured list</span></span>
-<span><span class="va">plots_with_trees</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">──</span> <span style="font-weight: bold;">Query Results</span> <span style="color: #00BBBB;">───────────────────────────────────────────────────────────────</span></span></span>
-<span><span class="co">#&gt; Output style: <span style="font-weight: bold;">permanent_plot</span> - Organized output for permanent plot monitoring</span></span>
-<span><span class="co">#&gt; (single or most recent census)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">$metadata</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; 1 rows × 16 columns</span></span>
-<span><span class="co">#&gt; Columns: plot_id, plot_name, country, locality_name, method, latitude,</span></span>
-<span><span class="co">#&gt; longitude, elevation, ...</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">$individuals</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; 447 rows × 27 columns</span></span>
-<span><span class="co">#&gt; Columns: id_n, plot_name, tag, family, genus, species, dbh, quadrat, ...</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">$height_diameter</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; 46 rows × 8 columns</span></span>
-<span><span class="co">#&gt; Columns: id_n, plot_name, tag, D, H, POM, census_name, census_date</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="font-style: italic;">Access tables with: $metadata, $individuals, etc.</span></span></span>
-<span><span class="co">#&gt; <span style="font-style: italic;">Use names(result) to see all available tables</span></span></span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="output-styles-system-v1-5">Output Styles System (v1.5+)<a class="anchor" aria-label="anchor" href="#output-styles-system-v1-5"></a>
-</h2>
-<p>Starting in version 1.5, <code><a href="../reference/query_plots.html">query_plots()</a></code> returns
-<strong>structured lists</strong> instead of flat data frames. The
-structure adapts automatically based on the inventory method.</p>
-<div class="section level3">
-<h3 id="available-output-styles">Available Output Styles<a class="anchor" aria-label="anchor" href="#available-output-styles"></a>
-</h3>
-<ul>
-<li>
-<strong><code>minimal</code></strong>: Essential plot metadata only,
-no features or traits</li>
-<li>
-<strong><code>standard</code></strong>: Standard analysis output
-with common features (default for unknown methods)</li>
-<li>
-<strong><code>permanent_plot</code></strong>: Organized tables for
-permanent plot monitoring (single census)</li>
-<li>
-<strong><code>permanent_plot_multi_census</code></strong>:
-Multi-census data with _census_N columns</li>
-<li>
-<strong><code>transect</code></strong>: Simplified output for
-transect/walk surveys</li>
-<li>
-<strong><code>full</code></strong>: Complete export with all columns
-(preserves v1.4 behavior)</li>
-</ul>
-</div>
-<div class="section level3">
-<h3 id="auto-detection-based-on-method">Auto-Detection Based on Method<a class="anchor" aria-label="anchor" href="#auto-detection-based-on-method"></a>
-</h3>
-<p>The output style is automatically detected from the plot’s
-<code>method</code> field:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># For a permanent plot (method = "1 ha plot")</span></span>
-<span><span class="va">perm_plot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Automatically uses 'permanent_plot' style</span></span>
-<span><span class="co"># Returns: $metadata, $individuals, $censuses, $height_diameter</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">perm_plot</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="manual-style-selection">Manual Style Selection<a class="anchor" aria-label="anchor" href="#manual-style-selection"></a>
-</h3>
-<p>Override automatic detection by specifying
-<code>output_style</code>:</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Force minimal output</span></span>
-<span><span class="va">minimal_output</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  output_style <span class="op">=</span> <span class="st">"minimal"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Force full output (v1.4 behavior - flat data frame)</span></span>
-<span><span class="va">full_output</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  output_style <span class="op">=</span> <span class="st">"full"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="understanding-the-structured-output">Understanding the Structured Output<a class="anchor" aria-label="anchor" href="#understanding-the-structured-output"></a>
-</h3>
-<p>For permanent plots with <code>extract_individuals = TRUE</code>:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Metadata table: plot-level information</span></span>
-<span><span class="va">result</span><span class="op">$</span><span class="va">metadata</span></span>
-<span><span class="co">#   plot_id | plot_name | country | latitude | longitude | elevation | ...</span></span>
-<span></span>
-<span><span class="co"># Individuals table: tree measurements</span></span>
-<span><span class="va">result</span><span class="op">$</span><span class="va">individuals</span></span>
-<span><span class="co">#   id_n | plot_name | tag | family | genus | species | dbh | height | ...</span></span>
-<span></span>
-<span><span class="co"># Censuses table: census information</span></span>
-<span><span class="va">result</span><span class="op">$</span><span class="va">censuses</span></span>
-<span><span class="co">#   plot_name | census_number | census_date | team_leader | ...</span></span>
-<span></span>
-<span><span class="co"># Height-diameter pairs: for allometric analysis</span></span>
-<span><span class="va">result</span><span class="op">$</span><span class="va">height_diameter</span></span>
-<span><span class="co">#   id_n | plot_name | tag | D | H | POM | census</span></span>
-<span></span>
-<span><span class="co"># Spatial data (if show_all_coordinates = TRUE)</span></span>
-<span><span class="va">result</span><span class="op">$</span><span class="va">coordinates_sf</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span>       <span class="co"># e.g. metadata, individuals, censuses, height_diameter</span></span>
+<span><span class="va">result</span><span class="op">$</span><span class="va">individuals</span>  <span class="co"># one row per stem</span></span>
+<span><span class="va">result</span><span class="op">$</span><span class="va">censuses</span>     <span class="co"># census dates and team information</span></span></code></pre></div>
 </div>
-</div>
-<div class="section level2">
-<h2 id="filtering-options">Filtering Options<a class="anchor" aria-label="anchor" href="#filtering-options"></a>
-</h2>
-<div class="section level3">
-<h3 id="by-location">By Location<a class="anchor" aria-label="anchor" href="#by-location"></a>
-</h3>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># By country</span></span>
-<span><span class="va">cameroon_plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  country <span class="op">=</span> <span class="st">"Cameroon"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># By locality</span></span>
-<span><span class="va">dja_plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  locality_name <span class="op">=</span> <span class="st">"Dja"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="by-method">By Method<a class="anchor" aria-label="anchor" href="#by-method"></a>
+<h3 id="output-styles">Output Styles<a class="anchor" aria-label="anchor" href="#output-styles"></a>
 </h3>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Get all permanent plots</span></span>
-<span><span class="va">permanent_plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  method <span class="op">=</span> <span class="st">"1 ha plot"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Get all transects</span></span>
-<span><span class="va">transects</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  method <span class="op">=</span> <span class="st">"Long Transect"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="by-plot-id">By Plot ID<a class="anchor" aria-label="anchor" href="#by-plot-id"></a>
-</h3>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Query specific plot IDs</span></span>
-<span><span class="va">plots_by_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  id_plot <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="working-with-individual-tree-data">Working with Individual Tree Data<a class="anchor" aria-label="anchor" href="#working-with-individual-tree-data"></a>
-</h2>
-<div class="section level3">
-<h3 id="basic-tree-extraction">Basic Tree Extraction<a class="anchor" aria-label="anchor" href="#basic-tree-extraction"></a>
-</h3>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">trees</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<p><code><a href="../reference/query_plots.html">query_plots()</a></code> always returns a <strong>named
+list</strong>. The tables included and the columns kept depend on
+<code>output_style</code>. Built-in styles:</p>
+<table class="table">
+<colgroup>
+<col width="33%">
+<col width="27%">
+<col width="39%">
+</colgroup>
+<thead><tr class="header">
+<th><code>output_style</code></th>
+<th>Description</th>
+<th>Additional tables</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>"auto"</code></td>
+<td>Detected from plot <code>method</code> (default)</td>
+<td>varies</td>
+</tr>
+<tr class="even">
+<td><code>"minimal"</code></td>
+<td>Essential plot metadata only</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>"standard"</code></td>
+<td>General-purpose output for analysis</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><code>"permanent_plot"</code></td>
+<td>Permanent plot monitoring, single/most-recent census</td>
+<td>
+<code>censuses</code>, <code>height_diameter</code>
+</td>
+</tr>
+<tr class="odd">
+<td><code>"permanent_plot_multi_census"</code></td>
+<td>Multi-census wide format (<code>_census_N</code> columns)</td>
+<td>
+<code>censuses</code>, <code>height_diameter</code>
+</td>
+</tr>
+<tr class="even">
+<td><code>"transect"</code></td>
+<td>Simplified output for transect / walk surveys</td>
+<td>—</td>
+</tr>
+<tr class="odd">
+<td><code>"census_pairs"</code></td>
+<td>One row per consecutive census pair per individual</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td><code>"full"</code></td>
+<td>Keep every metadata and individual column</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Auto-detect from method (recommended)</span></span>
+<span><span class="va">result_auto</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Access individual tree data</span></span>
-<span><span class="va">trees</span><span class="op">$</span><span class="va">individuals</span></span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="handling-multiple-censuses">Handling Multiple Censuses<a class="anchor" aria-label="anchor" href="#handling-multiple-censuses"></a>
-</h2>
-<div class="section level3">
-<h3 id="show-multiple-census-data">Show Multiple Census Data<a class="anchor" aria-label="anchor" href="#show-multiple-census-data"></a>
-</h3>
-<p>By default, only the most recent census is returned. To see all
-censuses:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">multi_census</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo"</span>,</span>
+<span><span class="co"># Force a specific style</span></span>
+<span><span class="va">result_perm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  show_multiple_census <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  output_style <span class="op">=</span> <span class="st">"permanent_plot"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Automatically uses 'permanent_plot_multi_census' style</span></span>
-<span><span class="co"># Census-specific columns: dbh_census_1, dbh_census_2, height_census_1, ...</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">multi_census</span><span class="op">$</span><span class="va">individuals</span><span class="op">)</span></span>
+<span><span class="co"># Full output keeps every column on the metadata and individuals tables</span></span>
+<span><span class="va">result_full</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  output_style <span class="op">=</span> <span class="st">"full"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">result_full</span><span class="op">$</span><span class="va">individuals</span><span class="op">)</span></span></code></pre></div>
+<div class="section level4">
+<h4 id="inspecting-built-in-styles">Inspecting built-in styles<a class="anchor" aria-label="anchor" href="#inspecting-built-in-styles"></a>
+</h4>
+<p>Two helper functions let you discover what each style does without
+leaving R:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Summary table of all built-in styles</span></span>
+<span><span class="fu"><a href="../reference/list_output_styles.html">list_output_styles</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Censuses table shows all census dates</span></span>
-<span><span class="va">multi_census</span><span class="op">$</span><span class="va">censuses</span></span>
+<span><span class="co"># Full configuration of a single style, with a pretty print method</span></span>
+<span><span class="fu"><a href="../reference/get_output_style.html">get_output_style</a></span><span class="op">(</span><span class="st">"permanent_plot"</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Height-diameter table has one row per measurement</span></span>
-<span><span class="va">multi_census</span><span class="op">$</span><span class="va">height_diameter</span></span></code></pre></div>
+<span><span class="co"># Drop the class to access fields programmatically</span></span>
+<span><span class="va">cfg</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">unclass</a></span><span class="op">(</span><span class="fu"><a href="../reference/get_output_style.html">get_output_style</a></span><span class="op">(</span><span class="st">"permanent_plot"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">cfg</span><span class="op">$</span><span class="va">metadata_columns</span></span>
+<span><span class="va">cfg</span><span class="op">$</span><span class="va">remove_patterns</span></span></code></pre></div>
+<p><code><a href="../reference/list_output_styles.html">list_output_styles()</a></code> returns a tibble with one row per
+style and counts of explicit columns / regex patterns.
+<code><a href="../reference/get_output_style.html">get_output_style()</a></code> returns a <code>plot_output_style</code>
+object whose print method groups fields by purpose (column selection,
+regex filters, renames, additional tables, flags).</p>
+</div>
+<div class="section level4">
+<h4 id="custom-output-styles">Custom output styles<a class="anchor" aria-label="anchor" href="#custom-output-styles"></a>
+</h4>
+<p>If none of the built-in styles fits, build your own with
+<code><a href="../reference/output_style.html">output_style()</a></code> and pass the resulting object straight to
+<code><a href="../reference/query_plots.html">query_plots()</a></code>:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">my_style</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/output_style.html">output_style</a></span><span class="op">(</span></span>
+<span>  description         <span class="op">=</span> <span class="st">"Just IDs and species"</span>,</span>
+<span>  metadata_columns    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"plot_name"</span>, <span class="st">"country"</span>, <span class="st">"id_liste_plots"</span><span class="op">)</span>,</span>
+<span>  individuals_columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"id_n"</span>, <span class="st">"tag"</span>, <span class="st">"tax_fam"</span>, <span class="st">"tax_gen"</span>, <span class="st">"tax_sp_level"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name           <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  output_style        <span class="op">=</span> <span class="va">my_style</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Use <code>based_on</code> to start from an existing style and
+override only the fields you want to change. <strong>Override semantics
+are “replace, not append”</strong>: any field you pass replaces the
+parent’s value entirely. To clear a vector field while inheriting the
+rest, pass an empty vector (<code>remove_patterns = character()</code>);
+to inherit unchanged, leave it unspecified.</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Start from permanent_plot, but drop all trait_* columns from the output</span></span>
+<span><span class="va">perm_no_traits</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/output_style.html">output_style</a></span><span class="op">(</span></span>
+<span>  based_on        <span class="op">=</span> <span class="st">"permanent_plot"</span>,</span>
+<span>  remove_patterns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>    <span class="st">"^id_(?!n|liste_plots)"</span>, <span class="st">"^date_modif"</span>,</span>
+<span>    <span class="st">"_census_\\d+$"</span>, <span class="st">"^trait_"</span></span>
+<span>  <span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">perm_no_traits</span>   <span class="co"># pretty-printed summary</span></span>
+<span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name           <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  output_style        <span class="op">=</span> <span class="va">perm_no_traits</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>Custom style objects live only in the current R session. To reuse
+one, assign it to a variable, save it with <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code>, or
+put the constructor call in your <code>.Rprofile</code> / a project
+script.</p>
+</div>
+<div class="section level4">
+<h4 id="keep_patterns-and-remove_patterns">
+<code>keep_patterns</code> and <code>remove_patterns</code><a class="anchor" aria-label="anchor" href="#keep_patterns-and-remove_patterns"></a>
+</h4>
+<p>Beyond the explicit <code>metadata_columns</code> /
+<code>individuals_columns</code> lists, every style supports two
+regex-based filters applied on top of the column selection:</p>
+<ul>
+<li>
+<strong><code>keep_patterns</code></strong> — Perl-compatible
+regexes. Any column whose name matches <strong>any</strong> pattern is
+<em>added</em> to the keep list (useful for grabbing whole groups of
+feature columns like <code>^feat_</code> or
+<code>wood_density</code>).</li>
+<li>
+<strong><code>remove_patterns</code></strong> — applied
+<strong>after</strong> <code>keep_patterns</code> to drop columns. Often
+used to remove internal IDs (<code>"^id_(?!n|liste_plots)"</code>),
+modification timestamps (<code>"^date_modif"</code>), or per-census
+suffix columns (<code>"_census_\\d+$"</code>).</li>
+</ul>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Keep every wood density and stem diameter column, drop internal IDs</span></span>
+<span><span class="va">my_style</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/output_style.html">output_style</a></span><span class="op">(</span></span>
+<span>  based_on        <span class="op">=</span> <span class="st">"standard"</span>,</span>
+<span>  keep_patterns   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"wood_density"</span>, <span class="st">"stem_diameter"</span><span class="op">)</span>,</span>
+<span>  remove_patterns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"^id_(?!n|liste_plots)"</span>, <span class="st">"^date_modif"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level3">
-<h3 id="long-format-one-row-per-measurement">Long Format: One Row per Measurement<a class="anchor" aria-label="anchor" href="#long-format-one-row-per-measurement"></a>
+<h3 id="filtering-options">Filtering Options<a class="anchor" aria-label="anchor" href="#filtering-options"></a>
 </h3>
-<p>The default output (<code>individual_features_format = "wide"</code>)
-places each trait in its own column, aggregating when multiple
-measurements exist. Use <code>"long"</code> to keep every measurement on
-its own row instead:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">trees_long</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># By country</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"Cameroon"</span>, extract_individuals <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># By method</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>method <span class="op">=</span> <span class="st">"1 ha plot"</span>, extract_individuals <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Multiple countries or methods</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Cameroon"</span>, <span class="st">"Gabon"</span><span class="op">)</span>, extract_individuals <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># By locality</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>locality_name <span class="op">=</span> <span class="st">"Dja"</span>, extract_individuals <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># By plot ID (most efficient when IDs are already known)</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>id_plot <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span>, extract_individuals <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># By individual tag (implies extract_individuals = TRUE)</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>, tag <span class="op">=</span> <span class="st">"1234"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># By taxon ID</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>, id_tax <span class="op">=</span> <span class="fl">115</span>, extract_individuals <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># By herbarium specimen ID</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>id_specimen <span class="op">=</span> <span class="fl">42</span>, extract_individuals <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Exact plot name match (default is partial)</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>, exact_match <span class="op">=</span> <span class="cn">TRUE</span>, extract_individuals <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="handling-multiple-censuses">Handling Multiple Censuses<a class="anchor" aria-label="anchor" href="#handling-multiple-censuses"></a>
+</h3>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Last census only (default)</span></span>
+<span><span class="va">last</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  census_strategy <span class="op">=</span> <span class="st">"last"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># First census</span></span>
+<span><span class="va">first</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  census_strategy <span class="op">=</span> <span class="st">"first"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Mean values across all censuses</span></span>
+<span><span class="va">averaged</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  census_strategy <span class="op">=</span> <span class="st">"mean"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># All censuses as separate columns (dbh_census_1, dbh_census_2, …)</span></span>
+<span><span class="va">multi</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  show_multiple_census <span class="op">=</span> <span class="cn">TRUE</span>   <span class="co"># automatically uses permanent_plot_multi_census style</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">multi</span><span class="op">$</span><span class="va">censuses</span>   <span class="co"># census dates</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">multi</span><span class="op">$</span><span class="va">individuals</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="individual-features-format">Individual Features Format<a class="anchor" aria-label="anchor" href="#individual-features-format"></a>
+</h3>
+<p>Three row structures are available:</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Wide (default): one row per individual, traits as columns</span></span>
+<span><span class="va">wide</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  individual_features_format <span class="op">=</span> <span class="st">"wide"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Long: one row per measurement</span></span>
+<span><span class="va">long</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  individual_features_format <span class="op">=</span> <span class="st">"long"</span></span>
 <span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Each row is one measurement for one individual</span></span>
-<span><span class="co"># Columns: trait, traitvalue / traitvalue_char, valuetype,</span></span>
-<span><span class="co">#          census_name (e.g. "census_3"), census_date (NA if not census-linked)</span></span>
-<span><span class="va">trees_long</span><span class="op">$</span><span class="va">individuals</span> <span class="op">|&gt;</span></span>
+<span><span class="co"># Extra columns: trait, traitvalue, traitvalue_char, valuetype, census_name, census_date</span></span>
+<span><span class="va">long</span><span class="op">$</span><span class="va">individuals</span> <span class="op">|&gt;</span></span>
 <span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">plot_name</span>, <span class="va">tag</span>, <span class="va">tax_sp_level</span>, <span class="va">trait</span>, <span class="va">traitvalue</span>, <span class="va">census_name</span>, <span class="va">census_date</span><span class="op">)</span></span></code></pre></div>
-<p>In long format, an individual with two diameter measurements
-(e.g. from two censuses) appears in two rows. Measurements not linked to
-any census (e.g. position coordinates) have
-<code>census_name = NA</code> and <code>census_date = NA</code>.</p>
-<p>Census filtering still applies: with
-<code>census_strategy = "last"</code> (the default), only measurements
-from the most recent census are returned for census-linked traits, while
-non-census measurements are always included.</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Census pairs: one row per consecutive census pair per individual</span></span>
+<span><span class="co"># Useful for computing diameter growth between censuses</span></span>
+<span><span class="va">pairs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  individual_features_format <span class="op">=</span> <span class="st">"census_pairs"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co"># Output style is automatically set to "census_pairs"</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="taxonomic-backbone">Taxonomic Backbone<a class="anchor" aria-label="anchor" href="#taxonomic-backbone"></a>
+</h3>
 <div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Long format keeping only the first census</span></span>
-<span><span class="va">trees_long_first</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<code class="sourceCode R"><span><span class="co"># Internal taxonomy (default)</span></span>
+<span><span class="va">result_internal</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
 <span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  individual_features_format <span class="op">=</span> <span class="st">"long"</span>,</span>
-<span>  census_strategy <span class="op">=</span> <span class="st">"first"</span></span>
+<span>  backbone <span class="op">=</span> <span class="st">"internal"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># WCVP (World Checklist of Vascular Plants)</span></span>
+<span><span class="va">result_wcvp</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  backbone <span class="op">=</span> <span class="st">"wcvp"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p>Long format is particularly useful when you need to work with raw
-measurement values rather than aggregated summaries, or when you want to
-compute your own statistics across multiple measurements.</p>
 </div>
-</div>
-<div class="section level2">
-<h2 id="column-renaming">Column Renaming<a class="anchor" aria-label="anchor" href="#column-renaming"></a>
-</h2>
-<p>The output styles automatically rename database columns to
-user-friendly names:</p>
+<div class="section level3">
+<h3 id="additional-data-options">Additional Data Options<a class="anchor" aria-label="anchor" href="#additional-data-options"></a>
+</h3>
 <div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Database names → User-friendly names</span></span>
-<span><span class="co"># ddlat → latitude</span></span>
-<span><span class="co"># ddlon → longitude</span></span>
-<span><span class="co"># tax_fam → family</span></span>
-<span><span class="co"># tax_gen → genus</span></span>
-<span><span class="co"># tax_sp_level → species</span></span>
-<span><span class="co"># stem_diameter → dbh</span></span>
-<span><span class="co"># tree_height → height</span></span>
-<span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">metadata</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">individuals</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="spatial-data">Spatial Data<a class="anchor" aria-label="anchor" href="#spatial-data"></a>
-</h2>
-<div class="section level3">
-<h3 id="plot-coordinates">Plot Coordinates<a class="anchor" aria-label="anchor" href="#plot-coordinates"></a>
-</h3>
-<p>By default, returns one coordinate per plot:</p>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  country <span class="op">=</span> <span class="st">"Gabon"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">plots</span><span class="op">$</span><span class="va">metadata</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"plot_name"</span>, <span class="st">"latitude"</span>, <span class="st">"longitude"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="all-coordinates">All Coordinates<a class="anchor" aria-label="anchor" href="#all-coordinates"></a>
-</h3>
-<p>Some plots have multiple coordinate points (corners, subplot
-centers):</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">plots_all_coords</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  show_all_coordinates <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Returns sf object with all coordinate points</span></span>
-<span><span class="va">plots_all_coords</span><span class="op">$</span><span class="va">coordinates_sf</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="interactive-map-1">Interactive Map<a class="anchor" aria-label="anchor" href="#interactive-map-1"></a>
-</h3>
-<p>Visualize plot locations:</p>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  country <span class="op">=</span> <span class="st">"Cameroon"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  map <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  extract_traits            <span class="op">=</span> <span class="cn">TRUE</span>,   <span class="co"># taxonomic traits (wood density, growth form …)</span></span>
+<span>  extract_individual_features <span class="op">=</span> <span class="cn">TRUE</span>, <span class="co"># tree-level measurements</span></span>
+<span>  extract_subplot_features  <span class="op">=</span> <span class="cn">TRUE</span>,   <span class="co"># subplot characteristics</span></span>
+<span>  traits_to_genera          <span class="op">=</span> <span class="cn">FALSE</span>,  <span class="co"># fall back to genus-level when species traits absent</span></span>
+<span>  wd_fam_level              <span class="op">=</span> <span class="cn">FALSE</span>,  <span class="co"># fall back to family-level wood density</span></span>
+<span>  include_liana             <span class="op">=</span> <span class="cn">FALSE</span>   <span class="co"># set TRUE to keep lianas in the output</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
+<div class="section level3">
+<h3 id="spatial-data">Spatial Data<a class="anchor" aria-label="anchor" href="#spatial-data"></a>
+</h3>
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Default: one representative coordinate per plot</span></span>
+<span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"Gabon"</span>, extract_individuals <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="va">plots</span><span class="op">$</span><span class="va">metadata</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"plot_name"</span>, <span class="st">"latitude"</span>, <span class="st">"longitude"</span><span class="op">)</span><span class="op">]</span></span>
+<span></span>
+<span><span class="co"># All coordinate points (corners, subplot centres …)</span></span>
+<span><span class="va">all_coords</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo"</span>,</span>
+<span>  extract_individuals   <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  extract_coordinates   <span class="op">=</span> <span class="cn">TRUE</span>   <span class="co"># replaces deprecated show_all_coordinates</span></span>
+<span><span class="op">)</span></span>
+<span><span class="va">all_coords</span><span class="op">$</span><span class="va">coordinates_sf</span>        <span class="co"># sf object</span></span></code></pre></div>
+<blockquote>
+<p><strong>Note:</strong> <code>show_all_coordinates</code> was
+deprecated in v1.9.4. Use <code>extract_coordinates</code> instead.</p>
+</blockquote>
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Display an interactive Leaflet map (opens in the RStudio Viewer)</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"Cameroon"</span>, extract_individuals <span class="op">=</span> <span class="cn">FALSE</span>, map <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="advanced-options">Advanced Options<a class="anchor" aria-label="anchor" href="#advanced-options"></a>
-</h2>
 <div class="section level3">
 <h3 id="keeping-database-ids">Keeping Database IDs<a class="anchor" aria-label="anchor" href="#keeping-database-ids"></a>
 </h3>
-<p>By default, internal IDs are removed. To keep them:</p>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
+<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  remove_ids   <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  output_style <span class="op">=</span> <span class="st">"full"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">extract</span><span class="op">)</span>  <span class="co"># includes id_liste_plots, id_census, id_n …</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="handling-data-quality-issues">Handling Data Quality Issues<a class="anchor" aria-label="anchor" href="#handling-data-quality-issues"></a>
+</h3>
 <div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">with_ids</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  remove_ids <span class="op">=</span> <span class="cn">FALSE</span>, output_style <span class="op">=</span> <span class="st">"full"</span></span>
+<code class="sourceCode R"><span><span class="co"># Remove flagged records (default)</span></span>
+<span><span class="va">clean</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>, extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  issues <span class="op">=</span> <span class="st">"remove"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Now includes id_liste_plots, id_census, etc.</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">with_ids</span><span class="op">$</span><span class="va">extract</span><span class="op">)</span></span></code></pre></div>
+<span><span class="co"># Include all records regardless of flags</span></span>
+<span><span class="va">all_records</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>, extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  issues <span class="op">=</span> <span class="st">"include"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Keep flagged records but add quality flag columns</span></span>
+<span><span class="va">with_flags</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>, extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  issues <span class="op">=</span> <span class="st">"ignore"</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="filtering-by-individual-id">Filtering by Individual ID<a class="anchor" aria-label="anchor" href="#filtering-by-individual-id"></a>
+<h3 id="complex-query-example">Complex Query Example<a class="anchor" aria-label="anchor" href="#complex-query-example"></a>
 </h3>
-<p>Extract specific individuals:</p>
 <div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">specific_trees</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  id_individual <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1001</span>, <span class="fl">1002</span>, <span class="fl">1003</span><span class="op">)</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="filtering-by-taxon">Filtering by Taxon<a class="anchor" aria-label="anchor" href="#filtering-by-taxon"></a>
-</h3>
-<p>Extract individuals of specific taxa:</p>
-<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">species_trees</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
-<span>  id_tax <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">115</span><span class="op">)</span>,  <span class="co"># Taxon IDs</span></span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="custom-output-styles">Custom Output Styles<a class="anchor" aria-label="anchor" href="#custom-output-styles"></a>
-</h2>
-<p>The <code>keep_patterns</code> and <code>remove_patterns</code>
-options in style configurations allow customization (NOY YET
-IMPLEMENTED):</p>
-<div class="sourceCode" id="cb26"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># In your custom style configuration:</span></span>
-<span><span class="co"># keep_patterns = c("^feat_wood", "^trait_leaf")</span></span>
-<span><span class="co"># This keeps wood features and leaf traits while removing others</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="combining-options">Combining Options<a class="anchor" aria-label="anchor" href="#combining-options"></a>
-</h2>
-<p>Complex queries combining multiple filters:</p>
-<div class="sourceCode" id="cb27"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">complex_result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  country <span class="op">=</span> <span class="st">"Cameroon"</span>,</span>
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
+<span>  country      <span class="op">=</span> <span class="st">"Cameroon"</span>,</span>
 <span>  locality_name <span class="op">=</span> <span class="st">"Dja"</span>,</span>
-<span>  method <span class="op">=</span> <span class="st">"1 ha plot"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  extract_traits <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  method       <span class="op">=</span> <span class="st">"1 ha plot"</span>,</span>
+<span>  extract_individuals         <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  extract_traits              <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  extract_individual_features <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  show_multiple_census <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  show_all_coordinates <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  remove_ids <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  output_style <span class="op">=</span> <span class="st">"permanent_plot_multi_census"</span></span>
+<span>  show_multiple_census        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  extract_coordinates         <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  remove_ids                  <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  output_style                <span class="op">=</span> <span class="st">"permanent_plot_multi_census"</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Returns comprehensive structured output</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">complex_result</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span></span></code></pre></div>
+</div>
 </div>
 <div class="section level2">
 <h2 id="performance-tips">Performance Tips<a class="anchor" aria-label="anchor" href="#performance-tips"></a>
 </h2>
 <ol style="list-style-type: decimal">
-<li>
-<strong>Start with metadata only</strong>: Use
-<code>extract_individuals = FALSE</code> when exploring</li>
-<li>
-<strong>Use specific filters</strong>: Reduce query time by
-filtering by plot_name or id_plot</li>
-<li>
-<strong>Limit traits</strong>: Only use
-<code>extract_traits = TRUE</code> when needed</li>
-<li>
-<strong>Choose appropriate style</strong>: Use <code>minimal</code>
-or <code>standard</code> for quick analyses</li>
+<li>Start with <code>extract_individuals = FALSE</code> to explore
+metadata before pulling tree data</li>
+<li>Filter by <code>id_plot</code> when plot IDs are already known — it
+is the most efficient route</li>
+<li>Enable <code>extract_traits</code> and
+<code>extract_individual_features</code> only when needed</li>
+<li>Choose the most specific <code>output_style</code> to avoid loading
+unused columns</li>
 </ol>
 </div>
 <div class="section level2">
 <h2 id="troubleshooting">Troubleshooting<a class="anchor" aria-label="anchor" href="#troubleshooting"></a>
 </h2>
-<div class="section level3">
-<h3 id="empty-results">Empty Results<a class="anchor" aria-label="anchor" href="#empty-results"></a>
-</h3>
-<p>If your query returns no data:</p>
-<div class="sourceCode" id="cb28"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb25"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Check connection status</span></span>
 <span><span class="fu"><a href="../reference/print_connection_status.html">print_connection_status</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Run diagnostic</span></span>
+<span><span class="co"># Run a full connection diagnostic</span></span>
 <span><span class="fu"><a href="../reference/db_diagnostic.html">db_diagnostic</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Verify plot access (row-level security)</span></span>
-<span><span class="co"># You can only access plots you have permission for</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="switching-back-to-v1-4-behavior">Switching Back to v1.4 Behavior<a class="anchor" aria-label="anchor" href="#switching-back-to-v1-4-behavior"></a>
-</h3>
-<p>If you need the old flat data frame output:</p>
-<div class="sourceCode" id="cb29"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">flat_output</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
-<span>  plot_name <span class="op">=</span> <span class="st">"mbalmayo001"</span>,</span>
-<span>  extract_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  output_style <span class="op">=</span> <span class="st">"full"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Returns a single data frame instead of structured list</span></span></code></pre></div>
-</div>
+<span><span class="co"># Close all connections and clear cached credentials</span></span>
+<span><span class="fu"><a href="../reference/cleanup_connections.html">cleanup_connections</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>Row-level security is enforced on the database: you can only access
+plots and individuals that your database account has permission to
+view.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -75,28 +75,40 @@ interface is ideal for:</p>
 <li>Exploring and cleaning taxonomic data interactively</li>
 <li>Understanding match quality through visual feedback</li>
 <li>Manually reviewing uncertain matches</li>
-<li>Enriching data with species-level traits</li>
+<li>Enriching data with species-level traits from the database</li>
+<li>Checking taxonomic name provenance via WCVP integration</li>
 </ul>
 </div>
 <div class="section level2">
 <h2 id="prerequisites">Prerequisites<a class="anchor" aria-label="anchor" href="#prerequisites"></a>
 </h2>
-<p>Before launching the app, ensure you have:</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>Database credentials</strong> configured (see
-<code><a href="../reference/setup_db_credentials.html">setup_db_credentials()</a></code>)</li>
-<li>
-<strong>Data to standardize</strong> in one of these formats:
+<div class="section level3">
+<h3 id="with-database-credentials-full-access">With database credentials (full access)<a class="anchor" aria-label="anchor" href="#with-database-credentials-full-access"></a>
+</h3>
+<p>To access all features including traits enrichment, you need database
+credentials configured (see <code><a href="../reference/setup_db_credentials.html">setup_db_credentials()</a></code>). Once
+launched, the app presents a login screen where you enter your
+credentials.</p>
+</div>
+<div class="section level3">
+<h3 id="without-credentials-public-access-mode">Without credentials (public access mode)<a class="anchor" aria-label="anchor" href="#without-credentials-public-access-mode"></a>
+</h3>
+<p>Since March 2026, the app can be launched <strong>without any
+database credentials</strong>. Click <strong>“Use offline (cached
+backbone)”</strong> on the login screen to enter offline mode:</p>
 <ul>
-<li>Excel file (.xlsx, .xls)</li>
-<li>CSV file (.csv)</li>
+<li>Automatic matching and fuzzy suggestions work via a cached local
+backbone</li>
+<li>Manual review is fully functional</li>
+<li>Traits enrichment is hidden (requires a live database
+connection)</li>
+<li>A <strong>“Read-only”</strong> badge is displayed to indicate
+limited permissions</li>
 </ul>
-</li>
-<li>A column containing <strong>taxonomic names</strong> (e.g., genus +
-species) or <strong>separate columns</strong> for genus, species, and
-family</li>
-</ol>
+<p>This is useful for exploring the matching workflow, standardizing
+names without a personal account, or working from locations without
+network access to the database.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
@@ -105,11 +117,14 @@ family</li>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>Alternatively, pre-load your data:</p>
+<p>Alternatively, pre-load your data or set options:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># With R data.frame</span></span>
 <span><span class="va">my_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">read.csv</a></span><span class="op">(</span><span class="st">"tree_inventory.csv"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">my_data</span>, name_column <span class="op">=</span> <span class="st">"species_name"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Launch in English (default is French)</span></span>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"en"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Adjust fuzzy matching sensitivity (default is 0.7)</span></span>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span>  <span class="co"># More permissive matching</span></span></code></pre></div>
@@ -120,8 +135,10 @@ family</li>
 <div class="section level3">
 <h3 id="phase-1-initial-view">Phase 1: Initial View<a class="anchor" aria-label="anchor" href="#phase-1-initial-view"></a>
 </h3>
-<p>When you first launch the app, you’ll see the main interface with a
-sidebar for configuration and tabs for different workflow phases:</p>
+<p>When you first launch the app, you see a login screen. After
+authenticating (or choosing offline mode), the main interface appears
+with a sidebar for configuration and tabs for different workflow
+phases:</p>
 <div class="float">
 <img src="images/app-initial-view.png" alt="Application initial view"><div class="figcaption">Application initial view</div>
 </div>
@@ -129,13 +146,14 @@ sidebar for configuration and tabs for different workflow phases:</p>
 through each phase sequentially:</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong>Auto Match</strong> - Automatic matching</li>
+<strong>Auto Match</strong> — Automatic matching</li>
 <li>
-<strong>Review</strong> - Manual review of unmatched names</li>
+<strong>Review</strong> — Manual review of unmatched names</li>
 <li>
-<strong>Export</strong> - Download results</li>
+<strong>Export</strong> — Download results</li>
 <li>
-<strong>Traits Enrichment</strong> - Add species traits</li>
+<strong>Traits Enrichment</strong> — Add species traits (hidden in
+offline mode)</li>
 </ol>
 </div>
 <div class="section level3">
@@ -149,21 +167,23 @@ methods:</p>
 <ul>
 <li>
 <strong>Upload an Excel file</strong> using the file browser
-(supports .xlsx, .xls)</li>
+(supports .xlsx, .xls); for multi-sheet files you can select which sheet
+to use</li>
 <li><strong>Upload a CSV file</strong></li>
 <li>
-<strong>Use pre-loaded R data</strong> (if you passed
+<strong>Use pre-loaded R data</strong> (if you passed the
 <code>data</code> parameter)</li>
 </ul>
 <div class="float">
 <img src="images/app-upload-data.png" alt="Data upload interface"><div class="figcaption">Data upload interface</div>
 </div>
-<p>For Excel files with multiple sheets, you can select which sheet to
-use. The app will display a preview of your uploaded data so you can
-verify it was read correctly.</p>
+<p>The app displays a preview of your uploaded data so you can verify it
+was read correctly. Excel files are read with
+<code>guess_max = 30000</code> to improve column type detection for
+large files.</p>
 </div>
 <div class="section level4">
-<h4 id="text-input-copy-paste---new">Text Input (Copy-Paste) - NEW<a class="anchor" aria-label="anchor" href="#text-input-copy-paste---new"></a>
+<h4 id="text-input-copy-paste">Text Input (Copy-Paste)<a class="anchor" aria-label="anchor" href="#text-input-copy-paste"></a>
 </h4>
 <p>For quick standardization of a few names, or when you have a list
 copied from another source, use the <strong>Text input</strong>
@@ -183,12 +203,9 @@ method radio buttons</li>
 Semicolon-separated:
 <code>Lophira alata; Terminalia superba; Aucoumea klaineana</code> -
 Tab-separated (useful when pasting from Excel)</p>
-<p>The app automatically: - Removes empty lines and whitespace - Removes
-duplicate names (preserving order) - Creates a single column named
-<code>taxon_name</code> for matching</p>
-<p>This method is ideal for: - Quick checks of a few species names -
-Pasting lists from emails or documents - Testing the app without
-preparing a file</p>
+<p>The app automatically removes empty lines, trims whitespace, and
+deduplicates names while preserving order. A single column named
+<code>taxon_name</code> is created for matching.</p>
 </div>
 </div>
 <div class="section level3">
@@ -208,17 +225,16 @@ Choose the one containing species names (typically formatted as “Genus
 species” or “Genus species Author”).</p>
 </div>
 <div class="section level4">
-<h4 id="multiple-column-mode-new">Multiple Column Mode (NEW)<a class="anchor" aria-label="anchor" href="#multiple-column-mode-new"></a>
+<h4 id="multiple-column-mode">Multiple Column Mode<a class="anchor" aria-label="anchor" href="#multiple-column-mode"></a>
 </h4>
 <p>If your data has separate columns for genus, species, and family,
 enable <strong>“Use multiple columns”</strong>:</p>
 <div class="float">
 <img src="images/app-column-select-multi.png" alt="Column selection - multiple columns"><div class="figcaption">Column selection - multiple columns</div>
 </div>
-<p>The app will automatically combine these columns into a single
-taxonomic name for matching, using a hierarchical approach: - If genus
-and species are available: “Genus species” - If only genus: “Genus” - If
-only family: “Family”</p>
+<p>The app combines these columns hierarchically: - Genus + species
+available → “Genus species” - Genus only → “Genus” - Family only →
+“Family”</p>
 <p>You can also optionally include an author column.</p>
 </div>
 </div>
@@ -237,23 +253,28 @@ strategy</strong>:</p>
 <li>
 <strong>Exact match on family</strong>: Match at family level</li>
 <li>
-<strong>Exact match on class</strong>: Match at higher taxonomic
-level</li>
+<strong>Exact match on class</strong>: Match at class level (e.g.,
+names ending in -opsida, -psida)</li>
 <li>
-<strong>Fuzzy matching</strong>: Approximate string matching for
-remaining names</li>
+<strong>Fuzzy matching</strong>: Approximate string matching
+(trigram-Jaccard via <code>stringdist</code>) for remaining names</li>
 </ol>
 <div class="float">
 <img src="images/app-matching-progress.png" alt="Matching in progress"><div class="figcaption">Matching in progress</div>
 </div>
-<p>The progress bar shows real-time status. For large datasets, this may
-take a few minutes. The sidebar displays live statistics:</p>
+<p>The progress bar shows real-time status and correctly accounts for
+manually reviewed names in the completion percentage. The sidebar
+displays live statistics:</p>
 <ul>
 <li>Number of exact matches</li>
 <li>Number of genus-level matches</li>
 <li>Number of fuzzy matches</li>
 <li>Number of unmatched names</li>
 </ul>
+<p><strong>Checkpoint / resume</strong>: Matching progress is
+automatically saved to a temporary file. If you accidentally close the
+browser tab, re-opening the app will offer to resume from where you left
+off.</p>
 </div>
 <div class="section level3">
 <h3 id="phase-5-review-match-results">Phase 5: Review Match Results<a class="anchor" aria-label="anchor" href="#phase-5-review-match-results"></a>
@@ -270,10 +291,12 @@ with all names and their match status:</p>
 <li>
 <strong>matched_name</strong>: Name found in backbone</li>
 <li>
-<strong>match_method</strong>: How it was matched (exact_species,
-exact_genus, exact_family, fuzzy, manual)</li>
+<strong>match_method</strong>: How it was matched
+(<code>exact_species</code>, <code>exact_genus</code>,
+<code>exact_family</code>, <code>exact_class</code>, <code>fuzzy</code>,
+<code>manual</code>)</li>
 <li>
-<strong>match_score</strong>: Similarity score (0-1, higher is
+<strong>match_score</strong>: Similarity score (0–1, higher is
 better)</li>
 <li>
 <strong>idtax_n</strong>: Taxon ID in database</li>
@@ -292,7 +315,7 @@ needed</li>
 <strong>High similarity (&gt;0.8)</strong>: Very likely correct,
 quick review recommended</li>
 <li>
-<strong>Medium similarity (0.5-0.8)</strong>: Possible match, review
+<strong>Medium similarity (0.5–0.8)</strong>: Possible match, review
 suggested</li>
 <li>
 <strong>Low similarity (&lt;0.5)</strong>: Uncertain, manual review
@@ -321,10 +344,10 @@ filtering options:</p>
 <p><strong>Filtering options:</strong></p>
 <ul>
 <li>
-<strong>Number of suggestions</strong>: Slider to show 5-30
+<strong>Number of suggestions</strong>: Slider to show 5–30
 suggestions</li>
 <li>
-<strong>Minimum similarity</strong>: Adjust threshold (0.3-1.0)</li>
+<strong>Minimum similarity</strong>: Adjust threshold (0.3–1.0)</li>
 <li>
 <strong>Taxonomic level filter</strong>: Filter by All, Species,
 Genus, Family, Order, Class, or Infraspecific</li>
@@ -369,7 +392,8 @@ results</li>
 <h3 id="phase-7-enrich-data-with-traits">Phase 7: Enrich Data with Traits<a class="anchor" aria-label="anchor" href="#phase-7-enrich-data-with-traits"></a>
 </h3>
 <p>Switch to the <strong>“Traits Enrichment”</strong> tab to add
-species-level traits to your matched data:</p>
+species-level traits to your matched data (requires a database
+connection; this tab is hidden in offline mode):</p>
 <div class="float">
 <img src="images/app-enrich-data-interface.png" alt="Trait enrichment interface"><div class="figcaption">Trait enrichment interface</div>
 </div>
@@ -378,8 +402,8 @@ species-level traits to your matched data:</p>
 <li>
 <strong>Categorical aggregation mode</strong>:
 <ul>
-<li>“mode” - Use most frequent value per taxon</li>
-<li>“concat” - Concatenate all unique values</li>
+<li>“mode” — Use most frequent value per taxon</li>
+<li>“concat” — Concatenate all unique values</li>
 </ul>
 </li>
 <li>
@@ -392,21 +416,25 @@ species-level traits to your matched data:</p>
 </ul>
 </li>
 </ul>
-<p>Available traits include:</p>
-<ul>
-<li>Growth form</li>
-<li>Wood density</li>
-<li>Leaf traits</li>
-<li>Ecological characteristics</li>
-</ul>
-<p>The enriched data combines your matched taxa with selected
-traits:</p>
+<p>Available traits include growth form, wood density, leaf traits, and
+ecological characteristics.</p>
+<p>The enriched data combines your matched taxa with selected traits. A
+<strong>wide format</strong> (one row per taxon, traits as columns) and
+a <strong>long format</strong> (one row per taxon × trait combination)
+are both available as separate sub-tabs:</p>
 <div class="float">
 <img src="images/app-enrich-data-results.png" alt="Enriched data results"><div class="figcaption">Enriched data results</div>
 </div>
 <p><strong>Note</strong>: The enriched export creates one row per unique
 taxon, not per input row. Input names are concatenated with pipe
 separators.</p>
+<div class="section level4">
+<h4 id="data-sources-panel">Data Sources panel<a class="anchor" aria-label="anchor" href="#data-sources-panel"></a>
+</h4>
+<p>A <strong>Data Sources</strong> sub-tab lists all trait citations
+used, with measurement counts per source. This helps you track data
+provenance for your analysis and cite sources correctly.</p>
+</div>
 </div>
 <div class="section level3">
 <h3 id="phase-8-export-results">Phase 8: Export Results<a class="anchor" aria-label="anchor" href="#phase-8-export-results"></a>
@@ -430,10 +458,13 @@ types</li>
 <p><strong>Selectable columns:</strong></p>
 <ul>
 <li>Original data (all your input columns)</li>
-<li>Matched IDs (idtax_n, idtax_good_n)</li>
-<li>Corrected names (corrected_name, matched_name)</li>
-<li>Match metadata (match_method, match_score, is_synonym,
-accepted_name)</li>
+<li>Matched IDs (<code>idtax_n</code>, <code>idtax_good_n</code>)</li>
+<li>Corrected names (<code>corrected_name</code>,
+<code>matched_name</code>)</li>
+<li>Match metadata (<code>match_method</code>, <code>match_score</code>,
+<code>is_synonym</code>, <code>accepted_name</code>)</li>
+<li>WCVP columns (<code>wcvp_plant_name_id</code>,
+<code>wcvp_accepted_plant_name_id</code>) — see WCVP section below</li>
 </ul>
 <p>A preview table shows the data before export with pagination
 controls.</p>
@@ -470,29 +501,43 @@ controls.</p>
 <td>Final standardized name</td>
 </tr>
 <tr class="odd">
-<td><code>match_method</code></td>
-<td>Matching strategy used (exact_species, exact_genus, exact_family,
-fuzzy, manual, unresolved)</td>
+<td><code>name_source</code></td>
+<td>Which backbone was used for the match (internal, WCVP, etc.)</td>
 </tr>
 <tr class="even">
-<td><code>match_score</code></td>
-<td>Similarity score (0-1)</td>
+<td><code>match_method</code></td>
+<td>Matching strategy used (<code>exact_species</code>,
+<code>exact_genus</code>, <code>exact_family</code>,
+<code>exact_class</code>, <code>fuzzy</code>, <code>manual</code>,
+<code>unresolved</code>)</td>
 </tr>
 <tr class="odd">
+<td><code>match_score</code></td>
+<td>Similarity score (0–1)</td>
+</tr>
+<tr class="even">
 <td><code>is_synonym</code></td>
 <td>TRUE if matched name is a synonym</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>accepted_name</code></td>
 <td>Current accepted name (if synonym)</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><code>family</code></td>
 <td>Taxonomic family</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><code>genus</code></td>
 <td>Taxonomic genus</td>
+</tr>
+<tr class="even">
+<td><code>wcvp_plant_name_id</code></td>
+<td>WCVP ID for the matched name (optional, see below)</td>
+</tr>
+<tr class="odd">
+<td><code>wcvp_accepted_plant_name_id</code></td>
+<td>WCVP ID for the accepted name (optional, see below)</td>
 </tr>
 </tbody>
 </table>
@@ -503,27 +548,38 @@ fuzzy, manual, unresolved)</td>
 <div class="section level3">
 <h3 id="language-selection">Language Selection<a class="anchor" aria-label="anchor" href="#language-selection"></a>
 </h3>
-<p>The app now supports <strong>bilingual operation</strong> with French
-and English interfaces. <strong>French is the default
-language</strong>.</p>
-<p><strong>In the App Interface:</strong></p>
+<p>The app supports <strong>bilingual operation</strong> with French and
+English interfaces. <strong>French is the default language</strong>.</p>
 <p>A language toggle is located in the top-right corner of the app: -
 Click <strong>“FR”</strong> for French interface - Click
 <strong>“EN”</strong> for English interface</p>
-<p>The language switch is instant and affects all UI elements including:
-- Tab labels - Button text - Instructions and help text - Column headers
-- Error messages and notifications</p>
-<p><strong>Setting Initial Language Programmatically:</strong></p>
+<p>The switch is instant and affects all UI elements. To set the initial
+language programmatically:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Launch app in English</span></span>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"en"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Launch app in French (default)</span></span>
-<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span>
-<span><span class="co"># or simply:</span></span>
-<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>The language setting is interactive - users can switch languages at
-any time during their session without losing work progress or data.</p>
+<span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>language <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="wcvp-integration">WCVP Integration<a class="anchor" aria-label="anchor" href="#wcvp-integration"></a>
+</h3>
+<p>The app can optionally enrich results with <strong>World Checklist of
+Vascular Plants (WCVP)</strong> identifiers. When the taxa database
+contains WCVP data, a <strong>“Use WCVP names in output”</strong>
+checkbox appears in the sidebar.</p>
+<p>Enabling it adds two columns to your export:</p>
+<ul>
+<li>
+<code>wcvp_plant_name_id</code> — WCVP identifier for the matched
+name</li>
+<li>
+<code>wcvp_accepted_plant_name_id</code> — WCVP identifier for the
+accepted name</li>
+</ul>
+<p>The <code>name_source</code> column records which backbone was used,
+helping you document the taxonomic provenance of each match.</p>
 </div>
 <div class="section level3">
 <h3 id="adjusting-fuzzy-matching">Adjusting Fuzzy Matching<a class="anchor" aria-label="anchor" href="#adjusting-fuzzy-matching"></a>
@@ -540,7 +596,9 @@ parameter:</p>
 <span><span class="co"># More permissive - allows lower-quality matches</span></span>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span></span></code></pre></div>
 <p>Lower values cast a wider net but may include false positives. Higher
-values are more conservative but may miss valid matches.</p>
+values are more conservative but may miss valid matches. The default was
+raised from 0.3 to <strong>0.7</strong> to reduce spurious
+suggestions.</p>
 </div>
 <div class="section level3">
 <h3 id="increasing-suggestions">Increasing Suggestions<a class="anchor" aria-label="anchor" href="#increasing-suggestions"></a>
@@ -549,9 +607,23 @@ values are more conservative but may miss valid matches.</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Show top 20 suggestions instead of default 10</span></span>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span>max_suggestions <span class="op">=</span> <span class="fl">20</span><span class="op">)</span></span></code></pre></div>
-<p>Useful when initial suggestions don’t include the correct match. You
-can also adjust this interactively in the Review tab using the
+<p>You can also adjust this interactively in the Review tab using the
 slider.</p>
+</div>
+<div class="section level3">
+<h3 id="offline-mode">Offline Mode<a class="anchor" aria-label="anchor" href="#offline-mode"></a>
+</h3>
+<p>If you do not have a database connection, click <strong>“Use offline
+(cached backbone)”</strong> on the login screen. The app:</p>
+<ul>
+<li>Downloads and caches the backbone locally on first use</li>
+<li>Performs string matching entirely in R via <code>stringdist</code>
+(trigram-Jaccard)</li>
+<li>Supports auto-matching, fuzzy suggestions, and manual search</li>
+<li>Hides the Traits Enrichment tab (requires live connection)</li>
+<li>Displays a <strong>“Read-only”</strong> badge throughout the
+session</li>
+</ul>
 </div>
 </div>
 <div class="section level2">
@@ -559,11 +631,13 @@ slider.</p>
 </h2>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span></span>
-<span>  data <span class="op">=</span> <span class="cn">NULL</span>,           <span class="co"># Optional: pre-load data.frame</span></span>
-<span></span>
-<span>  name_column <span class="op">=</span> <span class="cn">NULL</span>,    <span class="co"># Optional: pre-select column</span></span>
-<span>  min_similarity <span class="op">=</span> <span class="fl">0.7</span>,  <span class="co"># Fuzzy match threshold (0-1)</span></span>
-<span>  max_suggestions <span class="op">=</span> <span class="fl">10</span>   <span class="co"># Max suggestions per unmatched name</span></span>
+<span>  data           <span class="op">=</span> <span class="cn">NULL</span>,         <span class="co"># Optional: pre-load a data.frame</span></span>
+<span>  name_column    <span class="op">=</span> <span class="cn">NULL</span>,         <span class="co"># Optional: pre-select a column name</span></span>
+<span>  language       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fr"</span>, <span class="st">"en"</span><span class="op">)</span>,<span class="co"># Interface language (default: "fr")</span></span>
+<span>  min_similarity <span class="op">=</span> <span class="fl">0.7</span>,          <span class="co"># Fuzzy match threshold (0-1)</span></span>
+<span>  max_suggestions <span class="op">=</span> <span class="fl">10</span>,          <span class="co"># Max suggestions per unmatched name</span></span>
+<span>  mode           <span class="op">=</span> <span class="st">"interactive"</span>,<span class="co"># Review mode ("interactive" or "batch")</span></span>
+<span>  launch.browser <span class="op">=</span> <span class="cn">TRUE</span>          <span class="co"># Whether to open app in the browser</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
@@ -573,7 +647,7 @@ slider.</p>
 <h3 id="connection-issues">Connection Issues<a class="anchor" aria-label="anchor" href="#connection-issues"></a>
 </h3>
 <p><strong>Problem</strong>: “Failed to connect to database”</p>
-<p><strong>Solution</strong>:</p>
+<p><strong>Solutions</strong>:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Check connection</span></span>
 <span><span class="fu"><a href="../reference/db_diagnostic.html">db_diagnostic</a></span><span class="op">(</span><span class="op">)</span></span>
@@ -581,6 +655,9 @@ slider.</p>
 <span><span class="co"># Reset credentials if needed</span></span>
 <span><span class="fu"><a href="../reference/remove_db_credentials.html">remove_db_credentials</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/setup_db_credentials.html">setup_db_credentials</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>Alternatively, use <strong>offline mode</strong> (click “Use offline
+(cached backbone)” on the login screen) to work without a live database
+connection.</p>
 </div>
 <div class="section level3">
 <h3 id="no-fuzzy-matches-found">No Fuzzy Matches Found<a class="anchor" aria-label="anchor" href="#no-fuzzy-matches-found"></a>
@@ -602,10 +679,11 @@ African taxa</p>
 </h3>
 <p><strong>Problem</strong>: Matching takes very long for large
 datasets</p>
-<p><strong>Solutions</strong>: - Use batch processing instead:
-<code><a href="../reference/match_taxonomic_names.html">match_taxonomic_names()</a></code> for programmatic workflow - Process
-data in chunks (split large datasets) - The app downloads the entire
-backbone once for efficiency, so initial load may be slow</p>
+<p><strong>Solutions</strong>: - Enable <strong>offline mode</strong>:
+matching runs locally via <code>stringdist</code> without database
+round-trips - Use batch processing instead:
+<code><a href="../reference/match_taxonomic_names.html">match_taxonomic_names()</a></code> for programmatic workflows -
+Process data in chunks (split large datasets)</p>
 </div>
 </div>
 <div class="section level2">
@@ -663,6 +741,9 @@ for programmatic use</li>
 <li>
 <code><a href="../reference/match_tax.html">match_tax()</a></code>: Simple taxonomic lookup function</li>
 <li>
+<code><a href="../reference/launch_taxo_backbone_app.html">launch_taxo_backbone_app()</a></code>: Interactive tool for
+exploring the taxonomic backbone</li>
+<li>
 <code><a href="../articles/using-query-plots.html">vignette("using-query-plots")</a></code>: Guide to querying plot
 data</li>
 </ul>
@@ -682,16 +763,20 @@ are in your dataset</li>
 genus/species/family columns, combine them for better matching</li>
 <li>
 <strong>Filter by taxonomic level</strong>: Use the level filter in
-Review tab to find genus or family matches</li>
+the Review tab to find genus or family matches</li>
 <li>
 <strong>Review match scores</strong>: Don’t blindly accept
 low-similarity matches (&lt;0.6)</li>
 <li>
-<strong>Save incrementally</strong>: Export intermediate results to
-avoid losing manual review work</li>
+<strong>Use checkpoint/resume</strong>: The app saves your progress
+automatically — if you close the browser tab, you can pick up where you
+left off</li>
 <li>
 <strong>Document parameters</strong>: Note which
 <code>min_similarity</code> value you used for reproducibility</li>
+<li>
+<strong>Cite data sources</strong>: Check the Data Sources panel in
+the Traits tab for citations to include in your methods</li>
 </ol>
 </div>
 <div class="section level2">
@@ -707,14 +792,17 @@ avoid losing manual review work</li>
 <span><span class="fu"><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">trees</span>,</span>
 <span>  name_column <span class="op">=</span> <span class="st">"species_name"</span>,</span>
+<span>  language <span class="op">=</span> <span class="st">"en"</span>,</span>
 <span>  min_similarity <span class="op">=</span> <span class="fl">0.7</span></span>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 3. In the app:</span></span>
-<span><span class="co">#    - Review automatic matches in Auto Match tab</span></span>
-<span><span class="co">#    - Use Review tab to resolve unmatched names</span></span>
-<span><span class="co">#    - Apply taxonomic level filters if needed</span></span>
-<span><span class="co">#    - Optionally enrich with traits in Traits Enrichment tab</span></span>
+<span><span class="co">#    - Authenticate (or choose offline mode)</span></span>
+<span><span class="co">#    - Review automatic matches in the Auto Match tab</span></span>
+<span><span class="co">#    - Use the Review tab to resolve unmatched names</span></span>
+<span><span class="co">#    - Optionally enable WCVP output via the sidebar checkbox</span></span>
+<span><span class="co">#    - Optionally enrich with traits in the Traits Enrichment tab</span></span>
+<span><span class="co">#      (check the Data Sources panel for citations)</span></span>
 <span><span class="co">#    - Export as "forest_inventory_standardized.xlsx"</span></span>
 <span></span>
 <span><span class="co"># 4. Continue analysis with standardized data</span></span>
@@ -724,53 +812,6 @@ avoid losing manual review work</li>
 <p>This workflow ensures your taxonomic data is standardized and ready
 for downstream analyses like diversity metrics, trait-based analyses, or
 database integration.</p>
-</div>
-<div class="section level2">
-<h2 id="suggested-screenshots">Suggested Screenshots<a class="anchor" aria-label="anchor" href="#suggested-screenshots"></a>
-</h2>
-<p>To complete this documentation, the following screenshots should be
-captured:</p>
-<ol style="list-style-type: decimal">
-<li>
-<strong>app-initial-view.png</strong> - Full app interface after
-launch with all tabs visible</li>
-<li>
-<strong>app-upload-data.png</strong> - Data upload panel with file
-browser and sheet selection</li>
-<li>
-<strong>app-text-input.gif</strong> - Text input interface with text
-area and “Load names” button (NEW)</li>
-<li>
-<strong>app-column-select.png</strong> - Single column selection
-dropdown</li>
-<li>
-<strong>app-column-select-multi.png</strong> - Multiple column mode
-with genus/species/family selectors</li>
-<li>
-<strong>app-matching-progress.png</strong> - Matching in progress
-with progress bar and live statistics</li>
-<li>
-<strong>app-matching-results.png</strong> - Results table in Auto
-Match tab showing matched names</li>
-<li>
-<strong>app-review-interface.png</strong> - Review tab overview with
-unmatched name display</li>
-<li>
-<strong>app-review-suggestions.png</strong> - Fuzzy suggestions
-panel with filtering options (level filter, sort, slider)</li>
-<li>
-<strong>app-review-manual-search.png</strong> - Manual search
-interface with search box and results</li>
-<li>
-<strong>app-enrich-data-interface.png</strong> - Traits enrichment
-tab with aggregation mode and column selection</li>
-<li>
-<strong>app-enrich-data-results.png</strong> - Preview of enriched
-data with traits</li>
-<li>
-<strong>app-export-options.png</strong> - Export tab with format
-selection and column checkboxes</li>
-</ol>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

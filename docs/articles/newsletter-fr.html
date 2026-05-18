@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -78,23 +78,23 @@ base de données des placettes forestières d’Afrique centrale.</p>
 </h4>
 <p><strong>Basculer entre le référentiel taxonomique interne et
 WCVP</strong></p>
-<p>CafriplotsR intègre désormais un second référentiel taxonomique : le
-<strong>World Checklist of Vascular Plants (WCVP)</strong>. Le
-référentiel interne Cafriplots reste celui par défaut — c’est lui qui
-sert à assembler la base, lier les individus et curer les données de
-traits au niveau taxon — mais il est maintenant possible de travailler
-dans l’espace WCVP dès que l’on souhaite, par exemple, comparer avec, ou
+<p>CafriplotsR intègre désormais un second référentiel taxonomique de
+premier plan : le <strong>World Checklist of Vascular Plants
+(WCVP)</strong>. Le référentiel interne Cafriplots reste le référentiel
+par défaut — c’est lui qui sert à assembler la base, lier les individus
+et curer les données de traits — mais il est maintenant possible de
+travailler dans l’espace WCVP dès que l’on souhaite comparer avec, ou
 contribuer à, un référentiel mondial.</p>
 <p>Le référentiel se choisit au moment de la requête, via un seul
 argument :</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"GABON"</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span>, extract_individuals <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/query_taxa.html">query_taxa</a></span><span class="op">(</span>species <span class="op">=</span> <span class="st">"Dacryodes edulis"</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span>, check_synonymy <span class="op">=</span> <span class="cn">F</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/query_individual_features.html">query_individual_features</a></span><span class="op">(</span><span class="va">con</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/query_taxa_traits.html">query_taxa_traits</a></span><span class="op">(</span><span class="va">con</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span><span class="op">)</span></span></code></pre></div>
 <p>Lorsque <code>backbone = "wcvp"</code>, les colonnes taxonomiques
-standard sont remplacées <strong>sur place</strong> par les valeurs
-WCVP. Deux colonnes supplémentaires rendent cette substitution
-transparente :</p>
+standard (<code>tax_fam</code>, <code>tax_gen</code>,
+<code>tax_esp</code>, niveaux infraspécifiques et auteur) sont
+remplacées <strong>sur place</strong> par les valeurs WCVP. Deux
+colonnes supplémentaires rendent cette substitution transparente :</p>
 <ul>
 <li>
 <code>name_source</code> — <code>"wcvp"</code> si le taxon a été
@@ -105,11 +105,6 @@ WCVP)</li>
 <code>alt_taxon_name</code> — le nom interne d’origine conservé en
 parallèle, pour pouvoir toujours remonter au référentiel Cafriplots</li>
 </ul>
-<p>La version courante du WCVP peut être vérifiée avec la ligne de code
-suivante (la version la plus récente date de début janvier 2026) :</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con.taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/get_wcvp_status.html">get_wcvp_status</a></span><span class="op">(</span>con_taxa <span class="op">=</span> <span class="va">con.taxa</span><span class="op">)</span></span></code></pre></div>
 <p>Les identifiants internes (<code>idtax_n</code>,
 <code>idtax_good_n</code>) ne sont <strong>jamais</strong> écrasés ; les
 analogues WCVP (<code>wcvp_plant_name_id</code>,
@@ -129,43 +124,57 @@ peut être lancée dans l’espace WCVP ; la source de chaque nom
 taxonomique est documentée dans les tables de sortie via
 <code>name_source</code>.</li>
 </ul>
-<p><strong>Pourquoi conserver le référentiel interne par défaut
-?</strong> Aucun référentiel global n’est parfait, et le référentiel
-interne Cafriplots possède un avantage décisif : il est
-<strong>entièrement adaptable aux données qu’il sert</strong>. Il prend
-en charge les morpho-espèces, les noms pas encore formellement publiés,
-et les taxons simplement pas encore présents dans WCVP ou WorldFlora. Un
-réseau travaillant sur les forêts d’Afrique centrale ne peut pas se
-permettre d’être bloqué à chaque fois qu’un référentiel global est en
-retard sur une révision récente ou ignore une entité d’intérêt local. La
-stratégie n’est donc <strong>pas de basculer entièrement vers un
-référentiel global</strong>, mais de rendre facile le <strong>passage
-d’un référentiel à un autre</strong> selon l’usage — curation locale et
-import sur le référentiel interne, comparaison et contribution sur un
-référentiel global. Seul WCVP est connecté pour l’instant ; d’autres
-référentiels (par ex. WorldFlora) pourront être intégrés selon le même
-schéma.</p>
+<blockquote>
+<p><strong>Procédure d’installation :</strong> la procédure d’import
+WCVP, à effectuer une seule fois (schéma, import des noms, appariement
+flou, liens), est documentée dans
+<code>inst/docs/wcvp_setup_workflow.R</code>. Une fois les données
+chargées, le statut est rapporté par <code><a href="../reference/get_wcvp_status.html">get_wcvp_status()</a></code> et
+la fraîcheur peut être vérifiée avec
+<code><a href="../reference/check_wcvp_update.html">check_wcvp_update()</a></code>.</p>
+</blockquote>
 <p>La motivation est la même que pour le suivi des citations :
 <strong>la transparence sur la provenance taxonomique</strong>. Lorsque
 les données quittent la base, l’utilisateur sait exactement quel
 référentiel a été utilisé pour interpréter chaque nom, et peut basculer
 entre référentiels sans avoir à ré-importer ni re-curer quoi que ce
 soit.</p>
-<p><strong>Traits agrégés au niveau taxon à partir des mesures
+<p><strong>Traits agrégés au niveau taxonomique à partir des mesures
 individuelles</strong></p>
-<p>Les mesures individuelles (DBH, hauteur, …) enregistrées dans les
-placettes peuvent être <strong>agrégées par taxon</strong> et exposées
-comme traits au niveau taxon, prêtes à être greffées sur toute requête
-future — exactement comme les traits de densité du bois ou les autres
-traits taxonomiques provenant de compilations externes.</p>
-<p>Par exemple, les mesures de diamètre de tige collectées dans
-l’ensemble des placettes contributrices ont été agrégées en un nouveau
-trait au niveau taxon <code>stem_diameter_p95</code> — le <strong>95ᵉ
-percentile du DBH par espèce</strong>, en restreignant aux taxons
-disposant d’au moins 5 mesures (et aux individus identifiés au niveau
-espèce ou en dessous). On obtient ainsi une estimation robuste de la
-borne supérieure des diamètres typiquement atteints par chaque espèce
-dans le réseau.</p>
+<p>Le package referme désormais la seconde moitié du <em>cercle
+vertueux</em> présenté à Barcelone : les mesures individuelles (DBH,
+hauteur, diamètre de couronne, épaisseur d’écorce…) enregistrées dans
+les placettes peuvent être <strong>agrégées par taxon</strong> et
+exposées comme traits au niveau taxon, prêtes à être greffées sur toute
+requête future — exactement comme les traits de densité du bois ou de
+masse des graines provenant de compilations externes.</p>
+<p>L’agrégation est <strong>déclarative</strong> : une petite table de
+configuration (<code>trait_aggregation_config</code>) contient des
+règles du type <em>« prendre le 95ᵉ percentile du diamètre de tige, en
+restreignant aux individus identifiés au niveau espèce ou en dessous,
+avec au moins 5 mesures »</em>. Le pipeline lit les règles, calcule la
+valeur agrégée par taxon, et écrit le résultat dans
+<code>taxa_traits_measures</code> :</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/add_trait_aggregation.html">add_trait_aggregation</a></span><span class="op">(</span></span>
+<span>  source_trait_id <span class="op">=</span> <span class="fl">1</span>,         <span class="co"># stem_diameter</span></span>
+<span>  method          <span class="op">=</span> <span class="st">"percentile"</span>,</span>
+<span>  method_param    <span class="op">=</span> <span class="fl">95</span>,</span>
+<span>  min_n           <span class="op">=</span> <span class="fl">5</span></span>
+<span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/rebuild_aggregated_taxa_traits.html">rebuild_aggregated_taxa_traits</a></span><span class="op">(</span><span class="va">con</span>, <span class="va">con_taxa</span><span class="op">)</span></span></code></pre></div>
+<p>Méthodes supportées : <code>mean</code>, <code>median</code>,
+<code>min</code>, <code>max</code>, <code>sum</code>, <code>sd</code>,
+<code>percentile</code>, <code>mode</code>, <code>concat</code>,
+<code>count</code>.</p>
+<p>Pour que la méthode de transformation reste visible — afin que le p95
+du DBH et le DBH brut ne soient jamais confondus, et que plusieurs
+méthodes appliquées à la même source puissent coexister — les lignes
+agrégées sont écrites dans des <strong>traits dérivés</strong> dont le
+nom reprend la source et la méthode (par ex.
+<code>stem_diameter_p95</code>, <code>stem_diameter_max</code>). Si vous
+préférez conserver le nom du trait d’origine, il suffit de passer
+explicitement <code>target_trait_id = source_trait_id</code>.</p>
 <p>Une fois écrits, ces traits agrégés se comportent <strong>exactement
 comme n’importe quel autre trait au niveau taxon</strong> :
 <code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code> les renvoie de manière transparente, et
@@ -173,29 +182,18 @@ comme n’importe quel autre trait au niveau taxon</strong> :
 les greffent sur vos individus via le lien taxonomique habituel. Du
 point de vue de l’utilisateur, il n’y a pas de second pipeline à
 exécuter.</p>
-<p><strong>Le cercle vertueux pour les contributeurs.</strong> C’est ici
-que contribuer à la base devient un échange à double sens. Lorsque vous
-importez votre inventaire, vous bénéficiez immédiatement de tous les
-traits au niveau taxon déjà accumulés — densité du bois, traits
-foliaires, statut de conservation, et désormais traits structurels
-agrégés comme <code>stem_diameter_p95</code>. En retour, les mesures
-individuelles de votre jeu de données alimentent l’agrégation suivante :
-chaque nouvelle valeur de DBH ou de hauteur améliore la
-<strong>couverture</strong> (davantage d’espèces franchissent le seuil
-minimal de mesures) et la <strong>précision</strong> (estimations de
-percentiles plus serrées) de ces traits agrégés pour tout le monde. Plus
-il y a de contributeurs, plus la couche de traits partagée s’enrichit et
-s’affine — tout en laissant les données brutes des placettes sous votre
-contrôle.</p>
-<p><strong>Accès public.</strong> Les traits agrégés sont marqués par
-une citation dédiée et <strong>non publique</strong>
-(<code>CafriplotsR_aggregated</code>), et la politique de sécurité au
-niveau ligne sur <code>taxa_traits_measures</code> est
+<blockquote>
+<p><strong>Accès public et souveraineté des données.</strong> Les traits
+agrégés sont marqués par une citation dédiée et <strong>non
+publique</strong> (<code>CafriplotsR_aggregated</code>), et la politique
+de sécurité au niveau ligne sur <code>taxa_traits_measures</code> est
 <code>RESTRICTIVE</code> : le rôle public ne peut pas les voir. Ils ne
 sont visibles que par les utilisateurs authentifiés disposant des
-permissions adéquates. Cela préserve le principe : <strong>seuls les
-résumés agrégés circulent, les données brutes des placettes ne quittent
-jamais votre réseau, et le portail public n’en voit aucune</strong>.</p>
+permissions adéquates. Cela préserve le principe énoncé dans la
+présentation de Barcelone : <strong>seuls les résumés agrégés circulent,
+les données brutes des placettes ne quittent jamais votre réseau, et le
+portail public n’en voit aucune</strong>.</p>
+</blockquote>
 <hr>
 </div>
 </div>
