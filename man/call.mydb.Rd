@@ -9,7 +9,7 @@ call.mydb(
   user = NULL,
   reset = FALSE,
   retry = TRUE,
-  use_env_credentials = FALSE
+  use_env_credentials = TRUE
 )
 }
 \description{
