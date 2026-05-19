@@ -1,0 +1,35 @@
+name: Track GitHub Clones
+
+on:
+  schedule:
+    - cron: '0 8 * * *'   # daily at 08:00 UTC
+  workflow_dispatch:        # allow manual runs
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch clone stats and append to log
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          RESPONSE=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/traffic/clones")
+          CLONES=$(echo "$RESPONSE" | jq '.count')
+          UNIQUES=$(echo "$RESPONSE" | jq '.uniques')
+          echo "$DATE,$CLONES,$UNIQUES" >> traffic_log.csv
+
+      - name: Commit updated log
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add traffic_log.csv
+          git diff --cached --quiet || git commit -m "chore: update traffic log $DATE"
+          git push
