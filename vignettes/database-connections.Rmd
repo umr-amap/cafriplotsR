@@ -33,14 +33,18 @@ CafriplotsR uses **two separate PostgreSQL databases**:
 
 ### First-time Connection
 
+The recommended way to start a session is `connect_cafri()`. It opens both
+databases from a single credential prompt (the same username and password are
+valid for both):
+
 ```{r quick-start}
 library(CafriplotsR)
 
-# Connect to main database (will prompt for credentials)
-con_main <- call.mydb()
+# Connect to both databases with a single credential prompt
+cons <- connect_cafri()
 
-# Connect to taxa database (uses same credentials)
-con_taxa <- call.mydb.taxa()
+cons$main   # main database connection
+cons$taxa   # taxa database connection
 
 # Test your connections
 print_connection_status()
@@ -51,16 +55,46 @@ On first use, you'll be prompted to enter:
 - **Username**: Your database username
 - **Password**: Your database password
 
-Credentials are cached in memory for the duration of your R session.
+Credentials are cached in memory for the duration of your R session, so any
+subsequent call to `call.mydb()` or `call.mydb.taxa()` reuses the same
+connections silently.
 
 ## Connection Functions
 
-### Main Database: `call.mydb()`
+### Recommended: `connect_cafri()`
 
-Use this for all plot, subplot, and individual tree data operations.
+`connect_cafri()` is a single entry point that opens both databases at once
+and stashes the connections internally, so functions that look up a connection
+through `call.mydb()` / `call.mydb.taxa()` later in the session find them
+without re-prompting.
+
+```{r connect-cafri}
+# Both databases in one prompt
+cons <- connect_cafri()
+
+# Only the main database (taxa is opened lazily when a query needs it,
+# still reusing the cached credentials — no second prompt)
+cons <- connect_cafri(taxa = FALSE)
+
+# Force new credentials (e.g. to switch users)
+cons <- connect_cafri(reset = TRUE)
+
+# Always prompt, even if MYDB_USER/MYDB_PASS are set in .Renviron
+cons <- connect_cafri(use_env_credentials = FALSE)
+```
+
+If `MYDB_USER` and `MYDB_PASS` are present in your `.Renviron` (see
+"Managing Credentials" below), `connect_cafri()` uses them automatically
+without prompting — no flag required.
+
+### Individual functions: `call.mydb()` and `call.mydb.taxa()`
+
+These are still available, mostly for scripts that only need one of the two
+databases. Calling them twice in a row is *not* required — `connect_cafri()`
+covers that case in one line.
 
 ```{r main-db}
-# Basic connection
+# Main database only
 con <- call.mydb()
 
 # Force new credentials (if you need to switch users)
@@ -70,12 +104,8 @@ con <- call.mydb(reset = TRUE)
 con <- call.mydb(user = "myuser", pass = "mypassword")
 ```
 
-### Taxa Database: `call.mydb.taxa()`
-
-Use this for taxonomic queries and species traits.
-
 ```{r taxa-db}
-# Connect to taxa database
+# Taxa database only (uses cached credentials from the main connect if any)
 con_taxa <- call.mydb.taxa()
 ```
 
@@ -99,7 +129,8 @@ con <- call.mydb()
 
 ### Option 2: Environment Variables (Persistent)
 
-Store credentials in your `.Renviron` file for automatic loading:
+Store credentials in your `.Renviron` file for automatic loading on every
+session:
 
 ```{r setup-creds}
 # Run once to set up
@@ -107,11 +138,23 @@ setup_db_credentials()
 # Follow the prompts to enter username and password
 ```
 
-Then use with `use_env_credentials = TRUE`:
+That's it — from the next R session onwards, `connect_cafri()` (and
+`call.mydb()` / `call.mydb.taxa()`) will pick up `MYDB_USER` and `MYDB_PASS`
+from `.Renviron` automatically, with no flag to remember:
 
 ```{r use-env}
-con <- call.mydb(use_env_credentials = TRUE)
+cons <- connect_cafri()   # no prompt; credentials read from .Renviron
 ```
+
+If you want to override this for a single call and be prompted instead, pass
+`use_env_credentials = FALSE`:
+
+```{r opt-out-env}
+cons <- connect_cafri(use_env_credentials = FALSE)
+```
+
+The resolution order is: explicit `user`/`pass` arguments → cached session
+credentials → `.Renviron` (`MYDB_USER` / `MYDB_PASS`) → interactive prompt.
 
 **Warning**: Credentials are stored in **plain text** in `~/.Renviron`. Only use this on your personal, secure computer.
 
@@ -370,14 +413,14 @@ con <- call.mydb(reset = TRUE)
 ```{r workflow}
 library(CafriplotsR)
 
-# 1. Connect
-con <- call.mydb()
+# 1. Connect to both databases in one step
+cons <- connect_cafri()
 
 # 2. Verify connection
 print_connection_status()
 
 # 3. Check your access if needed
-get_user_accessible_plots(con, "your_username")
+get_user_accessible_plots(cons$main, "your_username")
 
 # 4. Do your work
 # ... queries, updates, etc. ...

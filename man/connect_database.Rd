@@ -10,21 +10,25 @@ connect_database(
   user = NULL,
   reset = FALSE,
   retry = TRUE,
-  use_env_credentials = FALSE
+  use_env_credentials = TRUE
 )
 }
 \arguments{
 \item{db_type}{One of `"main"` or `"taxa"`.}
 
-\item{pass}{Password. If NULL, will check environment then prompt.}
+\item{pass}{Password. If `NULL`, falls back to the cached session
+credential, then to `MYDB_PASS` from `.Renviron`, then prompts.}
 
-\item{user}{Username. If NULL, will check environment then prompt.}
+\item{user}{Username. If `NULL`, falls back to the cached session
+credential, then to `MYDB_USER` from `.Renviron`, then prompts.}
 
-\item{reset}{If TRUE, forces new credential prompt.}
+\item{reset}{If `TRUE`, forces new credential prompt.}
 
-\item{retry}{If TRUE, retry on failure.}
+\item{retry}{If `TRUE`, retry on failure.}
 
-\item{use_env_credentials}{If TRUE, tries to use MYDB_USER and MYDB_PASS from .Renviron (default: FALSE)}
+\item{use_env_credentials}{If `TRUE` (the default), `MYDB_USER` and
+`MYDB_PASS` from `.Renviron` are used when no explicit or cached
+credentials are available. Set to `FALSE` to always prompt instead.}
 }
 \value{
 A database connection object.

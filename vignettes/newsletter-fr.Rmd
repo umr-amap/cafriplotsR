@@ -68,6 +68,24 @@ Une fois écrits, ces traits agrégés se comportent **exactement comme n'import
 
 > **Accès public et souveraineté des données.** Les traits agrégés sont marqués par une citation dédiée et **non publique** (`CafriplotsR_aggregated`), et la politique de sécurité au niveau ligne sur `taxa_traits_measures` est `RESTRICTIVE` : le rôle public ne peut pas les voir. Ils ne sont visibles que par les utilisateurs authentifiés disposant des permissions adéquates. Cela préserve le principe énoncé dans la présentation de Barcelone : **seuls les résumés agrégés circulent, les données brutes des placettes ne quittent jamais votre réseau, et le portail public n'en voit aucune**.
 
+**Connexion à la base de données simplifiée**
+
+Se connecter à la base est désormais une affaire d'une ligne. La nouvelle fonction `connect_cafri()` remplace l'ancienne séquence en deux étapes qui appelait séparément `call.mydb()` et `call.mydb.taxa()` — une seule invite d'identifiants ouvre les **deux** bases simultanément et stocke les connexions afin que toute fonction du package les réutilise de manière transparente :
+
+```r
+cons <- connect_cafri()
+cons$main   # base principale
+cons$taxa   # base taxonomique
+```
+
+Trois améliorations plus modestes accompagnent ce changement :
+
+- **Les identifiants `.Renviron` sont désormais détectés automatiquement.** Si vous aviez exécuté `setup_db_credentials()` pour conserver `MYDB_USER` et `MYDB_PASS`, vous n'avez plus besoin du drapeau `use_env_credentials = TRUE` — le package les détecte et se connecte sans invite. Passez `use_env_credentials = FALSE` pour forcer l'invite à chaque appel.
+- **Le nom d'utilisateur est demandé avant le mot de passe**, comme dans tout formulaire de connexion classique.
+- **Un mot de passe erroné ne reste plus en cache.** Auparavant, une faute de frappe restait stockée en mémoire et chaque tentative de connexion suivante la réutilisait jusqu'à découvrir `reset = TRUE`. Les échecs d'authentification effacent désormais le cache et redemandent les identifiants automatiquement en mode interactif ; le comportement de réessai avec délai pour les erreurs réseau transitoires est conservé.
+
+Les fonctions existantes `call.mydb()` et `call.mydb.taxa()` restent inchangées pour la compatibilité ascendante. Voir le [Guide des Connexions à la Base de Données](database-connections-fr.html) pour la référence complète.
+
 ---
 
 ## Mars 2026
