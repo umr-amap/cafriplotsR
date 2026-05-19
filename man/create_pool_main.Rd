@@ -9,7 +9,7 @@ create_pool_main(
   user = NULL,
   minSize = 1,
   maxSize = 5,
-  use_env_credentials = FALSE
+  use_env_credentials = TRUE
 )
 }
 \arguments{
