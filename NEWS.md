@@ -2,6 +2,19 @@
 
 ### New Features
 
+* **`connect_cafri()` — single entry point for both databases** (`R/connections_db.R`)
+  - Opens connections to the main (`plots_transects`) and taxa (`rainbio`) databases from one credential prompt instead of requiring separate `call.mydb()` and `call.mydb.taxa()` calls
+  - Returns a list with `$main` and `$taxa` connections; both are also stashed in `.db_env` so existing package functions calling `call.mydb()` / `call.mydb.taxa()` later in the session reuse them transparently
+  - Supports `taxa = FALSE` for sessions that only need the main database (taxa is opened lazily when a query needs it, still with cached credentials)
+  - `call.mydb()` and `call.mydb.taxa()` remain available unchanged for backward compatibility
+
+* **`.Renviron` credentials are now used by default** (`R/connections_db.R`)
+  - `use_env_credentials = TRUE` is now the default on `connect_cafri()`, `connect_database()`, `call.mydb()`, `call.mydb.taxa()`, `create_pool_main()`, and `create_pool_taxa()`. Users who previously ran `setup_db_credentials()` no longer need to remember the flag — `MYDB_USER` / `MYDB_PASS` are picked up automatically when neither explicit nor cached credentials are available
+  - The "Using stored credentials from environment" message is now emitted only once per session (cleared by `cleanup_connections()` and `remove_db_credentials()`)
+  - Resolution priority is now: explicit `user`/`pass` arguments → cached session credentials → `.Renviron` → interactive prompt
+  - Set `use_env_credentials = FALSE` to opt out and always prompt
+  - New internal helpers `.get_env_credentials()` and `.resolve_credentials()` share the lookup logic between the connect and pool builders
+
 * **Standardize free-text observations into mortality and dawkins traits** (`R/observations_standardization.R`, `R/mod_feat_step_observations.R`)
   - New `standardize_observations()` parses the free-text `observations` trait (id 13) and decodes `flag1_rainfor` (id 19) into two derived traits: `mortality_risk_flag` (multi-token; one DB row per matched token) and `dawkins_index` (id 15; never overwrites existing values)
   - Editable regex ontology shipped in `inst/ontology/observations_ontology.csv` (22 mortality tokens + 5 dawkins classes); `.gitignore` updated with `!inst/ontology/*.csv` exception so the file is tracked
@@ -121,6 +134,13 @@
   - New `delete_plot = TRUE` parameter; set to `FALSE` to remove only individuals and their features while preserving all plot metadata and subplot features
 
 ### Bug Fixes
+
+* **Authentication failures no longer cache a bad password** (`R/connections_db.R`)
+  - Previously, a wrong password was cached in memory and every subsequent `call.mydb()` reused it, forcing users to discover the `reset = TRUE` flag
+  - `connect_database()` now distinguishes authentication errors (`password authentication failed`, `role does not exist`, etc.) from network errors via the internal `.is_auth_error()` helper; on auth failure, cached credentials are cleared and the user is re-prompted automatically in interactive sessions
+  - Network/transient errors retain the existing retry-with-backoff behaviour
+
+* **Username is now prompted before password** in `connect_database()`, matching standard login-form ordering (previously password was asked first)
 
 * **Import Wizard Step 3 — column auto-mapping with category-aware scoring**
   - Fixed "plot" column mapping to "plot_name" (direct) instead of feature "plot"

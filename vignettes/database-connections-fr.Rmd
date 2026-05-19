@@ -33,14 +33,18 @@ CafriplotsR utilise **deux bases de données PostgreSQL distinctes** :
 
 ### Première Connexion
 
+La méthode recommandée pour démarrer une session est `connect_cafri()`. Elle
+ouvre les deux bases de données à partir d'une seule invite d'identifiants
+(le même nom d'utilisateur et mot de passe sont valides pour les deux) :
+
 ```{r quick-start}
 library(CafriplotsR)
 
-# Se connecter à la base de données principale (demandera les identifiants)
-con_main <- call.mydb()
+# Connecter les deux bases avec une seule invite d'identifiants
+cons <- connect_cafri()
 
-# Se connecter à la base de données taxonomique (utilise les mêmes identifiants)
-con_taxa <- call.mydb.taxa()
+cons$main   # connexion à la base de données principale
+cons$taxa   # connexion à la base de données taxonomique
 
 # Tester vos connexions
 print_connection_status()
@@ -51,16 +55,48 @@ Lors de la première utilisation, vous serez invité à entrer :
 - **Nom d'utilisateur** : Votre nom d'utilisateur de base de données
 - **Mot de passe** : Votre mot de passe de base de données
 
-Les identifiants sont mis en cache en mémoire pour la durée de votre session R.
+Les identifiants sont mis en cache en mémoire pour la durée de votre session R,
+de sorte que tout appel ultérieur à `call.mydb()` ou `call.mydb.taxa()`
+réutilise les mêmes connexions sans nouvelle demande.
 
 ## Fonctions de Connexion
 
-### Base de Données Principale : `call.mydb()`
+### Recommandé : `connect_cafri()`
 
-Utilisez ceci pour toutes les opérations sur les données de parcelles, sous-parcelles et arbres individuels.
+`connect_cafri()` est un point d'entrée unique qui ouvre les deux bases de
+données en une fois et stocke les connexions en interne, de sorte que les
+fonctions qui récupèrent une connexion via `call.mydb()` / `call.mydb.taxa()`
+plus tard dans la session les retrouvent sans nouvelle invite.
+
+```{r connect-cafri}
+# Les deux bases en une seule invite
+cons <- connect_cafri()
+
+# Uniquement la base principale (la base taxa sera ouverte à la volée
+# par les fonctions qui en ont besoin, en réutilisant les identifiants
+# en cache — pas de seconde invite)
+cons <- connect_cafri(taxa = FALSE)
+
+# Forcer de nouveaux identifiants (ex. pour changer d'utilisateur)
+cons <- connect_cafri(reset = TRUE)
+
+# Toujours demander une invite, même si MYDB_USER/MYDB_PASS sont définis
+# dans .Renviron
+cons <- connect_cafri(use_env_credentials = FALSE)
+```
+
+Si `MYDB_USER` et `MYDB_PASS` sont définis dans votre `.Renviron` (voir
+« Gestion des Identifiants » ci-dessous), `connect_cafri()` les utilise
+automatiquement sans invite — aucun drapeau requis.
+
+### Fonctions individuelles : `call.mydb()` et `call.mydb.taxa()`
+
+Elles restent disponibles, principalement pour les scripts qui n'utilisent
+qu'une seule des deux bases. Il *n'est pas* nécessaire de les appeler à la
+suite — `connect_cafri()` couvre ce cas en une ligne.
 
 ```{r main-db}
-# Connexion basique
+# Base de données principale uniquement
 con <- call.mydb()
 
 # Forcer de nouveaux identifiants (si vous devez changer d'utilisateur)
@@ -70,12 +106,8 @@ con <- call.mydb(reset = TRUE)
 con <- call.mydb(user = "monutilisateur", pass = "monmotdepasse")
 ```
 
-### Base de Données Taxonomique : `call.mydb.taxa()`
-
-Utilisez ceci pour les requêtes taxonomiques et les traits d'espèces.
-
 ```{r taxa-db}
-# Se connecter à la base de données taxonomique
+# Base taxonomique uniquement (utilise les identifiants en cache si présents)
 con_taxa <- call.mydb.taxa()
 ```
 
@@ -99,7 +131,8 @@ con <- call.mydb()
 
 ### Option 2 : Variables d'Environnement (Persistant)
 
-Stockez les identifiants dans votre fichier `.Renviron` pour un chargement automatique :
+Stockez les identifiants dans votre fichier `.Renviron` pour un chargement
+automatique à chaque session :
 
 ```{r setup-creds}
 # Exécuter une fois pour configurer
@@ -107,11 +140,23 @@ setup_db_credentials()
 # Suivez les invites pour entrer le nom d'utilisateur et le mot de passe
 ```
 
-Puis utilisez avec `use_env_credentials = TRUE` :
+C'est tout — dès la session R suivante, `connect_cafri()` (ainsi que
+`call.mydb()` / `call.mydb.taxa()`) récupère automatiquement `MYDB_USER` et
+`MYDB_PASS` depuis `.Renviron`, sans drapeau à retenir :
 
 ```{r use-env}
-con <- call.mydb(use_env_credentials = TRUE)
+cons <- connect_cafri()   # pas d'invite ; identifiants lus depuis .Renviron
 ```
+
+Pour forcer une invite ponctuelle malgré tout, passez
+`use_env_credentials = FALSE` :
+
+```{r opt-out-env}
+cons <- connect_cafri(use_env_credentials = FALSE)
+```
+
+L'ordre de résolution est : arguments `user`/`pass` explicites → identifiants
+en cache → `.Renviron` (`MYDB_USER` / `MYDB_PASS`) → invite interactive.
 
 **Attention** : Les identifiants sont stockés en **texte clair** dans `~/.Renviron`. N'utilisez ceci que sur votre ordinateur personnel et sécurisé.
 
@@ -370,14 +415,14 @@ con <- call.mydb(reset = TRUE)
 ```{r workflow}
 library(CafriplotsR)
 
-# 1. Se connecter
-con <- call.mydb()
+# 1. Se connecter aux deux bases de données en une seule étape
+cons <- connect_cafri()
 
 # 2. Vérifier la connexion
 print_connection_status()
 
 # 3. Vérifier votre accès si nécessaire
-get_user_accessible_plots(con, "votre_utilisateur")
+get_user_accessible_plots(cons$main, "votre_utilisateur")
 
 # 4. Faire votre travail
 # ... requêtes, mises à jour, etc. ...

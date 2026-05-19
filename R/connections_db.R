@@ -98,7 +98,8 @@ remove_db_credentials <- function() {
   
   # Nettoyer aussi le cache en mémoire
   rm(list = c("user_db", "password"), envir = credentials, inherits = FALSE)
-  
+  .db_env$env_creds_notified <- NULL
+
   invisible(TRUE)
 }
 
@@ -229,33 +230,102 @@ db_max_retries <- 3
 
 
 
+#' Read credentials from `.Renviron` if both `MYDB_USER` and `MYDB_PASS` are set
+#'
+#' @returns A list with `user` and `pass`, or `NULL` if either is missing.
+#' @keywords internal
+#' @noRd
+.get_env_credentials <- function() {
+  env_user <- Sys.getenv("MYDB_USER")
+  env_pass <- Sys.getenv("MYDB_PASS")
+  if (nzchar(env_user) && nzchar(env_pass)) {
+    return(list(user = env_user, pass = env_pass))
+  }
+  NULL
+}
+
+#' Resolve credentials in priority order (explicit → cache → env → prompt)
+#'
+#' Shared helper used by the pool builders. `connect_database()` inlines the
+#' same logic because it also has retry/auth-failure handling around it.
+#'
+#' @keywords internal
+#' @noRd
+.resolve_credentials <- function(user, pass, use_env_credentials = TRUE) {
+  user_key <- "user_db"
+  pass_key <- "password"
+
+  if (!is.null(user)) credentials[[user_key]] <- user
+  if (!is.null(pass)) credentials[[pass_key]] <- pass
+
+  if (is.null(user) && exists(user_key, envir = credentials)) {
+    user <- credentials[[user_key]]
+  }
+  if (is.null(pass) && exists(pass_key, envir = credentials)) {
+    pass <- credentials[[pass_key]]
+  }
+
+  if (isTRUE(use_env_credentials) && (is.null(user) || is.null(pass))) {
+    env_creds <- .get_env_credentials()
+    if (!is.null(env_creds)) {
+      if (is.null(user)) {
+        user <- env_creds$user
+        credentials[[user_key]] <- user
+      }
+      if (is.null(pass)) {
+        pass <- env_creds$pass
+        credentials[[pass_key]] <- pass
+      }
+      if (!isTRUE(.db_env$env_creds_notified)) {
+        cli::cli_alert_info("Using stored credentials from environment ({.envvar MYDB_USER} / {.envvar MYDB_PASS})")
+        .db_env$env_creds_notified <- TRUE
+      }
+    }
+  }
+
+  if (is.null(user)) {
+    credentials[[user_key]] <- get_username_secure("Enter database username: ")
+    user <- credentials[[user_key]]
+  }
+  if (is.null(pass)) {
+    credentials[[pass_key]] <- get_password_secure("Enter database password: ")
+    pass <- credentials[[pass_key]]
+  }
+
+  list(user = user, pass = pass)
+}
+
 #' Connect to database
 #'
 #' @description
 #' Generic function to connect to main or taxa database
-#' 
+#'
 #' @param db_type One of `"main"` or `"taxa"`.
-#' @param pass Password. If NULL, will check environment then prompt.
-#' @param user Username. If NULL, will check environment then prompt.
-#' @param reset If TRUE, forces new credential prompt.
-#' @param retry If TRUE, retry on failure.
-#' @param use_env_credentials If TRUE, tries to use MYDB_USER and MYDB_PASS from .Renviron (default: FALSE)
+#' @param pass Password. If `NULL`, falls back to the cached session
+#'   credential, then to `MYDB_PASS` from `.Renviron`, then prompts.
+#' @param user Username. If `NULL`, falls back to the cached session
+#'   credential, then to `MYDB_USER` from `.Renviron`, then prompts.
+#' @param reset If `TRUE`, forces new credential prompt.
+#' @param retry If `TRUE`, retry on failure.
+#' @param use_env_credentials If `TRUE` (the default), `MYDB_USER` and
+#'   `MYDB_PASS` from `.Renviron` are used when no explicit or cached
+#'   credentials are available. Set to `FALSE` to always prompt instead.
 #'
 #' @returns A database connection object.
 #' @export
-connect_database <- function(db_type = c("main", "taxa"), 
-                             pass = NULL, 
-                             user = NULL, 
-                             reset = FALSE, 
+connect_database <- function(db_type = c("main", "taxa"),
+                             pass = NULL,
+                             user = NULL,
+                             reset = FALSE,
                              retry = TRUE,
-                             use_env_credentials = FALSE) {
+                             use_env_credentials = TRUE) {
   db_type <- match.arg(db_type)
   create_db_config()
-  
+
   # Variables selon le type de DB
   user_key <- "user_db"
   pass_key <- "password"
-  
+
   if (db_type == "main") {
     conn_var <- "mydb"
     db_name_var <- db_name
@@ -263,7 +333,7 @@ connect_database <- function(db_type = c("main", "taxa"),
     conn_var <- "mydb_taxa"
     db_name_var <- db_name_taxa
   }
-  
+
   # Reset
   if (reset) {
     if (!is.null(.db_env[[conn_var]])) {
@@ -273,7 +343,7 @@ connect_database <- function(db_type = c("main", "taxa"),
     if (exists(user_key, envir = credentials)) rm(list = user_key, envir = credentials)
     if (exists(pass_key, envir = credentials)) rm(list = pass_key, envir = credentials)
   }
-  
+
   # Test connexion existante
   if (!is.null(.db_env[[conn_var]]) && test_connection(.db_env[[conn_var]])) {
     return(.db_env[[conn_var]])
@@ -282,45 +352,58 @@ connect_database <- function(db_type = c("main", "taxa"),
     try(DBI::dbDisconnect(.db_env[[conn_var]]), silent = TRUE)
     .db_env[[conn_var]] <- NULL
   }
-  
-  # Essayer credentials d'environnement si activé
-  if (use_env_credentials && is.null(user) && is.null(pass)) {
-    env_user <- Sys.getenv("MYDB_USER")
-    env_pass <- Sys.getenv("MYDB_PASS")
-    
-    if (env_user != "" && env_pass != "") {
-      user <- env_user
-      pass <- env_pass
-      cli::cli_alert_info("Using stored credentials from environment")
-    }
-  }
-  
-  # If credentials are provided explicitly, cache them so subsequent calls
-  # (e.g. call.mydb.taxa() inside query_plots) reuse them without prompting
+
+  # Resolve credentials in priority order:
+  #   1. explicit user/pass arguments
+  #   2. cached session credentials (`credentials` env)
+  #   3. `.Renviron` (MYDB_USER / MYDB_PASS), unless opted out
+  #   4. interactive prompt (username first, then password)
+  # Explicit credentials are cached so subsequent calls (e.g. call.mydb.taxa()
+  # inside query_plots) reuse them without prompting.
   if (!is.null(pass)) credentials[[pass_key]] <- pass
   if (!is.null(user)) credentials[[user_key]] <- user
 
-  # Get credentials (from cache or interactive prompt)
-  if (is.null(pass)) {
-    if (!exists(pass_key, envir = credentials)) {
-      credentials[[pass_key]] <- get_password_secure("Enter database password: ")
-    }
+  if (is.null(user) && exists(user_key, envir = credentials)) {
+    user <- credentials[[user_key]]
+  }
+  if (is.null(pass) && exists(pass_key, envir = credentials)) {
     pass <- credentials[[pass_key]]
   }
 
-  if (is.null(user)) {
-    if (!exists(user_key, envir = credentials)) {
-      credentials[[user_key]] <- get_username_secure("Enter database username: ")
+  if (isTRUE(use_env_credentials) && (is.null(user) || is.null(pass))) {
+    env_creds <- .get_env_credentials()
+    if (!is.null(env_creds)) {
+      if (is.null(user)) {
+        user <- env_creds$user
+        credentials[[user_key]] <- user
+      }
+      if (is.null(pass)) {
+        pass <- env_creds$pass
+        credentials[[pass_key]] <- pass
+      }
+      # Inform only once per session so chained connects aren't noisy
+      if (!isTRUE(.db_env$env_creds_notified)) {
+        cli::cli_alert_info("Using stored credentials from environment ({.envvar MYDB_USER} / {.envvar MYDB_PASS})")
+        .db_env$env_creds_notified <- TRUE
+      }
     }
+  }
+
+  if (is.null(user)) {
+    credentials[[user_key]] <- get_username_secure("Enter database username: ")
     user <- credentials[[user_key]]
   }
-  
+  if (is.null(pass)) {
+    credentials[[pass_key]] <- get_password_secure("Enter database password: ")
+    pass <- credentials[[pass_key]]
+  }
+
   # Tentative de connexion avec retry
   max_attempts <- if (retry) 3 else 1
-  
+
   for (attempt in 1:max_attempts) {
-    tryCatch({
-      .db_env[[conn_var]] <- DBI::dbConnect(
+    conn_result <- tryCatch({
+      DBI::dbConnect(
         RPostgres::Postgres(),
         dbname   = db_name_var,
         host     = db_host,
@@ -329,25 +412,143 @@ connect_database <- function(db_type = c("main", "taxa"),
         password = pass,
         connect_timeout = 10
       )
-      
-      # Vérification des droits pour taxa
+    }, error = function(e) {
+      structure(list(message = conditionMessage(e)), class = "db_connect_error")
+    })
+
+    if (!inherits(conn_result, "db_connect_error")) {
+      .db_env[[conn_var]] <- conn_result
+
       if (db_type == "taxa") {
         check_taxa_permissions(.db_env[[conn_var]])
       }
-      
+
       cli::cli_alert_success("Connected to {db_type} database successfully")
       return(.db_env[[conn_var]])
-      
-    }, error = function(e) {
-      if (attempt == max_attempts) {
-        cli::cli_alert_danger("Failed to connect to {db_type} database after {max_attempts} attempts: {e$message}")
-        stop("Database connection failed: ", e$message, call. = FALSE)
-      } else {
-        cli::cli_alert_warning("Connection attempt {attempt} failed, retrying...")
-        Sys.sleep(2)
+    }
+
+    err_msg <- conn_result$message
+    is_auth_error <- .is_auth_error(err_msg)
+
+    if (is_auth_error) {
+      # Clear cached credentials so the user can re-enter them instead of
+      # being stuck with a bad cached password until they discover reset=TRUE
+      if (exists(user_key, envir = credentials)) rm(list = user_key, envir = credentials)
+      if (exists(pass_key, envir = credentials)) rm(list = pass_key, envir = credentials)
+
+      cli::cli_alert_danger("Authentication failed: {err_msg}")
+
+      if (attempt == max_attempts || !interactive()) {
+        stop("Database authentication failed: ", err_msg, call. = FALSE)
       }
-    })
+
+      cli::cli_alert_info("Please re-enter your credentials")
+      user <- get_username_secure("Enter database username: ")
+      pass <- get_password_secure("Enter database password: ")
+      credentials[[user_key]] <- user
+      credentials[[pass_key]] <- pass
+      next
+    }
+
+    if (attempt == max_attempts) {
+      cli::cli_alert_danger("Failed to connect to {db_type} database after {max_attempts} attempts: {err_msg}")
+      stop("Database connection failed: ", err_msg, call. = FALSE)
+    }
+
+    cli::cli_alert_warning("Connection attempt {attempt} failed, retrying...")
+    Sys.sleep(2)
   }
+}
+
+#' Detect whether a connection error is an authentication failure
+#'
+#' @keywords internal
+#' @noRd
+.is_auth_error <- function(msg) {
+  if (is.null(msg) || !nzchar(msg)) return(FALSE)
+  patterns <- c(
+    "password authentication failed",
+    "authentication failed",
+    "role .* does not exist",
+    "no password supplied",
+    "Peer authentication failed",
+    "Ident authentication failed"
+  )
+  any(vapply(patterns, function(p) grepl(p, msg, ignore.case = TRUE),
+             logical(1)))
+}
+
+#' Connect to both CafriplotsR databases in one step
+#'
+#' @description
+#' Single entry point that opens connections to both the main
+#' (`plots_transects`) and taxa (`rainbio`) databases using the same set of
+#' credentials. This is the recommended way to start a session: users only
+#' enter their username and password once, instead of going through both
+#' `call.mydb()` and `call.mydb.taxa()`.
+#'
+#' The returned connections are also stored internally so that package
+#' functions calling `call.mydb()` or `call.mydb.taxa()` later in the session
+#' reuse them transparently.
+#'
+#' @param user Username. If `NULL`, will check environment then prompt.
+#' @param pass Password. If `NULL`, will check environment then prompt.
+#' @param reset If `TRUE`, forces a new credential prompt and reopens both
+#'   connections.
+#' @param retry If `TRUE`, retry on transient failures.
+#' @param use_env_credentials If `TRUE` (the default), `MYDB_USER` and
+#'   `MYDB_PASS` from `.Renviron` are used when no cached or explicit
+#'   credentials are available. Set to `FALSE` to always prompt instead
+#'   (see `setup_db_credentials()` to persist credentials).
+#' @param taxa If `FALSE`, only the main database is opened. The taxa
+#'   connection is then created lazily by package functions that need it
+#'   (still reusing the cached credentials, so no extra prompt).
+#'
+#' @returns Invisibly, a list with components:
+#'   - `main`: connection to the main database.
+#'   - `taxa`: connection to the taxa database, or `NULL` if `taxa = FALSE`.
+#'
+#' @examples
+#' \dontrun{
+#' # One prompt, both connections ready
+#' cons <- connect_cafri()
+#' cons$main
+#' cons$taxa
+#'
+#' # Open only the main database; taxa will be opened lazily when needed
+#' cons <- connect_cafri(taxa = FALSE)
+#' }
+#'
+#' @export
+connect_cafri <- function(user = NULL,
+                          pass = NULL,
+                          reset = FALSE,
+                          retry = TRUE,
+                          use_env_credentials = TRUE,
+                          taxa = TRUE) {
+  con_main <- connect_database(
+    "main",
+    pass = pass,
+    user = user,
+    reset = reset,
+    retry = retry,
+    use_env_credentials = use_env_credentials
+  )
+
+  con_taxa <- NULL
+  if (isTRUE(taxa)) {
+    # Credentials are now cached in `credentials`, so this call won't reprompt.
+    con_taxa <- connect_database(
+      "taxa",
+      pass = NULL,
+      user = NULL,
+      reset = reset,
+      retry = retry,
+      use_env_credentials = FALSE
+    )
+  }
+
+  invisible(list(main = con_main, taxa = con_taxa))
 }
 
 #' Get primary database connection (wrapper)
@@ -357,7 +558,7 @@ connect_database <- function(db_type = c("main", "taxa"),
 #' this function automatically uses the pool if available in .db_env.
 #'
 #' @export
-call.mydb <- function(pass = NULL, user = NULL, reset = FALSE, retry = TRUE, use_env_credentials = FALSE) {
+call.mydb <- function(pass = NULL, user = NULL, reset = FALSE, retry = TRUE, use_env_credentials = TRUE) {
   # Check if a pool is available in the environment (set by Shiny apps)
   if (!is.null(.db_env$pool_main)) {
     return(.db_env$pool_main)
@@ -374,7 +575,7 @@ call.mydb <- function(pass = NULL, user = NULL, reset = FALSE, retry = TRUE, use
 #' this function automatically uses the pool if available in .db_env.
 #'
 #' @export
-call.mydb.taxa <- function(pass = NULL, user = NULL, reset = FALSE, retry = TRUE, use_env_credentials = FALSE) {
+call.mydb.taxa <- function(pass = NULL, user = NULL, reset = FALSE, retry = TRUE, use_env_credentials = TRUE) {
   # Check if a pool is available in the environment (set by Shiny apps)
   if (!is.null(.db_env$pool_taxa)) {
     return(.db_env$pool_taxa)
@@ -441,6 +642,7 @@ cleanup_connections <- function() {
   }
 
   rm(list = ls(envir = credentials), envir = credentials)
+  .db_env$env_creds_notified <- NULL
 
   cli::cli_alert_success("All connections closed and credentials cleared")
 }
@@ -1445,34 +1647,12 @@ try_open_postgres_table <- function(table, con) {
 #'   DBI::dbGetQuery(conn, "SELECT * FROM table_name")
 #' })
 #' }
-create_pool_main <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5, use_env_credentials = FALSE) {
+create_pool_main <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5, use_env_credentials = TRUE) {
   create_db_config()
 
-  # Get credentials
-  if (use_env_credentials && is.null(user) && is.null(pass)) {
-    env_user <- Sys.getenv("MYDB_USER")
-    env_pass <- Sys.getenv("MYDB_PASS")
-
-    if (env_user != "" && env_pass != "") {
-      user <- env_user
-      pass <- env_pass
-      cli::cli_alert_info("Using stored credentials from environment")
-    }
-  }
-
-  if (is.null(pass)) {
-    if (!exists("password", envir = credentials)) {
-      credentials$password <- get_password_secure("Enter database password: ")
-    }
-    pass <- credentials$password
-  }
-
-  if (is.null(user)) {
-    if (!exists("user_db", envir = credentials)) {
-      credentials$user_db <- get_username_secure("Enter database username: ")
-    }
-    user <- credentials$user_db
-  }
+  resolved <- .resolve_credentials(user, pass, use_env_credentials)
+  user <- resolved$user
+  pass <- resolved$pass
 
   # Create pool with connection validation for resilience
   pool <- pool::dbPool(
@@ -1528,34 +1708,12 @@ create_pool_main <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5,
 #'   pool::poolClose(pool_taxa)
 #' })
 #' }
-create_pool_taxa <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5, use_env_credentials = FALSE) {
+create_pool_taxa <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5, use_env_credentials = TRUE) {
   create_db_config()
 
-  # Get credentials
-  if (use_env_credentials && is.null(user) && is.null(pass)) {
-    env_user <- Sys.getenv("MYDB_USER")
-    env_pass <- Sys.getenv("MYDB_PASS")
-
-    if (env_user != "" && env_pass != "") {
-      user <- env_user
-      pass <- env_pass
-      cli::cli_alert_info("Using stored credentials from environment")
-    }
-  }
-
-  if (is.null(pass)) {
-    if (!exists("password", envir = credentials)) {
-      credentials$password <- get_password_secure("Enter database password: ")
-    }
-    pass <- credentials$password
-  }
-
-  if (is.null(user)) {
-    if (!exists("user_db", envir = credentials)) {
-      credentials$user_db <- get_username_secure("Enter database username: ")
-    }
-    user <- credentials$user_db
-  }
+  resolved <- .resolve_credentials(user, pass, use_env_credentials)
+  user <- resolved$user
+  pass <- resolved$pass
 
   # Create pool with connection validation for resilience
   pool <- pool::dbPool(
