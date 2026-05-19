@@ -34,6 +34,9 @@ rsconnect/
 # But keep packaged ontology files
 !inst/ontology/*.csv
 
+# But keep GitHub traffic log
+!traffic_log.csv
+
 # Ignore working markdown documentation in root (keep README.md, NEWS.md, CLAUDE.md)
 ADD_PLOT_FEATURES_IMPLEMENTATION.md
 BUGFIX_*.md
