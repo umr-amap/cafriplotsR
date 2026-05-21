@@ -23,17 +23,25 @@ The `launch_taxonomic_match_app()` function provides an interactive Shiny applic
 - Exploring and cleaning taxonomic data interactively
 - Understanding match quality through visual feedback
 - Manually reviewing uncertain matches
-- Enriching data with species-level traits
+- Enriching data with species-level traits from the database
+- Checking taxonomic name provenance via WCVP integration
 
 ## Prerequisites
 
-Before launching the app, ensure you have:
+### With database credentials (full access)
 
-1. **Database credentials** configured (see `setup_db_credentials()`)
-2. **Data to standardize** in one of these formats:
-   - Excel file (.xlsx, .xls)
-   - CSV file (.csv)
-3. A column containing **taxonomic names** (e.g., genus + species) or **separate columns** for genus, species, and family
+To access all features including traits enrichment, you need database credentials configured (see `setup_db_credentials()`). Once launched, the app presents a login screen where you enter your credentials.
+
+### Without credentials (public access mode)
+
+Since March 2026, the app can be launched **without any database credentials**. Click **"Use offline (cached backbone)"** on the login screen to enter offline mode:
+
+- Automatic matching and fuzzy suggestions work via a cached local backbone
+- Manual review is fully functional
+- Traits enrichment is hidden (requires a live database connection)
+- A **"Read-only"** badge is displayed to indicate limited permissions
+
+This is useful for exploring the matching workflow, standardizing names without a personal account, or working from locations without network access to the database.
 
 ## Quick Start
 
@@ -44,12 +52,15 @@ library(CafriplotsR)
 launch_taxonomic_match_app()
 ```
 
-Alternatively, pre-load your data:
+Alternatively, pre-load your data or set options:
 
 ```{r}
 # With R data.frame
 my_data <- read.csv("tree_inventory.csv")
 launch_taxonomic_match_app(data = my_data, name_column = "species_name")
+
+# Launch in English (default is French)
+launch_taxonomic_match_app(language = "en")
 
 # Adjust fuzzy matching sensitivity (default is 0.7)
 launch_taxonomic_match_app(min_similarity = 0.5)  # More permissive matching
@@ -59,16 +70,16 @@ launch_taxonomic_match_app(min_similarity = 0.5)  # More permissive matching
 
 ### Phase 1: Initial View
 
-When you first launch the app, you'll see the main interface with a sidebar for configuration and tabs for different workflow phases:
+When you first launch the app, you see a login screen. After authenticating (or choosing offline mode), the main interface appears with a sidebar for configuration and tabs for different workflow phases:
 
 ![Application initial view](images/app-initial-view.png)
 
 The app uses a **tabbed workflow** that guides you through each phase sequentially:
 
-1. **Auto Match** - Automatic matching
-2. **Review** - Manual review of unmatched names
-3. **Export** - Download results
-4. **Traits Enrichment** - Add species traits
+1. **Auto Match** — Automatic matching
+2. **Review** — Manual review of unmatched names
+3. **Export** — Download results
+4. **Traits Enrichment** — Add species traits (hidden in offline mode)
 
 ### Phase 2: Upload Your Data
 
@@ -76,15 +87,15 @@ The first step is to provide your data. The app offers two input methods:
 
 #### File Upload (Default)
 
-- **Upload an Excel file** using the file browser (supports .xlsx, .xls)
+- **Upload an Excel file** using the file browser (supports .xlsx, .xls); for multi-sheet files you can select which sheet to use
 - **Upload a CSV file**
-- **Use pre-loaded R data** (if you passed `data` parameter)
+- **Use pre-loaded R data** (if you passed the `data` parameter)
 
 ![Data upload interface](images/app-upload-data.png)
 
-For Excel files with multiple sheets, you can select which sheet to use. The app will display a preview of your uploaded data so you can verify it was read correctly.
+The app displays a preview of your uploaded data so you can verify it was read correctly. Excel files are read with `guess_max = 30000` to improve column type detection for large files.
 
-#### Text Input (Copy-Paste) - NEW
+#### Text Input (Copy-Paste)
 
 For quick standardization of a few names, or when you have a list copied from another source, use the **Text input** method:
 
@@ -100,15 +111,7 @@ For quick standardization of a few names, or when you have a list copied from an
 - Semicolon-separated: `Lophira alata; Terminalia superba; Aucoumea klaineana`
 - Tab-separated (useful when pasting from Excel)
 
-The app automatically:
-- Removes empty lines and whitespace
-- Removes duplicate names (preserving order)
-- Creates a single column named `taxon_name` for matching
-
-This method is ideal for:
-- Quick checks of a few species names
-- Pasting lists from emails or documents
-- Testing the app without preparing a file
+The app automatically removes empty lines, trims whitespace, and deduplicates names while preserving order. A single column named `taxon_name` is created for matching.
 
 ### Phase 3: Select Name Column(s)
 
@@ -122,16 +125,16 @@ Select one column containing the full taxonomic name:
 
 The dropdown menu shows all available columns from your dataset. Choose the one containing species names (typically formatted as "Genus species" or "Genus species Author").
 
-#### Multiple Column Mode (NEW)
+#### Multiple Column Mode
 
 If your data has separate columns for genus, species, and family, enable **"Use multiple columns"**:
 
 ![Column selection - multiple columns](images/app-column-select-multi.png)
 
-The app will automatically combine these columns into a single taxonomic name for matching, using a hierarchical approach:
-- If genus and species are available: "Genus species"
-- If only genus: "Genus"
-- If only family: "Family"
+The app combines these columns hierarchically:
+- Genus + species available → "Genus species"
+- Genus only → "Genus"
+- Family only → "Family"
 
 You can also optionally include an author column.
 
@@ -142,17 +145,19 @@ Click the **"Start Matching"** button to begin the automatic matching process. T
 1. **Exact match on species**: Direct lookup of full name (genus + species)
 2. **Exact match on genus**: Match at genus level
 3. **Exact match on family**: Match at family level
-4. **Exact match on class**: Match at higher taxonomic level
-5. **Fuzzy matching**: Approximate string matching for remaining names
+4. **Exact match on class**: Match at class level (e.g., names ending in -opsida, -psida)
+5. **Fuzzy matching**: Approximate string matching (trigram-Jaccard via `stringdist`) for remaining names
 
 ![Matching in progress](images/app-matching-progress.png)
 
-The progress bar shows real-time status. For large datasets, this may take a few minutes. The sidebar displays live statistics:
+The progress bar shows real-time status and correctly accounts for manually reviewed names in the completion percentage. The sidebar displays live statistics:
 
 - Number of exact matches
 - Number of genus-level matches
 - Number of fuzzy matches
 - Number of unmatched names
+
+**Checkpoint / resume**: Matching progress is automatically saved to a temporary file. If you accidentally close the browser tab, re-opening the app will offer to resume from where you left off.
 
 ### Phase 5: Review Match Results
 
@@ -164,8 +169,8 @@ The results table includes:
 
 - **Original name**: Your input name
 - **matched_name**: Name found in backbone
-- **match_method**: How it was matched (exact_species, exact_genus, exact_family, fuzzy, manual)
-- **match_score**: Similarity score (0-1, higher is better)
+- **match_method**: How it was matched (`exact_species`, `exact_genus`, `exact_family`, `exact_class`, `fuzzy`, `manual`)
+- **match_score**: Similarity score (0–1, higher is better)
 - **idtax_n**: Taxon ID in database
 - **is_synonym**: Whether matched name is a synonym
 - **accepted_name**: Current accepted name (if synonym)
@@ -174,7 +179,7 @@ The results table includes:
 
 - **Exact match (1.0)**: Perfect match, no review needed
 - **High similarity (>0.8)**: Very likely correct, quick review recommended
-- **Medium similarity (0.5-0.8)**: Possible match, review suggested
+- **Medium similarity (0.5–0.8)**: Possible match, review suggested
 - **Low similarity (<0.5)**: Uncertain, manual review required
 - **No match**: Requires manual selection
 
@@ -194,8 +199,8 @@ Shows automatic suggestions ranked by similarity with advanced filtering options
 
 **Filtering options:**
 
-- **Number of suggestions**: Slider to show 5-30 suggestions
-- **Minimum similarity**: Adjust threshold (0.3-1.0)
+- **Number of suggestions**: Slider to show 5–30 suggestions
+- **Minimum similarity**: Adjust threshold (0.3–1.0)
 - **Taxonomic level filter**: Filter by All, Species, Genus, Family, Order, Class, or Infraspecific
 - **Sort by**: Similarity score or alphabetical order
 
@@ -225,15 +230,15 @@ For names without good suggestions, use the manual search:
 
 ### Phase 7: Enrich Data with Traits
 
-Switch to the **"Traits Enrichment"** tab to add species-level traits to your matched data:
+Switch to the **"Traits Enrichment"** tab to add species-level traits to your matched data (requires a database connection; this tab is hidden in offline mode):
 
 ![Trait enrichment interface](images/app-enrich-data-interface.png)
 
 **Options:**
 
 - **Categorical aggregation mode**:
-  - "mode" - Use most frequent value per taxon
-  - "concat" - Concatenate all unique values
+  - "mode" — Use most frequent value per taxon
+  - "concat" — Concatenate all unique values
 
 - **Select columns to include**:
   - Original input names
@@ -241,18 +246,17 @@ Switch to the **"Traits Enrichment"** tab to add species-level traits to your ma
   - Taxonomic IDs
   - Match metadata
 
-Available traits include:
+Available traits include growth form, wood density, leaf traits, and ecological characteristics.
 
-- Growth form
-- Wood density
-- Leaf traits
-- Ecological characteristics
-
-The enriched data combines your matched taxa with selected traits:
+The enriched data combines your matched taxa with selected traits. A **wide format** (one row per taxon, traits as columns) and a **long format** (one row per taxon × trait combination) are both available as separate sub-tabs:
 
 ![Enriched data results](images/app-enrich-data-results.png)
 
 **Note**: The enriched export creates one row per unique taxon, not per input row. Input names are concatenated with pipe separators.
+
+#### Data Sources panel
+
+A **Data Sources** sub-tab lists all trait citations used, with measurement counts per source. This helps you track data provenance for your analysis and cite sources correctly.
 
 ### Phase 8: Export Results
 
@@ -269,9 +273,10 @@ Switch to the **"Export"** tab to download your standardized dataset:
 **Selectable columns:**
 
 - Original data (all your input columns)
-- Matched IDs (idtax_n, idtax_good_n)
-- Corrected names (corrected_name, matched_name)
-- Match metadata (match_method, match_score, is_synonym, accepted_name)
+- Matched IDs (`idtax_n`, `idtax_good_n`)
+- Corrected names (`corrected_name`, `matched_name`)
+- Match metadata (`match_method`, `match_score`, `is_synonym`, `accepted_name`)
+- WCVP columns (`wcvp_plant_name_id`, `wcvp_accepted_plant_name_id`) — see WCVP section below
 
 A preview table shows the data before export with pagination controls.
 
@@ -285,33 +290,27 @@ The app adds these columns to your data:
 | `idtax_good_n` | Accepted taxon ID (for synonyms) |
 | `matched_name` | Name found in backbone |
 | `corrected_name` | Final standardized name |
-| `match_method` | Matching strategy used (exact_species, exact_genus, exact_family, fuzzy, manual, unresolved) |
-| `match_score` | Similarity score (0-1) |
+| `name_source` | Which backbone was used for the match (internal, WCVP, etc.) |
+| `match_method` | Matching strategy used (`exact_species`, `exact_genus`, `exact_family`, `exact_class`, `fuzzy`, `manual`, `unresolved`) |
+| `match_score` | Similarity score (0–1) |
 | `is_synonym` | TRUE if matched name is a synonym |
 | `accepted_name` | Current accepted name (if synonym) |
 | `family` | Taxonomic family |
 | `genus` | Taxonomic genus |
+| `wcvp_plant_name_id` | WCVP ID for the matched name (optional, see below) |
+| `wcvp_accepted_plant_name_id` | WCVP ID for the accepted name (optional, see below) |
 
 ## Advanced Options
 
 ### Language Selection
 
-The app now supports **bilingual operation** with French and English interfaces. **French is the default language**.
-
-**In the App Interface:**
+The app supports **bilingual operation** with French and English interfaces. **French is the default language**.
 
 A language toggle is located in the top-right corner of the app:
 - Click **"FR"** for French interface
 - Click **"EN"** for English interface
 
-The language switch is instant and affects all UI elements including:
-- Tab labels
-- Button text
-- Instructions and help text
-- Column headers
-- Error messages and notifications
-
-**Setting Initial Language Programmatically:**
+The switch is instant and affects all UI elements. To set the initial language programmatically:
 
 ```{r, eval=FALSE}
 # Launch app in English
@@ -319,11 +318,18 @@ launch_taxonomic_match_app(language = "en")
 
 # Launch app in French (default)
 launch_taxonomic_match_app(language = "fr")
-# or simply:
-launch_taxonomic_match_app()
 ```
 
-The language setting is interactive - users can switch languages at any time during their session without losing work progress or data.
+### WCVP Integration
+
+The app can optionally enrich results with **World Checklist of Vascular Plants (WCVP)** identifiers. When the taxa database contains WCVP data, a **"Use WCVP names in output"** checkbox appears in the sidebar.
+
+Enabling it adds two columns to your export:
+
+- `wcvp_plant_name_id` — WCVP identifier for the matched name
+- `wcvp_accepted_plant_name_id` — WCVP identifier for the accepted name
+
+The `name_source` column records which backbone was used, helping you document the taxonomic provenance of each match.
 
 ### Adjusting Fuzzy Matching
 
@@ -340,7 +346,7 @@ launch_taxonomic_match_app(min_similarity = 0.7)
 launch_taxonomic_match_app(min_similarity = 0.5)
 ```
 
-Lower values cast a wider net but may include false positives. Higher values are more conservative but may miss valid matches.
+Lower values cast a wider net but may include false positives. Higher values are more conservative but may miss valid matches. The default was raised from 0.3 to **0.7** to reduce spurious suggestions.
 
 ### Increasing Suggestions
 
@@ -351,17 +357,29 @@ Show more fuzzy match suggestions per name:
 launch_taxonomic_match_app(max_suggestions = 20)
 ```
 
-Useful when initial suggestions don't include the correct match. You can also adjust this interactively in the Review tab using the slider.
+You can also adjust this interactively in the Review tab using the slider.
+
+### Offline Mode
+
+If you do not have a database connection, click **"Use offline (cached backbone)"** on the login screen. The app:
+
+- Downloads and caches the backbone locally on first use
+- Performs string matching entirely in R via `stringdist` (trigram-Jaccard)
+- Supports auto-matching, fuzzy suggestions, and manual search
+- Hides the Traits Enrichment tab (requires live connection)
+- Displays a **"Read-only"** badge throughout the session
 
 ## Function Parameters
 
 ```{r}
 launch_taxonomic_match_app(
-  data = NULL,           # Optional: pre-load data.frame
-
-  name_column = NULL,    # Optional: pre-select column
-  min_similarity = 0.7,  # Fuzzy match threshold (0-1)
-  max_suggestions = 10   # Max suggestions per unmatched name
+  data           = NULL,         # Optional: pre-load a data.frame
+  name_column    = NULL,         # Optional: pre-select a column name
+  language       = c("fr", "en"),# Interface language (default: "fr")
+  min_similarity = 0.7,          # Fuzzy match threshold (0-1)
+  max_suggestions = 10,          # Max suggestions per unmatched name
+  mode           = "interactive",# Review mode ("interactive" or "batch")
+  launch.browser = TRUE          # Whether to open app in the browser
 )
 ```
 
@@ -371,7 +389,7 @@ launch_taxonomic_match_app(
 
 **Problem**: "Failed to connect to database"
 
-**Solution**:
+**Solutions**:
 ```{r}
 # Check connection
 db_diagnostic()
@@ -380,6 +398,8 @@ db_diagnostic()
 remove_db_credentials()
 setup_db_credentials()
 ```
+
+Alternatively, use **offline mode** (click "Use offline (cached backbone)" on the login screen) to work without a live database connection.
 
 ### No Fuzzy Matches Found
 
@@ -401,9 +421,9 @@ setup_db_credentials()
 **Problem**: Matching takes very long for large datasets
 
 **Solutions**:
-- Use batch processing instead: `match_taxonomic_names()` for programmatic workflow
+- Enable **offline mode**: matching runs locally via `stringdist` without database round-trips
+- Use batch processing instead: `match_taxonomic_names()` for programmatic workflows
 - Process data in chunks (split large datasets)
-- The app downloads the entire backbone once for efficiency, so initial load may be slow
 
 ## When to Use the App vs. Programmatic Approach
 
@@ -447,6 +467,7 @@ write.csv(result, "standardized_inventory.csv", row.names = FALSE)
 - `match_taxonomic_names()`: Underlying matching function for programmatic use
 - `query_taxa()`: Query taxonomic backbone directly
 - `match_tax()`: Simple taxonomic lookup function
+- `launch_taxo_backbone_app()`: Interactive tool for exploring the taxonomic backbone
 - `vignette("using-query-plots")`: Guide to querying plot data
 
 ## Tips for Best Results
@@ -454,10 +475,11 @@ write.csv(result, "standardized_inventory.csv", row.names = FALSE)
 1. **Clean your data first**: Remove obvious typos, extra whitespace, and special characters
 2. **Understand your data**: Know which taxonomic groups are in your dataset
 3. **Use multi-column mode**: If you have separate genus/species/family columns, combine them for better matching
-4. **Filter by taxonomic level**: Use the level filter in Review tab to find genus or family matches
+4. **Filter by taxonomic level**: Use the level filter in the Review tab to find genus or family matches
 5. **Review match scores**: Don't blindly accept low-similarity matches (<0.6)
-6. **Save incrementally**: Export intermediate results to avoid losing manual review work
+6. **Use checkpoint/resume**: The app saves your progress automatically — if you close the browser tab, you can pick up where you left off
 7. **Document parameters**: Note which `min_similarity` value you used for reproducibility
+8. **Cite data sources**: Check the Data Sources panel in the Traits tab for citations to include in your methods
 
 ## Example Workflow
 
@@ -472,14 +494,17 @@ trees <- read.csv("forest_inventory.csv")
 launch_taxonomic_match_app(
   data = trees,
   name_column = "species_name",
+  language = "en",
   min_similarity = 0.7
 )
 
 # 3. In the app:
-#    - Review automatic matches in Auto Match tab
-#    - Use Review tab to resolve unmatched names
-#    - Apply taxonomic level filters if needed
-#    - Optionally enrich with traits in Traits Enrichment tab
+#    - Authenticate (or choose offline mode)
+#    - Review automatic matches in the Auto Match tab
+#    - Use the Review tab to resolve unmatched names
+#    - Optionally enable WCVP output via the sidebar checkbox
+#    - Optionally enrich with traits in the Traits Enrichment tab
+#      (check the Data Sources panel for citations)
 #    - Export as "forest_inventory_standardized.xlsx"
 
 # 4. Continue analysis with standardized data
@@ -489,21 +514,3 @@ standardized <- readxl::read_excel("forest_inventory_standardized.xlsx")
 ```
 
 This workflow ensures your taxonomic data is standardized and ready for downstream analyses like diversity metrics, trait-based analyses, or database integration.
-
-## Suggested Screenshots
-
-To complete this documentation, the following screenshots should be captured:
-
-1. **app-initial-view.png** - Full app interface after launch with all tabs visible
-2. **app-upload-data.png** - Data upload panel with file browser and sheet selection
-3. **app-text-input.gif** - Text input interface with text area and "Load names" button (NEW)
-4. **app-column-select.png** - Single column selection dropdown
-5. **app-column-select-multi.png** - Multiple column mode with genus/species/family selectors
-6. **app-matching-progress.png** - Matching in progress with progress bar and live statistics
-7. **app-matching-results.png** - Results table in Auto Match tab showing matched names
-8. **app-review-interface.png** - Review tab overview with unmatched name display
-9. **app-review-suggestions.png** - Fuzzy suggestions panel with filtering options (level filter, sort, slider)
-10. **app-review-manual-search.png** - Manual search interface with search box and results
-11. **app-enrich-data-interface.png** - Traits enrichment tab with aggregation mode and column selection
-12. **app-enrich-data-results.png** - Preview of enriched data with traits
-13. **app-export-options.png** - Export tab with format selection and column checkboxes
