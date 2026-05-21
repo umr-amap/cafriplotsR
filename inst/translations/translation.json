@@ -7928,6 +7928,18 @@
     {
       "en": "Offline mode - using cached taxonomic backbone.",
       "fr": "Mode hors ligne - utilisation du referentiel taxonomique en cache."
+    },
+    {
+      "en": "Review and create the validated links between individuals and specimens in the database.",
+      "fr": "Examiner et créer les liens validés entre les individus et les spécimens dans la base de données."
+    },
+    {
+      "en": "Specimen number",
+      "fr": "Numéro de spécimen"
+    },
+    {
+      "en": "Suffix (optional)",
+      "fr": "Suffixe (optionnel)"
     }
   ]
 }
