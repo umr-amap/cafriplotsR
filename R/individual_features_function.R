@@ -2195,7 +2195,8 @@ traits_list <- function(id_trait = NULL) {
                   minallowedvalue,
                   expectedunit,
                   valuetype,
-                  category)
+                  category,
+                  factorlevels)
   
   if (is.null(id_trait)) {
     
