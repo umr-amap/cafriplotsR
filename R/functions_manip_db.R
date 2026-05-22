@@ -195,6 +195,17 @@ query_plots <- function(plot_name = NULL,
   # that passes validate_output_style().
   output_style <- .validate_query_plots_output_style(output_style)
 
+  # When output_style is explicitly "census_pairs", auto-switch individual_features_format
+  # to "census_pairs" for consistent paired-census output.
+  if (!inherits(output_style, "plot_output_style") &&
+      identical(output_style, "census_pairs") &&
+      individual_features_format != "census_pairs") {
+    cli::cli_alert_info(
+      "`output_style = 'census_pairs'` detected: automatically setting `individual_features_format = 'census_pairs'` for consistent output."
+    )
+    individual_features_format <- "census_pairs"
+  }
+
   if (individual_features_format %in% c("long", "census_pairs") && isTRUE(concatenate_stem)) {
     cli::cli_alert_warning(
       "`individual_features_format = '{individual_features_format}'` is incompatible with `concatenate_stem = TRUE`. Setting `concatenate_stem = FALSE`."
@@ -1059,10 +1070,13 @@ enrich_individual_traits <- function(individuals, con, show_multiple_census,
       return(individuals)
     }
 
-    # Drop any existing census_date artefacts from individuals before expanding
+    # Drop any existing census_date artefacts from individuals before expanding.
+    # Also remove date_census_julian_N columns (1-indexed plot-level artifacts from
+    # extract_census_dates): the pairs join below provides date_census0/1 which the
+    # output style renames to date_census_0/1 with the correct _0/_1 convention.
     individuals <- individuals %>%
       dplyr::select(-dplyr::any_of("census_date")) %>%
-      dplyr::select(-dplyr::matches("^date_census_\\d+$"))
+      dplyr::select(-dplyr::matches("^date_census_(julian_)?\\d+$"))
 
     # Expand individuals: one row per (individual, census pair)
     individuals <- individuals %>%
