@@ -1364,11 +1364,10 @@ get_wcvp_names <- function(idtax_n,
       has_wcvp & !is.na(data$wcvp_species), data$wcvp_species, data$tax_esp)
 
   if ("tax_sp_level" %in% names(data)) {
-    wcvp_sp <- dplyr::case_when(
-      !is.na(data$wcvp_genus) & !is.na(data$wcvp_species) ~
-        paste(data$wcvp_genus, data$wcvp_species),
-      !is.na(data$wcvp_genus) ~ data$wcvp_genus,
-      TRUE ~ NA_character_
+    wcvp_sp <- dplyr::if_else(
+      !is.na(data$wcvp_genus) & !is.na(data$wcvp_species),
+      paste(data$wcvp_genus, data$wcvp_species),
+      NA_character_
     )
     data$tax_sp_level <- dplyr::if_else(
       has_wcvp & !is.na(wcvp_sp), wcvp_sp, data$tax_sp_level)
