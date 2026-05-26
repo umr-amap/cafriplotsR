@@ -1825,9 +1825,7 @@ add_traits_measures_features <- function(new_data,
         data_feat %>%
         dplyr::distinct(.data$id_trait) %>%
         dplyr::left_join(
-          dplyr::tbl(con, "traitlist") %>%
-            dplyr::select("valuetype", "id_trait") %>%
-            dplyr::collect(),
+          get_traitlist(con)[, c("valuetype", "id_trait"), drop = FALSE],
           by = c("id_trait" = "id_trait")
         )
 
@@ -2440,9 +2438,7 @@ add_traits_measures <- function(new_data,
         data_trait %>%
         dplyr::distinct(id_trait) %>%
         dplyr::left_join(
-          dplyr::tbl(mydb, "traitlist") %>%
-            dplyr::select(valuetype, id_trait) %>%
-            dplyr::collect(),
+          get_traitlist(mydb)[, c("valuetype", "id_trait"), drop = FALSE],
           by = c("id_trait" = "id_trait")
         )
       
@@ -3646,8 +3642,11 @@ add_trait <- function(new_trait = NULL,
     Q <- TRUE
   }
 
-  if(Q) DBI::dbWriteTable(actual_con, "traitlist", new_data_renamed, append = TRUE, row.names = FALSE)
-  
+  if(Q) {
+    DBI::dbWriteTable(actual_con, "traitlist", new_data_renamed, append = TRUE, row.names = FALSE)
+    .invalidate_traitlist_cache()
+  }
+
 }
 
 
@@ -4157,9 +4156,7 @@ add_sp_traits_measures_features <- function(new_data,
         data_feat %>%
         dplyr::distinct(id_trait) %>%
         dplyr::left_join(
-          dplyr::tbl(actual_con, "traitlist") %>%
-            dplyr::select(valuetype, id_trait) %>%
-            dplyr::collect(),
+          get_traitlist(actual_con)[, c("valuetype", "id_trait"), drop = FALSE],
           by = c("id_trait" = "id_trait")
         )
 
