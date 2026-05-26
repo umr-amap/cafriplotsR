@@ -731,12 +731,26 @@ query_plots <- function(plot_name = NULL,
       )
     }
   } else {
-    # For "full" style, rename meta_data to metadata for consistency
-    if (is.list(res_list) && "meta_data" %in% names(res_list)) {
-      names(res_list)[names(res_list) == "meta_data"] <- "metadata"
-    }
-    # Assign plot_query_list class so describe_columns() can process it
+    # For "full" style, rename internal names to user-friendly equivalents
     if (is.list(res_list) && !is.data.frame(res_list)) {
+      if ("meta_data" %in% names(res_list))
+        names(res_list)[names(res_list) == "meta_data"] <- "metadata"
+      if ("extract" %in% names(res_list))
+        names(res_list)[names(res_list) == "extract"] <- "individuals"
+      # Process raw hd_source into a clean height_diameter table
+      if ("hd_source" %in% names(res_list) && extract_individuals &&
+          !is.null(res_list$hd_source) && is.data.frame(res_list$hd_source)) {
+        hd_pairs <- .extract_height_diameter_pairs(
+          data                 = res_list$individuals,
+          show_multiple_census = show_multiple_census,
+          hd_source            = res_list$hd_source
+        )
+        res_list$hd_source <- NULL
+        if (!is.null(hd_pairs) && nrow(hd_pairs) > 0)
+          res_list$height_diameter <- hd_pairs
+      } else {
+        res_list$hd_source <- NULL
+      }
       class(res_list) <- c("plot_query_list", "list")
       attr(res_list, "style") <- "full"
     }

@@ -699,7 +699,8 @@ print.plot_query_list <- function(x, ...) {
     }
   }
 
-  cli::cli_text("{.emph Access tables with: $metadata, $individuals, etc.}")
+  table_names <- paste0("$", names(x), collapse = ", ")
+  cli::cli_text("{.emph Access tables with: {table_names}}")
   cli::cli_text("{.emph Use names(result) to see all available tables}")
 
   invisible(x)
