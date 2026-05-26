@@ -79,10 +79,11 @@ mod_growth_form_selector_server <- function(id, pool, i18n) {
         }, add = TRUE)
 
         # Query growth form traits
-        growth_form_cat <- dplyr::tbl(actual_con, "traitlist") %>%
-          dplyr::select(id_trait, trait, traitdescription, factorlevels) %>%
-          dplyr::collect() %>%
-          dplyr::filter(grepl("growth_form", trait))
+        growth_form_cat <- get_traitlist(actual_con)
+        keep_cols <- intersect(c("id_trait", "trait", "traitdescription", "factorlevels"),
+                               names(growth_form_cat))
+        growth_form_cat <- growth_form_cat[, keep_cols, drop = FALSE]
+        growth_form_cat <- growth_form_cat[grepl("growth_form", growth_form_cat$trait), , drop = FALSE]
 
         # Parse factor levels
         growth_form_cat <- growth_form_cat %>%

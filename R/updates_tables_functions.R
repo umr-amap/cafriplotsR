@@ -2189,9 +2189,7 @@ update_trait_table <- function(new_data,
 
   mydb <- call.mydb()
 
-  all_colnames_traits <-
-    dplyr::tbl(mydb, "traitlist") %>%
-    colnames()
+  all_colnames_traits <- colnames(get_traitlist(mydb))
 
   if (is.null(col_names_select) & is.null(col_names_corresp))
     col_names_corresp <- col_names_select <- names(new_data)
@@ -4118,11 +4116,7 @@ get_table_columns <- function(table_name, con) {
 
 get_available_individual_features <- function(con) {
   tryCatch({
-    dplyr::tbl(con, "traitlist") %>%
-      dplyr::select(trait) %>%
-      dplyr::distinct() %>%
-      dplyr::collect() %>%
-      dplyr::pull(trait)
+    unique(get_traitlist(con)$trait)
   }, error = function(e) {
     # Fallback: return empty character vector if query fails
     # Log to console but don't propagate error

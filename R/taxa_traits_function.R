@@ -58,27 +58,15 @@ traits_taxa_list <- function(id_trait = NULL, con = NULL) {
 
   if (is.null(con)) con <- call.mydb()
 
-  all_colnames_ind <-
-    try_open_postgres_table(table = "traitlist", con = con) %>%
-    dplyr::select(trait,
-                  id_trait,
-                  traitdescription,
-                  maxallowedvalue,
-                  minallowedvalue,
-                  expectedunit,
-                  valuetype)
+  cols <- c("trait", "id_trait", "traitdescription",
+            "maxallowedvalue", "minallowedvalue", "expectedunit",
+            "valuetype")
 
-  if (is.null(id_trait)) {
+  all_colnames_ind <- get_traitlist(con)
+  all_colnames_ind <- all_colnames_ind[, intersect(cols, names(all_colnames_ind)), drop = FALSE]
 
-    all_colnames_ind <- all_colnames_ind %>%
-      dplyr::collect()
-
-  } else {
-
-    all_colnames_ind <- all_colnames_ind %>%
-      filter(id_trait == !!id_trait) %>%
-      dplyr::collect()
-
+  if (!is.null(id_trait)) {
+    all_colnames_ind <- all_colnames_ind[all_colnames_ind$id_trait == id_trait, , drop = FALSE]
   }
 
   return(all_colnames_ind)
@@ -635,12 +623,8 @@ query_trait <- function(id_trait = NULL, pattern = NULL, con = NULL) {
   if (!is.null(id_trait)) {
     cli::cli_alert_info("query trait by id")
 
-    trait_tbl <- try_open_postgres_table(table = "traitlist", con = con)
-
-    valuetype <-
-      trait_tbl %>%
-      dplyr::filter(id_trait == !!id_trait) %>%
-      dplyr::collect()
+    trait_tbl <- get_traitlist(con)
+    valuetype <- trait_tbl[trait_tbl$id_trait == id_trait, , drop = FALSE]
   }
 
   if (is.null(id_trait) & !is.null(pattern)) {

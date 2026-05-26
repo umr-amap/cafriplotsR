@@ -172,9 +172,7 @@
     dplyr::rename_with(.cols = dplyr::all_of(trait),
                        .fn = ~ trait_newnames)
 
-  all_traits <-
-    dplyr::tbl(mydb, "traitlist") %>%
-    dplyr::collect()
+  all_traits <- get_traitlist(mydb)
 
 
   selected_name_res <- .find_cat(value_to_search = trait,
@@ -379,9 +377,7 @@
 
   if (is.null(con)) con <- call.mydb()
 
-  all_traits <-
-    try_open_postgres_table(table = "traitlist", con = con) %>%
-    collect()
+  all_traits <- get_traitlist(con)
 
   selected_name <- .find_cat(value_to_search = trait,
                              compared_table = all_traits,

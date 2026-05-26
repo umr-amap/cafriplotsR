@@ -644,7 +644,64 @@ cleanup_connections <- function() {
   rm(list = ls(envir = credentials), envir = credentials)
   .db_env$env_creds_notified <- NULL
 
+  # Drop any cached lookup tables tied to the closed connection
+  .invalidate_traitlist_cache()
+
   cli::cli_alert_success("All connections closed and credentials cleared")
+}
+
+
+# ---------------------------------------------------------------------------
+# Cached lookups
+# ---------------------------------------------------------------------------
+
+#' Return the `traitlist` lookup table, cached per session
+#'
+#' `traitlist` is a small lookup table (~50 rows) that the package re-fetches
+#' from the database in many places to find the `valuetype` of a trait or to
+#' join trait definitions to measurements.  Re-fetching ~50 rows on every
+#' call adds up to thousands of round trips during a typical workflow, even
+#' though the table changes very rarely (only when [add_trait_taxa()] inserts
+#' a new row).
+#'
+#' `get_traitlist()` fetches the table once into an internal cache
+#' (`.db_env$traitlist_cache`) and returns the cached `data.frame` on
+#' subsequent calls.  The cache is invalidated automatically when a new
+#' trait is added via [add_trait_taxa()] and when [cleanup_connections()]
+#' is called.  Use `refresh = TRUE` to force a re-fetch (e.g. after an
+#' external update).
+#'
+#' @param con A database connection from [call.mydb()] (or a [pool::pool()]).
+#' @param refresh Logical. If `TRUE`, drop the cache and re-fetch from the
+#'   database.  Default `FALSE`.
+#'
+#' @return A `data.frame` with the full contents of `traitlist`.
+#' @export
+get_traitlist <- function(con, refresh = FALSE) {
+  if (isTRUE(refresh)) .invalidate_traitlist_cache()
+
+  cached <- .db_env$traitlist_cache
+  if (!is.null(cached) && is.data.frame(cached)) {
+    return(cached)
+  }
+
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+  }, add = TRUE)
+
+  data <- DBI::dbReadTable(actual_con, "traitlist")
+  .db_env$traitlist_cache <- data
+  data
+}
+
+# Internal: drop the cached traitlist.  Called by add_trait_taxa() after a
+# successful insert and by cleanup_connections().
+.invalidate_traitlist_cache <- function() {
+  if (!is.null(.db_env$traitlist_cache)) {
+    .db_env$traitlist_cache <- NULL
+  }
+  invisible(NULL)
 }
 
 #' Get connection information
