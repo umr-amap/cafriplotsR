@@ -162,7 +162,8 @@
     ),
     individuals_columns = c(
       "id_n", "plot_name", "tag", "distance_along_transect",
-      "tax_fam", "tax_gen", "tax_sp_level", "dbh"
+      "tax_fam", "tax_gen", "tax_sp_level", "dbh",
+      "colnbr", "colnam_specimen"
     ),
     keep_patterns = c("position_",
                       "strate",
