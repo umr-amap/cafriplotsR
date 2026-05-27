@@ -229,18 +229,18 @@ get_linktypes <- function(con = NULL) {
 
   cli::cli_alert_info("Preparing to add {nrow(new_data_renamed)} links for {dplyr::n_distinct(new_data_renamed$id_specimen)} different specimens")
 
-  # Check for duplicates with existing links
+  # Check for duplicates with existing links (match on all three key columns)
   existing_links <- dplyr::tbl(actual_con, "data_link_specimens") %>%
-    dplyr::select("id_n", "id_specimen") %>%
+    dplyr::select("id_n", "id_specimen", "id_linktype") %>%
     dplyr::collect()
 
   check_dup <- new_data_renamed %>%
-    dplyr::inner_join(existing_links, by = c("id_n", "id_specimen"))
+    dplyr::inner_join(existing_links, by = c("id_n", "id_specimen", "id_linktype"))
 
   if (nrow(check_dup) > 0) {
     cli::cli_alert_warning("{nrow(check_dup)} links already exist in database - excluding duplicates")
     new_data_renamed <- new_data_renamed %>%
-      dplyr::anti_join(existing_links, by = c("id_n", "id_specimen"))
+      dplyr::anti_join(existing_links, by = c("id_n", "id_specimen", "id_linktype"))
     cli::cli_alert_info("Links to add after excluding duplicates: {nrow(new_data_renamed)}")
   }
 

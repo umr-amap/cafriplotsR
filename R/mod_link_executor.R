@@ -154,6 +154,14 @@ mod_link_executor_server <- function(id, validated_links, con, i18n) {
             ) %>%
             dplyr::select(id_specimen, id_n, id_linktype)
 
+          # Remove internal duplicates within this batch
+          n_before <- nrow(links_to_create)
+          links_to_create <- dplyr::distinct(links_to_create, id_specimen, id_n, id_linktype, .keep_all = TRUE)
+          n_removed <- n_before - nrow(links_to_create)
+          if (n_removed > 0) {
+            cli::cli_alert_warning("Removed {n_removed} duplicate link(s) from batch (same id_n + id_specimen + id_linktype)")
+          }
+
           shiny::incProgress(0.4, detail = i18n()$t("Validating links..."))
 
           if (dry_run) {

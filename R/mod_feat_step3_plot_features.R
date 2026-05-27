@@ -504,7 +504,7 @@ mod_feat_step3_plot_features_server <- function(id, selected_plots, operation_mo
           return()
         }
 
-        # Rename date columns
+        # Rename date columns (user-mapped)
         for (date_col in c("year", "month", "day")) {
           mapped <- input[[paste0("map_", date_col)]]
           if (!is.null(mapped) && mapped != "" && mapped != date_col && mapped %in% names(df)) {
@@ -587,14 +587,21 @@ mod_feat_step3_plot_features_server <- function(id, selected_plots, operation_mo
             return()
           }
 
+          date_cols_present <- intersect(c("year", "month", "day"), names(df))
           config <- list(
             mode = "add_features",
             subplottype_fields = c(feature_cols, people_cols),
-            col_names_select = intersect(c("year", "month", "day"), names(df)),
-            col_names_corresp = intersect(c("year", "month", "day"), names(df)),
+            col_names_select = date_cols_present,
+            col_names_corresp = date_cols_present,
             people_columns = people_cols,
             features_field = NULL
           )
+
+          # Drop unmapped xlsx columns — keep only what will actually be used
+          keep_cols <- c("plot_name", "id_liste_plots", date_cols_present,
+                         feature_cols, people_cols)
+          df <- df[, intersect(keep_cols, names(df)), drop = FALSE]
+          cli::cli_alert_info("Upload add_features: keeping cols [{paste(names(df), collapse=', ')}]")
         }
 
         prepared_data(df)

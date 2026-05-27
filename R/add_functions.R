@@ -481,7 +481,8 @@ add_subplot_features <- function(new_data,
   
   
   if (!is.null(col_names_select) &
-      !is.null(col_names_corresp)) {
+      !is.null(col_names_corresp) &
+      length(col_names_select) > 0) {
     new_data_renamed <-
       .rename_data(dataset = new_data,
                    col_old = col_names_select,
@@ -651,7 +652,7 @@ add_subplot_features <- function(new_data,
 
     # For table_colnam type features (e.g. team_leader, additional_people),
     # resolve person names to id_table_colnam IDs and separate comma-delimited values
-    if (any(valuetype$valuetype == "table_colnam")) {
+    if (isTRUE(any(valuetype$valuetype == "table_colnam", na.rm = TRUE))) {
 
       data_subplottype <-
         data_subplottype %>%
@@ -742,9 +743,9 @@ add_subplot_features <- function(new_data,
                     day = data_subplottype$day,
                     id_type_sub_plot = data_subplottype$id_subplottype,
                     id_colnam = data_subplottype$id_colnam,
-                    typevalue = ifelse(rep(any(valuetype$valuetype %in% c("numeric", "table_colnam")),
+                    typevalue = ifelse(rep(isTRUE(any(valuetype$valuetype %in% c("numeric", "table_colnam"), na.rm = TRUE)),
                                            nrow(data_subplottype)), suppressWarnings(as.numeric(data_subplottype$subplotype)), NA_real_),
-                    typevalue_char = ifelse(rep(valuetype$valuetype == "character",
+                    typevalue_char = ifelse(rep(isTRUE(any(valuetype$valuetype == "character", na.rm = TRUE)),
                                                 nrow(data_subplottype)), as.character(data_subplottype$subplotype), NA_character_),
                     original_subplot_name = ifelse(rep(any(colnames(data_subplottype)=="original_subplot_name"),
                                                        nrow(data_subplottype)), as.character(data_subplottype$original_subplot_name), NA_character_),
