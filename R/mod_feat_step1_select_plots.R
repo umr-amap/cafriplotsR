@@ -42,6 +42,45 @@ mod_feat_step1_select_plots_ui <- function(id, i18n) {
       )
     ),
 
+    # Paste alternative
+    shiny::div(
+      style = "background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 15px; margin-bottom: 15px;",
+      shiny::p(
+        shiny::icon("paste"), " ",
+        shiny::strong(i18n$t("Or paste plot names")),
+        " — ",
+        shiny::span(
+          i18n$t("one per line or comma-separated"),
+          style = "color: #6c757d; font-weight: normal;"
+        ),
+        style = "margin-bottom: 8px; color: #495057;"
+      ),
+      shiny::fluidRow(
+        shiny::column(
+          8,
+          shiny::textAreaInput(
+            ns("paste_plot_names"),
+            label = NULL,
+            placeholder = "plot_A\nplot_B\nplot_C",
+            rows = 4,
+            width = "100%"
+          )
+        ),
+        shiny::column(
+          4,
+          shiny::div(
+            style = "margin-top: 5px;",
+            shiny::actionButton(
+              ns("apply_paste"),
+              shiny::tagList(shiny::icon("plus"), " ", i18n$t("Add to Selection")),
+              class = "btn-secondary"
+            )
+          )
+        )
+      ),
+      shiny::uiOutput(ns("paste_feedback"))
+    ),
+
     shiny::hr(),
 
     # Selected plots summary
@@ -98,16 +137,66 @@ mod_feat_step1_select_plots_server <- function(id, con, i18n) {
       })
     }, once = TRUE, ignoreNULL = TRUE, ignoreInit = FALSE)
 
-    # Render the selectInput with choices — created fresh each time the UI renders
+    # Render the selectizeInput with choices — created fresh each time the UI renders
     output$plot_name_ui <- shiny::renderUI({
       choices <- plot_name_choices()
-      shiny::selectInput(
+      shiny::selectizeInput(
         ns("plot_name"),
         label = i18n()$t("Plot Name(s)"),
         choices = choices,
         selected = NULL,
-        multiple = TRUE
+        multiple = TRUE,
+        options = list(placeholder = i18n()$t("Type to search plots..."))
       )
+    })
+
+    # Apply pasted names to the selectize selection
+    shiny::observeEvent(input$apply_paste, {
+      text <- input$paste_plot_names
+      if (is.null(text) || nchar(trimws(text)) == 0) {
+        shiny::showNotification(i18n()$t("Please paste some plot names first."), type = "warning")
+        return()
+      }
+
+      raw <- unlist(strsplit(text, "[,\n\r]+"))
+      pasted <- trimws(raw)
+      pasted <- pasted[nchar(pasted) > 0]
+
+      known   <- plot_name_choices()
+      valid   <- pasted[pasted %in% known]
+      unknown <- pasted[!pasted %in% known]
+
+      if (length(valid) == 0) {
+        shiny::showNotification(
+          i18n()$t("No matching plot names found. Check spelling and try again."),
+          type = "warning", duration = 6
+        )
+        output$paste_feedback <- shiny::renderUI({
+          shiny::div(
+            class = "alert alert-warning",
+            style = "margin-top: 8px; padding: 8px 12px;",
+            shiny::icon("exclamation-triangle"), " ",
+            sprintf(i18n()$t("Not found: %s"), paste(unknown, collapse = ", "))
+          )
+        })
+        return()
+      }
+
+      new_selection <- unique(c(input$plot_name, valid))
+      shiny::updateSelectizeInput(session, "plot_name", selected = new_selection)
+
+      output$paste_feedback <- shiny::renderUI({
+        msg <- sprintf(i18n()$t("%d plot(s) added to selection."), length(valid))
+        warn <- if (length(unknown) > 0) {
+          paste0(" ", sprintf(i18n()$t("Not found: %s"), paste(unknown, collapse = ", ")))
+        } else ""
+        shiny::div(
+          class = if (length(unknown) > 0) "alert alert-warning" else "alert alert-success",
+          style = "margin-top: 8px; padding: 8px 12px;",
+          shiny::icon(if (length(unknown) > 0) "exclamation-triangle" else "check"), " ",
+          msg, warn
+        )
+      })
     })
 
     # Load info for selected plots

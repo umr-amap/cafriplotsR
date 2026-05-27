@@ -1,5 +1,11 @@
 # CafriplotsR 1.9.8 (Development)
 
+### Bug Fixes
+
+* **`mod_taxonomic_validator`** — clicking "Confirm Selection" no longer resets the Action column or misclassifies previously accepted rows as rejected. The fix separates the display data (`validated_data`) from the confirmed output (`final_validated_links`): confirming no longer overwrites the table's data, so row indices used by `user_decisions` remain stable.
+
+* **`mod_link_executor` / `.add_link_specimens()`** — duplicate links (same `id_n` + `id_specimen` + `id_linktype`) are now prevented at two levels: internal duplicates within a new batch are removed before insertion, and the existing-DB check now matches on all three key columns instead of only `id_n` + `id_specimen`.
+
 ### New Features
 
 * **`connect_cafri()` — single entry point for both databases** (`R/connections_db.R`)

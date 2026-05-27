@@ -127,6 +127,14 @@ reference:
       - get_primary_specimen_link
       - get_ref_specimen_ind
 
+  - title: "Output Styling"
+    desc: "Configure custom output styles for query results"
+    contents:
+      - output_style
+      - get_output_style
+      - list_output_styles
+      - print.plot_output_style
+
   - title: "WCVP Integration"
     desc: "Functions for integrating with the World Checklist of Vascular Plants (WCVP)"
     contents:
@@ -202,7 +210,6 @@ reference:
       - .link_subplotype
       - .link_table
       - .link_trait
-      - .pairwise_string_similarity
       - .query_unmatched_specimens
       - .rename_data
 
@@ -212,7 +219,7 @@ reference:
       - compute_growth
       - compute_mortality
       - compute_stem_vital_status
-      - process_trimble_data
+      - standardize_observations
       - process_individuals
       - process_stems
       - divid_plot

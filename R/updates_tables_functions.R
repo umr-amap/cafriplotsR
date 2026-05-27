@@ -1254,23 +1254,25 @@ update_ident_specimens <- function(colnam = NULL,
           DBI::dbWriteTable(mydb, "followup_updates_specimens", queried_speci, append = TRUE, row.names = FALSE)
         }
 
-        rs <-
-          DBI::dbSendQuery(mydb, statement="UPDATE specimens SET idtax_n=$2, detd=$3, detm=$4, dety=$5, detby=$6, detvalue=$7, colnbr=$8, suffix=$9, data_modif_d=$10, data_modif_m=$11, data_modif_y=$12 WHERE id_specimen = $1",
-                           params=list(queried_speci$id_specimen, # $1
-                                       new_values$idtax_n, # $2
-                                       as.numeric(new_values$detd), # $3
-                                       as.numeric(new_values$detm), # $4
-                                       as.numeric(new_values$dety), # $5
-                                       new_values$detby, # $6
-                                       new_values$detvalue, # $7
-                                       new_values$colnbr, # $8
-                                       new_values$suffix, # $9
-                                       lubridate::day(Sys.Date()), # $10
-                                       lubridate::month(Sys.Date()), # $11
-                                       lubridate::year(Sys.Date()))) # $12
-
-        # if(show_results) print(dbFetch(rs))
-        DBI::dbClearResult(rs)
+        # Use dbExecute so this works with both raw DBI connections and
+        # pool::Pool objects (Pool does not support dbSendQuery).
+        DBI::dbExecute(
+          mydb,
+          "UPDATE specimens SET idtax_n=$2, detd=$3, detm=$4, dety=$5, detby=$6, detvalue=$7, colnbr=$8, suffix=$9, data_modif_d=$10, data_modif_m=$11, data_modif_y=$12 WHERE id_specimen = $1",
+          params = list(queried_speci$id_specimen, # $1
+                        new_values$idtax_n,       # $2
+                        as.numeric(new_values$detd), # $3
+                        as.numeric(new_values$detm), # $4
+                        as.numeric(new_values$dety), # $5
+                        new_values$detby,         # $6
+                        new_values$detvalue,      # $7
+                        new_values$colnbr,        # $8
+                        new_values$suffix,        # $9
+                        lubridate::day(Sys.Date()),   # $10
+                        lubridate::month(Sys.Date()), # $11
+                        lubridate::year(Sys.Date())   # $12
+                        )
+        )
 
         if(show_results) query_specimens(id_specimen = queried_speci$id_specimen)
       }
@@ -2189,9 +2191,7 @@ update_trait_table <- function(new_data,
 
   mydb <- call.mydb()
 
-  all_colnames_traits <-
-    dplyr::tbl(mydb, "traitlist") %>%
-    colnames()
+  all_colnames_traits <- colnames(get_traitlist(mydb))
 
   if (is.null(col_names_select) & is.null(col_names_corresp))
     col_names_corresp <- col_names_select <- names(new_data)
@@ -4118,11 +4118,7 @@ get_table_columns <- function(table_name, con) {
 
 get_available_individual_features <- function(con) {
   tryCatch({
-    dplyr::tbl(con, "traitlist") %>%
-      dplyr::select(trait) %>%
-      dplyr::distinct() %>%
-      dplyr::collect() %>%
-      dplyr::pull(trait)
+    unique(get_traitlist(con)$trait)
   }, error = function(e) {
     # Fallback: return empty character vector if query fails
     # Log to console but don't propagate error
