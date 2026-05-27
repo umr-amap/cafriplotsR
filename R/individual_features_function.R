@@ -2183,34 +2183,20 @@ summarize_feature <- function(trait_name, con = NULL) {
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #' @export
 traits_list <- function(id_trait = NULL) {
-  
+
   mydb <- call.mydb()
-  
-  all_colnames_ind <-
-    try_open_postgres_table(table = "traitlist", con = mydb) %>%
-    dplyr::select(trait,
-                  id_trait,
-                  traitdescription,
-                  maxallowedvalue,
-                  minallowedvalue,
-                  expectedunit,
-                  valuetype,
-                  category,
-                  factorlevels)
-  
-  if (is.null(id_trait)) {
-    
-    all_colnames_ind <- all_colnames_ind %>%
-      dplyr::collect()
-    
-  } else {
-    
-    all_colnames_ind <- all_colnames_ind %>%
-      filter(id_trait == !!id_trait) %>%
-      dplyr::collect()
-    
+
+  cols <- c("trait", "id_trait", "traitdescription",
+            "maxallowedvalue", "minallowedvalue", "expectedunit",
+            "valuetype", "category", "factorlevels")
+
+  all_colnames_ind <- get_traitlist(mydb)
+  all_colnames_ind <- all_colnames_ind[, intersect(cols, names(all_colnames_ind)), drop = FALSE]
+
+  if (!is.null(id_trait)) {
+    all_colnames_ind <- all_colnames_ind[all_colnames_ind$id_trait == id_trait, , drop = FALSE]
   }
-  
+
   return(all_colnames_ind)
 }
 

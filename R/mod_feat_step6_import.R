@@ -439,6 +439,10 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
 
     } else {
       # Features mode: add each feature type as a subplot feature
+      cli::cli_alert_info("add_features branch — data dims: {nrow(data)}x{ncol(data)}")
+      cli::cli_alert_info("data columns: {paste(names(data), collapse=', ')}")
+      cli::cli_alert_info("subplottype_fields: {paste(subplottype_fields, collapse=', ')}")
+      cli::cli_alert_info("people_cols: {paste(people_cols, collapse=', ')}")
 
       # Count records per feature type
       n_subplot <- nrow(data) * length(subplottype_fields)
@@ -481,22 +485,31 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
       total_added <- 0
 
       # Add regular features
+      cli::cli_alert_info("regular_fields: {paste(regular_fields, collapse=', ')}")
       if (length(regular_fields) > 0) {
         for (feat_type in regular_fields) {
-          if (!feat_type %in% names(data)) next
+          if (!feat_type %in% names(data)) {
+            cli::cli_alert_warning("Skipping {feat_type}: column absent from data")
+            next
+          }
 
-          feat_data <- data[, c("plot_name", "id_liste_plots", "year", "month", "day", feat_type),
-                            drop = FALSE]
+          cols_to_select <- intersect(c("plot_name", "id_liste_plots", "year", "month", "day", feat_type), names(data))
+          cli::cli_alert_info("{feat_type}: selecting columns [{paste(cols_to_select, collapse=', ')}]")
+          feat_data <- data[, cols_to_select, drop = FALSE]
           feat_data <- feat_data[!is.na(feat_data[[feat_type]]), , drop = FALSE]
 
-          if (nrow(feat_data) == 0) next
+          if (nrow(feat_data) == 0) {
+            cli::cli_alert_warning("Skipping {feat_type}: all values are NA after filter")
+            next
+          }
 
           cli::cli_alert_info("Adding {feat_type} feature for {nrow(feat_data)} plot(s)...")
 
+          date_cols_present <- intersect(c("year", "month", "day"), names(feat_data))
           add_subplot_features(
             new_data = feat_data,
-            col_names_select = c("year", "month", "day"),
-            col_names_corresp = c("year", "month", "day"),
+            col_names_select = date_cols_present,
+            col_names_corresp = date_cols_present,
             id_plot_name = "id_liste_plots",
             id_plot_name_corresp = "id_table_liste_plots_n",
             subplottype_field = feat_type,
@@ -516,13 +529,20 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
       # Add people features (need special handling via data_subplot_feat)
       if (!is.null(people_cols) && length(people_cols) > 0) {
         for (col in people_cols) {
-          if (!col %in% names(data)) next
+          if (!col %in% names(data)) {
+            cli::cli_alert_warning("Skipping people col {col}: column absent from data")
+            next
+          }
 
-          feat_data <- data[, c("plot_name", "id_liste_plots", "year", "month", "day", col),
-                            drop = FALSE]
+          cols_to_select <- intersect(c("plot_name", "id_liste_plots", "year", "month", "day", col), names(data))
+          cli::cli_alert_info("{col}: selecting columns [{paste(cols_to_select, collapse=', ')}]")
+          feat_data <- data[, cols_to_select, drop = FALSE]
           feat_data <- feat_data[!is.na(feat_data[[col]]), , drop = FALSE]
 
-          if (nrow(feat_data) == 0) next
+          if (nrow(feat_data) == 0) {
+            cli::cli_alert_warning("Skipping {col}: all values are NA after filter")
+            next
+          }
 
           # For people features, we need to use add_subplot_features with features_field
           # But the values are already IDs at this point
@@ -548,9 +568,9 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
                 typevalue_char = NA_character_,
                 id_table_liste_plots = as.integer(feat_data$id_liste_plots[i]),
                 id_type_sub_plot = as.integer(subplotype_id),
-                year = as.integer(feat_data$year[i]),
-                month = as.integer(feat_data$month[i]),
-                day = as.integer(feat_data$day[i]),
+                year = if ("year" %in% names(feat_data)) as.integer(feat_data$year[i]) else NA_integer_,
+                month = if ("month" %in% names(feat_data)) as.integer(feat_data$month[i]) else NA_integer_,
+                day = if ("day" %in% names(feat_data)) as.integer(feat_data$day[i]) else NA_integer_,
                 date_modif_d = as.integer(format(Sys.Date(), "%d")),
                 date_modif_m = as.integer(format(Sys.Date(), "%m")),
                 date_modif_y = as.integer(format(Sys.Date(), "%Y")),
@@ -575,6 +595,9 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
 
   }, error = function(e) {
     cli::cli_alert_danger("Import failed: {e$message}")
+    tb <- tryCatch(paste(utils::capture.output(traceback()), collapse = "\n"),
+                   error = function(e2) "(traceback unavailable)")
+    cli::cli_alert_info("Traceback:\n{tb}")
     return(list(
       dry_run = dry_run,
       success = FALSE,

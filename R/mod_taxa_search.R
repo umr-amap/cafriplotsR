@@ -31,7 +31,8 @@ mod_taxa_search_ui <- function(id) {
 #' @keywords internal
 #' @export
 mod_taxa_search_server <- function(id, pool, i18n,
-                                    is_public = shiny::reactive(FALSE)) {
+                                    is_public = shiny::reactive(FALSE),
+                                    reset = shiny::reactive(NULL)) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -41,6 +42,13 @@ mod_taxa_search_server <- function(id, pool, i18n,
       selected_row       = NULL,
       last_search_params = NULL
     )
+
+    # Clear selection whenever the reset trigger changes value
+    shiny::observeEvent(reset(), {
+      rv$selected_row <- NULL
+      DT::dataTableProxy("results_table", session = session) %>%
+        DT::selectRows(NULL)
+    }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
     # Main UI with translations
     output$search_ui <- shiny::renderUI({

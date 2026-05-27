@@ -487,17 +487,17 @@ launch_individual_specimen_linking_app <- function(lang = "fr") {
               "id_n",
               "individual_label",
               "herbarium_nbe_char",
-              "herbarium_nbe_type"
+              "herbarium_nbe_type",
+              "already_linked"
             ))
+          ) %>%
+          dplyr::rename(
+            "ID" = "id_n",
+            !!i18n_reactive()$t("Individual") := "individual_label",
+            !!i18n_reactive()$t("Herb. Reference") := "herbarium_nbe_char",
+            !!i18n_reactive()$t("Herb. Type") := "herbarium_nbe_type",
+            !!i18n_reactive()$t("Already linked") := "already_linked"
           )
-
-        # Rename for display
-        colnames(display_data) <- c(
-          "ID",
-          i18n_reactive()$t("Individual"),
-          i18n_reactive()$t("Herb. Reference"),
-          i18n_reactive()$t("Herb. Type")
-        )
 
         DT::datatable(
           display_data,
@@ -519,6 +519,10 @@ launch_individual_specimen_linking_app <- function(lang = "fr") {
             columns = c(i18n_reactive()$t("Herb. Reference"), i18n_reactive()$t("Herb. Type")),
             backgroundColor = DT::styleEqual(c(NA, ""), c("#f8f9fa", "#f8f9fa"), default = "#d4edda"),
             fontWeight = DT::styleEqual(c(NA, ""), c("normal", "normal"), default = "bold")
+          ) %>%
+          DT::formatStyle(
+            columns = i18n_reactive()$t("Already linked"),
+            backgroundColor = DT::styleEqual(c(TRUE, FALSE), c("#fff3cd", "#ffffff"))
           )
       })
 
@@ -800,7 +804,7 @@ launch_individual_specimen_linking_app <- function(lang = "fr") {
       !is.na(herbarium_nbe_char) | !is.na(herbarium_nbe_type)
     )
 
-  # Get existing links to exclude
+  # Get existing links to mark (not exclude)
   existing_links <- dplyr::tbl(actual_con, "data_link_specimens") %>%
     dplyr::select(id_n) %>%
     dplyr::distinct() %>%
@@ -814,11 +818,9 @@ launch_individual_specimen_linking_app <- function(lang = "fr") {
     ) %>%
     dplyr::collect()
 
-  # Filter out already linked individuals
-  if (nrow(existing_links) > 0) {
-    individuals <- individuals %>%
-      dplyr::filter(!id_n %in% existing_links$id_n)
-  }
+  # Mark already-linked individuals rather than excluding them
+  individuals <- individuals %>%
+    dplyr::mutate(already_linked = id_n %in% existing_links$id_n)
 
   return(individuals)
 

@@ -7940,6 +7940,66 @@
     {
       "en": "Suffix (optional)",
       "fr": "Suffixe (optionnel)"
+    },
+    {
+      "en": "Or paste plot names",
+      "fr": "Ou coller des noms de placettes"
+    },
+    {
+      "en": "one per line or comma-separated",
+      "fr": "un par ligne ou séparé par des virgules"
+    },
+    {
+      "en": "Add to Selection",
+      "fr": "Ajouter à la sélection"
+    },
+    {
+      "en": "Please paste some plot names first.",
+      "fr": "Veuillez d'abord coller des noms de placettes."
+    },
+    {
+      "en": "No matching plot names found. Check spelling and try again.",
+      "fr": "Aucun nom de placette correspondant trouvé. Vérifiez l'orthographe et réessayez."
+    },
+    {
+      "en": "Not found: %s",
+      "fr": "Non trouvé : %s"
+    },
+    {
+      "en": "%d plot(s) added to selection.",
+      "fr": "%d placette(s) ajoutée(s) à la sélection."
+    },
+    {
+      "en": "Type to search plots...",
+      "fr": "Tapez pour rechercher des placettes..."
+    },
+    {
+      "en": "2b. Individuals linked to this specimen",
+      "fr": "2b. Individus liés à ce spécimen"
+    },
+    {
+      "en": "No individuals are currently linked to this specimen.",
+      "fr": "Aucun individu n'est actuellement lié à ce spécimen."
+    },
+    {
+      "en": "%d individual(s) across %d plot(s) are linked to this specimen.",
+      "fr": "%d individu(s) dans %d placette(s) sont liés à ce spécimen."
+    },
+    {
+      "en": "Plot(s):",
+      "fr": "Placette(s) :"
+    },
+    {
+      "en": "%d field(s) will be updated.",
+      "fr": "%d champ(s) sera/seront mis à jour."
+    },
+    {
+      "en": "No fields differ from current values.",
+      "fr": "Aucun champ ne diffère des valeurs actuelles."
+    },
+    {
+      "en": "Changing idtax_n will propagate to %d linked individual(s) in %d plot(s):",
+      "fr": "La modification de idtax_n sera propagée à %d individu(s) lié(s) dans %d placette(s) :"
     }
   ]
 }

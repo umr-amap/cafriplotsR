@@ -339,7 +339,7 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
   if (length(col_old) != length(col_new))
     stop("number of new columns names different of number of selected column names")
 
-  for (i in 1:length(col_old)) {
+  for (i in seq_along(col_old)) {
     if (any(colnames(dataset) == col_old[i])) {
       dataset <-
         dataset %>%

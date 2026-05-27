@@ -62,6 +62,7 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
 
     # Storage for validation data
     validated_data <- shiny::reactiveVal(NULL)
+    final_validated_links <- shiny::reactiveVal(NULL)
     user_decisions <- shiny::reactiveValues()
     validation_complete <- shiny::reactiveVal(FALSE)
     # Trigger to update table data via replaceData (preserves sort order)
@@ -482,9 +483,12 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
         return()
       }
 
-      # Filter to accepted links
+      # Store accepted links separately; do NOT replace validated_data() here
+      # (mutating validated_data causes the table to re-render with new sequential
+      #  indices that no longer match the existing user_decisions keys, making
+      #  previously accepted rows appear rejected)
       validated_links <- validated[accepted_rows, ]
-      validated_data(validated_links)
+      final_validated_links(validated_links)
       validation_complete(TRUE)
 
       shiny::showNotification(
@@ -592,7 +596,7 @@ mod_taxonomic_validator_server <- function(id, preliminary_links, con_taxa, i18n
 
     # Return validated links and status
     return(list(
-      validated_links = validated_data,
+      validated_links = final_validated_links,
       is_complete = validation_complete
     ))
   })

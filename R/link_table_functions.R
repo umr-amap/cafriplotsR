@@ -172,9 +172,7 @@
     dplyr::rename_with(.cols = dplyr::all_of(trait),
                        .fn = ~ trait_newnames)
 
-  all_traits <-
-    dplyr::tbl(mydb, "traitlist") %>%
-    dplyr::collect()
+  all_traits <- get_traitlist(mydb)
 
 
   selected_name_res <- .find_cat(value_to_search = trait,
@@ -320,7 +318,7 @@
     sorted_matches$sorted_matches %>%
     dplyr::slice(selected_name)
 
-  if(select_type_features$valuetype == "numeric") {
+  if(isTRUE(select_type_features$valuetype == "numeric")) {
     if(any(is.na(as.numeric(data_stand$subplotype)))) {
       warning("Numeric value expected but some are not")
       print(data_stand[which(is.na(as.numeric(data_stand$subplotype))),])
@@ -331,7 +329,7 @@
   }
 
   issues <- vector(mode = "character", length = nrow(data_stand))
-  if(select_type_features$valuetype == "numeric") {
+  if(isTRUE(select_type_features$valuetype == "numeric")) {
     if(any(data_stand$subplotype[!is.na(data_stand$subplotype)] < select_type_features$minallowedvalue)) {
       warning(paste(subplotype, "values lower than minallowedvalue for", subplottype, "for",
                     sum(data_stand$subplottype < select_type_features$minallowedvalue), "entries"))
@@ -340,7 +338,7 @@
     }
   }
 
-  if (select_type_features$valuetype == "numeric") {
+  if (isTRUE(select_type_features$valuetype == "numeric")) {
     if (any(data_stand$subplotype[!is.na(data_stand$subplotype)] > select_type_features$maxallowedvalue)) {
       warning(paste(subplottype, "values higher than maxallowedvalue for", subplotype, "for",
                     sum(data_stand$subplotype > select_type_features$maxallowedvalue), "entries"))
@@ -379,9 +377,7 @@
 
   if (is.null(con)) con <- call.mydb()
 
-  all_traits <-
-    try_open_postgres_table(table = "traitlist", con = con) %>%
-    collect()
+  all_traits <- get_traitlist(con)
 
   selected_name <- .find_cat(value_to_search = trait,
                              compared_table = all_traits,
@@ -464,7 +460,7 @@
     dplyr::mutate(perfect_match = .data$comp_value == value_to_search)
 
 
-  if(any(compared_table$perfect_match)) {
+  if(isTRUE(any(compared_table$perfect_match, na.rm = TRUE))) {
 
     sorted_matches <-
       compared_table

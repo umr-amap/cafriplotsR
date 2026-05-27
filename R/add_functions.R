@@ -481,7 +481,8 @@ add_subplot_features <- function(new_data,
   
   
   if (!is.null(col_names_select) &
-      !is.null(col_names_corresp)) {
+      !is.null(col_names_corresp) &
+      length(col_names_select) > 0) {
     new_data_renamed <-
       .rename_data(dataset = new_data,
                    col_old = col_names_select,
@@ -651,7 +652,7 @@ add_subplot_features <- function(new_data,
 
     # For table_colnam type features (e.g. team_leader, additional_people),
     # resolve person names to id_table_colnam IDs and separate comma-delimited values
-    if (any(valuetype$valuetype == "table_colnam")) {
+    if (isTRUE(any(valuetype$valuetype == "table_colnam", na.rm = TRUE))) {
 
       data_subplottype <-
         data_subplottype %>%
@@ -742,9 +743,9 @@ add_subplot_features <- function(new_data,
                     day = data_subplottype$day,
                     id_type_sub_plot = data_subplottype$id_subplottype,
                     id_colnam = data_subplottype$id_colnam,
-                    typevalue = ifelse(rep(any(valuetype$valuetype %in% c("numeric", "table_colnam")),
+                    typevalue = ifelse(rep(isTRUE(any(valuetype$valuetype %in% c("numeric", "table_colnam"), na.rm = TRUE)),
                                            nrow(data_subplottype)), suppressWarnings(as.numeric(data_subplottype$subplotype)), NA_real_),
-                    typevalue_char = ifelse(rep(valuetype$valuetype == "character",
+                    typevalue_char = ifelse(rep(isTRUE(any(valuetype$valuetype == "character", na.rm = TRUE)),
                                                 nrow(data_subplottype)), as.character(data_subplottype$subplotype), NA_character_),
                     original_subplot_name = ifelse(rep(any(colnames(data_subplottype)=="original_subplot_name"),
                                                        nrow(data_subplottype)), as.character(data_subplottype$original_subplot_name), NA_character_),
@@ -1825,9 +1826,7 @@ add_traits_measures_features <- function(new_data,
         data_feat %>%
         dplyr::distinct(.data$id_trait) %>%
         dplyr::left_join(
-          dplyr::tbl(con, "traitlist") %>%
-            dplyr::select("valuetype", "id_trait") %>%
-            dplyr::collect(),
+          get_traitlist(con)[, c("valuetype", "id_trait"), drop = FALSE],
           by = c("id_trait" = "id_trait")
         )
 
@@ -2440,9 +2439,7 @@ add_traits_measures <- function(new_data,
         data_trait %>%
         dplyr::distinct(id_trait) %>%
         dplyr::left_join(
-          dplyr::tbl(mydb, "traitlist") %>%
-            dplyr::select(valuetype, id_trait) %>%
-            dplyr::collect(),
+          get_traitlist(mydb)[, c("valuetype", "id_trait"), drop = FALSE],
           by = c("id_trait" = "id_trait")
         )
       
@@ -3646,8 +3643,11 @@ add_trait <- function(new_trait = NULL,
     Q <- TRUE
   }
 
-  if(Q) DBI::dbWriteTable(actual_con, "traitlist", new_data_renamed, append = TRUE, row.names = FALSE)
-  
+  if(Q) {
+    DBI::dbWriteTable(actual_con, "traitlist", new_data_renamed, append = TRUE, row.names = FALSE)
+    .invalidate_traitlist_cache()
+  }
+
 }
 
 
@@ -4157,9 +4157,7 @@ add_sp_traits_measures_features <- function(new_data,
         data_feat %>%
         dplyr::distinct(id_trait) %>%
         dplyr::left_join(
-          dplyr::tbl(actual_con, "traitlist") %>%
-            dplyr::select(valuetype, id_trait) %>%
-            dplyr::collect(),
+          get_traitlist(actual_con)[, c("valuetype", "id_trait"), drop = FALSE],
           by = c("id_trait" = "id_trait")
         )
 
