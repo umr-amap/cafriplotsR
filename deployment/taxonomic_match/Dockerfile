@@ -32,13 +32,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 # --- Install the CafriplotsR package and its dependencies --------------------
-# pak resolves and installs Imports (and their system requirements) using
-# pre-built Linux binaries where available, which keeps the build fast.
+# pak resolves and installs dependencies using pre-built Linux binaries where
+# available, keeping the build fast.
+#
+# Only HARD dependencies (Depends/Imports/LinkingTo) are installed - NOT
+# Suggests. The taxonomic-match app runs entirely on Imports, and the Suggests
+# set pulls in heavy/optional packages (BIOMASS, taxize, chromote, shinytest2)
+# plus an Additional_repositories drat that pak cannot solve in this image.
 WORKDIR /build
 COPY . /build
 
 RUN R -q -e "install.packages('pak', repos = sprintf('https://r-lib.github.io/p/pak/stable/%s/%s/%s', .Platform[['pkgType']], R.Version()[['os']], R.Version()[['arch']]))" \
- && R -q -e "pak::local_install('.', dependencies = TRUE, upgrade = FALSE)"
+ && R -q -e "pak::local_install('.', dependencies = c('Depends', 'Imports', 'LinkingTo'), upgrade = FALSE)"
 
 # --- Place the served entry point --------------------------------------------
 # shiny-server serves whatever lives in /srv/shiny-server. We expose this app
