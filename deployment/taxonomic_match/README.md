@@ -1,0 +1,93 @@
+# Deploying the Taxonomic Match app on SSP Cloud
+
+This folder contains everything needed to publish the **Taxonomic Name
+Standardization** app (`launch_taxonomic_match_app()`) as a hosted web app on
+[SSP Cloud](https://datalab.sspcloud.fr), so anyone can use it from a browser
+without installing R or RStudio.
+
+## How it fits together
+
+| File | Role |
+|------|------|
+| `../../inst/app/taxonomic_match/app.R` | Entry point sourced by shiny-server; returns the app object |
+| `Dockerfile` | Builds an image (`rocker/shiny` + CafriplotsR) |
+| `../../.github/workflows/docker-taxonomic-match.yml` | CI: build & push the image to GitHub Container Registry (ghcr.io) |
+| `Chart.yaml` | Helm chart inheriting SSP Cloud's generic `shiny` chart |
+| `values.yaml` | Image, public hostname, resources, env vars |
+
+The database stays **external** (OVH, `dg474899-001.dbaas.ovh.net:35699`).
+Users authenticate inside the app through the login module — with their own
+credentials, the **public read-only user**, or the **offline cached
+backbone** — so no database secret is stored in the image or the chart.
+
+## One-time setup
+
+No external registry account or secrets are required — CI pushes to ghcr.io
+using GitHub's built-in `GITHUB_TOKEN`.
+
+1. Run the build workflow once (push to `master`, or Actions tab → "Build
+   taxonomic-match Docker image" → Run workflow).
+2. In the repo's **Packages** tab, open the new `cafri-taxomatch` package and
+   set its visibility to **Public** (Package settings → Change visibility).
+   This lets SSP Cloud pull it anonymously, for free, with no pull rate limits.
+3. Confirm `shiny.image.repository` in `values.yaml` matches your repo owner:
+   `ghcr.io/umr-amap/cafri-taxomatch` (must be lowercase).
+4. Pick a hostname in `values.yaml` (`*.lab.sspcloud.fr`).
+
+## Deploy
+
+```bash
+# 1. Image is built/pushed automatically by GitHub Actions on push to master,
+#    or trigger it manually (Actions tab -> "Build taxonomic-match Docker image").
+
+# 2. From a VSCode/RStudio service on SSP Cloud (with namespace admin rights):
+cd deployment/taxonomic_match
+helm dependency update      # fetch the generic shiny sub-chart
+helm install cafri-taxomatch . -f values.yaml
+
+# 3. Verify
+helm ls
+kubectl get pods
+kubectl logs <pod-name>     # watch app startup
+
+# 4. Update after a new image is pushed
+helm upgrade cafri-taxomatch . -f values.yaml
+```
+
+The app will be live at the `ingress.hostname` you set.
+
+## Before publishing — read this
+
+- **Egress to OVH**: the SSP Cloud cluster must allow outbound connections to
+  `dg474899-001.dbaas.ovh.net:35699`. Test it once from an SSP Cloud service
+  (`pg_isready -h ... -p 35699` or a quick `DBI::dbConnect`) before deploying.
+- **Public URL**: `*.lab.sspcloud.fr` is reachable by anyone. The embedded
+  public read-only user becomes effectively world-usable. That is acceptable
+  for read-only taxonomy/traits, but make it a conscious choice.
+- **Concurrency caveat**: the apps currently store connection pools in a
+  shared package-global (`.db_env`), and query helpers like `call.mydb.taxa()`
+  read from it. Two *simultaneous* users connecting with **different**
+  credentials can clobber each other's pool. For a public deployment where
+  everyone uses the **same** public (or offline) connection this is harmless.
+  Supporting many concurrent *authenticated, differently-permissioned* users
+  would require threading per-session pools through the modules — a larger
+  refactor, out of scope for this scaffold.
+
+## Local sanity check (Docker only, no Kubernetes)
+
+```bash
+docker build -f deployment/taxonomic_match/Dockerfile -t cafri-taxomatch:test .
+docker run --rm -p 3838:3838 cafri-taxomatch:test
+# open http://localhost:3838
+```
+
+## Notes on the free workflow
+
+- **GitHub Actions** build minutes are free on this public repo.
+- **ghcr.io** stores public images for free with no pull rate limits — unlike
+  DockerHub, whose anonymous pull limits cause intermittent `ImagePullBackOff`
+  on shared clusters like SSP Cloud.
+- **SSP Cloud** is free for the research/education community.
+
+So end to end this deployment incurs no cost. The only manual gate is making
+the ghcr.io package Public (step 2 above).
