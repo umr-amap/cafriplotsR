@@ -8000,6 +8000,462 @@
     {
       "en": "Changing idtax_n will propagate to %d linked individual(s) in %d plot(s):",
       "fr": "La modification de idtax_n sera propagée à %d individu(s) lié(s) dans %d placette(s) :"
+    },
+    {
+      "en": "Choose update mode",
+      "fr": "Choisir le mode de mise à jour"
+    },
+    {
+      "en": "Manual",
+      "fr": "Manuel"
+    },
+    {
+      "en": "Search a single specimen and update its identification interactively.",
+      "fr": "Recherchez un seul spécimen et mettez à jour son identification de manière interactive."
+    },
+    {
+      "en": "Batch (file upload)",
+      "fr": "Lot (importation de fichier)"
+    },
+    {
+      "en": "Upload an Excel/CSV file with rows of specimens to update.",
+      "fr": "Téléchargez un fichier Excel/CSV avec des lignes de spécimens à mettre à jour."
+    },
+    {
+      "en": "Specimen Identification Update",
+      "fr": "Mise à jour de l’identification des spécimens"
+    },
+    {
+      "en": "Update Specimen Identifications",
+      "fr": "Mettre à jour les identifications des spécimens"
+    },
+    {
+      "en": "Update specimen taxonomy and determination metadata, either one specimen at a time or by uploading a file.",
+      "fr": "Mettez à jour la taxonomie et les métadonnées de détermination des spécimens, soit un à la fois, soit en téléchargeant un fichier."
+    },
+    {
+      "en": "Match Collectors",
+      "fr": "Associer les collecteurs"
+    },
+    {
+      "en": "Preview & Update",
+      "fr": "Aperçu et mise à jour"
+    },
+    {
+      "en": "Please resolve all collector matches first.",
+      "fr": "Veuillez d’abord résoudre toutes les correspondances de collecteurs."
+    },
+    {
+      "en": "Please fix validation issues before continuing.",
+      "fr": "Veuillez corriger les problèmes de validation avant de continuer."
+    },
+    {
+      "en": "Step 1: Upload file",
+      "fr": "Étape 1 : Télécharger le fichier"
+    },
+    {
+      "en": "Upload an Excel (.xlsx) or CSV file. Each row will become one update.",
+      "fr": "Téléchargez un fichier Excel (.xlsx) ou CSV. Chaque ligne deviendra une mise à jour."
+    },
+    {
+      "en": "Reminder: taxonomic names must already be standardized to idtax_n values. Use the taxonomic match app first if needed.",
+      "fr": "Rappel : les noms taxonomiques doivent déjà être standardisés en valeurs idtax_n. Utilisez d’abord l’application de correspondance taxonomique si nécessaire."
+    },
+    {
+      "en": "Choose file",
+      "fr": "Choisir un fichier"
+    },
+    {
+      "en": "Unsupported file format: %s",
+      "fr": "Format de fichier non pris en charge : %s"
+    },
+    {
+      "en": "Loaded %d rows, %d columns.",
+      "fr": "%d lignes, %d colonnes chargées."
+    },
+    {
+      "en": "Columns detected",
+      "fr": "Colonnes détectées"
+    },
+    {
+      "en": "Step 2: Map columns",
+      "fr": "Étape 2 : Mappage des colonnes"
+    },
+    {
+      "en": "Map your file columns to specimen fields. Provide either id_specimen, or both collector + collector number. Map at least one update target (e.g. idtax_n).",
+      "fr": "Associez les colonnes de votre fichier aux champs du spécimen. Fournissez soit id_specimen, soit collecteur + numéro de collecteur. Associez au moins une cible de mise à jour (ex. idtax_n)."
+    },
+    {
+      "en": "Auto-detect",
+      "fr": "Détection automatique"
+    },
+    {
+      "en": "Specimen identification (which row to update)",
+      "fr": "Identification du spécimen (quelle ligne mettre à jour)"
+    },
+    {
+      "en": "collector",
+      "fr": "collecteur"
+    },
+    {
+      "en": "colnbr (collector number)",
+      "fr": "colnbr (numéro de collecteur)"
+    },
+    {
+      "en": "suffix (optional)",
+      "fr": "suffixe (optionnel)"
+    },
+    {
+      "en": "New identification",
+      "fr": "Nouvelle identification"
+    },
+    {
+      "en": "Determination metadata (optional)",
+      "fr": "Métadonnées de détermination (optionnel)"
+    },
+    {
+      "en": "Update collector number / suffix (optional)",
+      "fr": "Mettre à jour le numéro de collecteur / suffixe (optionnel)"
+    },
+    {
+      "en": "new collector number",
+      "fr": "nouveau numéro de collecteur"
+    },
+    {
+      "en": "new suffix",
+      "fr": "nouveau suffixe"
+    },
+    {
+      "en": "Map id_specimen, or both collector and colnbr.",
+      "fr": "Associez id_specimen, ou à la fois collecteur et colnbr."
+    },
+    {
+      "en": "Map at least one column to update (idtax_n, det*, new_colnbr, new_suffix).",
+      "fr": "Associez au moins une colonne à mettre à jour (idtax_n, det*, new_colnbr, new_suffix)."
+    },
+    {
+      "en": "Mapping looks good. You can proceed.",
+      "fr": "Le mappage est correct. Vous pouvez continuer."
+    },
+    {
+      "en": "Mapping issues",
+      "fr": "Problèmes de mappage"
+    },
+    {
+      "en": "Step 3: Match collectors",
+      "fr": "Étape 3 : Correspondance des collecteurs"
+    },
+    {
+      "en": "If id_specimen is mapped, this step is skipped. Otherwise, collector names are matched to the database.",
+      "fr": "Si id_specimen est mappé, cette étape est ignorée. Sinon, les noms de collecteurs sont associés à la base de données."
+    },
+    {
+      "en": "Analyze",
+      "fr": "Analyser"
+    },
+    {
+      "en": "id_specimen is mapped; collector lookup not needed.",
+      "fr": "id_specimen est mappé ; la recherche de collecteur n’est pas nécessaire."
+    },
+    {
+      "en": "No collector column mapped.",
+      "fr": "Aucune colonne de collecteur mappée."
+    },
+    {
+      "en": "id_specimen is mapped - lookup not needed. You can continue.",
+      "fr": "id_specimen est mappé - recherche non nécessaire. Vous pouvez continuer."
+    },
+    {
+      "en": "Exact matches",
+      "fr": "Correspondances exactes"
+    },
+    {
+      "en": "Fuzzy (need confirmation)",
+      "fr": "Approximatif (confirmation requise)"
+    },
+    {
+      "en": "Fuzzy matches - confirm or skip",
+      "fr": "Correspondances approximatives - confirmer ou ignorer"
+    },
+    {
+      "en": "-- Select --",
+      "fr": "-- Sélectionner --"
+    },
+    {
+      "en": "Apply selected matches",
+      "fr": "Appliquer les correspondances sélectionnées"
+    },
+    {
+      "en": "Unmatched collectors",
+      "fr": "Collecteurs non associés"
+    },
+    {
+      "en": "These must be added to table_colnam before continuing, or fix typos in the source file.",
+      "fr": "Ceux-ci doivent être ajoutés à table_colnam avant de continuer, ou corriger les fautes dans le fichier source."
+    },
+    {
+      "en": "Step 4: Validate rows",
+      "fr": "Étape 4 : Valider les lignes"
+    },
+    {
+      "en": "Each row is checked: target specimen exists, idtax_n is valid, dates parse, etc.",
+      "fr": "Chaque ligne est vérifiée : le spécimen cible existe, idtax_n est valide, les dates sont correctes, etc."
+    },
+    {
+      "en": "Run validation",
+      "fr": "Lancer la validation"
+    },
+    {
+      "en": "id_specimen not found in specimens table;",
+      "fr": "id_specimen introuvable dans la table specimens ;"
+    },
+    {
+      "en": "id_specimen is missing/NA;",
+      "fr": "id_specimen est manquant/NA ;"
+    },
+    {
+      "en": "Missing id_colnam or colnbr to resolve specimens.",
+      "fr": "id_colnam ou colnbr manquant pour identifier les spécimens."
+    },
+    {
+      "en": "collector unmatched;",
+      "fr": "collecteur non associé ;"
+    },
+    {
+      "en": "colnbr missing;",
+      "fr": "colnbr manquant ;"
+    },
+    {
+      "en": "colnbr has no numeric part;",
+      "fr": "colnbr n’a pas de partie numérique ;"
+    },
+    {
+      "en": "specimen not found;",
+      "fr": "spécimen introuvable ;"
+    },
+    {
+      "en": "%d specimens match (ambiguous);",
+      "fr": "%d spécimens correspondent (ambigu) ;"
+    },
+    {
+      "en": "idtax_n not numeric;",
+      "fr": "idtax_n n’est pas numérique ;"
+    },
+    {
+      "en": "idtax_n not found in table_taxa;",
+      "fr": "idtax_n introuvable dans table_taxa ;"
+    },
+    {
+      "en": "Could not verify idtax_n:",
+      "fr": "Impossible de vérifier idtax_n :"
+    },
+    {
+      "en": "detm out of 1-12;",
+      "fr": "detm hors de 1-12 ;"
+    },
+    {
+      "en": "detd out of 1-31;",
+      "fr": "detd hors de 1-31 ;"
+    },
+    {
+      "en": "dety unrealistic;",
+      "fr": "dety irréaliste ;"
+    },
+    {
+      "en": "invalid det date;",
+      "fr": "date de détermination invalide ;"
+    },
+    {
+      "en": "Skip %d row(s) with issues and continue with valid rows only",
+      "fr": "Ignorer %d ligne(s) avec des problèmes et continuer avec les lignes valides uniquement"
+    },
+    {
+      "en": "Download unmatched rows (CSV)",
+      "fr": "Télécharger les lignes non associées (CSV)"
+    },
+    {
+      "en": "Valid rows",
+      "fr": "Lignes valides"
+    },
+    {
+      "en": "Rows with issues",
+      "fr": "Lignes avec des problèmes"
+    },
+    {
+      "en": "No issues - all rows valid.",
+      "fr": "Aucun problème - toutes les lignes sont valides."
+    },
+    {
+      "en": "Step 5: Preview & apply updates",
+      "fr": "Étape 5 : Aperçu et application des mises à jour"
+    },
+    {
+      "en": "Review the table of updates to apply. Each row will call update_ident_specimens().",
+      "fr": "Vérifiez le tableau des mises à jour à appliquer. Chaque ligne appellera update_ident_specimens()."
+    },
+    {
+      "en": "Dry run (no DB changes)",
+      "fr": "Simulation (aucune modification en base)"
+    },
+    {
+      "en": "Apply updates",
+      "fr": "Appliquer les mises à jour"
+    },
+    {
+      "en": "No valid rows to apply.",
+      "fr": "Aucune ligne valide à appliquer."
+    },
+    {
+      "en": "Applying updates...",
+      "fr": "Application des mises à jour..."
+    },
+    {
+      "en": "Done. %d succeeded, %d failed.",
+      "fr": "Terminé. %d réussi(s), %d échoué(s)."
+    },
+    {
+      "en": "1a. Resolve collector (skip if using id_specimen)",
+      "fr": "1a. Résoudre le collecteur (ignorer si id_specimen est utilisé)"
+    },
+    {
+      "en": "Find collector",
+      "fr": "Trouver le collecteur"
+    },
+    {
+      "en": "1b. Find the specimen",
+      "fr": "1b. Trouver le spécimen"
+    },
+    {
+      "en": "id_specimen (direct)",
+      "fr": "id_specimen (direct)"
+    },
+    {
+      "en": "Collector number (uses resolved collector)",
+      "fr": "Numéro de collecteur (utilise le collecteur résolu)"
+    },
+    {
+      "en": "Search specimen",
+      "fr": "Rechercher le spécimen"
+    },
+    {
+      "en": "2. Current values",
+      "fr": "2. Valeurs actuelles"
+    },
+    {
+      "en": "3. Pick new identification (optional)",
+      "fr": "3. Choisir une nouvelle identification (optionnel)"
+    },
+    {
+      "en": "4. Determination & specimen metadata (optional)",
+      "fr": "4. Métadonnées de détermination et du spécimen (optionnel)"
+    },
+    {
+      "en": "Det year",
+      "fr": "Année de détermination"
+    },
+    {
+      "en": "Det month",
+      "fr": "Mois de détermination"
+    },
+    {
+      "en": "Det day",
+      "fr": "Jour de détermination"
+    },
+    {
+      "en": "Det value (label)",
+      "fr": "Valeur de détermination (étiquette)"
+    },
+    {
+      "en": "New collector number",
+      "fr": "Nouveau numéro de collecteur"
+    },
+    {
+      "en": "New suffix",
+      "fr": "Nouveau suffixe"
+    },
+    {
+      "en": "5. Preview & apply",
+      "fr": "5. Aperçu et application"
+    },
+    {
+      "en": "Preview changes",
+      "fr": "Aperçu des modifications"
+    },
+    {
+      "en": "Apply update",
+      "fr": "Appliquer la mise à jour"
+    },
+    {
+      "en": "Type a collector name first.",
+      "fr": "Saisissez d’abord un nom de collecteur."
+    },
+    {
+      "en": "No collector matched that pattern.",
+      "fr": "Aucun collecteur ne correspond à ce motif."
+    },
+    {
+      "en": "Collector lookup failed:",
+      "fr": "Échec de la recherche du collecteur :"
+    },
+    {
+      "en": "No collectors matched.",
+      "fr": "Aucun collecteur ne correspond."
+    },
+    {
+      "en": "Found %d collector(s). Click a row to select.",
+      "fr": "%d collecteur(s) trouvé(s). Cliquez sur une ligne pour sélectionner."
+    },
+    {
+      "en": "Resolved collector: %s (id_colnam = %s)",
+      "fr": "Collecteur résolu : %s (id_colnam = %s)"
+    },
+    {
+      "en": "Provide id_specimen, or resolve a collector and provide a number.",
+      "fr": "Fournissez id_specimen, ou résolvez un collecteur et fournissez un numéro."
+    },
+    {
+      "en": "No specimen matches.",
+      "fr": "Aucun spécimen ne correspond."
+    },
+    {
+      "en": "Search failed:",
+      "fr": "Recherche échouée :"
+    },
+    {
+      "en": "Found %d matching specimen(s). Click a row to select.",
+      "fr": "%d spécimen(s) correspondant(s) trouvé(s). Cliquez sur une ligne pour sélectionner."
+    },
+    {
+      "en": "Select a specimen first.",
+      "fr": "Sélectionnez d’abord un spécimen."
+    },
+    {
+      "en": "Field",
+      "fr": "Champ"
+    },
+    {
+      "en": "Current",
+      "fr": "Actuel"
+    },
+    {
+      "en": "No individuals linked to this specimen.",
+      "fr": "Aucun individu lié à ce spécimen."
+    },
+    {
+      "en": "Applying update...",
+      "fr": "Application de la mise à jour..."
+    },
+    {
+      "en": "Update applied successfully.",
+      "fr": "Mise à jour appliquée avec succès."
+    },
+    {
+      "en": "Update failed:",
+      "fr": "Échec de la mise à jour :"
+    },
+    {
+      "en": "New",
+      "fr": "Nouveau"
     }
   ]
 }
