@@ -4,7 +4,13 @@
 \alias{mod_taxa_search_server}
 \title{Taxa Search & Browser Module - Server}
 \usage{
-mod_taxa_search_server(id, pool, i18n, is_public = shiny::reactive(FALSE))
+mod_taxa_search_server(
+  id,
+  pool,
+  i18n,
+  is_public = shiny::reactive(FALSE),
+  reset = shiny::reactive(NULL)
+)
 }
 \arguments{
 \item{id}{Module namespace ID}
