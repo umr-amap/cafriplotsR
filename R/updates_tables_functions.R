@@ -4993,17 +4993,41 @@ update_records <- function(data,
   # ORIGINAL LOGIC: Metadata mapping and change detection
   # ========================================
   
+  # Validate that the expected ID column is present in data
+  if (!config$id_column %in% names(data)) {
+    candidate <- names(data)[tolower(names(data)) %in% tolower(config$id_column)]
+    if (length(candidate) > 0) {
+      cli::cli_abort(c(
+        "ID column {.field {config$id_column}} not found in data.",
+        "i" = "Did you mean {.field {candidate}}? Rename it to {.field {config$id_column}}."
+      ))
+    } else {
+      cli::cli_abort(c(
+        "ID column {.field {config$id_column}} not found in data.",
+        "i" = "Add a column named {.field {config$id_column}} containing the record IDs to update."
+      ))
+    }
+  }
+
   if (!is.null(config$metadata_mappings)) {
     data <- reverse_map_metadata(data, config, con, interactive, similarity_threshold)
+    # After mapping, friendly column names (e.g. "method") are renamed to their DB id_col
+    # (e.g. "id_method"). Sync direct_columns so these resolved columns are recognised.
+    for (friendly_col in names(config$metadata_mappings)) {
+      id_col <- config$metadata_mappings[[friendly_col]]$id_col
+      if (friendly_col %in% config$direct_columns) {
+        config$direct_columns <- union(setdiff(config$direct_columns, friendly_col), id_col)
+      }
+    }
   }
-  
+
   if (table_type == "individual_features_metadata" && isTRUE(config$has_table_references)) {
     data <- reverse_map_table_references(data, con)
   }
-  
+
   cols_in_data <- setdiff(names(data), config$id_column)
   direct_cols <- intersect(cols_in_data, config$direct_columns)
-  
+
   if (table_type == "individuals") {
     feature_cols <- intersect(cols_in_data, config$feature_columns)
   } else if (table_type == "plots") {
@@ -5011,13 +5035,21 @@ update_records <- function(data,
   } else {
     feature_cols <- c()
   }
-  
+
   unknown_cols <- setdiff(cols_in_data, c(direct_cols, feature_cols))
-  
+
   if (length(unknown_cols) > 0) {
-    cli::cli_alert_warning("Unknown columns ignored: {paste(unknown_cols, collapse=', ')}")
+    cli::cli_alert_warning("Unrecognised columns ignored: {.field {unknown_cols}}")
+    cli::cli_alert_info("Valid column names for {.val {table_type}}: {.field {config$direct_columns}}")
   }
-  
+
+  if (length(direct_cols) == 0 && length(feature_cols) == 0) {
+    cli::cli_abort(c(
+      "No updatable columns found in data.",
+      "i" = "Provide at least one of: {.field {config$direct_columns}}"
+    ))
+  }
+
   cli::cli_alert_info("Direct columns: {length(direct_cols)}")
   if (length(feature_cols) > 0) {
     cli::cli_alert_info("Feature columns: {length(feature_cols)}")
