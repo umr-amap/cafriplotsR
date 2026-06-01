@@ -227,8 +227,14 @@ app_taxonomic_match <- function(
       shiny::updateSelectInput(session, "selected_language", selected = lang)
     })
 
-    # Stop app and quit R when browser is closed
+    # On session end: locally, free connections and quit R when the browser
+    # closes. When served (SSP Cloud / shiny-server) a single process handles
+    # many sessions, so we must NOT cleanup global state or stop the app -
+    # idle pools are reclaimed by the pool package's eviction instead.
     session$onSessionEnded(function() {
+      if (.is_served()) {
+        return(invisible(NULL))
+      }
       # Clean up all connections and credentials
       tryCatch({
         cleanup_connections()
