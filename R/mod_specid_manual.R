@@ -43,7 +43,7 @@ mod_specid_manual_ui <- function(id, i18n) {
 
     # --- 1b. Find specimen ---
     shiny::wellPanel(
-      shiny::h4(shiny::icon("magnifying-glass"), " ",
+      shiny::h4(shiny::icon("search"), " ",
                 i18n$t("1b. Find the specimen")),
       shiny::fluidRow(
         shiny::column(
@@ -70,7 +70,7 @@ mod_specid_manual_ui <- function(id, i18n) {
     shiny::conditionalPanel(
       condition = sprintf("output['%s']", ns("has_selection")),
       shiny::wellPanel(
-        shiny::h4(shiny::icon("circle-info"), " ", i18n$t("2. Current values")),
+        shiny::h4(shiny::icon("info-circle"), " ", i18n$t("2. Current values")),
         shiny::uiOutput(ns("current_card"))
       ),
 
@@ -116,7 +116,7 @@ mod_specid_manual_ui <- function(id, i18n) {
                             shiny::tagList(shiny::icon("eye"), " ", i18n$t("Preview changes")),
                             class = "btn-secondary"),
         shiny::actionButton(ns("apply_btn"),
-                            shiny::tagList(shiny::icon("floppy-disk"), " ",
+                            shiny::tagList(shiny::icon("save"), " ",
                                            i18n$t("Apply update")),
                             class = "btn-success",
                             style = "margin-left: 10px;"),

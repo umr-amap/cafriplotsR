@@ -19,7 +19,7 @@ mod_specid_mode_ui <- function(id, i18n) {
           shiny::actionLink(
             ns("pick_manual"), label = NULL, style = "color: inherit;",
             shiny::div(
-              shiny::icon("pen-to-square", style = "font-size: 2.4em; color: #007bff;"),
+              shiny::icon("edit", style = "font-size: 2.4em; color: #007bff;"),
               shiny::h4(i18n$t("Manual"), style = "margin-top: 10px;"),
               shiny::p(i18n$t("Search a single specimen and update its identification interactively."),
                        style = "color: #6c757d;")
@@ -34,7 +34,7 @@ mod_specid_mode_ui <- function(id, i18n) {
           shiny::actionLink(
             ns("pick_batch"), label = NULL, style = "color: inherit;",
             shiny::div(
-              shiny::icon("file-arrow-up", style = "font-size: 2.4em; color: #28a745;"),
+              shiny::icon("file-upload", style = "font-size: 2.4em; color: #28a745;"),
               shiny::h4(i18n$t("Batch (file upload)"), style = "margin-top: 10px;"),
               shiny::p(i18n$t("Upload an Excel/CSV file with rows of specimens to update."),
                        style = "color: #6c757d;")
