@@ -1,0 +1,47 @@
+# Values for the SSP Cloud generic "shiny" chart.
+# All settings live under the `shiny:` key because this chart inherits the
+# upstream chart as a sub-chart (see Chart.yaml).
+shiny:
+
+  # --- Container image -------------------------------------------------------
+  # Points at the image built and pushed to GitHub Container Registry by the
+  # GitHub Actions workflow. The package must be set to Public (repo Packages
+  # tab) so SSP Cloud can pull it without credentials.
+  # Owner is lowercase: ghcr.io/umr-amap/cafri-taxomatch
+  image:
+    repository: ghcr.io/umr-amap/cafri-taxomatch
+    tag: latest
+    pullPolicy: Always
+
+  # The app listens on shiny-server's default port.
+  service:
+    port: 3838
+
+  # --- Public URL ------------------------------------------------------------
+  ingress:
+    enabled: true
+    hostname: cafri-taxomatch.lab.sspcloud.fr
+
+  # --- Runtime configuration -------------------------------------------------
+  # The app authenticates users at runtime via the in-app login module, so NO
+  # database secret is needed here. These just set defaults and the served flag.
+  extraEnvVars:
+    - name: CAFRI_SERVED
+      value: "true"
+    - name: CAFRI_LANGUAGE
+      value: "fr"
+
+  # --- Resources -------------------------------------------------------------
+  # Taxonomic matching is CPU-light but loads a sizeable backbone; give it
+  # headroom. Tune after observing real usage.
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+
+  # S3/MinIO and PostgreSQL sub-features of the chart are intentionally left
+  # disabled: the database is external (OVH) and reached over the internet from
+  # within the app, not provisioned by this chart.
