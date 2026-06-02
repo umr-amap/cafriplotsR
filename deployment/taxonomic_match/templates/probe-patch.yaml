@@ -1,15 +1,21 @@
 # Permanent probe fix.
 #
-# The upstream `shiny` sub-chart hardcodes an HTTP GET `/` liveness/readiness
-# probe and does NOT expose it via values. That probe is rendered by the single
-# shared R worker, so while one session loads the taxonomic backbone the worker
-# is blocked, the probe times out, and Kubernetes restarts the pod (crash loop).
+# The upstream `shiny` sub-chart hardcodes a tight HTTP GET `/` liveness/
+# readiness probe (timeoutSeconds ~1, failureThreshold 3, periodSeconds 10) and
+# does NOT expose it via values. That probe is rendered by the single shared R
+# worker, so while one session loads the taxonomic backbone the worker is
+# blocked, the probe times out, and Kubernetes restarts the pod (crash loop
+# under concurrency).
 #
-# We can't override the sub-chart's hardcoded probe through values, so instead a
-# Helm hook Job re-applies a TCP-socket probe (which only checks that the
-# shiny-server listener is up, independent of the busy R worker) on every
-# install and upgrade. Because it runs as a post-upgrade hook, `helm upgrade`
-# can never leave the deployment with the bad probe.
+# We keep the SAME handler type (httpGet) and only loosen the timing so the
+# probe tolerates a busy worker for several minutes. This is deliberate: a
+# probe may have only one handler type, so switching httpGet -> tcpSocket would
+# make `helm upgrade` produce an invalid two-handler probe (helm reasserts the
+# chart's httpGet against a live tcpSocket). Patching only timing fields keeps
+# the handler unchanged, so it strategic-merges cleanly on every upgrade.
+#
+# Because it runs as a post-install/post-upgrade hook, the loosened timing is
+# re-applied on every install and upgrade.
 #
 # Requires the release namespace to allow creating ServiceAccount/Role/
 # RoleBinding/Job (granted by the SSP Cloud "admin" Kubernetes role used to
@@ -78,6 +84,10 @@ spec:
             - -c
             - |
               kubectl patch deployment {{ .Release.Name }}-shiny --type=json -p='[
-                {"op":"replace","path":"/spec/template/spec/containers/0/livenessProbe","value":{"tcpSocket":{"port":3838},"initialDelaySeconds":30,"periodSeconds":20,"timeoutSeconds":5,"failureThreshold":6}},
-                {"op":"replace","path":"/spec/template/spec/containers/0/readinessProbe","value":{"tcpSocket":{"port":3838},"initialDelaySeconds":10,"periodSeconds":20,"timeoutSeconds":5,"failureThreshold":6}}
+                {"op":"add","path":"/spec/template/spec/containers/0/livenessProbe/timeoutSeconds","value":10},
+                {"op":"add","path":"/spec/template/spec/containers/0/livenessProbe/periodSeconds","value":30},
+                {"op":"add","path":"/spec/template/spec/containers/0/livenessProbe/failureThreshold","value":10},
+                {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/timeoutSeconds","value":10},
+                {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/periodSeconds","value":30},
+                {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/failureThreshold","value":10}
               ]'
