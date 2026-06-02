@@ -91,14 +91,35 @@ and Kubernetes restarts the pod (a crash loop, seen when two sessions run in
 parallel).
 
 The sub-chart does not expose the probe via values, so `templates/probe-patch.yaml`
-runs a **post-install / post-upgrade Helm hook** that patches the deployment to a
-**TCP-socket probe on 3838** (it checks the listener is up, independent of the
-busy worker). This re-applies on every `helm install` and `helm upgrade`, so an
-upgrade can never reintroduce the bad probe — no manual `kubectl patch` needed.
+runs a **post-install / post-upgrade Helm hook** that patches the deployment to
+**loosen the probe timing** (`timeoutSeconds 10`, `periodSeconds 30`,
+`failureThreshold 10` — roughly 5 minutes of tolerance), so a backbone load no
+longer trips it. This re-applies on every `helm install` and `helm upgrade`.
 
-To activate it on an existing release, run `helm upgrade cafri-taxomatch . -f values.yaml`
-once. If the hook image (`probePatch.image`, default `bitnami/kubectl:latest`)
-can't be pulled on your cluster, override it in `values.yaml`.
+Important: the hook keeps the **same `httpGet` handler** and only changes timing.
+It deliberately does *not* switch to a `tcpSocket` probe, because a probe may
+have only one handler type — a live `tcpSocket` against the chart's `httpGet`
+makes `helm upgrade` fail with `may not specify more than 1 handler type`. (If
+you ever manually patched the live probe to `tcpSocket`, restore `httpGet` first;
+see "Recovering from a stuck upgrade" below.)
+
+If the hook image (`probePatch.image`, default `bitnami/kubectl:latest`) can't be
+pulled on your cluster, override it in `values.yaml`.
+
+### Recovering from a stuck upgrade
+
+If `helm upgrade` fails with `may not specify more than 1 handler type`, the live
+deployment has a `tcpSocket` probe that conflicts with the chart's `httpGet`.
+Restore an `httpGet` probe (with loose timing, so the app stays protected), then
+upgrade:
+
+```bash
+kubectl patch deployment cafri-taxomatch-shiny --type=json -p='[
+  {"op":"replace","path":"/spec/template/spec/containers/0/livenessProbe","value":{"httpGet":{"path":"/","port":"http","scheme":"HTTP"},"initialDelaySeconds":30,"periodSeconds":30,"timeoutSeconds":10,"failureThreshold":10,"successThreshold":1}},
+  {"op":"replace","path":"/spec/template/spec/containers/0/readinessProbe","value":{"httpGet":{"path":"/","port":"http","scheme":"HTTP"},"initialDelaySeconds":10,"periodSeconds":30,"timeoutSeconds":10,"failureThreshold":10,"successThreshold":1}}
+]'
+helm upgrade cafri-taxomatch . -f values.yaml
+```
 
 Note: this stops the crash, but Shiny is still single-process — a long backbone
 load by one user will briefly freeze others. Acceptable for low concurrency; for
