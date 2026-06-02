@@ -1,0 +1,83 @@
+# Permanent probe fix.
+#
+# The upstream `shiny` sub-chart hardcodes an HTTP GET `/` liveness/readiness
+# probe and does NOT expose it via values. That probe is rendered by the single
+# shared R worker, so while one session loads the taxonomic backbone the worker
+# is blocked, the probe times out, and Kubernetes restarts the pod (crash loop).
+#
+# We can't override the sub-chart's hardcoded probe through values, so instead a
+# Helm hook Job re-applies a TCP-socket probe (which only checks that the
+# shiny-server listener is up, independent of the busy R worker) on every
+# install and upgrade. Because it runs as a post-upgrade hook, `helm upgrade`
+# can never leave the deployment with the bad probe.
+#
+# Requires the release namespace to allow creating ServiceAccount/Role/
+# RoleBinding/Job (granted by the SSP Cloud "admin" Kubernetes role used to
+# install the chart).
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-probe-patcher
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}-probe-patcher
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-probe-patcher
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}-probe-patcher
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-probe-patcher
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-probe-patch
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 120
+  template:
+    spec:
+      serviceAccountName: {{ .Release.Name }}-probe-patcher
+      restartPolicy: Never
+      containers:
+        - name: kubectl
+          # Any image containing kubectl. Override via probePatch.image if this
+          # one is unavailable on your cluster's registry.
+          image: {{ .Values.probePatch.image | default "bitnami/kubectl:latest" }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              kubectl patch deployment {{ .Release.Name }}-shiny --type=json -p='[
+                {"op":"replace","path":"/spec/template/spec/containers/0/livenessProbe","value":{"tcpSocket":{"port":3838},"initialDelaySeconds":30,"periodSeconds":20,"timeoutSeconds":5,"failureThreshold":6}},
+                {"op":"replace","path":"/spec/template/spec/containers/0/readinessProbe","value":{"tcpSocket":{"port":3838},"initialDelaySeconds":10,"periodSeconds":20,"timeoutSeconds":5,"failureThreshold":6}}
+              ]'

@@ -81,6 +81,29 @@ tag there and run `helm upgrade cafri-taxomatch . -f values.yaml` instead.
 Only a values/chart change (not a code change) needs `helm upgrade`; a pure code
 change just needs the rebuild + `rollout restart` above.
 
+## Health probe (handled automatically)
+
+The upstream `shiny` sub-chart hardcodes an HTTP `GET /` liveness/readiness
+probe. Because open-source shiny-server uses a **single shared R process**, that
+probe is rendered by the same worker that loads the taxonomic backbone — so
+while a backbone load is in progress the worker is blocked, the probe times out,
+and Kubernetes restarts the pod (a crash loop, seen when two sessions run in
+parallel).
+
+The sub-chart does not expose the probe via values, so `templates/probe-patch.yaml`
+runs a **post-install / post-upgrade Helm hook** that patches the deployment to a
+**TCP-socket probe on 3838** (it checks the listener is up, independent of the
+busy worker). This re-applies on every `helm install` and `helm upgrade`, so an
+upgrade can never reintroduce the bad probe — no manual `kubectl patch` needed.
+
+To activate it on an existing release, run `helm upgrade cafri-taxomatch . -f values.yaml`
+once. If the hook image (`probePatch.image`, default `bitnami/kubectl:latest`)
+can't be pulled on your cluster, override it in `values.yaml`.
+
+Note: this stops the crash, but Shiny is still single-process — a long backbone
+load by one user will briefly freeze others. Acceptable for low concurrency; for
+heavy concurrent use, run multiple replicas with sticky sessions or ShinyProxy.
+
 ## Before publishing — read this
 
 - **Egress to OVH**: the SSP Cloud cluster must allow outbound connections to

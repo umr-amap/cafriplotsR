@@ -1,6 +1,15 @@
 # Values for the SSP Cloud generic "shiny" chart.
-# All settings live under the `shiny:` key because this chart inherits the
-# upstream chart as a sub-chart (see Chart.yaml).
+# Settings for the upstream chart live under the `shiny:` key because it is
+# inherited as a sub-chart (see Chart.yaml). Top-level keys configure this
+# wrapper chart's own resources (e.g. the probe-patch hook).
+
+# --- Probe patch hook --------------------------------------------------------
+# Image (must contain kubectl) used by the post-install/post-upgrade hook that
+# swaps the sub-chart's hardcoded HTTP probe for a TCP probe. See
+# templates/probe-patch.yaml. Override if this image can't be pulled here.
+probePatch:
+  image: bitnami/kubectl:latest
+
 shiny:
 
   # --- Container image -------------------------------------------------------
