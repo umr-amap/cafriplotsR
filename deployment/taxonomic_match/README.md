@@ -56,6 +56,31 @@ helm upgrade cafri-taxomatch . -f values.yaml
 
 The app will be live at the `ingress.hostname` you set.
 
+## Redeploy after a code change
+
+Whenever you change the package code (R functions, `DESCRIPTION`, the Dockerfile
+or the entry point), the running pod keeps the *old* image until you rebuild and
+roll it. Two steps:
+
+```bash
+# 1. Rebuild the image (from your local machine, after committing):
+git push origin master
+#    -> GitHub Actions rebuilds and pushes ghcr.io/umr-amap/cafri-taxomatch:latest
+#       Wait for the workflow to go green (Actions tab) before step 2.
+
+# 2. Roll the pod to the new image (from the SSP Cloud terminal):
+kubectl rollout restart deployment cafri-taxomatch-shiny
+kubectl get pods -w        # Ctrl-C once the new pod is 1/1 Running
+```
+
+`rollout restart` works because the image tag is `latest` with
+`pullPolicy: Always`, so the new pod re-pulls the freshly built image. If you
+ever pin a specific tag (e.g. a commit SHA) in `values.yaml` instead, update the
+tag there and run `helm upgrade cafri-taxomatch . -f values.yaml` instead.
+
+Only a values/chart change (not a code change) needs `helm upgrade`; a pure code
+change just needs the rebuild + `rollout restart` above.
+
 ## Before publishing — read this
 
 - **Egress to OVH**: the SSP Cloud cluster must allow outbound connections to
