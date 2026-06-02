@@ -10,6 +10,7 @@ Imports:
     shiny.i18n,
     DBI,
     dplyr,
+    dbplyr,
     DT,
     ggplot2,
     rlang,
