@@ -13,23 +13,23 @@ shiny:
     tag: latest
     pullPolicy: Always
 
-  # The app listens on shiny-server's default port.
+  # shiny-server listens on 3838 (the chart's default service.port is 80).
   service:
     port: 3838
 
   # --- Public URL ------------------------------------------------------------
+  # Only the hostname is overridden; the chart's default ingress annotations
+  # (nginx class + 3600s proxy-read-timeout for Shiny websockets) and tls: true
+  # are kept as-is.
   ingress:
     enabled: true
     hostname: cafri-taxomatch.lab.sspcloud.fr
 
   # --- Runtime configuration -------------------------------------------------
+  # This chart has no env-var field; CAFRI_SERVED=true and CAFRI_LANGUAGE=fr
+  # are baked into the image via the Dockerfile ENV instructions instead.
   # The app authenticates users at runtime via the in-app login module, so NO
-  # database secret is needed here. These just set defaults and the served flag.
-  extraEnvVars:
-    - name: CAFRI_SERVED
-      value: "true"
-    - name: CAFRI_LANGUAGE
-      value: "fr"
+  # database secret is needed here.
 
   # --- Resources -------------------------------------------------------------
   # Taxonomic matching is CPU-light but loads a sizeable backbone; give it
