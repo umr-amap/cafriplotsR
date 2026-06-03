@@ -17,13 +17,14 @@ mod_specid_mode_ui <- function(id, i18n) {
         shiny::div(
           id = ns("card_manual"), class = "specid-mode-card",
           shiny::actionLink(
-            ns("pick_manual"), label = NULL, style = "color: inherit;",
-            shiny::div(
+            ns("pick_manual"),
+            label = shiny::div(
               shiny::icon("edit", style = "font-size: 2.4em; color: #007bff;"),
               shiny::h4(i18n$t("Manual"), style = "margin-top: 10px;"),
               shiny::p(i18n$t("Search a single specimen and update its identification interactively."),
                        style = "color: #6c757d;")
-            )
+            ),
+            style = "color: inherit;"
           )
         )
       ),
@@ -32,13 +33,14 @@ mod_specid_mode_ui <- function(id, i18n) {
         shiny::div(
           id = ns("card_batch"), class = "specid-mode-card",
           shiny::actionLink(
-            ns("pick_batch"), label = NULL, style = "color: inherit;",
-            shiny::div(
+            ns("pick_batch"),
+            label = shiny::div(
               shiny::icon("file-upload", style = "font-size: 2.4em; color: #28a745;"),
               shiny::h4(i18n$t("Batch (file upload)"), style = "margin-top: 10px;"),
               shiny::p(i18n$t("Upload an Excel/CSV file with rows of specimens to update."),
                        style = "color: #6c757d;")
-            )
+            ),
+            style = "color: inherit;"
           )
         )
       )
