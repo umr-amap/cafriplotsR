@@ -1,4 +1,4 @@
-{
+﻿{
   "languages": ["en", "fr"],
   "translation": [
     {
@@ -8456,6 +8456,98 @@
     {
       "en": "New",
       "fr": "Nouveau"
+    },
+    {
+      "en": "About this app",
+      "fr": "À propos de cette application"
+    },
+    {
+      "en": "This application performs two sequential tasks: (1) semi-automatically standardize the nomenclature of tropical African plant taxon names, and (2) enrich the standardized list with traits and attributes available in the database.",
+      "fr": "Cette application permet de réaliser deux tâches de manière séquentielle : (1) standardiser de manière semi-automatique la nomenclature des noms de taxons de plantes d'Afrique tropicale, et (2) enrichir la liste des noms standardisés avec des traits et attributs disponibles dans la base de données."
+    },
+    {
+      "en": "Data input:",
+      "fr": "Saisie des données :"
+    },
+    {
+      "en": "Standardization can be done by importing an Excel file or by copy-pasting the list of names to standardize.",
+      "fr": "La standardisation peut se faire en important un fichier Excel ou en copiant-collant la liste des noms à standardiser."
+    },
+    {
+      "en": "Column selection:",
+      "fr": "Sélection des colonnes :"
+    },
+    {
+      "en": "Before standardizing, select the column(s) containing the taxonomic information: either a single column, or multiple columns (typically genus and specific epithet in separate columns).",
+      "fr": "Avant de standardiser, sélectionnez la ou les colonnes contenant les informations taxonomiques : soit une seule colonne, soit plusieurs colonnes séparées (typiquement genre et épithète spécifique dans deux colonnes distinctes)."
+    },
+    {
+      "en": "Automatic matching:",
+      "fr": "Appariement automatique :"
+    },
+    {
+      "en": "All names are checked automatically and corrected if needed. If no exact match is found, approximate matching (fuzzy match) is performed based on spelling similarity.",
+      "fr": "Tous les noms sont vérifiés automatiquement et corrigés si nécessaire. En l'absence de correspondance exacte, un appariement approximatif (fuzzy match) est réalisé sur la base de la similarité orthographique."
+    },
+    {
+      "en": "Similarity threshold:",
+      "fr": "Seuil de similarité :"
+    },
+    {
+      "en": "The minimum similarity (%) controls how strict the automatic matching is. A higher threshold is more conservative — it reduces incorrect matches but may result in more names to review manually. A lower threshold increases automatic matching but raises the risk of errors.",
+      "fr": "La similarité minimum (%) détermine la rigueur de l'appariement automatique. Un seuil élevé est plus conservateur : il réduit les mauvais appariements mais peut générer plus de noms à réviser manuellement. Un seuil plus bas augmente l'appariement automatique au prix d'un risque accru d'erreurs."
+    },
+    {
+      "en": "Important:",
+      "fr": "Remarque importante :"
+    },
+    {
+      "en": "When no exact match is found, the genus is extracted from the submitted name. If the genus matches exactly, approximate matching is limited to species within that genus. Names with no match must be reviewed manually.",
+      "fr": "Lorsqu'aucune correspondance exacte n'est trouvée pour un nom, le genre est extrait. Si le genre a une correspondance exacte, l'appariement approximatif est limité aux espèces de ce genre. Les noms sans correspondance doivent être révisés manuellement."
+    },
+    {
+      "en": "Synonyms are automatically detected and resolved to their accepted names. For large lists, matching progress is saved after each name and can be resumed if the session is interrupted.",
+      "fr": "Les synonymes sont automatiquement détectés et résolus vers leur nom accepté. Pour les longues listes, la progression de l'appariement est sauvegardée au fil du traitement et peut être reprise si la session est interrompue."
+    },
+    {
+      "en": "During manual review, the app presents ranked similarity suggestions for each unmatched name and also allows free search in the backbone. Match quality is shown as a percentage score (green ≥ 90 %, blue ≥ 70 %).",
+      "fr": "Lors de la révision manuelle, l'application propose une liste de suggestions classées par similarité pour chaque nom non apparié, et permet également une recherche libre dans le référentiel. La qualité de l'appariement est indiquée par un score en pourcentage (vert ≥ 90 %, bleu ≥ 70 %)."
+    },
+    {
+      "en": "Traits enrichment:",
+      "fr": "Enrichissement par les traits :"
+    },
+    {
+      "en": "Once names are standardized, the Traits tab fetches available measurements from the database for each matched taxon. Numeric traits are reported as mean, standard deviation, and count of measurements. Categorical traits can be shown as the most frequent value or all values combined. Data sources and citations are available for download.",
+      "fr": "Une fois les noms standardisés, l'onglet Traits récupère les mesures disponibles dans la base de données pour chaque taxon apparié. Les traits numériques sont résumés par leur moyenne, écart-type et nombre de mesures. Les traits catégoriels peuvent être affichés sous la forme de la valeur la plus fréquente ou de toutes les valeurs combinées. Les sources et citations sont disponibles au téléchargement."
+    },
+    {
+      "en": "Manual review:",
+      "fr": "Révision manuelle :"
+    },
+    {
+      "en": "Import an Excel file or copy-paste a list of names to standardize.",
+      "fr": "Importez un fichier Excel ou copiez-collez une liste de noms à standardiser."
+    },
+    {
+      "en": "Select the column(s) containing the taxonomic information: a single column or multiple columns (e.g. genus and specific epithet separately).",
+      "fr": "Sélectionnez la ou les colonnes contenant l’information taxonomique : une seule colonne ou plusieurs colonnes (par ex. genre et épithète spécifique séparés)."
+    },
+    {
+      "en": "Names are checked automatically against the backbone. Exact matches are found first; fuzzy matching then handles misspellings. Synonyms are resolved to accepted names. Progress is saved and can be resumed if the session is interrupted.",
+      "fr": "Les noms sont vérifiés automatiquement contre le référentiel. Les correspondances exactes sont traitées en premier ; la correspondance approximative gère ensuite les erreurs typographiques. Les synonymes sont résolus en noms acceptés. La progression est sauvegardée et peut être reprise si la session est interrompue."
+    },
+    {
+      "en": "Controls how strict the automatic matching is. A higher value reduces false matches but leaves more names for manual review; a lower value increases automatic matching but raises the risk of errors.",
+      "fr": "Contrôle la rigueur de l’appariement automatique. Une valeur plus élevée réduit les faux appariements mais laisse davantage de noms à réviser manuellement ; une valeur plus basse augmente l’appariement automatique mais accroît le risque d’erreurs."
+    },
+    {
+      "en": "Unmatched names are reviewed one by one. The app proposes ranked suggestions and allows free search in the backbone. Match quality is shown as a percentage (green >= 90 %, blue >= 70 %). Note: when the genus is recognised, fuzzy matching is restricted to species within that genus.",
+      "fr": "Les noms non appariés sont révisés un par un. L’application propose des suggestions classées par similarité et permet une recherche libre dans le référentiel. La qualité de l’appariement est indiquée en pourcentage (vert >= 90 %, bleu >= 70 %). Remarque : lorsque le genre est reconnu, la correspondance approximative est limitée aux espèces de ce genre."
+    },
+    {
+      "en": "Once names are standardised, the Traits tab retrieves available measurements for each matched taxon. Numeric traits are reported as mean, sd and n; categorical traits as the most frequent value or all values combined.",
+      "fr": "Une fois les noms standardisés, l’onglet Traits récupère les mesures disponibles pour chaque taxon apparié. Les traits numériques sont reportés comme moyenne, écart-type et n ; les traits catégoriels comme la valeur la plus fréquente ou toutes les valeurs combinées."
     }
   ]
 }
