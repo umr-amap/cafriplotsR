@@ -1,4 +1,4 @@
-# Main Shiny App for Taxonomic Name Standardization
+﻿# Main Shiny App for Taxonomic Name Standardization
 #
 # Modular Shiny app that orchestrates all modules for taxonomic name matching
 
@@ -104,8 +104,9 @@ app_taxonomic_match <- function(
             ),
             shiny::p(
               shiny::textOutput("app_subtitle"),
-              style = "color: #7f8c8d; font-size: 16px; margin-bottom: 30px;"
-            )
+              style = "color: #7f8c8d; font-size: 16px; margin-bottom: 15px;"
+            ),
+            shiny::uiOutput("app_intro_ui")
           )
         )
       ),
@@ -312,6 +313,67 @@ app_taxonomic_match <- function(
         i18n()$t("Taxonomic Name Standardization Tool"),
         "|",
         i18n()$t("Powered by CafriplotsR package")
+      )
+    })
+
+
+    # App intro (collapsible section below the subtitle)
+    output$app_intro_ui <- shiny::renderUI({
+      shiny::tags$details(
+        style = "margin-bottom:20px; background:#eaf3fb; padding:14px 16px; border-radius:5px; border-left:4px solid #3498db;",
+        shiny::tags$summary(
+          style = "cursor:pointer; font-weight:bold; color:#2c3e50;",
+          shiny::icon("info-circle"), " ", i18n()$t("About this app")
+        ),
+        shiny::tags$ul(
+          style = "margin:10px 0 0 0; padding-left:20px; line-height:1.7;",
+          shiny::tags$li(
+            shiny::tags$strong(i18n()$t("Data input:")), " ",
+            i18n()$t(paste0(
+              "Import an Excel file or copy-paste a list of names to standardize."
+            ))
+          ),
+          shiny::tags$li(
+            shiny::tags$strong(i18n()$t("Column selection:")), " ",
+            i18n()$t(paste0(
+              "Select the column(s) containing the taxonomic information: a single column ",
+              "or multiple columns (e.g. genus and specific epithet separately)."
+            ))
+          ),
+          shiny::tags$li(
+            shiny::tags$strong(i18n()$t("Automatic matching:")), " ",
+            i18n()$t(paste0(
+              "Names are checked automatically against the backbone. Exact matches are found first; ",
+              "fuzzy matching then handles misspellings. Synonyms are resolved to accepted names. ",
+              "Progress is saved and can be resumed if the session is interrupted."
+            ))
+          ),
+          shiny::tags$li(
+            shiny::tags$strong(i18n()$t("Similarity threshold:")), " ",
+            i18n()$t(paste0(
+              "Controls how strict the automatic matching is. A higher value reduces false matches ",
+              "but leaves more names for manual review; a lower value increases automatic matching ",
+              "but raises the risk of errors."
+            ))
+          ),
+          shiny::tags$li(
+            shiny::tags$strong(i18n()$t("Manual review:")), " ",
+            i18n()$t(paste0(
+              "Unmatched names are reviewed one by one. The app proposes ranked suggestions and ",
+              "allows free search in the backbone. Match quality is shown as a percentage ",
+              "(green >= 90 %, blue >= 70 %). Note: when the genus is recognised, fuzzy ",
+              "matching is restricted to species within that genus."
+            ))
+          ),
+          shiny::tags$li(
+            shiny::tags$strong(i18n()$t("Traits enrichment:")), " ",
+            i18n()$t(paste0(
+              "Once names are standardised, the Traits tab retrieves available measurements for each ",
+              "matched taxon. Numeric traits are reported as mean, sd and n; categorical traits as ",
+              "the most frequent value or all values combined."
+            ))
+          )
+        )
       )
     })
 
