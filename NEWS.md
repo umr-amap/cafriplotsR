@@ -14,6 +14,12 @@
 
 * **`mod_link_executor` / `.add_link_specimens()`** — duplicate links (same `id_n` + `id_specimen` + `id_linktype`) are now prevented at two levels: internal duplicates within a new batch are removed before insertion, and the existing-DB check now matches on all three key columns instead of only `id_n` + `id_specimen`.
 
+### Documentation
+
+* **`mod_step1_choose_type_ui()`** — reworded the taxonomic-standardization requirement checkbox to explain the `launch_taxonomic_match_app()` workflow more precisely (standardize the taxa list, keep original names, obtain `idtax_n`) and to correct the column-mapping guidance, which previously referred to a non-existent `idtax` column instead of `idtax_n`. French translation synced.
+
+* **Newsletter vignettes** (`newsletter.Rmd`, `newsletter-fr.Rmd`) — copyedited the WCVP and aggregated-traits sections: dropped marketing language tied to the Barcelona presentation, fixed example calls, added a `get_wcvp_status()` snippet, and clarified the public-access/data-sovereignty note.
+
 ### New Features
 
 * **`connect_cafri()` — single entry point for both databases** (`R/connections_db.R`)
