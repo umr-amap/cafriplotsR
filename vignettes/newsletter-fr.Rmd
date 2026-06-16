@@ -9,7 +9,7 @@ vignette: >
 
 # CafriplotsR Newsletter
 
-Actualités sur les grandes étapes du package CafriplotsR et de la base de données des placettes forestières d'Afrique centrale.
+Actualités sur les grandes étapes du package CafriplotsR
 
 ---
 
@@ -19,58 +19,54 @@ Actualités sur les grandes étapes du package CafriplotsR et de la base de donn
 
 **Basculer entre le référentiel taxonomique interne et WCVP**
 
-CafriplotsR intègre désormais un second référentiel taxonomique de premier plan : le **World Checklist of Vascular Plants (WCVP)**. Le référentiel interne Cafriplots reste le référentiel par défaut — c'est lui qui sert à assembler la base, lier les individus et curer les données de traits — mais il est maintenant possible de travailler dans l'espace WCVP dès que l'on souhaite comparer avec, ou contribuer à, un référentiel mondial.
+CafriplotsR intègre désormais un second référentiel taxonomique : le **World Checklist of Vascular Plants (WCVP)**. Le référentiel interne à CafriplotsR reste le référentiel par défaut mais il est maintenant possible de travailler en suivant la nomenclature de WCVP.
+
+La motivation est la même que pour le suivi des citations : **la transparence sur la provenance taxonomique**. Lorsque les données quittent la base, l'utilisateur sait exactement quel référentiel a été utilisé pour interpréter chaque nom, et peut basculer entre référentiels.
 
 Le référentiel se choisit au moment de la requête, via un seul argument :
 
 ```r
-query_individual_features(con, backbone = "wcvp")
-query_taxa_traits(con, backbone = "wcvp")
+con <- call.mydb()
+query_plots(country = "GABON", backbone = "wcvp", extract_individuals = T)
+query_taxa(species = "Dacryodes edulis", backbone = "wcvp", check_synonymy = F)
 ```
 
-Lorsque `backbone = "wcvp"`, les colonnes taxonomiques standard (`tax_fam`, `tax_gen`, `tax_esp`, niveaux infraspécifiques et auteur) sont remplacées **sur place** par les valeurs WCVP. Deux colonnes supplémentaires rendent cette substitution transparente :
+Lorsque `backbone = "wcvp"`, les colonnes taxonomiques standard sont remplacées par les données de WCVP. Deux colonnes supplémentaires rendent cette substitution transparente :
 
 - `name_source` — `"wcvp"` si le taxon a été résolu vers un nom WCVP, `"internal"` si le repli silencieux vers le référentiel Cafriplots a été nécessaire (pas de correspondance WCVP)
 - `alt_taxon_name` — le nom interne d'origine conservé en parallèle, pour pouvoir toujours remonter au référentiel Cafriplots
 
-Les identifiants internes (`idtax_n`, `idtax_good_n`) ne sont **jamais** écrasés ; les analogues WCVP (`wcvp_plant_name_id`, `wcvp_accepted_plant_name_id`) sont ajoutés comme colonnes séparées. Chaque ligne reste donc ancrée simultanément aux deux systèmes de référence.
+
+La version actuelle du WCVP peut être vérifiée avec le code suivant (il s'agit de la plus récente, de début janvier 2026) :
+```r
+con.taxa <- call.mydb.taxa()
+get_wcvp_status(con_taxa = con.taxa)
+```
+
+Les identifiants internes (`idtax_n`, l'identifiant du taxa, `idtax_good_n`, l'identifiant du synonyme éventuel) sont conservées ; les analogues WCVP (`wcvp_plant_name_id`, `wcvp_accepted_plant_name_id`) sont ajoutés comme colonnes séparées. Chaque ligne reste donc ancrée simultanément aux deux systèmes de référence.
 
 Le même choix est disponible dans les applications interactives :
 
 - **`launch_taxonomic_match_app()`** — la fenêtre de sélection du référentiel propose désormais WCVP comme alternative dès que les données WCVP sont présentes dans la base taxonomique.
 - **`launch_query_plots()`** — l'extraction peut être lancée dans l'espace WCVP ; la source de chaque nom taxonomique est documentée dans les tables de sortie via `name_source`.
 
-> **Procédure d'installation :** la procédure d'import WCVP, à effectuer une seule fois (schéma, import des noms, appariement flou, liens), est documentée dans `inst/docs/wcvp_setup_workflow.R`. Une fois les données chargées, le statut est rapporté par `get_wcvp_status()` et la fraîcheur peut être vérifiée avec `check_wcvp_update()`.
-
-La motivation est la même que pour le suivi des citations : **la transparence sur la provenance taxonomique**. Lorsque les données quittent la base, l'utilisateur sait exactement quel référentiel a été utilisé pour interpréter chaque nom, et peut basculer entre référentiels sans avoir à ré-importer ni re-curer quoi que ce soit.
 
 **Traits agrégés au niveau taxonomique à partir des mesures individuelles**
 
-Le package referme désormais la seconde moitié du *cercle vertueux* présenté à Barcelone : les mesures individuelles (DBH, hauteur, diamètre de couronne, épaisseur d'écorce…) enregistrées dans les placettes peuvent être **agrégées par taxon** et exposées comme traits au niveau taxon, prêtes à être greffées sur toute requête future — exactement comme les traits de densité du bois ou de masse des graines provenant de compilations externes.
+Les mesures individuelles (par ex. DBH, hauteur, etc.) associées aux inventaires peuvent être **agrégées par taxon** et exposées comme traits au niveau taxon, prêtes à être greffées sur toute requête future — exactement comme les traits de densité du bois ou d'autres traits au niveau taxon provenant de compilations externes.
 
 L'agrégation est **déclarative** : une petite table de configuration (`trait_aggregation_config`) contient des règles du type *« prendre le 95ᵉ percentile du diamètre de tige, en restreignant aux individus identifiés au niveau espèce ou en dessous, avec au moins 5 mesures »*. Le pipeline lit les règles, calcule la valeur agrégée par taxon, et écrit le résultat dans `taxa_traits_measures` :
 
-```r
-add_trait_aggregation(
-  source_trait_id = 1,         # stem_diameter
-  method          = "percentile",
-  method_param    = 95,
-  min_n           = 5
-)
-rebuild_aggregated_taxa_traits(con, con_taxa)
-```
+Une fois générés, ces traits agrégés se comportent **exactement comme n'importe quel autre trait au niveau taxon** : `query_taxa_traits()` les renvoie de manière transparente, et `query_individual_features()` / `query_plots()` les greffent sur les individus d'inventaires via le lien taxonomique. Du point de vue de l'utilisateur, il n'y a pas de second pipeline à exécuter.
 
-Méthodes supportées : `mean`, `median`, `min`, `max`, `sum`, `sd`, `percentile`, `mode`, `concat`, `count`.
+> **Accès public et souveraineté des données.** Les traits agrégés sont marqués par une citation dédiée et **non publique** (`CafriplotsR_aggregated`), et la politique de sécurité au niveau ligne sur `taxa_traits_measures` est `RESTRICTIVE` : la connexion publique ne peut pas les voir. Ils ne sont visibles que par les utilisateurs authentifiés.
 
-Pour que la méthode de transformation reste visible — afin que le p95 du DBH et le DBH brut ne soient jamais confondus, et que plusieurs méthodes appliquées à la même source puissent coexister — les lignes agrégées sont écrites dans des **traits dérivés** dont le nom reprend la source et la méthode (par ex. `stem_diameter_p95`, `stem_diameter_max`). Si vous préférez conserver le nom du trait d'origine, il suffit de passer explicitement `target_trait_id = source_trait_id`.
+> Ce système d'aggrégation taxonomique de traits permet de mettre en place un échange à double sens: lorsqu'on importe des données, on contribue à mieux documenter les traits des espèces que l'on a inventorier, et simultanément on profite des données de traits déja incluses.
 
-Une fois écrits, ces traits agrégés se comportent **exactement comme n'importe quel autre trait au niveau taxon** : `query_taxa_traits()` les renvoie de manière transparente, et `query_individual_features()` / `query_plots()` les greffent sur vos individus via le lien taxonomique habituel. Du point de vue de l'utilisateur, il n'y a pas de second pipeline à exécuter.
-
-> **Accès public et souveraineté des données.** Les traits agrégés sont marqués par une citation dédiée et **non publique** (`CafriplotsR_aggregated`), et la politique de sécurité au niveau ligne sur `taxa_traits_measures` est `RESTRICTIVE` : le rôle public ne peut pas les voir. Ils ne sont visibles que par les utilisateurs authentifiés disposant des permissions adéquates. Cela préserve le principe énoncé dans la présentation de Barcelone : **seuls les résumés agrégés circulent, les données brutes des placettes ne quittent jamais votre réseau, et le portail public n'en voit aucune**.
 
 **Connexion à la base de données simplifiée**
 
-Se connecter à la base est désormais une affaire d'une ligne. La nouvelle fonction `connect_cafri()` remplace l'ancienne séquence en deux étapes qui appelait séparément `call.mydb()` et `call.mydb.taxa()` — une seule invite d'identifiants ouvre les **deux** bases simultanément et stocke les connexions afin que toute fonction du package les réutilise de manière transparente :
+Se connecter à la base est désormais l'affaire d'une ligne. La nouvelle fonction `connect_cafri()` remplace l'ancienne séquence en deux étapes qui appelait séparément `call.mydb()` et `call.mydb.taxa()` — une seule invite d'identifiants ouvre les **deux** bases simultanément et stocke les connexions afin que toute fonction du package les réutilise de manière transparente :
 
 ```r
 cons <- connect_cafri()
@@ -78,11 +74,11 @@ cons$main   # base principale
 cons$taxa   # base taxonomique
 ```
 
-Trois améliorations plus modestes accompagnent ce changement :
+Trois améliorations supplémentaires accompagnent ce changement :
 
-- **Les identifiants `.Renviron` sont désormais détectés automatiquement.** Si vous aviez exécuté `setup_db_credentials()` pour conserver `MYDB_USER` et `MYDB_PASS`, vous n'avez plus besoin du drapeau `use_env_credentials = TRUE` — le package les détecte et se connecte sans invite. Passez `use_env_credentials = FALSE` pour forcer l'invite à chaque appel.
-- **Le nom d'utilisateur est demandé avant le mot de passe**, comme dans tout formulaire de connexion classique.
-- **Un mot de passe erroné ne reste plus en cache.** Auparavant, une faute de frappe restait stockée en mémoire et chaque tentative de connexion suivante la réutilisait jusqu'à découvrir `reset = TRUE`. Les échecs d'authentification effacent désormais le cache et redemandent les identifiants automatiquement en mode interactif ; le comportement de réessai avec délai pour les erreurs réseau transitoires est conservé.
+- **Les identifiants `.Renviron` sont désormais détectés automatiquement.** Si vous aviez exécuté `setup_db_credentials()` pour conserver `MYDB_USER` et `MYDB_PASS`, vous n'avez plus besoin de l'argument `use_env_credentials = TRUE` — le package les détecte et se connecte automatiquement.
+- **Le nom d'utilisateur est maintenant demandé avant le mot de passe**, comme dans tout formulaire de connexion classique.
+- **Un mot de passe erroné ne reste plus en cache.** Auparavant, une faute de frappe restait stockée en mémoire et chaque tentative de connexion suivante la réutilisait jusqu'à découvrir `reset = TRUE`. Les échecs d'authentification effacent désormais le cache et redemandent les identifiants automatiquement en mode interactif.
 
 Les fonctions existantes `call.mydb()` et `call.mydb.taxa()` restent inchangées pour la compatibilité ascendante. Voir le [Guide des Connexions à la Base de Données](database-connections-fr.html) pour la référence complète.
 

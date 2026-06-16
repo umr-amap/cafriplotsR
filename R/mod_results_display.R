@@ -25,14 +25,19 @@ mod_results_display_ui <- function(id) {
 #' @param individual_features_results Reactive containing query_individual_features() results (optional)
 #' @param i18n Reactive returning shiny.i18n translator
 #' @param con Reactive returning a database connection (for column documentation)
+#' @param citation_data Reactive returning a citation summary data.frame (optional, see mod_citation_panel_server)
 #'
 #' @return NULL
 #'
 #' @keywords internal
 #' @export
-mod_results_display_server <- function(id, results, individual_features_results = NULL, i18n, con = NULL) {
+mod_results_display_server <- function(id, results, individual_features_results = NULL, i18n, con = NULL, citation_data = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    if (!is.null(citation_data)) {
+      mod_citation_panel_server("citations", citation_data = citation_data, i18n = i18n)
+    }
 
     # Main UI with translations
     output$results_ui <- shiny::renderUI({
@@ -392,10 +397,22 @@ mod_results_display_server <- function(id, results, individual_features_results 
         DT::DTOutput(ns("coldoc_combined"))
       )
 
-      # Create tabsetPanel with tabs + documentation tab
+      # Add Data Sources tab if citation data is available
+      citation_tab_list <- if (!is.null(citation_data) && !is.null(citation_data())) {
+        list(shiny::tabPanel(
+          title = shiny::tagList(shiny::icon("book"), " ", i18n()$t("Data Sources")),
+          shiny::br(),
+          mod_citation_panel_ui(ns("citations"))
+        ))
+      } else {
+        list()
+      }
+
+      # Create tabsetPanel with tabs + optional citation tab + documentation tab
       do.call(shiny::tabsetPanel, c(
         list(id = ns("results_tabs"), type = "tabs"),
         tabs,
+        citation_tab_list,
         list(coldoc_tab)
       ))
     })

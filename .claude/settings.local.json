@@ -32,7 +32,10 @@
       "WebFetch(domain:docs.sspcloud.fr)",
       "Bash(findstr /N /C:\"traitlist\" \"D:\\\\MonDossierR\\\\database.transects\\\\plotsdatabase\\\\R\\\\*.R\")",
       "Bash(findstr /V \"^.*man\")",
-      "Bash(findstr /R \"tbl.*traitlist dbReadTable.*traitlist dbWriteTable.*traitlist try_open_postgres_table.*traitlist\")"
+      "Bash(findstr /R \"tbl.*traitlist dbReadTable.*traitlist dbWriteTable.*traitlist try_open_postgres_table.*traitlist\")",
+      "Bash(powershell *)",
+      "Bash(del find_missing_i18n.R add_specid_translations.R)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

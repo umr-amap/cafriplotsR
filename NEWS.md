@@ -1,10 +1,24 @@
 # CafriplotsR 1.9.8 (Development)
 
+### New Features
+
+* **`mod_citation_panel`** — new shared Shiny module (`R/mod_citation_panel.R`) rendering a "Data Sources" panel with acknowledgement banner, summary stats cards, and per-citation cards (blue for cited, yellow for unassigned)
+  - Extracted from the duplicated inline rendering code in `mod_traits_enrichment` and `mod_taxa_traits_table`; both modules now delegate to `mod_citation_panel_server()`
+  - `launch_query_plots_app()` now shows a **Data Sources** tab in the results panel when individuals are extracted with taxa-level traits (`extract_traits = TRUE`); citation data is fetched via a follow-up `query_taxa_traits(include_citation = TRUE, format = "long")` call on the unique taxa found in the extraction
+
 ### Bug Fixes
+
+* **`output_styles_helpers.R` / `.extract_individuals_table()`** — `idtax_individual_f` is now always preserved in the individuals output table alongside `id_n`, regardless of output style. Previously this linking column was silently dropped during style processing, preventing downstream citation lookup in the Shiny app.
 
 * **`mod_taxonomic_validator`** — clicking "Confirm Selection" no longer resets the Action column or misclassifies previously accepted rows as rejected. The fix separates the display data (`validated_data`) from the confirmed output (`final_validated_links`): confirming no longer overwrites the table's data, so row indices used by `user_decisions` remain stable.
 
 * **`mod_link_executor` / `.add_link_specimens()`** — duplicate links (same `id_n` + `id_specimen` + `id_linktype`) are now prevented at two levels: internal duplicates within a new batch are removed before insertion, and the existing-DB check now matches on all three key columns instead of only `id_n` + `id_specimen`.
+
+### Documentation
+
+* **`mod_step1_choose_type_ui()`** — reworded the taxonomic-standardization requirement checkbox to explain the `launch_taxonomic_match_app()` workflow more precisely (standardize the taxa list, keep original names, obtain `idtax_n`) and to correct the column-mapping guidance, which previously referred to a non-existent `idtax` column instead of `idtax_n`. French translation synced.
+
+* **Newsletter vignettes** (`newsletter.Rmd`, `newsletter-fr.Rmd`) — copyedited the WCVP and aggregated-traits sections: dropped marketing language tied to the Barcelona presentation, fixed example calls, added a `get_wcvp_status()` snippet, and clarified the public-access/data-sovereignty note.
 
 ### New Features
 

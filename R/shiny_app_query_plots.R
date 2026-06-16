@@ -370,6 +370,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
       individuals = NULL,
       individual_features = NULL,
       extracted_plot_ids = NULL,
+      citation_summary = NULL,
       modules_initialized = FALSE
     )
 
@@ -399,6 +400,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
         rv$individuals <- NULL
         rv$individual_features <- NULL
         rv$extracted_plot_ids <- NULL
+        rv$citation_summary <- NULL
 
         cli::cli_alert_info("Getting filters...")
         # Get filters
@@ -519,6 +521,54 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
             # Store results
             rv$individuals <- result
             rv$extracted_plot_ids <- selected_plots()
+
+            # Fetch citation summary if traits were extracted
+            rv$citation_summary <- NULL
+            if (isTRUE(options$extract_traits)) {
+              ind_data <- if (is.data.frame(result)) {
+                result
+              } else if (is.list(result)) {
+                # key varies by output_style: "extract" (internal), "individuals" (full), or first data.frame
+                if ("extract" %in% names(result)) result$extract
+                else if ("individuals" %in% names(result)) result$individuals
+                else {
+                  dfs <- Filter(is.data.frame, result)
+                  if (length(dfs) > 0) dfs[[1]] else NULL
+                }
+              } else NULL
+              if (!is.null(ind_data) && "idtax_individual_f" %in% names(ind_data)) {
+                unique_taxa <- unique(ind_data$idtax_individual_f)
+                unique_taxa <- unique_taxa[!is.na(unique_taxa)]
+                if (length(unique_taxa) > 0) {
+                  tryCatch({
+                    traits_cit <- query_taxa_traits(
+                      idtax = unique_taxa,
+                      include_citation = TRUE,
+                      format = "long",
+                      con = pool_reactive()
+                    )
+                    raw <- traits_cit$traits_raw
+                    if (!is.null(raw) && nrow(raw) > 0 && "citation_key" %in% names(raw)) {
+                      rv$citation_summary <- raw %>%
+                        dplyr::group_by(
+                          id_citation, citation_key, citation_authors,
+                          citation_year, citation_title, citation_journal,
+                          citation_doi, citation_dataset_name
+                        ) %>%
+                        dplyr::summarise(
+                          n_measurements = dplyr::n(),
+                          n_taxa         = dplyr::n_distinct(idtax),
+                          n_traits       = dplyr::n_distinct(trait),
+                          .groups = "drop"
+                        ) %>%
+                        dplyr::arrange(dplyr::desc(n_measurements))
+                    }
+                  }, error = function(e) {
+                    message("Could not fetch citation data: ", e$message)
+                  })
+                }
+              }
+            }
 
             # Show success notification
             shiny::showNotification(
@@ -661,7 +711,8 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
         results = shiny::reactive(rv$individuals),
         individual_features_results = shiny::reactive(rv$individual_features),
         i18n = i18n,
-        con = pool_reactive
+        con = pool_reactive,
+        citation_data = shiny::reactive(rv$citation_summary)
       )
 
       # Module 5: Code Preview (equivalent R code)
@@ -691,6 +742,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
         rv$individuals <- NULL
         rv$individual_features <- NULL
         rv$extracted_plot_ids <- NULL
+        rv$citation_summary <- NULL
       }, ignoreInit = TRUE)
 
       # Reset extraction results when any extraction option changes (census strategy,
@@ -699,6 +751,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
         rv$individuals <- NULL
         rv$individual_features <- NULL
         rv$extracted_plot_ids <- NULL
+        rv$citation_summary <- NULL
       }, ignoreInit = TRUE)
 
       # Mark modules as initialized
