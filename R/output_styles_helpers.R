@@ -240,8 +240,8 @@
   # Get available columns
   available_cols <- names(data)
 
-  # Always keep id_n
-  keep_cols <- "id_n"
+  # Always keep id_n and idtax_individual_f (linking columns, not display data)
+  keep_cols <- intersect(c("id_n", "idtax_individual_f"), available_cols)
 
   # Add specified columns that exist
   specified_cols <- setdiff(indiv_cols, "id_n")
