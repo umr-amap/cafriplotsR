@@ -89,7 +89,7 @@ mod_step1_choose_type_ui <- function(id, i18n) {
             shiny::HTML(
               paste0(
                 "<strong>", i18n$t("Taxonomic standardization required for trees/stems data:"), "</strong> ",
-                i18n$t("Before importing individual tree data, you must standardize taxonomic information. Use either the automatic standardization function or the interactive Shiny app for semi-automatic taxonomic matching. See the dedicated vignette for detailed instructions on taxonomic standardization.")
+                i18n$t("Before importing individual tree data, you must standardize the taxonomic information in your dataset using the Shiny application <code>launch_taxonomic_match_app()</code>. This app helps you standardize your taxa list: it keeps your original taxon names while adding an ID (<code>idtax_n</code>) that creates a formal link to the internal taxonomic backbone. After standardizing your dataset, make sure that at the column mapping step you map the <code>idtax_n</code> column, and map the column containing your original taxon names to <code>original_tax_name</code>. See that application's dedicated vignette for detailed instructions on taxonomic standardization.")
               )
             )
           )
