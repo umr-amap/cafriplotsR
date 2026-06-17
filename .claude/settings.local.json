@@ -35,7 +35,12 @@
       "Bash(findstr /R \"tbl.*traitlist dbReadTable.*traitlist dbWriteTable.*traitlist try_open_postgres_table.*traitlist\")",
       "Bash(powershell *)",
       "Bash(del find_missing_i18n.R add_specid_translations.R)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(xxd ./inst/translations/translation.json)",
+      "Bash(python3 -c ' *)",
+      "Bash(perl -i -pe 's/^\\\\xEF\\\\xBB\\\\xBF//' -0777 inst/translations/translation.json)",
+      "Bash(xxd inst/translations/translation.json)",
+      "Bash(gh pr create --base master --head fix/translation-json-bom --title 'fix: remove UTF-8 BOM from translation.json' --body ' *)"
     ],
     "deny": [],
     "ask": []

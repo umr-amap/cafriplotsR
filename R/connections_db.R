@@ -59,9 +59,12 @@ setup_db_credentials <- function(user = NULL, pass = NULL) {
   
   # Écrire dans .Renviron
   writeLines(new_lines, renviron_path)
-  
+
+  # Reload immediately so credentials are available in the current session
+  readRenviron(renviron_path)
+
   cli::cli_alert_success("Credentials saved to ~/.Renviron")
-  cli::cli_alert_info("Restart R session for changes to take effect: .rs.restartR()")
+  cli::cli_alert_info("Credentials are now active in this session (no restart needed)")
   cli::cli_alert_info("To remove credentials later, use: remove_db_credentials()")
   
   invisible(TRUE)
