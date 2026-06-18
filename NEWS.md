@@ -1,5 +1,9 @@
 # CafriplotsR 1.9.8 (Development)
 
+### Code Refactoring
+
+* **Growth form traits consolidated** — collapsed 7 branching `growth_form_level_*` traits (ids 42–47) into 3 flat traits: `growth_form_level_1` (unchanged, id=41), `growth_form_level_2` (id=120), `growth_form_level_3` (id=121). The previous design encoded hierarchy branches in trait names, unnecessarily multiplying trait definitions. Migration script: `migrate_growth_form_traits.R`. Affected rows: 31,664 + 14,700 in `taxa_traits_measures`; 410 + 748 in `data_traits_measures`.
+
 ### New Features
 
 * **`build_data_sources_table()`** — new exported helper (`R/citations_functions.R`) that pivots long-format trait data (with citation metadata) into a wide **citations × traits** table, one row per source and one column per trait containing the measurement count, plus a `n_taxa` column
