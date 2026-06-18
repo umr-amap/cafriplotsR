@@ -621,6 +621,30 @@ query_plots <- function(plot_name = NULL,
       NULL
     })
 
+    # Build citations × traits pivot when taxonomic traits were extracted
+    data_sources <- NULL
+    if (extract_traits && "idtax_individual_f" %in% names(res)) {
+      unique_taxa_cit <- unique(res$idtax_individual_f)
+      unique_taxa_cit <- unique_taxa_cit[!is.na(unique_taxa_cit)]
+      if (length(unique_taxa_cit) > 0) {
+        tryCatch({
+          traits_cit <- query_taxa_traits(
+            idtax            = unique_taxa_cit,
+            include_synonyms = FALSE,
+            include_citation = TRUE,
+            format           = "long",
+            con              = mydb
+          )
+          raw_cit <- traits_cit$traits_raw
+          if (!is.null(raw_cit) && nrow(raw_cit) > 0) {
+            data_sources <- build_data_sources_table(raw_cit)
+          }
+        }, error = function(e) {
+          cli::cli_alert_warning("Could not build data_sources table: {e$message}")
+        })
+      }
+    }
+
   }
 
   if (remove_ids & extract_individuals) {
@@ -681,6 +705,10 @@ query_plots <- function(plot_name = NULL,
     res_list$coordinates_sf <- coordinates_subplots_plot_sf
 
   res_list <- res_list[!is.na(res_list)]
+
+  if (exists("data_sources") && !is.null(data_sources)) {
+    res_list$data_sources <- data_sources
+  }
 
   if (length(res_list) == 1)
     res_list <- res_list[[1]]

@@ -760,3 +760,75 @@ apply_citation_backfill <- function(data,
 
   invisible(n_updated)
 }
+
+
+#' Build a data sources summary table (citations × traits pivot)
+#'
+#' Creates a wide pivot table showing how many measurements each data source
+#' contributes per trait. Used by \code{\link{query_plots}} when
+#' \code{extract_traits = TRUE} and by the query plots Shiny app to display
+#' the "Data Sources" panel.
+#'
+#' @param traits_raw Long-format data frame returned by
+#'   \code{query_taxa_traits(include_citation = TRUE, format = "long")}.
+#'   Must contain columns \code{trait}, \code{citation_key}, and \code{idtax}.
+#'
+#' @return A data frame with one row per citation (rows) and one column per
+#'   trait (measurement counts), preceded by citation metadata columns and a
+#'   \code{n_taxa} column. Returns \code{NULL} when \code{traits_raw} is
+#'   \code{NULL}, empty, or lacks the required columns.
+#'
+#' @export
+build_data_sources_table <- function(traits_raw) {
+  if (is.null(traits_raw) || !is.data.frame(traits_raw) || nrow(traits_raw) == 0)
+    return(NULL)
+  if (!all(c("trait", "idtax") %in% names(traits_raw)))
+    return(NULL)
+
+  if (!"citation_key" %in% names(traits_raw))
+    return(NULL)
+
+  traits_raw <- traits_raw %>%
+    dplyr::mutate(
+      citation_key = dplyr::if_else(
+        is.na(.data$citation_key) | .data$citation_key == "",
+        "(no citation)", .data$citation_key
+      )
+    )
+
+  citation_meta_cols <- intersect(
+    c("citation_key", "citation_authors", "citation_year",
+      "citation_title", "citation_dataset_name"),
+    names(traits_raw)
+  )
+
+  citation_meta <- traits_raw %>%
+    dplyr::select(dplyr::all_of(citation_meta_cols)) %>%
+    dplyr::distinct()
+
+  pivot <- traits_raw %>%
+    dplyr::group_by(.data$citation_key, .data$trait) %>%
+    dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
+    tidyr::pivot_wider(
+      id_cols     = "citation_key",
+      names_from  = "trait",
+      values_from = "n",
+      values_fill = 0L
+    )
+
+  n_taxa_summary <- traits_raw %>%
+    dplyr::group_by(.data$citation_key) %>%
+    dplyr::summarise(n_taxa = dplyr::n_distinct(.data$idtax), .groups = "drop")
+
+  pivot <- pivot %>%
+    dplyr::left_join(n_taxa_summary, by = "citation_key")
+
+  if (length(citation_meta_cols) > 1) {
+    pivot <- citation_meta %>%
+      dplyr::left_join(pivot, by = "citation_key")
+  }
+
+  trait_cols <- setdiff(names(pivot), c(citation_meta_cols, "n_taxa"))
+  col_order  <- c(citation_meta_cols, "n_taxa", trait_cols)
+  pivot %>% dplyr::select(dplyr::any_of(col_order))
+}

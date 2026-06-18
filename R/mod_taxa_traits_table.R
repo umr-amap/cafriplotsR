@@ -141,22 +141,9 @@ mod_taxa_traits_table_server <- function(id, selected_taxon, i18n) {
         }
         traits_long(long_df)
 
-        # Build citation summary from long data
+        # Build citations x traits pivot table
         if (!is.null(long_df) && "citation_key" %in% names(long_df)) {
-          cit <- long_df %>%
-            dplyr::group_by(
-              id_citation, citation_key, citation_authors,
-              citation_year, citation_title, citation_journal,
-              citation_doi, citation_dataset_name
-            ) %>%
-            dplyr::summarise(
-              n_measurements = dplyr::n(),
-              n_taxa         = dplyr::n_distinct(idtax),
-              n_traits       = dplyr::n_distinct(trait),
-              .groups = "drop"
-            ) %>%
-            dplyr::arrange(dplyr::desc(n_measurements))
-          citation_data(cit)
+          citation_data(build_data_sources_table(long_df))
         } else {
           citation_data(NULL)
         }
