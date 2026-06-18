@@ -106,7 +106,12 @@ mod_step6_preview_server <- function(id, validation_result, i18n) {
 
       # For individuals import (list with individuals + features)
       if (is.list(data) && !is.data.frame(data) && "individuals" %in% names(data)) {
-        return(data$individuals)
+        ind_data <- data$individuals
+        feat_data <- data$features
+        if (!is.null(feat_data) && nrow(feat_data) > 0 && ".row_idx" %in% names(ind_data)) {
+          return(merge(ind_data, feat_data, by = ".row_idx", all.x = TRUE))
+        }
+        return(ind_data)
       }
 
       # For plots import (single data frame)
