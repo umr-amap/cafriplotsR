@@ -509,9 +509,13 @@ import_individual_data <- function(individuals_data,
         next
       }
 
+      # Strip disambiguation suffix added for duplicate feature mappings
+      # e.g. "plant_height__2" -> "plant_height" (see mod_step5_validation.R Step 4)
+      base_trait_col <- sub("__[0-9]+$", "", trait_col)
+
       # Get trait info
       trait_info <- all_traits %>%
-        dplyr::filter(trait == trait_col)
+        dplyr::filter(trait == base_trait_col)
 
       if (nrow(trait_info) == 0) {
         if (progress) {

@@ -2197,6 +2197,6 @@ traits_list <- function(id_trait = NULL) {
     all_colnames_ind <- all_colnames_ind[all_colnames_ind$id_trait == id_trait, , drop = FALSE]
   }
 
-  return(all_colnames_ind)
+  return(as_tibble(all_colnames_ind))
 }
 
