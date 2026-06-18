@@ -254,8 +254,9 @@ mod_results_display_server <- function(id, results, individual_features_results 
         if (is.data.frame(res)) {
           table_list <- c(table_list, "data")
         } else if (is.list(res)) {
-          # Get names of data.frame components
-          table_list <- c(table_list, names(Filter(is.data.frame, res)))
+          # Get names of data.frame components; exclude data_sources (shown in its own tab)
+          df_names <- names(Filter(is.data.frame, res))
+          table_list <- c(table_list, setdiff(df_names, "data_sources"))
         }
       }
 
@@ -285,6 +286,11 @@ mod_results_display_server <- function(id, results, individual_features_results 
 
       all_choices <- table_names()
 
+      # Add data sources if available (shown in its own panel, exported separately)
+      if (!is.null(citation_data) && !is.null(citation_data())) {
+        all_choices <- c(all_choices, "data_sources")
+      }
+
       # Add column documentation if available
       if (!is.null(coldoc_combined_df())) {
         all_choices <- c(all_choices, "column_documentation")
@@ -295,6 +301,8 @@ mod_results_display_server <- function(id, results, individual_features_results 
         sapply(all_choices, function(x) {
           if (x == "column_documentation") {
             i18n()$t("Column Documentation")
+          } else if (x == "data_sources") {
+            i18n()$t("Data Sources")
           } else {
             gsub("_", " ", tools::toTitleCase(x))
           }
@@ -530,6 +538,12 @@ mod_results_display_server <- function(id, results, individual_features_results 
           data_list$features_metadata <- features_metadata()
         }
 
+        # Add data sources if selected
+        if ("data_sources" %in% tables_to_include &&
+            !is.null(citation_data) && !is.null(citation_data())) {
+          data_list$data_sources <- citation_data()
+        }
+
         # Add column documentation if selected
         if ("column_documentation" %in% tables_to_include &&
             !is.null(coldoc_combined_df())) {
@@ -576,6 +590,12 @@ mod_results_display_server <- function(id, results, individual_features_results 
         if ("features_metadata" %in% tables_to_include &&
             !is.null(features_metadata())) {
           data_list$features_metadata <- features_metadata()
+        }
+
+        # Add data sources if selected
+        if ("data_sources" %in% tables_to_include &&
+            !is.null(citation_data) && !is.null(citation_data())) {
+          data_list$data_sources <- citation_data()
         }
 
         # Add column documentation if selected
@@ -633,6 +653,12 @@ mod_results_display_server <- function(id, results, individual_features_results 
         if ("features_metadata" %in% tables_to_include &&
             !is.null(features_metadata())) {
           data_to_save$features_metadata <- features_metadata()
+        }
+
+        # Add data sources if selected
+        if ("data_sources" %in% tables_to_include &&
+            !is.null(citation_data) && !is.null(citation_data())) {
+          data_to_save$data_sources <- citation_data()
         }
 
         # Add column documentation if selected

@@ -2,9 +2,16 @@
 
 ### New Features
 
-* **`mod_citation_panel`** — new shared Shiny module (`R/mod_citation_panel.R`) rendering a "Data Sources" panel with acknowledgement banner, summary stats cards, and per-citation cards (blue for cited, yellow for unassigned)
-  - Extracted from the duplicated inline rendering code in `mod_traits_enrichment` and `mod_taxa_traits_table`; both modules now delegate to `mod_citation_panel_server()`
-  - `launch_query_plots_app()` now shows a **Data Sources** tab in the results panel when individuals are extracted with taxa-level traits (`extract_traits = TRUE`); citation data is fetched via a follow-up `query_taxa_traits(include_citation = TRUE, format = "long")` call on the unique taxa found in the extraction
+* **`build_data_sources_table()`** — new exported helper (`R/citations_functions.R`) that pivots long-format trait data (with citation metadata) into a wide **citations × traits** table, one row per source and one column per trait containing the measurement count, plus a `n_taxa` column
+  - Used by `query_plots()` (returned as `$data_sources` when `extract_traits = TRUE`) and all Shiny apps that display the Data Sources panel
+
+* **`query_plots()` returns `$data_sources`** (`R/functions_manip_db.R`, `R/output_styles_helpers.R`) — when `extract_traits = TRUE`, the returned list now includes a `data_sources` element containing the citations × traits pivot table; this works for all output styles
+
+* **`mod_citation_panel`** — Shiny module (`R/mod_citation_panel.R`) updated to display the citations × traits pivot as a searchable, sortable **DT datatable** (replacing per-citation cards); stats row now derives totals from the pivot columns
+  - All callers (`mod_traits_enrichment`, `mod_taxa_traits_table`, `mod_results_display`) now call `build_data_sources_table()` instead of building a manual summary, eliminating the duplicate `group_by/summarise` blocks
+  - `launch_query_plots_app()` extracts `data_sources` directly from the `query_plots()` result instead of making a second `query_taxa_traits()` DB call
+
+* **Data Sources export** (`R/mod_results_display.R`) — the "Data Sources" table is now included in Excel, CSV, and RDS downloads when `extract_traits = TRUE`
 
 ### Bug Fixes
 
