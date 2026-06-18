@@ -55,6 +55,7 @@
     hd_source <- data$hd_source
     coordinates <- data$coordinates
     coordinates_sf <- data$coordinates_sf
+    data_sources <- data$data_sources
   } else {
     # Simple data frame
     main_data <- data
@@ -63,6 +64,7 @@
     hd_source <- NULL
     coordinates <- NULL
     coordinates_sf <- NULL
+    data_sources <- NULL
   }
 
   # Initialize result list
@@ -104,6 +106,11 @@
 
   if (!is.null(coordinates_sf)) {
     result$coordinates_sf <- coordinates_sf
+  }
+
+  # 5. Pass through data_sources (citations × traits pivot table)
+  if (!is.null(data_sources)) {
+    result$data_sources <- data_sources
   }
 
   # Add class and attributes

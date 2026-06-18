@@ -453,20 +453,9 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
 
           enriched_data_long(enriched_long)
 
-          # Build citation summary from long-format raw data
+          # Build citations x traits pivot table
           if ("citation_key" %in% names(enriched_long)) {
-            cit_summ <- enriched_long %>%
-              dplyr::group_by(id_citation, citation_key, citation_authors,
-                              citation_year, citation_title, citation_journal,
-                              citation_doi, citation_dataset_name) %>%
-              dplyr::summarise(
-                n_measurements = dplyr::n(),
-                n_taxa = dplyr::n_distinct(idtax),
-                n_traits = dplyr::n_distinct(trait),
-                .groups = "drop"
-              ) %>%
-              dplyr::arrange(dplyr::desc(n_measurements))
-            citation_summary_data(cit_summ)
+            citation_summary_data(build_data_sources_table(enriched_long))
           } else {
             citation_summary_data(NULL)
           }
