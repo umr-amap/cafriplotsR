@@ -60,7 +60,7 @@ traits_taxa_list <- function(id_trait = NULL, con = NULL) {
 
   cols <- c("trait", "id_trait", "traitdescription",
             "maxallowedvalue", "minallowedvalue", "expectedunit",
-            "valuetype")
+            "valuetype", "factorlevels")
 
   all_colnames_ind <- get_traitlist(con)
   all_colnames_ind <- all_colnames_ind[, intersect(cols, names(all_colnames_ind)), drop = FALSE]
@@ -69,7 +69,7 @@ traits_taxa_list <- function(id_trait = NULL, con = NULL) {
     all_colnames_ind <- all_colnames_ind[all_colnames_ind$id_trait == id_trait, , drop = FALSE]
   }
 
-  return(all_colnames_ind)
+  return(as_tibble(all_colnames_ind))
 }
 
 
