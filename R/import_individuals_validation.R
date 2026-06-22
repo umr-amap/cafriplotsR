@@ -654,24 +654,31 @@ validate_individual_data <- function(individuals_data,
   }
 
   unique_plots <- unique(data$plot_name)
+  unique_plots <- unique_plots[!is.na(unique_plots)]
 
-  # Query ONLY the plots specified in data using EXACT matching
-  # exact_match = TRUE forces exact name matching (no LIKE pattern matching)
-  # This prevents '41' from matching 'Plot-41', '4100', etc.
-  user_plots <- tryCatch({
-    query_plots(plot_name = unique_plots, exact_match = TRUE, con = con, output_style = "full")
+  if (length(unique_plots) == 0) {
+    return(list(errors = errors, warnings = warnings))
+  }
+
+  # Direct DB query: fast, respects RLS, avoids query_plots() return-shape complexity
+  accessible_plot_names <- tryCatch({
+    placeholders <- paste(sprintf("'%s'", gsub("'", "''", unique_plots)), collapse = ", ")
+    result <- DBI::dbGetQuery(
+      con,
+      sprintf("SELECT plot_name FROM data_liste_plots WHERE plot_name IN (%s)", placeholders)
+    )
+    result$plot_name
   }, error = function(e) {
-    return(NULL)
+    message(".validate_plot_access: DB query failed - ", conditionMessage(e))
+    NULL
   })
 
-  if (is.null(user_plots)) {
+  if (is.null(accessible_plot_names)) {
     warnings <- c(warnings, list(
       "Could not retrieve plots - skipping access check"
     ))
     return(list(errors = errors, warnings = warnings))
   }
-
-  accessible_plot_names <- user_plots$extract$plot_name
 
   # Check each plot - find which ones were NOT returned (don't exist or no access)
   for (plot in unique_plots) {
@@ -1003,14 +1010,18 @@ validate_individual_data <- function(individuals_data,
   trait_cols <- setdiff(names(features_data), linking_cols)
 
   for (trait_col in trait_cols) {
+    # Strip disambiguation suffix added for duplicate feature mappings
+    # e.g. "plant_height__2" -> "plant_height" (see mod_step5_validation.R Step 4)
+    base_trait_col <- sub("__[0-9]+$", "", trait_col)
+
     # Check if trait exists in database
     trait_info <- all_traits %>%
-      dplyr::filter(trait == trait_col)
+      dplyr::filter(trait == base_trait_col)
 
     if (nrow(trait_info) == 0) {
       warnings <- c(warnings, list(sprintf(
         "Trait '%s' not found in traits_list() - skipping validation",
-        trait_col
+        base_trait_col
       )))
       next
     }

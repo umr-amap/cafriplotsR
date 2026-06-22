@@ -113,14 +113,28 @@ mod_step5_validation_server <- function(id, data, mappings, config, con, i18n) {
             individuals_cols <- intersect(names(renamed_data), direct_cols)
             individuals_data <- renamed_data[, c(individuals_cols, ".row_idx"), drop = FALSE]
 
-            # Step 4: Build features_data if there are any feature columns
+            # Step 4: Build features_data from mappings to handle duplicate feature
+            # mappings correctly (e.g. height_2010, height_2015 both -> plant_height).
+            # Using intersect(names(renamed_data), feature_cols_all) would only keep
+            # the first renamed column; here we look at valid_mappings directly so
+            # every user column mapped to a feature is preserved.
             feature_cols_all <- config()$feature_columns
-            feature_cols <- intersect(names(renamed_data), feature_cols_all)
+            feature_mappings <- Filter(function(db) db %in% feature_cols_all, valid_mappings)
 
-            features_data <- if (length(feature_cols) > 0) {
-              # Features need .row_idx plus feature values
-              feature_data_cols <- unique(c(".row_idx", feature_cols))
-              renamed_data[, feature_data_cols, drop = FALSE]
+            features_data <- if (length(feature_mappings) > 0) {
+              original_data <- data()
+              feat_df <- data.frame(.row_idx = renamed_data$.row_idx, stringsAsFactors = FALSE)
+              db_col_counts <- list()
+              for (user_col in names(feature_mappings)) {
+                db_col <- feature_mappings[[user_col]]
+                n <- if (is.null(db_col_counts[[db_col]])) 0L else db_col_counts[[db_col]]
+                db_col_counts[[db_col]] <- n + 1L
+                # Duplicate feature mappings get a disambiguating suffix (__2, __3 ...)
+                # .prepare_features_data() strips this suffix before trait lookup
+                col_name <- if (n == 0L) db_col else paste0(db_col, "__", n + 1L)
+                feat_df[[col_name]] <- original_data[[user_col]]
+              }
+              feat_df
             } else {
               NULL
             }
