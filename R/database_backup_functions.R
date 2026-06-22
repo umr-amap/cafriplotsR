@@ -13,6 +13,13 @@
 #' @param user Database username. If NULL, uses stored credentials.
 #' @param password Database password. If NULL, uses stored credentials.
 #' @param verbose Logical. If TRUE, shows pg_dump output. Default is TRUE.
+#' @param sslmode SSL mode passed to pg_dump via the PGSSLMODE environment variable.
+#'   Common values: `"require"`, `"prefer"` (default), `"disable"`.
+#'   Set to `"require"` for managed cloud databases (OVH, etc.) that enforce SSL.
+#' @param exclude_table_data Character vector of table names whose data should be excluded
+#'   from the backup (schema is still included). Useful when a table has FORCE ROW LEVEL
+#'   SECURITY that blocks pg_dump. Example: `"taxa_traits_measures"`.
+#'   The proper fix is `ALTER TABLE <table> NO FORCE ROW LEVEL SECURITY` on the server.
 #'
 #' @details
 #' This function requires PostgreSQL's `pg_dump` utility to be installed and available in your PATH.
@@ -49,7 +56,9 @@ backup_database <- function(backup_dir = "~/database_backups",
                             compress = TRUE,
                             user = NULL,
                             password = NULL,
-                            verbose = TRUE) {
+                            verbose = TRUE,
+                            sslmode = "prefer",
+                            exclude_table_data = NULL) {
 
   database <- match.arg(database)
 
@@ -112,16 +121,10 @@ backup_database <- function(backup_dir = "~/database_backups",
     dir.create(backup_dir, recursive = TRUE, showWarnings = FALSE)
   }
 
-  # On Windows, use short path names to avoid spaces and special characters
+  backup_path <- file.path(backup_dir, backup_filename)
   if (.Platform$OS.type == "windows") {
-    # Get short path name for the directory (which exists)
-    backup_dir_short <- utils::shortPathName(normalizePath(backup_dir, winslash = "\\"))
-    # Construct full path with short directory and filename
-    backup_path <- file.path(backup_dir_short, backup_filename)
-    # Normalize to use backslashes consistently
-    backup_path <- gsub("/", "\\\\", backup_path)
+    backup_path <- normalizePath(backup_path, winslash = "/", mustWork = FALSE)
   } else {
-    backup_path <- file.path(backup_dir, backup_filename)
     backup_path <- normalizePath(backup_path, mustWork = FALSE)
   }
 
@@ -138,29 +141,40 @@ backup_database <- function(backup_dir = "~/database_backups",
     "-f", backup_path
   )
 
-  # Set password via environment variable (safer than command line)
-  old_pgpass <- Sys.getenv("PGPASSWORD")
-  Sys.setenv(PGPASSWORD = password)
-  on.exit({
-    if (old_pgpass == "") {
-      Sys.unsetenv("PGPASSWORD")
-    } else {
-      Sys.setenv(PGPASSWORD = old_pgpass)
+  if (!is.null(exclude_table_data)) {
+    for (tbl in exclude_table_data) {
+      args <- c(args, "--exclude-table-data", tbl)
     }
+    cli::cli_alert_warning("Excluding table data: {.val {exclude_table_data}}")
+  }
+
+  # Set password and SSL mode via environment variables (safer than command line)
+  old_pgpass <- Sys.getenv("PGPASSWORD")
+  old_sslmode <- Sys.getenv("PGSSLMODE")
+  Sys.setenv(PGPASSWORD = password, PGSSLMODE = sslmode)
+  on.exit({
+    if (old_pgpass == "") Sys.unsetenv("PGPASSWORD") else Sys.setenv(PGPASSWORD = old_pgpass)
+    if (old_sslmode == "") Sys.unsetenv("PGSSLMODE") else Sys.setenv(PGSSLMODE = old_sslmode)
   }, add = TRUE)
 
-  # Execute pg_dump
-  result <- system2(
+  # Execute pg_dump - capture stdout/stderr to avoid cmd.exe quoting issues on Windows
+  pg_output <- suppressWarnings(system2(
     "pg_dump",
     args = args,
-    stdout = if (verbose) "" else FALSE,
-    stderr = if (verbose) "" else FALSE
-  )
+    stdout = TRUE,
+    stderr = TRUE
+  ))
+  result <- attr(pg_output, "status")
+  if (is.null(result)) result <- 0
+
+  if (length(pg_output) > 0) {
+    cat(paste(pg_output, collapse = "\n"), "\n")
+  }
 
   if (result != 0) {
     cli::cli_abort(c(
       "x" = "Backup failed with exit code {result}",
-      "i" = "Check database connection and permissions"
+      "i" = "Check database connection and pg_dump version compatibility"
     ))
   }
 
@@ -174,6 +188,76 @@ backup_database <- function(backup_dir = "~/database_backups",
   cli::cli_alert_info("Timestamp: {timestamp}")
 
   invisible(backup_path)
+}
+
+
+#' Export tables blocked by FORCE ROW LEVEL SECURITY via DBI
+#'
+#' @description
+#' Exports one or more tables to CSV files using a DBI connection. Use this alongside
+#' `backup_database(exclude_table_data = ...)` to cover tables that pg_dump cannot
+#' dump due to `FORCE ROW LEVEL SECURITY` on managed servers (e.g. OVH) where
+#' superuser access is unavailable.
+#'
+#' @param tables Character vector of table names to export.
+#' @param backup_dir Directory to write CSV files into.
+#' @param con A DBI connection to the main database. If NULL, calls `call.mydb()`.
+#' @param timestamp Character. Timestamp string to embed in filenames (defaults to
+#'   current time, formatted `YYYY-MM-DD_HH-MM-SS`).
+#'
+#' @returns Named character vector of CSV file paths, one per table.
+#'
+#' @examples
+#' \dontrun{
+#' # Use together with backup_database() when FORCE RLS blocks pg_dump
+#' backup_database(
+#'   backup_dir          = "D:/my_backups",
+#'   sslmode             = "require",
+#'   exclude_table_data  = "taxa_traits_measures"
+#' )
+#' backup_rls_tables(
+#'   tables     = "taxa_traits_measures",
+#'   backup_dir = "D:/my_backups"
+#' )
+#' }
+#'
+#' @export
+backup_rls_tables <- function(tables,
+                              backup_dir,
+                              con = NULL,
+                              timestamp = format(Sys.time(), "%Y-%m-%d_%H-%M-%S")) {
+
+  backup_dir <- path.expand(backup_dir)
+  if (!dir.exists(backup_dir)) {
+    dir.create(backup_dir, recursive = TRUE)
+  }
+
+  if (is.null(con)) {
+    con <- call.mydb()
+  }
+
+  paths <- stats::setNames(character(length(tables)), tables)
+
+  for (tbl in tables) {
+    cli::cli_alert_info("Exporting {.val {tbl}} via DBI...")
+    dat <- tryCatch(
+      DBI::dbReadTable(con, tbl),
+      error = function(e) {
+        cli::cli_alert_warning("Could not read {.val {tbl}}: {e$message}")
+        return(NULL)
+      }
+    )
+    if (is.null(dat)) next
+
+    csv_path <- file.path(backup_dir, sprintf("%s_backup_%s.csv", tbl, timestamp))
+    utils::write.csv(dat, csv_path, row.names = FALSE)
+
+    size_mb <- round(file.info(csv_path)$size / 1024^2, 2)
+    cli::cli_alert_success("Exported {nrow(dat)} rows to {.path {csv_path}} ({size_mb} MB)")
+    paths[[tbl]] <- csv_path
+  }
+
+  invisible(paths)
 }
 
 
@@ -387,10 +471,9 @@ restore_database <- function(backup_file,
 
   cli::cli_alert_info("Starting restore of {.strong {db_name_restore}} database...")
 
-  # Normalize backup file path for cross-platform compatibility
+  # Normalize backup file path
   if (.Platform$OS.type == "windows") {
-    backup_file <- normalizePath(backup_file, winslash = "\\", mustWork = TRUE)
-    backup_file <- utils::shortPathName(backup_file)
+    backup_file <- normalizePath(backup_file, winslash = "/", mustWork = TRUE)
   } else {
     backup_file <- normalizePath(backup_file, mustWork = TRUE)
   }
@@ -425,13 +508,18 @@ restore_database <- function(backup_file,
     }
   }, add = TRUE)
 
-  # Execute pg_restore
-  result <- system2(
+  # Execute pg_restore - capture stdout/stderr to avoid cmd.exe quoting issues on Windows
+  pg_output <- system2(
     "pg_restore",
     args = args,
-    stdout = if (verbose) "" else FALSE,
-    stderr = if (verbose) "" else FALSE
+    stdout = TRUE,
+    stderr = TRUE
   )
+  result <- attr(pg_output, "status")
+  if (is.null(result)) result <- 0
+  if (verbose && length(pg_output) > 0) {
+    cat(paste(pg_output, collapse = "\n"), "\n")
+  }
 
   if (result != 0) {
     cli::cli_alert_warning("Restore completed with warnings (exit code {result})")
