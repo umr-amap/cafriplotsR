@@ -42,10 +42,7 @@ mod_step3_mapping_ui <- function(id, i18n) {
     shiny::uiOutput(ns("mapping_interface")),
 
     # Validation messages
-    shiny::uiOutput(ns("mapping_validation")),
-
-    # Modal for creating new feature
-    shiny::uiOutput(ns("create_feature_modal"))
+    shiny::uiOutput(ns("mapping_validation"))
   )
 }
 
@@ -755,139 +752,6 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
       }
     })
 
-    # Create feature modal
-    output$create_feature_modal <- shiny::renderUI({
-      shiny::req(config())
-
-      # Check if this is individuals import
-      is_individuals <- "idtax_n" %in% config()$import_config$required_columns
-
-      if (is_individuals && !is.null(input$show_create_feature) && input$show_create_feature > 0) {
-        shiny::modalDialog(
-          title = shiny::tagList(shiny::icon("plus-circle"), paste0(" ", i18n()$t("Create New Feature/Attribute"))),
-          size = "l",
-
-          shiny::p(
-            i18n()$t("Create a new feature/attribute that can be linked to individual stems/trees."),
-            style = "color: #6c757d; margin-bottom: 20px;"
-          ),
-
-          shiny::fluidRow(
-            shiny::column(
-              6,
-              shiny::textInput(
-                session$ns("new_feature_name"),
-                i18n()$t("Feature Name *"),
-                placeholder = i18n()$t("e.g., crown_diameter, bark_thickness")
-              ),
-              shiny::tags$small(
-                shiny::icon("info-circle", style = "color: #007bff;"),
-                paste0(" ", i18n()$t("Use lowercase, underscores (not spaces), no special characters")),
-                style = "color: #6c757d; display: block; margin-top: -10px; margin-bottom: 10px;"
-              ),
-              shiny::selectInput(
-                session$ns("new_feature_valuetype"),
-                i18n()$t("Value Type *"),
-                choices = setNames(
-                  c("numeric", "integer", "categorical", "character", "logical", "ordinal", "table_colnam"),
-                  c(i18n()$t("Numeric (measurements)"),
-                    i18n()$t("Integer (counts)"),
-                    i18n()$t("Categorical (categories)"),
-                    i18n()$t("Character (text)"),
-                    i18n()$t("Logical (yes/no)"),
-                    i18n()$t("Ordinal (ordered categories)"),
-                    i18n()$t("Reference to People (table_colnam)"))
-                ),
-                selected = "numeric"
-              ),
-              shiny::conditionalPanel(
-                condition = sprintf("input['%s'] == 'table_colnam'", session$ns("new_feature_valuetype")),
-                shiny::div(
-                  class = "alert alert-info",
-                  style = "background-color: #e7f3ff; border-left: 3px solid #007bff; padding: 10px; margin-top: 10px;",
-                  shiny::icon("info-circle", style = "color: #007bff;"),
-                  shiny::strong(paste0(" ", i18n()$t("About table_colnam type:"))),
-                  shiny::br(),
-                  shiny::br(),
-                  shiny::tags$ul(
-                    style = "margin-bottom: 0; padding-left: 20px;",
-                    shiny::tags$li(i18n()$t("This type is for features that reference people in the database")),
-                    shiny::tags$li(i18n()$t("Examples: field_coordinator, data_collector, project_lead")),
-                    shiny::tags$li(i18n()$t("Values will be matched to people names in the lookup step (Step 4)")),
-                    shiny::tags$li(i18n()$t("The feature will store person IDs, not names directly"))
-                  )
-                )
-              ),
-              shiny::conditionalPanel(
-                condition = sprintf("input['%s'] != 'table_colnam'", session$ns("new_feature_valuetype")),
-                shiny::textInput(
-                  session$ns("new_feature_unit"),
-                  i18n()$t("Expected Unit (optional)"),
-                  placeholder = i18n()$t("e.g., cm, m, kg, %")
-                )
-              )
-            ),
-            shiny::column(
-              6,
-              shiny::textAreaInput(
-                session$ns("new_feature_description"),
-                i18n()$t("Description *"),
-                placeholder = i18n()$t("Describe what this feature measures or represents"),
-                rows = 3
-              ),
-              shiny::selectInput(
-                session$ns("new_feature_category"),
-                i18n()$t("Category"),
-                choices = c("Stem-level trait", "Stem status", "Leaf trait",
-                            "Wood trait", "Phenology", "Classification",
-                            "Vitality", "Position", "Sampling",
-                            "Sampling identification", "People",
-                            "Observation", "Other trait", "Other"),
-                selected = "Stem-level trait"
-              ),
-              shiny::conditionalPanel(
-                condition = sprintf("input['%s'] != 'table_colnam' && (input['%s'] == 'numeric' || input['%s'] == 'integer')",
-                                   session$ns("new_feature_valuetype"),
-                                   session$ns("new_feature_valuetype"),
-                                   session$ns("new_feature_valuetype")),
-                shiny::textInput(
-                  session$ns("new_feature_min"),
-                  i18n()$t("Minimum Allowed Value (optional)"),
-                  placeholder = i18n()$t("e.g., 0")
-                ),
-                shiny::textInput(
-                  session$ns("new_feature_max"),
-                  i18n()$t("Maximum Allowed Value (optional)"),
-                  placeholder = i18n()$t("e.g., 100")
-                )
-              )
-            )
-          ),
-
-          shiny::conditionalPanel(
-            condition = sprintf("input['%s'] == 'categorical' || input['%s'] == 'ordinal'",
-                               session$ns("new_feature_valuetype"),
-                               session$ns("new_feature_valuetype")),
-            shiny::textInput(
-              session$ns("new_feature_levels"),
-              i18n()$t("Factor Levels (comma-separated)"),
-              placeholder = i18n()$t("e.g., small, medium, large")
-            )
-          ),
-
-          footer = shiny::tagList(
-            shiny::modalButton(i18n()$t("Cancel")),
-            shiny::actionButton(
-              session$ns("create_feature_confirm"),
-              shiny::tagList(shiny::icon("check"), paste0(" ", i18n()$t("Create Feature"))),
-              class = "btn-primary"
-            )
-          ),
-          easyClose = FALSE
-        )
-      }
-    })
-
     # Show modal when button clicked
     shiny::observeEvent(input$show_create_feature, {
       # Determine import type for appropriate labels
@@ -1057,7 +921,7 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
       # Warn if name was changed
       if (sanitized_name != original_name) {
         shiny::showNotification(
-          sprintf(i18n()$t("Feature name auto-corrected: '%s' → '%s'"), original_name, sanitized_name),
+          sprintf(i18n()$t("Feature name auto-corrected: '%s' â†’ '%s'"), original_name, sanitized_name),
           type = "warning",
           duration = 5
         )
