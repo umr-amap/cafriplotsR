@@ -1150,6 +1150,8 @@ get_mode_dt <- function(x) {
 #' 
 #' @param individual_ids Numeric vector of individual IDs
 #' @param trait_ids Numeric vector of trait IDs (optional filter)
+#' @param id_trait_measures Integer vector of trait measurement IDs to filter on (optional).
+#'   When provided, only the specified measurements are returned.
 #' @param include_multi_census Include multiple census data
 #' @param format Output format: "wide" (pivot) or "long" (raw)
 #' @param issues Character. How to handle flagged measurements: "remove" (default,
@@ -1167,6 +1169,7 @@ get_mode_dt <- function(x) {
 query_individual_features <- function(
     individual_ids = NULL,
     trait_ids = NULL,
+    id_trait_measures = NULL,
     include_multi_census = FALSE,
     format = c("wide", "long"),
     issues = c("remove", "include", "ignore"),
@@ -1199,6 +1202,7 @@ query_individual_features <- function(
   raw_data <- fetch_trait_measurements(
     individual_ids = individual_ids,
     trait_ids = trait_ids,
+    id_trait_measures = id_trait_measures,
     con = con
   )
   
@@ -1276,14 +1280,14 @@ query_individual_features <- function(
 
 #' Fetch trait measurements with automatic chunking
 #' @keywords internal
-fetch_trait_measurements <- function(individual_ids, trait_ids, con) {
+fetch_trait_measurements <- function(individual_ids, trait_ids, id_trait_measures = NULL, con) {
 
   # Chunk if necessary
   if (!is.null(individual_ids) && length(individual_ids) > 1000) {
     result <- fetch_with_chunking(
       ids = individual_ids,
       query_fun = function(ids, traits) {
-        build_trait_query(ids, traits, con)
+        build_trait_query(ids, traits, id_trait_measures, con)
       },
       chunk_size = 1000,
       con = con,
@@ -1291,7 +1295,7 @@ fetch_trait_measurements <- function(individual_ids, trait_ids, con) {
       trait_ids = trait_ids
     )
   } else {
-    sql <- build_trait_query(individual_ids, trait_ids, con)
+    sql <- build_trait_query(individual_ids, trait_ids, id_trait_measures, con)
     result <- DBI::dbGetQuery(con, sql)
   }
   
@@ -1304,7 +1308,7 @@ fetch_trait_measurements <- function(individual_ids, trait_ids, con) {
 
 #' Build appropriate SQL query based on parameters
 #' @keywords internal
-build_trait_query <- function(individual_ids, trait_ids, con) {
+build_trait_query <- function(individual_ids, trait_ids, id_trait_measures = NULL, con) {
 
   base_query <- "
     SELECT
@@ -1342,11 +1346,18 @@ build_trait_query <- function(individual_ids, trait_ids, con) {
   
   if (!is.null(trait_ids)) {
     conditions <- c(conditions,
-                    glue::glue_sql("tl.id_trait IN ({trait_ids*})", 
+                    glue::glue_sql("tl.id_trait IN ({trait_ids*})",
                                    trait_ids = trait_ids, .con = con)
     )
   }
-  
+
+  if (!is.null(id_trait_measures)) {
+    conditions <- c(conditions,
+                    glue::glue_sql("tm.id_trait_measures IN ({id_trait_measures*})",
+                                   id_trait_measures = id_trait_measures, .con = con)
+    )
+  }
+
   if (length(conditions) > 0) {
     base_query <- paste(base_query, "AND", paste(conditions, collapse = " AND "))
   }
@@ -1533,11 +1544,13 @@ enrich_measurement_features <- function(data, con, src = "individuals") {
 
 
 #' Query features associated with trait measurements
-#' 
+#'
 #' Retrieves and aggregates features (metadata) linked to specific trait measurements.
 #' Handles numeric, character, ordinal, and table-referenced value types.
 #'
 #' @param id_trait_measures Integer vector of trait measurement IDs
+#' @param id_trait Integer vector of trait IDs to filter features (optional).
+#'   When provided, only features linked to the specified trait(s) are returned.
 #' @param src Source type: "individuals" or "taxa"
 #' @param format Output format: "wide" (pivoted) or "long" (raw)
 #' @param con Database connection (optional)
@@ -1546,7 +1559,8 @@ enrich_measurement_features <- function(data, con, src = "individuals") {
 #' @export
 query_traits_measures_features <- function(
     id_trait_measures = NULL,
-    src = c("individuals", "taxa"),
+    id_trait = NULL,
+    src = c("individuals", "taxa"), # src = "taxa" is not yet operational because id_taxa_trait_feat does not exist
     format = c("wide", "long"),
     con = NULL
 ) {
@@ -1570,6 +1584,7 @@ query_traits_measures_features <- function(
   } else {
     n_records <- count_measurement_features(
       id_trait_measures = id_trait_measures,
+      id_trait = id_trait,
       config = config,
       con = con
     )
@@ -1597,6 +1612,7 @@ query_traits_measures_features <- function(
       cli::cli_alert_info("Fetching chunk {i}/{n_chunks}...")
       fetch_measurement_features_raw(
         id_trait_measures = chunks[[i]],
+        id_trait = id_trait,
         config = config,
         con = con
       )
@@ -1610,6 +1626,7 @@ query_traits_measures_features <- function(
     # Small query - fetch all at once
     raw_data <- fetch_measurement_features_raw(
       id_trait_measures = id_trait_measures,
+      id_trait = id_trait,
       config = config,
       con = con
     )
@@ -1649,22 +1666,36 @@ get_measurement_features_config <- function(src) {
 
 #' Count measurement features
 #' @keywords internal
-count_measurement_features <- function(id_trait_measures, config, con) {
+count_measurement_features <- function(id_trait_measures, id_trait = NULL, config, con) {
+
+  id_measures_filter <- if (!is.null(id_trait_measures)) {
+    glue::glue_sql("AND id_trait_measures IN ({id_trait_measures*})",
+                   id_trait_measures = id_trait_measures, .con = con)
+  } else {
+    DBI::SQL("")
+  }
+
+  id_trait_filter <- if (!is.null(id_trait)) {
+    glue::glue_sql("AND id_trait IN ({id_trait*})", id_trait = id_trait, .con = con)
+  } else {
+    DBI::SQL("")
+  }
 
   query <- glue::glue_sql("
     SELECT COUNT(*) AS n
     FROM {`config$table_name`}
-    WHERE id_trait_measures IN ({id_trait_measures*})
-  ", id_trait_measures = id_trait_measures, .con = con)
+    WHERE 1=1
+    {id_measures_filter}
+    {id_trait_filter}
+  ", .con = con)
 
-  # Use func_try_fetch for automatic retry on connection failures
   result <- func_try_fetch(con = con, sql = query, verbose = FALSE)
   return(result$n)
 }
 
 #' Fetch raw measurement features data
 #' @keywords internal
-fetch_measurement_features_raw <- function(id_trait_measures, config, con) {
+fetch_measurement_features_raw <- function(id_trait_measures, id_trait = NULL, config, con) {
 
   # Get trait metadata with retry logic
   trait_meta_query <- as.character(glue::glue_sql("
@@ -1679,6 +1710,19 @@ fetch_measurement_features_raw <- function(id_trait_measures, config, con) {
   id_col_sql <- DBI::dbQuoteIdentifier(con, config$id_col)
   table_name_sql <- DBI::dbQuoteIdentifier(con, config$table_name)
 
+  id_measures_filter <- if (!is.null(id_trait_measures)) {
+    glue::glue_sql("AND id_trait_measures IN ({id_trait_measures*})",
+                   id_trait_measures = id_trait_measures, .con = con)
+  } else {
+    DBI::SQL("")
+  }
+
+  id_trait_filter <- if (!is.null(id_trait)) {
+    glue::glue_sql("AND id_trait IN ({id_trait*})", id_trait = id_trait, .con = con)
+  } else {
+    DBI::SQL("")
+  }
+
   feat_query <- glue::glue_sql("
     SELECT
       id_trait_measures,
@@ -1687,8 +1731,10 @@ fetch_measurement_features_raw <- function(id_trait_measures, config, con) {
       typevalue,
       typevalue_char
     FROM {table_name_sql}
-    WHERE id_trait_measures IN ({id_trait_measures*})
-  ", id_trait_measures = id_trait_measures, .con = con)
+    WHERE 1=1
+    {id_measures_filter}
+    {id_trait_filter}
+  ", .con = con)
 
   feat_data <- func_try_fetch(con = con, sql = as.character(feat_query), verbose = FALSE)
 

@@ -1,4 +1,4 @@
-
+﻿
 
 #' Internal function
 #'
@@ -422,11 +422,11 @@
 
   data_stand <-
     data_stand %>%
-    tibble::add_column(id_trait = rep(selected_trait_id, nrow(.)))
+    dplyr::add_column(id_trait = rep(selected_trait_id, nrow(.)))
 
   data_stand <-
     data_stand %>%
-    tibble::add_column(issue = issues)
+    dplyr::add_column(issue = issues)
 
   return(data_stand)
 }
@@ -660,7 +660,7 @@
         new_nationality <-
           readline(prompt="Provide a nationality following same format: ")
 
-        new_rec <- tibble::tibble(
+        new_rec <- dplyr::tibble(
           colnam = new_colname,
           family_name = new_family_name,
           surname = new_surname,
@@ -718,7 +718,7 @@
 
   arranged_values <-
     compared_table %>%
-    tibble::add_column(dist = dist.) %>%
+    dplyr::add_column(dist = dist.) %>%
     dplyr::arrange(dplyr::desc(dist))
 
   return(arranged_values)

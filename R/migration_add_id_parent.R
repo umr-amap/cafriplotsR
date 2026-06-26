@@ -1,4 +1,4 @@
-# Migration: Add id_parent Column to table_taxa
+﻿# Migration: Add id_parent Column to table_taxa
 #
 # This migration adds hierarchical parent-child relationships to the taxonomic
 # backbone by adding an id_parent column that links each taxon to its
@@ -384,7 +384,7 @@ migration_create_hierarchy_entries <- function(con = NULL, dry_run = FALSE, verb
     }
   }
 
-  new_entry <- tibble::tibble(
+  new_entry <- dplyr::tibble(
     tax_gen = if (is.na(tax_gen)) NA_character_ else tax_gen,
     tax_esp = NA_character_,
     tax_fam = if (is.na(tax_fam)) NA_character_ else tax_fam,

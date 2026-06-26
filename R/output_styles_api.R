@@ -1,4 +1,4 @@
-#' List available output styles
+﻿#' List available output styles
 #'
 #' @description
 #' Returns a table summarising the output styles available to
@@ -47,7 +47,7 @@ list_output_styles <- function() {
 
   rows <- lapply(names(styles), function(nm) {
     s <- styles[[nm]]
-    tibble::tibble(
+    dplyr::tibble(
       name                  = nm,
       description           = s$description %||% "",
       additional_tables     = paste(s$additional_tables %||% character(),

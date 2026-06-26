@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # Stem vital status computation
 # =============================================================================
 # Functions for computing and upserting per-census stem vital status.
@@ -115,7 +115,7 @@ compute_stem_vital_status <- function(
 
   if (length(individual_ids) == 0) {
     message("No individual IDs provided.")
-    return(invisible(tibble::tibble()))
+    return(invisible(dplyr::tibble()))
   }
   individual_ids <- unique(as.integer(individual_ids))
 
@@ -141,11 +141,11 @@ compute_stem_vital_status <- function(
      LEFT JOIN data_liste_plots p ON i.id_table_liste_plots_n = p.id_liste_plots
      WHERE i.id_n IN ({individual_ids*})",
     individual_ids = individual_ids, .con = con
-  )) %>% tibble::as_tibble()
+  )) %>% dplyr::as_tibble()
 
   if (nrow(ind_base) == 0) {
     message("No individuals found for the provided IDs.")
-    return(invisible(tibble::tibble()))
+    return(invisible(dplyr::tibble()))
   }
   plot_ids <- unique(ind_base$id_table_liste_plots)
   message(sprintf(
@@ -170,11 +170,11 @@ compute_stem_vital_status <- function(
      WHERE sp.id_table_liste_plots IN ({plot_ids*})
        AND spt.type = 'census'",
     plot_ids = plot_ids, .con = con
-  )) %>% tibble::as_tibble()
+  )) %>% dplyr::as_tibble()
 
   if (nrow(census_subplot_ids) == 0) {
     message("No census subplots found for these plots. Cannot compute stem status.")
-    return(invisible(tibble::tibble()))
+    return(invisible(dplyr::tibble()))
   }
 
   # ── 4. Fetch evidence traits (long format with census info) ────────────────

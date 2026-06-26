@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # EXTRACTION ET AGRÉGATION DES FEATURES PLOTS (REFACTORISÉ)
 # =============================================================================
 
@@ -985,7 +985,7 @@ add_subplottype <- function(new_type = NULL,
       stop("valuetype numeric or integer and min value not of this type")
 
   # Build new row
-  new_data_renamed <- tibble::tibble(
+  new_data_renamed <- dplyr::tibble(
     type = new_type,
     valuetype = new_valuetype,
     maxallowedvalue = ifelse(is.null(new_maxallowedvalue), NA, new_maxallowedvalue),

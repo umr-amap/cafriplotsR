@@ -1,4 +1,4 @@
-
+﻿
 
 # process_trimble_data <- function(PATH = NULL, plot_name = NULL, format = "dbf") {
 # 
@@ -380,7 +380,7 @@
 # 
 #       all_quadrat <-
 #         all_quadrat %>%
-#         tibble::add_column(quadrat_corrected = quadrat_corrected)
+#         dplyr::add_column(quadrat_corrected = quadrat_corrected)
 # 
 #       occ_data <-
 #         occ_data %>%
@@ -418,12 +418,12 @@
 # 
 #     occ_data <-
 #       occ_data %>%
-#       tibble::add_column(quadrat = quadrats)
+#       dplyr::add_column(quadrat = quadrats)
 # 
 #     ### adding plot name
 #     occ_data <-
 #       occ_data %>%
-#       tibble::add_column(plot_name = rep(paste0(plot_name, ifelse(j < 10, "00", "0") , j),
+#       dplyr::add_column(plot_name = rep(paste0(plot_name, ifelse(j < 10, "00", "0") , j),
 #                                          nrow(occ_data)))
 # 
 #     ### rename and check dbh
@@ -668,7 +668,7 @@
 # 
 #     occ_data <-
 #       occ_data %>%
-#       tibble::add_column(multi_tiges_id = multi_tiges_id)
+#       dplyr::add_column(multi_tiges_id = multi_tiges_id)
 # 
 #     ### rename observations
 #     occ_data <-

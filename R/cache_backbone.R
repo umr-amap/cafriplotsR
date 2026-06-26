@@ -1,4 +1,4 @@
-# Cache Management for Taxonomic Backbone
+﻿# Cache Management for Taxonomic Backbone
 #
 # Functions for caching the taxonomic backbone to improve performance
 # for users with slow internet connections.
@@ -180,7 +180,7 @@ load_backbone_cache <- function() {
       return(NULL)
     }
 
-    return(tibble::as_tibble(backbone))
+    return(dplyr::as_tibble(backbone))
   }, error = function(e) {
     cli::cli_alert_warning("Failed to load cache: {e$message}")
     return(NULL)

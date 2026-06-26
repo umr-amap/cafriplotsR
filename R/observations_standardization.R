@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # Observations standardization
 # =============================================================================
 # Turn the free-text 'observations' trait (id_trait = 13) into standardized
@@ -115,7 +115,7 @@ standardize_observations <- function(
 
   if (length(individual_ids) == 0) {
     message("No individual IDs provided.")
-    return(invisible(tibble::tibble()))
+    return(invisible(dplyr::tibble()))
   }
   individual_ids <- unique(as.integer(individual_ids))
 
@@ -139,11 +139,11 @@ standardize_observations <- function(
      LEFT JOIN data_liste_plots p ON i.id_table_liste_plots_n = p.id_liste_plots
      WHERE i.id_n IN ({individual_ids*})",
     individual_ids = individual_ids, .con = con
-  )) %>% tibble::as_tibble()
+  )) %>% dplyr::as_tibble()
 
   if (nrow(ind_base) == 0) {
     message("No individuals found for the provided IDs.")
-    return(invisible(tibble::tibble()))
+    return(invisible(dplyr::tibble()))
   }
 
   obs_long <- query_individual_features(
@@ -157,7 +157,7 @@ standardize_observations <- function(
 
   if (nrow(obs_long) == 0) {
     message("No 'observations' records found for these individuals.")
-    return(invisible(tibble::tibble()))
+    return(invisible(dplyr::tibble()))
   }
 
   obs_long <- obs_long %>%
@@ -179,7 +179,7 @@ standardize_observations <- function(
 
   if (nrow(obs_long) == 0) {
     message("No non-empty observations to standardize.")
-    return(invisible(tibble::tibble()))
+    return(invisible(dplyr::tibble()))
   }
 
   message(sprintf("Parsing %d observation rows across %d individual(s).",
@@ -198,7 +198,7 @@ standardize_observations <- function(
 
   if (nrow(matched) == 0) {
     message("No phrases matched the ontology.")
-    out <- tibble::tibble(
+    out <- dplyr::tibble(
       id_n = integer(), id_table_liste_plots = integer(),
       id_sub_plots = integer(), plot_name = character(), tag = character(),
       census_name = character(), census_date = as.Date(character()),
@@ -299,7 +299,7 @@ standardize_observations <- function(
       dplyr::distinct(id_n, id_sub_plots) %>%
       dplyr::mutate(has_existing = TRUE)
   } else {
-    have_dawkins <- tibble::tibble(id_n = integer(), id_sub_plots = integer(),
+    have_dawkins <- dplyr::tibble(id_n = integer(), id_sub_plots = integer(),
                                    has_existing = logical())
   }
 
@@ -391,7 +391,7 @@ standardize_observations <- function(
   onto$pattern <- vapply(onto$pattern, .fix_word_boundaries,
                          character(1), USE.NAMES = FALSE)
 
-  tibble::as_tibble(onto)
+  dplyr::as_tibble(onto)
 }
 
 
@@ -555,7 +555,7 @@ standardize_observations <- function(
 #' @keywords internal
 .derive_mortality_from_flag1 <- function(individual_ids, flag_trait_id, con) {
 
-  empty <- tibble::tibble(
+  empty <- dplyr::tibble(
     id_n             = integer(),
     id_sub_plots     = integer(),
     census_name      = character(),
@@ -632,7 +632,7 @@ standardize_observations <- function(
 #' @keywords internal
 .summarize_unresolved <- function(unmatched) {
   if (nrow(unmatched) == 0)
-    return(tibble::tibble(phrase = character(), n = integer()))
+    return(dplyr::tibble(phrase = character(), n = integer()))
   unmatched %>%
     dplyr::count(phrase, name = "n", sort = TRUE)
 }

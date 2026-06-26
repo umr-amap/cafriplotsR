@@ -1,4 +1,4 @@
-
+﻿
 
 # update_plot_data <- function(team_lead = NULL,
 #                              plot_name = NULL,
@@ -249,8 +249,8 @@
 # 
 #             quer_plots <-
 #               quer_plots %>%
-#               tibble::add_column(date_modified=Sys.Date()) %>%
-#               tibble::add_column(modif_type=paste0(modif_types, collapse = ""))
+#               dplyr::add_column(date_modified=Sys.Date()) %>%
+#               dplyr::add_column(modif_type=paste0(modif_types, collapse = ""))
 # 
 #             DBI::dbWriteTable(mydb, "followup_updates_liste_plots", quer_plots, append = TRUE, row.names = FALSE)
 #           }
@@ -586,8 +586,8 @@
 #         message("no back up for this table yet")
 #         # query_trait <-
 #         #   query_trait %>%
-#         #   tibble::add_column(date_modified=Sys.Date()) %>%
-#         #   tibble::add_column(modif_type=modif_types)
+#         #   dplyr::add_column(date_modified=Sys.Date()) %>%
+#         #   dplyr::add_column(modif_type=modif_types)
 #         #
 #         #
 #         # DBI::dbWriteTable(mydb, "followup_updates_diconames", query_tax, append = TRUE, row.names = FALSE)
@@ -887,8 +887,8 @@
 # 
 #         all_rows_to_be_updated <-
 #           all_rows_to_be_updated %>%
-#           tibble::add_column(date_modified=Sys.Date()) %>%
-#           tibble::add_column(modif_type=field)
+#           dplyr::add_column(date_modified=Sys.Date()) %>%
+#           dplyr::add_column(modif_type=field)
 # 
 #         print(all_rows_to_be_updated %>%
 #                 dplyr::select(modif_type, date_modified))
@@ -1536,8 +1536,8 @@ update_specimens_batch <- function(new_data,
 #         message("no back up for this table yet")
 #         # query_trait <-
 #         #   query_trait %>%
-#         #   tibble::add_column(date_modified=Sys.Date()) %>%
-#         #   tibble::add_column(modif_type=modif_types)
+#         #   dplyr::add_column(date_modified=Sys.Date()) %>%
+#         #   dplyr::add_column(modif_type=modif_types)
 #         #
 #         #
 #         # DBI::dbWriteTable(mydb, "followup_updates_diconames", query_tax, append = TRUE, row.names = FALSE)
@@ -1914,8 +1914,8 @@ update_specimens_batch <- function(new_data,
 #   #
 #   #       all_rows_to_be_updated <-
 #   #         all_rows_to_be_updated %>%
-#   #         tibble::add_column(date_modified=Sys.Date()) %>%
-#   #         tibble::add_column(modif_type=field)
+#   #         dplyr::add_column(date_modified=Sys.Date()) %>%
+#   #         dplyr::add_column(modif_type=field)
 #   #
 #   #       print(all_rows_to_be_updated %>% dplyr::select(modif_type, date_modified))
 #   #
@@ -2139,8 +2139,8 @@ update_trait_measures <- function(new_data,
           #
           # all_rows_to_be_updated <-
           #   all_rows_to_be_updated %>%
-          #   tibble::add_column(date_modified = Sys.Date()) %>%
-          #   tibble::add_column(modif_type = field)
+          #   dplyr::add_column(date_modified = Sys.Date()) %>%
+          #   dplyr::add_column(modif_type = field)
           #
           # print(all_rows_to_be_updated %>%
           #         dplyr::select(modif_type, date_modified))
@@ -2263,8 +2263,8 @@ update_trait_table <- function(new_data,
         #
         # all_rows_to_be_updated <-
         #   all_rows_to_be_updated %>%
-        #   tibble::add_column(date_modified = Sys.Date()) %>%
-        #   tibble::add_column(modif_type = field)
+        #   dplyr::add_column(date_modified = Sys.Date()) %>%
+        #   dplyr::add_column(modif_type = field)
         #
         # print(all_rows_to_be_updated %>%
         #         dplyr::select(modif_type, date_modified))
@@ -3635,7 +3635,7 @@ add_new_reference_value <- function(original_value, column_name, id_column, tabl
     return(NA)
   }
   
-  new_record <- tibble::tibble(!!sym(column_name) := new_value)
+  new_record <- dplyr::tibble(!!sym(column_name) := new_value)
   
   table_cols <- DBI::dbListFields(con, table_name)
   other_cols <- setdiff(table_cols, c(id_column, column_name, "date_creation_d", "date_creation_m", 

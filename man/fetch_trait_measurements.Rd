@@ -4,7 +4,12 @@
 \alias{fetch_trait_measurements}
 \title{Fetch trait measurements with automatic chunking}
 \usage{
-fetch_trait_measurements(individual_ids, trait_ids, con)
+fetch_trait_measurements(
+  individual_ids,
+  trait_ids,
+  id_trait_measures = NULL,
+  con
+)
 }
 \description{
 Fetch trait measurements with automatic chunking

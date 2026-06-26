@@ -10,7 +10,9 @@ backup_database(
   compress = TRUE,
   user = NULL,
   password = NULL,
-  verbose = TRUE
+  verbose = TRUE,
+  sslmode = "prefer",
+  exclude_table_data = NULL
 )
 }
 \arguments{
@@ -28,6 +30,15 @@ Default is TRUE.}
 \item{password}{Database password. If NULL, uses stored credentials.}
 
 \item{verbose}{Logical. If TRUE, shows pg_dump output. Default is TRUE.}
+
+\item{sslmode}{SSL mode passed to pg_dump via the PGSSLMODE environment variable.
+Common values: `"require"`, `"prefer"` (default), `"disable"`.
+Set to `"require"` for managed cloud databases (OVH, etc.) that enforce SSL.}
+
+\item{exclude_table_data}{Character vector of table names whose data should be excluded
+from the backup (schema is still included). Useful when a table has FORCE ROW LEVEL
+SECURITY that blocks pg_dump. Example: `"taxa_traits_measures"`.
+The proper fix is `ALTER TABLE <table> NO FORCE ROW LEVEL SECURITY` on the server.}
 }
 \value{
 Character string with the full path to the created backup file.
