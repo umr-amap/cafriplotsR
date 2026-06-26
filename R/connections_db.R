@@ -1,4 +1,4 @@
-# Internal environment to store connections
+﻿# Internal environment to store connections
 .db_env <- new.env(parent = emptyenv())
 
 credentials <- new.env()
@@ -1472,10 +1472,10 @@ cli::cli_h2("Fetching user information")
   cli::cli_alert_info("Superusers: {sum(unique_users$is_superuser)}")
 
   return(list(
-    users = tibble::as_tibble(unique_users),
-    table_privileges = tibble::as_tibble(privilege_summary),
-    policies = tibble::as_tibble(policies),
-    accessible_plots = tibble::as_tibble(accessible_plots)
+    users = dplyr::as_tibble(unique_users),
+    table_privileges = dplyr::as_tibble(privilege_summary),
+    policies = dplyr::as_tibble(policies),
+    accessible_plots = dplyr::as_tibble(accessible_plots)
   ))
 }
 
@@ -1617,7 +1617,7 @@ func_try_fetch <-
 
 
     # Return as tibble (with unique column names)
-    tibble::as_tibble(result, .name_repair = "unique")
+    dplyr::as_tibble(result, .name_repair = "unique")
   }
 
 

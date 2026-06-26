@@ -1,4 +1,4 @@
-# Specimen Linking Functions
+﻿# Specimen Linking Functions
 #
 # This file contains functions for linking individual trees to herbarium specimens.
 # These functions manage the relationships between field observations (individuals)
@@ -52,7 +52,7 @@ get_linktypes <- function(con = NULL) {
   }, error = function(e) {
     cli::cli_alert_warning("Could not fetch link types: {e$message}")
     # Return default values if table doesn't exist yet
-    return(tibble::tibble(
+    return(dplyr::tibble(
       id_linktype = c(1L, 2L),
       linktype = c("type_individual", "referenced_individual"),
       description = c("Specimen collected from this specific individual",
@@ -450,7 +450,7 @@ query_all_specimen_links <- function(id_ind = NULL,
       dplyr::left_join(specimen_info, by = "id_specimen")
   }
 
-  return(tibble::as_tibble(links))
+  return(dplyr::as_tibble(links))
 }
 
 
@@ -535,7 +535,7 @@ get_primary_specimen_link <- function(id_ind = NULL, con = NULL) {
     dplyr::ungroup() %>%
     dplyr::select(-det_date)
 
-  return(tibble::as_tibble(primary))
+  return(dplyr::as_tibble(primary))
 }
 
 
@@ -576,7 +576,7 @@ get_ref_specimen_ind <- function(collector = NULL, ids = NULL, con = NULL) {
 
   if (!is.null(collector)) {
     collector <- .link_colnam(
-      data_stand = tibble::tibble(colnam = collector),
+      data_stand = dplyr::tibble(colnam = collector),
       column_searched = "colnam",
       column_name = "colnam",
       id_field = "id_colnam",
@@ -754,7 +754,7 @@ get_ref_specimen_ind <- function(collector = NULL, ids = NULL, con = NULL) {
   regexp <- "[[:digit:]]+"
   num_extracted <- stringr::str_extract(all_herbarium_individuals_not_linked$herbarium_nbe_char, regexp)
 
-  df <- tibble::tibble(
+  df <- dplyr::tibble(
     full = all_herbarium_individuals_not_linked$herbarium_nbe_char,
     num = num_extracted
   )
@@ -763,8 +763,8 @@ get_ref_specimen_ind <- function(collector = NULL, ids = NULL, con = NULL) {
   coll_extracted <- trimws(coll_extracted)
 
   all_herbarium_individuals_not_linked <- all_herbarium_individuals_not_linked %>%
-    tibble::add_column(col_name = coll_extracted) %>%
-    tibble::add_column(colnbr = num_extracted)
+    dplyr::add_column(col_name = coll_extracted) %>%
+    dplyr::add_column(colnbr = num_extracted)
 
   all_herbarium_individuals_not_linked <- .link_colnam(
     data_stand = all_herbarium_individuals_not_linked,

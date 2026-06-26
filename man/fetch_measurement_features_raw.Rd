@@ -4,7 +4,7 @@
 \alias{fetch_measurement_features_raw}
 \title{Fetch raw measurement features data}
 \usage{
-fetch_measurement_features_raw(id_trait_measures, config, con)
+fetch_measurement_features_raw(id_trait_measures, id_trait = NULL, config, con)
 }
 \description{
 Fetch raw measurement features data

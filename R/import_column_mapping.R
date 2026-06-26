@@ -1,4 +1,4 @@
-# Column Mapping for Plot Metadata Import
+﻿# Column Mapping for Plot Metadata Import
 #
 # Smart column mapping with fuzzy matching and domain-specific synonyms
 # Handles cases like: dbh = stem_diameter, PI = principal_investigator
@@ -1312,7 +1312,7 @@ print_mapping_summary <- function(mapping_result) {
   cli::cli_h1("Column Mapping Summary")
 
   # Create summary table
-  summary_df <- tibble::tibble(
+  summary_df <- dplyr::tibble(
     user_column = names(mapping_result$mappings),
     database_column = as.character(mapping_result$mappings),
     method = mapping_result$methods,

@@ -1,4 +1,4 @@
-# Taxonomic Query Functions
+﻿# Taxonomic Query Functions
 #
 # This file contains functions for querying and matching taxonomic data from the taxa database.
 # These functions handle synonym resolution, trait aggregation, and hierarchical trait matching.
@@ -161,6 +161,17 @@ query_taxa <-
             cli::cli_alert_danger("No match found for species '{species}'")
           }
         }
+        return(NULL)
+      }
+    }
+
+    # Class-only query: if a class filter was supplied but no finer name
+    # criteria (order/family/genus/species), select all taxa in that class.
+    if (is.null(matched_ids) && !is.null(class)) {
+      if (!is.null(res_class) && nrow(res_class) > 0) {
+        matched_ids <- res_class$idtax_n
+      } else {
+        # .match_class() already warned about the unmatched class
         return(NULL)
       }
     }
@@ -1570,7 +1581,7 @@ get_taxon_hierarchy <- function(idtax_n, con = NULL) {
     }
   }
 
-  new_entry <- tibble::tibble(
+  new_entry <- dplyr::tibble(
     tax_gen = if (is.na(tax_gen)) NA_character_ else tax_gen,
     tax_esp = if (is.na(tax_esp)) NA_character_ else tax_esp,
     tax_fam = if (is.na(tax_fam)) NA_character_ else tax_fam,
@@ -1667,7 +1678,7 @@ count_taxon_children <- function(idtax_n, con = NULL) {
         )
       ) %>%
       dplyr::count(level) %>%
-      tibble::deframe()
+      dplyr::deframe()
   } else {
     # Fallback: infer from NULL fields
     counts <- children %>%
@@ -1682,7 +1693,7 @@ count_taxon_children <- function(idtax_n, con = NULL) {
         )
       ) %>%
       dplyr::count(level) %>%
-      tibble::deframe()
+      dplyr::deframe()
   }
 
   result <- c(

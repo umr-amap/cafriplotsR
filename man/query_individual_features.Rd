@@ -7,6 +7,7 @@
 query_individual_features(
   individual_ids = NULL,
   trait_ids = NULL,
+  id_trait_measures = NULL,
   include_multi_census = FALSE,
   format = c("wide", "long"),
   issues = c("remove", "include", "ignore"),
@@ -21,6 +22,9 @@ query_individual_features(
 \item{individual_ids}{Numeric vector of individual IDs}
 
 \item{trait_ids}{Numeric vector of trait IDs (optional filter)}
+
+\item{id_trait_measures}{Integer vector of trait measurement IDs to filter on (optional).
+When provided, only the specified measurements are returned.}
 
 \item{include_multi_census}{Include multiple census data}
 

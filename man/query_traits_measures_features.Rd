@@ -6,6 +6,7 @@
 \usage{
 query_traits_measures_features(
   id_trait_measures = NULL,
+  id_trait = NULL,
   src = c("individuals", "taxa"),
   format = c("wide", "long"),
   con = NULL
@@ -13,6 +14,9 @@ query_traits_measures_features(
 }
 \arguments{
 \item{id_trait_measures}{Integer vector of trait measurement IDs}
+
+\item{id_trait}{Integer vector of trait IDs to filter features (optional).
+When provided, only features linked to the specified trait(s) are returned.}
 
 \item{src}{Source type: "individuals" or "taxa"}
 

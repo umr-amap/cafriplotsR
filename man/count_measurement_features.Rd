@@ -4,7 +4,7 @@
 \alias{count_measurement_features}
 \title{Count measurement features}
 \usage{
-count_measurement_features(id_trait_measures, config, con)
+count_measurement_features(id_trait_measures, id_trait = NULL, config, con)
 }
 \description{
 Count measurement features

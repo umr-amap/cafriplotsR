@@ -1,4 +1,4 @@
-
+﻿
 
 
 #' List of countries
@@ -424,10 +424,10 @@ query_plots <- function(plot_name = NULL,
         
         all_coordinates_subplots_rf <- all_ids_subplot_coordinates %>%
           mutate(
-            coord2 = purrr::map_chr(str_split(type, "_"), ~.x[length(.x)]),
-            coord1 = purrr::map_chr(str_split(type, "_"), ~.x[length(.x) - 1]),
-            coord3 = purrr::map_chr(str_split(type, "_"), ~.x[1]),
-            coord4 = purrr::map_chr(str_split(type, "_"), ~.x[2])
+            coord2 = purrr::map_chr(stringr::str_split(type, "_"), ~.x[length(.x)]),
+            coord1 = purrr::map_chr(stringr::str_split(type, "_"), ~.x[length(.x) - 1]),
+            coord3 = purrr::map_chr(stringr::str_split(type, "_"), ~.x[1]),
+            coord4 = purrr::map_chr(stringr::str_split(type, "_"), ~.x[2])
           ) %>%
           select(
             coord1, coord2, coord3, coord4,
@@ -1695,7 +1695,7 @@ PlotFilterBuilder <- R6::R6Class(
       
       if (interactive) {
         # Utilisation de .link_table pour correspondance interactive
-        data_with_country <- tibble::tibble(country = country)
+        data_with_country <- dplyr::tibble(country = country)
         
         linked_data <- .link_table(
           data_stand = data_with_country,
@@ -1745,7 +1745,7 @@ PlotFilterBuilder <- R6::R6Class(
 
       if (interactive) {
         # Mode interactif avec .link_table
-        data_with_plots <- tibble::tibble(plot_name = plot_name)
+        data_with_plots <- dplyr::tibble(plot_name = plot_name)
 
         linked_data <- .link_table(
           data_stand = data_with_plots,
@@ -1805,7 +1805,7 @@ PlotFilterBuilder <- R6::R6Class(
       
       if (interactive) {
         # Mode interactif avec .link_table
-        data_with_methods <- tibble::tibble(method = method)
+        data_with_methods <- dplyr::tibble(method = method)
         
         linked_data <- .link_table(
           data_stand = data_with_methods,
@@ -2009,7 +2009,7 @@ PlotFetcher <- R6::R6Class(
     #' @param plot_ids Vecteur d'IDs de plots
     fetch_by_ids = function(plot_ids) {
       if (is.null(plot_ids) || length(plot_ids) == 0) {
-        return(tibble::tibble())
+        return(dplyr::tibble())
       }
       
       cli::cli_alert_info("Fetching {length(plot_ids)} plots by ID")
@@ -2097,7 +2097,7 @@ SpecimenFilterBuilder <- R6::R6Class(
 
       if (interactive) {
         # Interactive mode with .link_table
-        data_with_collector <- tibble::tibble(colnam = collector)
+        data_with_collector <- dplyr::tibble(colnam = collector)
 
         linked_data <- .link_table(
           data_stand = data_with_collector,
@@ -2315,7 +2315,7 @@ SpecimenFetcher <- R6::R6Class(
     # Fetch specimens by IDs
     fetch_by_ids = function(specimen_ids) {
       if (is.null(specimen_ids) || length(specimen_ids) == 0) {
-        return(tibble::tibble())
+        return(dplyr::tibble())
       }
 
       cli::cli_alert_info("Fetching {length(specimen_ids)} specimens by ID")
@@ -2337,7 +2337,7 @@ SpecimenFetcher <- R6::R6Class(
     # Fetch specimens by collector and number (exact match)
     fetch_by_collector_and_number = function(id_table_colnam, colnbr) {
       if (is.null(id_table_colnam) || is.null(colnbr)) {
-        return(tibble::tibble())
+        return(dplyr::tibble())
       }
 
       cli::cli_alert_info("Fetching specimens for collector ID {id_table_colnam}, number(s) {paste(colnbr, collapse=', ')}")
@@ -2485,7 +2485,7 @@ SpecimenFetcher <- R6::R6Class(
 
   if (is.null(specimen_ids) || length(specimen_ids) == 0) {
     cli::cli_alert_warning("No specimen IDs provided")
-    return(tibble::tibble())
+    return(dplyr::tibble())
   }
 
   # Get links
@@ -2497,7 +2497,7 @@ SpecimenFetcher <- R6::R6Class(
 
   if (nrow(linked_ind) == 0) {
     cli::cli_alert_info("No individuals linked to these specimens")
-    return(tibble::tibble())
+    return(dplyr::tibble())
   }
 
   # Get individual details
@@ -2520,14 +2520,14 @@ SpecimenFetcher <- R6::R6Class(
     } else {
       # If we can't find the data, return empty
       cli::cli_alert_warning("Could not extract individual data from query_plots result")
-      return(tibble::tibble())
+      return(dplyr::tibble())
     }
   }
 
   # Ensure it's a data frame
   if (!is.data.frame(linked_ind_details)) {
     cli::cli_alert_warning("query_plots did not return a data frame")
-    return(tibble::tibble())
+    return(dplyr::tibble())
   }
 
   # Now safe to check nrow

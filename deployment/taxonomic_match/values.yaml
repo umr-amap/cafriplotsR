@@ -46,10 +46,10 @@ shiny:
   resources:
     requests:
       cpu: "500m"
-      memory: "1Gi"
+      memory: "2Gi"
     limits:
       cpu: "2"
-      memory: "4Gi"
+      memory: "8Gi"
 
   # S3/MinIO and PostgreSQL sub-features of the chart are intentionally left
   # disabled: the database is external (OVH) and reached over the internet from

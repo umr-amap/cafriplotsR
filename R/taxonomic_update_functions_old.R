@@ -1,4 +1,4 @@
-# Taxonomic Update Functions
+﻿# Taxonomic Update Functions
 #
 # This file contains functions for updating and managing taxonomic data in the database.
 # These functions handle adding new taxa entries, updating taxonomy links, and merging
@@ -135,7 +135,7 @@ merge_individuals_taxa <- function(id_individual = NULL,
     specimen_taxa <- unique(specimens_id_diconame$idtax_n)
   } else {
     cli::cli_alert_info("No specimens linked")
-    specimens_id_diconame <- tibble::tibble()
+    specimens_id_diconame <- dplyr::tibble()
     specimen_taxa <- integer()
   }
 
@@ -165,7 +165,7 @@ merge_individuals_taxa <- function(id_individual = NULL,
         dplyr::select(id_table_colnam, colnam) %>%
         dplyr::collect()
     } else {
-      collectors <- tibble::tibble(id_table_colnam = integer(), colnam = character())
+      collectors <- dplyr::tibble(id_table_colnam = integer(), colnam = character())
     }
 
     specimens_linked <- specimens_id_diconame %>%
@@ -175,7 +175,7 @@ merge_individuals_taxa <- function(id_individual = NULL,
       dplyr::rename(colnam_specimen = colnam)
   } else {
     # Create empty tibble with correct column structure for joining
-    specimens_linked <- tibble::tibble(
+    specimens_linked <- dplyr::tibble(
       id_specimen = integer(),
       idtax_specimen_f = integer(),
       colnam_specimen = character(),
