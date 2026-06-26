@@ -1,4 +1,4 @@
-#' @importFrom magrittr %>%
+#' @importFrom dplyr %>%
 #' @importFrom stats as.formula na.omit setNames
 #' @importFrom utils capture.output head modifyList object.size read.csv setTxtProgressBar txtProgressBar write.csv
 NULL

@@ -1,4 +1,4 @@
-# Plot Metadata Import Templates
+﻿# Plot Metadata Import Templates
 #
 # Functions for generating standardized templates for importing plot metadata
 # Reuses existing lookup functions: method_list(), country_list(), subplot_list()
@@ -151,7 +151,7 @@ get_plot_metadata_template <- function(template_type = c("permanent_plot", "tran
   }
 
   # Create empty tibble with correct types
-  template <- tibble::tibble(!!!columns)
+  template <- dplyr::tibble(!!!columns)
 
   # Add examples if requested
   if (with_examples) {
@@ -269,13 +269,13 @@ export_plot_template <- function(file_path,
 .get_template_examples <- function(template_type, n_examples = 3) {
 
   if (template_type == "minimal") {
-    examples <- tibble::tibble(
+    examples <- dplyr::tibble(
       plot_name = c("PLOT001", "PLOT002", "PLOT003")[1:n_examples],
       method = c("1ha permanent plot", "transect 500m", "1ha permanent plot")[1:n_examples],
       country = c("Cameroon", "Gabon", "Democratic Republic of the Congo")[1:n_examples]
     )
   } else if (template_type == "transect") {
-    examples <- tibble::tibble(
+    examples <- dplyr::tibble(
       plot_name = c("TRANSECT_A", "TRANSECT_B", "TRANSECT_C")[1:n_examples],
       method = rep("transect 500m", n_examples),
       country = c("Cameroon", "Gabon", "Central African Republic")[1:n_examples],
@@ -293,7 +293,7 @@ export_plot_template <- function(file_path,
     )
   } else {
     # permanent_plot or full
-    examples <- tibble::tibble(
+    examples <- dplyr::tibble(
       plot_name = c("DJA_PLOT_001", "LOPE_PLOT_023", "IVINDO_PLOT_012")[1:n_examples],
       method = rep("1ha permanent plot", n_examples),
       country = c("Cameroon", "Gabon", "Gabon")[1:n_examples],
@@ -552,7 +552,7 @@ print_template_info <-
   cli::cli_alert_info("List all subplot features: subplot_list()")
 
   # Create info table
-  info_df <- tibble::tibble(
+  info_df <- dplyr::tibble(
     column = names(template),
     type = sapply(names(template), function(x) descriptions[[x]]$type %||% "character"),
     required = sapply(names(template), function(x) ifelse(descriptions[[x]]$required %||% FALSE, "Yes", "No")),

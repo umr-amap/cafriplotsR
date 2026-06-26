@@ -1,4 +1,4 @@
-
+﻿
 #' Build a debug header string with package/R version and timestamp
 #'
 #' Used internally to prefix error and diagnostic messages with reproducible
@@ -311,7 +311,7 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
 .add_modif_field <- function(dataset) {
   dataset <-
     dataset %>%
-    tibble::add_column(date_modif_d = lubridate::day(Sys.Date()),
+    dplyr::add_column(date_modif_d = lubridate::day(Sys.Date()),
                        date_modif_m = lubridate::month(Sys.Date()),
                        date_modif_y = lubridate::year(Sys.Date()))
   return(dataset)

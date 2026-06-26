@@ -4,7 +4,7 @@
 \alias{build_trait_query}
 \title{Build appropriate SQL query based on parameters}
 \usage{
-build_trait_query(individual_ids, trait_ids, con)
+build_trait_query(individual_ids, trait_ids, id_trait_measures = NULL, con)
 }
 \description{
 Build appropriate SQL query based on parameters

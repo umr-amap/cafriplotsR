@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # Build taxa-level traits by aggregating individual-level measurements
 #
 # Public entry point: rebuild_aggregated_taxa_traits()
@@ -182,7 +182,7 @@ list_trait_aggregations <- function(con = NULL, include_inactive = FALSE) {
     ORDER BY c.id_aggregation
   ")
 
-  tibble::as_tibble(DBI::dbGetQuery(actual_con, sql))
+  dplyr::as_tibble(DBI::dbGetQuery(actual_con, sql))
 }
 
 
@@ -540,7 +540,7 @@ remove_trait_aggregation <- function(id, hard = FALSE, con = NULL) {
        AND i.idtax_n IS NOT NULL
   ", .con = con)
 
-  tibble::as_tibble(DBI::dbGetQuery(con, sql))
+  dplyr::as_tibble(DBI::dbGetQuery(con, sql))
 }
 
 
@@ -722,7 +722,7 @@ rebuild_aggregated_taxa_traits <- function(con                 = NULL,
   }
   if (nrow(rules) == 0L) {
     cli::cli_alert_warning("No active aggregation rules to process.")
-    return(invisible(tibble::tibble()))
+    return(invisible(dplyr::tibble()))
   }
   cli::cli_alert_info("{nrow(rules)} active rule(s) to process")
 
@@ -767,7 +767,7 @@ rebuild_aggregated_taxa_traits <- function(con                 = NULL,
 
   if (length(per_rule_rows) == 0L) {
     cli::cli_alert_warning("No rows produced — nothing to write.")
-    return(invisible(tibble::tibble()))
+    return(invisible(dplyr::tibble()))
   }
 
   all_rows <- do.call(rbind, per_rule_rows)
@@ -781,7 +781,7 @@ rebuild_aggregated_taxa_traits <- function(con                 = NULL,
 
   if (!execute) {
     cli::cli_alert_warning("DRY RUN - rerun with execute = TRUE to apply")
-    return(invisible(tibble::as_tibble(all_rows)))
+    return(invisible(dplyr::as_tibble(all_rows)))
   }
 
   DBI::dbBegin(actual_con)
@@ -806,5 +806,5 @@ rebuild_aggregated_taxa_traits <- function(con                 = NULL,
     stop(e)
   })
 
-  invisible(tibble::as_tibble(all_rows))
+  invisible(dplyr::as_tibble(all_rows))
 }

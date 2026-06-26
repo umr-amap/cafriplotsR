@@ -1,4 +1,4 @@
-# Fuzzy Suggestions Module
+﻿# Fuzzy Suggestions Module
 #
 # Displays fuzzy match suggestions for a given taxonomic name
 
@@ -444,16 +444,16 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
 #' @keywords internal
 .level_fuzzy_search_r <- function(backbone, name, level_filter, min_sim,
                                   max_results = 50L) {
-  if (is.null(backbone) || nrow(backbone) == 0L) return(tibble::tibble())
+  if (is.null(backbone) || nrow(backbone) == 0L) return(dplyr::tibble())
 
   if (level_filter == "family") {
     cand <- backbone %>%
       dplyr::filter(!is.na(.data$tax_fam), .data$tax_level == "family") %>%
       dplyr::distinct(.data$tax_fam, .keep_all = TRUE)
-    if (nrow(cand) == 0L) return(tibble::tibble())
+    if (nrow(cand) == 0L) return(dplyr::tibble())
     sc <- .trigram_sim(cand$tax_fam, name)
     keep <- which(sc >= min_sim)
-    if (length(keep) == 0L) return(tibble::tibble())
+    if (length(keep) == 0L) return(dplyr::tibble())
     ord <- order(sc[keep], decreasing = TRUE)
     keep <- keep[ord[seq_len(min(max_results, length(ord)))]]
     out <- cand[keep, , drop = FALSE]
@@ -464,10 +464,10 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
     cand <- backbone %>%
       dplyr::filter(!is.na(.data$tax_gen), .data$tax_level == "genus") %>%
       dplyr::distinct(.data$tax_gen, .keep_all = TRUE)
-    if (nrow(cand) == 0L) return(tibble::tibble())
+    if (nrow(cand) == 0L) return(dplyr::tibble())
     sc <- .trigram_sim(cand$tax_gen, name)
     keep <- which(sc >= min_sim)
-    if (length(keep) == 0L) return(tibble::tibble())
+    if (length(keep) == 0L) return(dplyr::tibble())
     ord <- order(sc[keep], decreasing = TRUE)
     keep <- keep[ord[seq_len(min(max_results, length(ord)))]]
     out <- cand[keep, , drop = FALSE]
@@ -478,10 +478,10 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
     cand <- backbone %>%
       dplyr::filter(!is.na(.data$tax_famclass), .data$tax_level == "higher") %>%
       dplyr::distinct(.data$tax_famclass, .keep_all = TRUE)
-    if (nrow(cand) == 0L) return(tibble::tibble())
+    if (nrow(cand) == 0L) return(dplyr::tibble())
     sc <- .trigram_sim(cand$tax_famclass, name)
     keep <- which(sc >= min_sim)
-    if (length(keep) == 0L) return(tibble::tibble())
+    if (length(keep) == 0L) return(dplyr::tibble())
     ord <- order(sc[keep], decreasing = TRUE)
     keep <- keep[ord[seq_len(min(max_results, length(ord)))]]
     out <- cand[keep, , drop = FALSE]
@@ -490,7 +490,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
 
   } else if (level_filter == "order") {
     # Cache does not include tax_order — order-level fuzzy not supported offline
-    return(tibble::tibble())
+    return(dplyr::tibble())
 
   } else {
     # species / infraspecific: filter the hierarchical match by level
@@ -511,7 +511,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
   }
 
   # Shape to the columns the consumer expects (mirrors SQL path)
-  tibble::tibble(
+  dplyr::tibble(
     idtax_n      = out$idtax_n,
     idtax_good_n = out$idtax_good_n,
     tax_gen      = out$tax_gen,

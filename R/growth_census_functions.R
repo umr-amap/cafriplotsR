@@ -1,4 +1,4 @@
-# Growth and Census Analysis Functions
+﻿# Growth and Census Analysis Functions
 #
 # This file contains functions for computing tree growth rates and analyzing
 # census data from forest plot inventories. These functions handle multiple
@@ -241,11 +241,11 @@ compute_growth <- function(plot_ids = NULL,
   summary_df <- do.call(rbind, all_summaries)
 
   result <- list(
-    summary = tibble::as_tibble(summary_df)
+    summary = dplyr::as_tibble(summary_df)
   )
 
   if (return_individual && length(all_individuals) > 0) {
-    result$individuals <- tibble::as_tibble(do.call(rbind, all_individuals))
+    result$individuals <- dplyr::as_tibble(do.call(rbind, all_individuals))
   }
 
   cli::cli_alert_success("Growth computation complete for {nrow(summary_df)} census intervals")
@@ -475,15 +475,15 @@ compute_mortality <- function(plot_ids = NULL,
   }
 
   result <- list(
-    summary = tibble::as_tibble(do.call(rbind, all_summaries))
+    summary = dplyr::as_tibble(do.call(rbind, all_summaries))
   )
 
   if (length(all_dead) > 0) {
-    result$dead_individuals <- tibble::as_tibble(do.call(rbind, all_dead))
+    result$dead_individuals <- dplyr::as_tibble(do.call(rbind, all_dead))
   }
 
   if (length(all_recruits) > 0) {
-    result$recruits <- tibble::as_tibble(do.call(rbind, all_recruits))
+    result$recruits <- dplyr::as_tibble(do.call(rbind, all_recruits))
   }
 
   cli::cli_alert_success("Mortality computation complete for {nrow(result$summary)} census intervals")

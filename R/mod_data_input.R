@@ -1,4 +1,4 @@
-# Data Input Module
+﻿# Data Input Module
 #
 # Handles file upload, text input (copy-paste), or direct R data input
 
@@ -309,7 +309,7 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
         }
 
         # Create data frame with taxon_name column
-        data <- tibble::tibble(
+        data <- dplyr::tibble(
           taxon_name = names_vector,
           id_data = seq_along(names_vector)
         )
