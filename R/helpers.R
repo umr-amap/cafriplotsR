@@ -311,9 +311,9 @@ species_plot_matrix <- function(data_tb, tax_col = "tax_sp_level", plot_col = "p
 .add_modif_field <- function(dataset) {
   dataset <-
     dataset %>%
-    dplyr::add_column(date_modif_d = lubridate::day(Sys.Date()),
-                       date_modif_m = lubridate::month(Sys.Date()),
-                       date_modif_y = lubridate::year(Sys.Date()))
+    dplyr::mutate(date_modif_d = lubridate::day(Sys.Date()),
+                  date_modif_m = lubridate::month(Sys.Date()),
+                  date_modif_y = lubridate::year(Sys.Date()))
   return(dataset)
 }
 

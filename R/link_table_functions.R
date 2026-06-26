@@ -422,11 +422,11 @@
 
   data_stand <-
     data_stand %>%
-    dplyr::add_column(id_trait = rep(selected_trait_id, nrow(.)))
+    dplyr::mutate(id_trait = rep(selected_trait_id, nrow(.)))
 
   data_stand <-
     data_stand %>%
-    dplyr::add_column(issue = issues)
+    dplyr::mutate(issue = issues)
 
   return(data_stand)
 }
@@ -718,7 +718,7 @@
 
   arranged_values <-
     compared_table %>%
-    dplyr::add_column(dist = dist.) %>%
+    dplyr::mutate(dist = dist.) %>%
     dplyr::arrange(dplyr::desc(dist))
 
   return(arranged_values)
