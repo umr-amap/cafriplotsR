@@ -99,7 +99,7 @@ launch_query_plots_app <- function(pool_main = NULL, language = c("fr", "en"), .
   language <- match.arg(language)
 
   # Check required packages
-  required_pkgs <- c("shiny", "DT", "mapview", "sf", "bslib", "shinyjs", "writexl", "zip")
+  required_pkgs <- c("shiny", "DT", "sf", "bslib", "shinyjs", "writexl", "zip")
   missing_pkgs <- required_pkgs[!sapply(required_pkgs, requireNamespace, quietly = TRUE)]
 
   if (length(missing_pkgs) > 0) {
