@@ -763,8 +763,7 @@ get_ref_specimen_ind <- function(collector = NULL, ids = NULL, con = NULL) {
   coll_extracted <- trimws(coll_extracted)
 
   all_herbarium_individuals_not_linked <- all_herbarium_individuals_not_linked %>%
-    dplyr::add_column(col_name = coll_extracted) %>%
-    dplyr::add_column(colnbr = num_extracted)
+    dplyr::mutate(col_name = coll_extracted, colnbr = num_extracted)
 
   all_herbarium_individuals_not_linked <- .link_colnam(
     data_stand = all_herbarium_individuals_not_linked,
