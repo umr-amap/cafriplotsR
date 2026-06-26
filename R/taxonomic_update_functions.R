@@ -1,4 +1,4 @@
-# Updated Taxonomic Functions for Materialized View Approach
+﻿# Updated Taxonomic Functions for Materialized View Approach
 #
 # These functions replace/augment existing functions in taxonomic_update_functions.R
 # to work with table_idtax as a PostgreSQL materialized view.
@@ -506,7 +506,7 @@ get_table_idtax_metadata <- function(con = NULL) {
       actual_con,
       "SELECT * FROM table_idtax_metadata WHERE table_name = 'table_idtax';"
     ) %>%
-      tibble::as_tibble()
+      dplyr::as_tibble()
   }, error = function(e) {
     cli::cli_alert_warning("Could not fetch metadata: {e$message}")
     NULL

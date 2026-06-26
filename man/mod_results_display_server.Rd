@@ -9,7 +9,8 @@ mod_results_display_server(
   results,
   individual_features_results = NULL,
   i18n,
-  con = NULL
+  con = NULL,
+  citation_data = NULL
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ mod_results_display_server(
 \item{i18n}{Reactive returning shiny.i18n translator}
 
 \item{con}{Reactive returning a database connection (for column documentation)}
+
+\item{citation_data}{Reactive returning a citation summary data.frame (optional, see mod_citation_panel_server)}
 }
 \description{
 Server logic for results display and download

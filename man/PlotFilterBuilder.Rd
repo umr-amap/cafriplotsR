@@ -79,119 +79,139 @@ query <- PlotFilterBuilder$new(con)$
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-PlotFilterBuilder-new}{\code{PlotFilterBuilder$new()}}
-\item \href{#method-PlotFilterBuilder-filter_country}{\code{PlotFilterBuilder$filter_country()}}
-\item \href{#method-PlotFilterBuilder-filter_plot_name}{\code{PlotFilterBuilder$filter_plot_name()}}
-\item \href{#method-PlotFilterBuilder-filter_method}{\code{PlotFilterBuilder$filter_method()}}
-\item \href{#method-PlotFilterBuilder-filter_locality}{\code{PlotFilterBuilder$filter_locality()}}
-\item \href{#method-PlotFilterBuilder-build}{\code{PlotFilterBuilder$build()}}
-\item \href{#method-PlotFilterBuilder-build_with_or}{\code{PlotFilterBuilder$build_with_or()}}
-\item \href{#method-PlotFilterBuilder-add_custom_condition}{\code{PlotFilterBuilder$add_custom_condition()}}
-\item \href{#method-PlotFilterBuilder-print_conditions}{\code{PlotFilterBuilder$print_conditions()}}
-\item \href{#method-PlotFilterBuilder-clone}{\code{PlotFilterBuilder$clone()}}
-}
+  \itemize{
+    \item \href{#method-PlotFilterBuilder-initialize}{\code{PlotFilterBuilder$new()}}
+    \item \href{#method-PlotFilterBuilder-filter_country}{\code{PlotFilterBuilder$filter_country()}}
+    \item \href{#method-PlotFilterBuilder-filter_plot_name}{\code{PlotFilterBuilder$filter_plot_name()}}
+    \item \href{#method-PlotFilterBuilder-filter_method}{\code{PlotFilterBuilder$filter_method()}}
+    \item \href{#method-PlotFilterBuilder-filter_locality}{\code{PlotFilterBuilder$filter_locality()}}
+    \item \href{#method-PlotFilterBuilder-build}{\code{PlotFilterBuilder$build()}}
+    \item \href{#method-PlotFilterBuilder-build_with_or}{\code{PlotFilterBuilder$build_with_or()}}
+    \item \href{#method-PlotFilterBuilder-add_custom_condition}{\code{PlotFilterBuilder$add_custom_condition()}}
+    \item \href{#method-PlotFilterBuilder-print_conditions}{\code{PlotFilterBuilder$print_conditions()}}
+    \item \href{#method-PlotFilterBuilder-clone}{\code{PlotFilterBuilder$clone()}}
+  }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-PlotFilterBuilder-new"></a>}}
-\if{latex}{\out{\hypertarget{method-PlotFilterBuilder-new}{}}}
-\subsection{Method \code{new()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{PlotFilterBuilder$new(connection)}\if{html}{\out{</div>}}
+\if{html}{\out{<a id="method-PlotFilterBuilder-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-PlotFilterBuilder-initialize}{}}}
+\subsection{\code{PlotFilterBuilder$new()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{PlotFilterBuilder$new(connection)}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-PlotFilterBuilder-filter_country"></a>}}
 \if{latex}{\out{\hypertarget{method-PlotFilterBuilder-filter_country}{}}}
-\subsection{Method \code{filter_country()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{PlotFilterBuilder$filter_country(country, interactive = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{PlotFilterBuilder$filter_country()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{PlotFilterBuilder$filter_country(country, interactive = FALSE)}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-PlotFilterBuilder-filter_plot_name"></a>}}
 \if{latex}{\out{\hypertarget{method-PlotFilterBuilder-filter_plot_name}{}}}
-\subsection{Method \code{filter_plot_name()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{PlotFilterBuilder$filter_plot_name(
+\subsection{\code{PlotFilterBuilder$filter_plot_name()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{PlotFilterBuilder$filter_plot_name(
   plot_name,
   interactive = FALSE,
   exact_match = FALSE
-)}\if{html}{\out{</div>}}
+)}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-PlotFilterBuilder-filter_method"></a>}}
 \if{latex}{\out{\hypertarget{method-PlotFilterBuilder-filter_method}{}}}
-\subsection{Method \code{filter_method()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{PlotFilterBuilder$filter_method(method, interactive = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{PlotFilterBuilder$filter_method()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{PlotFilterBuilder$filter_method(method, interactive = FALSE)}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-PlotFilterBuilder-filter_locality"></a>}}
 \if{latex}{\out{\hypertarget{method-PlotFilterBuilder-filter_locality}{}}}
-\subsection{Method \code{filter_locality()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{PlotFilterBuilder$filter_locality(locality_name)}\if{html}{\out{</div>}}
+\subsection{\code{PlotFilterBuilder$filter_locality()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{PlotFilterBuilder$filter_locality(locality_name)}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-PlotFilterBuilder-build"></a>}}
 \if{latex}{\out{\hypertarget{method-PlotFilterBuilder-build}{}}}
-\subsection{Method \code{build()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{PlotFilterBuilder$build(operator = "AND")}\if{html}{\out{</div>}}
+\subsection{\code{PlotFilterBuilder$build()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{PlotFilterBuilder$build(operator = "AND")}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-PlotFilterBuilder-build_with_or"></a>}}
 \if{latex}{\out{\hypertarget{method-PlotFilterBuilder-build_with_or}{}}}
-\subsection{Method \code{build_with_or()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{PlotFilterBuilder$build_with_or()}\if{html}{\out{</div>}}
+\subsection{\code{PlotFilterBuilder$build_with_or()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{PlotFilterBuilder$build_with_or()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-PlotFilterBuilder-add_custom_condition"></a>}}
 \if{latex}{\out{\hypertarget{method-PlotFilterBuilder-add_custom_condition}{}}}
-\subsection{Method \code{add_custom_condition()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{PlotFilterBuilder$add_custom_condition(condition, wrap_parentheses = TRUE)}\if{html}{\out{</div>}}
+\subsection{\code{PlotFilterBuilder$add_custom_condition()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{PlotFilterBuilder$add_custom_condition(condition, wrap_parentheses = TRUE)}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-PlotFilterBuilder-print_conditions"></a>}}
 \if{latex}{\out{\hypertarget{method-PlotFilterBuilder-print_conditions}{}}}
-\subsection{Method \code{print_conditions()}}{
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{PlotFilterBuilder$print_conditions()}\if{html}{\out{</div>}}
+\subsection{\code{PlotFilterBuilder$print_conditions()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{PlotFilterBuilder$print_conditions()}
+    \if{html}{\out{</div>}}
+  }
 }
 
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-PlotFilterBuilder-clone"></a>}}
 \if{latex}{\out{\hypertarget{method-PlotFilterBuilder-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{PlotFilterBuilder$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{PlotFilterBuilder$clone()}}{
+  The objects of this class are cloneable with this method.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{PlotFilterBuilder$clone(deep = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deep}}{Whether to make a deep clone.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }

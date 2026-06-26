@@ -1,4 +1,4 @@
-# Name Review Module
+﻿# Name Review Module
 #
 # Interactive review of unmatched taxonomic names with fuzzy suggestions
 
@@ -854,10 +854,10 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
 #'
 #' @keywords internal
 .lookup_taxon_in_backbone <- function(backbone, idtax) {
-  if (is.null(backbone) || nrow(backbone) == 0L) return(tibble::tibble())
+  if (is.null(backbone) || nrow(backbone) == 0L) return(dplyr::tibble())
 
   hit <- backbone %>% dplyr::filter(.data$idtax_n == idtax) %>% dplyr::slice(1L)
-  if (nrow(hit) == 0L) return(tibble::tibble())
+  if (nrow(hit) == 0L) return(dplyr::tibble())
 
   acc <- backbone %>% dplyr::filter(.data$idtax_n == hit$idtax_good_n) %>% dplyr::slice(1L)
 
@@ -882,7 +882,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
     }
   }
 
-  tibble::tibble(
+  dplyr::tibble(
     idtax_n           = hit$idtax_n,
     idtax_good_n      = hit$idtax_good_n,
     tax_gen           = hit$tax_gen,

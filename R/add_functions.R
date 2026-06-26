@@ -1,4 +1,4 @@
-
+﻿
 
 
 
@@ -1588,7 +1588,7 @@ add_individuals <- function(new_data ,
   
   new_data_renamed <-
     new_data_renamed %>%
-    tibble::add_column(
+    dplyr::add_column(
       data_modif_d = lubridate::day(Sys.Date()),
       data_modif_m = lubridate::month(Sys.Date()),
       data_modif_y = lubridate::year(Sys.Date())
@@ -3370,7 +3370,7 @@ add_specimens <- function(new_data ,
   
   new_data_renamed <-
     new_data_renamed %>%
-    tibble::add_column(data_modif_d=lubridate::day(Sys.Date()),
+    dplyr::add_column(data_modif_d=lubridate::day(Sys.Date()),
                        data_modif_m=lubridate::month(Sys.Date()),
                        data_modif_y=lubridate::year(Sys.Date()))
   

@@ -1,4 +1,4 @@
-# OpenForis Collect data pre-processing
+﻿# OpenForis Collect data pre-processing
 #
 # Internal (non-exported) functions for converting raw OpenForis Collect
 # tree/plot exports into clean formats ready for the Feature Wizard or
@@ -556,7 +556,7 @@ process_openforis_census <- function(data_dir = NULL,
       "Total: {nrow(measurements)} measurement rows across {length(unique(measurements$trait_name))} trait(s)"
     )
   } else {
-    measurements <- tibble::tibble(
+    measurements <- dplyr::tibble(
       plot_name = character(0), tag = numeric(0),
       trait_name = character(0), traitvalue = numeric(0),
       traitvalue_char = character(0)
@@ -594,25 +594,25 @@ process_openforis_census <- function(data_dir = NULL,
 
   # Convert all outputs to tibble
   if (!is.null(measurements) && nrow(measurements) > 0) {
-    measurements <- tibble::as_tibble(measurements)
+    measurements <- dplyr::as_tibble(measurements)
   }
   if (!is.null(census_metadata)) {
-    census_metadata <- tibble::as_tibble(census_metadata)
+    census_metadata <- dplyr::as_tibble(census_metadata)
   }
   if (!is.null(recruits)) {
-    recruits <- tibble::as_tibble(recruits)
+    recruits <- dplyr::as_tibble(recruits)
   }
   if (!is.null(specimens)) {
-    specimens <- tibble::as_tibble(specimens)
+    specimens <- dplyr::as_tibble(specimens)
   }
   if (!is.null(multi_stems)) {
-    multi_stems <- tibble::as_tibble(multi_stems)
+    multi_stems <- dplyr::as_tibble(multi_stems)
   }
   if (!is.null(all_stems)) {
-    all_stems <- tibble::as_tibble(all_stems)
+    all_stems <- dplyr::as_tibble(all_stems)
   }
   if (!is.null(duplicated_stems)) {
-    duplicated_stems <- tibble::as_tibble(duplicated_stems)
+    duplicated_stems <- dplyr::as_tibble(duplicated_stems)
   }
 
   # ---- Summary ----
