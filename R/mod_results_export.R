@@ -29,6 +29,7 @@ mod_results_export_ui <- function(id) {
     shiny::hr(),
 
     shiny::uiOutput(ns("export_button")),
+    shiny::uiOutput(ns("column_metadata")),
     shiny::uiOutput(ns("preview"))
   )
 }
@@ -172,6 +173,10 @@ mod_results_export_server <- function(id, results, original_data, i18n) {
                                           "is_synonym", "accepted_name")))
         }
 
+        # Drop internal row identifier (not meaningful to the user)
+        export_data <- export_data %>%
+          dplyr::select(-dplyr::any_of("id_data"))
+
         # Export based on format
         if (input$export_format == "xlsx") {
           writexl::write_xlsx(export_data, path = file)
@@ -183,11 +188,72 @@ mod_results_export_server <- function(id, results, original_data, i18n) {
       }
     )
 
+    # Column descriptions (metadata explaining each output column).
+    # Only the standardized columns actually present in the results are shown;
+    # the user's original columns are preserved but not described individually.
+    output$column_metadata <- shiny::renderUI({
+      req(results())
+
+      present <- names(results()$data)
+
+      descriptions <- list(
+        idtax_n            = i18n()$t("Identifier of the matched taxon in the taxonomic backbone."),
+        idtax_good_n       = i18n()$t("Identifier of the accepted taxon. Differs from idtax_n when the matched name is a synonym."),
+        matched_name       = i18n()$t("Name found in the backbone corresponding to your input name (may be a synonym)."),
+        corrected_name     = i18n()$t("Final standardized name: the accepted name when the match is a synonym (or the WCVP name if that option was enabled)."),
+        accepted_name      = i18n()$t("Accepted name when the matched name is a synonym; empty otherwise."),
+        is_synonym         = i18n()$t("TRUE when the matched name is a synonym of an accepted name."),
+        match_method       = i18n()$t("How the name was matched: exact, genus_constrained, fuzzy, manual (chosen during review), or unresolved."),
+        match_score        = i18n()$t("Similarity between your input name and the matched name, from 0 to 1 (1 = exact or user-confirmed match)."),
+        wcvp_taxon_name    = i18n()$t("Accepted name from the World Checklist of Vascular Plants (WCVP)."),
+        wcvp_family        = i18n()$t("Family according to WCVP."),
+        wcvp_taxon_authors = i18n()$t("Taxonomic authorship according to WCVP."),
+        wcvp_taxon_status  = i18n()$t("Status of the name in WCVP (e.g. Accepted)."),
+        name_source        = i18n()$t("Source of the name used in corrected_name: internal backbone or WCVP.")
+      )
+
+      known_cols <- intersect(names(descriptions), present)
+      if (length(known_cols) == 0) {
+        return(NULL)
+      }
+
+      rows <- lapply(known_cols, function(col) {
+        shiny::tags$tr(
+          shiny::tags$td(
+            shiny::tags$code(col),
+            style = "white-space: nowrap; vertical-align: top; padding: 4px 12px 4px 0;"
+          ),
+          shiny::tags$td(descriptions[[col]], style = "padding: 4px 0;")
+        )
+      })
+
+      shiny::tags$details(
+        style = "margin: 10px 0 18px 0; background:#eaf3fb; padding:12px 16px; border-radius:5px; border-left:4px solid #3498db;",
+        shiny::tags$summary(
+          style = "cursor:pointer; font-weight:bold; color:#2c3e50;",
+          shiny::icon("info-circle"), " ", i18n()$t("Column descriptions")
+        ),
+        shiny::tags$p(
+          i18n()$t("All columns from your input file are preserved. The app adds the standardized columns described below."),
+          style = "margin: 10px 0;"
+        ),
+        shiny::tags$table(
+          class = "table table-sm",
+          style = "background: transparent; margin-bottom: 0;",
+          shiny::tags$tbody(rows)
+        )
+      )
+    })
+
     # Preview
     output$preview <- shiny::renderUI({
       req(results())
 
       data <- results()$data
+
+      # Hide the internal row identifier from the preview
+      data <- data %>% dplyr::select(-dplyr::any_of("id_data"))
+
       if ("match_score" %in% names(data)) {
         data$match_score <- round(data$match_score, 2)
       }
