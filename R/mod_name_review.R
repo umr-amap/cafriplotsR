@@ -103,6 +103,11 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
               shiny::icon("check-circle"),
               i18n()$t("All names successfully matched!"),
               style = "color: #155724; margin: 0;"
+            ),
+            shiny::p(
+              shiny::icon("arrow-right"),
+              i18n()$t("No names require manual review. You can skip this step and go directly to the next tab (Export)."),
+              style = "color: #155724; margin: 12px 0 0 0;"
             )
           )
         )

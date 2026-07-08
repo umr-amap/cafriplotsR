@@ -350,6 +350,78 @@
       "fr": "Tous les noms ont été appariés avec succès !"
     },
     {
+      "en": "No names require manual review. You can skip this step and go directly to the next tab (Export).",
+      "fr": "Aucun nom ne nécessite de révision manuelle. Vous pouvez ignorer cette étape et passer directement à l'onglet suivant (Export)."
+    },
+    {
+      "en": "Use World Checklist of Vascular Plants (WCVP) names in the output",
+      "fr": "Utiliser les noms du World Checklist of Vascular Plants (WCVP) dans les résultats"
+    },
+    {
+      "en": "Column descriptions",
+      "fr": "Description des colonnes"
+    },
+    {
+      "en": "All columns from your input file are preserved. The app adds the standardized columns described below.",
+      "fr": "Toutes les colonnes de votre fichier d'origine sont conservées. L'application ajoute les colonnes standardisées décrites ci-dessous."
+    },
+    {
+      "en": "Identifier of the matched taxon in the taxonomic backbone.",
+      "fr": "Identifiant du taxon apparié dans le référentiel taxonomique."
+    },
+    {
+      "en": "Identifier of the accepted taxon. Differs from idtax_n when the matched name is a synonym.",
+      "fr": "Identifiant du taxon accepté. Diffère de idtax_n lorsque le nom apparié est un synonyme."
+    },
+    {
+      "en": "Name found in the backbone corresponding to your input name (may be a synonym).",
+      "fr": "Nom trouvé dans le référentiel correspondant à votre nom d'entrée (peut être un synonyme)."
+    },
+    {
+      "en": "Final standardized name: the accepted name when the match is a synonym (or the WCVP name if that option was enabled).",
+      "fr": "Nom standardisé final : le nom accepté lorsque l'appariement est un synonyme (ou le nom WCVP si cette option a été activée)."
+    },
+    {
+      "en": "Accepted name when the matched name is a synonym; empty otherwise.",
+      "fr": "Nom accepté lorsque le nom apparié est un synonyme ; vide sinon."
+    },
+    {
+      "en": "TRUE when the matched name is a synonym of an accepted name.",
+      "fr": "TRUE lorsque le nom apparié est un synonyme d'un nom accepté."
+    },
+    {
+      "en": "How the name was matched: exact, genus_constrained, fuzzy, manual (chosen during review), or unresolved.",
+      "fr": "Méthode d'appariement : exact, genus_constrained, fuzzy, manual (choisi lors de la révision) ou unresolved."
+    },
+    {
+      "en": "Similarity between your input name and the matched name, from 0 to 1 (1 = exact or user-confirmed match).",
+      "fr": "Similarité entre votre nom d'entrée et le nom apparié, de 0 à 1 (1 = appariement exact ou confirmé par l'utilisateur)."
+    },
+    {
+      "en": "Accepted name from the World Checklist of Vascular Plants (WCVP).",
+      "fr": "Nom accepté du World Checklist of Vascular Plants (WCVP)."
+    },
+    {
+      "en": "Family according to WCVP.",
+      "fr": "Famille selon le WCVP."
+    },
+    {
+      "en": "Taxonomic authorship according to WCVP.",
+      "fr": "Autorité taxonomique selon le WCVP."
+    },
+    {
+      "en": "Status of the name in WCVP (e.g. Accepted).",
+      "fr": "Statut du nom dans le WCVP (par ex. Accepted)."
+    },
+    {
+      "en": "Source of the name used in corrected_name: internal backbone or WCVP.",
+      "fr": "Source du nom utilisé dans corrected_name : référentiel interne ou WCVP."
+    },
+    {
+      "en": "By default, names are standardized against the internal taxonomic backbone. When this box is checked, the standardized name in the output is replaced by the accepted name from the World Checklist of Vascular Plants (WCVP), an international reference maintained by the Royal Botanic Gardens, Kew, whenever the taxon is found there. Taxa absent from WCVP keep their internal backbone name.",
+      "fr": "Par défaut, les noms sont standardisés à partir du référentiel taxonomique interne. Lorsque cette case est cochée, le nom standardisé dans les résultats est remplacé par le nom accepté du World Checklist of Vascular Plants (WCVP), une référence internationale maintenue par les Royal Botanic Gardens de Kew, lorsque le taxon y figure. Les taxons absents du WCVP conservent le nom du référentiel interne."
+    },
+    {
       "en": "File uploaded successfully",
       "fr": "Fichier téléchargé avec succès"
     },
