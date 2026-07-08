@@ -14,7 +14,9 @@ on:
       - "R/**"
       - "DESCRIPTION"
       - "NAMESPACE"
-      - "inst/app/taxonomic_match/**"
+      # inst/** (not just inst/app/...) so packaged resources baked into the
+      # image — e.g. inst/translations/translation.json — also trigger a rebuild.
+      - "inst/**"
       - "deployment/taxonomic_match/Dockerfile"
       - ".github/workflows/docker-taxonomic-match.yml"
   workflow_dispatch:
