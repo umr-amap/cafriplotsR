@@ -410,8 +410,18 @@ app_taxonomic_match <- function(
             ),
             shiny::checkboxInput(
               inputId = "use_wcvp_names",
-              label   = i18n()$t("Use WCVP names in output (when available, otherwise internal names)"),
+              label   = i18n()$t("Use World Checklist of Vascular Plants (WCVP) names in the output"),
               value   = FALSE
+            ),
+            shiny::helpText(
+              i18n()$t(paste0(
+                "By default, names are standardized against the internal taxonomic backbone. ",
+                "When this box is checked, the standardized name in the output is replaced by the ",
+                "accepted name from the World Checklist of Vascular Plants (WCVP), an international ",
+                "reference maintained by the Royal Botanic Gardens, Kew, whenever the taxon is found ",
+                "there. Taxa absent from WCVP keep their internal backbone name."
+              )),
+              style = "margin-top: -6px; font-size: 0.85em;"
             ),
             shiny::hr()
           )
