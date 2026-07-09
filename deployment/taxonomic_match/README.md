@@ -81,6 +81,51 @@ tag there and run `helm upgrade cafri-taxomatch . -f values.yaml` instead.
 Only a values/chart change (not a code change) needs `helm upgrade`; a pure code
 change just needs the rebuild + `rollout restart` above.
 
+### Kubernetes permissions — you need an *admin-role* session
+
+`kubectl rollout restart` **patches** the deployment, and even `kubectl delete
+pod` needs write access. Default RStudio/VSCode services on SSP Cloud (Onyxia)
+launch with the **`view`** Kubernetes role, whose per-service account is
+read-only — so both commands are refused:
+
+```
+error: failed to patch: deployments.apps "cafri-taxomatch-shiny" is forbidden:
+User "system:serviceaccount:user-<you>:rstudio-XXXX" cannot patch resource
+"deployments" in API group "apps" in the namespace "user-<you>"
+```
+
+Check what the current session can do:
+
+```bash
+kubectl auth can-i patch deployments   # "no" from a view-role service
+kubectl auth can-i delete pods         # also "no"
+```
+
+Fix: launch (or relaunch) an **RStudio/VSCode service with the Kubernetes Role
+set to `admin`** — it's in the service launch form, under the **Kubernetes**
+section (Role: view → admin). From that session:
+
+```bash
+kubectl auth can-i patch deployments   # now "yes"
+kubectl rollout restart deployment cafri-taxomatch-shiny
+kubectl rollout status  deployment cafri-taxomatch-shiny
+```
+
+Then confirm the new pod actually re-pulled `latest` (the `Pulled` event should
+be timestamped just now, not days ago):
+
+```bash
+kubectl describe pod -l app.kubernetes.io/name=shiny | grep -iE "image:|image id|Pulled"
+```
+
+A stale UI after all this is usually just browser caching — hard-refresh with
+Ctrl-Shift-R or open the app in a private window.
+
+> Note: pushing a new `latest` image to ghcr.io does **not** restart anything on
+> its own; the running pod keeps its old image until a `rollout restart` (or pod
+> recreation) makes it re-pull. And a pod's `AGE` older than the last image build
+> is the quickest tell that it's still serving stale code.
+
 ## Health probe (handled automatically)
 
 The upstream `shiny` sub-chart hardcodes an HTTP `GET /` liveness/readiness
