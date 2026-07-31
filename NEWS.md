@@ -19,6 +19,10 @@
 
 ### Bug Fixes
 
+* **`query_colnam()`** — fixed collector search in `launch_specimen_identification_app()` manual mode failing with `` `.con` is absent but must be supplied ``. The pattern-search branch built its SQL via `paste0()` and passed it to `glue::glue_sql()` without the required `.con` argument; it now uses proper `glue_sql()` parameter interpolation with `.con = mydb`, which also closes a SQL-injection gap (the collector name was previously spliced directly into the query string).
+
+* **`update_ident_specimens()`** — applying an update in the specimen identification app (manual or batch mode) no longer appears to freeze the app. The function's internal `query_specimens()` calls used the default `show_html = TRUE`, which prints an HTML `kableExtra` table via the RStudio Viewer/browser; when the app itself runs in that same Viewer pane, this hijacked it away from the live Shiny session right after the database write succeeded, making the app look dead. Both calls now pass `show_html = FALSE`, matching the convention already used elsewhere in the app.
+
 * **`output_styles_helpers.R` / `.extract_individuals_table()`** — `idtax_individual_f` is now always preserved in the individuals output table alongside `id_n`, regardless of output style. Previously this linking column was silently dropped during style processing, preventing downstream citation lookup in the Shiny app.
 
 * **`mod_taxonomic_validator`** — clicking "Confirm Selection" no longer resets the Action column or misclassifies previously accepted rows as rejected. The fix separates the display data (`validated_data`) from the confirmed output (`final_validated_links`): confirming no longer overwrites the table's data, so row indices used by `user_decisions` remain stable.

@@ -3281,7 +3281,11 @@ query_colnam <- function(id_colnam = NULL, pattern = NULL) {
 
     cli::cli_alert_info("query colnam by string pattern")
 
-    sql <- glue::glue_sql(paste0("SELECT * FROM table_colnam WHERE colnam ILIKE '%", pattern, "%'"))
+    sql <- glue::glue_sql(
+      "SELECT * FROM table_colnam WHERE colnam ILIKE {pattern_like}",
+      pattern_like = paste0("%", pattern, "%"),
+      .con = mydb
+    )
 
     valuetype <- func_try_fetch(con = mydb, sql = sql)
   }

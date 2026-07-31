@@ -1051,13 +1051,15 @@ update_ident_specimens <- function(colnam = NULL,
     
     queried_speci <-
       query_specimens(id_colnam = id_colnam,
-                      number = number, subset_columns = FALSE)
-    
+                      number = number, subset_columns = FALSE,
+                      show_html = FALSE)
+
 
   } else {
 
     queried_speci <-
-      query_specimens(id_specimen = id_speci, subset_columns = FALSE)
+      query_specimens(id_specimen = id_speci, subset_columns = FALSE,
+                      show_html = FALSE)
 
   }
 
