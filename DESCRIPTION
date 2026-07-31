@@ -36,7 +36,9 @@ Imports:
     plotly,
     purrr,
     shinyjs,
-    later
+    later,
+    grid,
+    grDevices
 Suggests:
     getPass,
     openxlsx,
