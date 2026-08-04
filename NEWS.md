@@ -6,6 +6,11 @@
 
 ### New Features
 
+* **Tropicos bulk upload conversion** (`R/tropicos_export_functions.R`)
+  - **`build_tropicos_upload_table()`** — converts `query_specimens()` output into the 31-column Tropicos bulk upload template layout (dates split into day/month/year, collection number + suffix, taxon name, `SeniorCollectorPersonID` joined from `table_colnam.id_tropicos_person`). Columns with no reliable database source (e.g. `Duplicates`, `DeterminationQualifier`, `AuthorityKey`) are always left blank rather than guessed
+  - **`build_specimens_from_tropicos()`** — the reverse: converts an already-imported Tropicos specimen export/search-results table (a different column layout from the upload template, see `inst/docs/example_tropicos.csv`) into a `query_specimens()`-shaped tibble, ready for taxon/collector ID resolution and review before `add_specimens()`. Resolves `id_colnam` precisely via `SeniorCollectorPersonID` → `table_colnam.id_tropicos_person` when a connection is supplied (calls `call.mydb()` if `con` is `NULL`)
+  - New `table_colnam.id_tropicos_person` column (migration in `inst/scripts/migrate_add_tropicos_person_id.R`) links collectors to their Tropicos Person ID; `match_tropicos_person_ids()` / `apply_tropicos_person_ids()` (fuzzy-match and backfill from an MBG collector spreadsheet, `inst/scripts/tropicos_collector_matching_and_export.R`) are archived, ad-hoc, unexported tools for maintaining that mapping, along with `write_tropicos_upload_table()` for writing the upload table to xlsx
+
 * **`build_data_sources_table()`** — new exported helper (`R/citations_functions.R`) that pivots long-format trait data (with citation metadata) into a wide **citations × traits** table, one row per source and one column per trait containing the measurement count, plus a `n_taxa` column
   - Used by `query_plots()` (returned as `$data_sources` when `extract_traits = TRUE`) and all Shiny apps that display the Data Sources panel
 
