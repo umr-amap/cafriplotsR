@@ -8624,6 +8624,46 @@
     {
       "en": "Once names are standardised, the Traits tab retrieves available measurements for each matched taxon. Numeric traits are reported as mean, sd and n; categorical traits as the most frequent value or all values combined.",
       "fr": "Une fois les noms standardisés, l’onglet Traits récupère les mesures disponibles pour chaque taxon apparié. Les traits numériques sont reportés comme moyenne, écart-type et n ; les traits catégoriels comme la valeur la plus fréquente ou toutes les valeurs combinées."
+    },
+    {
+      "en": "Leave a field empty to keep its current value.",
+      "fr": "Laissez un champ vide pour conserver sa valeur actuelle."
+    },
+    {
+      "en": "4b. Collection, locality & notes (optional)",
+      "fr": "4b. Récolte, localité et notes (facultatif)"
+    },
+    {
+      "en": "These fields are pre-filled with the current values. Edit them directly - clearing a field will erase its value in the database.",
+      "fr": "Ces champs sont pré-remplis avec les valeurs actuelles. Modifiez-les directement - vider un champ effacera sa valeur dans la base de données."
+    },
+    {
+      "en": "Collection year",
+      "fr": "Année de récolte"
+    },
+    {
+      "en": "Collection month",
+      "fr": "Mois de récolte"
+    },
+    {
+      "en": "Collection day",
+      "fr": "Jour de récolte"
+    },
+    {
+      "en": "Additional collectors",
+      "fr": "Récolteurs additionnels"
+    },
+    {
+      "en": "Description / notes",
+      "fr": "Description / notes"
+    },
+    {
+      "en": "Reset to current values",
+      "fr": "Réinitialiser aux valeurs actuelles"
+    },
+    {
+      "en": "%d specimen field(s) updated (excluding identification).",
+      "fr": "%d champ(s) du spécimen mis à jour (hors identification)."
     }
   ]
 }

@@ -24,7 +24,10 @@ and provides two workflows:
         collector + number; review current values; pick a new accepted
         taxon via an embedded taxonomy search; optionally update
         determination metadata (detd/detm/dety/detby/detvalue) and
-        collector number / suffix; preview a diff and confirm.
+        collector number / suffix; optionally edit the other specimen
+        fields (coly/colm/cold, add_col, locality, country, ddlat, ddlon,
+        description) which are pre-filled with the current values;
+        preview a diff and confirm.
   \item \strong{Batch} - upload an Excel/CSV file with one row per
         specimen to update. Columns are mapped to specimen fields,
         collectors are matched against \code{table_colnam} (skipped if
@@ -45,6 +48,7 @@ launch_specimen_identification_app(lang = "en")
 }
 \seealso{
 \code{\link{update_ident_specimens}},
+  \code{\link{update_specimen_fields}},
   \code{\link{launch_taxonomic_match_app}},
   \code{\link{launch_specimen_import_wizard}}
 }

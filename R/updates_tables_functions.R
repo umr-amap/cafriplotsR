@@ -1315,6 +1315,361 @@ update_ident_specimens <- function(colnam = NULL,
 
 
 
+#' Editable (non-identification) fields of the specimens table
+#'
+#' @description
+#' Named character vector mapping the specimen columns that
+#' \code{\link{update_specimen_fields}} is allowed to write to their expected
+#' R type (\code{"character"}, \code{"numeric"} or \code{"integer"}).
+#'
+#' Identification fields (\code{idtax_n}, \code{detby}, \code{detd},
+#' \code{detm}, \code{dety}, \code{detvalue}) are deliberately excluded: they
+#' are handled by \code{\link{update_ident_specimens}}.
+#'
+#' @return Named character vector, names are specimen column names.
+#' @keywords internal
+.specimen_editable_fields <- function() {
+  c(
+    colnbr            = "numeric",
+    suffix            = "character",
+    coly              = "integer",
+    colm              = "integer",
+    cold              = "integer",
+    add_col           = "character",
+    locality          = "character",
+    country           = "character",
+    ddlat             = "numeric",
+    ddlon             = "numeric",
+    description       = "character",
+    original_tax_name = "character"
+  )
+}
+
+
+#' Coerce a user supplied value to the type expected by a specimen column
+#'
+#' @param value Length-one value (or \code{NA}).
+#' @param type Character, one of \code{"character"}, \code{"numeric"},
+#'   \code{"integer"}.
+#' @param field Character, field name (used in error messages).
+#'
+#' @return A length-one vector of the requested type. Empty strings and
+#'   \code{NA} are returned as the typed \code{NA} (meaning "set to NULL").
+#' @keywords internal
+.coerce_specimen_value <- function(value, type, field) {
+
+  if (length(value) != 1)
+    stop(paste0("Value for '", field, "' must be of length 1"))
+
+  ## empty strings are treated as missing
+  if (is.character(value) && !is.na(value) && !nzchar(trimws(value)))
+    value <- NA
+
+  if (is.na(value))
+    return(switch(type,
+                  integer   = NA_integer_,
+                  numeric   = NA_real_,
+                  NA_character_))
+
+  if (type == "character")
+    return(as.character(value))
+
+  num <- suppressWarnings(as.numeric(value))
+
+  if (is.na(num))
+    stop(paste0("Value for '", field, "' is not numeric: ", value))
+
+  if (type == "integer") {
+
+    if (!isTRUE(all.equal(num, round(num))))
+      stop(paste0("Value for '", field, "' must be a whole number: ", value))
+
+    return(as.integer(round(num)))
+  }
+
+  num
+}
+
+
+#' Compare a current and a new specimen value
+#'
+#' @param current Current value.
+#' @param new New value (already coerced).
+#'
+#' @return Logical, \code{TRUE} when both values are equivalent (including
+#'   both being missing).
+#' @keywords internal
+.same_specimen_value <- function(current, new) {
+
+  cur_na <- length(current) == 0 || is.na(current)
+  new_na <- length(new) == 0 || is.na(new)
+
+  if (cur_na && new_na) return(TRUE)
+  if (cur_na || new_na) return(FALSE)
+
+  if (is.numeric(new)) {
+    cur_num <- suppressWarnings(as.numeric(current))
+    if (is.na(cur_num)) return(FALSE)
+    return(isTRUE(all.equal(cur_num, as.numeric(new))))
+  }
+
+  identical(as.character(current), as.character(new))
+}
+
+
+#' Update non-identification fields of a single specimen
+#'
+#' @description
+#' Updates any of the editable, non-taxonomic columns of the \code{specimens}
+#' table for one specimen: collection date (\code{coly}, \code{colm},
+#' \code{cold}), locality information (\code{locality}, \code{country},
+#' \code{ddlat}, \code{ddlon}), \code{description}, \code{add_col},
+#' \code{original_tax_name}, \code{colnbr} and \code{suffix}.
+#'
+#' Only fields whose new value actually differs from the stored value are
+#' written. Supplying \code{NA} (or an empty string) for a field clears it
+#' (sets it to \code{NULL} in the database). Fields that are absent from
+#' \code{new_values} (or set to \code{NULL}) are left untouched.
+#'
+#' Identification fields (\code{idtax_n} and the \code{det*} columns) are not
+#' handled here - use \code{\link{update_ident_specimens}} for those.
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#'
+#' @param id_speci Integer, id of the specimen to update (single value).
+#' @param new_values Named list of new values, one element per field to
+#'   update. Allowed names are given by
+#'   \code{names(CafriplotsR:::.specimen_editable_fields())}.
+#' @param add_backup Logical, whether the current record should be copied to
+#'   \code{followup_updates_specimens} before updating. Default \code{TRUE}.
+#' @param ask_before_update Logical, whether to ask for confirmation in the
+#'   console before writing. Default \code{TRUE}.
+#' @param show_results Logical, whether the updated specimen should be
+#'   queried and printed after the update. Default \code{TRUE}.
+#' @param con Database connection or pool. Default \code{NULL}, in which case
+#'   \code{\link{call.mydb}} is used.
+#'
+#' @return Invisibly, a tibble with one row per modified field and the columns
+#'   \code{field}, \code{current} and \code{new}. A zero-row tibble is
+#'   returned when nothing was modified.
+#'
+#' @seealso \code{\link{update_ident_specimens}}
+#'
+#' @examples
+#' \dontrun{
+#' update_specimen_fields(
+#'   id_speci = 12345,
+#'   new_values = list(ddlat = 0.123, ddlon = 11.456, locality = "Mont Bela")
+#' )
+#'
+#' ## clear a field
+#' update_specimen_fields(id_speci = 12345, new_values = list(description = NA))
+#' }
+#'
+#' @export
+update_specimen_fields <- function(id_speci,
+                                   new_values,
+                                   add_backup = TRUE,
+                                   ask_before_update = TRUE,
+                                   show_results = TRUE,
+                                   con = NULL) {
+
+  mydb <- if (!is.null(con)) con else call.mydb()
+
+  empty_res <- dplyr::tibble(field   = character(0),
+                             current = character(0),
+                             new     = character(0))
+
+  if (missing(id_speci) || length(id_speci) != 1 || is.na(id_speci))
+    stop("id_speci must be a single, non-missing specimen id")
+
+  id_speci <- as.integer(id_speci)
+
+  if (missing(new_values) || is.null(new_values))
+    new_values <- list()
+
+  if (!is.list(new_values))
+    stop("new_values must be a named list")
+
+  ## NULL elements mean 'do not touch this field'
+  new_values <- new_values[!vapply(new_values, is.null, logical(1))]
+
+  if (length(new_values) == 0) {
+    cli::cli_alert_info("No field provided, nothing to update")
+    return(invisible(empty_res))
+  }
+
+  if (is.null(names(new_values)) || any(!nzchar(names(new_values))))
+    stop("All elements of new_values must be named")
+
+  if (anyDuplicated(names(new_values)) > 0)
+    stop("new_values contains duplicated field names")
+
+  allowed <- .specimen_editable_fields()
+
+  unknown <- setdiff(names(new_values), names(allowed))
+  if (length(unknown) > 0)
+    stop(paste0("Field(s) not editable with update_specimen_fields(): ",
+                paste(unknown, collapse = ", "),
+                ". Allowed fields: ",
+                paste(names(allowed), collapse = ", ")))
+
+  ## ---- current record -------------------------------------------------
+  current_record <- DBI::dbGetQuery(
+    mydb,
+    "SELECT * FROM specimens WHERE id_specimen = $1",
+    params = list(id_speci)
+  )
+
+  if (nrow(current_record) == 0) {
+    cli::cli_alert_danger("Specimen not found: id_specimen = {id_speci}")
+    return(invisible(empty_res))
+  }
+
+  ## ---- coerce and compare ---------------------------------------------
+  coerced <- list()
+  changes <- empty_res
+
+  for (field in names(new_values)) {
+
+    value <- .coerce_specimen_value(new_values[[field]],
+                                    type  = allowed[[field]],
+                                    field = field)
+
+    current_value <- current_record[[field]]
+
+    if (.same_specimen_value(current_value, value)) next
+
+    coerced[[field]] <- value
+
+    changes <- dplyr::bind_rows(
+      changes,
+      dplyr::tibble(
+        field   = field,
+        current = if (length(current_value) == 0 || is.na(current_value))
+          NA_character_ else as.character(current_value),
+        new     = if (is.na(value)) NA_character_ else as.character(value)
+      )
+    )
+  }
+
+  if (nrow(changes) == 0) {
+    cli::cli_alert_info("No different values entered, no update performed")
+    return(invisible(changes))
+  }
+
+  cli::cli_alert_info("{nrow(changes)} field(s) of specimen {id_speci} will be updated:")
+  print(as.data.frame(changes))
+
+  if (ask_before_update) {
+    confirmed <- choose_prompt(message = "Confirm this update?")
+  } else {
+    confirmed <- TRUE
+  }
+
+  if (!confirmed) {
+    cli::cli_alert_warning("Update cancelled")
+    return(invisible(changes))
+  }
+
+  modif_type <- paste0(changes$field, "__", collapse = "")
+
+  ## ---- write ----------------------------------------------------------
+  .write_specimen_fields(
+    con            = mydb,
+    id_speci       = id_speci,
+    coerced        = coerced,
+    current_record = current_record,
+    modif_type     = modif_type,
+    add_backup     = add_backup
+  )
+
+  cli::cli_alert_success("Specimen {id_speci} updated")
+
+  if (show_results)
+    tryCatch(
+      query_specimens(id_specimen = id_speci, con = mydb),
+      error = function(e)
+        cli::cli_alert_warning("Could not display updated specimen: {e$message}")
+    )
+
+  invisible(changes)
+}
+
+
+#' Write specimen field updates (backup + update) in a single transaction
+#'
+#' @param con Database connection or pool.
+#' @param id_speci Integer, specimen id.
+#' @param coerced Named list of already coerced new values.
+#' @param current_record One-row data frame with the current specimen record.
+#' @param modif_type Character, value stored in the backup \code{modif_type}.
+#' @param add_backup Logical, whether to write the backup row.
+#'
+#' @return Invisibly, the number of rows updated.
+#' @keywords internal
+.write_specimen_fields <- function(con,
+                                   id_speci,
+                                   coerced,
+                                   current_record,
+                                   modif_type,
+                                   add_backup = TRUE) {
+
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+
+  on.exit({
+    if (inherits(con, "Pool")) pool::poolReturn(actual_con)
+  }, add = TRUE)
+
+  fields <- names(coerced)
+  today  <- Sys.Date()
+
+  set_clause <- paste(
+    sprintf("%s = $%d", fields, seq_along(fields) + 1L),
+    collapse = ", "
+  )
+
+  offset <- length(fields) + 1L
+
+  sql <- sprintf(
+    paste0("UPDATE specimens SET %s, data_modif_d = $%d, data_modif_m = $%d, ",
+           "data_modif_y = $%d WHERE id_specimen = $1"),
+    set_clause, offset + 1L, offset + 2L, offset + 3L
+  )
+
+  params <- c(
+    list(id_speci),
+    unname(coerced),
+    list(lubridate::day(today),
+         lubridate::month(today),
+         lubridate::year(today))
+  )
+
+  n_updated <- DBI::dbWithTransaction(actual_con, {
+
+    if (add_backup) {
+
+      backup_cols <- setdiff(
+        colnames(dplyr::tbl(actual_con, "followup_updates_specimens")),
+        c("date_modified", "modif_type", "id_fol_up_specimens")
+      )
+
+      backup <- current_record[, intersect(backup_cols, names(current_record)),
+                               drop = FALSE]
+      backup$date_modified <- today
+      backup$modif_type    <- modif_type
+
+      DBI::dbWriteTable(actual_con, "followup_updates_specimens", backup,
+                        append = TRUE, row.names = FALSE)
+    }
+
+    DBI::dbExecute(actual_con, sql, params = params)
+  })
+
+  invisible(n_updated)
+}
+
+
 #' Update specimens data data
 #'
 #' Update specimens data plot _ at a time
