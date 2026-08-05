@@ -6,6 +6,16 @@
 
 ### New Features
 
+* **`update_specimen_fields()`** — new exported function (`R/updates_tables_functions.R`) for updating the non-identification columns of a single specimen: `colnbr`, `suffix`, `coly`, `colm`, `cold`, `add_col`, `locality`, `country`, `ddlat`, `ddlon`, `description`, `original_tax_name`. Until now only `update_ident_specimens()` could write to `specimens`, and its `UPDATE` is limited to `idtax_n`, the `det*` columns, `colnbr` and `suffix`, leaving the other columns with no update path
+  - Fields are whitelisted with a declared type (`.specimen_editable_fields()`) and coerced accordingly; only values that actually differ from the stored ones are written
+  - `NA` or an empty string clears a field (sets it to `NULL`); a field absent from `new_values`, or set to `NULL`, is left untouched
+  - The backup row in `followup_updates_specimens` and the `UPDATE` run in a single transaction, checking out from a pool when one is supplied via `con`
+
+* **Specimen identification app — edit specimen fields manually** (`R/mod_specid_manual.R`) — the manual pane of `launch_specimen_identification_app()` gains a *"4b. Collection, locality & notes"* section for `coly`/`colm`/`cold`, `add_col`, `locality`, `country`, `ddlat`, `ddlon` and `description`, applied through `update_specimen_fields()`
+  - Unlike the determination section (where an empty field means *keep the current value*), these inputs are pre-filled with the current values and are absolute: clearing one erases it in the database. Both sections now state their rule in the UI, and a "Reset to current values" link restores the stored values
+  - The current-values card and the preview diff cover the new fields, and the specimen is re-queried after a successful apply so the pane reflects what is stored
+  - Batch mode is unchanged and still updates identification only
+
 * **Tropicos bulk upload conversion** (`R/tropicos_export_functions.R`)
   - **`build_tropicos_upload_table()`** — converts `query_specimens()` output into the 31-column Tropicos bulk upload template layout (dates split into day/month/year, collection number + suffix, taxon name, `SeniorCollectorPersonID` joined from `table_colnam.id_tropicos_person`). Columns with no reliable database source (e.g. `Duplicates`, `DeterminationQualifier`, `AuthorityKey`) are always left blank rather than guessed
   - **`build_specimens_from_tropicos()`** — the reverse: converts an already-imported Tropicos specimen export/search-results table (a different column layout from the upload template, see `inst/docs/example_tropicos.csv`) into a `query_specimens()`-shaped tibble, ready for taxon/collector ID resolution and review before `add_specimens()`. Resolves `id_colnam` precisely via `SeniorCollectorPersonID` → `table_colnam.id_tropicos_person` when a connection is supplied (calls `call.mydb()` if `con` is `NULL`)
