@@ -7,8 +7,28 @@
 #   4. User searches and selects a new accepted taxon (idtax_n) via an
 #      embedded mini taxa search.
 #   5. User optionally edits detd/detm/dety/detby/detvalue/colnbr/suffix.
-#   6. Module shows a diff (current vs new) and a Confirm button.
-#   7. On confirm, update_ident_specimens() is called with ask_before_update=FALSE.
+#   6. User optionally edits the other specimen fields (collection date,
+#      locality, coordinates, notes). Those inputs are pre-filled with the
+#      current values and are absolute: clearing one clears the field.
+#   7. Module shows a diff (current vs new) and a Confirm button.
+#   8. On confirm, update_ident_specimens() is called with
+#      ask_before_update=FALSE for the identification part, and
+#      update_specimen_fields() for the remaining fields.
+
+# Non-identification specimen fields editable in the manual pane, mapped to
+# the type of shiny input used for them. Names must exist both in the
+# `specimens` table and in .specimen_editable_fields().
+.SPECID_MANUAL_FIELDS <- c(
+  coly        = "numeric",
+  colm        = "numeric",
+  cold        = "numeric",
+  locality    = "text",
+  country     = "text",
+  ddlat       = "numeric",
+  ddlon       = "numeric",
+  add_col     = "text",
+  description = "text"
+)
 
 #' Manual mode UI
 #' @param id Module id
@@ -89,10 +109,16 @@ mod_specid_manual_ui <- function(id, i18n) {
         mod_taxa_search_ui(ns("taxa_pick"))
       ),
 
-      # --- 4. Other fields ---
+      # --- 4. Determination fields ---
       shiny::wellPanel(
         shiny::h4(shiny::icon("calendar-day"), " ",
                   i18n$t("4. Determination & specimen metadata (optional)")),
+        shiny::tags$p(
+          class = "text-muted",
+          shiny::tags$small(
+            i18n$t("Leave a field empty to keep its current value.")
+          )
+        ),
         shiny::fluidRow(
           shiny::column(2, shiny::numericInput(ns("new_dety"), i18n$t("Det year"),
                                                value = NA, min = 1700, max = 2200)),
@@ -106,6 +132,48 @@ mod_specid_manual_ui <- function(id, i18n) {
         shiny::fluidRow(
           shiny::column(4, shiny::textInput(ns("new_colnbr"), i18n$t("New collector number"))),
           shiny::column(4, shiny::textInput(ns("new_suffix"), i18n$t("New suffix")))
+        )
+      ),
+
+      # --- 4b. Other specimen fields (collection, locality, notes) ---
+      shiny::wellPanel(
+        shiny::h4(shiny::icon("map-marker-alt"), " ",
+                  i18n$t("4b. Collection, locality & notes (optional)")),
+        shiny::tags$p(
+          class = "text-muted",
+          shiny::tags$small(
+            i18n$t("These fields are pre-filled with the current values. Edit them directly - clearing a field will erase its value in the database.")
+          )
+        ),
+        shiny::fluidRow(
+          shiny::column(2, shiny::numericInput(ns("new_coly"), i18n$t("Collection year"),
+                                               value = NA, min = 1700, max = 2200)),
+          shiny::column(2, shiny::numericInput(ns("new_colm"), i18n$t("Collection month"),
+                                               value = NA, min = 1, max = 12)),
+          shiny::column(2, shiny::numericInput(ns("new_cold"), i18n$t("Collection day"),
+                                               value = NA, min = 1, max = 31)),
+          shiny::column(6, shiny::textInput(ns("new_add_col"),
+                                            i18n$t("Additional collectors")))
+        ),
+        shiny::fluidRow(
+          shiny::column(6, shiny::textInput(ns("new_locality"), i18n$t("Locality"))),
+          shiny::column(6, shiny::textInput(ns("new_country"), i18n$t("Country")))
+        ),
+        shiny::fluidRow(
+          shiny::column(3, shiny::numericInput(ns("new_ddlat"), i18n$t("Latitude (ddlat)"),
+                                               value = NA, min = -90, max = 90)),
+          shiny::column(3, shiny::numericInput(ns("new_ddlon"), i18n$t("Longitude (ddlon)"),
+                                               value = NA, min = -180, max = 180))
+        ),
+        shiny::fluidRow(
+          shiny::column(12, shiny::textAreaInput(ns("new_description"),
+                                                 i18n$t("Description / notes"),
+                                                 width = "100%", rows = 3))
+        ),
+        shiny::actionLink(
+          ns("reset_fields"),
+          label = shiny::tagList(shiny::icon("undo"), " ",
+                                 i18n$t("Reset to current values"))
         )
       ),
 
@@ -152,6 +220,58 @@ mod_specid_manual_server <- function(id, pool_main, pool_taxa, i18n,
     shiny::observeEvent(selected_speci(), {
       taxa_reset_counter(taxa_reset_counter() + 1)
     }, ignoreNULL = TRUE, ignoreInit = TRUE)
+
+    # ----- Non-identification fields: pre-fill with current values -----
+    .fill_specimen_fields <- function(s) {
+      if (is.null(s)) return(invisible(NULL))
+      for (field in names(.SPECID_MANUAL_FIELDS)) {
+        value <- s[[field]]
+        has_value <- !is.null(value) && length(value) == 1 && !is.na(value)
+        if (identical(.SPECID_MANUAL_FIELDS[[field]], "numeric")) {
+          shiny::updateNumericInput(
+            session, paste0("new_", field),
+            value = if (has_value) as.numeric(value) else NA
+          )
+        } else {
+          shiny::updateTextInput(
+            session, paste0("new_", field),
+            value = if (has_value) as.character(value) else ""
+          )
+        }
+      }
+      invisible(NULL)
+    }
+
+    shiny::observeEvent(selected_speci(), {
+      .fill_specimen_fields(selected_speci())
+    }, ignoreNULL = TRUE)
+
+    shiny::observeEvent(input$reset_fields, {
+      .fill_specimen_fields(selected_speci())
+    })
+
+    # Named list of the section 4b inputs, shaped the way
+    # update_specimen_fields() expects (NA meaning "clear the field").
+    # Fields absent from the queried record are skipped so that a missing
+    # column can never be mistaken for a request to erase a value.
+    .specimen_field_inputs <- function() {
+      s <- selected_speci()
+      out <- list()
+      for (field in names(.SPECID_MANUAL_FIELDS)) {
+        if (is.null(s) || !field %in% names(s)) next
+        value <- input[[paste0("new_", field)]]
+        if (is.null(value)) {
+          out[[field]] <- NA
+        } else if (is.character(value) && !nzchar(trimws(value))) {
+          out[[field]] <- NA
+        } else if (length(value) == 1 && is.na(value)) {
+          out[[field]] <- NA
+        } else {
+          out[[field]] <- value
+        }
+      }
+      out
+    }
 
     # Embed mod_taxa_search (same module used by launch_taxo_backbone_app);
     # returns reactive holding the selected row (1-row tibble) or NULL.
@@ -395,7 +515,19 @@ mod_specid_manual_server <- function(id, pool_main, pool_taxa, i18n,
                          shiny::tags$td(sprintf("%s / %s-%s-%s / %s",
                                                 fmt(s$detby), fmt(s$dety),
                                                 fmt(s$detm), fmt(s$detd),
-                                                fmt(s$detvalue))))
+                                                fmt(s$detvalue)))),
+          shiny::tags$tr(shiny::tags$th("coly-colm-cold / add_col"),
+                         shiny::tags$td(sprintf("%s-%s-%s / %s",
+                                                fmt(s$coly), fmt(s$colm),
+                                                fmt(s$cold), fmt(s$add_col)))),
+          shiny::tags$tr(shiny::tags$th("locality / country"),
+                         shiny::tags$td(paste(fmt(s$locality), "/",
+                                              fmt(s$country)))),
+          shiny::tags$tr(shiny::tags$th("ddlat / ddlon"),
+                         shiny::tags$td(paste(fmt(s$ddlat), "/",
+                                              fmt(s$ddlon)))),
+          shiny::tags$tr(shiny::tags$th("description"),
+                         shiny::tags$td(fmt(s$description)))
         )
       )
     })
@@ -424,6 +556,10 @@ mod_specid_manual_server <- function(id, pool_main, pool_taxa, i18n,
         colnbr   = get_new(input$new_colnbr, s$colnbr),
         suffix   = get_new(input$new_suffix, s$suffix)
       )
+
+      # Section 4b fields are absolute: whatever is in the input wins, an
+      # empty input meaning the value will be cleared.
+      new_values <- c(new_values, .specimen_field_inputs())
 
       data.frame(
         field   = names(new_values),
@@ -553,6 +689,7 @@ mod_specid_manual_server <- function(id, pool_main, pool_taxa, i18n,
         }
 
         result <- tryCatch({
+          # Identification & determination metadata
           update_ident_specimens(
             id_speci      = as.integer(s$id_specimen),
             id_new_taxa   = new_idtax,
@@ -568,11 +705,45 @@ mod_specid_manual_server <- function(id, pool_main, pool_taxa, i18n,
             only_new_ident = FALSE,
             ask_before_update = FALSE
           )
-          list(ok = TRUE)
+
+          shiny::incProgress(0.3)
+
+          # Collection / locality / notes fields
+          changed <- update_specimen_fields(
+            id_speci          = as.integer(s$id_specimen),
+            new_values        = .specimen_field_inputs(),
+            add_backup        = TRUE,
+            ask_before_update = FALSE,
+            show_results      = FALSE,
+            con               = pool_main()
+          )
+
+          list(ok = TRUE, n_fields = nrow(changed))
         }, error = function(e) list(ok = FALSE, err = e$message))
 
         shiny::incProgress(1)
         apply_status(result)
+
+        # Refresh the selected specimen so the current values, the pre-filled
+        # inputs and any further diff reflect what is now stored.
+        if (isTRUE(result$ok)) {
+          tryCatch({
+            refreshed <- query_specimens(
+              id_specimen    = as.integer(s$id_specimen),
+              interactive    = FALSE,
+              show_html      = FALSE,
+              subset_columns = FALSE,
+              con            = pool_main(),
+              con.taxa       = pool_taxa()
+            )
+            if (!is.null(refreshed) && nrow(refreshed) == 1) {
+              selected_speci(refreshed)
+              diff_tbl(NULL)
+            }
+          }, error = function(e) {
+            message("could not refresh specimen after update: ", e$message)
+          })
+        }
       })
     })
 
@@ -580,8 +751,15 @@ mod_specid_manual_server <- function(id, pool_main, pool_taxa, i18n,
       r <- apply_status()
       if (is.null(r)) return(NULL)
       if (isTRUE(r$ok)) {
+        detail <- if (!is.null(r$n_fields) && r$n_fields > 0) {
+          shiny::tags$small(
+            shiny::br(),
+            sprintf(i18n()$t("%d specimen field(s) updated (excluding identification)."),
+                    r$n_fields)
+          )
+        } else NULL
         shiny::div(class = "alert alert-success", shiny::icon("check-circle"),
-                   " ", i18n()$t("Update applied successfully."))
+                   " ", i18n()$t("Update applied successfully."), detail)
       } else {
         shiny::div(class = "alert alert-danger", shiny::icon("times-circle"),
                    " ", paste(i18n()$t("Update failed:"), r$err))
