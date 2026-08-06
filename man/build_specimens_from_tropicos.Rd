@@ -19,7 +19,7 @@ A tibble with one row per input record: `colnam`, `id_colnam`,
   `colnbr`, `suffix`, `ddlat`, `ddlon`, `country`, `locality`, `detby`,
   `detd`, `detm`, `dety`, `add_col`, `cold`, `colm`, `coly`, `detvalue`,
   `description`, `idtax_n`, `idtax_f`, `tax_gen`, `tax_esp`, `tax_fam`,
-  `tax_infra_level`, `tax_infra`, `id_tropicos`, `id_tropicos_specimen`.
+  `tax_infra_level`, `tax_infra`, `id_tropicos_name`, `id_tropicos_specimen`.
 }
 \description{
 Converts a Tropicos specimen export/search-results CSV (e.g. as
@@ -58,8 +58,11 @@ Tropicos' own pre-built `NameNoAuthors` when `Species` is present (`NA`
 for genus-only records), matching this package's own convention (see
 `.format_taxa_names()`).
 
-`id_tropicos` (the taxon's Tropicos Name ID, already a `specimens` column
-elsewhere in this package) maps directly from `NameID`.
+`id_tropicos_name` is the taxon's Tropicos Name ID, mapped directly from
+`NameID`. **It is not the `specimens.id_tropicos` column**, which holds the
+Tropicos *collection* ID (one per gathering event) -- a different
+namespace. Do not map it onto `id_tropicos` when calling [add_specimens()];
+use it to resolve the name against this database's backbone instead.
 
 **`idtax_n`/`idtax_f` are always `NA`** -- resolving a Tropicos name to
 this database's taxon backbone (`table_taxa`) is a separate step; use the
@@ -74,7 +77,11 @@ if the export includes `DeterminationDay`/`DeterminationMonth` columns --
 An extra `id_tropicos_specimen` column (Tropicos' own `SpecimenID`, not a
 `specimens` table column) is included for your own traceability/audit --
 [add_specimens()] only keeps whatever columns you explicitly map, so it's
-safe to leave in and simply not map.
+safe to leave in and simply not map. Note that `SpecimenID` identifies one
+physical herbarium sheet, so several rows of a Tropicos export -- one per
+institution holding a duplicate -- can correspond to a single row of
+`specimens`; deduplicate on `colnbr`/`suffix` before comparing with the
+database (see `inst/scripts/pird_collection_status.R`).
 }
 
 \examples{
