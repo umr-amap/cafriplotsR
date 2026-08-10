@@ -15,7 +15,7 @@ country_list <- function() {
   mydb <- call.mydb()
 
   nn <- func_try_fetch(con = mydb,
-                       sql = glue::glue_sql("SELECT * FROM table_countries"))
+                       sql = DBI::SQL("SELECT * FROM table_countries"))
 
   nn <- nn %>% arrange(country)
 
@@ -39,8 +39,8 @@ method_list <- function() {
 
   mydb <- call.mydb()
 
-  nn <- func_try_fetch(con = mydb, 
-                       sql = glue::glue_sql("SELECT * FROM methodslist"))
+  nn <- func_try_fetch(con = mydb,
+                       sql = DBI::SQL("SELECT * FROM methodslist"))
   
   return(nn)
 }

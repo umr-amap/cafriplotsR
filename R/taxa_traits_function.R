@@ -631,7 +631,10 @@ query_trait <- function(id_trait = NULL, pattern = NULL, con = NULL) {
 
     cli::cli_alert_info("query trait by string pattern")
 
-    sql <- glue::glue_sql(paste0("SELECT * FROM traitlist WHERE trait ILIKE '%", pattern, "%'"))
+    sql <- glue::glue_sql(
+      "SELECT * FROM traitlist WHERE trait ILIKE {paste0('%', pattern, '%')}",
+      .con = con
+    )
 
     valuetype <- func_try_fetch(con = con, sql = sql)
     
