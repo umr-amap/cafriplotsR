@@ -937,6 +937,20 @@ mod_lookup_matcher_server <- function(id, invalid_values, con,
           width = "100%"
         ),
 
+        # Warn when the lookup table could not be loaded (empty suggestion list)
+        if (nrow(suggestions) == 0) {
+          shiny::div(
+            class = "alert alert-danger",
+            style = "margin-top: 10px; padding: 8px; font-size: 13px;",
+            shiny::icon("triangle-exclamation"),
+            shiny::strong(" No candidates available. "),
+            sprintf(
+              "The lookup table for '%s' could not be read from the database. Check the R console for errors before creating a new entry.",
+              column_name
+            )
+          )
+        },
+
         # Show description for selected value (dynamic)
         shiny::uiOutput(ns(paste0(input_id, "_desc")))
       )
