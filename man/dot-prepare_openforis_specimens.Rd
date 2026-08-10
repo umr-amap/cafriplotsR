@@ -14,7 +14,10 @@
   col_year = NULL,
   collector = NULL,
   additional_people = NULL,
-  description_col = "stem_diameter"
+  additional_collector = NULL,
+  deduplicate = FALSE,
+  description_col = "stem_diameter",
+  branch_position_col = "branch_position"
 )
 }
 \arguments{
@@ -37,8 +40,24 @@ if a \code{ddlat}/\code{ddlon} column is present). Can be NULL.}
 
 \item{additional_people}{Character. Additional collectors.}
 
+\item{additional_collector}{Character scalar applied to every specimen, or a
+data frame with columns \code{plot_name} and \code{additional_collector}
+giving the collecting team per plot. Written to an
+\code{additional_collector} column.}
+
+\item{deduplicate}{Logical. If TRUE, keep a single row per unique specimen
+instead of one row per individual carrying it. Among duplicates the row
+with both a \code{specimen_number} and a \code{colnbr} wins, ties going to
+the first individual bearing the voucher; the full individual-to-specimen
+link stays available in \code{trees}.}
+
 \item{description_col}{Column name in \code{trees} used to build description
 (default "stem_diameter"). Set to NULL to skip.}
+
+\item{branch_position_col}{Column name in \code{trees} giving the origin of
+the collected branch (default "branch_position"). Only the value
+\code{"rejet"} is added to the description; \code{"shade_branch"} and
+\code{"light_branch"} are ignored.}
 }
 \value{
 Data frame ready for \code{add_specimens()}, or NULL if no specimens.
@@ -47,6 +66,7 @@ Data frame ready for \code{add_specimens()}, or NULL if no specimens.
 Filters trees that have a \code{herbarium_nbe_char} value, applies the
 specimen prefix, extracts a numeric collection number (\code{colnbr}),
 and attaches plot coordinates and user-supplied metadata. The output
-is ready for \code{add_specimens()}.
+is ready for \code{add_specimens()}. With \code{deduplicate = TRUE} the
+result holds one row per unique voucher rather than one row per individual.
 }
 \keyword{internal}

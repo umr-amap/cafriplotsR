@@ -28,6 +28,7 @@ process_openforis_census(
   specimen_col_year = NULL,
   specimen_collector = NULL,
   specimen_description_col = "stem_diameter",
+  specimen_branch_position_col = "branch_position",
   recruit_state = "recruted",
   plot_name_col = "plot_plot_name",
   tag_col = "arbre",
@@ -105,6 +106,12 @@ numbers contain duplicates. NULL (default) skips remapping.}
 
 \item{specimen_description_col}{Column name from the tree file used to build
 a description string (default \code{"stem_diameter"}). Set to NULL to skip.}
+
+\item{specimen_branch_position_col}{Column name from the tree file giving the
+origin of the collected branch (default \code{"branch_position"}). Rows
+with the value \code{"rejet"} get "Echantillon collecté sur un rejet"
+appended to the description; \code{"shade_branch"} and
+\code{"light_branch"} are ignored.}
 
 \item{recruit_state}{Character. Value in the \code{state} column that marks
 recruits (default \code{"recruted"} — the OpenForis spelling).}
