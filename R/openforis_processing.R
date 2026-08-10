@@ -66,6 +66,11 @@
 #'   (e.g. "PIRD"). Stored as \code{colnam}. NULL to omit.
 #' @param specimen_description_col Column name from the tree file used to build
 #'   a description string (default \code{"stem_diameter"}). Set to NULL to skip.
+#' @param specimen_branch_position_col Column name from the tree file giving the
+#'   origin of the collected branch (default \code{"branch_position"}). Rows
+#'   with the value \code{"rejet"} get "Echantillon collecté sur un rejet"
+#'   appended to the description; \code{"shade_branch"} and
+#'   \code{"light_branch"} are ignored.
 #' @param recruit_state Character. Value in the \code{state} column that marks
 #'   recruits (default \code{"recruted"} — the OpenForis spelling).
 #' @param plot_name_col Column name for plot name in tree file
@@ -165,6 +170,7 @@ process_openforis_census <- function(data_dir = NULL,
                                      specimen_col_year = NULL,
                                      specimen_collector = NULL,
                                      specimen_description_col = "stem_diameter",
+                                     specimen_branch_position_col = "branch_position",
                                      recruit_state = "recruted",
                                      plot_name_col = "plot_plot_name",
                                      tag_col = "arbre",
@@ -586,7 +592,8 @@ process_openforis_census <- function(data_dir = NULL,
     col_year = specimen_col_year,
     collector = specimen_collector,
     additional_people = additional_people,
-    description_col = specimen_description_col
+    description_col = specimen_description_col,
+    branch_position_col = specimen_branch_position_col
   )
   if (!is.null(specimens)) {
     cli::cli_alert_success("Prepared {nrow(specimens)} specimen(s)")
@@ -817,7 +824,8 @@ process_openforis_census <- function(data_dir = NULL,
 #' Filters trees that have a \code{herbarium_nbe_char} value, applies the
 #' specimen prefix, extracts a numeric collection number (\code{colnbr}),
 #' and attaches plot coordinates and user-supplied metadata. The output
-#' is ready for \code{add_specimens()}.
+#' is ready for \code{add_specimens()}. With \code{deduplicate = TRUE} the
+#' result holds one row per unique voucher rather than one row per individual.
 #'
 #' @param trees Full tree data frame (all individuals, already tag-resolved).
 #' @param census_metadata Census metadata tibble (used to get plot coordinates
@@ -829,8 +837,21 @@ process_openforis_census <- function(data_dir = NULL,
 #' @param col_year Integer. Collection year.
 #' @param collector Character. Collector code (stored as \code{colnam}).
 #' @param additional_people Character. Additional collectors.
+#' @param additional_collector Character scalar applied to every specimen, or a
+#'   data frame with columns \code{plot_name} and \code{additional_collector}
+#'   giving the collecting team per plot. Written to an
+#'   \code{additional_collector} column.
+#' @param deduplicate Logical. If TRUE, keep a single row per unique specimen
+#'   instead of one row per individual carrying it. Among duplicates the row
+#'   with both a \code{specimen_number} and a \code{colnbr} wins, ties going to
+#'   the first individual bearing the voucher; the full individual-to-specimen
+#'   link stays available in \code{trees}.
 #' @param description_col Column name in \code{trees} used to build description
 #'   (default "stem_diameter"). Set to NULL to skip.
+#' @param branch_position_col Column name in \code{trees} giving the origin of
+#'   the collected branch (default "branch_position"). Only the value
+#'   \code{"rejet"} is added to the description; \code{"shade_branch"} and
+#'   \code{"light_branch"} are ignored.
 #' @return Data frame ready for \code{add_specimens()}, or NULL if no specimens.
 #' @keywords internal
 .prepare_openforis_specimens <- function(trees, census_metadata = NULL,
@@ -839,7 +860,10 @@ process_openforis_census <- function(data_dir = NULL,
                                          col_month = NULL, col_year = NULL,
                                          collector = NULL,
                                          additional_people = NULL,
-                                         description_col = "stem_diameter") {
+                                         additional_collector = NULL,
+                                         deduplicate = FALSE,
+                                         description_col = "stem_diameter",
+                                         branch_position_col = "branch_position") {
 
   if (!"herbarium_nbe_char" %in% names(trees)) return(NULL)
 
@@ -895,17 +919,27 @@ process_openforis_census <- function(data_dir = NULL,
   desc_meas <- if (!is.null(description_col) && description_col %in% names(spec)) {
     vals <- suppressWarnings(as.numeric(spec[[description_col]]))
     ifelse(!is.na(vals),
-           paste("Tree with diameter of", vals, "cm measured at breast height"),
+           paste("Arbre de diamètre", vals, "cm mesurée à hauteur de poitrine"),
            NA_character_)
   } else {
     rep(NA_character_, nrow(spec))
   }
 
-  result$description <- ifelse(
-    !is.na(desc_field) & !is.na(desc_meas),
-    paste(desc_field, desc_meas, sep = ". "),
-    ifelse(!is.na(desc_field), desc_field, desc_meas)
-  )
+  # Origin of the collected branch: only 'rejet' is informative
+  desc_branch <- if (branch_position_col %in% names(spec)) {
+    is_rejet <- tolower(trimws(as.character(spec[[branch_position_col]]))) == "rejet"
+    is_rejet[is.na(is_rejet)] <- FALSE
+    ifelse(is_rejet, "Echantillon collecté sur un rejet", NA_character_)
+  } else {
+    rep(NA_character_, nrow(spec))
+  }
+
+  desc_parts <- list(desc_field, desc_meas, desc_branch)
+  result$description <- vapply(seq_len(nrow(spec)), function(i) {
+    parts <- vapply(desc_parts, function(x) x[i], character(1))
+    parts <- parts[!is.na(parts) & nzchar(trimws(parts))]
+    if (length(parts) == 0) NA_character_ else paste(parts, collapse = ". ")
+  }, character(1))
 
   # Plot coordinates from census_metadata or from trees
   if (!is.null(census_metadata) && all(c("ddlat", "ddlon") %in% names(census_metadata))) {
@@ -921,6 +955,45 @@ process_openforis_census <- function(data_dir = NULL,
   if (!is.null(col_month)) result$colm <- as.integer(col_month)
   if (!is.null(col_year)) result$coly <- as.integer(col_year)
   if (!is.null(additional_people)) result$additional_people <- additional_people
+
+  # Collecting team, either a single string or one value per plot
+  if (!is.null(additional_collector)) {
+    result$additional_collector <- if (is.data.frame(additional_collector)) {
+      additional_collector$additional_collector[
+        match(result$plot_name, additional_collector$plot_name)
+      ]
+    } else {
+      as.character(additional_collector)
+    }
+  }
+
+  # One row per specimen: several individuals can carry the same voucher
+  if (deduplicate) {
+    key <- result$herbarium_nbe_char
+    if (all(is.na(key)) && "specimen_number" %in% names(result))
+      key <- result$specimen_number
+    key <- trimws(as.character(key))
+    blank <- is.na(key) | !nzchar(key)
+    if (any(blank)) key[blank] <- paste0("__unkeyed__", which(blank))
+
+    # Among duplicates, keep the row carrying both collection numbers
+    numbered <- rep(0L, nrow(result))
+    for (cl in c("specimen_number", "colnbr")) {
+      if (cl %in% names(result)) numbered <- numbered + !is.na(result[[cl]])
+    }
+    ord <- order(-numbered, seq_len(nrow(result)))
+    keep <- sort(ord[!duplicated(key[ord])])
+
+    n_dropped <- nrow(result) - length(keep)
+    if (n_dropped > 0) {
+      cli::cli_alert_warning(paste(
+        "{n_dropped} individual{?s} carr{?ies/y} a voucher already listed —",
+        "keeping one row per specimen ({length(keep)} unique)"
+      ))
+      result <- result[keep, , drop = FALSE]
+      rownames(result) <- NULL
+    }
+  }
 
   # Sort by collection number
   if ("colnbr" %in% names(result)) {
