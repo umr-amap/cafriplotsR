@@ -119,13 +119,47 @@ validate_individual_data <- function(individuals_data,
 
   cli::cli_h2("Step 1: Validating individuals sheet")
 
-  # 0. Auto-generate tags if missing
+  # 0a. Tag values, checked before anything is allowed to rewrite them.
+  # Auto-generation below coerces the column to numeric, so a character tag
+  # like "A12" would become NA and then be overwritten with a row number.
+  # Checking first means such a column is reported instead of replaced.
+  cli::cli_alert_info("Checking tag values...")
+  tag_check <- tryCatch(
+    .validate_tag_values(validated_individuals,
+                         max_exact = .tag_precision_limit(con)),
+    error = function(e) {
+      message(hdr, " ERROR in .validate_tag_values: ", conditionMessage(e))
+      stop(paste0("[tag values check] ", conditionMessage(e)), call. = FALSE)
+    }
+  )
+  errors <- c(errors, tag_check$errors)
+  warnings <- c(warnings, tag_check$warnings)
+  tags_are_usable <- length(tag_check$errors) == 0
+
+  # 0b. Auto-generate tags if missing
   cli::cli_alert_info("Checking tag column...")
 
-  missing_all_tags <- !"tag" %in% names(validated_individuals) || all(is.na(validated_individuals$tag))
-  missing_some_tags <- "tag" %in% names(validated_individuals) && any(is.na(validated_individuals$tag)) && !missing_all_tags
+  # .normalize_tag() is the package's one definition of "blank tag": it treats
+  # NA, "" and whitespace alike, so a text column of empty cells counts as
+  # missing here exactly as an NA numeric column does
+  tag_missing <- if (!"tag" %in% names(validated_individuals)) {
+    rep(TRUE, nrow(validated_individuals))
+  } else {
+    is.na(.normalize_tag(validated_individuals$tag))
+  }
+  missing_all_tags <- all(tag_missing)
+  missing_some_tags <- any(tag_missing) && !missing_all_tags
 
-  if (missing_all_tags || missing_some_tags) {
+  if (!tags_are_usable && (missing_all_tags || missing_some_tags)) {
+    cli::cli_alert_danger(
+      "Skipping tag auto-generation: the tag column has values that cannot be read as numbers"
+    )
+    cli::cli_alert_info(
+      "Fix or clear those values first — generating now would replace them with row numbers"
+    )
+  }
+
+  if (tags_are_usable && (missing_all_tags || missing_some_tags)) {
     # Display warning about missing tags
     cat("\n")
     cli::cli_div(theme = list(rule = list(color = "yellow")))
@@ -140,12 +174,9 @@ validate_individual_data <- function(individuals_data,
         "Affected plots: {.strong {length(unique(validated_individuals$plot_name))}}"
       ))
     } else {
-      na_count <- sum(is.na(validated_individuals$tag))
+      na_count <- sum(tag_missing)
       cli::cli_alert_warning("{na_count} individual(s) have missing tag values")
-      na_plots <- validated_individuals %>%
-        dplyr::filter(is.na(tag)) %>%
-        dplyr::pull(plot_name) %>%
-        unique()
+      na_plots <- unique(validated_individuals$plot_name[tag_missing])
       cli::cli_ul(c(
         "Rows with missing tags: {.strong {na_count}}",
         "Affected plots: {.strong {paste(na_plots, collapse = ', ')}}"
@@ -199,7 +230,9 @@ validate_individual_data <- function(individuals_data,
       ))
       cli::cli_alert_success("Generated tags for {nrow(validated_individuals)} individuals")
     } else {
-      na_count <- sum(is.na(original_individuals$tag))
+      # Count the rows generation actually filled, not the NAs in the input:
+      # the two differ whenever the column arrived as text
+      na_count <- sum(tag_missing)
       all_changes <- rbind(all_changes, data.frame(
         step = "Tag Generation",
         change = sprintf("Generated sequential tags for %d rows with missing tags", na_count),
@@ -298,17 +331,8 @@ validate_individual_data <- function(individuals_data,
     warnings <- c(warnings, required_check$warnings)
   }
 
-  # 2. Tag validation (numeric, not 0, after auto-generation)
-  cli::cli_alert_info("Checking tag values...")
-  tag_check <- tryCatch(
-    .validate_tag_values(validated_individuals),
-    error = function(e) {
-      message(hdr, " ERROR in .validate_tag_values: ", conditionMessage(e))
-      stop(paste0("[tag values check] ", conditionMessage(e)), call. = FALSE)
-    }
-  )
-  errors <- c(errors, tag_check$errors)
-  warnings <- c(warnings, tag_check$warnings)
+  # 2. Tag validation ran as step 0a, before auto-generation could rewrite
+  # the column. Repeating it here would report every tag problem twice.
 
   # 3. Plot existence and access
   cli::cli_alert_info("Checking plot existence and access...")
@@ -597,14 +621,66 @@ validate_individual_data <- function(individuals_data,
 }
 
 
+#' Largest tag the database can store exactly (Internal)
+#'
+#' `data_individuals.tag` was created as a PostgreSQL `real` — single
+#' precision, exact for integers only to 2^24. [migrate_tag_to_numeric()]
+#' widens it, after which any tag R can hold is safe. Reading the type rather
+#' than assuming it means the ceiling is right both before and after that
+#' migration, with no edit needed in between.
+#'
+#' @param con Database connection, or `NULL`.
+#' @return `2^24` while the column is single precision, otherwise `2^53` — the
+#'   limit R's own doubles impose. Also `2^53` when the type cannot be read, so
+#'   a permissions problem never rejects a legitimate tag.
+#' @keywords internal
+.tag_precision_limit <- function(con = NULL) {
+
+  r_double_limit <- 2^53
+  if (is.null(con)) return(r_double_limit)
+
+  tryCatch({
+    actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+    on.exit({
+      if (inherits(con, "Pool")) pool::poolReturn(actual_con)
+    }, add = TRUE)
+
+    type <- DBI::dbGetQuery(actual_con, "
+      SELECT data_type FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'data_individuals'
+         AND column_name = 'tag'")$data_type
+
+    if (length(type) == 1 && identical(type, "real")) 2^24 else r_double_limit
+
+  }, error = function(e) {
+    message("Note: could not read the tag column type (", conditionMessage(e),
+            "). Assuming full double precision.")
+    r_double_limit
+  })
+}
+
+
 #' Validate Tag Values (Internal)
 #'
 #' Tags must be numeric and valid (not 0, not NA).
 #'
+#' A tag too large for the column is stored rounded, with nothing downstream
+#' to notice, so the ceiling is checked here rather than left to the insert.
+#' Where that ceiling sits depends on the column type — see
+#' [.tag_precision_limit()] — which is why it arrives as an argument instead
+#' of being hard-coded.
+#'
+#' Every check runs on the parsed values, not on \code{is.numeric(data$tag)}:
+#' a tag column read from a spreadsheet as text used to skip the zero and
+#' negative checks entirely.
+#'
 #' @param data Data frame with tag column
+#' @param max_exact Largest integer the tag column can hold exactly. Defaults
+#'   to 2^53, the limit R itself imposes on a double.
 #' @return List with errors and warnings
 #' @keywords internal
-.validate_tag_values <- function(data) {
+.validate_tag_values <- function(data, max_exact = 2^53) {
   errors <- list()
   warnings <- list()
 
@@ -612,39 +688,53 @@ validate_individual_data <- function(individuals_data,
     return(list(errors = errors, warnings = warnings))
   }
 
-  # Check if numeric
-  if (!is.numeric(data$tag)) {
-    # Try to convert
-    tag_numeric <- suppressWarnings(as.numeric(data$tag))
-    if (any(is.na(tag_numeric) & !is.na(data$tag))) {
-      non_numeric_rows <- which(is.na(tag_numeric) & !is.na(data$tag))
-      errors <- c(errors, list(sprintf(
-        "Tag column has non-numeric values at rows: %s",
-        paste(non_numeric_rows, collapse = ", ")
-      )))
-    }
+  if (!is.numeric(max_exact) || length(max_exact) != 1 || is.na(max_exact)) {
+    max_exact <- 2^53
   }
 
-  # Check for zero values
-  if (is.numeric(data$tag)) {
-    zero_rows <- which(!is.na(data$tag) & data$tag == 0)
-    if (length(zero_rows) > 0) {
-      errors <- c(errors, list(sprintf(
-        "Tag cannot be 0 (rows: %s)",
-        paste(zero_rows, collapse = ", ")
-      )))
-    }
+  raw <- data$tag
+  if (is.factor(raw)) raw <- as.character(raw)
+  if (is.character(raw)) {
+    # An empty cell is a missing tag, not a malformed one
+    raw <- trimws(raw)
+    raw[!nzchar(raw)] <- NA_character_
+  }
+  tag_numeric <- suppressWarnings(as.numeric(raw))
+
+  non_numeric_rows <- which(!is.na(raw) & is.na(tag_numeric))
+  if (length(non_numeric_rows) > 0) {
+    errors <- c(errors, list(sprintf(
+      "Tag column has non-numeric values at rows: %s (e.g. %s). The database stores tags as numbers; letters or punctuation in a tag cannot be imported.",
+      paste(utils::head(non_numeric_rows, 20), collapse = ", "),
+      paste(utils::head(unique(as.character(raw[non_numeric_rows])), 5),
+            collapse = ", ")
+    )))
   }
 
-  # Check for negative values
-  if (is.numeric(data$tag)) {
-    neg_rows <- which(!is.na(data$tag) & data$tag < 0)
-    if (length(neg_rows) > 0) {
-      warnings <- c(warnings, list(sprintf(
-        "Tag has negative values at rows: %s (unusual but allowed)",
-        paste(neg_rows, collapse = ", ")
-      )))
-    }
+  zero_rows <- which(!is.na(tag_numeric) & tag_numeric == 0)
+  if (length(zero_rows) > 0) {
+    errors <- c(errors, list(sprintf(
+      "Tag cannot be 0 (rows: %s)",
+      paste(utils::head(zero_rows, 20), collapse = ", ")
+    )))
+  }
+
+  # Past the column's exact range a tag stores as a different number
+  too_large <- which(!is.na(tag_numeric) & abs(tag_numeric) > max_exact)
+  if (length(too_large) > 0) {
+    errors <- c(errors, list(sprintf(
+      "Tag values above %s cannot be stored exactly (rows: %s). They would be silently rounded to a different tag.",
+      format(max_exact, scientific = FALSE, big.mark = ","),
+      paste(utils::head(too_large, 20), collapse = ", ")
+    )))
+  }
+
+  neg_rows <- which(!is.na(tag_numeric) & tag_numeric < 0)
+  if (length(neg_rows) > 0) {
+    warnings <- c(warnings, list(sprintf(
+      "Tag has negative values at rows: %s (unusual but allowed)",
+      paste(utils::head(neg_rows, 20), collapse = ", ")
+    )))
   }
 
   return(list(errors = errors, warnings = warnings))
@@ -1352,12 +1442,32 @@ print_individual_validation_results <- function(validation) {
 .generate_sequential_tags <- function(data) {
   # Ensure tag column exists
   if (!"tag" %in% names(data)) {
-    data$tag <- NA_integer_
+    data$tag <- NA_real_
   }
 
-  # Convert tag to numeric if it isn't already
   if (!is.numeric(data$tag)) {
-    data$tag <- as.numeric(data$tag)
+    raw <- data$tag
+    if (is.factor(raw)) raw <- as.character(raw)
+    if (is.character(raw)) {
+      raw <- trimws(raw)
+      raw[!nzchar(raw)] <- NA_character_
+    }
+    parsed <- suppressWarnings(as.numeric(raw))
+
+    # Never coerce blindly. as.numeric() turns "A12" into NA, and the fill
+    # below then replaces it with a row number — so one blank cell in a
+    # character tag column used to rewrite every tag in the file, reported
+    # as though only the blank rows had changed. Callers validate tag values
+    # first, so unparseable tags reaching here are a bug, not user data.
+    lost <- !is.na(raw) & is.na(parsed)
+    if (any(lost)) {
+      stop(sprintf(
+        "Cannot auto-generate tags: %d tag value(s) are not numbers (e.g. %s). Generating would replace them with sequential row numbers.",
+        sum(lost),
+        paste(utils::head(unique(as.character(raw[lost])), 5), collapse = ", ")
+      ), call. = FALSE)
+    }
+    data$tag <- parsed
   }
 
   # Generate sequential tags per plot
