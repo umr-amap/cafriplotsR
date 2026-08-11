@@ -212,6 +212,8 @@ feature_wizard_server <- function(input, output, session, translator) {
 
   login_output <- mod_database_login_server("login")
   pool_main_reactive <- login_output$pool_main
+  # Taxon names live in the taxa database, so the revision step needs both
+  pool_taxa_reactive <- login_output$pool_taxa
   authenticated_reactive <- login_output$authenticated
 
   shiny::observe({
@@ -300,7 +302,11 @@ feature_wizard_server <- function(input, output, session, translator) {
       "2" = mod_feat_step2_choose_mode_ui("fw_step2", i18n()),
       "3" = {
         if (identical(mode, "import_census")) {
-          mod_feat_step3_census_import_ui("fw_step3_census", i18n())
+          shiny::tagList(
+            mod_feat_step3_census_import_ui("fw_step3_census", i18n()),
+            shiny::hr(),
+            mod_feat_step3b_taxon_revision_ui("fw_step3b_taxon", i18n())
+          )
         } else if (identical(mode, "add_measurements")) {
           mod_feat_step3_measurements_ui("fw_step3_meas", i18n())
         } else if (identical(mode, "define_multi_stems")) {
@@ -508,6 +514,27 @@ feature_wizard_server <- function(input, output, session, translator) {
       rv$lookup_complete <- FALSE
       rv$validation_result <- NULL
       rv$import_result <- NULL
+    })
+
+    # Step 3b: identifications the census table revises. Rendered under the
+    # census step rather than as a seventh step, but with its own decision
+    # controls — a revision overwrites a determination, so it is not something
+    # to be carried along by the measurement flow unnoticed.
+    step3b_revisions <- mod_feat_step3b_taxon_revision_server(
+      "fw_step3b_taxon",
+      split_result = shiny::reactive({
+        cfg <- step3_census_result()
+        if (is.null(cfg)) NULL else cfg$config$split
+      }),
+      con      = pool_main_reactive,
+      con_taxa = pool_taxa_reactive,
+      i18n     = i18n
+    )
+
+    shiny::observe({
+      shiny::req(identical(rv$operation_mode, "import_census"))
+      shiny::req(!is.null(rv$feature_config))
+      rv$feature_config$taxon_revisions <- step3b_revisions()
     })
 
     # Step 3: Multi-stems mode

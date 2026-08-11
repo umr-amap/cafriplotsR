@@ -295,7 +295,9 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
               shiny::tags$li(sprintf(i18n()$t("Stems grouped as multi-stems: %d"),
                                      .null_default(res$n_stem_grouping, 0L))),
               shiny::tags$li(sprintf(i18n()$t("Measurements inserted: %d"),
-                                     .null_default(res$n_measurements, 0L)))
+                                     .null_default(res$n_measurements, 0L))),
+              shiny::tags$li(sprintf(i18n()$t("Identifications revised: %d"),
+                                     .null_default(res$n_taxon_revisions, 0L)))
             )
           },
           if (identical(mode, "import_census")) {

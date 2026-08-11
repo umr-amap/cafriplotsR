@@ -8864,6 +8864,102 @@
     {
       "en": "These plots numbered tags per quadrat, so several recorded stems carry the same tag and the tag alone cannot say which tree was measured. These rows are excluded from the import — they have to be resolved against the individual ids listed below.",
       "fr": "Ces placettes numérotaient les étiquettes par quadrat : plusieurs tiges enregistrées portent donc la même étiquette, et celle-ci ne suffit pas à dire quel arbre a été mesuré. Ces lignes sont exclues de l'importation — elles doivent être résolues à partir des identifiants individuels listés ci-dessous."
+    },
+    {
+      "en": "Review Revised Identifications",
+      "fr": "Vérifier les identifications révisées"
+    },
+    {
+      "en": "Stems whose identification in the file differs from the database. Accepting a revision overwrites the determination held for that tree; the original field name is kept either way.",
+      "fr": "Tiges dont l'identification dans le fichier diffère de celle de la base. Accepter une révision écrase la détermination enregistrée pour cet arbre ; le nom de terrain d'origine est conservé dans les deux cas."
+    },
+    {
+      "en": "No identification in this file differs from the database.",
+      "fr": "Aucune identification de ce fichier ne diffère de la base."
+    },
+    {
+      "en": "Specimen of this tree",
+      "fr": "Spécimen de cet arbre"
+    },
+    {
+      "en": "Collected this census",
+      "fr": "Récolté lors de ce recensement"
+    },
+    {
+      "en": "Reference specimen",
+      "fr": "Spécimen de référence"
+    },
+    {
+      "en": "Field determination only",
+      "fr": "Détermination de terrain seulement"
+    },
+    {
+      "en": "Field only",
+      "fr": "Terrain seulement"
+    },
+    {
+      "en": "Some of these stems have a specimen collected from them. Revising the tree does not revise the specimen's own determination — do that in the specimen tools.",
+      "fr": "Certaines de ces tiges ont fait l'objet d'une récolte. Réviser l'arbre ne révise pas la détermination du spécimen lui-même — utilisez les outils spécimens pour cela."
+    },
+    {
+      "en": "Some stems carry a herbarium number in this file with no specimen link yet. The voucher is not in the database — link it once it is registered.",
+      "fr": "Certaines tiges portent un numéro d'herbier dans ce fichier sans lien de spécimen existant. Le spécimen n'est pas encore dans la base — créez le lien une fois qu'il sera enregistré."
+    },
+    {
+      "en": "Some rows identify a stem less precisely than the database does. That is usually a data entry problem rather than a revision, so they default to keeping the database value.",
+      "fr": "Certaines lignes identifient une tige de manière moins précise que la base. Il s'agit généralement d'une erreur de saisie plutôt que d'une révision : la valeur de la base est conservée par défaut."
+    },
+    {
+      "en": "Apply to all: ",
+      "fr": "Appliquer à tout : "
+    },
+    {
+      "en": "Accept those without a specimen",
+      "fr": "Accepter celles sans spécimen"
+    },
+    {
+      "en": "Accept everything",
+      "fr": "Tout accepter"
+    },
+    {
+      "en": "Keep the database value",
+      "fr": "Conserver la valeur de la base"
+    },
+    {
+      "en": "%d of %d revision(s) will be applied.",
+      "fr": "%d révision(s) sur %d seront appliquées."
+    },
+    {
+      "en": " (was unidentified)",
+      "fr": " (était non identifié)"
+    },
+    {
+      "en": " (less precise!)",
+      "fr": " (moins précis !)"
+    },
+    {
+      "en": "accept",
+      "fr": "accepter"
+    },
+    {
+      "en": "keep database",
+      "fr": "conserver la base"
+    },
+    {
+      "en": "Identifications revised: %d",
+      "fr": "Identifications révisées : %d"
+    },
+    {
+      "en": " %d identification(s) revised.",
+      "fr": " %d identification(s) révisée(s)."
+    },
+    {
+      "en": " %d identification(s) would be revised.",
+      "fr": " %d identification(s) seraient révisée(s)."
+    },
+    {
+      "en": "Upload xlsx file",
+      "fr": "Charger un fichier xlsx"
     }
   ]
 }

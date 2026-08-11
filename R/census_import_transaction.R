@@ -364,6 +364,30 @@
         "%d row(s) without a usable plot name or tag are excluded.", nrow(split$invalid)
       )))
     }
+    n_drift <- nrow(split$taxon_drift)
+    n_accepted <- if (is.null(config$taxon_revisions)) 0L
+                  else nrow(config$taxon_revisions)
+    if (n_drift > 0 && n_accepted == 0) {
+      warnings <- c(warnings, list(sprintf(
+        "%d remeasured stem(s) carry a different identification than the database, none accepted. The database value is kept for all of them.",
+        n_drift
+      )))
+    }
+    if (n_accepted > 0) {
+      n_voucher <- sum(config$taxon_revisions$evidence == "voucher")
+      msg <- sprintf(
+        "%d identification(s) will be overwritten in data_individuals.",
+        n_accepted
+      )
+      if (n_voucher > 0) {
+        msg <- paste(msg, sprintf(
+          "%d of them has a specimen collected from that very tree — the specimen's own determination is not updated by this import.",
+          n_voucher
+        ))
+      }
+      warnings <- c(warnings, list(msg))
+    }
+
     if (nrow(split$missing_stems) > 0) {
       warnings <- c(warnings, list(sprintf(
         "%d stem(s) recorded in these plots have no row in the file. Run Compute Stem Status after the import.",
@@ -414,6 +438,18 @@
       names(data)
     ), drop = FALSE]
 
+    n_revisions <- if (is.null(config$taxon_revisions)) 0L
+                   else nrow(config$taxon_revisions)
+
+    msg <- sprintf(
+      t("Dry run: %d census record(s), %d recruit(s) and %d measurement(s) would be written."),
+      n_census, n_recruits, nrow(data)
+    )
+    if (n_revisions > 0) {
+      msg <- paste0(msg, sprintf(t(" %d identification(s) would be revised."),
+                                 n_revisions))
+    }
+
     return(list(
       dry_run = TRUE, success = TRUE,
       n_census_records = n_census,
@@ -422,11 +458,9 @@
       n_measurements   = nrow(data),
       n_subplot_records = nrow(data),
       n_people_records  = 0L,
+      n_taxon_revisions = n_revisions,
       preview = preview,
-      message = sprintf(
-        t("Dry run: %d census record(s), %d recruit(s) and %d measurement(s) would be written."),
-        n_census, n_recruits, nrow(data)
-      )
+      message = msg
     ))
   }
 
@@ -436,6 +470,7 @@
 
   today <- Sys.Date()
   n_grouped <- 0L
+  n_revised <- 0L
 
   tryCatch({
     DBI::dbBegin(actual_con)
@@ -508,6 +543,14 @@
     cli::cli_alert_info("Inserting {nrow(records)} measurement{?s}...")
     inserted_ids <- .execute_trait_insert_with_returning(records, actual_con)
 
+    # ---- 5. accepted identification revisions -----------------------------
+    # Inside the same transaction: a revision that survived while its census
+    # rolled back would leave a determination changed for no recorded reason
+    n_revised <- .apply_taxon_revisions(config$taxon_revisions, actual_con)
+    if (n_revised > 0) {
+      cli::cli_alert_success("Updated {n_revised} identification{?s}")
+    }
+
     DBI::dbCommit(actual_con)
 
     msg <- sprintf(
@@ -522,6 +565,9 @@
     if (n_grouped > 0) {
       msg <- paste0(msg, sprintf(t(" %d stem(s) grouped as multi-stems."), n_grouped))
     }
+    if (n_revised > 0) {
+      msg <- paste0(msg, sprintf(t(" %d identification(s) revised."), n_revised))
+    }
     if (unresolved > 0) {
       msg <- paste0(msg, sprintf(t(" %d row(s) skipped (no matching individual)."),
                                  unresolved))
@@ -535,6 +581,7 @@
       n_measurements    = nrow(inserted_ids),
       n_subplot_records = nrow(inserted_ids),
       n_people_records  = 0L,
+      n_taxon_revisions = n_revised,
       message = msg
     )
 

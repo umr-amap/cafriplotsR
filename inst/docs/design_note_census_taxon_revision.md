@@ -1,6 +1,7 @@
-# Design note — validating revised identifications during a census import (PROPOSED / NOT IMPLEMENTED)
+# Design note — validating revised identifications during a census import (IMPLEMENTED)
 
-**Status:** proposed. Discussion held 2026-08-11, no code written.
+**Status:** implemented 2026-08-11. `R/census_taxon_revision.R`,
+`R/mod_feat_step3b_taxon_revision.R`, `R/migration_followup_idtax.R`.
 **Related:** `R/mod_feat_step3_census_import.R`, `R/census_split.R`
 (`taxon_drift`), `R/specimen_linking_functions.R`, `R/census_import_transaction.R`.
 
@@ -110,28 +111,56 @@ inside the existing census transaction, alongside the census record, recruits
 and measurements — one commit or none. `original_tax_name` is **not** touched:
 it exists to preserve what was originally written.
 
-## 6. Open questions, to settle before building
+## 6. Questions raised while designing, and how they were settled
 
-1. **Provenance.** Overwriting a determination should leave a trace.
-   `followup_updates_individuals` exists (84,463 rows) but records
-   `id_diconame_n` — the legacy taxon column — not `idtax_n`, so it appears to
-   be legacy itself. Decide whether to extend it, add audit columns, or accept
-   that `created_by`/timestamps on the census record are enough.
-2. **Specimen determinations.** When a stem with a `type_individual` voucher is
-   revised, should the specimen's own determination follow? That crosses into
-   the specimen tools and is probably out of scope for a census import — but it
-   should be a deliberate exclusion, not an oversight.
-3. **Unidentified → identified.** A stem recorded as `351190` (Magnoliopsida)
-   that now has a real determination is technically drift but is pure gain. It
-   probably deserves its own group with *accept* as the default and no warning.
-4. **Reverse direction.** A file that identifies a stem *less* precisely than the
-   database — genus where there was a species — is almost always a data entry
-   regression, not a revision. It should default to *keep database* regardless
-   of evidence.
+1. **Provenance — resolved.** An earlier draft of this note called
+   `followup_updates_individuals` legacy because it records `id_diconame_n`, the
+   pre-`idtax_n` taxon column. **That was wrong.** The table is live and already
+   carries 4,440 rows with `modif_type = 'idtax_n'`, the most recent from
+   2026-06-19. What it has never held is *which taxa a revision moved between* —
+   it is a mirror of the old `data_individuals` schema and has no column able to
+   store a taxon id, so those 4,440 rows say a determination changed without
+   saying to what.
 
-## 7. Effort
+   [migrate_followup_idtax()] adds `idtax_n` (before), `idtax_n_new` (after) and
+   `created_by`. A pure mirror can express a state but not a transition, which is
+   precisely why the existing rows are unreadable. Existing rows keep `NULL`;
+   their information is not recoverable and inventing it would be worse than
+   leaving the gap visible. `.apply_taxon_revisions()` refuses to run until the
+   columns exist, rather than adding to the pile.
 
-A new wizard module, a cross-database name resolution, one query joining
-`data_link_specimens` and `linktypelist`, a field-number check against the
-uploaded table, and an `UPDATE` branch in `.execute_census_import()`.
-Comparable in size to the census import mode itself — not a small addition.
+2. **Specimen determinations — deliberately excluded.** Revising a stem does not
+   revise the determination of a specimen collected from it. That belongs to the
+   specimen tools. The step says so in a warning rather than doing it silently
+   or leaving it unsaid.
+
+3. **Unidentified → identified — its own category.** `identification_gained`,
+   accepted by default whatever the evidence, including against a voucher.
+   `351190` ranks as `higher` on the precision ladder, so it can never be
+   read as a precision loss.
+
+4. **Reverse direction — its own category.** `precision_lost`, defaulting to
+   *keep database* even with no evidence at all, and marked in the table so the
+   user sees why.
+
+## 7. What was built
+
+| Piece | Where |
+|---|---|
+| precision ladder, name assembly | `.taxon_precision()`, `.assemble_taxon_name()` |
+| the two database reads | `.fetch_taxon_names()` (taxa DB), `.fetch_specimen_evidence()` (main DB) |
+| the pure classifier | `.classify_taxon_revisions()` |
+| one-call wrapper | `collect_taxon_revisions()` |
+| the step | `mod_feat_step3b_taxon_revision_ui/server()` |
+| the write | `.apply_taxon_revisions()`, inside the census transaction |
+| audit columns | `migrate_followup_idtax()` |
+
+**One deviation from §5.** The step renders inside wizard step 3, below the
+classification review, rather than as a seventh step. Renumbering 1–6 would
+have meant touching the navigation and skip logic for every mode. It keeps its
+own header, evidence cards, bulk actions and decision counter, so it remains a
+distinct decision surface rather than another alert.
+
+Both database reads degrade to a message and an empty frame on failure: missing
+evidence shows the revision without it, a failed taxa lookup shows `idtax` ids.
+Neither blocks the step.
