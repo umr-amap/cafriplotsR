@@ -156,6 +156,77 @@ test_that(".execute_census_import dry run handles a census with no recruits", {
   expect_equal(out$n_measurements, 2L)
 })
 
+test_that(".build_census_payload never promotes an ambiguous row to a recruit", {
+  # Confirming reviewed tags turns them into recruits. A row matching several
+  # recorded stems is the opposite of a new stem — promoting it would add a
+  # second copy of a tree that is already there.
+  existing <- data.frame(
+    plot_name   = rep("P1", 3),
+    tag         = c("5", "5", "101"),
+    id_n        = c(11L, 12L, 13L),
+    idtax_n     = rep(500L, 3),
+    last_status = rep("alive", 3),
+    stringsAsFactors = FALSE
+  )
+  census <- data.frame(plot_name = c("P1", "P1"), tag = c("5", "101"),
+                       dbh = c(21.1, 30.2), stringsAsFactors = FALSE)
+  split <- split_census_table(census, existing = existing)
+  expect_equal(nrow(split$ambiguous), 1)
+
+  res <- ci_payload(split = split, include_review = TRUE)
+
+  # the unambiguous stem still goes through; the ambiguous one does not
+  expect_equal(nrow(res$config$recruits), 0)
+  expect_equal(nrow(res$data), 1)
+  expect_equal(res$data$tag, "101")
+  expect_equal(res$config$n_review_included, 0L)
+})
+
+test_that(".build_census_payload returns nothing when every row is ambiguous", {
+  existing <- data.frame(
+    plot_name   = rep("P1", 2),
+    tag         = c("5", "5"),
+    id_n        = c(11L, 12L),
+    idtax_n     = c(500L, 500L),
+    last_status = c("alive", "alive"),
+    stringsAsFactors = FALSE
+  )
+  census <- data.frame(plot_name = "P1", tag = "5", dbh = 21.1,
+                       stringsAsFactors = FALSE)
+  split <- split_census_table(census, existing = existing)
+
+  res <- ci_payload(split = split, include_review = TRUE)
+
+  expect_equal(nrow(res$data), 0)
+  expect_null(res$config)
+})
+
+test_that(".validate_census_import reports ambiguous rows on their own", {
+  existing <- data.frame(
+    plot_name   = rep("P1", 2),
+    tag         = c("5", "5"),
+    id_n        = c(11L, 12L),
+    idtax_n     = c(500L, 500L),
+    last_status = c("alive", "alive"),
+    stringsAsFactors = FALSE
+  )
+  census <- data.frame(plot_name = c("P1", "P1"), tag = c("5", "102"),
+                       dbh = c(21.1, 30),
+                       stringsAsFactors = FALSE)
+  split <- split_census_table(census, existing = existing)
+
+  out <- .validate_census_import(
+    data = data.frame(id_liste_plots = 1L),
+    config = list(split = split, census_mode = "create", census_number = 3,
+                  census_year = 2026, recruits = NULL, n_review_included = 0L),
+    con = NULL
+  )
+  msgs <- paste(unlist(out$warnings), collapse = " | ")
+
+  expect_match(msgs, "match more than one recorded stem")
+  expect_false(grepl("held for review", msgs))
+})
+
 test_that(".build_census_payload fills missing taxonomy and counts it", {
   census <- data.frame(
     plot_name = c("P1", "P1"),

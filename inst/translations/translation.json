@@ -8856,6 +8856,14 @@
     {
       "en": "Next step: run Compute Stem Status for these plots so stems absent from this census are marked.",
       "fr": "Étape suivante : lancez Calculer le statut des tiges pour ces parcelles afin de marquer les tiges absentes de ce recensement."
+    },
+    {
+      "en": "%d row(s) match more than one recorded stem.",
+      "fr": "%d ligne(s) correspondent à plusieurs tiges enregistrées."
+    },
+    {
+      "en": "These plots numbered tags per quadrat, so several recorded stems carry the same tag and the tag alone cannot say which tree was measured. These rows are excluded from the import — they have to be resolved against the individual ids listed below.",
+      "fr": "Ces placettes numérotaient les étiquettes par quadrat : plusieurs tiges enregistrées portent donc la même étiquette, et celle-ci ne suffit pas à dire quel arbre a été mesuré. Ces lignes sont exclues de l'importation — elles doivent être résolues à partir des identifiants individuels listés ci-dessous."
     }
   ]
 }

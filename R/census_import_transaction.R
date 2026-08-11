@@ -345,10 +345,18 @@
         nrow(split$duplicates)
       )))
     }
-    if (nrow(split$review) > 0 && identical(config$n_review_included, 0L)) {
+    n_ambiguous <- if (is.null(split$ambiguous)) 0L else nrow(split$ambiguous)
+    n_typo_review <- nrow(split$review) - n_ambiguous
+    if (n_typo_review > 0 && identical(config$n_review_included, 0L)) {
       warnings <- c(warnings, list(sprintf(
         "%d row(s) held for review are excluded from this import. Correct their tags and re-upload, or confirm them in step 3.",
-        nrow(split$review)
+        n_typo_review
+      )))
+    }
+    if (n_ambiguous > 0) {
+      warnings <- c(warnings, list(sprintf(
+        "%d row(s) match more than one recorded stem and are excluded — this plot numbered tags per quadrat, so the tag alone does not identify a tree.",
+        n_ambiguous
       )))
     }
     if (nrow(split$invalid) > 0) {

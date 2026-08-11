@@ -408,13 +408,36 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
 
       blocks <- list()
 
-      if (nrow(split$review) > 0) {
+      # The review pile holds two different problems with two different
+      # remedies, so they get two panels. Only the typo one can be confirmed
+      # away — an ambiguous row has no tag to correct.
+      n_ambiguous <- nrow(split$ambiguous)
+      n_typo <- nrow(split$review) - n_ambiguous
+
+      if (n_ambiguous > 0) {
+        blocks <- c(blocks, list(shiny::div(
+          class = "alert alert-danger",
+          shiny::icon("code-branch"), " ",
+          shiny::strong(sprintf(
+            i18n()$t("%d row(s) match more than one recorded stem."),
+            n_ambiguous)),
+          shiny::br(),
+          i18n()$t("These plots numbered tags per quadrat, so several recorded stems carry the same tag and the tag alone cannot say which tree was measured. These rows are excluded from the import — they have to be resolved against the individual ids listed below."),
+          shiny::br(), shiny::br(),
+          DT::renderDT(DT::datatable(
+            split$ambiguous, rownames = FALSE,
+            options = list(pageLength = 5, scrollX = TRUE, dom = "tp")
+          ))
+        )))
+      }
+
+      if (n_typo > 0) {
         blocks <- c(blocks, list(shiny::div(
           class = "alert alert-danger",
           shiny::icon("triangle-exclamation"), " ",
           shiny::strong(sprintf(
             i18n()$t("%d row(s) have a tag that does not exist but closely resembles one that does."),
-            nrow(split$review))),
+            n_typo)),
           shiny::br(),
           i18n()$t("These are usually mistyped tags. Importing them would create a duplicate tree. Correct them in your file and upload it again, or confirm below that they really are new stems."),
           shiny::br(), shiny::br(),
@@ -652,7 +675,13 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
   data <- split$data
   roles <- if (include_review) c("remeasure", "recruit", "review")
            else c("remeasure", "recruit")
-  keep <- data[data$row_role %in% roles, , drop = FALSE]
+
+  # A row matching several recorded stems is held for review too, but it is
+  # the opposite of a recruit — promoting it would add a second copy of a tree
+  # that is already there. include_review does not reach it.
+  ambiguous_ids <- if (is.null(split$ambiguous)) integer(0) else split$ambiguous$row_id
+  keep <- data[data$row_role %in% roles &
+                 !(data$row_id %in% ambiguous_ids), , drop = FALSE]
 
   if (nrow(keep) == 0) {
     return(list(data = keep[0, , drop = FALSE], config = NULL))
@@ -740,7 +769,10 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
       census_day    = census_day,
       trait_mapping = trait_mapping,
       n_unidentified_recruits = n_unidentified,
-      n_review_included = if (include_review) nrow(split$review) else 0L
+      # Ambiguous rows are never included, so they do not count here
+      n_review_included = if (include_review) {
+        nrow(split$review) - length(ambiguous_ids)
+      } else 0L
     )
   )
 }

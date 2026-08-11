@@ -557,6 +557,112 @@ test_that("split_census_table fetches from a connection when `existing` is absen
 })
 
 # =============================================================================
+# A tag that names more than one recorded stem
+#
+# Plots that numbered tags per quadrat carry repeated plot + tag pairs — 989
+# of the 2166 plots in the production database hold at least one. match()
+# returns the first of them without a word, which would attach a census to the
+# wrong tree. The columns that once told those stems apart are no longer
+# maintained, so the split reports the collision rather than resolving it.
+# =============================================================================
+
+make_shared_tag_existing <- function() {
+  data.frame(
+    plot_name   = rep("P1", 3),
+    tag         = c("5", "5", "6"),
+    id_n        = c(11L, 12L, 13L),
+    idtax_n     = c(500L, 600L, 700L),
+    last_status = rep("alive", 3),
+    stringsAsFactors = FALSE
+  )
+}
+
+test_that("a tag matching several stems is held for review, not guessed at", {
+  census <- data.frame(plot_name = "P1", tag = "5", dbh = 12,
+                       stringsAsFactors = FALSE)
+
+  res <- split_census_table(census, existing = make_shared_tag_existing())
+
+  expect_equal(res$data$row_role, "review")
+  expect_true(is.na(res$data$id_n))
+  expect_equal(nrow(res$ambiguous), 1)
+  expect_equal(res$ambiguous$n_matches, 2L)
+  expect_equal(res$ambiguous$id_n_candidates, "11, 12")
+  expect_match(res$data$split_note, "cannot tell which one")
+})
+
+test_that("an unambiguous tag in the same plot is unaffected", {
+  census <- data.frame(plot_name = c("P1", "P1"), tag = c("5", "6"),
+                       stringsAsFactors = FALSE)
+
+  res <- split_census_table(census, existing = make_shared_tag_existing())
+
+  expect_equal(res$data$row_role, c("review", "remeasure"))
+  expect_equal(res$data$id_n, c(NA_integer_, 13L))
+})
+
+test_that("ambiguous rows are not counted as typos", {
+  census <- data.frame(plot_name = "P1", tag = "5", stringsAsFactors = FALSE)
+
+  res <- split_census_table(census, existing = make_shared_tag_existing())
+
+  expect_equal(nrow(res$possible_typos), 0)
+  expect_equal(nrow(res$review), 1)
+})
+
+test_that("the summary counts ambiguous rows alongside review", {
+  census <- data.frame(plot_name = c("P1", "P1"), tag = c("5", "6"),
+                       stringsAsFactors = FALSE)
+
+  res <- split_census_table(census, existing = make_shared_tag_existing())
+
+  expect_equal(res$summary$n_ambiguous, 1L)
+  expect_equal(res$summary$n_review, 1L)
+})
+
+test_that("the summary still accounts for every in-scope row", {
+  census <- data.frame(plot_name = rep("P1", 3), tag = c("5", "6", "900"),
+                       stringsAsFactors = FALSE)
+
+  res <- split_census_table(census, existing = make_shared_tag_existing())
+  totals <- with(res$summary,
+                 sum(n_remeasure + n_recruit + n_review + n_invalid))
+  expect_equal(totals, nrow(res$data))
+})
+
+test_that("print reports ambiguity separately from typos", {
+  census <- data.frame(plot_name = "P1", tag = "5", stringsAsFactors = FALSE)
+  res <- split_census_table(census, existing = make_shared_tag_existing())
+
+  out <- paste(capture.output(print(res), type = "message"), collapse = " ")
+  expect_match(out, "more than one recorded stem")
+})
+
+test_that("a repeated tag with no file row is not reported as ambiguous", {
+  census <- data.frame(plot_name = "P1", tag = "6", stringsAsFactors = FALSE)
+
+  res <- split_census_table(census, existing = make_shared_tag_existing())
+
+  expect_equal(nrow(res$ambiguous), 0)
+  expect_equal(sort(res$missing_stems$id_n), c(11L, 12L))
+})
+
+test_that("idtax_n never decides whether a row is a remeasure", {
+  # An identification revised between censuses must not turn the stem into a
+  # recruit — it is reported as drift and matched on the tag as usual
+  census <- data.frame(plot_name = "P1", tag = "6", idtax_n = 999L,
+                       stringsAsFactors = FALSE)
+
+  res <- split_census_table(census, existing = make_shared_tag_existing())
+
+  expect_equal(res$data$row_role, "remeasure")
+  expect_equal(res$data$id_n, 13L)
+  expect_equal(nrow(res$taxon_drift), 1)
+  expect_equal(res$taxon_drift$idtax_file, "999")
+  expect_equal(res$taxon_drift$idtax_db, "700")
+})
+
+# =============================================================================
 # export_census_split()
 # =============================================================================
 

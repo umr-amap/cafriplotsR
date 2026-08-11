@@ -224,15 +224,30 @@
 #' @details
 #' Roles assigned to each row of `data`:
 #' \describe{
-#'   \item{`remeasure`}{plot + tag already exists — measurements attach to the
-#'     existing `id_n`.}
+#'   \item{`remeasure`}{plot + tag matches exactly one recorded stem —
+#'     measurements attach to its `id_n`.}
 #'   \item{`recruit`}{tag unknown for that plot and unlike any existing tag —
 #'     a new individual.}
-#'   \item{`review`}{tag unknown but within `typo_max_dist` of an existing tag,
-#'     or an adjacent-character swap away from one, *and* not a continuation of
-#'     the plot's numbering (see `assume_new_block`). Needs a human decision.}
+#'   \item{`review`}{either the tag is unknown but within `typo_max_dist` of an
+#'     existing tag (or an adjacent-character swap away from one) *and* not a
+#'     continuation of the plot's numbering — see `assume_new_block`; or plot +
+#'     tag matches more than one recorded stem. Needs a human decision.}
 #'   \item{`invalid`}{plot name or tag missing.}
 #' }
+#'
+#' Only plot and tag decide whether a row is a remeasure. `idtax_n` is never
+#' part of that test — an identification revised between two censuses is
+#' expected, and letting it break the match would turn every correction into a
+#' spurious recruit. Revisions are reported in `taxon_drift` instead.
+#'
+#' @section Tags that are not unique:
+#' Some plots number tags per quadrat rather than per plot, so one plot + tag
+#' pair can name several recorded stems. Taking the first of them — which is
+#' what a plain `match()` does, silently — would attach a census to the wrong
+#' tree. Those rows are held for review and listed in `ambiguous` instead. The
+#' columns that once told such stems apart are no longer maintained, so there
+#' is nothing left to disambiguate them with; the split reports them rather
+#' than guessing.
 #'
 #' Pass `existing` to run without a database — that is the form used by the
 #' tests and by anyone working from an exported tag list.
@@ -262,7 +277,10 @@
 #'     \item{`data`}{`data` plus `row_id`, `row_role`, `id_n` and `split_note`.}
 #'     \item{`remeasures`, `recruits`, `review`, `invalid`}{the four subsets.}
 #'     \item{`possible_typos`}{review rows with their nearest existing tag.}
-#'     \item{`taxon_drift`}{remeasures whose taxon differs from the database.}
+#'     \item{`ambiguous`}{review rows whose plot + tag matches several recorded
+#'       stems, with the candidate `id_n`s.}
+#'     \item{`taxon_drift`}{remeasures whose taxon differs from the database —
+#'       a report, not a reclassification.}
 #'     \item{`missing_stems`}{recorded stems with no row in `data`.}
 #'     \item{`duplicates`}{plot + tag appearing more than once in `data`.}
 #'     \item{`out_of_scope`}{rows for plots outside `plot_names`.}
@@ -372,13 +390,48 @@ split_census_table <- function(data,
   undecided <- is.na(role)
   hit <- match(file_key, db_key)
 
-  is_remeasure <- undecided & !is.na(hit)
+  # How many recorded stems each row could be. match() hands back the first of
+  # several without a word, which is how a census ends up on the wrong tree.
+  db_key_count <- table(db_key)
+  n_match <- as.integer(db_key_count[file_key])
+  n_match[is.na(n_match)] <- 0L
+
+  is_remeasure <- undecided & n_match == 1L
   role[is_remeasure] <- "remeasure"
   id_n[is_remeasure] <- suppressWarnings(
     as.integer(existing$id_n[hit[is_remeasure]])
   )
 
-  candidate <- which(undecided & is.na(hit))
+  ambiguous <- data.frame(
+    row_id = integer(0), plot_name = character(0), tag = character(0),
+    n_matches = integer(0), id_n_candidates = character(0),
+    stringsAsFactors = FALSE
+  )
+
+  ambiguous_rows <- which(undecided & n_match > 1L)
+  if (length(ambiguous_rows) > 0) {
+    role[ambiguous_rows] <- "review"
+    note[ambiguous_rows] <- sprintf(
+      "tag matches %d recorded stems in this plot — cannot tell which one this row measures",
+      n_match[ambiguous_rows]
+    )
+
+    ambiguous <- data.frame(
+      row_id          = data$row_id[ambiguous_rows],
+      plot_name       = file_plot[ambiguous_rows],
+      tag             = file_tag[ambiguous_rows],
+      n_matches       = n_match[ambiguous_rows],
+      id_n_candidates = vapply(
+        file_key[ambiguous_rows],
+        function(k) paste(utils::head(as.character(existing$id_n[db_key == k]), 10),
+                          collapse = ", "),
+        character(1), USE.NAMES = FALSE
+      ),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  candidate <- which(undecided & n_match == 0L)
   role[candidate] <- "recruit"
 
   # ---- typo guard ---------------------------------------------------------
@@ -393,7 +446,8 @@ split_census_table <- function(data,
   if (typo_max_dist > 0 && length(candidate) > 0) {
     for (pl in unique(file_plot[candidate])) {
       rows <- candidate[file_plot[candidate] == pl]
-      pool <- db_tag[db_plot == pl]
+      # Tags repeat within some plots, and a repeated candidate only costs time
+      pool <- unique(db_tag[db_plot == pl])
       near <- .nearest_tags(file_tag[rows], pool, max_dist = as.integer(typo_max_dist))
 
       flagged <- !is.na(near$nearest_tag)
@@ -507,6 +561,7 @@ split_census_table <- function(data,
     n_remeasure  = counts(pl, "remeasure"),
     n_recruit    = counts(pl, "recruit"),
     n_review     = counts(pl, "review"),
+    n_ambiguous  = sum(ambiguous$plot_name %in% pl),
     n_invalid    = counts(pl, "invalid"),
     n_missing    = sum(missing_stems$plot_name == pl),
     n_in_db      = sum(db_plot == pl),
@@ -515,8 +570,9 @@ split_census_table <- function(data,
   if (is.null(summary_df)) {
     summary_df <- data.frame(
       plot_name = character(0), n_rows = integer(0), n_remeasure = integer(0),
-      n_recruit = integer(0), n_review = integer(0), n_invalid = integer(0),
-      n_missing = integer(0), n_in_db = integer(0), stringsAsFactors = FALSE
+      n_recruit = integer(0), n_review = integer(0), n_ambiguous = integer(0),
+      n_invalid = integer(0), n_missing = integer(0), n_in_db = integer(0),
+      stringsAsFactors = FALSE
     )
   }
 
@@ -530,6 +586,7 @@ split_census_table <- function(data,
       review         = pick("review"),
       invalid        = pick("invalid"),
       possible_typos = typos,
+      ambiguous      = ambiguous,
       taxon_drift    = drift,
       missing_stems  = missing_stems,
       duplicates     = duplicates,
@@ -555,10 +612,17 @@ print.census_split <- function(x, ...) {
   cli::cli_li("{nrow(x$recruits)} recruit{?s} (new individual{?s} to create)")
   cli::cli_end()
 
-  if (nrow(x$review) > 0) {
+  n_typo <- nrow(x$review) - nrow(x$ambiguous)
+  if (n_typo > 0) {
     cli::cli_alert_warning(paste(
-      "{nrow(x$review)} row{?s} held for review — the tag is unknown but",
+      "{n_typo} row{?s} held for review — the tag is unknown but",
       "close to an existing one. See `$possible_typos`."
+    ))
+  }
+  if (nrow(x$ambiguous) > 0) {
+    cli::cli_alert_warning(paste(
+      "{nrow(x$ambiguous)} row{?s} match{?es/} more than one recorded stem and",
+      "cannot be assigned. See `$ambiguous`."
     ))
   }
   if (nrow(x$invalid) > 0) {
@@ -617,7 +681,8 @@ export_census_split <- function(x, dir = ".", prefix = NULL, overwrite = FALSE) 
     "02_measurements"  = x$data[x$data$row_role %in% c("remeasure", "recruit"), , drop = FALSE],
     "03_review"        = x$review,
     "04_missing_stems" = x$missing_stems,
-    "05_report"        = x$summary
+    "05_report"        = x$summary,
+    "06_ambiguous"     = x$ambiguous
   )
 
   written <- character(0)

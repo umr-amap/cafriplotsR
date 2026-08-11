@@ -58,7 +58,10 @@ An object of class `census_split`, a list with:
     \item{`data`}{`data` plus `row_id`, `row_role`, `id_n` and `split_note`.}
     \item{`remeasures`, `recruits`, `review`, `invalid`}{the four subsets.}
     \item{`possible_typos`}{review rows with their nearest existing tag.}
-    \item{`taxon_drift`}{remeasures whose taxon differs from the database.}
+    \item{`ambiguous`}{review rows whose plot + tag matches several recorded
+      stems, with the candidate `id_n`s.}
+    \item{`taxon_drift`}{remeasures whose taxon differs from the database —
+      a report, not a reclassification.}
     \item{`missing_stems`}{recorded stems with no row in `data`.}
     \item{`duplicates`}{plot + tag appearing more than once in `data`.}
     \item{`out_of_scope`}{rows for plots outside `plot_names`.}
@@ -80,19 +83,36 @@ rejected review row costs one look.
 \details{
 Roles assigned to each row of `data`:
 \describe{
-  \item{`remeasure`}{plot + tag already exists — measurements attach to the
-    existing `id_n`.}
+  \item{`remeasure`}{plot + tag matches exactly one recorded stem —
+    measurements attach to its `id_n`.}
   \item{`recruit`}{tag unknown for that plot and unlike any existing tag —
     a new individual.}
-  \item{`review`}{tag unknown but within `typo_max_dist` of an existing tag,
-    or an adjacent-character swap away from one, *and* not a continuation of
-    the plot's numbering (see `assume_new_block`). Needs a human decision.}
+  \item{`review`}{either the tag is unknown but within `typo_max_dist` of an
+    existing tag (or an adjacent-character swap away from one) *and* not a
+    continuation of the plot's numbering — see `assume_new_block`; or plot +
+    tag matches more than one recorded stem. Needs a human decision.}
   \item{`invalid`}{plot name or tag missing.}
 }
+
+Only plot and tag decide whether a row is a remeasure. `idtax_n` is never
+part of that test — an identification revised between two censuses is
+expected, and letting it break the match would turn every correction into a
+spurious recruit. Revisions are reported in `taxon_drift` instead.
+}
+\section{Tags that are not unique}{
+
+Some plots number tags per quadrat rather than per plot, so one plot + tag
+pair can name several recorded stems. Taking the first of them — which is
+what a plain `match()` does, silently — would attach a census to the wrong
+tree. Those rows are held for review and listed in `ambiguous` instead. The
+columns that once told such stems apart are no longer maintained, so there
+is nothing left to disambiguate them with; the split reports them rather
+than guessing.
 
 Pass `existing` to run without a database — that is the form used by the
 tests and by anyone working from an exported tag list.
 }
+
 \examples{
 existing <- data.frame(
   plot_name = c("P1", "P1", "P1"),
