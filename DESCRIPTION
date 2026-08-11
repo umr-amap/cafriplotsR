@@ -57,7 +57,8 @@ Suggests:
     ggpubr,
     BIOMASS (>= 2.2.4),
     shinytest2,
-    chromote
+    chromote,
+    RSQLite
 Encoding: UTF-8
 LazyData: true
 VignetteBuilder: knitr

@@ -6,6 +6,14 @@
 
 ### New Features
 
+* **`split_census_table()`** — new exported function (`R/census_split.R`) that classifies a flat census table against the individuals already recorded for the selected plots, removing the need to hand-split field data into recruits and remeasures before importing. Which stems are already in the database is something only the database knows, so splitting by hand is guesswork
+  - Each row is labelled `remeasure` (existing stem, `id_n` attached), `recruit` (new individual), `review` or `invalid`, and every original column and row is preserved
+  - **Typo guard**: an unknown tag within one edit of an existing tag — or one adjacent-character swap away from it — is held as `review` rather than becoming a new individual, since creating a duplicate tree from a mistyped tag is silent and hard to undo. `assume_new_block = TRUE` exempts numeric tags that continue the plot's numbering, without which nearly every genuine recruit would be flagged
+  - Also reports taxon drift on remeasured stems, recorded stems with no row in the table (excluding those already recorded dead), repeated plot + tag combinations, and per-plot counts
+  - Pure when `existing` is supplied — no connection needed. `.fetch_plot_individuals()` is the thin database layer, reaching `plot_name` through `data_liste_plots` (`data_individuals` has no such column)
+
+* **`export_census_split()`** — writes a `census_split` into the files the existing wizards already accept: recruits for `launch_import_wizard()`, measurements for `launch_feature_wizard()`. Review rows are written separately and deliberately kept out of the recruit file
+
 * **`update_specimen_fields()`** — new exported function (`R/updates_tables_functions.R`) for updating the non-identification columns of a single specimen: `colnbr`, `suffix`, `coly`, `colm`, `cold`, `add_col`, `locality`, `country`, `ddlat`, `ddlon`, `description`, `original_tax_name`. Until now only `update_ident_specimens()` could write to `specimens`, and its `UPDATE` is limited to `idtax_n`, the `det*` columns, `colnbr` and `suffix`, leaving the other columns with no update path
   - Fields are whitelisted with a declared type (`.specimen_editable_fields()`) and coerced accordingly; only values that actually differ from the stored ones are written
   - `NA` or an empty string clears a field (sets it to `NULL`); a field absent from `new_values`, or set to `NULL`, is left untouched
