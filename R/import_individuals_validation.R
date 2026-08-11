@@ -356,7 +356,21 @@ validate_individual_data <- function(individuals_data,
   )
   warnings <- c(warnings, conflict_check)  # Warnings for now, user can decide
 
-  # 7. Method-specific validation
+  # 7. Multi-stem grouping (only when the staging column was mapped)
+  if ("multi_tiges_id" %in% names(validated_individuals)) {
+    cli::cli_alert_info("Checking multi-stem grouping...")
+    stem_check <- tryCatch(
+      .validate_multi_stem_grouping(validated_individuals, con),
+      error = function(e) {
+        message(hdr, " ERROR in .validate_multi_stem_grouping: ", conditionMessage(e))
+        stop(paste0("[multi-stem grouping check] ", conditionMessage(e)), call. = FALSE)
+      }
+    )
+    errors <- c(errors, stem_check$errors)
+    warnings <- c(warnings, stem_check$warnings)
+  }
+
+  # 8. Method-specific validation
   if (!is.null(method)) {
     cli::cli_alert_info("Checking method-specific requirements...")
     method_check <- tryCatch(
@@ -872,6 +886,170 @@ validate_individual_data <- function(individuals_data,
   }
 
   return(warnings)
+}
+
+
+#' Validate Multi-Stem Grouping (Internal)
+#'
+#' Checks the \code{multi_tiges_id} column, which holds the \strong{tag} of the
+#' main stem a secondary stem belongs to. It is a staging column: the import
+#' resolves it to \code{data_individuals.stem_grouping}, which stores the
+#' parent's \code{id_n}. Anything that cannot be resolved becomes a silently
+#' missing grouping after the insert, so it is checked beforehand.
+#'
+#' Checks performed, mirroring the Feature Wizard's multi-stem step:
+#' \itemize{
+#'   \item values that are not a tag number (error)
+#'   \item a stem pointing at itself (error)
+#'   \item a parent tag absent from both the import and the plot in the
+#'     database (error)
+#'   \item a parent that is itself a secondary stem, which would chain the
+#'     grouping instead of pointing at the main stem (error)
+#'   \item members of a group carrying different \code{idtax_n} (warning)
+#'   \item a parent that already carries a grouping in the database (warning)
+#' }
+#'
+#' @param data Individuals data frame with plot_name, tag and multi_tiges_id
+#' @param con Database connection
+#' @return List with \code{errors} and \code{warnings}
+#' @keywords internal
+.validate_multi_stem_grouping <- function(data, con) {
+  errors <- list()
+  warnings <- list()
+
+  if (!"multi_tiges_id" %in% names(data) ||
+      !all(c("plot_name", "tag") %in% names(data))) {
+    return(list(errors = errors, warnings = warnings))
+  }
+
+  raw <- trimws(as.character(data$multi_tiges_id))
+  has_value <- !is.na(raw) & nzchar(raw)
+  if (!any(has_value)) {
+    return(list(errors = errors, warnings = warnings))
+  }
+
+  parent <- suppressWarnings(as.numeric(raw))
+  tag <- suppressWarnings(as.numeric(data$tag))
+  plot <- as.character(data$plot_name)
+
+  # Values that are not a tag number at all
+  unparsed <- which(has_value & is.na(parent))
+  if (length(unparsed) > 0) {
+    errors <- c(errors, list(sprintf(
+      "multi_tiges_id is not a tag number in %d row(s) (e.g. %s). It must hold the tag of the main stem, not a name or an id.",
+      length(unparsed),
+      paste(utils::head(unique(raw[unparsed]), 5), collapse = ", ")
+    )))
+  }
+
+  secondary <- which(has_value & !is.na(parent))
+  if (length(secondary) == 0) {
+    return(list(errors = errors, warnings = warnings))
+  }
+
+  # A stem cannot be a secondary stem of itself
+  is_self <- parent[secondary] == tag[secondary]
+  self_ref <- secondary[is_self]
+  if (length(self_ref) > 0) {
+    errors <- c(errors, list(sprintf(
+      "%d stem(s) have multi_tiges_id equal to their own tag (rows: %s). Leave it empty on the main stem.",
+      length(self_ref),
+      paste(utils::head(self_ref, 10), collapse = ", ")
+    )))
+  }
+
+  import_keys <- paste(plot, tag)
+  parent_keys <- paste(plot[secondary], parent[secondary])
+
+  # Parents already in the database for these plots
+  db_keys <- character(0)
+  db_grouped_keys <- character(0)
+  db_lookup <- tryCatch({
+    plots_sql <- paste(
+      sprintf("'%s'", gsub("'", "''", unique(plot[!is.na(plot)]))),
+      collapse = ", "
+    )
+    DBI::dbGetQuery(con, sprintf(
+      "SELECT dlp.plot_name, di.tag, di.stem_grouping
+         FROM data_individuals di
+         JOIN data_liste_plots dlp ON di.id_table_liste_plots_n = dlp.id_liste_plots
+        WHERE dlp.plot_name IN (%s)",
+      plots_sql
+    ))
+  }, error = function(e) {
+    warnings <<- c(warnings, list(paste(
+      "Could not check multi_tiges_id parents against the database:", e$message
+    )))
+    NULL
+  })
+
+  if (!is.null(db_lookup) && nrow(db_lookup) > 0) {
+    db_keys <- paste(db_lookup$plot_name, db_lookup$tag)
+    db_grouped_keys <- db_keys[!is.na(db_lookup$stem_grouping)]
+  }
+
+  # Parent tag must exist in this import or already in the plot
+  known_parent <- parent_keys %in% import_keys | parent_keys %in% db_keys
+  if (any(!known_parent)) {
+    unknown <- secondary[!known_parent]
+    errors <- c(errors, list(sprintf(
+      "%d stem(s) point at a multi_tiges_id tag that exists neither in this import nor in the plot: %s. stem_grouping cannot be resolved for %s.",
+      length(unknown),
+      paste(utils::head(unique(paste0("tag ", parent[unknown], " in '",
+                                      plot[unknown], "'")), 10), collapse = "; "),
+      if (length(unknown) > 10) "these rows" else "them"
+    )))
+  }
+
+  # The parent must be a main stem, not itself a secondary stem
+  in_import <- match(parent_keys, import_keys)
+  parent_is_secondary <- rep(FALSE, length(secondary))
+  resolved <- !is.na(in_import)
+  parent_is_secondary[resolved] <- has_value[in_import[resolved]]
+  parent_is_secondary <- parent_is_secondary | parent_keys %in% db_grouped_keys
+  # Self-references are already reported above — don't flag them twice
+  parent_is_secondary <- parent_is_secondary & !is_self
+
+  if (any(parent_is_secondary)) {
+    chained <- secondary[parent_is_secondary]
+    errors <- c(errors, list(sprintf(
+      "%d stem(s) point at a tag that is itself a secondary stem (rows: %s). multi_tiges_id must name the main stem of the group, not another stem.",
+      length(chained),
+      paste(utils::head(chained, 10), collapse = ", ")
+    )))
+  }
+
+  # Members of a group would normally share the same taxon
+  if ("idtax_n" %in% names(data)) {
+    parent_idtax <- data$idtax_n[in_import]
+    child_idtax <- data$idtax_n[secondary]
+    mismatch <- which(!is.na(parent_idtax) & !is.na(child_idtax) &
+                        parent_idtax != child_idtax)
+    if (length(mismatch) > 0) {
+      warnings <- c(warnings, list(sprintf(
+        "%d stem(s) have a different idtax_n from the main stem of their group (rows: %s). Check the grouping or the identification.",
+        length(mismatch),
+        paste(utils::head(secondary[mismatch], 10), collapse = ", ")
+      )))
+    }
+  }
+
+  # Parents that already carry a grouping in the database
+  reparented <- sum(parent_keys %in% db_grouped_keys)
+  if (reparented > 0) {
+    warnings <- c(warnings, list(sprintf(
+      "%d parent tag(s) already have a stem_grouping in the database.",
+      reparented
+    )))
+  }
+
+  n_groups <- length(unique(parent_keys))
+  warnings <- c(warnings, list(sprintf(
+    "multi_tiges_id defines %d secondary stem(s) in %d group(s); stem_grouping will be set from it after the insert.",
+    length(secondary), n_groups
+  )))
+
+  list(errors = errors, warnings = warnings)
 }
 
 

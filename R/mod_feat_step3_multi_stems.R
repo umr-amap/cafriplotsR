@@ -265,7 +265,9 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
               shiny::selectInput(
                 ns("map_group_tag"), i18n()$t("Group tag column (parent)"),
                 choices = cols,
-                selected = .auto_detect_col(cols, c("group_tag", "stem_grouping", "parent_tag"))
+                # Not stem_grouping: this dropdown wants the parent's tag,
+                # while stem_grouping holds the parent's id_n
+                selected = .auto_detect_col(cols, c("group_tag", "parent_tag"))
               )
             ),
             shiny::column(

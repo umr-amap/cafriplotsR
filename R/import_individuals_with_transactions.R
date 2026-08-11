@@ -22,6 +22,8 @@
 #'   \item{success}{Logical: TRUE if import succeeded}
 #'   \item{n_individuals}{Number of individuals imported}
 #'   \item{n_features}{Number of feature records imported}
+#'   \item{n_stem_grouping}{Number of stems whose \code{stem_grouping} was set
+#'     from the \code{multi_tiges_id} column}
 #'   \item{plot_names}{Unique plots affected}
 #'   \item{username}{Username who performed import}
 #'   \item{dry_run}{Was this a dry-run?}
@@ -210,6 +212,33 @@ import_individual_data <- function(individuals_data,
       }
     }
 
+    # Step 3b: Turn the multi_tiges_id tags into stem_grouping ids
+    n_grouped <- 0L
+    if ("multi_tiges_id" %in% names(individuals_with_plot_id)) {
+      n_secondary <- sum(!is.na(suppressWarnings(
+        as.numeric(individuals_with_plot_id$multi_tiges_id)
+      )))
+      if (dry_run) {
+        if (progress && n_secondary > 0) {
+          cli::cli_h2("Step 3b: Preview - Would set stem_grouping")
+          cli::cli_alert_info(
+            "Would resolve {n_secondary} multi_tiges_id tag{?s} to stem_grouping"
+          )
+        }
+      } else if (n_secondary > 0) {
+        if (progress) cli::cli_h2("Step 3b: Setting stem_grouping")
+        n_grouped <- .apply_stem_grouping(
+          individuals_with_plot_id,
+          individuals_id_data,
+          con,
+          progress = progress
+        )
+        if (progress) {
+          cli::cli_alert_success("stem_grouping set for {n_grouped} stem{?s}")
+        }
+      }
+    }
+
     # Step 4: Insert or preview features (if provided)
     if (!is.null(features_data) && nrow(features_data) > 0) {
       if (progress) cli::cli_h2("Step 4: {ifelse(dry_run, 'Preview', 'Inserting')} individual features")
@@ -272,6 +301,7 @@ import_individual_data <- function(individuals_data,
       success = TRUE,
       n_individuals = nrow(individuals_data),
       n_features = n_feat,
+      n_stem_grouping = n_grouped,
       plot_names = plot_names,
       username = username,
       dry_run = dry_run,
@@ -424,6 +454,86 @@ import_individual_data <- function(individuals_data,
   }
 
   return(as.data.frame(prepared_data))
+}
+
+
+#' Resolve multi_tiges_id into stem_grouping (Internal)
+#'
+#' \code{multi_tiges_id} is a staging column holding the \strong{tag} of the
+#' main stem, while \code{data_individuals.stem_grouping} stores that stem's
+#' \code{id_n}. Once the batch is inserted every \code{id_n} is known, so the
+#' tags are resolved here — against this batch first, then against individuals
+#' already in the plot — and written in a single UPDATE inside the same
+#' transaction.
+#'
+#' Rows whose parent cannot be resolved are left ungrouped and reported;
+#' \code{\link{validate_individual_data}} flags them as errors beforehand.
+#'
+#' @param individuals_data Data frame carrying plot_name and multi_tiges_id,
+#'   in the order it was inserted.
+#' @param individuals_id_data Data frame returned by the INSERT, with
+#'   id_individuals, tag and plot_name.
+#' @param con Database connection (inside the open transaction).
+#' @param progress Show progress messages.
+#' @return Number of stems whose stem_grouping was set.
+#' @keywords internal
+.apply_stem_grouping <- function(individuals_data, individuals_id_data, con,
+                                 progress = TRUE) {
+
+  if (!"multi_tiges_id" %in% names(individuals_data)) return(0L)
+
+  parent_tag <- suppressWarnings(as.numeric(individuals_data$multi_tiges_id))
+  secondary <- which(!is.na(parent_tag))
+  if (length(secondary) == 0) return(0L)
+
+  plot <- as.character(individuals_data$plot_name)
+  child_id <- individuals_id_data$id_individuals[secondary]
+  parent_keys <- paste(plot[secondary], parent_tag[secondary])
+
+  # Parents inserted in this same batch
+  batch_keys <- paste(individuals_id_data$plot_name, individuals_id_data$tag)
+  parent_id <- individuals_id_data$id_individuals[match(parent_keys, batch_keys)]
+
+  # Parents already in the plot
+  if (anyNA(parent_id)) {
+    plots_sql <- paste(
+      sprintf("'%s'", gsub("'", "''", unique(plot[secondary]))),
+      collapse = ", "
+    )
+    db_inds <- DBI::dbGetQuery(con, sprintf(
+      "SELECT dlp.plot_name, di.tag, di.id_n
+         FROM data_individuals di
+         JOIN data_liste_plots dlp ON di.id_table_liste_plots_n = dlp.id_liste_plots
+        WHERE dlp.plot_name IN (%s)",
+      plots_sql
+    ))
+    if (nrow(db_inds) > 0) {
+      todo <- is.na(parent_id)
+      db_keys <- paste(db_inds$plot_name, db_inds$tag)
+      parent_id[todo] <- db_inds$id_n[match(parent_keys[todo], db_keys)]
+    }
+  }
+
+  resolved <- !is.na(parent_id) & !is.na(child_id)
+  if (any(!resolved) && progress) {
+    cli::cli_alert_warning(
+      "{sum(!resolved)} stem{?s} left ungrouped — parent tag not found in the batch or the plot"
+    )
+  }
+  if (!any(resolved)) return(0L)
+
+  DBI::dbExecute(con, sprintf(
+    "UPDATE data_individuals AS di
+        SET stem_grouping = v.parent_id
+       FROM (VALUES %s) AS v(id_n, parent_id)
+      WHERE di.id_n = v.id_n",
+    paste(sprintf("(%d, %d)",
+                  as.integer(child_id[resolved]),
+                  as.integer(parent_id[resolved])),
+          collapse = ", ")
+  ))
+
+  sum(resolved)
 }
 
 

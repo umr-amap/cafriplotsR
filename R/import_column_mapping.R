@@ -234,7 +234,10 @@
       "code herbier", "numero specimen"
     ),
 
-    # Multi-stem identifier (optional, for individuals)
+    # Multi-stem identifier (optional, for individuals).
+    # Deliberately NOT a synonym of stem_grouping: multi_tiges_id holds the
+    # tag of the main stem, stem_grouping holds that stem's id_n. Mapping one
+    # onto the other lands id values in a tag column.
     multi_tiges_id = c(
       "multi_stem", "multistem", "multi.stem",
       "stem_id", "stemid", "stem.id",
@@ -242,8 +245,7 @@
       "stem_code", "stemcode", "stem.code",
       "stem letter", "stem_letter", "stemletter",
       "multi tige", "multi_tige", "tige",
-      "stem", "stem identifier", "stem_identifier",
-      "stem_grouping", "stemgrouping", "stem.grouping"
+      "stem", "stem identifier", "stem_identifier"
     )
   )
 }

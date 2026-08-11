@@ -289,6 +289,14 @@ mod_step7_import_server <- function(id, validation_result, mappings, config, con
                 shiny::br(),
                 sprintf("(%d stem attributes)", result$n_features)
               )
+            },
+            if (is_individuals && !is.null(result$n_stem_grouping) &&
+                result$n_stem_grouping > 0) {
+              shiny::tagList(
+                shiny::br(),
+                sprintf("(%d stem(s) grouped into multi-stem trees)",
+                        result$n_stem_grouping)
+              )
             }
           ),
 

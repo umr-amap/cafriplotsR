@@ -37,6 +37,8 @@ List with import results:
   \item{success}{Logical: TRUE if import succeeded}
   \item{n_individuals}{Number of individuals imported}
   \item{n_features}{Number of feature records imported}
+  \item{n_stem_grouping}{Number of stems whose \code{stem_grouping} was set
+    from the \code{multi_tiges_id} column}
   \item{plot_names}{Unique plots affected}
   \item{username}{Username who performed import}
   \item{dry_run}{Was this a dry-run?}
