@@ -727,6 +727,41 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
           }
         }
 
+        # 2d. Full census import validation
+        #
+        # The step 3 split already resolved which rows are recruits, so tags
+        # missing from the database are expected here rather than an error.
+        # What is checked instead is everything the split deliberately left
+        # for a human: the census identity, the recruits' taxonomy, and the
+        # multi-stem grouping.
+        if (mode == "import_census") {
+          census_check <- tryCatch(
+            .validate_census_import(data, config, con()),
+            error = function(e) {
+              cli::cli_alert_warning("Census validation failed: {e$message}")
+              list(
+                errors = list(sprintf("Could not validate the census: %s", e$message)),
+                warnings = list()
+              )
+            }
+          )
+
+          if (length(census_check$errors) > 0) {
+            errors <- rbind(errors, data.frame(
+              row = 0, column = "census",
+              issue = unlist(census_check$errors),
+              stringsAsFactors = FALSE
+            ))
+          }
+          if (length(census_check$warnings) > 0) {
+            warnings <- rbind(warnings, data.frame(
+              row = 0, column = "census",
+              warning = unlist(census_check$warnings),
+              stringsAsFactors = FALSE
+            ))
+          }
+        }
+
         # 2b. Census-specific validation
         if (mode == "new_census") {
           # Check census column

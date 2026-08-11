@@ -1370,8 +1370,8 @@
       "fr": "Standardisation taxonomique requise pour les données d'arbres/tiges :"
     },
     {
-      "en": "Before importing individual tree data, you must standardize the taxonomic information in your dataset using the Shiny application <code>launch_taxonomic_match_app()</code>. This app helps you standardize your taxa list: it keeps your original taxon names while adding an ID (<code>idtax_n</code>) that creates a formal link to the internal taxonomic backbone. After standardizing your dataset, make sure that at the column mapping step you map the <code>idtax_n</code> column, and map the column containing your original taxon names to <code>original_tax_name</code>. See that application's dedicated vignette for detailed instructions on taxonomic standardization.",
-      "fr": "Avant d'importer les données d'arbres individuels, vous devez standardiser les informations taxonomiques de votre jeu de données à l'aide de l'application Shiny <code>launch_taxonomic_match_app()</code>. Cette application vous aide à standardiser votre liste de taxons : elle conserve les noms de taxons d'origine tout en ajoutant un identifiant (<code>idtax_n</code>) qui crée un lien formel avec le référentiel taxonomique interne. Une fois votre jeu de données standardisé, assurez-vous, à l'étape de mappage des colonnes, de mapper la colonne <code>idtax_n</code>, ainsi que la colonne contenant les noms de taxons d'origine vers <code>original_tax_name</code>. Consultez la vignette dédiée de cette application pour des instructions détaillées sur la standardisation taxonomique."
+      "en": "Before importing individual tree data, you must standardize the taxonomic information in your dataset using the Shiny application <code>launch_taxonomic_match_app()<\/code>. This app helps you standardize your taxa list: it keeps your original taxon names while adding an ID (<code>idtax_n<\/code>) that creates a formal link to the internal taxonomic backbone. After standardizing your dataset, make sure that at the column mapping step you map the <code>idtax_n<\/code> column, and map the column containing your original taxon names to <code>original_tax_name<\/code>. See that application's dedicated vignette for detailed instructions on taxonomic standardization.",
+      "fr": "Avant d'importer les données d'arbres individuels, vous devez standardiser les informations taxonomiques de votre jeu de données à l'aide de l'application Shiny <code>launch_taxonomic_match_app()<\/code>. Cette application vous aide à standardiser votre liste de taxons : elle conserve les noms de taxons d'origine tout en ajoutant un identifiant (<code>idtax_n<\/code>) qui crée un lien formel avec le référentiel taxonomique interne. Une fois votre jeu de données standardisé, assurez-vous, à l'étape de mappage des colonnes, de mapper la colonne <code>idtax_n<\/code>, ainsi que la colonne contenant les noms de taxons d'origine vers <code>original_tax_name<\/code>. Consultez la vignette dédiée de cette application pour des instructions détaillées sur la standardisation taxonomique."
     },
     {
       "en": "Plot Metadata",
@@ -8664,6 +8664,198 @@
     {
       "en": "%d specimen field(s) updated (excluding identification).",
       "fr": "%d champ(s) du spécimen mis à jour (hors identification)."
+    },
+    {
+      "en": "Whole Campaign",
+      "fr": "Campagne complète"
+    },
+    {
+      "en": "Import a Full Census",
+      "fr": "Importer un recensement complet"
+    },
+    {
+      "en": "recommended",
+      "fr": "recommandé"
+    },
+    {
+      "en": "Upload one flat table for the whole campaign — existing stems and recruits together. The wizard compares tags against the database, works out which rows are which, and writes everything in a single operation.",
+      "fr": "Déposez un seul tableau pour toute la campagne : tiges déjà enregistrées et recrues ensemble. L'assistant compare les numéros à la base, détermine la nature de chaque ligne, et écrit le tout en une seule opération."
+    },
+    {
+      "en": "No need to split your file into recruits and remeasures",
+      "fr": "Pas besoin de séparer votre fichier entre recrues et remesures"
+    },
+    {
+      "en": "Flags tags that look mistyped before they become duplicate trees",
+      "fr": "Signale les numéros qui semblent mal saisis avant qu'ils ne créent des arbres en double"
+    },
+    {
+      "en": "Creates the census, the recruits, the multi-stem groups and the measurements together",
+      "fr": "Crée le recensement, les recrues, les groupes multi-tiges et les mesures ensemble"
+    },
+    {
+      "en": "Rolls back completely if any step fails",
+      "fr": "Annule tout si une étape échoue"
+    },
+    {
+      "en": "Step 3: Import a Full Census",
+      "fr": "Étape 3 : importer un recensement complet"
+    },
+    {
+      "en": "Upload one flat table containing every stem measured during the campaign — both stems already in the database and new recruits. The wizard works out which is which by comparing tags against the database, so you do not have to split the file yourself.",
+      "fr": "Déposez un tableau unique contenant toutes les tiges mesurées pendant la campagne : celles déjà enregistrées et les nouvelles recrues. L'assistant les distingue en comparant les numéros à la base, vous n'avez donc pas à séparer le fichier vous-même."
+    },
+    {
+      "en": "Census Table",
+      "fr": "Tableau du recensement"
+    },
+    {
+      "en": "Create a new census for the selected plots",
+      "fr": "Créer un nouveau recensement pour les parcelles sélectionnées"
+    },
+    {
+      "en": "Use a census that already exists",
+      "fr": "Utiliser un recensement existant"
+    },
+    {
+      "en": "Team members are not recorded here. To attach a team leader, principal investigator or data manager to this campaign, create the census with the New Census mode first and then select it above.",
+      "fr": "Les membres de l'équipe ne sont pas saisis ici. Pour associer un chef d'équipe, un investigateur principal ou un gestionnaire de données à cette campagne, créez d'abord le recensement avec le mode Nouveau recensement, puis sélectionnez-le ci-dessus."
+    },
+    {
+      "en": "No census exists yet for the selected plots.",
+      "fr": "Aucun recensement n'existe encore pour les parcelles sélectionnées."
+    },
+    {
+      "en": "Census (one per plot)",
+      "fr": "Recensement (un par parcelle)"
+    },
+    {
+      "en": "Plot name column *",
+      "fr": "Colonne du nom de parcelle *"
+    },
+    {
+      "en": "Tag column *",
+      "fr": "Colonne du numéro de tige *"
+    },
+    {
+      "en": "Individual Columns",
+      "fr": "Colonnes de l'individu"
+    },
+    {
+      "en": "These describe the tree itself. They are written only for rows identified as recruits; for stems already in the database they are ignored.",
+      "fr": "Elles décrivent l'arbre lui-même. Elles ne sont écrites que pour les lignes identifiées comme recrues ; pour les tiges déjà enregistrées elles sont ignorées."
+    },
+    {
+      "en": "Classify Rows & Preview",
+      "fr": "Classer les lignes et prévisualiser"
+    },
+    {
+      "en": "Every remaining column can become a measurement. Leave a column on '-- skip --' to ignore it.",
+      "fr": "Chaque colonne restante peut devenir une mesure. Laissez une colonne sur '-- skip --' pour l'ignorer."
+    },
+    {
+      "en": "Please map both the plot name and the tag column.",
+      "fr": "Veuillez associer la colonne du nom de parcelle et celle du numéro de tige."
+    },
+    {
+      "en": "Classifying rows...",
+      "fr": "Classement des lignes..."
+    },
+    {
+      "en": "%d remeasure(s), %d recruit(s), %d row(s) to review.",
+      "fr": "%d remesure(s), %d recrue(s), %d ligne(s) à vérifier."
+    },
+    {
+      "en": "Row Classification",
+      "fr": "Classement des lignes"
+    },
+    {
+      "en": "Remeasures",
+      "fr": "Remesures"
+    },
+    {
+      "en": "Recruits",
+      "fr": "Recrues"
+    },
+    {
+      "en": "To review",
+      "fr": "À vérifier"
+    },
+    {
+      "en": "Not seen",
+      "fr": "Non revues"
+    },
+    {
+      "en": "%d row(s) have a tag that does not exist but closely resembles one that does.",
+      "fr": "%d ligne(s) portent un numéro inexistant mais très proche d'un numéro existant."
+    },
+    {
+      "en": "These are usually mistyped tags. Importing them would create a duplicate tree. Correct them in your file and upload it again, or confirm below that they really are new stems.",
+      "fr": "Il s'agit généralement de numéros mal saisis. Les importer créerait un arbre en double. Corrigez-les dans votre fichier et redéposez-le, ou confirmez ci-dessous qu'il s'agit bien de nouvelles tiges."
+    },
+    {
+      "en": "I checked these tags — treat them as new recruits",
+      "fr": "J'ai vérifié ces numéros : les traiter comme de nouvelles recrues"
+    },
+    {
+      "en": "%d row(s) have no usable plot name or tag and will be skipped.",
+      "fr": "%d ligne(s) n'ont ni nom de parcelle ni numéro exploitable et seront ignorées."
+    },
+    {
+      "en": "%d plot + tag combination(s) appear more than once in the file.",
+      "fr": "%d combinaison(s) parcelle + numéro apparaissent plusieurs fois dans le fichier."
+    },
+    {
+      "en": "%d remeasured stem(s) carry a different taxon than the database. The database value is kept.",
+      "fr": "%d tige(s) remesurée(s) portent un taxon différent de celui de la base. La valeur de la base est conservée."
+    },
+    {
+      "en": "%d stem(s) recorded in these plots have no row in this file. Run Compute Stem Status after the import to mark them.",
+      "fr": "%d tige(s) enregistrée(s) dans ces parcelles n'ont aucune ligne dans ce fichier. Lancez Calculer le statut des tiges après l'import pour les marquer."
+    },
+    {
+      "en": "Upload a file and map the columns, then classify the rows.",
+      "fr": "Déposez un fichier, associez les colonnes, puis classez les lignes."
+    },
+    {
+      "en": "No measurement could be prepared. Map at least one column to a trait.",
+      "fr": "Aucune mesure n'a pu être préparée. Associez au moins une colonne à un trait."
+    },
+    {
+      "en": "Ready: %d measurement(s) for %d stem(s), including %d new individual(s).",
+      "fr": "Prêt : %d mesure(s) pour %d tige(s), dont %d nouvel(aux) individu(s)."
+    },
+    {
+      "en": "Importing the census (%d measurement(s)) — please wait...",
+      "fr": "Import du recensement (%d mesure(s)) — veuillez patienter..."
+    },
+    {
+      "en": "Census records to create: %d",
+      "fr": "Enregistrements de recensement à créer : %d"
+    },
+    {
+      "en": "New individuals (recruits) to create: %d",
+      "fr": "Nouveaux individus (recrues) à créer : %d"
+    },
+    {
+      "en": "Census records created: %d",
+      "fr": "Enregistrements de recensement créés : %d"
+    },
+    {
+      "en": "Recruits created: %d",
+      "fr": "Recrues créées : %d"
+    },
+    {
+      "en": "Stems grouped as multi-stems: %d",
+      "fr": "Tiges regroupées en multi-tiges : %d"
+    },
+    {
+      "en": "Measurements inserted: %d",
+      "fr": "Mesures insérées : %d"
+    },
+    {
+      "en": "Next step: run Compute Stem Status for these plots so stems absent from this census are marked.",
+      "fr": "Étape suivante : lancez Calculer le statut des tiges pour ces parcelles afin de marquer les tiges absentes de ce recensement."
     }
   ]
 }

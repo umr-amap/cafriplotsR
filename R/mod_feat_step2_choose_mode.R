@@ -90,6 +90,46 @@ mod_feat_step2_choose_mode_ui <- function(id, i18n) {
     ),
 
     # ---- Row 2: Individual-level operations ----
+    shiny::h5(i18n$t("Whole Campaign"),
+              style = "color: #495057; margin-top: 25px; margin-bottom: 10px;"),
+
+    shiny::fluidRow(
+      # Full census card — the one-file path, listed first because it replaces
+      # the recruits + measurements + multi-stems sequence below
+      shiny::column(
+        12,
+        shiny::div(
+          id = ns("card_import_census"),
+          class = "mode-card",
+          style = "border-color: #28a745;",
+          onclick = sprintf(
+            "Shiny.setInputValue('%s', 'import_census', {priority: 'event'})",
+            ns("mode_selected")
+          ),
+          shiny::h4(
+            shiny::icon("file-import", style = "color: #28a745; margin-right: 10px;"),
+            i18n$t("Import a Full Census"),
+            shiny::tags$span(
+              class = "badge",
+              style = "background: #28a745; color: white; font-size: 11px; margin-left: 10px;",
+              i18n$t("recommended")
+            )
+          ),
+          shiny::p(
+            i18n$t("Upload one flat table for the whole campaign — existing stems and recruits together. The wizard compares tags against the database, works out which rows are which, and writes everything in a single operation."),
+            style = "color: #6c757d;"
+          ),
+          shiny::tags$ul(
+            style = "color: #6c757d; font-size: 14px;",
+            shiny::tags$li(i18n$t("No need to split your file into recruits and remeasures")),
+            shiny::tags$li(i18n$t("Flags tags that look mistyped before they become duplicate trees")),
+            shiny::tags$li(i18n$t("Creates the census, the recruits, the multi-stem groups and the measurements together")),
+            shiny::tags$li(i18n$t("Rolls back completely if any step fails"))
+          )
+        )
+      )
+    ),
+
     shiny::h5(i18n$t("Individual-Level Operations"),
               style = "color: #495057; margin-top: 25px; margin-bottom: 10px;"),
 
@@ -266,7 +306,7 @@ mod_feat_step2_choose_mode_server <- function(id, i18n) {
     ns <- session$ns
 
     selected_mode <- shiny::reactiveVal(NULL)
-    all_card_ids <- c("card_census", "card_features", "card_measurements", "card_recruits", "card_multi_stems", "card_stem_status", "card_standardize_obs")
+    all_card_ids <- c("card_census", "card_features", "card_measurements", "card_recruits", "card_multi_stems", "card_stem_status", "card_standardize_obs", "card_import_census")
 
     shiny::observeEvent(input$mode_selected, {
       mode <- input$mode_selected
@@ -280,7 +320,8 @@ mod_feat_step2_choose_mode_server <- function(id, i18n) {
         add_recruits             = "card_recruits",
         define_multi_stems       = "card_multi_stems",
         compute_stem_status      = "card_stem_status",
-        standardize_observations = "card_standardize_obs"
+        standardize_observations = "card_standardize_obs",
+        import_census            = "card_import_census"
       )
 
       # Update card styling via JS: remove 'selected' from all, add to chosen
@@ -303,7 +344,8 @@ mod_feat_step2_choose_mode_server <- function(id, i18n) {
         add_recruits             = i18n()$t("Add Recruits"),
         define_multi_stems       = i18n()$t("Define Multi-Stems"),
         compute_stem_status      = i18n()$t("Compute Stem Status"),
-        standardize_observations = i18n()$t("Standardize Observations")
+        standardize_observations = i18n()$t("Standardize Observations"),
+        import_census            = i18n()$t("Import a Full Census")
       )
 
       shiny::div(

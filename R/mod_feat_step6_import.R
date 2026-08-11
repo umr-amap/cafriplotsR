@@ -192,6 +192,8 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
         sprintf(i18n()$t("Writing %d standardized observation row(s) — please wait..."), n_rows)
       } else if (identical(mode, "add_measurements")) {
         sprintf(i18n()$t("Inserting %d measurement(s) into database — please wait..."), n_rows)
+      } else if (identical(mode, "import_census")) {
+        sprintf(i18n()$t("Importing the census (%d measurement(s)) — please wait..."), n_rows)
       } else {
         sprintf(i18n()$t("Inserting %d record(s) into database — please wait..."), n_rows)
       }
@@ -234,6 +236,8 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
           i18n()$t("Standardized observation records to write: %d")
         } else if (identical(mode, "add_measurements")) {
           i18n()$t("Measurement records to create: %d")
+        } else if (identical(mode, "import_census")) {
+          i18n()$t("Measurement records to create: %d")
         } else {
           i18n()$t("Subplot feature records to create: %d")
         }
@@ -251,6 +255,17 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
                   i18n()$t("People feature records to create: %d"),
                   res$n_people_records
                 ))
+              },
+              if (identical(mode, "import_census")) {
+                shiny::tagList(
+                  if (!is.null(res$n_census_records) && res$n_census_records > 0) {
+                    shiny::tags$li(sprintf(
+                      i18n()$t("Census records to create: %d"), res$n_census_records))
+                  },
+                  shiny::tags$li(sprintf(
+                    i18n()$t("New individuals (recruits) to create: %d"),
+                    .null_default(res$n_recruits, 0L)))
+                )
               }
             )
           ),
@@ -270,7 +285,26 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
             if (update_mode) i18n()$t("Update Successful!")
             else i18n()$t("Import Successful!")
           ),
-          shiny::p(res$message)
+          shiny::p(res$message),
+          if (identical(mode, "import_census")) {
+            shiny::tags$ul(
+              shiny::tags$li(sprintf(i18n()$t("Census records created: %d"),
+                                     .null_default(res$n_census_records, 0L))),
+              shiny::tags$li(sprintf(i18n()$t("Recruits created: %d"),
+                                     .null_default(res$n_recruits, 0L))),
+              shiny::tags$li(sprintf(i18n()$t("Stems grouped as multi-stems: %d"),
+                                     .null_default(res$n_stem_grouping, 0L))),
+              shiny::tags$li(sprintf(i18n()$t("Measurements inserted: %d"),
+                                     .null_default(res$n_measurements, 0L)))
+            )
+          },
+          if (identical(mode, "import_census")) {
+            shiny::div(
+              class = "alert alert-info", style = "margin-top: 15px;",
+              shiny::icon("lightbulb"), " ",
+              i18n()$t("Next step: run Compute Stem Status for these plots so stems absent from this census are marked.")
+            )
+          }
         )
       } else {
         shiny::div(
@@ -323,6 +357,11 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
     # Separate base data from people columns for the main add_subplot_features call
     base_col_select <- config$col_names_select
     base_col_corresp <- config$col_names_corresp
+
+    # ---- Full census mode ----
+    if (mode == "import_census") {
+      return(.execute_census_import(data, config, con, dry_run, i18n))
+    }
 
     # ---- Measurements mode ----
     if (mode == "add_measurements") {
