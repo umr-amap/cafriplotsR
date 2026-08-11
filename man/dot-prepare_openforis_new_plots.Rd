@@ -14,9 +14,12 @@
   province = NULL,
   method = NULL,
   data_provider = NULL,
+  locality_name = NULL,
+  plot_area = NULL,
   principal_investigator = NULL,
   data_manager = NULL,
-  additional_people = NULL
+  additional_people = NULL,
+  census = NULL
 )
 }
 \arguments{
@@ -24,9 +27,11 @@
 
 \item{country_codes, forest_state_codes, forest_type_codes, team_leader_codes}{Parsed code lists, or NULL to skip that decoding.}
 
-\item{country, province, method, data_provider, principal_investigator, data_manager}{Constants not present in the export. NULL to omit.}
+\item{country, province, method, data_provider, locality_name, plot_area, principal_investigator, data_manager}{Constants not present in the export. NULL to omit.}
 
 \item{additional_people}{Overrides the exported \code{add_people} column.}
+
+\item{census}{Census number written to a \code{census} column. NULL to omit.}
 }
 \value{
 Data frame with one row per plot.

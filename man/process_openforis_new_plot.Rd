@@ -23,6 +23,8 @@ process_openforis_new_plot(
   team_leader_codes = NULL,
   method = NULL,
   province = NULL,
+  locality_name = NULL,
+  plot_area = NULL,
   country = NULL,
   data_provider = NULL,
   principal_investigator = NULL,
@@ -57,8 +59,7 @@ CSVs. Files are auto-detected by pattern: \code{code_observations*} (or
 \code{data_dir}.}
 
 \item{plot_file}{Path to \code{plot.xlsx}. If NULL, auto-detected from
-\code{data_dir}. Set to FALSE to skip (no \code{plots} /
-\code{census_metadata} output).}
+\code{data_dir}. Set to FALSE to skip (no \code{plots} output).}
 
 \item{tree_file_pattern}{Glob pattern for the tree xlsx
 (default \code{"tree_list*"}).}
@@ -73,9 +74,15 @@ CSVs. Files are auto-detected by pattern: \code{code_observations*} (or
 \code{codes_dir}, FALSE to skip that decoding.}
 
 \item{method}{Character. Plot method (e.g. \code{"1ha-IRD"}). Not present in
-the OpenForis export — supply it here. NULL to omit.}
+the OpenForis export — supply it here. Required by the Import Wizard, so a
+warning is raised when it is missing. NULL to omit.}
 
 \item{province}{Character. Province/region. NULL to omit.}
+
+\item{locality_name}{Character. Locality or site name. Not present in the
+OpenForis export — supply it here. NULL to omit.}
+
+\item{plot_area}{Numeric. Plot area in hectares. NULL to omit.}
 
 \item{country}{Character. Overrides the country decoded from the export.
 NULL keeps the decoded value.}
@@ -92,8 +99,9 @@ written to the \code{additional_people} column of the specimen table, and
 feeds \code{additional_collector} wherever the plot file cannot supply a
 team (no plot file read, or a plot name missing from it).}
 
-\item{census}{Integer. Census number for the census feature
-(default \code{1} — a newly established plot).}
+\item{census}{Integer. Census number, written to \code{plots$census} and to
+\code{individuals_wide$census_id} (default \code{1} — a newly established
+plot).}
 
 \item{specimen_prefix}{Character prefix for specimen numbers (e.g.
 \code{"PIRD"}). NULL leaves the numbers as-is.}
@@ -121,19 +129,24 @@ description (default \code{"stem_diameter"}). NULL to skip.}
 \value{
 A list with components:
 \describe{
-  \item{plots}{Tibble, one row per plot, ready for \code{add_plots()} /
-    the Import Wizard: plot_name, country, province, method, data_provider,
-    team_leader, principal_investigator, data_manager, additional_people,
-    identified_by, forest_state, forest_type, date_y, date_m, date_d. A plot
-    can carry several forest types; they are decoded and collapsed into a
-    single comma-separated \code{forest_type} value. NULL if no plot file.}
-  \item{census_metadata}{Tibble with plot_name, year, month, day, census,
-    team_leader, additional_people, ready for \code{add_subplot_features()}.
-    NULL if no plot file.}
+  \item{plots}{Tibble, one row per plot, ready to upload to the Import
+    Wizard as inventory metadata: plot_name, country, province, method,
+    locality_name, plot_area, data_provider, team_leader,
+    principal_investigator, data_manager, additional_people, identified_by,
+    forest_state, forest_type, date_y, date_m, date_d, census. A plot can
+    carry several forest types; they are decoded and collapsed into a single
+    comma-separated \code{forest_type} value. NULL if no plot file.}
   \item{individuals}{Tibble of every stem: plot_name, tag, quadrat,
     original_tax_name, idtax_n, tax_appendix, herbarium_nbe_char,
     herbarium_nbe_type, position_x, position_y, multi_stem,
-    number_multi_stem.}
+    number_multi_stem, multi_tiges_id (tag of the main stem, NA for the main
+    stem itself). \code{idtax_n} is copied from the OpenForis
+    \code{species_code} without being checked against the taxonomic
+    backbone — see the note below.}
+  \item{individuals_wide}{The same stems with one column per trait and a
+    \code{census_id} column — the flat table the Import Wizard expects for
+    individual trees. Traits recorded several times for one stem
+    (\code{observation}, \code{observation_flag}) are joined with "; ".}
   \item{measurements}{Tibble in long format (plot_name, tag, trait_name,
     traitvalue, traitvalue_char) covering stem_diameter,
     height_of_stem_diameter, tree_height, position_x, position_y, light,
@@ -164,6 +177,16 @@ Plot coordinates are **not** produced: they are not part of the OpenForis
 raw export and must be added separately (e.g. with
 \code{add_plot_coordinates()}).
 }
+\section{Taxonomy}{
+
+The OpenForis \code{species_code} is written to \code{idtax_n} as-is, on the
+assumption that the form was built against the same taxonomic backbone as
+the database. Nothing in this function verifies that, while the Import
+Wizard requires a valid, non-empty \code{idtax_n} for every individual —
+so run \code{\link{launch_taxonomic_match_app}} on the result before
+importing. A warning is raised as a reminder.
+}
+
 \examples{
 \dontrun{
 result <- process_openforis_new_plot(
@@ -171,19 +194,23 @@ result <- process_openforis_new_plot(
   codes_dir = "path/to/openforis/",
   method = "1ha-IRD",
   province = "Centre",
+  locality_name = "Mbalmayo",
+  plot_area = 1,
   data_provider = "IRD",
   principal_investigator = "Jane Doe",
   data_manager = "John Smith",
   specimen_prefix = "PIRD"
 )
 
-writexl::write_xlsx(result$plots, "plots.xlsx")
-writexl::write_xlsx(result$individuals, "individuals.xlsx")
-writexl::write_xlsx(result$measurements, "measurements_long.xlsx")
+# One file per Import Wizard upload
+export_openforis_for_wizard(result, dir = "to_import")
+
+launch_import_wizard()
 }
 
 }
 \seealso{
-\code{\link{process_openforis_census}} for re-measurement exports.
+\code{\link{process_openforis_census}} for re-measurement exports;
+  \code{export_openforis_for_wizard()} to write the upload files.
 }
 \keyword{internal}

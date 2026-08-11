@@ -37,8 +37,7 @@
 #' @param tree_file Path to \code{tree_list.xlsx}. If NULL, auto-detected from
 #'   \code{data_dir}.
 #' @param plot_file Path to \code{plot.xlsx}. If NULL, auto-detected from
-#'   \code{data_dir}. Set to FALSE to skip (no \code{plots} /
-#'   \code{census_metadata} output).
+#'   \code{data_dir}. Set to FALSE to skip (no \code{plots} output).
 #' @param tree_file_pattern Glob pattern for the tree xlsx
 #'   (default \code{"tree_list*"}).
 #' @param plot_file_pattern Glob pattern for the plot xlsx
@@ -50,8 +49,12 @@
 #'   Paths to the plot-level code-list CSVs. NULL to auto-detect from
 #'   \code{codes_dir}, FALSE to skip that decoding.
 #' @param method Character. Plot method (e.g. \code{"1ha-IRD"}). Not present in
-#'   the OpenForis export — supply it here. NULL to omit.
+#'   the OpenForis export — supply it here. Required by the Import Wizard, so a
+#'   warning is raised when it is missing. NULL to omit.
 #' @param province Character. Province/region. NULL to omit.
+#' @param locality_name Character. Locality or site name. Not present in the
+#'   OpenForis export — supply it here. NULL to omit.
+#' @param plot_area Numeric. Plot area in hectares. NULL to omit.
 #' @param country Character. Overrides the country decoded from the export.
 #'   NULL keeps the decoded value.
 #' @param data_provider Character. Data provider (e.g. \code{"IRD"}).
@@ -62,8 +65,9 @@
 #'   written to the \code{additional_people} column of the specimen table, and
 #'   feeds \code{additional_collector} wherever the plot file cannot supply a
 #'   team (no plot file read, or a plot name missing from it).
-#' @param census Integer. Census number for the census feature
-#'   (default \code{1} — a newly established plot).
+#' @param census Integer. Census number, written to \code{plots$census} and to
+#'   \code{individuals_wide$census_id} (default \code{1} — a newly established
+#'   plot).
 #' @param specimen_prefix Character prefix for specimen numbers (e.g.
 #'   \code{"PIRD"}). NULL leaves the numbers as-is.
 #' @param specimen_locality Character. Locality string for specimens.
@@ -82,19 +86,24 @@
 #'
 #' @return A list with components:
 #' \describe{
-#'   \item{plots}{Tibble, one row per plot, ready for \code{add_plots()} /
-#'     the Import Wizard: plot_name, country, province, method, data_provider,
-#'     team_leader, principal_investigator, data_manager, additional_people,
-#'     identified_by, forest_state, forest_type, date_y, date_m, date_d. A plot
-#'     can carry several forest types; they are decoded and collapsed into a
-#'     single comma-separated \code{forest_type} value. NULL if no plot file.}
-#'   \item{census_metadata}{Tibble with plot_name, year, month, day, census,
-#'     team_leader, additional_people, ready for \code{add_subplot_features()}.
-#'     NULL if no plot file.}
+#'   \item{plots}{Tibble, one row per plot, ready to upload to the Import
+#'     Wizard as inventory metadata: plot_name, country, province, method,
+#'     locality_name, plot_area, data_provider, team_leader,
+#'     principal_investigator, data_manager, additional_people, identified_by,
+#'     forest_state, forest_type, date_y, date_m, date_d, census. A plot can
+#'     carry several forest types; they are decoded and collapsed into a single
+#'     comma-separated \code{forest_type} value. NULL if no plot file.}
 #'   \item{individuals}{Tibble of every stem: plot_name, tag, quadrat,
 #'     original_tax_name, idtax_n, tax_appendix, herbarium_nbe_char,
 #'     herbarium_nbe_type, position_x, position_y, multi_stem,
-#'     number_multi_stem.}
+#'     number_multi_stem, multi_tiges_id (tag of the main stem, NA for the main
+#'     stem itself). \code{idtax_n} is copied from the OpenForis
+#'     \code{species_code} without being checked against the taxonomic
+#'     backbone — see the note below.}
+#'   \item{individuals_wide}{The same stems with one column per trait and a
+#'     \code{census_id} column — the flat table the Import Wizard expects for
+#'     individual trees. Traits recorded several times for one stem
+#'     (\code{observation}, \code{observation_flag}) are joined with "; ".}
 #'   \item{measurements}{Tibble in long format (plot_name, tag, trait_name,
 #'     traitvalue, traitvalue_char) covering stem_diameter,
 #'     height_of_stem_diameter, tree_height, position_x, position_y, light,
@@ -113,6 +122,14 @@
 #'   \item{summary}{List of counts.}
 #' }
 #'
+#' @section Taxonomy:
+#' The OpenForis \code{species_code} is written to \code{idtax_n} as-is, on the
+#' assumption that the form was built against the same taxonomic backbone as
+#' the database. Nothing in this function verifies that, while the Import
+#' Wizard requires a valid, non-empty \code{idtax_n} for every individual —
+#' so run \code{\link{launch_taxonomic_match_app}} on the result before
+#' importing. A warning is raised as a reminder.
+#'
 #' @examples
 #' \dontrun{
 #' result <- process_openforis_new_plot(
@@ -120,18 +137,22 @@
 #'   codes_dir = "path/to/openforis/",
 #'   method = "1ha-IRD",
 #'   province = "Centre",
+#'   locality_name = "Mbalmayo",
+#'   plot_area = 1,
 #'   data_provider = "IRD",
 #'   principal_investigator = "Jane Doe",
 #'   data_manager = "John Smith",
 #'   specimen_prefix = "PIRD"
 #' )
 #'
-#' writexl::write_xlsx(result$plots, "plots.xlsx")
-#' writexl::write_xlsx(result$individuals, "individuals.xlsx")
-#' writexl::write_xlsx(result$measurements, "measurements_long.xlsx")
+#' # One file per Import Wizard upload
+#' export_openforis_for_wizard(result, dir = "to_import")
+#'
+#' launch_import_wizard()
 #' }
 #'
-#' @seealso \code{\link{process_openforis_census}} for re-measurement exports.
+#' @seealso \code{\link{process_openforis_census}} for re-measurement exports;
+#'   \code{export_openforis_for_wizard()} to write the upload files.
 #' @keywords internal
 process_openforis_new_plot <- function(data_dir = NULL,
                                        codes_dir = NULL,
@@ -151,6 +172,8 @@ process_openforis_new_plot <- function(data_dir = NULL,
                                        team_leader_codes = NULL,
                                        method = NULL,
                                        province = NULL,
+                                       locality_name = NULL,
+                                       plot_area = NULL,
                                        country = NULL,
                                        data_provider = NULL,
                                        principal_investigator = NULL,
@@ -263,7 +286,6 @@ process_openforis_new_plot <- function(data_dir = NULL,
 
   # ---- Plot-level tables ----
   plots <- NULL
-  census_metadata <- NULL
 
   if (!is.null(plot_file)) {
     cli::cli_alert_info("Reading plot metadata from {.file {plot_file}}")
@@ -277,13 +299,25 @@ process_openforis_new_plot <- function(data_dir = NULL,
       team_leader_codes = tl_code_list,
       country = country, province = province, method = method,
       data_provider = data_provider,
+      locality_name = locality_name, plot_area = plot_area,
       principal_investigator = principal_investigator,
       data_manager = data_manager,
-      additional_people = additional_people
+      additional_people = additional_people,
+      census = census
     )
     cli::cli_alert_success("Plot metadata for {nrow(plots)} plot{?s}")
 
-    census_metadata <- .prepare_openforis_new_plot_census(plots, census)
+    # plot_name, method and country are required by the Import Wizard
+    missing_req <- Filter(
+      function(cl) !cl %in% names(plots) || all(is.na(plots[[cl]])),
+      c("method", "country")
+    )
+    if (length(missing_req) > 0) {
+      cli::cli_alert_warning(paste(
+        "Plot table has no {.field {missing_req}} — the Import Wizard requires",
+        "plot_name, method and country. Pass {.arg {missing_req}} to fill {?it/them} in."
+      ))
+    }
 
     # Cross-check plot names between the two files
     missing_plots <- setdiff(unique(trees$plot_name), plots$plot_name)
@@ -322,6 +356,21 @@ process_openforis_new_plot <- function(data_dir = NULL,
     morpho_codes = morpho_code_list
   )
   cli::cli_alert_success("Prepared {nrow(individuals)} individual{?s}")
+
+  # species_code is assumed to be an idtax_n, but nothing here verifies it
+  if ("idtax_n" %in% names(individuals)) {
+    cli::cli_alert_warning(paste(
+      "{.field idtax_n} is taken straight from the OpenForis",
+      "{.field species_code} and is not checked against the taxonomic",
+      "backbone — verify it with {.fn launch_taxonomic_match_app} before importing."
+    ))
+    n_no_tax <- sum(is.na(individuals$idtax_n))
+    if (n_no_tax > 0) {
+      cli::cli_alert_warning(
+        "{n_no_tax} individual{?s} ha{?s/ve} no {.field idtax_n} — the Import Wizard rejects empty values"
+      )
+    }
+  }
 
   # ---- Measurements (long format) ----
   measurement_parts <- list()
@@ -409,6 +458,13 @@ process_openforis_new_plot <- function(data_dir = NULL,
     if (n_flagged > 0) {
       cli::cli_alert_warning("{n_flagged} stem{?s} flagged — review recommended")
     }
+
+    # The Import Wizard has no multi-stem step, so carry the link as a column
+    individuals$multi_tiges_id <- .build_multi_tiges_id(individuals, multi_stems)
+    n_secondary <- sum(!is.na(individuals$multi_tiges_id))
+    cli::cli_alert_info(
+      "{n_secondary} stem{?s} flagged as secondary via {.field multi_tiges_id}"
+    )
   }
 
   # ---- Specimens ----
@@ -424,7 +480,7 @@ process_openforis_new_plot <- function(data_dir = NULL,
   }
 
   specimens <- .prepare_openforis_specimens(
-    trees, census_metadata, specimen_prefix,
+    trees, plots, specimen_prefix,
     locality = specimen_locality,
     country = specimen_country,
     col_month = specimen_col_month,
@@ -465,11 +521,19 @@ process_openforis_new_plot <- function(data_dir = NULL,
     cli::cli_alert_success("Prepared {nrow(specimens)} specimen{?s}")
   }
 
+  # ---- Flat individuals table for the Import Wizard ----
+  individuals_wide <- .build_openforis_individuals_wide(
+    individuals, measurements, census = census
+  )
+  cli::cli_alert_success(
+    "Built flat individuals table: {ncol(individuals_wide)} columns for the Import Wizard"
+  )
+
   # ---- Tibbles ----
   as_tbl <- function(x) if (!is.null(x)) dplyr::as_tibble(x) else NULL
   plots            <- as_tbl(plots)
-  census_metadata  <- as_tbl(census_metadata)
   individuals      <- as_tbl(individuals)
+  individuals_wide <- as_tbl(individuals_wide)
   measurements     <- as_tbl(measurements)
   specimens        <- as_tbl(specimens)
   multi_stems      <- as_tbl(multi_stems)
@@ -505,8 +569,8 @@ process_openforis_new_plot <- function(data_dir = NULL,
 
   list(
     plots = plots,
-    census_metadata = census_metadata,
     individuals = individuals,
+    individuals_wide = individuals_wide,
     measurements = measurements,
     specimens = specimens,
     multi_stems = multi_stems,
@@ -614,9 +678,10 @@ process_openforis_new_plot <- function(data_dir = NULL,
 #' @param plots_raw Data frame read from \code{plot.xlsx}.
 #' @param country_codes,forest_state_codes,forest_type_codes,team_leader_codes
 #'   Parsed code lists, or NULL to skip that decoding.
-#' @param country,province,method,data_provider,principal_investigator,data_manager
+#' @param country,province,method,data_provider,locality_name,plot_area,principal_investigator,data_manager
 #'   Constants not present in the export. NULL to omit.
 #' @param additional_people Overrides the exported \code{add_people} column.
+#' @param census Census number written to a \code{census} column. NULL to omit.
 #' @return Data frame with one row per plot.
 #' @keywords internal
 .prepare_openforis_new_plots <- function(plots_raw,
@@ -626,9 +691,11 @@ process_openforis_new_plot <- function(data_dir = NULL,
                                          team_leader_codes = NULL,
                                          country = NULL, province = NULL,
                                          method = NULL, data_provider = NULL,
+                                         locality_name = NULL, plot_area = NULL,
                                          principal_investigator = NULL,
                                          data_manager = NULL,
-                                         additional_people = NULL) {
+                                         additional_people = NULL,
+                                         census = NULL) {
 
   if (!"plot_name" %in% names(plots_raw)) {
     stop("Column 'plot_name' not found in the plot file. Available: ",
@@ -651,6 +718,8 @@ process_openforis_new_plot <- function(data_dir = NULL,
 
   if (!is.null(province)) result$province <- province
   if (!is.null(method)) result$method <- method
+  if (!is.null(locality_name)) result$locality_name <- locality_name
+  if (!is.null(plot_area)) result$plot_area <- plot_area
   if (!is.null(data_provider)) result$data_provider <- data_provider
 
   # Team leader: coded, with a free-text fallback for "other"
@@ -709,6 +778,8 @@ process_openforis_new_plot <- function(data_dir = NULL,
   if ("date_day" %in% names(plots_raw))
     result$date_d <- suppressWarnings(as.integer(plots_raw$date_day))
 
+  if (!is.null(census)) result$census <- census
+
   result
 }
 
@@ -757,27 +828,81 @@ process_openforis_new_plot <- function(data_dir = NULL,
 }
 
 
-#' Build the census feature table for a newly established plot
+#' Link each secondary stem to the tag of its main stem
 #'
-#' @param plots Plot table produced by \code{.prepare_openforis_new_plots()}.
-#' @param census Census number (default 1).
-#' @return Data frame ready for \code{add_subplot_features()}, or NULL.
+#' \code{data_individuals.multi_tiges_id} holds the tag of the individual a
+#' stem belongs to, so the leader of every group stays NA and only the
+#' secondary stems carry a value.
+#'
+#' @param individuals Individuals table (plot_name, tag).
+#' @param multi_stems Groupings from \code{.build_openforis_multi_stems()}.
+#' @return Vector of parent tags, aligned with the rows of \code{individuals}.
 #' @keywords internal
-.prepare_openforis_new_plot_census <- function(plots, census = 1) {
+.build_multi_tiges_id <- function(individuals, multi_stems) {
 
-  if (is.null(plots) || nrow(plots) == 0) return(NULL)
+  if (is.null(multi_stems) || nrow(multi_stems) == 0)
+    return(rep(NA, nrow(individuals)))
 
-  result <- data.frame(
-    plot_name = plots$plot_name,
-    stringsAsFactors = FALSE
-  )
-  result$year  <- if ("date_y" %in% names(plots)) plots$date_y else NA_integer_
-  result$month <- if ("date_m" %in% names(plots)) plots$date_m else NA_integer_
-  result$day   <- if ("date_d" %in% names(plots)) plots$date_d else NA_integer_
-  if (!is.null(census)) result$census <- census
-  if ("team_leader" %in% names(plots)) result$team_leader <- plots$team_leader
-  if ("additional_people" %in% names(plots))
-    result$additional_people <- plots$additional_people
+  idx <- match(paste(individuals$plot_name, individuals$tag),
+               paste(multi_stems$plot_name, multi_stems$tag))
+  parent <- multi_stems$group_tag[idx]
+
+  # The leader is its own group tag and is not secondary to anything
+  ifelse(!is.na(parent) & parent != individuals$tag, parent, NA)
+}
+
+
+#' Flatten the long measurement table onto the individuals table
+#'
+#' The Import Wizard reads a single sheet holding one column per trait, so the
+#' long \code{measurements} table is pivoted wide and joined to the
+#' individuals. Traits already carried by \code{individuals} (position_x,
+#' position_y) are skipped rather than duplicated. Character traits recorded
+#' several times for one stem — \code{observation} and
+#' \code{observation_flag} — are joined with "; "; a numeric trait with
+#' repeated values keeps the first and warns.
+#'
+#' @param individuals Individuals table.
+#' @param measurements Long measurement table.
+#' @param census Census number written to \code{census_id}. NULL to omit.
+#' @return Data frame with one row per stem and one column per trait.
+#' @keywords internal
+.build_openforis_individuals_wide <- function(individuals, measurements,
+                                              census = NULL) {
+
+  result <- individuals
+  if (!is.null(census)) result$census_id <- census
+  if (is.null(measurements) || nrow(measurements) == 0) return(result)
+
+  traits <- setdiff(unique(measurements$trait_name), names(individuals))
+  stem_key <- paste(result$plot_name, result$tag)
+
+  for (trait in traits) {
+    sub <- measurements[measurements$trait_name == trait, , drop = FALSE]
+    is_numeric <- any(!is.na(sub$traitvalue))
+    vals <- if (is_numeric) sub$traitvalue else sub$traitvalue_char
+    key <- paste(sub$plot_name, sub$tag)
+
+    if (!anyDuplicated(key)) {
+      result[[trait]] <- vals[match(stem_key, key)]
+      next
+    }
+
+    if (is_numeric) {
+      cli::cli_alert_warning(paste(
+        "Trait {.field {trait}} has several values for the same stem —",
+        "keeping the first in the flat table"
+      ))
+      keep <- !duplicated(key)
+      result[[trait]] <- vals[keep][match(stem_key, key[keep])]
+    } else {
+      collapsed <- tapply(as.character(vals), key, function(x) {
+        x <- unique(x[!is.na(x)])
+        if (length(x) == 0) NA_character_ else paste(x, collapse = "; ")
+      })
+      result[[trait]] <- as.character(collapsed)[match(stem_key, names(collapsed))]
+    }
+  }
 
   result
 }
@@ -1050,4 +1175,63 @@ process_openforis_new_plot <- function(data_dir = NULL,
 
   cli::cli_alert_warning("No {label} found in {.path {dir}} — skipped")
   NULL
+}
+
+
+#' Write the processed tables as Import Wizard uploads
+#'
+#' Each wizard step reads the first sheet of a single file, so every table
+#' goes to its own xlsx. Upload them in the order they are numbered: plots
+#' first (individuals are linked to plots by \code{plot_name}), then the flat
+#' individuals table.
+#'
+#' @param x List returned by \code{process_openforis_new_plot()}.
+#' @param dir Directory to write into. Created when missing.
+#' @param prefix Optional file-name prefix, e.g. a mission name.
+#' @param overwrite Logical. Replace existing files? Default FALSE.
+#' @return Character vector of the files written, invisibly.
+#' @keywords internal
+export_openforis_for_wizard <- function(x, dir = ".", prefix = NULL,
+                                        overwrite = FALSE) {
+
+  tables <- list(
+    "01_plots"       = x$plots,
+    "02_individuals" = x$individuals_wide,
+    "03_specimens"   = x$specimens,
+    "04_multi_stems" = x$multi_stems
+  )
+  tables <- tables[!vapply(tables, is.null, logical(1))]
+  if (length(tables) == 0) {
+    cli::cli_alert_warning("Nothing to export")
+    return(invisible(character(0)))
+  }
+
+  if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
+
+  written <- character(0)
+  for (nm in names(tables)) {
+    stem <- if (is.null(prefix)) nm else paste0(prefix, "_", nm)
+    file <- file.path(dir, paste0(stem, ".xlsx"))
+
+    if (file.exists(file) && !overwrite) {
+      cli::cli_alert_warning(
+        "{.file {file}} exists — pass {.code overwrite = TRUE} to replace it"
+      )
+      next
+    }
+
+    writexl::write_xlsx(tables[[nm]], file)
+    cli::cli_alert_success(
+      "{nrow(tables[[nm]])} row{?s} written to {.file {file}}"
+    )
+    written <- c(written, file)
+  }
+
+  cli::cli_alert_info(paste(
+    "Upload {.file 01_plots} to the Import Wizard first, then",
+    "{.file 02_individuals}. {.file 03_specimens} and {.file 04_multi_stems}",
+    "are for the specimen and Feature Wizard steps."
+  ))
+
+  invisible(written)
 }
