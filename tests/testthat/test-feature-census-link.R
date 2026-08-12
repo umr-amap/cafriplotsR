@@ -11,9 +11,20 @@ test_that("position features are never attached to a census", {
   expect_true(all(policy == "never"))
 })
 
+test_that("what the plant is, and what a lab measured, are not census facts", {
+  policy <- .feature_census_link(
+    c("strate_cat", "abundance_coeff", "reproductive_state",
+      "growth_form_level_1", "life_history_level_2",
+      "plant_height", "spinescence", "twig_fresh_volume",
+      "leaf_C_percentage", "leaf_delta_carbon_13", "colnam"))
+
+  expect_true(all(policy == "never"))
+})
+
 test_that("measurements are attached by default", {
   policy <- .feature_census_link(
-    c("stem_diameter", "tree_height", "stem_status", "flag1_rainfor"))
+    c("stem_diameter", "tree_height", "stem_status", "flag1_rainfor",
+      "height_of_stem_diameter", "crown_width", "observations"))
 
   expect_true(all(policy == "always"))
 })

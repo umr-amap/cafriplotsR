@@ -10,14 +10,15 @@
 Named character vector, feature name to `"never"`.
 }
 \description{
-Where a stem sits and how it is located within the plot are properties of
-the tree, not of the campaign that measured it. This is the built-in default
-used when the database does not state a policy of its own.
+Where a stem sits, what kind of plant it is and what was determined from it
+in a laboratory are properties of the tree, not of the campaign that
+measured it. This is the built-in default used when the database does not
+state a policy of its own.
 }
 \details{
-The set is deliberately narrow. It holds only features whose independence
-from the census is a matter of meaning rather than of how the data happened
-to be loaded: every one of them is also unlinked in every row already
-recorded (`quadrat`, for instance, 0 of 147,894).
+Every feature listed is also unlinked in every row already recorded —
+`quadrat`, for instance, 0 of 147,894 — and the classification was confirmed
+against [census_link_evidence()] rather than inferred from the counts alone.
+Anything absent from this list is attached to the census.
 }
 \keyword{internal}

@@ -14,14 +14,15 @@
 
 #' Features that are never attached to a census
 #'
-#' Where a stem sits and how it is located within the plot are properties of
-#' the tree, not of the campaign that measured it. This is the built-in default
-#' used when the database does not state a policy of its own.
+#' Where a stem sits, what kind of plant it is and what was determined from it
+#' in a laboratory are properties of the tree, not of the campaign that
+#' measured it. This is the built-in default used when the database does not
+#' state a policy of its own.
 #'
-#' The set is deliberately narrow. It holds only features whose independence
-#' from the census is a matter of meaning rather than of how the data happened
-#' to be loaded: every one of them is also unlinked in every row already
-#' recorded (`quadrat`, for instance, 0 of 147,894).
+#' Every feature listed is also unlinked in every row already recorded —
+#' `quadrat`, for instance, 0 of 147,894 — and the classification was confirmed
+#' against [census_link_evidence()] rather than inferred from the counts alone.
+#' Anything absent from this list is attached to the census.
 #'
 #' @return Named character vector, feature name to `"never"`.
 #' @keywords internal
@@ -33,7 +34,17 @@
     "position_x_iphone", "position_y_iphone",
     "position_x_moasure", "position_y_moasure",
     # position along a transect
-    "position_transect", "transect_part", "transect_section"
+    "position_transect", "transect_part", "transect_section",
+    # what kind of plant it is
+    "strate_cat", "abundance_coeff", "reproductive_state",
+    "growth_form_level_1", "growth_form_level_2", "growth_form_level_3",
+    "life_history_level_1", "life_history_level_2",
+    # measured once, off the plot
+    "plant_height", "spinescence", "twig_fresh_volume",
+    "leaf_C_percentage", "leaf_N_percentage", "leaf_P_percentage",
+    "leaf_K_percentage", "leaf_Ca_percentage", "leaf_delta_carbon_13",
+    # who recorded it
+    "colnam"
   )
   stats::setNames(rep("never", length(never)), never)
 }
