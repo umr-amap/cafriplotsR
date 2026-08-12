@@ -898,11 +898,16 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   cats <- ifelse(is.na(traits$category) | nchar(trimws(as.character(traits$category))) == 0,
                  "Other", as.character(traits$category))
 
-  # Predefined category order
+  # Predefined category order. The descriptor categories sit near the top:
+  # they are not traits in the colloquial sense, but a census table carries
+  # them (quadrat, position_x) and leaving them to fall to the bottom of a
+  # 100-entry dropdown is how they get missed.
   cat_order <- c(
-    "Stem-level trait", "Stem status", "Leaf trait", "Wood trait",
-    "Phenology", "Classification", "Vitality",
-    "Other trait", "Other"
+    "Stem-level trait", "Stem status",
+    "Position", "Sampling identification", "Observation",
+    "Leaf trait", "Wood trait",
+    "Phenology", "Classification", "Vitality", "Reproductive trait",
+    "People", "Other trait", "Other"
   )
   unique_cats <- unique(cats)
   ordered_cats <- c(

@@ -553,6 +553,83 @@
 }
 
 
+#' Render the explanation shown under a mapping dropdown
+#'
+#' Turns one entry of [.get_column_descriptions()] into the small panel that
+#' tells the user what the column they just picked actually holds. Returns
+#' `NULL` when there is nothing to say, so callers can drop it in
+#' unconditionally.
+#'
+#' @param info One element of the list returned by [.get_column_descriptions()],
+#'   or `NULL` for an unmapped column.
+#' @param i18n Optional translator object. Labels fall back to English without
+#'   one; the description text itself comes from the database and is never
+#'   translated.
+#'
+#' @return A `shiny.tag`, or `NULL`.
+#' @keywords internal
+.column_description_box <- function(info, i18n = NULL) {
+  if (!is.list(info)) return(NULL)
+
+  tr <- function(x) if (is.null(i18n)) x else i18n$t(x)
+
+  txt <- function(x) {
+    if (is.null(x) || length(x) != 1) return(NULL)
+    x <- as.character(x)
+    if (is.na(x) || !nzchar(trimws(x))) return(NULL)
+    x
+  }
+
+  description <- txt(info$description)
+  unit        <- txt(info$expectedunit)
+  levels_txt  <- txt(info$factorlevels)
+  category    <- txt(info$category)
+
+  # A bare category tells the user nothing on its own
+  if (is.null(description) && is.null(unit) && is.null(levels_txt)) return(NULL)
+
+  parts <- list()
+
+  if (!is.null(category)) {
+    parts <- c(parts, list(shiny::tags$span(
+      class = "badge",
+      style = paste("background-color: #6c757d; color: white;",
+                    "font-size: 11px; margin-right: 6px;"),
+      category
+    )))
+  }
+
+  if (!is.null(description)) {
+    parts <- c(parts, list(shiny::tags$small(
+      shiny::icon("info-circle", style = "color: #007bff;"), " ", description,
+      style = "color: #6c757d;"
+    )))
+  }
+
+  if (!is.null(unit)) {
+    parts <- c(parts, list(shiny::br(), shiny::tags$small(
+      shiny::icon("ruler"), " ", tr("Unit: "), shiny::tags$strong(unit),
+      style = "color: #28a745;"
+    )))
+  }
+
+  if (!is.null(levels_txt)) {
+    parts <- c(parts, list(shiny::br(), shiny::tags$small(
+      shiny::icon("list"), " ", tr("Expected values: "),
+      shiny::tags$code(levels_txt, style = "font-size: 10px;"),
+      style = "color: #856404;"
+    )))
+  }
+
+  shiny::div(
+    style = paste("margin-top: 6px; margin-bottom: 12px; padding: 8px;",
+                  "background-color: #f0f8ff; border-radius: 4px;",
+                  "border-left: 3px solid #007bff;"),
+    parts
+  )
+}
+
+
 #' Build Grouped Choices for Schema Column Dropdowns
 #'
 #' Builds a named list of named character vectors suitable for \code{selectInput}

@@ -70,6 +70,7 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
 
     uploaded_raw     <- shiny::reactiveVal(NULL)
     available_traits <- shiny::reactiveVal(NULL)
+    column_info      <- shiny::reactiveVal(list())
     census_choices   <- shiny::reactiveVal(NULL)
     split_result     <- shiny::reactiveVal(NULL)
     prepared         <- shiny::reactiveVal(NULL)
@@ -87,6 +88,18 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
                   expectedunit, minallowedvalue, maxallowedvalue, factorlevels
            FROM traitlist ORDER BY trait")
         available_traits(traits)
+
+        # Same source the Import Wizard's mapping step uses, so the two steps
+        # explain a column the same way. A failure here costs the explanations
+        # and nothing else, so it must not take the trait list down with it.
+        column_info(tryCatch(
+          .get_column_descriptions(actual_con, "individuals"),
+          error = function(e) {
+            message("Note: could not fetch column descriptions (",
+                    conditionMessage(e), ").")
+            list()
+          }
+        ))
       }, error = function(e) {
         cli::cli_alert_warning("Could not load trait list: {e$message}")
       })
@@ -214,9 +227,10 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
 
     output$column_mapping_ui <- shiny::renderUI({
       raw <- uploaded_raw()
-      # Deliberately not reading available_traits() here: the trait dropdowns
-      # live in their own output, and taking the dependency would re-render
-      # this panel when the trait list arrives, wiping the user's choices
+      # Deliberately not reading available_traits() or column_info() here: the
+      # feature dropdowns and every description box live in their own outputs,
+      # and taking the dependency would re-render this panel when that
+      # reference data arrives, wiping the user's choices
       if (is.null(raw)) return(NULL)
 
       user_cols <- names(raw)
@@ -238,11 +252,19 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
         ))
       }
 
-      # Columns that describe the individual rather than a measurement. They
-      # are only written for rows that turn out to be recruits.
-      individual_fields <- c("idtax_n", "original_tax_name", "sous_plot_name",
-                             "multi_tiges_id", "herbarium_nbe_char",
-                             "herbarium_nbe_type")
+      # Flat columns of data_individuals. They are only written for rows that
+      # turn out to be recruits.
+      individual_blocks <- lapply(.census_individual_fields(), function(f) {
+        shiny::tagList(
+          shiny::selectInput(
+            ns(paste0("map_", f)), f,
+            choices = c(none, stats::setNames(user_cols, user_cols)),
+            selected = .null_default(auto[[f]], ""),
+            width = "100%"
+          ),
+          shiny::uiOutput(ns(paste0("desc_", f)))
+        )
+      })
 
       shiny::tagList(
         shiny::hr(),
@@ -257,15 +279,7 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
           i18n()$t("These describe the tree itself. They are written only for rows identified as recruits; for stems already in the database they are ignored."),
           style = "color: #6c757d;"
         ),
-        shiny::fluidRow(
-          lapply(individual_fields, function(f) {
-            shiny::column(4, shiny::selectInput(
-              ns(paste0("map_", f)), f,
-              choices = c(none, stats::setNames(user_cols, user_cols)),
-              selected = .null_default(auto[[f]], "")
-            ))
-          })
-        ),
+        .census_ui_grid(individual_blocks),
 
         shiny::uiOutput(ns("trait_mapping_ui")),
 
@@ -281,7 +295,10 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
       )
     })
 
-    # Remaining columns are offered as traits
+    # Remaining columns are offered as individual features. "Feature" here is
+    # the package's own word for anything in traitlist — measured traits, but
+    # also descriptors such as quadrat or position_x, which is what a census
+    # table carries alongside the measurements.
     output$trait_mapping_ui <- shiny::renderUI({
       raw <- uploaded_raw()
       traits <- available_traits()
@@ -292,25 +309,57 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
       if (length(free) == 0) return(NULL)
 
       choices <- .build_grouped_trait_choices(traits)
-      trait_names <- traits$trait
+      guesses <- .census_feature_guess(free, traits)
+
+      feature_blocks <- lapply(free, function(col) {
+        safe <- .census_safe_id(col)
+        shiny::tagList(
+          shiny::selectizeInput(
+            ns(paste0("trait_map_", safe)), col,
+            choices = choices, selected = guesses[[col]], width = "100%",
+            options = list(placeholder = "(Skip)", allowEmptyOption = TRUE)
+          ),
+          shiny::uiOutput(ns(paste0("featdesc_", safe)))
+        )
+      })
 
       shiny::tagList(
-        shiny::h4(shiny::icon("tags"), " ", i18n()$t("Map Columns to Traits")),
+        shiny::h4(shiny::icon("tags"), " ",
+                  i18n()$t("Map Columns to Individual Features")),
         shiny::p(
-          i18n()$t("Every remaining column can become a measurement. Leave a column on '-- skip --' to ignore it."),
+          i18n()$t("Every remaining column can be recorded against the stem for this census: measured traits such as diameter or height, but also descriptors of the individual such as quadrat — where a subplot or sous-parcelle column belongs — or position. Leave a column on '-- skip --' to ignore it."),
           style = "color: #6c757d;"
         ),
-        shiny::fluidRow(
-          lapply(free, function(col) {
-            safe <- gsub("[^a-zA-Z0-9]", "_", col)
-            guess <- if (col %in% trait_names) col else ""
-            shiny::column(4, shiny::selectInput(
-              ns(paste0("trait_map_", safe)), col,
-              choices = choices, selected = guess
-            ))
-          })
-        )
+        .census_ui_grid(feature_blocks)
       )
+    })
+
+    # ---- what each mapped column means ------------------------------------
+
+    # The individual columns are a fixed list, so their explanations are
+    # registered once. They live in their own outputs rather than inside
+    # column_mapping_ui so that descriptions arriving from the database do not
+    # redraw the panel underneath the user.
+    lapply(.census_individual_fields(), function(field) {
+      output[[paste0("desc_", field)]] <- shiny::renderUI({
+        .column_description_box(column_info()[[field]], i18n())
+      })
+    })
+
+    # Feature columns are named by the uploaded file, so their outputs can only
+    # be registered once a file is there. The explanation follows the selection.
+    shiny::observe({
+      raw <- uploaded_raw()
+      shiny::req(raw)
+
+      lapply(names(raw), function(col) {
+        safe <- .census_safe_id(col)
+        output[[paste0("featdesc_", safe)]] <- shiny::renderUI({
+          selected <- input[[paste0("trait_map_", safe)]]
+          if (is.null(selected) || !nzchar(selected)) return(NULL)
+          .column_description_box(column_info()[[selected]], i18n())
+        })
+      })
     })
 
     # ---- classify ---------------------------------------------------------
@@ -337,8 +386,7 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
 
           # Individual columns are renamed to their database names up front so
           # the split and the insert see the same thing
-          for (f in c("idtax_n", "original_tax_name", "sous_plot_name",
-                      "multi_tiges_id", "herbarium_nbe_char", "herbarium_nbe_type")) {
+          for (f in .census_individual_fields()) {
             src <- input[[paste0("map_", f)]]
             if (!is.null(src) && nzchar(src) && src %in% names(df) && src != f) {
               names(df)[names(df) == src] <- f
@@ -560,7 +608,7 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
         return(shiny::div(
           class = "alert alert-warning",
           shiny::icon("exclamation-triangle"), " ",
-          i18n()$t("No measurement could be prepared. Map at least one column to a trait.")
+          i18n()$t("No measurement could be prepared. Map at least one column to an individual feature.")
         ))
       }
 
@@ -587,6 +635,37 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
 # Internal helpers (no Shiny reactivity — testable directly)
 # ============================================================
 
+#' Flat individual columns offered by the census mapping
+#'
+#' The columns of `data_individuals` that describe the tree itself and are
+#' written only for recruits. `sous_plot_name` is deliberately absent: the
+#' column is superseded and no longer maintained, so a file column naming a
+#' subplot belongs on the `quadrat` feature instead of here.
+#'
+#' @return Character vector of column names.
+#' @keywords internal
+#' @export
+.census_individual_fields <- function() {
+  c("idtax_n", "original_tax_name", "multi_tiges_id",
+    "herbarium_nbe_char", "herbarium_nbe_type")
+}
+
+
+#' Input id fragment for a user column name
+#'
+#' Two columns differing only in punctuation collapse onto the same id, which
+#' is why the same rule has to be used everywhere a column is turned into an
+#' input name.
+#'
+#' @param col Character vector of column names.
+#' @return Character vector safe for use in an input id.
+#' @keywords internal
+#' @export
+.census_safe_id <- function(col) {
+  gsub("[^a-zA-Z0-9]", "_", col)
+}
+
+
 #' Columns already claimed as keys or individual attributes
 #'
 #' @param input Shiny input object.
@@ -594,9 +673,7 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
 #' @keywords internal
 #' @export
 .census_mapped_columns <- function(input) {
-  fields <- c("plot_name", "tag", "idtax_n", "original_tax_name",
-              "sous_plot_name", "multi_tiges_id", "herbarium_nbe_char",
-              "herbarium_nbe_type")
+  fields <- c("plot_name", "tag", .census_individual_fields())
   vals <- vapply(fields, function(f) {
     v <- input[[paste0("map_", f)]]
     if (is.null(v)) "" else as.character(v)
@@ -605,30 +682,90 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
 }
 
 
-#' Collect the column-to-trait mapping chosen in the UI
+#' Collect the column-to-feature mapping chosen in the UI
 #'
 #' @param input Shiny input object.
 #' @param data Data frame whose columns were offered.
 #' @param traits Trait table from `traitlist`.
-#' @return Named character vector, column name to trait name.
+#' @return Named character vector, column name to feature name.
 #' @keywords internal
 #' @export
 .census_trait_mapping <- function(input, data, traits) {
   used <- c(.census_mapped_columns(input),
-            "plot_name", "tag", "idtax_n", "original_tax_name",
-            "sous_plot_name", "multi_tiges_id", "herbarium_nbe_char",
-            "herbarium_nbe_type", "row_id", "row_role", "id_n", "split_note")
+            "plot_name", "tag", .census_individual_fields(),
+            "row_id", "row_role", "id_n", "split_note")
   free <- setdiff(names(data), used)
 
   mapping <- character(0)
   for (col in free) {
-    safe <- gsub("[^a-zA-Z0-9]", "_", col)
-    sel <- input[[paste0("trait_map_", safe)]]
+    sel <- input[[paste0("trait_map_", .census_safe_id(col))]]
     if (!is.null(sel) && nzchar(sel) && sel %in% traits$trait) {
       mapping[[col]] <- sel
     }
   }
   mapping
+}
+
+
+#' Guess an individual feature for each unclaimed column
+#'
+#' Exact name first, then the synonym dictionaries. The individual-feature
+#' synonyms matter most here: they are what sends a `subplot` or
+#' `sous_parcelle` column to the `quadrat` feature now that `sous_plot_name`
+#' is gone. Keys that are not real features are dropped, so a dictionary
+#' entry such as `census_id` cannot produce an unmappable guess.
+#'
+#' @param free_cols Character vector of column names still unclaimed.
+#' @param traits Trait table from `traitlist`.
+#' @return Named character vector, column name to feature name, `""` when no
+#'   guess was found.
+#' @keywords internal
+#' @export
+.census_feature_guess <- function(free_cols, traits) {
+  out <- stats::setNames(rep("", length(free_cols)), free_cols)
+  if (length(free_cols) == 0 || is.null(traits) || nrow(traits) == 0) return(out)
+
+  feature_names <- as.character(traits$trait)
+  lower <- tolower(trimws(as.character(free_cols)))
+
+  exact <- match(lower, tolower(feature_names))
+  out[!is.na(exact)] <- feature_names[exact[!is.na(exact)]]
+
+  synonyms <- tryCatch(.get_trait_column_synonyms(), error = function(e) list())
+  synonyms <- utils::modifyList(
+    synonyms,
+    tryCatch(.get_individual_feature_synonyms(), error = function(e) list())
+  )
+  synonyms <- synonyms[names(synonyms) %in% feature_names]
+
+  for (feature in names(synonyms)) {
+    hit <- which(out == "" & lower %in% tolower(synonyms[[feature]]))
+    if (length(hit) > 0) out[hit] <- feature
+  }
+
+  out
+}
+
+
+#' Lay UI blocks out in rows of equal-width columns
+#'
+#' A single `fluidRow` of many blocks floats badly once the blocks have
+#' descriptions of different lengths under them, so the blocks are chunked
+#' into their own rows.
+#'
+#' @param blocks List of UI elements.
+#' @param per_row Blocks per row; must divide 12.
+#' @return A list of `fluidRow`s, or `NULL` when there is nothing to lay out.
+#' @keywords internal
+#' @export
+.census_ui_grid <- function(blocks, per_row = 3) {
+  if (length(blocks) == 0) return(NULL)
+  width <- as.integer(12 / per_row)
+  groups <- split(seq_along(blocks), ceiling(seq_along(blocks) / per_row))
+
+  unname(lapply(groups, function(idx) {
+    shiny::fluidRow(lapply(idx, function(i) shiny::column(width, blocks[[i]])))
+  }))
 }
 
 

@@ -8960,6 +8960,26 @@
     {
       "en": "Upload xlsx file",
       "fr": "Charger un fichier xlsx"
+    },
+    {
+      "en": "Map Columns to Individual Features",
+      "fr": "Associer les colonnes aux caractéristiques des individus"
+    },
+    {
+      "en": "Every remaining column can be recorded against the stem for this census: measured traits such as diameter or height, but also descriptors of the individual such as quadrat — where a subplot or sous-parcelle column belongs — or position. Leave a column on '-- skip --' to ignore it.",
+      "fr": "Chaque colonne restante peut être enregistrée pour cette tige lors de ce recensement : des mesures comme le diamètre ou la hauteur, mais aussi des descripteurs de l'individu comme le quadrat — où doit aller une colonne sous-parcelle ou subplot — ou la position. Laissez une colonne sur '-- skip --' pour l'ignorer."
+    },
+    {
+      "en": "No measurement could be prepared. Map at least one column to an individual feature.",
+      "fr": "Aucune mesure n'a pu être préparée. Associez au moins une colonne à une caractéristique de l'individu."
+    },
+    {
+      "en": "Unit: ",
+      "fr": "Unité : "
+    },
+    {
+      "en": "Expected values: ",
+      "fr": "Valeurs attendues : "
     }
   ]
 }

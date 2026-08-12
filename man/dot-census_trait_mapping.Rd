@@ -2,7 +2,7 @@
 % Please edit documentation in R/mod_feat_step3_census_import.R
 \name{.census_trait_mapping}
 \alias{.census_trait_mapping}
-\title{Collect the column-to-trait mapping chosen in the UI}
+\title{Collect the column-to-feature mapping chosen in the UI}
 \usage{
 .census_trait_mapping(input, data, traits)
 }
@@ -14,9 +14,9 @@
 \item{traits}{Trait table from `traitlist`.}
 }
 \value{
-Named character vector, column name to trait name.
+Named character vector, column name to feature name.
 }
 \description{
-Collect the column-to-trait mapping chosen in the UI
+Collect the column-to-feature mapping chosen in the UI
 }
 \keyword{internal}

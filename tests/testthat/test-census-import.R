@@ -335,6 +335,229 @@ test_that(".census_trait_mapping only keeps columns pointed at a real trait", {
   expect_equal(res, c(dbh = "stem_diameter"))
 })
 
+test_that(".census_trait_mapping sanitises column names the same way the UI does", {
+  data <- data.frame(check.names = FALSE, stringsAsFactors = FALSE,
+                     plot = "P1", tag = "1", `dbh (cm)` = 1)
+  input <- list(map_plot_name = "plot", map_tag = "tag",
+                `trait_map_dbh__cm_` = "stem_diameter")
+  res <- .census_trait_mapping(input, data, ci_traits())
+
+  expect_equal(res, c(`dbh (cm)` = "stem_diameter"))
+})
+
+# =============================================================================
+# .census_individual_fields() / .census_feature_guess() / .census_ui_grid()
+# =============================================================================
+
+test_that("sous_plot_name is not offered as an individual column", {
+  fields <- .census_individual_fields()
+
+  expect_false("sous_plot_name" %in% fields)
+  expect_false("code_individu" %in% fields)
+  expect_true(all(c("idtax_n", "original_tax_name", "multi_tiges_id",
+                    "herbarium_nbe_char", "herbarium_nbe_type") %in% fields))
+})
+
+test_that(".census_mapped_columns never claims a column for sous_plot_name", {
+  # A file column called sous_plot_name is now free to be mapped as a feature
+  input <- list(map_plot_name = "plot", map_tag = "tag",
+                map_sous_plot_name = "sous_plot_name")
+
+  expect_false("sous_plot_name" %in% .census_mapped_columns(input))
+})
+
+cfg_traits <- function() {
+  data.frame(
+    id_trait  = c(1L, 2L, 3L),
+    trait     = c("stem_diameter", "quadrat", "tree_height"),
+    valuetype = c("numeric", "character", "numeric"),
+    stringsAsFactors = FALSE
+  )
+}
+
+test_that(".census_feature_guess matches exact feature names", {
+  res <- .census_feature_guess(c("quadrat", "tree_height"), cfg_traits())
+
+  expect_equal(unname(res), c("quadrat", "tree_height"))
+})
+
+test_that(".census_feature_guess routes subplot columns to quadrat", {
+  # This is the path that replaces the dead sous_plot_name field
+  res <- .census_feature_guess(c("subplot", "sous_parcelle", "SUB_PLOT"),
+                               cfg_traits())
+
+  expect_equal(unname(res), rep("quadrat", 3))
+})
+
+test_that(".census_feature_guess uses the trait synonyms for measurements", {
+  res <- .census_feature_guess(c("dbh", "hauteur"), cfg_traits())
+
+  expect_equal(res[["dbh"]], "stem_diameter")
+})
+
+test_that(".census_feature_guess returns an empty guess for unknown columns", {
+  res <- .census_feature_guess(c("random_note", "quadrat"), cfg_traits())
+
+  expect_equal(res[["random_note"]], "")
+  expect_equal(res[["quadrat"]], "quadrat")
+  expect_equal(names(res), c("random_note", "quadrat"))
+})
+
+test_that(".census_feature_guess never guesses a name that is not a feature", {
+  # census_id is in the synonym dictionary but is not a row of traitlist
+  res <- .census_feature_guess(c("campaign", "visit"), cfg_traits())
+
+  expect_equal(unname(res), c("", ""))
+})
+
+test_that(".census_feature_guess copes with no columns and no traits", {
+  expect_length(.census_feature_guess(character(0), cfg_traits()), 0)
+  expect_equal(unname(.census_feature_guess("dbh", cfg_traits()[0, ])), "")
+  expect_equal(unname(.census_feature_guess("dbh", NULL)), "")
+})
+
+test_that(".census_ui_grid chunks blocks into rows", {
+  blocks <- lapply(1:7, function(i) shiny::tags$span(i))
+  rows <- .census_ui_grid(blocks, per_row = 3)
+
+  expect_length(rows, 3)
+  expect_true(all(vapply(rows, function(r) inherits(r, "shiny.tag"), logical(1))))
+  # every block survives the chunking
+  html <- as.character(shiny::tagList(rows))
+  expect_true(all(vapply(1:7, function(i) grepl(paste0(">", i, "<"), html),
+                         logical(1))))
+})
+
+test_that(".census_ui_grid returns NULL when there is nothing to lay out", {
+  expect_null(.census_ui_grid(list()))
+})
+
+# =============================================================================
+# .column_description_box()
+# =============================================================================
+
+test_that(".column_description_box says nothing when there is nothing to say", {
+  expect_null(.column_description_box(NULL))
+  expect_null(.column_description_box(list()))
+  expect_null(.column_description_box("not a list"))
+  expect_null(.column_description_box(list(description = "")))
+  expect_null(.column_description_box(list(description = NA_character_)))
+  # a category on its own is not an explanation
+  expect_null(.column_description_box(list(category = "Position")))
+})
+
+test_that(".column_description_box shows description, unit and factor levels", {
+  html <- as.character(.column_description_box(list(
+    description  = "Quadrat of 1ha plot",
+    category     = "Position",
+    expectedunit = "metre",
+    factorlevels = "a|b|c"
+  )))
+
+  expect_true(grepl("Quadrat of 1ha plot", html, fixed = TRUE))
+  expect_true(grepl("Position", html, fixed = TRUE))
+  expect_true(grepl("metre", html, fixed = TRUE))
+  expect_true(grepl("a|b|c", html, fixed = TRUE))
+})
+
+test_that(".column_description_box omits the parts that are absent", {
+  html <- as.character(.column_description_box(list(description = "Just this")))
+
+  expect_true(grepl("Just this", html, fixed = TRUE))
+  expect_false(grepl("Unit:", html, fixed = TRUE))
+  expect_false(grepl("Expected values:", html, fixed = TRUE))
+})
+
+# =============================================================================
+# The mapping panel itself
+# =============================================================================
+
+ci_i18n <- function() shiny::reactive(list(t = function(x) x))
+
+ci_uploaded <- function() {
+  data.frame(
+    check.names = FALSE, stringsAsFactors = FALSE,
+    parcelle = "P1", no_arbre = "1", dbh = 21.1,
+    subplot = "A2", sous_plot_name = "ignored", note = "leaning"
+  )
+}
+
+test_that("the mapping panel offers no sous_plot_name dropdown", {
+  shiny::testServer(
+    mod_feat_step3_census_import_server,
+    args = list(selected_plots = shiny::reactive(ci_plots()),
+                con = shiny::reactive(NULL), i18n = ci_i18n()),
+    {
+      uploaded_raw(ci_uploaded())
+      html <- as.character(output$column_mapping_ui$html)
+
+      expect_true(grepl("map_idtax_n", html, fixed = TRUE))
+      expect_true(grepl("map_herbarium_nbe_char", html, fixed = TRUE))
+      expect_false(grepl("map_sous_plot_name", html, fixed = TRUE))
+    }
+  )
+})
+
+test_that("each individual column carries its explanation", {
+  shiny::testServer(
+    mod_feat_step3_census_import_server,
+    args = list(selected_plots = shiny::reactive(ci_plots()),
+                con = shiny::reactive(NULL), i18n = ci_i18n()),
+    {
+      uploaded_raw(ci_uploaded())
+      column_info(list(idtax_n = list(description = "Taxonomic ID from the taxa database",
+                                      category = "Identification")))
+      session$flushReact()
+
+      panel <- as.character(output$column_mapping_ui$html)
+      expect_true(grepl("desc_idtax_n", panel, fixed = TRUE))
+
+      expect_true(grepl("Taxonomic ID from the taxa database",
+                        as.character(output$desc_idtax_n$html), fixed = TRUE))
+      # nothing invented for a field the database says nothing about
+      expect_null(output$desc_multi_tiges_id$html)
+    }
+  )
+})
+
+test_that("a subplot column is offered as the quadrat feature, and explained", {
+  shiny::testServer(
+    mod_feat_step3_census_import_server,
+    args = list(selected_plots = shiny::reactive(ci_plots()),
+                con = shiny::reactive(NULL), i18n = ci_i18n()),
+    {
+      uploaded_raw(ci_uploaded())
+      available_traits(data.frame(
+        stringsAsFactors = FALSE,
+        id_trait = c(1L, 97L), trait = c("stem_diameter", "quadrat"),
+        valuetype = c("numeric", "character"),
+        category = c("Stem-level trait", "Position"),
+        traitdescription = c("Diameter at breast height",
+                             "Quadrat of 1ha plot to which the information is related to")
+      ))
+      column_info(list(quadrat = list(
+        description = "Quadrat of 1ha plot to which the information is related to",
+        category = "Position")))
+      session$setInputs(map_plot_name = "parcelle", map_tag = "no_arbre")
+      session$flushReact()
+
+      html <- as.character(output$trait_mapping_ui$html)
+      expect_true(grepl("trait_map_subplot", html, fixed = TRUE))
+      expect_true(grepl("trait_map_sous_plot_name", html, fixed = TRUE))
+
+      # the guess sends both spellings to quadrat
+      expect_equal(.census_feature_guess(c("subplot", "dbh"),
+                                         available_traits())[["subplot"]],
+                   "quadrat")
+
+      # and the explanation follows the selection
+      session$setInputs(trait_map_subplot = "quadrat")
+      expect_true(grepl("Quadrat of 1ha plot",
+                        as.character(output$featdesc_subplot$html), fixed = TRUE))
+    }
+  )
+})
+
 # =============================================================================
 # .validate_census_import()
 # =============================================================================
