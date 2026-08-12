@@ -71,6 +71,7 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
     uploaded_raw     <- shiny::reactiveVal(NULL)
     available_traits <- shiny::reactiveVal(NULL)
     column_info      <- shiny::reactiveVal(list())
+    link_policy      <- shiny::reactiveVal(character(0))
     census_choices   <- shiny::reactiveVal(NULL)
     split_result     <- shiny::reactiveVal(NULL)
     prepared         <- shiny::reactiveVal(NULL)
@@ -88,6 +89,10 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
                   expectedunit, minallowedvalue, maxallowedvalue, factorlevels
            FROM traitlist ORDER BY trait")
         available_traits(traits)
+
+        # Read once for the whole trait list. The import re-reads it for itself
+        # when it writes; this copy only tells the user what will happen.
+        link_policy(.feature_census_link(traits$trait, actual_con))
 
         # Same source the Import Wizard's mapping step uses, so the two steps
         # explain a column the same way. A failure here costs the explanations
@@ -357,7 +362,20 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
         output[[paste0("featdesc_", safe)]] <- shiny::renderUI({
           selected <- input[[paste0("trait_map_", safe)]]
           if (is.null(selected) || !nzchar(selected)) return(NULL)
-          .column_description_box(column_info()[[selected]], i18n())
+
+          shiny::tagList(
+            .column_description_box(column_info()[[selected]], i18n()),
+            if (identical(unname(link_policy()[selected]), "never")) {
+              shiny::div(
+                style = paste("margin-top: -6px; margin-bottom: 12px;",
+                              "padding: 6px 8px; font-size: 12px;",
+                              "color: #6c757d; background-color: #f8f9fa;",
+                              "border-radius: 4px;"),
+                shiny::icon("link-slash"), " ",
+                i18n()$t("Recorded for the tree itself, not attached to this census.")
+              )
+            }
+          )
         })
       })
     })

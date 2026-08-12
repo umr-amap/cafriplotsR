@@ -8980,6 +8980,10 @@
     {
       "en": "Expected values: ",
       "fr": "Valeurs attendues : "
+    },
+    {
+      "en": "Recorded for the tree itself, not attached to this census.",
+      "fr": "Enregistré pour l'arbre lui-même, sans lien avec ce recensement."
     }
   ]
 }
