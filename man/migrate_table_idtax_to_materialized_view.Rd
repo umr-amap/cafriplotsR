@@ -80,3 +80,4 @@ result <- migrate_table_idtax_to_materialized_view(
 }
 
 }
+\keyword{internal}

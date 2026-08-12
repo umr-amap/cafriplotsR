@@ -27,3 +27,4 @@ Data frame with counts of linked entries
 Links each taxon to its parent level using tax_level column.
 This is Phase 3 of the hierarchy migration.
 }
+\keyword{internal}

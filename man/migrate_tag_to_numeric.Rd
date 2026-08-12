@@ -70,3 +70,4 @@ migrate_tag_to_numeric(con, dry_run = FALSE)
   column type via [.tag_precision_limit()] and so needs no edit after this
   runs.
 }
+\keyword{internal}

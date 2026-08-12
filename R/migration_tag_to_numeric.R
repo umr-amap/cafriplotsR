@@ -54,7 +54,7 @@
 #' @seealso [.validate_tag_values()], whose precision ceiling follows the
 #'   column type via [.tag_precision_limit()] and so needs no edit after this
 #'   runs.
-#' @export
+#' @keywords internal
 migrate_tag_to_numeric <- function(con, dry_run = TRUE) {
 
   cli::cli_h1("Migration: data_individuals.tag from real to numeric")

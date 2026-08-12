@@ -18,7 +18,7 @@
 #' @param dry_run If TRUE, only print SQL without executing
 #'
 #' @return TRUE if successful
-#' @export
+#' @keywords internal
 migration_create_linktypelist <- function(con = NULL, dry_run = FALSE) {
   if (is.null(con)) {
     con <- call.mydb()
@@ -111,7 +111,7 @@ migration_create_linktypelist <- function(con = NULL, dry_run = FALSE) {
 #' @param dry_run If TRUE, only print SQL without executing
 #'
 #' @return TRUE if successful
-#' @export
+#' @keywords internal
 migration_add_linktype_column <- function(con = NULL, dry_run = FALSE) {
   if (is.null(con)) {
     con <- call.mydb()
@@ -253,7 +253,7 @@ migration_add_linktype_column <- function(con = NULL, dry_run = FALSE) {
 #' @param dry_run If TRUE, only print SQL without executing
 #'
 #' @return TRUE if successful
-#' @export
+#' @keywords internal
 migration_add_audit_columns <- function(con = NULL, dry_run = FALSE) {
   if (is.null(con)) {
     con <- call.mydb()
@@ -339,7 +339,7 @@ migration_add_audit_columns <- function(con = NULL, dry_run = FALSE) {
 #' @param dry_run If TRUE, only show what would happen
 #'
 #' @return List with results from each phase
-#' @export
+#' @keywords internal
 run_specimen_links_migration <- function(con = NULL, dry_run = TRUE) {
   if (is.null(con)) {
     con <- call.mydb()

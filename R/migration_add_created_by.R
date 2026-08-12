@@ -34,7 +34,7 @@
 #' migrate_add_created_by(con, backfill_user = "dauby")
 #' }
 #'
-#' @export
+#' @keywords internal
 migrate_add_created_by <- function(con, backfill_user = "dauby", dry_run = FALSE) {
 
   cli::cli_h1("Migration: Add created_by Column for RLS")

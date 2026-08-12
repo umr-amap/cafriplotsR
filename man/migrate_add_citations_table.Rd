@@ -44,3 +44,4 @@ migrate_add_citations_table(con, dry_run = FALSE)
 }
 
 }
+\keyword{internal}

@@ -18,3 +18,4 @@ TRUE if successful
 Adds the id_parent column with foreign key constraint and index.
 This is Phase 1 of the hierarchy migration.
 }
+\keyword{internal}

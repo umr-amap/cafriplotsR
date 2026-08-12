@@ -18,3 +18,4 @@ TRUE if successful
 Creates the lookup table for specimen link types with priority values.
 Higher priority = more authoritative link type.
 }
+\keyword{internal}

@@ -322,7 +322,8 @@ cleanup_connections()
 con <- call.mydb()
 con_taxa <- call.mydb.taxa()
 
-migrate_table_idtax_to_materialized_view(
+# One-shot schema migration: internal on purpose, so it is reached with :::
+CafriplotsR:::migrate_table_idtax_to_materialized_view(
   con = con,
   con_taxa = con_taxa,
   data_manager_users = c("dauby", "alex", "libalah")

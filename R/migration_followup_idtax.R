@@ -38,7 +38,7 @@
 #' migrate_followup_idtax(con)                   # checks only
 #' migrate_followup_idtax(con, dry_run = FALSE)  # apply
 #' }
-#' @export
+#' @keywords internal
 migrate_followup_idtax <- function(con, dry_run = TRUE) {
 
   cli::cli_h1("Migration: taxon columns on followup_updates_individuals")

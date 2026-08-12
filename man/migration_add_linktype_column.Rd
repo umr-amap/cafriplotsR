@@ -17,3 +17,4 @@ TRUE if successful
 \description{
 Adds the id_linktype FK column and migrates existing type strings to FK references.
 }
+\keyword{internal}

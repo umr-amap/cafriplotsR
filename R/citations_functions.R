@@ -32,7 +32,7 @@
 #' migrate_add_citations_table(con, dry_run = FALSE)
 #' }
 #'
-#' @export
+#' @keywords internal
 migrate_add_citations_table <- function(con, dry_run = TRUE) {
 
   cli::cli_h1("Migration: Add table_citations")

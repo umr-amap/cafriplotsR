@@ -1,4 +1,4 @@
-﻿# Migration: Add id_parent Column to table_taxa
+# Migration: Add id_parent Column to table_taxa
 #
 # This migration adds hierarchical parent-child relationships to the taxonomic
 # backbone by adding an id_parent column that links each taxon to its
@@ -26,7 +26,7 @@
 #' @param dry_run If TRUE, only print SQL without executing
 #'
 #' @return TRUE if successful
-#' @export
+#' @keywords internal
 migration_add_id_parent_column <- function(con = NULL, dry_run = FALSE) {
   if (is.null(con)) {
     con <- call.mydb.taxa()
@@ -114,7 +114,7 @@ migration_add_id_parent_column <- function(con = NULL, dry_run = FALSE) {
 #' @param verbose If TRUE, show progress
 #'
 #' @return Data frame with counts of created entries
-#' @export
+#' @keywords internal
 migration_create_hierarchy_entries <- function(con = NULL, dry_run = FALSE, verbose = TRUE) {
   if (is.null(con)) {
     con <- call.mydb.taxa()
@@ -433,7 +433,7 @@ migration_create_hierarchy_entries <- function(con = NULL, dry_run = FALSE, verb
 #' @param verbose If TRUE, show progress
 #'
 #' @return Data frame with counts of linked entries
-#' @export
+#' @keywords internal
 migration_link_hierarchy <- function(con = NULL, dry_run = FALSE, batch_size = 1000, verbose = TRUE) {
   if (is.null(con)) {
     con <- call.mydb.taxa()
@@ -651,7 +651,7 @@ migration_link_hierarchy <- function(con = NULL, dry_run = FALSE, batch_size = 1
 #' @param verbose If TRUE, show progress
 #'
 #' @return Number of taxa linked
-#' @export
+#' @keywords internal
 migration_link_infraspecific <- function(con = NULL, batch_size = 500, dry_run = FALSE, verbose = TRUE) {
   if (is.null(con)) {
     con <- call.mydb.taxa()
@@ -745,7 +745,7 @@ migration_link_infraspecific <- function(con = NULL, batch_size = 500, dry_run =
 #' @param create_backup If TRUE, create backup table first
 #'
 #' @return List with results from each phase
-#' @export
+#' @keywords internal
 run_hierarchy_migration <- function(con = NULL, dry_run = TRUE, create_backup = TRUE) {
   if (is.null(con)) {
     con <- call.mydb.taxa()

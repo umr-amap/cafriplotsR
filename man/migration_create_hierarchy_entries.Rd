@@ -28,3 +28,4 @@ NOTE: Classes are currently stored in a separate table_tax_famclass table
 and linked via id_tax_famclass. This migration creates class-level entries
 in table_taxa for each class, which will serve as the root of the hierarchy.
 }
+\keyword{internal}

@@ -20,3 +20,4 @@ Runs all three phases of the specimen links migration:
 2. Add id_linktype column and migrate data
 3. Add audit columns
 }
+\keyword{internal}

@@ -36,7 +36,7 @@
 #' migrate_traitlist_census_link(con)                   # checks only
 #' migrate_traitlist_census_link(con, dry_run = FALSE)  # apply
 #' }
-#' @export
+#' @keywords internal
 migrate_traitlist_census_link <- function(con, dry_run = TRUE) {
 
   cli::cli_h1("Migration: census link policy on traitlist")

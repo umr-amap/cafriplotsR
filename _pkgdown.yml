@@ -411,19 +411,8 @@ reference:
       - get_table_idtax_metadata
       - print_user_access_summary
       - setup_add_person_function
-      - migrate_add_citations_table
-      - migrate_add_created_by
-      - migrate_table_idtax_to_materialized_view
-      - migration_add_audit_columns
-      - migration_add_id_parent_column
-      - migration_add_linktype_column
-      - migration_create_hierarchy_entries
-      - migration_create_linktypelist
-      - migration_link_hierarchy
-      - migration_link_infraspecific
-      - rollback_table_idtax_migration
-      - run_hierarchy_migration
-      - run_specimen_links_migration
-      - test_table_idtax_migration
+      # One-shot schema migrations are internal on purpose: they alter a shared
+      # production database once and are not part of the package's API. An
+      # administrator reaches them with CafriplotsR:::migrate_*().
       - verify_hierarchy_integrity
       - verify_specimen_links_migration

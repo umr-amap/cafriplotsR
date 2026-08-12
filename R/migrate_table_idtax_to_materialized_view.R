@@ -69,7 +69,7 @@
 #' )
 #' }
 #'
-#' @export
+#' @keywords internal
 migrate_table_idtax_to_materialized_view <- function(
     con,
     con_taxa = NULL,
@@ -684,7 +684,7 @@ $$;
 #' rollback_table_idtax_migration(con)
 #' }
 #'
-#' @export
+#' @keywords internal
 rollback_table_idtax_migration <- function(con) {
 
   # Handle pool connections
@@ -760,7 +760,7 @@ rollback_table_idtax_migration <- function(con) {
 #' test_table_idtax_migration(con)
 #' }
 #'
-#' @export
+#' @keywords internal
 test_table_idtax_migration <- function(con) {
 
   # Handle pool connections

@@ -22,3 +22,4 @@ Runs all three phases of the hierarchy migration in order:
 2. Create missing hierarchy entries
 3. Link existing entries
 }
+\keyword{internal}
