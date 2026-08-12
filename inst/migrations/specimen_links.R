@@ -1,12 +1,13 @@
-# Migration: Specimen Links Schema Updates
+# ARCHIVED MIGRATION - applied, kept for the record
 #
-# This migration standardizes the specimen-individual linking system:
-# 1. Creates linktypelist lookup table with priority values
-# 2. Adds id_linktype FK column to data_link_specimens
-# 3. Migrates existing type strings to FK references
-# 4. Adds audit columns (created_by, created_at)
+# This file is not part of the package namespace. It is installed under
+# inst/migrations/ so that what was done to the database stays readable.
+# See README.md in this directory for what each migration changed and the
+# evidence that it ran.
 #
-# Dependencies: DBI, dplyr, cli
+# To run one (should not be necessary - these are one-shot):
+#   source(system.file("migrations", "specimen_links.R", package = "CafriplotsR"))
+#   con <- CafriplotsR::call.mydb()
 
 
 #' Create linktypelist Lookup Table
@@ -101,7 +102,6 @@ migration_create_linktypelist <- function(con = NULL, dry_run = FALSE) {
     stop(e)
   })
 }
-
 
 #' Add id_linktype Column to data_link_specimens
 #'
@@ -244,7 +244,6 @@ migration_add_linktype_column <- function(con = NULL, dry_run = FALSE) {
   })
 }
 
-
 #' Add Audit Columns to data_link_specimens
 #'
 #' Adds created_by and created_at columns for audit trail.
@@ -327,7 +326,6 @@ migration_add_audit_columns <- function(con = NULL, dry_run = FALSE) {
   })
 }
 
-
 #' Run Full Specimen Links Migration
 #'
 #' Runs all three phases of the specimen links migration:
@@ -369,7 +367,6 @@ run_specimen_links_migration <- function(con = NULL, dry_run = TRUE) {
 
   return(results)
 }
-
 
 #' Verify Specimen Links Migration
 #'
@@ -485,3 +482,4 @@ verify_specimen_links_migration <- function(con = NULL) {
 
   return(as.data.frame(checks))
 }
+

@@ -403,16 +403,12 @@ reference:
       - cleanup_old_backups
       - diagnose_plot_permissions
       - diagnose_add_person_setup
-      - check_citations_migration
-      - check_created_by_migration
       - check_taxa_permissions
       - check_hierarchy_consistency
       - check_table_idtax_staleness
       - get_table_idtax_metadata
       - print_user_access_summary
       - setup_add_person_function
-      # One-shot schema migrations are internal on purpose: they alter a shared
-      # production database once and are not part of the package's API. An
-      # administrator reaches them with CafriplotsR:::migrate_*().
-      - verify_hierarchy_integrity
-      - verify_specimen_links_migration
+      # One-shot schema migrations, and the checks that only existed to say
+      # whether they had run, are archived under inst/migrations/. They altered
+      # a shared production database once and were never part of the API.

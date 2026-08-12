@@ -16,8 +16,9 @@
 }
 \description{
 `data_individuals.tag` was created as a PostgreSQL `real` — single
-precision, exact for integers only to 2^24. [migrate_tag_to_numeric()]
-widens it, after which any tag R can hold is safe. Reading the type rather
+precision, exact for integers only to 2^24. The `tag_to_numeric` migration
+(`inst/migrations/`) widened it, after which any tag R can hold is safe.
+Reading the type rather
 than assuming it means the ceiling is right both before and after that
 migration, with no edit needed in between.
 }

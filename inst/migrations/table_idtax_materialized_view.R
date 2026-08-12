@@ -1,11 +1,13 @@
-# Migration Script: Convert table_idtax to Materialized View
+# ARCHIVED MIGRATION - applied, kept for the record
 #
-# This script converts the regular table_idtax table to a PostgreSQL materialized
-# view to allow designated users to refresh taxonomy mappings without requiring
-# full admin permissions.
+# This file is not part of the package namespace. It is installed under
+# inst/migrations/ so that what was done to the database stays readable.
+# See README.md in this directory for what each migration changed and the
+# evidence that it ran.
 #
-# IMPORTANT: Run this function as database admin/superuser
-# IMPORTANT: This is a ONE-TIME migration script
+# To run one (should not be necessary - these are one-shot):
+#   source(system.file("migrations", "table_idtax_materialized_view.R", package = "CafriplotsR"))
+#   con <- CafriplotsR::call.mydb()
 
 
 #' Migrate table_idtax to Materialized View
@@ -25,7 +27,8 @@
 #' @param setup_pg_cron Logical, attempt to set up automatic monthly refresh
 #'   using pg_cron extension. Default FALSE. Requires pg_cron extension installed.
 #' @param dry_run Logical, if TRUE only prints SQL commands without executing.
-#'   Default FALSE.
+#'   Default TRUE. This migration DROPs table_idtax, so it has to be asked for
+#'   explicitly with dry_run = FALSE.
 #'
 #' @return List with migration results and any errors
 #'
@@ -75,7 +78,7 @@ migrate_table_idtax_to_materialized_view <- function(
     con_taxa = NULL,
     data_manager_users = c("dauby", "alex", "libalah"),
     setup_pg_cron = FALSE,
-    dry_run = FALSE
+    dry_run = TRUE
 ) {
 
   if (is.null(con_taxa)) {
@@ -668,7 +671,6 @@ $$;
   return(invisible(results))
 }
 
-
 #' Rollback table_idtax Migration
 #'
 #' Reverts the materialized view migration and restores table_idtax as a
@@ -743,7 +745,6 @@ rollback_table_idtax_migration <- function(con) {
     return(FALSE)
   })
 }
-
 
 #' Test table_idtax Materialized View Setup
 #'
@@ -926,3 +927,4 @@ test_table_idtax_migration <- function(con) {
 
   return(invisible(results))
 }
+

@@ -1,20 +1,13 @@
-# Migration: Add id_parent Column to table_taxa
+# ARCHIVED MIGRATION - applied, kept for the record
 #
-# This migration adds hierarchical parent-child relationships to the taxonomic
-# backbone by adding an id_parent column that links each taxon to its
-# immediate parent level:
-#   - Species → Genus
-#   - Genus → Family
-#   - Family → Order
-#   - Order → Class
-#   - Class → NULL (root)
+# This file is not part of the package namespace. It is installed under
+# inst/migrations/ so that what was done to the database stays readable.
+# See README.md in this directory for what each migration changed and the
+# evidence that it ran.
 #
-# Run this migration once to:
-# 1. Add the id_parent column
-# 2. Create missing intermediate level entries (genus, family, order, class)
-# 3. Populate id_parent for all existing entries
-#
-# Dependencies: DBI, dplyr, cli
+# To run one (should not be necessary - these are one-shot):
+#   source(system.file("migrations", "taxa_hierarchy.R", package = "CafriplotsR"))
+#   con <- CafriplotsR::call.mydb()
 
 
 #' Add id_parent Column to table_taxa
@@ -95,7 +88,6 @@ migration_add_id_parent_column <- function(con = NULL, dry_run = FALSE) {
     stop(e)
   })
 }
-
 
 #' Create Missing Hierarchy Entries
 #'
@@ -344,7 +336,6 @@ migration_create_hierarchy_entries <- function(con = NULL, dry_run = FALSE, verb
   return(as.data.frame(created_counts))
 }
 
-
 #' Create a hierarchy entry (internal helper)
 #'
 #' Creates a new entry in table_taxa for a given taxonomic level.
@@ -403,7 +394,8 @@ migration_create_hierarchy_entries <- function(con = NULL, dry_run = FALSE, verb
   )
 
   # Add modification fields
-  new_entry <- .add_modif_field(new_entry)
+  # Internal to the package, which this file is no longer part of
+  new_entry <- CafriplotsR:::.add_modif_field(new_entry)
   new_entry <- new_entry %>%
     dplyr::rename(
       data_modif_m = "date_modif_m",
@@ -420,7 +412,6 @@ migration_create_hierarchy_entries <- function(con = NULL, dry_run = FALSE, verb
 
   return(lastval$max)
 }
-
 
 #' Populate id_parent for Existing Entries
 #'
@@ -639,7 +630,6 @@ migration_link_hierarchy <- function(con = NULL, dry_run = FALSE, batch_size = 1
   return(as.data.frame(linked_counts))
 }
 
-
 #' Link Infraspecific Taxa to Species (Step 5 only)
 #'
 #' Standalone function to run only Step 5 of the hierarchy linking.
@@ -732,7 +722,6 @@ migration_link_infraspecific <- function(con = NULL, batch_size = 500, dry_run =
   return(total_linked)
 }
 
-
 #' Run Full Hierarchy Migration
 #'
 #' Runs all three phases of the hierarchy migration in order:
@@ -797,7 +786,6 @@ run_hierarchy_migration <- function(con = NULL, dry_run = TRUE, create_backup = 
 
   return(results)
 }
-
 
 #' Verify Hierarchy Integrity
 #'
@@ -914,3 +902,4 @@ verify_hierarchy_integrity <- function(con = NULL) {
 
   return(as.data.frame(checks))
 }
+

@@ -318,8 +318,8 @@
 #' The audit row follows that table's snapshot convention — a copy of the
 #' individual's identifying fields — with `modif_type = 'idtax_n'`, the value
 #' already in use there. `idtax_n` holds the determination being replaced and
-#' `idtax_n_new` the one replacing it; both columns come from
-#' [migrate_followup_idtax()]. Without them the trail records that a
+#' `idtax_n_new` the one replacing it; both columns come from the
+#' `followup_idtax` migration (`inst/migrations/`). Without them the trail records that a
 #' determination moved but not where to, which is the state its existing 4,440
 #' identification rows are in — so this refuses to run rather than adding to
 #' the pile.

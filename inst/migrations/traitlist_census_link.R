@@ -1,3 +1,15 @@
+# ARCHIVED MIGRATION - applied, kept for the record
+#
+# This file is not part of the package namespace. It is installed under
+# inst/migrations/ so that what was done to the database stays readable.
+# See README.md in this directory for what each migration changed and the
+# evidence that it ran.
+#
+# To run one (should not be necessary - these are one-shot):
+#   source(system.file("migrations", "traitlist_census_link.R", package = "CafriplotsR"))
+#   con <- CafriplotsR::call.mydb()
+
+
 #' Migration: declare which features belong to a census
 #'
 #' Whether a measurement carries `id_sub_plots` decides how
@@ -43,7 +55,9 @@ migrate_traitlist_census_link <- function(con, dry_run = TRUE) {
 
   if (!DBI::dbIsValid(con)) cli::cli_abort("Invalid database connection")
 
-  never <- names(.default_census_link_policy())
+  # Internal to the package, which this file is no longer part of. The policy
+  # itself stays in R/: the census import still consults it on every write.
+  never <- names(CafriplotsR:::.default_census_link_policy())
 
   existing <- DBI::dbGetQuery(con, "
     SELECT column_name FROM information_schema.columns
@@ -123,3 +137,4 @@ migrate_traitlist_census_link <- function(con, dry_run = TRUE) {
   cli::cli_alert_success("Migration complete")
   invisible(TRUE)
 }
+

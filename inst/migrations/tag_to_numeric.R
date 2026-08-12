@@ -1,3 +1,15 @@
+# ARCHIVED MIGRATION - applied, kept for the record
+#
+# This file is not part of the package namespace. It is installed under
+# inst/migrations/ so that what was done to the database stays readable.
+# See README.md in this directory for what each migration changed and the
+# evidence that it ran.
+#
+# To run one (should not be necessary - these are one-shot):
+#   source(system.file("migrations", "tag_to_numeric.R", package = "CafriplotsR"))
+#   con <- CafriplotsR::call.mydb()
+
+
 #' Migration: Widen tag from real to numeric
 #'
 #' `data_individuals.tag` is a PostgreSQL `real` — single precision. It
@@ -196,3 +208,4 @@ migrate_tag_to_numeric <- function(con, dry_run = TRUE) {
   cli::cli_alert_success("Migration complete")
   invisible(list(before = before, after = after))
 }
+

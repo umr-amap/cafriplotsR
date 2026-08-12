@@ -1,3 +1,15 @@
+# ARCHIVED MIGRATION - applied, kept for the record
+#
+# This file is not part of the package namespace. It is installed under
+# inst/migrations/ so that what was done to the database stays readable.
+# See README.md in this directory for what each migration changed and the
+# evidence that it ran.
+#
+# To run one (should not be necessary - these are one-shot):
+#   source(system.file("migrations", "add_created_by.R", package = "CafriplotsR"))
+#   con <- CafriplotsR::call.mydb()
+
+
 #' Migration: Add created_by Column for Row-Level Security
 #'
 #' This migration adds a `created_by` column to `data_liste_plots` table
@@ -19,7 +31,7 @@
 #'
 #' @param con Database connection (must have admin privileges)
 #' @param backfill_user Username to assign as creator for existing plots (default: "dauby")
-#' @param dry_run If TRUE, only print SQL without executing (default: FALSE)
+#' @param dry_run If TRUE, only print SQL without executing (default: TRUE)
 #' @return Invisible TRUE on success
 #'
 #' @examples
@@ -35,7 +47,7 @@
 #' }
 #'
 #' @keywords internal
-migrate_add_created_by <- function(con, backfill_user = "dauby", dry_run = FALSE) {
+migrate_add_created_by <- function(con, backfill_user = "dauby", dry_run = TRUE) {
 
   cli::cli_h1("Migration: Add created_by Column for RLS")
 
@@ -228,7 +240,6 @@ migrate_add_created_by <- function(con, backfill_user = "dauby", dry_run = FALSE
   invisible(TRUE)
 }
 
-
 #' Check created_by Migration Status
 #'
 #' Verifies whether the created_by migration has been applied.
@@ -316,3 +327,4 @@ check_created_by_migration <- function(con) {
 
   invisible(result)
 }
+
