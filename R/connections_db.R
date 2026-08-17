@@ -431,7 +431,8 @@ connect_database <- function(db_type = c("main", "taxa"),
     }
 
     err_msg <- conn_result$message
-    is_auth_error <- .is_auth_error(err_msg)
+    err_code <- .classify_connect_error(err_msg)
+    is_auth_error <- identical(err_code, "auth")
 
     if (is_auth_error) {
       # Clear cached credentials so the user can re-enter them instead of
@@ -454,11 +455,15 @@ connect_database <- function(db_type = c("main", "taxa"),
     }
 
     if (attempt == max_attempts) {
-      cli::cli_alert_danger("Failed to connect to {db_type} database after {max_attempts} attempts: {err_msg}")
-      stop("Database connection failed: ", err_msg, call. = FALSE)
+      # Say what went wrong and what to do about it: the raw libpq message
+      # ("timeout expired") gives users nothing to act on, and this failure is
+      # usually a blocked port rather than a database problem.
+      .report_connect_failure(err_msg, db_type, max_attempts, db_host, db_port)
+      stop(.connect_failure_message(err_msg, db_host, db_port), call. = FALSE)
     }
 
-    cli::cli_alert_warning("Connection attempt {attempt} failed, retrying...")
+    attempt_reason <- .connect_error_label(err_code)
+    cli::cli_alert_warning("Connection attempt {attempt} failed ({attempt_reason}), retrying...")
     Sys.sleep(2)
   }
 }
@@ -834,8 +839,15 @@ db_diagnostic <- function() {
     cli::cli_alert_danger("Taxa DB: Connection test failed - {e$message}")
     FALSE
   })
-  
-  return(invisible(list(main = main_test, taxa = taxa_test)))
+
+  # Neither database answered: tell the user whether the port is reachable at
+  # all before they start suspecting their password.
+  network <- NULL
+  if (!main_test && !taxa_test) {
+    network <- check_db_network()
+  }
+
+  return(invisible(list(main = main_test, taxa = taxa_test, network = network)))
 }
 
 #' Define user policy for row-level security
@@ -1715,7 +1727,7 @@ create_pool_main <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5,
   pass <- resolved$pass
 
   # Create pool with connection validation for resilience
-  pool <- pool::dbPool(
+  pool <- .with_connect_diagnostics(pool::dbPool(
     drv = RPostgres::Postgres(),
     dbname = db_name,
     host = db_host,
@@ -1736,7 +1748,7 @@ create_pool_main <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5,
         FALSE
       })
     }
-  )
+  ), db_type = "main", host = db_host, port = db_port)
 
   cli::cli_alert_success("Created connection pool for main database (size: {minSize}-{maxSize})")
 
@@ -1776,7 +1788,7 @@ create_pool_taxa <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5,
   pass <- resolved$pass
 
   # Create pool with connection validation for resilience
-  pool <- pool::dbPool(
+  pool <- .with_connect_diagnostics(pool::dbPool(
     drv = RPostgres::Postgres(),
     dbname = db_name_taxa,
     host = db_host,
@@ -1797,7 +1809,7 @@ create_pool_taxa <- function(pass = NULL, user = NULL, minSize = 1, maxSize = 5,
         FALSE
       })
     }
-  )
+  ), db_type = "taxa", host = db_host, port = db_port)
 
   cli::cli_alert_success("Created connection pool for taxa database (size: {minSize}-{maxSize})")
   cli::cli_alert_info("Taxa database: Remember that write operations are restricted")

@@ -47,6 +47,15 @@
 
 * **Data Sources export** (`R/mod_results_display.R`) — the "Data Sources" table is now included in Excel, CSV, and RDS downloads when `extract_traits = TRUE`
 
+* **Connection failures are now diagnosed instead of echoed** (`R/connection_diagnostics.R`) — connecting from an institutional network used to fail with nothing but `timeout expired`, which says nothing about the cause and reads like a database or password problem. It is almost always neither: the database listens on port 35699, and many institutional, campus and corporate networks (and some VPNs) allow only ports 80 and 443 outbound
+  - `.classify_connect_error()` maps the libpq message to one of ten causes (`auth`, `dns`, `timeout`, `refused`, `unreachable`, `too_many_clients`, `no_database`, `ssl`, `server_closed`, `unknown`). `SSL SYSCALL error: EOF detected` is classified as a dropped connection rather than a certificate problem, since the remedy differs
+  - `connect_database()` now says why each retry failed, and prints the cause, the target, the raw server message and a numbered list of remedies before giving up. The thrown error carries the diagnosis too, so it survives into bug reports
+  - Applies to `create_pool_main()` / `create_pool_taxa()` as well
+
+* **`check_db_network()`** — new exported function that answers "is it me, my network, or the server?" without credentials. It opens a raw TCP connection to the database host and port and, if that fails, a control connection to `cran.r-project.org:443`; that second probe is what separates a filtered network from no connectivity at all. Returns one of three verdicts — `reachable`, `port_blocked`, `no_connectivity` — each with the corresponding action. `db_diagnostic()` runs it automatically when both databases fail to connect
+
+* **Shiny login reports the same diagnosis** (`R/mod_database_login.R`) — all four connection paths (main, taxa, and both public-user connections) print the full report to the console and add one translated sentence to the error box, so app users get an actionable message rather than raw driver text. Four EN/FR pairs added to `inst/translations/translation.json`, with a test asserting every hint string is present
+
 ### Bug Fixes
 
 * **`query_colnam()`** — fixed collector search in `launch_specimen_identification_app()` manual mode failing with `` `.con` is absent but must be supplied ``. The pattern-search branch built its SQL via `paste0()` and passed it to `glue::glue_sql()` without the required `.con` argument; it now uses proper `glue_sql()` parameter interpolation with `.con = mydb`, which also closes a SQL-injection gap (the collector name was previously spliced directly into the query string).
@@ -64,6 +73,8 @@
 * **`mod_step1_choose_type_ui()`** — reworded the taxonomic-standardization requirement checkbox to explain the `launch_taxonomic_match_app()` workflow more precisely (standardize the taxa list, keep original names, obtain `idtax_n`) and to correct the column-mapping guidance, which previously referred to a non-existent `idtax` column instead of `idtax_n`. French translation synced.
 
 * **Newsletter vignettes** (`newsletter.Rmd`, `newsletter-fr.Rmd`) — copyedited the WCVP and aggregated-traits sections: dropped marketing language tied to the Barcelona presentation, fixed example calls, added a `get_wcvp_status()` snippet, and clarified the public-access/data-sovereignty note.
+
+* **README — "Troubleshooting Connections"** — new section explaining the `timeout expired` failure that appears on institutional networks, why port 35699 is the reason, the three `check_db_network()` verdicts and the action for each, plus a table of the other common connection errors (rejected credentials, no free connection slots, DNS failure, dropped connection).
 
 ### New Features
 
