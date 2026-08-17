@@ -18,6 +18,12 @@
 #' Numeric tags are formatted without scientific notation — `as.character()`
 #' would turn a six-digit tag into `"1e+05"` and break every match.
 #'
+#' A tag column read from a spreadsheet as text carries whatever the typist
+#' wrote — `"0101"`, `"22.10"`, `"45.0"` — while the database returns the
+#' number itself. Purely numeric strings are therefore put through the same
+#' formatting as numeric input, so both sides reach one string. Anything with a
+#' letter or a separator in it is left exactly as written.
+#'
 #' @param x Vector of tags.
 #' @return Character vector, blanks returned as `NA`.
 #' @keywords internal
@@ -32,6 +38,12 @@
   }
   x <- trimws(as.character(x))
   x[!is.na(x) & !nzchar(x)] <- NA_character_
+
+  numeric_like <- !is.na(x) & grepl("^[0-9]+([.][0-9]+)?$", x)
+  if (any(numeric_like)) {
+    x[numeric_like] <- format(as.numeric(x[numeric_like]), scientific = FALSE,
+                              trim = TRUE, drop0trailing = TRUE)
+  }
   x
 }
 
@@ -67,6 +79,67 @@
   numeric_like <- !is.na(x) & grepl("^[0-9]+([.][0-9]+)?$", x)
   out <- rep(NA_real_, length(x))
   out[numeric_like] <- as.numeric(x[numeric_like])
+  out
+}
+
+
+#' Which unknown tags follow a recognised recruit-tagging convention?
+#'
+#' Field teams tag recruits in one of two ways, sometimes both within a plot:
+#' by continuing the plot's numbering (`600, 601, 602`), or by hanging a
+#' decimal off the nearest already-tagged neighbour (`45` gets `45.1`, then
+#' `45.2`). Either way the new tag lands a character or two from a tag already
+#' in use, so the typo guard would flag nearly every genuine recruit. This
+#' recognises the conventions so only the tags that fit neither are held back.
+#'
+#' @param value Numeric values of the candidate tags.
+#' @param pool_num Numeric values of the tags already recorded in that plot.
+#' @param file_num Numeric values of the tags for the same plot in the file;
+#'   the whole-numbered ones count as parents too, so a recruit hung off
+#'   another recruit is recognised.
+#' @param schemes Character vector of conventions to honour: `"sequential"`,
+#'   `"decimal"`, or neither.
+#' @return Data frame with one row per candidate: `exempt` and, where it is
+#'   `TRUE`, the `reason` to record on the row.
+#' @keywords internal
+#' @export
+.recruit_tag_exempt <- function(value, pool_num, file_num = numeric(0),
+                                schemes = c("sequential", "decimal")) {
+
+  out <- data.frame(
+    exempt = rep(FALSE, length(value)),
+    reason = rep(NA_character_, length(value)),
+    stringsAsFactors = FALSE
+  )
+  if (length(value) == 0) return(out)
+
+  pool_num <- pool_num[!is.na(pool_num)]
+
+  if ("sequential" %in% schemes && length(pool_num) > 0) {
+    max_existing <- max(pool_num)
+    hit <- !is.na(value) & value > max_existing
+    out$reason[hit] <- "continues the plot's numbering"
+    out$exempt <- out$exempt | hit
+  }
+
+  if ("decimal" %in% schemes) {
+    # A recruit's parent is normally a stem already in the database, but it can
+    # also be a recruit measured for the first time in this same table. Only
+    # whole-numbered file tags count as parents — taking the whole part of the
+    # candidates themselves would make every decimal tag its own parent.
+    file_parents <- file_num[!is.na(file_num) & file_num %% 1 == 0]
+    parents <- unique(c(floor(pool_num), file_parents))
+    is_child <- !is.na(value) & value %% 1 != 0 & floor(value) %in% parents
+
+    hit <- is_child & !out$exempt
+    out$reason[hit] <- sprintf(
+      "a decimal suffix on tag %s",
+      format(floor(value[hit]), scientific = FALSE, trim = TRUE,
+             drop0trailing = TRUE)
+    )
+    out$exempt <- out$exempt | is_child
+  }
+
   out
 }
 
@@ -229,8 +302,8 @@
 #'   \item{`recruit`}{tag unknown for that plot and unlike any existing tag —
 #'     a new individual.}
 #'   \item{`review`}{either the tag is unknown but within `typo_max_dist` of an
-#'     existing tag (or an adjacent-character swap away from one) *and* not a
-#'     continuation of the plot's numbering — see `assume_new_block`; or plot +
+#'     existing tag (or an adjacent-character swap away from one) *and* follows
+#'     no recognised recruit-tagging convention — see `recruit_tags`; or plot +
 #'     tag matches more than one recorded stem. Needs a human decision.}
 #'   \item{`invalid`}{plot name or tag missing.}
 #' }
@@ -249,6 +322,15 @@
 #' is nothing left to disambiguate them with; the split reports them rather
 #' than guessing.
 #'
+#' A repeated plot + tag is a defect in the recorded data, not in the census —
+#' the pair is meant to name one stem. `ambiguous` only shows the ones this
+#' census happens to measure, which understates it: the rest sit there until
+#' some later census walks into them. `existing_duplicates` therefore extracts
+#' every recorded stem caught in such a collision across the plots in scope —
+#' the `existing` rows themselves, so they join straight back on `id_n` —
+#' with `n_stems` giving the size of the collision and `in_census` marking
+#' which are live in this table.
+#'
 #' Pass `existing` to run without a database — that is the form used by the
 #' tests and by anyone working from an exported tag list.
 #'
@@ -263,12 +345,21 @@
 #' @param plot_col,tag_col,idtax_col Column names in `data`.
 #' @param typo_max_dist Maximum edit distance at which an unknown tag is
 #'   treated as a possible typo rather than a recruit. `0` disables the check.
-#' @param assume_new_block Logical. Treat a numeric tag above every tag already
-#'   used in that plot as a genuine recruit, whatever its edit distance.
-#'   Recruits are normally tagged by continuing the plot's numbering, so
-#'   without this nearly every recruit is one character from its predecessor
-#'   and the real typos are lost in the noise. Turn it off for plots whose
-#'   tags are not sequential.
+#' @param recruit_tags Character vector of recruit-tagging conventions to
+#'   honour, any of `"sequential"` and `"decimal"`. A tag that follows one of
+#'   them is a genuine recruit whatever its edit distance from an existing tag.
+#'   Without this nearly every recruit sits a character or two from a tag
+#'   already in use and the real typos are lost in the noise. Pass
+#'   `character(0)` to hold every close tag for review.
+#'   \describe{
+#'     \item{`"sequential"`}{the team continues the plot's numbering, so a
+#'       numeric tag above every tag already used in that plot is a recruit.}
+#'     \item{`"decimal"`}{the team hangs a decimal off the nearest already
+#'       tagged neighbour — `45` gets `45.1`, then `45.2` — so a tag with a
+#'       fractional part whose whole part is already used in that plot is a
+#'       recruit. The parent may itself be a recruit first measured in this
+#'       same table.}
+#'   }
 #' @param exclude_status Vital statuses to leave out of the missing-stem
 #'   report; stems already recorded dead are not expected to reappear.
 #'
@@ -283,6 +374,11 @@
 #'       a report, not a reclassification.}
 #'     \item{`missing_stems`}{recorded stems with no row in `data`.}
 #'     \item{`duplicates`}{plot + tag appearing more than once in `data`.}
+#'     \item{`existing_duplicates`}{the rows of `existing` whose plot + tag
+#'       names more than one *recorded* stem, whether or not this census
+#'       measures it, plus `n_stems` and `in_census` — a data-quality report on
+#'       the recorded data itself, one row per stem so it joins back on
+#'       `id_n`.}
 #'     \item{`out_of_scope`}{rows for plots outside `plot_names`.}
 #'     \item{`summary`}{per-plot counts.}
 #'   }
@@ -295,17 +391,18 @@
 #'   stringsAsFactors = FALSE
 #' )
 #' census <- data.frame(
-#'   plot_name = c("P1", "P1", "P1", "P1"),
-#'   tag       = c("101", "102", "104", "1O3"),
-#'   dbh       = c(21.1, 33.4, 10.2, 45.0),
+#'   plot_name = c("P1", "P1", "P1", "P1", "P1"),
+#'   tag       = c("101", "102", "104", "102.1", "1O3"),
+#'   dbh       = c(21.1, 33.4, 10.2, 8.5, 45.0),
 #'   stringsAsFactors = FALSE
 #' )
 #' split <- split_census_table(census, existing = existing)
 #' split
 #'
-#' # 101 and 102 are remeasures, 104 continues the numbering so it is a
-#' # recruit, and 1O3 (letter O) is held for review against tag 103.
-#' split$data[, c("tag", "row_role", "id_n")]
+#' # 101 and 102 are remeasures; 104 continues the numbering and 102.1 hangs a
+#' # decimal off tag 102, so both are recruits; 1O3 (letter O) is held for
+#' # review against tag 103.
+#' split$data[, c("tag", "row_role", "id_n", "split_note")]
 #'
 #' @seealso [export_census_split()] to write the pieces out for the wizards.
 #' @export
@@ -317,7 +414,7 @@ split_census_table <- function(data,
                                tag_col        = "tag",
                                idtax_col      = "idtax_n",
                                typo_max_dist  = 1L,
-                               assume_new_block = TRUE,
+                               recruit_tags   = c("sequential", "decimal"),
                                exclude_status = "dead") {
 
   if (!is.data.frame(data)) {
@@ -330,6 +427,12 @@ split_census_table <- function(data,
   }
   if (!is.numeric(typo_max_dist) || length(typo_max_dist) != 1 || typo_max_dist < 0) {
     stop("`typo_max_dist` must be a single non-negative number.", call. = FALSE)
+  }
+  recruit_tags <- if (is.null(recruit_tags)) character(0) else as.character(recruit_tags)
+  unknown_scheme <- setdiff(recruit_tags, c("sequential", "decimal"))
+  if (length(unknown_scheme) > 0) {
+    stop(sprintf("`recruit_tags` must be \"sequential\", \"decimal\" or both; got: %s",
+                 paste(unknown_scheme, collapse = ", ")), call. = FALSE)
   }
 
   data <- as.data.frame(data, stringsAsFactors = FALSE)
@@ -452,17 +555,26 @@ split_census_table <- function(data,
 
       flagged <- !is.na(near$nearest_tag)
 
-      # Recruits are normally tagged by continuing the plot's numbering, so a
-      # new tag sits one character from its predecessor by construction —
-      # flagging those would bury the real typos. Only tags falling back
-      # *inside* the range already used are suspicious.
-      if (assume_new_block && any(flagged)) {
-        max_existing <- suppressWarnings(max(.tag_numeric(pool), na.rm = TRUE))
-        if (is.finite(max_existing)) {
-          value <- .tag_numeric(file_tag[rows])
-          continues_series <- !is.na(value) & value > max_existing
-          flagged <- flagged & !continues_series
+      # A recruit is tagged off the tags already in use — the next number up,
+      # or a decimal on its nearest neighbour — so it sits a character or two
+      # from an existing tag by construction. Flagging those would bury the
+      # real typos, so a tag that follows a convention the caller recognises
+      # is let through and the reason recorded.
+      if (length(recruit_tags) > 0 && any(flagged)) {
+        exempt <- .recruit_tag_exempt(
+          value    = .tag_numeric(file_tag[rows]),
+          pool_num = .tag_numeric(pool),
+          file_num = .tag_numeric(file_tag[in_scope & file_plot == pl]),
+          schemes  = recruit_tags
+        )
+        rescued <- flagged & exempt$exempt
+        if (any(rescued)) {
+          note[rows[rescued]] <- sprintf(
+            "close to existing tag %s but %s",
+            near$nearest_tag[rescued], exempt$reason[rescued]
+          )
         }
+        flagged <- flagged & !exempt$exempt
       }
 
       if (!any(flagged)) next
@@ -508,6 +620,37 @@ split_census_table <- function(data,
       plot_name = parts[, 1], tag = parts[, 2],
       n = as.integer(dup_tbl), stringsAsFactors = FALSE
     )
+  }
+
+  # ---- duplicated stems already in the database ---------------------------
+  #
+  # A plot + tag naming two stems is a defect in the recorded data, not in the
+  # census: nothing downstream can tell those stems apart. Only the ones the
+  # census happens to measure surface as `ambiguous`, which understates the
+  # problem — the rest sit there until some later census walks into them. They
+  # are all listed here so they can be fixed at the source.
+
+  # One row per stem rather than one per collision: the point is to go back to
+  # the records and fix them, which means joining on `id_n` and reading the
+  # rest of what was recorded.
+
+  db_dup_tbl <- table(db_key[!is.na(db_tag)])
+  db_dup_tbl <- db_dup_tbl[db_dup_tbl > 1]
+
+  dup_stem_rows <- which(!is.na(db_tag) & db_key %in% names(db_dup_tbl))
+  existing_duplicates <- existing[dup_stem_rows, , drop = FALSE]
+  existing_duplicates$n_stems <- as.integer(db_dup_tbl[db_key[dup_stem_rows]])
+  # FALSE means no census row hit this tag — a collision nothing looks at yet
+  existing_duplicates$in_census <- db_key[dup_stem_rows] %in% file_key[in_scope]
+  existing_duplicates <- existing_duplicates[
+    order(db_plot[dup_stem_rows], .tag_numeric(db_tag[dup_stem_rows]),
+          db_tag[dup_stem_rows], existing_duplicates$id_n), , drop = FALSE]
+  rownames(existing_duplicates) <- NULL
+
+  # Counted per colliding plot + tag, not per stem — 12 repeated tags, not 24
+  # rows. `existing_duplicates` carries the rows.
+  dup_pair_plot <- if (length(db_dup_tbl) == 0) character(0) else {
+    vapply(strsplit(names(db_dup_tbl), "\r", fixed = TRUE), `[`, character(1), 1L)
   }
 
   # ---- taxon drift on remeasured stems ------------------------------------
@@ -565,6 +708,7 @@ split_census_table <- function(data,
     n_invalid    = counts(pl, "invalid"),
     n_missing    = sum(missing_stems$plot_name == pl),
     n_in_db      = sum(db_plot == pl),
+    n_dup_in_db  = sum(dup_pair_plot == pl),
     stringsAsFactors = FALSE
   )))
   if (is.null(summary_df)) {
@@ -572,7 +716,7 @@ split_census_table <- function(data,
       plot_name = character(0), n_rows = integer(0), n_remeasure = integer(0),
       n_recruit = integer(0), n_review = integer(0), n_ambiguous = integer(0),
       n_invalid = integer(0), n_missing = integer(0), n_in_db = integer(0),
-      stringsAsFactors = FALSE
+      n_dup_in_db = integer(0), stringsAsFactors = FALSE
     )
   }
 
@@ -590,6 +734,7 @@ split_census_table <- function(data,
       taxon_drift    = drift,
       missing_stems  = missing_stems,
       duplicates     = duplicates,
+      existing_duplicates = existing_duplicates,
       out_of_scope   = out_of_scope,
       summary        = summary_df
     ),
@@ -630,6 +775,17 @@ print.census_split <- function(x, ...) {
   }
   if (nrow(x$duplicates) > 0) {
     cli::cli_alert_warning("{nrow(x$duplicates)} plot+tag combination{?s} appear{?s/} more than once.")
+  }
+  if (nrow(x$existing_duplicates) > 0) {
+    n_stems <- nrow(x$existing_duplicates)
+    n_pairs <- sum(x$summary$n_dup_in_db)
+    n_latent <- sum(!x$existing_duplicates$in_census)
+    cli::cli_alert_danger(paste(
+      "{n_pairs} plot+tag combination{?s} name{?s/} more than one recorded stem",
+      "in the database. The recorded data cannot tell them apart —",
+      "see `$existing_duplicates` for the {n_stems} stem{?s} concerned",
+      "({n_latent} untouched by this census)."
+    ))
   }
   if (nrow(x$taxon_drift) > 0) {
     cli::cli_alert_warning("{nrow(x$taxon_drift)} remeasured stem{?s} carr{?ies/y} a different taxon than the database.")
@@ -682,7 +838,8 @@ export_census_split <- function(x, dir = ".", prefix = NULL, overwrite = FALSE) 
     "03_review"        = x$review,
     "04_missing_stems" = x$missing_stems,
     "05_report"        = x$summary,
-    "06_ambiguous"     = x$ambiguous
+    "06_ambiguous"     = x$ambiguous,
+    "07_existing_duplicates" = x$existing_duplicates
   )
 
   written <- character(0)

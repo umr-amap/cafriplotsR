@@ -14,7 +14,7 @@ split_census_table(
   tag_col = "tag",
   idtax_col = "idtax_n",
   typo_max_dist = 1L,
-  assume_new_block = TRUE,
+  recruit_tags = c("sequential", "decimal"),
   exclude_status = "dead"
 )
 
@@ -38,12 +38,21 @@ present. Fetched from `con` when `NULL`.}
 \item{typo_max_dist}{Maximum edit distance at which an unknown tag is
 treated as a possible typo rather than a recruit. `0` disables the check.}
 
-\item{assume_new_block}{Logical. Treat a numeric tag above every tag already
-used in that plot as a genuine recruit, whatever its edit distance.
-Recruits are normally tagged by continuing the plot's numbering, so
-without this nearly every recruit is one character from its predecessor
-and the real typos are lost in the noise. Turn it off for plots whose
-tags are not sequential.}
+\item{recruit_tags}{Character vector of recruit-tagging conventions to
+honour, any of `"sequential"` and `"decimal"`. A tag that follows one of
+them is a genuine recruit whatever its edit distance from an existing tag.
+Without this nearly every recruit sits a character or two from a tag
+already in use and the real typos are lost in the noise. Pass
+`character(0)` to hold every close tag for review.
+\describe{
+  \item{`"sequential"`}{the team continues the plot's numbering, so a
+    numeric tag above every tag already used in that plot is a recruit.}
+  \item{`"decimal"`}{the team hangs a decimal off the nearest already
+    tagged neighbour — `45` gets `45.1`, then `45.2` — so a tag with a
+    fractional part whose whole part is already used in that plot is a
+    recruit. The parent may itself be a recruit first measured in this
+    same table.}
+}}
 
 \item{exclude_status}{Vital statuses to leave out of the missing-stem
 report; stems already recorded dead are not expected to reappear.}
@@ -64,6 +73,11 @@ An object of class `census_split`, a list with:
       a report, not a reclassification.}
     \item{`missing_stems`}{recorded stems with no row in `data`.}
     \item{`duplicates`}{plot + tag appearing more than once in `data`.}
+    \item{`existing_duplicates`}{the rows of `existing` whose plot + tag
+      names more than one *recorded* stem, whether or not this census
+      measures it, plus `n_stems` and `in_census` — a data-quality report on
+      the recorded data itself, one row per stem so it joins back on
+      `id_n`.}
     \item{`out_of_scope`}{rows for plots outside `plot_names`.}
     \item{`summary`}{per-plot counts.}
   }
@@ -88,8 +102,8 @@ Roles assigned to each row of `data`:
   \item{`recruit`}{tag unknown for that plot and unlike any existing tag —
     a new individual.}
   \item{`review`}{either the tag is unknown but within `typo_max_dist` of an
-    existing tag (or an adjacent-character swap away from one) *and* not a
-    continuation of the plot's numbering — see `assume_new_block`; or plot +
+    existing tag (or an adjacent-character swap away from one) *and* follows
+    no recognised recruit-tagging convention — see `recruit_tags`; or plot +
     tag matches more than one recorded stem. Needs a human decision.}
   \item{`invalid`}{plot name or tag missing.}
 }
@@ -109,6 +123,15 @@ columns that once told such stems apart are no longer maintained, so there
 is nothing left to disambiguate them with; the split reports them rather
 than guessing.
 
+A repeated plot + tag is a defect in the recorded data, not in the census —
+the pair is meant to name one stem. `ambiguous` only shows the ones this
+census happens to measure, which understates it: the rest sit there until
+some later census walks into them. `existing_duplicates` therefore extracts
+every recorded stem caught in such a collision across the plots in scope —
+the `existing` rows themselves, so they join straight back on `id_n` —
+with `n_stems` giving the size of the collision and `in_census` marking
+which are live in this table.
+
 Pass `existing` to run without a database — that is the form used by the
 tests and by anyone working from an exported tag list.
 }
@@ -121,17 +144,18 @@ existing <- data.frame(
   stringsAsFactors = FALSE
 )
 census <- data.frame(
-  plot_name = c("P1", "P1", "P1", "P1"),
-  tag       = c("101", "102", "104", "1O3"),
-  dbh       = c(21.1, 33.4, 10.2, 45.0),
+  plot_name = c("P1", "P1", "P1", "P1", "P1"),
+  tag       = c("101", "102", "104", "102.1", "1O3"),
+  dbh       = c(21.1, 33.4, 10.2, 8.5, 45.0),
   stringsAsFactors = FALSE
 )
 split <- split_census_table(census, existing = existing)
 split
 
-# 101 and 102 are remeasures, 104 continues the numbering so it is a
-# recruit, and 1O3 (letter O) is held for review against tag 103.
-split$data[, c("tag", "row_role", "id_n")]
+# 101 and 102 are remeasures; 104 continues the numbering and 102.1 hangs a
+# decimal off tag 102, so both are recruits; 1O3 (letter O) is held for
+# review against tag 103.
+split$data[, c("tag", "row_role", "id_n", "split_note")]
 
 }
 \seealso{

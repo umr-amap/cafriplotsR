@@ -8984,6 +8984,14 @@
     {
       "en": "Recorded for the tree itself, not attached to this census.",
       "fr": "Enregistré pour l'arbre lui-même, sans lien avec ce recensement."
+    },
+    {
+      "en": "%d recorded stem(s) share a plot + tag with another stem in the database.",
+      "fr": "%d individu(s) enregistré(s) partagent une combinaison parcelle + tag avec un autre individu dans la base."
+    },
+    {
+      "en": "A tag is meant to identify one tree in its plot. These need fixing at the source; the rows this census measures are excluded from the import.",
+      "fr": "Un tag doit identifier un seul arbre dans sa parcelle. Ces cas doivent être corrigés à la source ; les lignes mesurées par cet inventaire sont exclues de l'import."
     }
   ]
 }

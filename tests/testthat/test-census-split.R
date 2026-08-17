@@ -59,6 +59,17 @@ test_that(".normalize_tag handles zero-length input", {
   expect_equal(.normalize_tag(character(0)), character(0))
 })
 
+test_that(".normalize_tag canonicalises numeric tags written as text", {
+  # The database returns the number; the spreadsheet carries what was typed
+  expect_equal(.normalize_tag(c("0101", "22.10", "45.0")), c("101", "22.1", "45"))
+  expect_equal(.normalize_tag("22.10"), .normalize_tag(22.1))
+})
+
+test_that(".normalize_tag leaves anything not purely numeric alone", {
+  expect_equal(.normalize_tag(c("A12", "12B", "PLOT1-034", "1O3")),
+               c("A12", "12B", "PLOT1-034", "1O3"))
+})
+
 # =============================================================================
 # .tag_numeric()
 # =============================================================================
@@ -66,6 +77,51 @@ test_that(".normalize_tag handles zero-length input", {
 test_that(".tag_numeric parses plain numbers only", {
   expect_equal(.tag_numeric(c("101", "1O3", "A12", NA, "12.5")),
                c(101, NA, NA, NA, 12.5))
+})
+
+# =============================================================================
+# .recruit_tag_exempt()
+# =============================================================================
+
+test_that(".recruit_tag_exempt recognises a tag continuing the numbering", {
+  res <- .recruit_tag_exempt(c(601, 45.5), pool_num = c(1, 45, 600))
+  expect_equal(res$exempt, c(TRUE, TRUE))
+  expect_match(res$reason[1], "numbering")
+  expect_match(res$reason[2], "decimal suffix on tag 45")
+})
+
+test_that(".recruit_tag_exempt requires the whole part to be a tag in use", {
+  res <- .recruit_tag_exempt(c(45.1, 46.1), pool_num = c(1, 45, 600))
+  expect_equal(res$exempt, c(TRUE, FALSE))
+})
+
+test_that(".recruit_tag_exempt chains decimals off an existing decimal", {
+  # 22 itself may be gone; 22.1 is enough to make 22 a parent
+  res <- .recruit_tag_exempt(22.2, pool_num = c(22.1, 600))
+  expect_true(res$exempt)
+})
+
+test_that(".recruit_tag_exempt accepts a whole-numbered parent from the file", {
+  res <- .recruit_tag_exempt(601.1, pool_num = c(1, 600), file_num = c(601, 601.1))
+  expect_true(res$exempt)
+})
+
+test_that(".recruit_tag_exempt never lets a decimal tag be its own parent", {
+  # floor(45.1) must not enter the parent set just because 45.1 is in the file
+  res <- .recruit_tag_exempt(45.1, pool_num = c(1, 600), file_num = 45.1)
+  expect_false(res$exempt)
+})
+
+test_that(".recruit_tag_exempt honours the schemes asked for", {
+  expect_false(.recruit_tag_exempt(45.1, c(45, 600), schemes = "sequential")$exempt)
+  expect_false(.recruit_tag_exempt(601, c(45, 600), schemes = "decimal")$exempt)
+  expect_false(.recruit_tag_exempt(45.1, c(45, 600), schemes = character(0))$exempt)
+})
+
+test_that(".recruit_tag_exempt copes with an empty pool and no candidates", {
+  expect_equal(nrow(.recruit_tag_exempt(numeric(0), c(1, 2))), 0)
+  expect_false(.recruit_tag_exempt(45.1, numeric(0))$exempt)
+  expect_false(.recruit_tag_exempt(NA_real_, c(45, 600))$exempt)
 })
 
 # =============================================================================
@@ -203,10 +259,18 @@ test_that("a tag continuing the plot's numbering stays a recruit", {
   expect_equal(split_census_table(census, existing = make_existing())$data$row_role,
                "recruit")
 
-  # ...unless the caller says tags are not sequential
+  # ...unless the caller says recruits follow no convention
   res <- split_census_table(census, existing = make_existing(),
-                            assume_new_block = FALSE)
+                            recruit_tags = character(0))
   expect_equal(res$data$row_role, "review")
+})
+
+test_that("recruit_tags rejects an unknown convention", {
+  expect_error(
+    split_census_table(make_census(), existing = make_existing(),
+                       recruit_tags = "quadrat"),
+    "quadrat"
+  )
 })
 
 test_that("a tag falling back inside the used range is still reviewed", {
@@ -215,6 +279,96 @@ test_that("a tag falling back inside the used range is still reviewed", {
   res <- split_census_table(census, existing = make_existing())
 
   expect_equal(res$data$row_role, "review")
+})
+
+# -----------------------------------------------------------------------------
+# Recruits tagged off their nearest neighbour
+#
+# Many teams do not continue the plot's numbering. A recruit next to tag 45 is
+# tagged 45.1, the next one 45.2. Those tags sit one edit from a tag already in
+# use — "45.1" is one character from "451" — and are well below the highest tag
+# in the plot, so the sequential rule cannot rescue them.
+# -----------------------------------------------------------------------------
+
+make_decimal_existing <- function() {
+  tags <- c("1", "45", "103", "137", "451", "452", "461", "600", "22.1", "137.1")
+  data.frame(
+    plot_name = "P1",
+    tag       = tags,
+    id_n      = seq_along(tags),
+    stringsAsFactors = FALSE
+  )
+}
+
+test_that("a decimal hung off an existing tag is a recruit, not a typo", {
+  census <- data.frame(
+    plot_name = "P1",
+    tag       = c("45.1", "45.2", "137.2", "22.2"),
+    stringsAsFactors = FALSE
+  )
+  res <- split_census_table(census, existing = make_decimal_existing())
+
+  expect_true(all(res$data$row_role == "recruit"))
+  expect_equal(nrow(res$possible_typos), 0)
+  expect_match(res$data$split_note[1], "decimal suffix on tag 45")
+})
+
+test_that("the decimal rule leaves genuine typos flagged", {
+  census <- data.frame(
+    plot_name = "P1",
+    tag       = c("45.1", "1O3", "453"),   # a recruit, a typo, a mistyped 452
+    stringsAsFactors = FALSE
+  )
+  res <- split_census_table(census, existing = make_decimal_existing())
+
+  expect_equal(res$data$row_role, c("recruit", "review", "review"))
+  expect_equal(nrow(res$possible_typos), 2)
+})
+
+test_that("a decimal on a tag the plot never used is still reviewed", {
+  # 46 is not a tag in this plot, so 46.1 follows no convention
+  census <- data.frame(plot_name = "P1", tag = "46.1", stringsAsFactors = FALSE)
+  res <- split_census_table(census, existing = make_decimal_existing())
+
+  expect_equal(res$data$row_role, "review")
+})
+
+test_that("a recruit can be hung off another recruit in the same table", {
+  census <- data.frame(
+    plot_name = "P1", tag = c("601", "601.1"), stringsAsFactors = FALSE
+  )
+  res <- split_census_table(census, existing = make_decimal_existing())
+
+  expect_equal(res$data$row_role, c("recruit", "recruit"))
+})
+
+test_that("both conventions can be honoured in one plot", {
+  census <- data.frame(
+    plot_name = "P1", tag = c("601", "45.1"), stringsAsFactors = FALSE
+  )
+  res <- split_census_table(census, existing = make_decimal_existing())
+
+  expect_true(all(res$data$row_role == "recruit"))
+  expect_match(res$data$split_note[1], "numbering")
+  expect_match(res$data$split_note[2], "decimal")
+})
+
+test_that("dropping the decimal convention sends those rows back to review", {
+  census <- data.frame(plot_name = "P1", tag = "45.1", stringsAsFactors = FALSE)
+  res <- split_census_table(census, existing = make_decimal_existing(),
+                            recruit_tags = "sequential")
+
+  expect_equal(res$data$row_role, "review")
+  expect_equal(res$possible_typos$nearest_tag, "451")
+})
+
+test_that("a decimal tag already recorded is a remeasure, never a recruit", {
+  census <- data.frame(plot_name = "P1", tag = c("22.1", 137.1),
+                       stringsAsFactors = FALSE)
+  res <- split_census_table(census, existing = make_decimal_existing())
+
+  expect_true(all(res$data$row_role == "remeasure"))
+  expect_equal(res$data$id_n, c(9L, 10L))
 })
 
 test_that("typo_max_dist = 0 disables the guard", {
@@ -636,6 +790,141 @@ test_that("print reports ambiguity separately from typos", {
 
   out <- paste(capture.output(print(res), type = "message"), collapse = " ")
   expect_match(out, "more than one recorded stem")
+})
+
+test_that("every repeated plot+tag in the database is reported, not just the live ones", {
+  existing <- data.frame(
+    plot_name = c("P1", "P1", "P1", "P1", "P1"),
+    tag       = c("5", "5", "6", "40", "40"),
+    id_n      = c(11L, 12L, 13L, 40L, 41L),
+    stringsAsFactors = FALSE
+  )
+  # The census touches tag 5 only; tag 40 is a collision nothing looks at
+  census <- data.frame(plot_name = "P1", tag = "5", stringsAsFactors = FALSE)
+
+  res <- split_census_table(census, existing = existing)
+
+  # One row per stem, not per collision — 2 tags, 4 stems
+  expect_equal(nrow(res$existing_duplicates), 4)
+  expect_equal(res$existing_duplicates$id_n, c(11L, 12L, 40L, 41L))
+  expect_equal(res$existing_duplicates$tag, c("5", "5", "40", "40"))  # numeric sort
+  expect_equal(res$existing_duplicates$n_stems, rep(2L, 4))
+  expect_equal(res$existing_duplicates$in_census, c(TRUE, TRUE, FALSE, FALSE))
+  expect_equal(res$summary$n_dup_in_db, 2L)
+
+  # ambiguous only ever sees the one the census walked into
+  expect_equal(nrow(res$ambiguous), 1)
+})
+
+test_that("existing_duplicates carries the columns of `existing` for joining back", {
+  existing <- data.frame(
+    plot_name   = "P1",
+    tag         = c("5", "5"),
+    id_n        = c(11L, 12L),
+    idtax_n     = c(500L, 600L),
+    last_status = c("alive", "dead"),
+    stringsAsFactors = FALSE
+  )
+  census <- data.frame(plot_name = "P1", tag = "5", stringsAsFactors = FALSE)
+  res <- split_census_table(census, existing = existing)
+
+  expect_true(all(names(existing) %in% names(res$existing_duplicates)))
+  expect_equal(res$existing_duplicates$idtax_n, c(500L, 600L))
+  expect_equal(res$existing_duplicates$last_status, c("alive", "dead"))
+})
+
+test_that("existing_duplicates is empty when the recorded tags are unique", {
+  res <- split_census_table(make_census(), existing = make_existing())
+
+  expect_equal(nrow(res$existing_duplicates), 0)
+  expect_true(all(c("plot_name", "tag", "id_n", "n_stems", "in_census") %in%
+                    names(res$existing_duplicates)))
+  expect_true(all(res$summary$n_dup_in_db == 0))
+})
+
+test_that("existing_duplicates reports the size of a collision bigger than two", {
+  existing <- data.frame(
+    plot_name = "P1", tag = c("5", "5", "5", "6"), id_n = c(11L, 12L, 13L, 14L),
+    stringsAsFactors = FALSE
+  )
+  census <- data.frame(plot_name = "P1", tag = "6", stringsAsFactors = FALSE)
+  res <- split_census_table(census, existing = existing)
+
+  expect_equal(nrow(res$existing_duplicates), 3)
+  expect_equal(res$existing_duplicates$n_stems, rep(3L, 3))
+  expect_equal(res$summary$n_dup_in_db, 1L)
+})
+
+test_that("existing_duplicates stays inside the plots being split", {
+  existing <- data.frame(
+    plot_name = c("P1", "P1", "P9", "P9"),
+    tag       = c("5", "5", "7", "7"),
+    id_n      = c(11L, 12L, 91L, 92L),
+    stringsAsFactors = FALSE
+  )
+  census <- data.frame(plot_name = "P1", tag = "5", stringsAsFactors = FALSE)
+  res <- split_census_table(census, plot_names = "P1", existing = existing)
+
+  expect_equal(res$existing_duplicates$plot_name, c("P1", "P1"))
+  expect_equal(res$existing_duplicates$id_n, c(11L, 12L))
+})
+
+test_that("existing_duplicates ignores recorded stems with no tag", {
+  existing <- data.frame(
+    plot_name = c("P1", "P1", "P1"),
+    tag       = c(NA, NA, "6"),
+    id_n      = c(11L, 12L, 13L),
+    stringsAsFactors = FALSE
+  )
+  census <- data.frame(plot_name = "P1", tag = "6", stringsAsFactors = FALSE)
+  res <- split_census_table(census, existing = existing)
+
+  expect_equal(nrow(res$existing_duplicates), 0)
+})
+
+test_that("the summary counts duplicated recorded tags per plot", {
+  existing <- data.frame(
+    plot_name = c("P1", "P1", "P2", "P2", "P2"),
+    tag       = c("5", "5", "7", "7", "8"),
+    id_n      = c(11L, 12L, 71L, 72L, 80L),
+    stringsAsFactors = FALSE
+  )
+  census <- data.frame(plot_name = c("P1", "P2"), tag = c("5", "8"),
+                       stringsAsFactors = FALSE)
+  res <- split_census_table(census, existing = existing)
+
+  expect_equal(res$summary$n_dup_in_db, c(1L, 1L))
+})
+
+test_that("print calls out duplicated stems recorded in the database", {
+  existing <- data.frame(
+    plot_name = "P1", tag = c("5", "5", "40", "40"),
+    id_n = c(11L, 12L, 40L, 41L), stringsAsFactors = FALSE
+  )
+  census <- data.frame(plot_name = "P1", tag = "5", stringsAsFactors = FALSE)
+  res <- split_census_table(census, existing = existing)
+
+  out <- paste(capture.output(print(res), type = "message"), collapse = " ")
+  expect_match(out, "2 plot\\+tag combinations name more than one recorded stem")
+  expect_match(out, "4 stems concerned")
+  expect_match(out, "2 untouched by this census")
+})
+
+test_that("export_census_split writes the duplicated recorded tags", {
+  skip_if_not_installed("writexl")
+
+  existing <- data.frame(
+    plot_name = "P1", tag = c("5", "5"), id_n = c(11L, 12L),
+    stringsAsFactors = FALSE
+  )
+  census <- data.frame(plot_name = "P1", tag = "5", stringsAsFactors = FALSE)
+  res <- split_census_table(census, existing = existing)
+
+  dir <- file.path(tempdir(), paste0("census_split_dup_", as.integer(Sys.time())))
+  on.exit(unlink(dir, recursive = TRUE), add = TRUE)
+  written <- export_census_split(res, dir = dir)
+
+  expect_true(any(grepl("07_existing_duplicates", basename(written))))
 })
 
 test_that("a repeated tag with no file row is not reported as ambiguous", {

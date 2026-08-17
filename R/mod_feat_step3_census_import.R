@@ -541,6 +541,27 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
         )))
       }
 
+      # A repeated plot + tag in the database is a defect in the recorded data,
+      # not in this file. It is reported in full — including the collisions
+      # this census does not touch — because the ambiguous panel above only
+      # ever shows the ones it happened to walk into.
+      if (nrow(split$existing_duplicates) > 0) {
+        blocks <- c(blocks, list(shiny::div(
+          class = "alert alert-warning",
+          shiny::icon("triangle-exclamation"), " ",
+          shiny::strong(sprintf(
+            i18n()$t("%d recorded stem(s) share a plot + tag with another stem in the database."),
+            nrow(split$existing_duplicates))),
+          shiny::br(),
+          i18n()$t("A tag is meant to identify one tree in its plot. These need fixing at the source; the rows this census measures are excluded from the import."),
+          shiny::br(), shiny::br(),
+          DT::renderDT(DT::datatable(
+            split$existing_duplicates, rownames = FALSE,
+            options = list(pageLength = 5, scrollX = TRUE, dom = "tp")
+          ))
+        )))
+      }
+
       if (nrow(split$taxon_drift) > 0) {
         blocks <- c(blocks, list(shiny::div(
           class = "alert alert-warning",
