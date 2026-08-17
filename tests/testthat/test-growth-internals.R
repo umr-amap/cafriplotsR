@@ -116,8 +116,9 @@ test_that("compute_mortality errors when both plot_ids and plot_names are NULL",
 })
 
 test_that("compute_growth returns summary and individual data from mocked query results", {
+  # query_plots(output_style = "full") names the individual table "individuals"
   query_result <- list(
-    extract = make_growth_query_extract(),
+    individuals = make_growth_query_extract(),
     census_features = data.frame(plot_name = "P1", stringsAsFactors = FALSE)
   )
 
@@ -141,8 +142,9 @@ test_that("compute_growth returns summary and individual data from mocked query 
 })
 
 test_that("compute_growth supports exponential method and summary-only output", {
+  # query_plots(output_style = "full") names the individual table "individuals"
   query_result <- list(
-    extract = make_growth_query_extract(),
+    individuals = make_growth_query_extract(),
     census_features = data.frame(plot_name = "P1", stringsAsFactors = FALSE)
   )
 
@@ -159,7 +161,7 @@ test_that("compute_growth supports exponential method and summary-only output", 
 
 test_that("compute_growth errors when query results do not include multiple censuses", {
   query_result <- list(
-    extract = data.frame(id_table_liste_plots_n = 1L, plot_name = "P1", stringsAsFactors = FALSE),
+    individuals = data.frame(id_table_liste_plots_n = 1L, plot_name = "P1", stringsAsFactors = FALSE),
     census_features = data.frame(plot_name = "P1", stringsAsFactors = FALSE)
   )
 
@@ -174,8 +176,9 @@ test_that("compute_growth errors when query results do not include multiple cens
 })
 
 test_that("compute_mortality returns mortality and recruitment summaries from mocked data", {
+  # query_plots(output_style = "full") names the individual table "individuals"
   query_result <- list(
-    extract = make_growth_query_extract(),
+    individuals = make_growth_query_extract(),
     census_features = data.frame(plot_name = "P1", stringsAsFactors = FALSE)
   )
 
@@ -198,9 +201,49 @@ test_that("compute_mortality returns mortality and recruitment summaries from mo
   expect_equal(result$recruits$dbh_at_recruitment_cm[[1]], 12)
 })
 
+# =============================================================================
+# .pluck_individuals() - tolerate both names for the individual table
+# =============================================================================
+
+test_that(".pluck_individuals finds the individual table under either name", {
+  individuals <- make_growth_query_extract()
+
+  # "full" style (current)
+  expect_equal(
+    .pluck_individuals(list(metadata = data.frame(a = 1), individuals = individuals)),
+    individuals
+  )
+  # legacy internal name
+  expect_equal(
+    .pluck_individuals(list(meta_data = data.frame(a = 1), extract = individuals)),
+    individuals
+  )
+  # bare data frame passes through
+  expect_equal(.pluck_individuals(individuals), individuals)
+  # nothing usable
+  expect_null(.pluck_individuals(list(metadata = data.frame(a = 1))))
+  expect_null(.pluck_individuals(NULL))
+})
+
+test_that("compute_growth still reads the legacy 'extract' table name", {
+  query_result <- list(
+    extract = make_growth_query_extract(),
+    census_features = data.frame(plot_name = "P1", stringsAsFactors = FALSE)
+  )
+
+  testthat::local_mocked_bindings(.package = "CafriplotsR",
+    query_plots = function(...) query_result
+  )
+
+  result <- compute_growth(plot_ids = 1, con = structure(list(), class = "mock_con"))
+
+  expect_equal(nrow(result$summary), 1)
+  expect_equal(result$summary$mean_growth_mm_yr[[1]], 10)
+})
+
 test_that("compute_mortality errors when query result lacks census_features", {
-  testthat::local_mocked_bindings(.package = "CafriplotsR", 
-    query_plots = function(...) list(extract = make_growth_query_extract())
+  testthat::local_mocked_bindings(.package = "CafriplotsR",
+    query_plots = function(...) list(individuals = make_growth_query_extract())
   )
 
   expect_error(
