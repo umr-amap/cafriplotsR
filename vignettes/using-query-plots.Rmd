@@ -666,7 +666,7 @@ result <- query_plots(
   remove_ids   = FALSE,
   output_style = "full"
 )
-names(result$extract)  # includes id_liste_plots, id_census, id_n …
+names(result$individuals)  # includes id_liste_plots, id_census, id_n …
 ```
 
 ### Handling Data Quality Issues

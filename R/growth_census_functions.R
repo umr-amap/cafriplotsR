@@ -11,6 +11,34 @@
 # Dependencies: dplyr, cli, date
 # Adapted from CTFS R Package: http://ctfs.si.edu/Public/CTFSRPackage/
 
+
+#' Pull the individual-level table out of a query_plots() result
+#'
+#' @description
+#' `query_plots()` names the individual table `individuals` in every output
+#' style, including `"full"`, where it is renamed from the internal `extract`
+#' just before returning. Older results (and the raw internal list) still carry
+#' `extract`, so both names are accepted here.
+#'
+#' @param query_result List returned by `query_plots()`.
+#'
+#' @return A data frame of individuals, or `NULL` when neither element exists.
+#'
+#' @keywords internal
+#' @noRd
+.pluck_individuals <- function(query_result) {
+  if (is.data.frame(query_result)) return(query_result)
+  if (!is.list(query_result)) return(NULL)
+
+  for (nm in c("individuals", "extract")) {
+    if (nm %in% names(query_result) && is.data.frame(query_result[[nm]])) {
+      return(query_result[[nm]])
+    }
+  }
+
+  NULL
+}
+
 #' Compute growth rates for permanent plots
 #'
 #' @description
@@ -89,7 +117,7 @@ compute_growth <- function(plot_ids = NULL,
     stop("No census data found. Make sure plots have multiple censuses recorded.")
   }
 
-  dataset <- query_result$extract
+  dataset <- .pluck_individuals(query_result)
   census_info <- query_result$census_features
 
   if (is.null(dataset) || nrow(dataset) == 0) {
@@ -322,7 +350,7 @@ compute_mortality <- function(plot_ids = NULL,
     stop("No census data found. Make sure plots have multiple censuses recorded.")
   }
 
-  dataset <- query_result$extract
+  dataset <- .pluck_individuals(query_result)
 
   if (is.null(dataset) || nrow(dataset) == 0) {
     stop("No individual data found for the specified plots")
