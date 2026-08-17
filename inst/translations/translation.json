@@ -8992,6 +8992,22 @@
     {
       "en": "A tag is meant to identify one tree in its plot. These need fixing at the source; the rows this census measures are excluded from the import.",
       "fr": "Un tag doit identifier un seul arbre dans sa parcelle. Ces cas doivent être corrigés à la source ; les lignes mesurées par cet inventaire sont exclues de l'import."
+    },
+    {
+      "en": "The database server could not be reached. This network is probably blocking the connection - try another network, a phone hotspot is the quickest test.",
+      "fr": "Le serveur de la base de données n'a pas pu être joint. Ce réseau bloque probablement la connexion - essayez un autre réseau, un partage de connexion depuis un téléphone est le test le plus rapide."
+    },
+    {
+      "en": "The database server name could not be resolved. Check your internet connection, or open a web page first if you are on a Wi-Fi network that requires a login.",
+      "fr": "Le nom du serveur de la base de données n'a pas pu être résolu. Vérifiez votre connexion internet, ou ouvrez d'abord une page web si vous êtes sur un réseau Wi-Fi nécessitant une authentification."
+    },
+    {
+      "en": "The server rejected this username or password.",
+      "fr": "Le serveur a refusé ce nom d'utilisateur ou ce mot de passe."
+    },
+    {
+      "en": "The server currently has no free connection slots. Wait a moment and try again.",
+      "fr": "Le serveur n'a actuellement plus de connexion disponible. Patientez un instant et réessayez."
     }
   ]
 }

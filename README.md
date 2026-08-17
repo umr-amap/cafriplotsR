@@ -189,9 +189,56 @@ This package implements a **specimen linking system** that creates formal, persi
 - `call.mydb.taxa()` - Connect to taxa database
 - `cleanup_connections()` - Close all connections
 - `db_diagnostic()` - Database connection diagnostics
+- `check_db_network()` - Diagnose why the database cannot be reached
 
 ### Data Querying
 - `query_plots()` - Query plot metadata or individuals
+
+
+## Troubleshooting Connections
+
+### "timeout expired" - it worked yesterday, now it does not
+
+```
+! Connection attempt 1 failed (no answer from the server), retrying...
+✖ Failed to connect to main database after 3 attempts: no answer from the server
+```
+
+This is almost never a problem with the database, with your password, or with
+the package. The database listens on port **35699**, which is not a standard
+web port. Many institutional, campus, hotel and corporate networks - and some
+VPNs - allow only ports 80 and 443 outbound and silently drop everything else.
+The same code then works from home and fails at the office.
+
+Run the network check, which needs no credentials:
+
+```r
+check_db_network()
+```
+
+It probes the database port, and if that fails, probes a control host on port
+443 to tell the two cases apart. It returns one of three verdicts:
+
+| Verdict | Meaning | What to do |
+|---|---|---|
+| `reachable` | The port is open; the network is fine | The cause is your credentials or the server. Try `call.mydb(reset = TRUE)`, then `db_diagnostic()` |
+| `port_blocked` | Your internet works but port 35699 is filtered | Retry from another network - a phone hotspot is the quickest test. Then ask your IT service to allow outbound TCP to `dg474899-001.dbaas.ovh.net:35699` |
+| `no_connectivity` | Nothing is reachable | Check Wi-Fi, VPN, and captive portals (hotel/airport Wi-Fi that needs a login page). Note that PostgreSQL cannot go through an HTTP proxy |
+
+Connection failures print their own diagnosis and a numbered list of things to
+try, so in most cases you do not need to run anything extra.
+
+### Other common failures
+
+| Message contains | Cause | Fix |
+|---|---|---|
+| `password authentication failed` | Wrong or stale credentials | `call.mydb(reset = TRUE)`; check `~/.Renviron` for an old password |
+| `too many clients already` | All server connection slots are in use | Wait a minute; run `cleanup_connections()` in other R sessions you left open |
+| `could not translate host name` | DNS failure - offline, or a captive portal | Open any web page first, then retry |
+| `server closed the connection unexpectedly` | Connection dropped mid-handshake | Usually unstable Wi-Fi or traffic inspection; retry, then try another network |
+
+If a problem survives all of this, send the full console output - including
+the `check_db_network()` verdict - to the maintainer.
 
 
 ## Documentation

@@ -415,8 +415,13 @@ mod_database_login_server <- function(id) {
           }
 
         }, error = function(e) {
-          rv$error_message <- paste(t("Main database connection failed:"), e$message)
-          cli::cli_alert_danger("Main database connection failed: {e$message}")
+          # Full diagnosis in the console, one actionable sentence in the UI
+          .report_connect_failure(e$message, "main", 1L, db_host, db_port)
+          hint <- .connect_error_short_hint(.classify_connect_error(e$message))
+          rv$error_message <- paste0(
+            t("Main database connection failed:"), " ", e$message,
+            if (nzchar(hint)) paste0(" ", t(hint)) else ""
+          )
           return()
         })
 
@@ -449,8 +454,12 @@ mod_database_login_server <- function(id) {
           }
 
         }, error = function(e) {
-          rv$error_message <- paste(t("Taxa database connection failed:"), e$message)
-          cli::cli_alert_danger("Taxa database connection failed: {e$message}")
+          .report_connect_failure(e$message, "taxa", 1L, db_host, db_port)
+          hint <- .connect_error_short_hint(.classify_connect_error(e$message))
+          rv$error_message <- paste0(
+            t("Taxa database connection failed:"), " ", e$message,
+            if (nzchar(hint)) paste0(" ", t(hint)) else ""
+          )
 
           # Close main pool if taxa connection failed
           if (!is.null(rv$pool_main)) {
@@ -523,7 +532,12 @@ mod_database_login_server <- function(id) {
           DBI::dbGetQuery(pool_main, "SELECT 1 AS test")
           rv$pool_main <- pool_main
         }, error = function(e) {
-          rv$error_message <- paste(t("Public connection failed (main database):"), e$message)
+          .report_connect_failure(e$message, "main", 1L, db_host, db_port)
+          hint <- .connect_error_short_hint(.classify_connect_error(e$message))
+          rv$error_message <- paste0(
+            t("Public connection failed (main database):"), " ", e$message,
+            if (nzchar(hint)) paste0(" ", t(hint)) else ""
+          )
           return()
         })
 
@@ -543,7 +557,12 @@ mod_database_login_server <- function(id) {
           DBI::dbGetQuery(pool_taxa, "SELECT 1 AS test")
           rv$pool_taxa <- pool_taxa
         }, error = function(e) {
-          rv$error_message <- paste(t("Public connection failed (taxa database):"), e$message)
+          .report_connect_failure(e$message, "taxa", 1L, db_host, db_port)
+          hint <- .connect_error_short_hint(.classify_connect_error(e$message))
+          rv$error_message <- paste0(
+            t("Public connection failed (taxa database):"), " ", e$message,
+            if (nzchar(hint)) paste0(" ", t(hint)) else ""
+          )
           if (!is.null(rv$pool_main)) {
             pool::poolClose(rv$pool_main)
             rv$pool_main <- NULL
