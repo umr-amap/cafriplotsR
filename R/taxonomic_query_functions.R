@@ -1,4 +1,4 @@
-﻿# Taxonomic Query Functions
+# Taxonomic Query Functions
 #
 # This file contains functions for querying and matching taxonomic data from the taxa database.
 # These functions handle synonym resolution, trait aggregation, and hierarchical trait matching.

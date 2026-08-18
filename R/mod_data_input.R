@@ -1,4 +1,4 @@
-﻿# Data Input Module
+# Data Input Module
 #
 # Handles file upload, text input (copy-paste), or direct R data input
 

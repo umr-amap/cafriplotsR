@@ -1,4 +1,4 @@
-﻿# OpenForis Collect data pre-processing
+# OpenForis Collect data pre-processing
 #
 # Internal (non-exported) functions for converting raw OpenForis Collect
 # tree/plot exports into clean formats ready for the Feature Wizard or

@@ -1,4 +1,4 @@
-﻿# Taxonomic Update Functions
+# Taxonomic Update Functions
 #
 # This file contains functions for updating and managing taxonomic data in the database.
 # These functions handle adding new taxa entries, updating taxonomy links, and merging

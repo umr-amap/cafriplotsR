@@ -1,4 +1,4 @@
-﻿# Internal environment to store connections
+# Internal environment to store connections
 .db_env <- new.env(parent = emptyenv())
 
 credentials <- new.env()

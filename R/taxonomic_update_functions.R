@@ -1,4 +1,4 @@
-﻿# Updated Taxonomic Functions for Materialized View Approach
+# Updated Taxonomic Functions for Materialized View Approach
 #
 # These functions replace/augment existing functions in taxonomic_update_functions.R
 # to work with table_idtax as a PostgreSQL materialized view.

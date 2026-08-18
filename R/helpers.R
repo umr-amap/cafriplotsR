@@ -1,4 +1,4 @@
-﻿
+
 #' Build a debug header string with package/R version and timestamp
 #'
 #' Used internally to prefix error and diagnostic messages with reproducible

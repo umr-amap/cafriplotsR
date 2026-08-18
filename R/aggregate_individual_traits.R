@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # Build taxa-level traits by aggregating individual-level measurements
 #
 # Public entry point: rebuild_aggregated_taxa_traits()

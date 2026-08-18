@@ -1,4 +1,4 @@
-﻿# Cache Management for Taxonomic Backbone
+# Cache Management for Taxonomic Backbone
 #
 # Functions for caching the taxonomic backbone to improve performance
 # for users with slow internet connections.

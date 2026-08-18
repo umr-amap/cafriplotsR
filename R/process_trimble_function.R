@@ -1,4 +1,4 @@
-﻿
+
 
 # process_trimble_data <- function(PATH = NULL, plot_name = NULL, format = "dbf") {
 # 

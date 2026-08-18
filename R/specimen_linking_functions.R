@@ -1,4 +1,4 @@
-﻿# Specimen Linking Functions
+# Specimen Linking Functions
 #
 # This file contains functions for linking individual trees to herbarium specimens.
 # These functions manage the relationships between field observations (individuals)

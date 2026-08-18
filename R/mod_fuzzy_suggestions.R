@@ -1,4 +1,4 @@
-﻿# Fuzzy Suggestions Module
+# Fuzzy Suggestions Module
 #
 # Displays fuzzy match suggestions for a given taxonomic name
 

@@ -1,4 +1,4 @@
-﻿#' List available output styles
+#' List available output styles
 #'
 #' @description
 #' Returns a table summarising the output styles available to

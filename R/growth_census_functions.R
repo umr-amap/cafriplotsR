@@ -1,4 +1,4 @@
-﻿# Growth and Census Analysis Functions
+# Growth and Census Analysis Functions
 #
 # This file contains functions for computing tree growth rates and analyzing
 # census data from forest plot inventories. These functions handle multiple

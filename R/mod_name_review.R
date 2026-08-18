@@ -1,4 +1,4 @@
-﻿# Name Review Module
+# Name Review Module
 #
 # Interactive review of unmatched taxonomic names with fuzzy suggestions
 

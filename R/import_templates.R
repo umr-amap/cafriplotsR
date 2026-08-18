@@ -1,4 +1,4 @@
-﻿# Plot Metadata Import Templates
+# Plot Metadata Import Templates
 #
 # Functions for generating standardized templates for importing plot metadata
 # Reuses existing lookup functions: method_list(), country_list(), subplot_list()

@@ -1,4 +1,4 @@
-﻿# Column Mapping for Plot Metadata Import
+# Column Mapping for Plot Metadata Import
 #
 # Smart column mapping with fuzzy matching and domain-specific synonyms
 # Handles cases like: dbh = stem_diameter, PI = principal_investigator

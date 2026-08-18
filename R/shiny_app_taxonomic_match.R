@@ -1,4 +1,4 @@
-﻿# Main Shiny App for Taxonomic Name Standardization
+# Main Shiny App for Taxonomic Name Standardization
 #
 # Modular Shiny app that orchestrates all modules for taxonomic name matching
 
