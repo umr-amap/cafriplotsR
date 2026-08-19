@@ -6,6 +6,13 @@
 
 ### New Features
 
+* **Feature Wizard, Validation — the measurements the database already holds can be dropped from the import** (`R/mod_feat_step5_validation.R`) — validation has long reported *"N measurement(s) already exist in the database for the same individual, trait and census"*, but the only way to act on it was to go back and edit the file. A checkbox now offers to remove exactly those rows
+  - **Unticked by default, and nothing is removed unless it is ticked.** Recording a second measurement of the same individual, feature and census is sometimes intentional, so the duplicate report stays a warning rather than becoming a rule
+  - The rows are recorded as row numbers rather than counted, so they can be dropped precisely, and each is named in the preview's `issue` column ("already recorded in the database for this census") — the count can be traced back to the individuals it came from
+  - Ticking the box updates the row count, the preview table and the "Issues by Trait" summary together, and the filtered data is what step 6 imports
+  - Dropping every row fails validation instead of running an import of nothing and reporting success
+  - Three EN/FR pairs added to `inst/translations/translation.json`
+
 * **`split_census_table()`** — new exported function (`R/census_split.R`) that classifies a flat census table against the individuals already recorded for the selected plots, removing the need to hand-split field data into recruits and remeasures before importing. Which stems are already in the database is something only the database knows, so splitting by hand is guesswork
   - Each row is labelled `remeasure` (existing stem, `id_n` attached), `recruit` (new individual), `review` or `invalid`, and every original column and row is preserved
   - **Typo guard**: an unknown tag within one edit of an existing tag — or one adjacent-character swap away from it — is held as `review` rather than becoming a new individual, since creating a duplicate tree from a mistyped tag is silent and hard to undo. `assume_new_block = TRUE` exempts numeric tags that continue the plot's numbering, without which nearly every genuine recruit would be flagged

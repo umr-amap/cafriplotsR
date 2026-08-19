@@ -40,6 +40,9 @@ mod_feat_step5_validation_ui <- function(id, i18n) {
     # Issue summary by trait (only shown for measurements mode)
     shiny::uiOutput(ns("issue_summary_ui")),
 
+    # Offer to drop what the database already holds
+    shiny::uiOutput(ns("existing_filter_ui")),
+
     # Data preview
     shiny::uiOutput(ns("preview_header")),
     DT::DTOutput(ns("import_preview_table"))
@@ -108,6 +111,11 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                              issue = character(), stringsAsFactors = FALSE)
         warnings <- data.frame(row = integer(), column = character(),
                                warning = character(), stringsAsFactors = FALSE)
+
+        # Rows repeating a measurement the database already holds for the same
+        # individual, feature and census. Kept as row numbers rather than a
+        # count so the user can choose to drop them before importing.
+        existing_rows <- integer(0)
 
         # 1. Validate plots exist and are accessible (skip for modes that use their own linking)
         if (mode %in% c("define_multi_stems", "compute_stem_status", "standardize_observations")) {
@@ -393,7 +401,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
 
                     # Check each row in data for existing measurement
                     census_ids <- if ("id_sub_plots" %in% names(data)) data$id_sub_plots else rep(NA, nrow(data))
-                    n_already_exist <- 0
+                    already_exist <- logical(nrow(data))
 
                     for (i in seq_len(nrow(data))) {
                       tag_val <- data$tag[i]
@@ -418,19 +426,31 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                       }
 
                       if (nrow(meas_match) > 0) {
-                        n_already_exist <- n_already_exist + 1
+                        already_exist[i] <- TRUE
                       }
                     }
 
-                    if (n_already_exist > 0) {
+                    existing_rows <- which(already_exist)
+
+                    if (length(existing_rows) > 0) {
                       warnings <- rbind(warnings, data.frame(
                         row = 0, column = "traitvalue",
                         warning = sprintf(
                           i18n()$t("%d measurement(s) already exist in the database for the same individual, trait and census"),
-                          n_already_exist
+                          length(existing_rows)
                         ),
                         stringsAsFactors = FALSE
                       ))
+
+                      # Name them in the preview too, so the count can be
+                      # traced back to the individuals it came from
+                      if (!"issue" %in% names(data)) data$issue <- NA_character_
+                      dup_msg <- "already recorded in the database for this census"
+                      data$issue[existing_rows] <- ifelse(
+                        is.na(data$issue[existing_rows]),
+                        dup_msg,
+                        paste(data$issue[existing_rows], dup_msg, sep = " | ")
+                      )
                     }
                   }
                 }
@@ -879,7 +899,8 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
           ),
           errors = errors,
           warnings = warnings,
-          data = data
+          data = data,
+          existing_rows = existing_rows
         )
 
         validation_result(result)
@@ -889,9 +910,85 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
       }, message = i18n()$t("Validating..."))
     })
 
+    # What the rest of the wizard sees, once the user has decided what to do
+    # about the rows the database already holds.
+    #
+    # Re-importing them is sometimes exactly right - a second measurement of
+    # the same stem during the same census is legitimate - so nothing is
+    # removed unless the box is ticked. Dropping every row is caught here
+    # rather than at the import, which would otherwise write nothing and
+    # report success.
+    effective_result <- shiny::reactive({
+      res <- validation_result()
+      if (is.null(res)) return(NULL)
+
+      dup <- res$existing_rows
+      if (is.null(dup) || length(dup) == 0 || !isTRUE(input$drop_existing)) {
+        return(res)
+      }
+
+      res$data <- res$data[setdiff(seq_len(nrow(res$data)), dup), , drop = FALSE]
+      res$summary$total_rows <- nrow(res$data)
+      res$dropped_existing <- length(dup)
+
+      if (nrow(res$data) == 0) {
+        res$errors <- rbind(res$errors, data.frame(
+          row = 0, column = "data",
+          issue = i18n()$t("No data rows to import"),
+          stringsAsFactors = FALSE
+        ))
+        res$summary$errors <- nrow(res$errors)
+        res$valid <- FALSE
+      }
+
+      res
+    })
+
+    # The offer itself. Driven by the unfiltered result, so ticking the box
+    # does not make the box disappear.
+    output$existing_filter_ui <- shiny::renderUI({
+      res <- validation_result()
+      if (is.null(res)) return(NULL)
+      n <- length(res$existing_rows)
+      if (n == 0) return(NULL)
+
+      shiny::div(
+        class = "alert alert-warning",
+        style = "margin-top: 20px;",
+        shiny::checkboxInput(
+          ns("drop_existing"),
+          label = sprintf(
+            i18n()$t("Remove the %d measurement(s) already in the database from this import"),
+            n
+          ),
+          value = FALSE
+        ),
+        shiny::p(
+          shiny::icon("info-circle"), " ",
+          i18n()$t("Leave this unticked to import them anyway: recording a second measurement of the same individual, feature and census is sometimes intended. Tick it to import only what is new."),
+          style = "color: #856404; margin: 0 0 0 20px; font-size: 13px;"
+        ),
+        shiny::uiOutput(ns("existing_filter_effect"))
+      )
+    })
+
+    output$existing_filter_effect <- shiny::renderUI({
+      res <- effective_result()
+      if (is.null(res) || is.null(res$dropped_existing)) return(NULL)
+
+      shiny::p(
+        shiny::icon("filter"), " ",
+        sprintf(
+          i18n()$t("%d row(s) removed. %d row(s) will be imported."),
+          res$dropped_existing, nrow(res$data)
+        ),
+        style = "color: #856404; font-weight: 600; margin: 8px 0 0 20px;"
+      )
+    })
+
     # Validation summary
     output$validation_summary <- shiny::renderUI({
-      res <- validation_result()
+      res <- effective_result()
       if (is.null(res)) return(NULL)
 
       shiny::fluidRow(
@@ -926,7 +1023,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
 
     # Validation details
     output$validation_details <- shiny::renderUI({
-      res <- validation_result()
+      res <- effective_result()
       if (is.null(res)) return(NULL)
 
       ui_elements <- list()
@@ -967,7 +1064,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
     })
 
     output$errors_table <- DT::renderDT({
-      res <- validation_result()
+      res <- effective_result()
       shiny::req(res, nrow(res$errors) > 0)
 
       DT::datatable(
@@ -981,7 +1078,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
     })
 
     output$warnings_table <- DT::renderDT({
-      res <- validation_result()
+      res <- effective_result()
       shiny::req(res, nrow(res$warnings) > 0)
 
       DT::datatable(
@@ -996,7 +1093,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
 
     # Issue summary table by trait (measurements mode only)
     output$issue_summary_ui <- shiny::renderUI({
-      res <- validation_result()
+      res <- effective_result()
       if (is.null(res)) return(NULL)
 
       d <- res$data
@@ -1015,7 +1112,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
     })
 
     output$issue_summary_table <- DT::renderDT({
-      res <- validation_result()
+      res <- effective_result()
       shiny::req(res)
 
       d <- res$data
@@ -1088,7 +1185,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
 
     # Import preview
     output$import_preview_table <- DT::renderDT({
-      res <- validation_result()
+      res <- effective_result()
       shiny::req(res)
 
       # Columns to always hide from preview
@@ -1120,6 +1217,6 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
       }
     })
 
-    return(shiny::reactive(validation_result()))
+    return(effective_result)
   })
 }

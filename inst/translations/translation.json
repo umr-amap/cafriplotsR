@@ -9060,6 +9060,18 @@
     {
       "en": "Measured feature",
       "fr": "Caractéristique mesurée"
+    },
+    {
+      "en": "Remove the %d measurement(s) already in the database from this import",
+      "fr": "Retirer de cet import les %d mesure(s) déjà présentes dans la base de données"
+    },
+    {
+      "en": "Leave this unticked to import them anyway: recording a second measurement of the same individual, feature and census is sometimes intended. Tick it to import only what is new.",
+      "fr": "Laissez décoché pour les importer quand même : enregistrer une deuxième mesure du même individu, de la même caractéristique et du même inventaire est parfois voulu. Cochez pour n'importer que ce qui est nouveau."
+    },
+    {
+      "en": "%d row(s) removed. %d row(s) will be imported.",
+      "fr": "%d ligne(s) retirée(s). %d ligne(s) seront importées."
     }
   ]
 }
