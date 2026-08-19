@@ -58,6 +58,13 @@
 
 ### Bug Fixes
 
+* **Feature Wizard, Choose Mode — clicking an operation card now registers visibly** (`R/mod_feat_step2_choose_mode.R`, `R/shiny_app_feature_wizard.R`) — selecting a card set a 2px border and a pale tint, easy to miss among eight cards taller than the viewport, and the confirmation and the Next button both sat below the fold
+  - The chosen card takes a 3px border, a tint, a drop shadow and a circled check mark in its corner; the other seven fade to 45% opacity with light grayscale, and restore on hover so re-choosing still reads normally. Card titles carry a permanent right padding so the badge never reflows the heading
+  - The nav buttons are scrolled into view, but only when they are actually off screen, and after a short delay so the confirmation is on the page before the browser measures
+  - The Next button pulses while the current step is satisfied — on every step, not only this one
+  - `.mode_selection_js()` was extracted from the observer so the generated JavaScript can be asserted, including with `node --check`
+  - No new translation strings: both confirmation strings already existed
+
 * **Feature Wizard, Add Measurements — the "Link to census" box now reflects what was actually mapped** (`R/mod_feat_step3_measurements.R`) — the box pre-selected the latest census for every plot no matter what the file contained, so a position-only import arrived at the write step carrying a census it had no business carrying
   - Pre-selection is now driven by the policy: when none of the mapped features belong to a census nothing is pre-selected, and the box says so. The selection is only revised when the mapped set genuinely crosses that boundary, so a hand-picked census is never wiped by an unrelated dropdown change
   - Features the policy excludes are named under the selector — "Recorded for the tree itself, not attached to a census" — rather than being silently dropped later

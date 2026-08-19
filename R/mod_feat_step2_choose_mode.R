@@ -324,13 +324,7 @@ mod_feat_step2_choose_mode_server <- function(id, i18n) {
         import_census            = "card_import_census"
       )
 
-      # Update card styling via JS: remove 'selected' from all, add to chosen
-      remove_js <- paste(
-        sprintf("document.getElementById('%s').classList.remove('selected');", ns(all_card_ids)),
-        collapse = "\n"
-      )
-      add_js <- sprintf("document.getElementById('%s').classList.add('selected');", ns(card_id))
-      shinyjs::runjs(paste(remove_js, add_js, sep = "\n"))
+      shinyjs::runjs(.mode_selection_js(ns(all_card_ids), ns(card_id)))
     })
 
     output$mode_indicator <- shiny::renderUI({
@@ -350,14 +344,68 @@ mod_feat_step2_choose_mode_server <- function(id, i18n) {
 
       shiny::div(
         class = "alert alert-success",
-        style = "margin-top: 20px;",
-        shiny::icon("check-circle"), " ",
+        style = paste("margin-top: 20px; font-size: 16px;",
+                      "display: flex; align-items: center; gap: 10px;"),
+        shiny::icon("check-circle", style = "font-size: 20px;"),
         shiny::strong(sprintf(i18n()$t("Selected: %s"), label)),
-        " - ",
-        i18n()$t("Click Next to continue.")
+        shiny::span(
+          style = "margin-left: auto; color: #155724;",
+          i18n()$t("Click Next to continue."), " ",
+          shiny::icon("arrow-right")
+        )
       )
     })
 
     return(shiny::reactive(selected_mode()))
   })
+}
+
+
+#' The browser side of choosing an operation
+#'
+#' The eight cards fill more than one screen, so a click at the top used to be
+#' invisible from the bottom: the only confirmation was an alert below the
+#' fold, and the Next button that goes with it further down still. This marks
+#' the chosen card, fades the rest, and brings the confirmation and the
+#' buttons into view when they are not already there.
+#'
+#' The scroll waits a moment so the confirmation alert is on the page before
+#' the browser measures where to stop, and does nothing when the buttons are
+#' already on screen — no motion the user did not need.
+#'
+#' @param card_ids Character vector of namespaced card element ids.
+#' @param chosen_id The namespaced id of the card that was clicked.
+#'
+#' @return A single string of JavaScript.
+#' @keywords internal
+.mode_selection_js <- function(card_ids, chosen_id) {
+  others <- paste(
+    sprintf(
+      paste0("var el = document.getElementById('%s');",
+             " if (el) { el.classList.remove('selected');",
+             " el.classList.add('dimmed'); }"),
+      card_ids
+    ),
+    collapse = "\n"
+  )
+
+  chosen <- sprintf(
+    paste0("var chosen = document.getElementById('%s');",
+           " if (chosen) { chosen.classList.remove('dimmed');",
+           " chosen.classList.add('selected'); }"),
+    chosen_id
+  )
+
+  reveal <- paste0(
+    "setTimeout(function() {",
+    " var nav = document.querySelector('.nav-buttons');",
+    " if (!nav) { return; }",
+    " var box = nav.getBoundingClientRect();",
+    " var h = window.innerHeight || document.documentElement.clientHeight;",
+    " if (box.top < 0 || box.bottom > h) {",
+    " nav.scrollIntoView({behavior: 'smooth', block: 'center'}); }",
+    " }, 150);"
+  )
+
+  paste(others, chosen, reveal, sep = "\n")
 }
