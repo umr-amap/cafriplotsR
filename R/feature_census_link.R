@@ -154,3 +154,61 @@ census_link_evidence <- function(con) {
   res$policy <- unname(.feature_census_link(res$trait, actual_con))
   res
 }
+
+
+#' Drop the census link from features that do not belong to a census
+#'
+#' Sets `id_sub_plots` back to `NA` on every row whose `trait_name` the policy
+#' calls `"never"`, and says which features were left out. Rows for any other
+#' feature, and rows that carry no census to begin with, are returned
+#' untouched.
+#'
+#' @param data Data frame with `trait_name` and `id_sub_plots` columns.
+#' @param policy Named character vector as returned by [.feature_census_link()].
+#' @param quiet Logical. Suppress the message naming the features left out.
+#'
+#' @return `data`, with `id_sub_plots` cleared where the policy says `"never"`.
+#' @keywords internal
+#' @export
+.unlink_never_features <- function(data, policy, quiet = FALSE) {
+  if (!all(c("trait_name", "id_sub_plots") %in% names(data))) return(data)
+  if (length(policy) == 0 || !any(!is.na(data$id_sub_plots))) return(data)
+
+  never <- names(policy)[policy == "never"]
+  if (length(never) == 0) return(data)
+
+  unlinked <- data$trait_name %in% never & !is.na(data$id_sub_plots)
+  if (!any(unlinked)) return(data)
+
+  data$id_sub_plots[unlinked] <- NA_integer_
+
+  if (!quiet) {
+    left_out <- paste(sort(unique(data$trait_name[unlinked])), collapse = ", ")
+    cli::cli_alert_info(
+      "{sum(unlinked)} measurement{?s} recorded without a census link ({left_out})")
+  }
+
+  data
+}
+
+
+#' The features in a set that are never attached to a census
+#'
+#' A convenience over an already-read policy, for callers deciding what to
+#' offer rather than what to write. An empty policy — not read yet, or
+#' unreadable — names nothing, leaving the caller's default in place.
+#'
+#' @param features Character vector of feature (trait) names.
+#' @param policy Named character vector as returned by [.feature_census_link()].
+#'
+#' @return Character vector, the subset of `features` the policy calls
+#'   `"never"`.
+#' @keywords internal
+#' @export
+.never_linked_features <- function(features, policy) {
+  features <- unique(as.character(features))
+  if (length(features) == 0 || length(policy) == 0) return(character(0))
+
+  known <- intersect(features, names(policy))
+  known[unname(policy[known]) == "never"]
+}

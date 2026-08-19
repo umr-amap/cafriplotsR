@@ -58,6 +58,26 @@
 
 ### Bug Fixes
 
+* **Feature Wizard, Choose Mode — clicking an operation card now registers visibly** (`R/mod_feat_step2_choose_mode.R`, `R/shiny_app_feature_wizard.R`) — selecting a card set a 2px border and a pale tint, easy to miss among eight cards taller than the viewport, and the confirmation and the Next button both sat below the fold
+  - The chosen card takes a 3px border, a tint, a drop shadow and a circled check mark in its corner; the other seven fade to 45% opacity with light grayscale, and restore on hover so re-choosing still reads normally. Card titles carry a permanent right padding so the badge never reflows the heading
+  - The nav buttons are scrolled into view, but only when they are actually off screen, and after a short delay so the confirmation is on the page before the browser measures
+  - The Next button pulses while the current step is satisfied — on every step, not only this one
+  - `.mode_selection_js()` was extracted from the observer so the generated JavaScript can be asserted, including with `node --check`
+  - No new translation strings: both confirmation strings already existed
+
+* **Feature Wizard, Add Measurements — the "Link to census" box now reflects what was actually mapped** (`R/mod_feat_step3_measurements.R`) — the box pre-selected the latest census for every plot no matter what the file contained, so a position-only import arrived at the write step carrying a census it had no business carrying
+  - Pre-selection is now driven by the policy: when none of the mapped features belong to a census nothing is pre-selected, and the box says so. The selection is only revised when the mapped set genuinely crosses that boundary, so a hand-picked census is never wiped by an unrelated dropdown change
+  - Features the policy excludes are named under the selector — "Recorded for the tree itself, not attached to a census" — rather than being silently dropped later
+  - `.apply_wide_mapping()` and `.apply_long_mapping()` clear the link on those rows before the data leaves the step, so what the screen shows and what is prepared agree
+  - A collapsed "What linking to a census changes" panel states the three consequences, each traced to the code that causes it: one column per campaign from `aggregate_numeric_features_dt()`, the census date from `enrich_census_info()`, and pairing by `compute_growth()`, which greps `^stem_diameter_census_\d+$` and needs at least two
+  - **Fixes a pre-existing blocker**: the Apply button lived inside the census selector, which rendered nothing when the selected plots had no census at all — measurements for those plots could not be prepared. It now always renders
+  - Ten EN/FR pairs added to `inst/translations/translation.json`
+
+* **Census links are now decided by policy on every write path** (`R/feature_census_link.R`, `R/mod_feat_step6_import.R`, `R/census_import_transaction.R`) — a measurement whose feature does not belong to a campaign is no longer stamped with `id_sub_plots`. Mapping a `quadrat` or a `position_x` in the Add Measurements step used to write a census-linked position, which `query_plots(show_multiple_census = TRUE)` then pivots into `quadrat_census_1`, `quadrat_census_2` ... repeating one unchanging value as though the stem had been re-located at each campaign
+  - `.unlink_never_features()` clears the link on every row the policy calls `"never"` and names the features it left out; `.never_linked_features()` answers the same question for callers deciding what to *offer* rather than what to *write*
+  - `.execute_measurements_import()` re-reads the policy from `traitlist.census_link` immediately before building its records, so the screen cannot decide it
+  - `.execute_census_import()` now calls the shared helper instead of its own inline copy — the only path that already enforced this. Behaviour there is unchanged
+
 * **`query_colnam()`** — fixed collector search in `launch_specimen_identification_app()` manual mode failing with `` `.con` is absent but must be supplied ``. The pattern-search branch built its SQL via `paste0()` and passed it to `glue::glue_sql()` without the required `.con` argument; it now uses proper `glue_sql()` parameter interpolation with `.con = mydb`, which also closes a SQL-injection gap (the collector name was previously spliced directly into the query string).
 
 * **`update_ident_specimens()`** — applying an update in the specimen identification app (manual or batch mode) no longer appears to freeze the app. The function's internal `query_specimens()` calls used the default `show_html = TRUE`, which prints an HTML `kableExtra` table via the RStudio Viewer/browser; when the app itself runs in that same Viewer pane, this hijacked it away from the live Shiny session right after the database write succeeded, making the app look dead. Both calls now pass `show_html = FALSE`, matching the convention already used elsewhere in the app.
@@ -126,7 +146,6 @@
   - RLS-safe insert path via parametrised `INSERT` (replaces `dbWriteTable`/`COPY`, which PostgreSQL refuses on RLS-protected tables)
   - Citation `CafriplotsR_aggregated` (auto-managed, `is_public = FALSE`) tags all aggregated rows; `RESTRICTIVE` RLS policy hides them from the public role
   - Migration / rollback helpers in `inst/scripts/migrate_add_aggregated_traits.R`
-
 
 * **`mod_extraction_config` — UI redesign with CSS-only tooltips and section cards**
   - Replaced dynamically-rendered UI with a static layout featuring coloured section cards (`.cfg-card`) and collapsible advanced options via native `<details>`
@@ -1328,7 +1347,6 @@
   - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
   - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
 
-
 * **Fixed `list_user_policies()` returning empty results**
   - Added `::name` type cast for proper comparison with PostgreSQL `name[]` array
   - Function now correctly filters policies by username
@@ -1429,7 +1447,6 @@
   - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
   - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
 
-
 * **Fixed `query_plots()` with `output_style` throwing errors on missing columns**
   - Changed column selection from `all_of()` to `any_of()` in output style transformations
   - Functions now gracefully handle missing columns instead of throwing errors
@@ -1514,7 +1531,6 @@
   - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
   - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
   - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
-
 
 * **Restored missing helper functions** accidentally commented out
   - `.rename_data()` (R/helpers.R:307) - Renames columns in datasets
@@ -1609,7 +1625,6 @@
   - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
   - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
 
-
 * **Fixed commented `@export` tag causing roxygen2 errors**
   - Removed `@export` from commented-out `subplot_list()` function in `R/subsplots_features_function.R`
   - Prevents documentation build failures
@@ -1642,7 +1657,6 @@
   - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
   - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
   - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
-
 
 * **Fixed NA input names appearing in trait enrichment**
   - Enrichment module now filters out rows where the input taxonomic name is NA or empty
@@ -1719,7 +1733,6 @@
   - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
   - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
   - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
-
 
 * **Fixed `query_taxa()` empty results with `only_family = TRUE`**
   - Previously, fuzzy matching by default caused empty results when filtering for family-level taxa

@@ -101,6 +101,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
     uploaded_raw     <- shiny::reactiveVal(NULL)
     available_traits <- shiny::reactiveVal(NULL)
     census_choices   <- shiny::reactiveVal(NULL)
+    link_policy      <- shiny::reactiveVal(character(0))
 
     # Load available traits from traitlist (with category, description, unit, factorlevels)
     shiny::observe({
@@ -113,6 +114,12 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
                   expectedunit, minallowedvalue, maxallowedvalue, factorlevels
            FROM traitlist ORDER BY trait")
         available_traits(traits)
+
+        # Whether a feature belongs to a census is a property of the feature.
+        # Read once for the whole trait list; this copy drives what the census
+        # box offers, while the import re-reads it for itself when it writes.
+        link_policy(.feature_census_link(traits$trait, actual_con))
+
         cli::cli_alert_success("Loaded {nrow(traits)} trait types")
       }, error = function(e) {
         cli::cli_alert_warning("Could not load trait list: {e$message}")
@@ -120,6 +127,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
         tryCatch({
           traits <- traits_taxa_list(con = con())
           available_traits(traits)
+          link_policy(.feature_census_link(traits$trait))
         }, error = function(e2) {
           cli::cli_alert_warning("Fallback also failed: {e2$message}")
         })
@@ -546,15 +554,65 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
       })
     })
 
+    # Which features the current mapping points at. The census box follows this
+    # rather than the calendar: a diameter belongs to a campaign, where a stem
+    # sits in the plot belongs to the tree.
+    mapped_traits <- shiny::reactive({
+      raw <- uploaded_raw()
+      if (is.null(raw)) return(character(0))
+
+      items <- if (identical(input$data_format, "wide")) {
+        setdiff(names(raw), c(input$map_plot_name, input$map_tag))
+      } else {
+        trait_col <- input$map_trait_type
+        if (is.null(trait_col) || !nzchar(trait_col) || !trait_col %in% names(raw)) {
+          character(0)
+        } else {
+          vals <- unique(as.character(raw[[trait_col]]))
+          vals[!is.na(vals) & nzchar(vals)]
+        }
+      }
+      if (length(items) == 0) return(character(0))
+
+      chosen <- vapply(items, function(item) {
+        val <- input[[paste0("trait_map_", gsub("[^a-zA-Z0-9]", "_", item))]]
+        if (is.null(val) || length(val) == 0) "" else as.character(val)[1]
+      }, character(1), USE.NAMES = FALSE)
+
+      unique(chosen[nzchar(chosen)])
+    })
+
+    # Nothing mapped yet says nothing about what these rows measure, so the
+    # pre-selection only steps aside once every mapped feature is one that is
+    # never attached to a census.
+    nothing_to_link <- shiny::reactive({
+      mapped <- mapped_traits()
+      length(mapped) > 0 &&
+        length(setdiff(mapped, .never_linked_features(mapped, link_policy()))) == 0
+    })
+
     # Census selector
     output$census_selector_ui <- shiny::renderUI({
       censuses <- census_choices()
+
+      apply_button <- shiny::div(
+        style = "text-align: center; margin-top: 20px;",
+        shiny::actionButton(
+          ns("apply_mapping"),
+          shiny::tagList(shiny::icon("check"), " ", i18n()$t("Apply Mapping & Preview")),
+          class = "btn-success btn-lg"
+        )
+      )
+
       if (is.null(censuses) || nrow(censuses) == 0) {
-        return(shiny::div(
-          class = "alert alert-warning",
-          style = "margin-top: 15px;",
-          shiny::icon("exclamation-triangle"), " ",
-          i18n()$t("No census records found for selected plots. Measurements will not be linked to a census.")
+        return(shiny::tagList(
+          shiny::div(
+            class = "alert alert-warning",
+            style = "margin-top: 15px;",
+            shiny::icon("exclamation-triangle"), " ",
+            i18n()$t("No census records found for selected plots. Measurements will not be linked to a census.")
+          ),
+          apply_button
         ))
       }
 
@@ -567,32 +625,20 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
                 ifelse(is.na(censuses$year), "?", censuses$year))
       )
 
-      # If all plots have a common latest census, pre-select it
-      latest <- censuses[!is.na(censuses$census_num), ]
-      if (nrow(latest) > 0) {
-        latest_per_plot <- tapply(
-          as.numeric(latest$census_num),
-          latest$id_table_liste_plots,
-          max, na.rm = TRUE
-        )
-        # Get IDs of latest census per plot
-        selected_ids <- sapply(names(latest_per_plot), function(pid) {
-          rows <- latest[latest$id_table_liste_plots == as.integer(pid) &
-                           as.numeric(latest$census_num) == latest_per_plot[pid], ]
-          if (nrow(rows) > 0) rows$id_sub_plots[1] else NA
-        })
-        selected_ids <- selected_ids[!is.na(selected_ids)]
+      # Isolated: a change of mapping moves the selection through the observer
+      # below rather than by redrawing the box under the user, which would
+      # throw away a census they picked by hand
+      selected_ids <- if (shiny::isolate(nothing_to_link())) {
+        character(0)
       } else {
-        selected_ids <- NULL
+        .latest_census_per_plot(censuses)
       }
 
       shiny::tagList(
         shiny::hr(),
         shiny::h4(shiny::icon("calendar"), " ", i18n()$t("Link to Census")),
-        shiny::p(
-          i18n()$t("Select which census these measurements belong to (one per plot). The latest census per plot is pre-selected."),
-          style = "color: #6c757d;"
-        ),
+        .census_link_explainer(i18n()),
+        shiny::uiOutput(ns("census_link_note")),
         shiny::selectInput(
           ns("census_ids"),
           i18n()$t("Census"),
@@ -600,14 +646,56 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
           selected = selected_ids,
           multiple = TRUE
         ),
-        shiny::div(
-          style = "text-align: center; margin-top: 20px;",
-          shiny::actionButton(
-            ns("apply_mapping"),
-            shiny::tagList(shiny::icon("check"), " ", i18n()$t("Apply Mapping & Preview")),
-            class = "btn-success btn-lg"
+        apply_button
+      )
+    })
+
+    # What the mapped features do with a census. Its own output, so it can
+    # follow the mapping without redrawing the selector underneath it.
+    output$census_link_note <- shiny::renderUI({
+      never       <- .never_linked_features(mapped_traits(), link_policy())
+      none_linked <- nothing_to_link()
+
+      shiny::tagList(
+        shiny::p(
+          if (none_linked) {
+            i18n()$t("Nothing here is pre-selected: none of the mapped features belong to a census.")
+          } else {
+            i18n()$t("Select which census these measurements belong to (one per plot). The latest census per plot is pre-selected.")
+          },
+          style = "color: #6c757d;"
+        ),
+        if (length(never) > 0) {
+          shiny::div(
+            style = paste("margin-bottom: 12px; padding: 8px 10px; font-size: 13px;",
+                          "color: #6c757d; background-color: #f8f9fa;",
+                          "border-radius: 4px;"),
+            shiny::icon("link-slash"), " ",
+            i18n()$t("Recorded for the tree itself, not attached to a census:"),
+            " ", shiny::tags$strong(paste(sort(never), collapse = ", ")), ".",
+            if (!none_linked) {
+              shiny::tagList(" ", i18n()$t("A census picked here is not applied to them."))
+            }
           )
-        )
+        }
+      )
+    })
+
+    # A mapping that turns census-linkable, or stops being so, moves the
+    # selection with it. Only the transition acts: re-applying the default on
+    # every dropdown change would undo a hand-picked census.
+    last_link_state <- shiny::reactiveVal(NULL)
+    shiny::observe({
+      state <- nothing_to_link()
+      if (identical(last_link_state(), state)) return()
+      last_link_state(state)
+
+      censuses <- census_choices()
+      if (is.null(censuses) || nrow(censuses) == 0) return()
+
+      shiny::updateSelectInput(
+        session, "census_ids",
+        selected = if (state) character(0) else .latest_census_per_plot(censuses)
       )
     })
 
@@ -615,6 +703,9 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
     output$census_warning <- shiny::renderUI({
       censuses <- census_choices()
       if (is.null(censuses) || nrow(censuses) == 0) return(NULL)
+      # Not linking is the right answer when nothing mapped can be linked, so
+      # there is nothing to warn about
+      if (nothing_to_link()) return(NULL)
       ids <- input$census_ids
       if (is.null(ids) || length(ids) == 0) {
         shiny::div(
@@ -683,9 +774,11 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
         }
 
         if (fmt == "wide") {
-          result <- .apply_wide_mapping(df, traits, census_map, input, ns, i18n())
+          result <- .apply_wide_mapping(df, traits, census_map, input, ns, i18n(),
+                                        link_policy())
         } else {
-          result <- .apply_long_mapping(df, traits, census_map, input, ns, i18n())
+          result <- .apply_long_mapping(df, traits, census_map, input, ns, i18n(),
+                                        link_policy())
         }
 
         if (is.null(result)) return()
@@ -1210,7 +1303,8 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
 
 #' Apply wide format mapping and build prepared data
 #' @keywords internal
-.apply_wide_mapping <- function(df, traits, census_map, input, ns, i18n) {
+.apply_wide_mapping <- function(df, traits, census_map, input, ns, i18n,
+                                link_policy = character(0)) {
   # Collect trait mappings: user_col -> trait name
   user_cols <- names(df)
   mapped_cols <- c("plot_name", "tag", "id_liste_plots")
@@ -1310,6 +1404,9 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
     result$id_sub_plots <- NA_integer_
   }
 
+  # A census chosen above applies only to the features that belong to one
+  result <- .unlink_never_features(result, link_policy)
+
   config <- list(
     mode = "add_measurements",
     format = "wide",
@@ -1326,7 +1423,8 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
 
 #' Apply long format mapping and build prepared data
 #' @keywords internal
-.apply_long_mapping <- function(df, traits, census_map, input, ns, i18n) {
+.apply_long_mapping <- function(df, traits, census_map, input, ns, i18n,
+                                link_policy = character(0)) {
   # Get column mappings
   trait_type_col <- input$map_trait_type
   value_num_col  <- input$map_value_num
@@ -1430,6 +1528,9 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
     df$id_sub_plots <- NA_integer_
   }
 
+  # A census chosen above applies only to the features that belong to one
+  df <- .unlink_never_features(df, link_policy)
+
   # Keep only essential columns + any metadata
   keep_cols <- c("plot_name", "tag", "id_liste_plots", "trait_name", "traitid",
                  "traitvalue", "traitvalue_char", "id_sub_plots")
@@ -1460,4 +1561,90 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   )
 
   list(data = result, config = config)
+}
+
+
+#' The most recent census of each plot
+#'
+#' The pre-selection offered by the census box: one subplot id per plot, the
+#' highest census number it has. Plots with no numbered census contribute
+#' nothing.
+#'
+#' @param censuses Data frame with `id_sub_plots`, `id_table_liste_plots` and
+#'   `census_num`.
+#'
+#' @return Integer-ish vector of subplot ids, possibly empty.
+#' @keywords internal
+.latest_census_per_plot <- function(censuses) {
+  if (is.null(censuses) || nrow(censuses) == 0) return(character(0))
+
+  latest <- censuses[!is.na(censuses$census_num), , drop = FALSE]
+  if (nrow(latest) == 0) return(character(0))
+
+  latest_per_plot <- tapply(
+    as.numeric(latest$census_num),
+    latest$id_table_liste_plots,
+    max, na.rm = TRUE
+  )
+
+  ids <- vapply(names(latest_per_plot), function(pid) {
+    rows <- latest[latest$id_table_liste_plots == as.integer(pid) &
+                     as.numeric(latest$census_num) == latest_per_plot[[pid]], ,
+                   drop = FALSE]
+    if (nrow(rows) > 0) as.character(rows$id_sub_plots[1]) else NA_character_
+  }, character(1), USE.NAMES = FALSE)
+
+  ids[!is.na(ids)]
+}
+
+
+#' What linking a measurement to a census actually does
+#'
+#' The census link is not a label: `id_sub_plots` decides how every later
+#' query reports the value. Collapsed by default, because the answer only
+#' matters when the user doubts the pre-selection.
+#'
+#' The three consequences named here are the ones in the code:
+#' `aggregate_numeric_features_dt()` pivots census-linked features to
+#' `<trait>_census_<n>` and averages unlinked ones into a single `<trait>`
+#' column, `enrich_census_info()` dates a measurement from its census subplot,
+#' and `compute_growth()` reads `stem_diameter_census_<n>` and needs two of
+#' them.
+#'
+#' @param i18n Translator object (already resolved, not the reactive).
+#'
+#' @return A `shiny::tags$details` block.
+#' @keywords internal
+.census_link_explainer <- function(i18n) {
+  item <- function(label, text) {
+    shiny::tags$li(
+      style = "margin-bottom: 8px;",
+      shiny::tags$strong(label), " ", text
+    )
+  }
+
+  shiny::tags$details(
+    style = paste("margin-bottom: 12px; padding: 8px 10px; font-size: 13px;",
+                  "background-color: #f8f9fa; border-radius: 4px;"),
+    shiny::tags$summary(
+      style = "cursor: pointer; color: #007bff;",
+      shiny::icon("circle-question"), " ",
+      i18n$t("What linking to a census changes")
+    ),
+    shiny::tags$ul(
+      style = "margin: 10px 0 0 0; padding-left: 20px; color: #495057;",
+      item(
+        i18n$t("Linked to a census:"),
+        i18n$t("the value belongs to that campaign. A query showing several censuses returns one column per campaign (stem_diameter_census_1, stem_diameter_census_2, ...), the measurement is dated by the census, and growth computation can pair it with the same stem's earlier diameter.")
+      ),
+      item(
+        i18n$t("Not linked:"),
+        i18n$t("the value belongs to the tree itself. Every measurement of that feature on a stem is averaged into one column, it carries no census date, and growth computation cannot see it.")
+      ),
+      item(
+        i18n$t("Linked by mistake:"),
+        i18n$t("a feature that never changes, such as a quadrat, is repeated in a column per census and the stem reads as though it had been re-located at each campaign.")
+      )
+    )
+  )
 }

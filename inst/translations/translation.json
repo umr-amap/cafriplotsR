@@ -9008,6 +9008,46 @@
     {
       "en": "The server currently has no free connection slots. Wait a moment and try again.",
       "fr": "Le serveur n'a actuellement plus de connexion disponible. Patientez un instant et réessayez."
+    },
+    {
+      "en": "Nothing here is pre-selected: none of the mapped features belong to a census.",
+      "fr": "Rien n'est pré-sélectionné ici : aucune des caractéristiques mappées n'appartient à un inventaire."
+    },
+    {
+      "en": "Recorded for the tree itself, not attached to a census:",
+      "fr": "Enregistré pour l'arbre lui-même, non rattaché à un inventaire :"
+    },
+    {
+      "en": "A census picked here is not applied to them.",
+      "fr": "L'inventaire choisi ici ne leur est pas appliqué."
+    },
+    {
+      "en": "What linking to a census changes",
+      "fr": "Ce que change le rattachement à un inventaire"
+    },
+    {
+      "en": "Linked to a census:",
+      "fr": "Rattaché à un inventaire :"
+    },
+    {
+      "en": "the value belongs to that campaign. A query showing several censuses returns one column per campaign (stem_diameter_census_1, stem_diameter_census_2, ...), the measurement is dated by the census, and growth computation can pair it with the same stem's earlier diameter.",
+      "fr": "la valeur appartient à cette campagne. Une requête affichant plusieurs inventaires renvoie une colonne par campagne (stem_diameter_census_1, stem_diameter_census_2, ...), la mesure est datée par l'inventaire, et le calcul de croissance peut l'appareiller avec le diamètre antérieur de la même tige."
+    },
+    {
+      "en": "Not linked:",
+      "fr": "Non rattaché :"
+    },
+    {
+      "en": "the value belongs to the tree itself. Every measurement of that feature on a stem is averaged into one column, it carries no census date, and growth computation cannot see it.",
+      "fr": "la valeur appartient à l'arbre lui-même. Toutes les mesures de cette caractéristique pour une tige sont moyennées en une seule colonne, la valeur ne porte aucune date d'inventaire, et le calcul de croissance ne la voit pas."
+    },
+    {
+      "en": "Linked by mistake:",
+      "fr": "Rattaché par erreur :"
+    },
+    {
+      "en": "a feature that never changes, such as a quadrat, is repeated in a column per census and the stem reads as though it had been re-located at each campaign.",
+      "fr": "une caractéristique qui ne change jamais, comme le quadrat, est répétée dans une colonne par inventaire et la tige semble avoir été relocalisée à chaque campagne."
     }
   ]
 }

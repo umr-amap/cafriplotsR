@@ -120,6 +120,7 @@ feature_wizard_ui <- function(translator, language = "fr") {
             border-color: #28a745;
           }
           .mode-card {
+            position: relative;
             border: 2px solid #dee2e6;
             border-radius: 8px;
             padding: 20px;
@@ -127,15 +128,54 @@ feature_wizard_ui <- function(translator, language = "fr") {
             transition: all 0.3s;
             cursor: pointer;
           }
+          /* room for the check mark, kept on every card so selecting one
+             never reflows its title */
+          .mode-card h4 {
+            padding-right: 46px;
+          }
           .mode-card:hover {
             border-color: #007bff;
             box-shadow: 0 4px 12px rgba(0,123,255,0.2);
             transform: translateY(-2px);
           }
+          /* The chosen card has to be legible without scrolling anywhere: a
+             thick border, a tint, a check mark, and every other card faded */
           .mode-card.selected {
             border-color: #007bff;
+            border-width: 3px;
             background: #e7f3ff;
+            box-shadow: 0 6px 18px rgba(0,123,255,0.28);
           }
+          .mode-card.selected::after {
+            content: '\\2713';
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+            border-radius: 50%;
+            background: #007bff;
+            color: white;
+            font-size: 17px;
+            font-weight: bold;
+          }
+          .mode-card.dimmed {
+            opacity: 0.45;
+            filter: grayscale(45%);
+          }
+          .mode-card.dimmed:hover {
+            opacity: 1;
+            filter: none;
+          }
+          /* Draws the eye to Next the moment the step is satisfied */
+          @keyframes fw-pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(0,123,255,0.55); }
+            70%  { box-shadow: 0 0 0 14px rgba(0,123,255,0); }
+            100% { box-shadow: 0 0 0 0 rgba(0,123,255,0); }
+          }
+          .fw-attention { animation: fw-pulse 1.3s ease-out 3; }
           .alert { border-radius: 8px; border-left: 4px solid; }
           .btn { border-radius: 6px; font-weight: 500; padding: 10px 24px; }
           .nav-buttons {
@@ -376,11 +416,12 @@ feature_wizard_server <- function(input, output, session, translator) {
     if (rv$step >= 6) return(NULL)
     # Hide Next on step 3 for add_recruits (redirects to Import Wizard)
     if (rv$step == 3 && identical(rv$operation_mode, "add_recruits")) return(NULL)
+    ready <- can_proceed()
     shiny::actionButton(
       "fw_btn_next",
       label = shiny::tagList(i18n()$t("Next"), " ", icon("arrow-right")),
-      class = "btn btn-primary btn-lg",
-      disabled = !can_proceed()
+      class = paste("btn btn-primary btn-lg", if (ready) "fw-attention"),
+      disabled = !ready
     )
   })
 

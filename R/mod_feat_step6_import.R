@@ -800,6 +800,17 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
     ))
   }
 
+  # Not every feature belongs to a census: where a stem sits is a property of
+  # the tree, not of the campaign that measured it, and linking it would make
+  # query_plots(show_multiple_census = TRUE) emit position_x_census1,
+  # position_x_census2 ... for a value that never changed. Step 3 already shows
+  # this; the policy is re-read here because the write, not the screen, is what
+  # has to be right.
+  if ("trait_name" %in% names(matched)) {
+    matched <- .unlink_never_features(
+      matched, .feature_census_link(unique(matched$trait_name), con))
+  }
+
   if (dry_run) {
     preview <- matched[, intersect(
       c("plot_name", "tag", "trait_name", "traitvalue", "traitvalue_char", "issue"),

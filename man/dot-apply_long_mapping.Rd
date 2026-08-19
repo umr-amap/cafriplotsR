@@ -4,7 +4,15 @@
 \alias{.apply_long_mapping}
 \title{Apply long format mapping and build prepared data}
 \usage{
-.apply_long_mapping(df, traits, census_map, input, ns, i18n)
+.apply_long_mapping(
+  df,
+  traits,
+  census_map,
+  input,
+  ns,
+  i18n,
+  link_policy = character(0)
+)
 }
 \description{
 Apply long format mapping and build prepared data
