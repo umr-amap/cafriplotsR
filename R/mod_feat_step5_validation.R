@@ -395,62 +395,50 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                   ))
 
                   if (nrow(existing_measures) > 0) {
-                    # Map tag+plot to id_n
-                    ind_lookup <- existing_inds
-                    names(ind_lookup)[names(ind_lookup) == "id_table_liste_plots_n"] <- "id_liste_plots"
+                    # Rows carrying a census are compared within that
+                    # census; rows carrying none - a position, a quadrat -
+                    # are compared against every value recorded for the
+                    # feature, there being no campaign to narrow them to.
+                    matches <- .existing_measurement_rows(
+                      data, existing_inds, existing_measures)
 
-                    # Check each row in data for existing measurement
-                    census_ids <- if ("id_sub_plots" %in% names(data)) data$id_sub_plots else rep(NA, nrow(data))
-                    already_exist <- logical(nrow(data))
+                    existing_rows <- sort(unique(
+                      c(matches$with_census, matches$without_census)))
 
-                    for (i in seq_len(nrow(data))) {
-                      tag_val <- data$tag[i]
-                      plot_id <- data$id_liste_plots[i]
-                      tid <- data$traitid[i]
-                      if (is.na(tag_val) || is.na(plot_id) || is.na(tid)) next
-
-                      ind_match <- ind_lookup[
-                        as.character(ind_lookup$tag) == as.character(tag_val) &
-                        ind_lookup$id_liste_plots == plot_id, ]
-                      if (nrow(ind_match) == 0) next
-
-                      meas_match <- existing_measures[
-                        existing_measures$id_data_individuals %in% ind_match$id_n &
-                        existing_measures$traitid == tid, ]
-
-                      # Also filter by census if available
-                      sid <- census_ids[i]
-                      if (!is.na(sid) && "id_sub_plots" %in% names(meas_match)) {
-                        meas_match <- meas_match[
-                          !is.na(meas_match$id_sub_plots) & meas_match$id_sub_plots == sid, ]
-                      }
-
-                      if (nrow(meas_match) > 0) {
-                        already_exist[i] <- TRUE
-                      }
+                    annotate <- function(data, rows, msg) {
+                      if (length(rows) == 0) return(data)
+                      if (!"issue" %in% names(data)) data$issue <- NA_character_
+                      data$issue[rows] <- ifelse(
+                        is.na(data$issue[rows]), msg,
+                        paste(data$issue[rows], msg, sep = " | ")
+                      )
+                      data
                     }
 
-                    existing_rows <- which(already_exist)
-
-                    if (length(existing_rows) > 0) {
+                    if (length(matches$with_census) > 0) {
                       warnings <- rbind(warnings, data.frame(
                         row = 0, column = "traitvalue",
                         warning = sprintf(
                           i18n()$t("%d measurement(s) already exist in the database for the same individual, trait and census"),
-                          length(existing_rows)
+                          length(matches$with_census)
                         ),
                         stringsAsFactors = FALSE
                       ))
+                      data <- annotate(data, matches$with_census,
+                                       "already recorded in the database for this census")
+                    }
 
-                      # Name them in the preview too, so the count can be
-                      # traced back to the individuals it came from
-                      if (!"issue" %in% names(data)) data$issue <- NA_character_
-                      dup_msg <- "already recorded in the database for this census"
-                      data$issue[existing_rows] <- ifelse(
-                        is.na(data$issue[existing_rows]),
-                        dup_msg,
-                        paste(data$issue[existing_rows], dup_msg, sep = " | ")
-                      )
+                    if (length(matches$without_census) > 0) {
+                      warnings <- rbind(warnings, data.frame(
+                        row = 0, column = "traitvalue",
+                        warning = sprintf(
+                          i18n()$t("%d measurement(s) carry no census and the same individual already has a value recorded for that feature"),
+                          length(matches$without_census)
+                        ),
+                        stringsAsFactors = FALSE
+                      ))
+                      data <- annotate(data, matches$without_census,
+                                       "already recorded in the database for this individual")
                     }
                   }
                 }
@@ -1219,4 +1207,107 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
 
     return(effective_result)
   })
+}
+
+#' Rows that repeat a measurement the database already holds
+#'
+#' Compares each row of prepared measurement data against what is already
+#' recorded, and answers on the terms the row itself sets:
+#'
+#' * A row carrying a census is a repeat only of a measurement recorded
+#'   **during that same census**. The same feature measured during another
+#'   campaign is a new measurement, not a duplicate, which is the whole point
+#'   of a census.
+#' * A row carrying no census - a position, a quadrat, anything the census
+#'   link policy keeps off a campaign - is a repeat of **any** recorded value
+#'   of that feature for that individual. There is no campaign to narrow the
+#'   comparison to, and the tree has one position, not one per census.
+#'
+#' The two are returned separately because they are not the same claim, and a
+#' single count would misreport one of them.
+#'
+#' Values are not compared, only the existence of a measurement: whether
+#' re-recording the same feature is a mistake or a deliberate second reading
+#' is the user's call, not this function's.
+#'
+#' @param data Data frame of prepared measurements, with `tag`, `traitid` and
+#'   `id_liste_plots`, and optionally `id_sub_plots`.
+#' @param individuals Data frame of the individuals recorded for the selected
+#'   plots, with `tag`, `id_table_liste_plots_n` and `id_n`.
+#' @param measures Data frame of the measurements already recorded for those
+#'   individuals, with `id_data_individuals`, `traitid` and `id_sub_plots`.
+#'
+#' @return List of two integer vectors of row numbers into `data`:
+#'   `with_census` (matched on individual, feature and census) and
+#'   `without_census` (matched on individual and feature alone).
+#' @keywords internal
+#' @export
+.existing_measurement_rows <- function(data, individuals, measures) {
+  empty <- list(with_census = integer(0), without_census = integer(0))
+
+  if (is.null(data) || is.null(individuals) || is.null(measures)) return(empty)
+  if (nrow(data) == 0 || nrow(individuals) == 0 || nrow(measures) == 0) return(empty)
+  if (!all(c("tag", "traitid", "id_liste_plots") %in% names(data))) return(empty)
+
+  chr <- function(x) {
+    x <- trimws(as.character(x))
+    x[x == ""] <- NA_character_
+    x
+  }
+
+  rows <- data.frame(
+    stringsAsFactors = FALSE,
+    .row     = seq_len(nrow(data)),
+    .tag     = chr(data$tag),
+    .plot    = chr(data$id_liste_plots),
+    .traitid = chr(data$traitid),
+    .census  = if ("id_sub_plots" %in% names(data)) {
+      chr(data$id_sub_plots)
+    } else {
+      rep(NA_character_, nrow(data))
+    }
+  )
+  rows <- rows[!is.na(rows$.tag) & !is.na(rows$.plot) & !is.na(rows$.traitid), ,
+               drop = FALSE]
+  if (nrow(rows) == 0) return(empty)
+
+  inds <- data.frame(
+    stringsAsFactors = FALSE,
+    .tag  = chr(individuals$tag),
+    .plot = chr(individuals$id_table_liste_plots_n),
+    .id_n = chr(individuals$id_n)
+  )
+  inds <- inds[!is.na(inds$.tag) & !is.na(inds$.plot) & !is.na(inds$.id_n), ,
+               drop = FALSE]
+  if (nrow(inds) == 0) return(empty)
+
+  # One row of `data` can name more than one individual when a plot holds a
+  # repeated tag, so the comparison is done per candidate and folded back.
+  candidates <- merge(rows, inds, by = c(".tag", ".plot"))
+  if (nrow(candidates) == 0) return(empty)
+
+  stored_ind   <- chr(measures$id_data_individuals)
+  stored_trait <- chr(measures$traitid)
+  stored_census <- if ("id_sub_plots" %in% names(measures)) {
+    chr(measures$id_sub_plots)
+  } else {
+    rep(NA_character_, nrow(measures))
+  }
+
+  any_key    <- paste(stored_ind, stored_trait)
+  linked     <- !is.na(stored_census)
+  census_key <- paste(stored_ind[linked], stored_trait[linked],
+                      stored_census[linked])
+
+  has_census <- !is.na(candidates$.census)
+
+  hit_census <- has_census & paste(
+    candidates$.id_n, candidates$.traitid, candidates$.census) %in% census_key
+  hit_any <- !has_census & paste(
+    candidates$.id_n, candidates$.traitid) %in% any_key
+
+  list(
+    with_census    = sort(unique(candidates$.row[hit_census])),
+    without_census = sort(unique(candidates$.row[hit_any]))
+  )
 }

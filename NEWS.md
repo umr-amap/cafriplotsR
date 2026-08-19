@@ -65,6 +65,12 @@
 
 ### Bug Fixes
 
+* **Feature Wizard, Validation — the "already in the database" check now says which comparison it made** (`R/mod_feat_step5_validation.R`) — the check treats a row carrying a census and a row carrying none differently, but reported both under one message naming the census, which misdescribed half of what it found
+  - A row with a census is a repeat only of a measurement recorded **during that same census**; a row with none — a position, a quadrat, anything the census link policy keeps off a campaign — is a repeat of **any** value recorded for that feature on that individual, there being no campaign to narrow it to. Both were already computed this way; only the reporting conflated them
+  - The two are now counted and worded separately, and the preview's `issue` column says "already recorded in the database for this census" or "...for this individual" accordingly. The removal checkbox offers the union, as before
+  - The matching moved out of the validation observer into `.existing_measurement_rows()`, which is vectorised and covered by 27 assertions. The per-row loop it replaces re-subset two data frames for every row: at the reported scale of 2,459 rows the whole comparison now takes 0.03 s
+  - One EN/FR pair added to `inst/translations/translation.json`
+
 * **Feature Wizard, Choose Mode — clicking an operation card now registers visibly** (`R/mod_feat_step2_choose_mode.R`, `R/shiny_app_feature_wizard.R`) — selecting a card set a 2px border and a pale tint, easy to miss among eight cards taller than the viewport, and the confirmation and the Next button both sat below the fold
   - The chosen card takes a 3px border, a tint, a drop shadow and a circled check mark in its corner; the other seven fade to 45% opacity with light grayscale, and restore on hover so re-choosing still reads normally. Card titles carry a permanent right padding so the badge never reflows the heading
   - The nav buttons are scrolled into view, but only when they are actually off screen, and after a short delay so the confirmation is on the page before the browser measures
