@@ -92,7 +92,10 @@
 #'     measurements. NULL if no recruits found.}
 #'   \item{measurements}{Tibble in long format with columns: plot_name,
 #'     tag, trait_name, traitvalue (numeric), traitvalue_char (character).
-#'     Ready for the Feature Wizard measurements step.}
+#'     Numeric traits are stem_diameter, height_of_stem_diameter and, when
+#'     the tree file records them, position_x and position_y; columns that
+#'     are absent or entirely empty are skipped. Ready for the Feature
+#'     Wizard measurements step.}
 #'   \item{specimens}{Tibble of specimens ready for \code{add_specimens()},
 #'     with columns: plot_name, tag, specimen_number, herbarium_nbe_char,
 #'     colnbr, idtax_n, description, locality, country, colnam, colm, coly,
@@ -413,8 +416,11 @@ process_openforis_census <- function(data_dir = NULL,
 
   measurement_parts <- list()
 
-  # Numeric traits (stem_diameter, height_of_stem_diameter)
-  numeric_cols <- intersect(c("stem_diameter", "height_of_stem_diameter"), names(all_for_meas))
+  # Numeric traits (diameter, POM, and the within-plot position when recorded)
+  numeric_cols <- intersect(
+    c("stem_diameter", "height_of_stem_diameter", "position_x", "position_y"),
+    names(all_for_meas)
+  )
   if (length(numeric_cols) > 0) {
     cli::cli_alert_info("Extracting numeric measurements: {.val {numeric_cols}}")
     measurement_parts$numeric <- .extract_numeric_traits(

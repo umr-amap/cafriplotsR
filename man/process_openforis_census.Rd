@@ -139,7 +139,10 @@ A list with components:
     measurements. NULL if no recruits found.}
   \item{measurements}{Tibble in long format with columns: plot_name,
     tag, trait_name, traitvalue (numeric), traitvalue_char (character).
-    Ready for the Feature Wizard measurements step.}
+    Numeric traits are stem_diameter, height_of_stem_diameter and, when
+    the tree file records them, position_x and position_y; columns that
+    are absent or entirely empty are skipped. Ready for the Feature
+    Wizard measurements step.}
   \item{specimens}{Tibble of specimens ready for \code{add_specimens()},
     with columns: plot_name, tag, specimen_number, herbarium_nbe_char,
     colnbr, idtax_n, description, locality, country, colnam, colm, coly,
