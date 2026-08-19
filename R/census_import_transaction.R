@@ -529,16 +529,9 @@
     # quadrat_census2 ... for a value that never changed. The policy is read
     # here rather than taken from the payload: the UI may show it, but it does
     # not get to decide it.
-    if ("trait_name" %in% names(matched) && any(!is.na(matched$id_sub_plots))) {
-      policy <- .feature_census_link(unique(matched$trait_name), actual_con)
-      unlinked <- matched$trait_name %in% names(policy)[policy == "never"]
-      if (any(unlinked)) {
-        matched$id_sub_plots[unlinked] <- NA_integer_
-        left_out <- paste(sort(unique(matched$trait_name[unlinked])),
-                          collapse = ", ")
-        cli::cli_alert_info(
-          "{sum(unlinked)} measurement{?s} recorded without a census link ({left_out})")
-      }
+    if ("trait_name" %in% names(matched)) {
+      matched <- .unlink_never_features(
+        matched, .feature_census_link(unique(matched$trait_name), actual_con))
     }
 
     records <- data.frame(

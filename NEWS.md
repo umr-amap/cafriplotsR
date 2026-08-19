@@ -58,6 +58,11 @@
 
 ### Bug Fixes
 
+* **Census links are now decided by policy on every write path** (`R/feature_census_link.R`, `R/mod_feat_step6_import.R`, `R/census_import_transaction.R`) — a measurement whose feature does not belong to a campaign is no longer stamped with `id_sub_plots`. Mapping a `quadrat` or a `position_x` in the Add Measurements step used to write a census-linked position, which `query_plots(show_multiple_census = TRUE)` then pivots into `quadrat_census_1`, `quadrat_census_2` ... repeating one unchanging value as though the stem had been re-located at each campaign
+  - `.unlink_never_features()` clears the link on every row the policy calls `"never"` and names the features it left out; `.never_linked_features()` answers the same question for callers deciding what to *offer* rather than what to *write*
+  - `.execute_measurements_import()` re-reads the policy from `traitlist.census_link` immediately before building its records, so the screen cannot decide it
+  - `.execute_census_import()` now calls the shared helper instead of its own inline copy — the only path that already enforced this. Behaviour there is unchanged
+
 * **`query_colnam()`** — fixed collector search in `launch_specimen_identification_app()` manual mode failing with `` `.con` is absent but must be supplied ``. The pattern-search branch built its SQL via `paste0()` and passed it to `glue::glue_sql()` without the required `.con` argument; it now uses proper `glue_sql()` parameter interpolation with `.con = mydb`, which also closes a SQL-injection gap (the collector name was previously spliced directly into the query string).
 
 * **`update_ident_specimens()`** — applying an update in the specimen identification app (manual or batch mode) no longer appears to freeze the app. The function's internal `query_specimens()` calls used the default `show_html = TRUE`, which prints an HTML `kableExtra` table via the RStudio Viewer/browser; when the app itself runs in that same Viewer pane, this hijacked it away from the live Shiny session right after the database write succeeded, making the app look dead. Both calls now pass `show_html = FALSE`, matching the convention already used elsewhere in the app.
