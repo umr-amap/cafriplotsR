@@ -44,7 +44,7 @@ Avant d'importer des données, assurez-vous d'avoir :
 library(CafriplotsR)
 
 # Se connecter à la base de données (pour vérification)
-con <- call.mydb()
+con <- connect_cafri()$main
 ```
 
 ---
@@ -208,7 +208,7 @@ launch_import_wizard()
 # 3. Copier le code d'accès admin et l'envoyer à l'admin
 
 # 4. Après que l'admin accorde l'accès, vérifier :
-con <- call.mydb()
+con <- connect_cafri()$main
 mes_parcelles <- query_plots(
   plot_name = c("Parcelle-A", "Parcelle-B"),
   exact_match = TRUE,
@@ -399,7 +399,7 @@ Envoyer le code admin généré à votre administrateur de base de données :
 ```{r}
 # L'admin exécute ce code pour accorder l'accès
 library(CafriplotsR)
-con <- call.mydb()
+con <- connect_cafri()$main
 
 plot_ids <- DBI::dbGetQuery(con,
   "SELECT id_liste_plots FROM data_liste_plots
@@ -540,7 +540,7 @@ head(verification$individuals)
 library(CafriplotsR)
 
 # 1. Se connecter
-con <- call.mydb()
+con <- connect_cafri()$main
 
 # 2. Charger les données
 donnees_brutes <- readxl::read_excel("mes_donnees_terrain.xlsx")

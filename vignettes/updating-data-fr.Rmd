@@ -28,8 +28,9 @@ Cette vignette explique comment mettre à jour les enregistrements existants dan
 library(CafriplotsR)
 library(dplyr)
 
-# Connexion à la base de données (nécessite des droits d'écriture)
-con <- call.mydb()
+# Connexion aux deux bases en une seule étape (nécessite des droits d'écriture)
+cons <- connect_cafri()
+con <- cons$main
 ```
 
 ---

@@ -140,9 +140,10 @@ The package connects to two PostgreSQL databases:
 ```r
 library(CafriplotsR)
 
-# Connect to databases
-mydb <- call.mydb()
-mydb_taxa <- call.mydb.taxa()
+# Connect to both databases with a single credential prompt
+cons <- connect_cafri()
+mydb <- cons$main
+mydb_taxa <- cons$taxa
 
 # Query plots
 plots <- query_plots(id_plot = c(1, 2, 3))
@@ -185,8 +186,9 @@ This package implements a **specimen linking system** that creates formal, persi
 ## Core Functions
 
 ### Connection Management
-- `call.mydb()` - Connect to main database
-- `call.mydb.taxa()` - Connect to taxa database
+- `connect_cafri()` - Connect to both databases in one step (recommended)
+- `call.mydb()` - Connect to the main database only
+- `call.mydb.taxa()` - Connect to the taxa database only
 - `cleanup_connections()` - Close all connections
 - `db_diagnostic()` - Database connection diagnostics
 - `check_db_network()` - Diagnose why the database cannot be reached
@@ -221,7 +223,7 @@ It probes the database port, and if that fails, probes a control host on port
 
 | Verdict | Meaning | What to do |
 |---|---|---|
-| `reachable` | The port is open; the network is fine | The cause is your credentials or the server. Try `call.mydb(reset = TRUE)`, then `db_diagnostic()` |
+| `reachable` | The port is open; the network is fine | The cause is your credentials or the server. Try `connect_cafri(reset = TRUE)`, then `db_diagnostic()` |
 | `port_blocked` | Your internet works but port 35699 is filtered | Retry from another network - a phone hotspot is the quickest test. Then ask your IT service to allow outbound TCP to `dg474899-001.dbaas.ovh.net:35699` |
 | `no_connectivity` | Nothing is reachable | Check Wi-Fi, VPN, and captive portals (hotel/airport Wi-Fi that needs a login page). Note that PostgreSQL cannot go through an HTTP proxy |
 
@@ -232,7 +234,7 @@ try, so in most cases you do not need to run anything extra.
 
 | Message contains | Cause | Fix |
 |---|---|---|
-| `password authentication failed` | Wrong or stale credentials | `call.mydb(reset = TRUE)`; check `~/.Renviron` for an old password |
+| `password authentication failed` | Wrong or stale credentials | `connect_cafri(reset = TRUE)`; check `~/.Renviron` for an old password |
 | `too many clients already` | All server connection slots are in use | Wait a minute; run `cleanup_connections()` in other R sessions you left open |
 | `could not translate host name` | DNS failure - offline, or a captive portal | Open any web page first, then retry |
 | `server closed the connection unexpectedly` | Connection dropped mid-handshake | Usually unstable Wi-Fi or traffic inspection; retry, then try another network |

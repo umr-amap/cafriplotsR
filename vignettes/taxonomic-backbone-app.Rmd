@@ -270,7 +270,7 @@ Validate that flat columns match the id_parent hierarchy.
 
 ```{r}
 # From R console:
-con <- call.mydb.taxa()
+con <- connect_cafri()$taxa
 issues <- check_hierarchy_consistency(con)
 
 # Fix issues automatically:
@@ -318,7 +318,7 @@ For bulk updates, use R functions:
 
 ```{r}
 # Check consistency for all taxa
-con <- call.mydb.taxa()
+con <- connect_cafri()$taxa
 issues <- check_hierarchy_consistency(con, limit = 1000)
 
 # Fix all missing parents
@@ -387,7 +387,7 @@ Used for **fast querying** and **backward compatibility**.
 ### App Won't Launch
 ```{r}
 # Check database connection
-con <- call.mydb.taxa()
+con <- connect_cafri()$taxa
 print_connection_status()
 
 # Check permissions

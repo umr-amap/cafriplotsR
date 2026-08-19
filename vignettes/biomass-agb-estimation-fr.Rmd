@@ -23,11 +23,10 @@ knitr::opts_chunk$set(
 library(tidyverse)
 library(BIOMASS)
 devtools::load_all()
-# Se connecter à la base de données principale
-mydb <- call.mydb(use_env_credentials = T)
-
-# Se connecter à la base de données taxonomique
-mydb_taxa <- call.mydb.taxa(use_env_credentials = T)
+# Se connecter aux deux bases en une fois (identifiants lus depuis .Renviron)
+cons <- connect_cafri()
+mydb <- cons$main
+mydb_taxa <- cons$taxa
 
 ```
 
@@ -50,9 +49,10 @@ library(BIOMASS)
 library(dplyr)
 library(ggplot2)
 
-# Se connecter à la base de données
-mydb <- call.mydb()
-mydb_taxa <- call.mydb.taxa()
+# Se connecter aux deux bases avec une seule invite d'identifiants
+cons <- connect_cafri()
+mydb <- cons$main
+mydb_taxa <- cons$taxa
 ```
 
 ---

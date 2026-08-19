@@ -28,8 +28,9 @@ This vignette explains how to update existing records in the database using the 
 library(CafriplotsR)
 library(dplyr)
 
-# Connect to database (requires write permissions)
-con <- call.mydb()
+# Connect to both databases in one step (requires write permissions)
+cons <- connect_cafri()
+con <- cons$main
 ```
 
 ---

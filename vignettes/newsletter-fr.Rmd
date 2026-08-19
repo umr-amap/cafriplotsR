@@ -26,7 +26,7 @@ La motivation est la même que pour le suivi des citations : **la transparence s
 Le référentiel se choisit au moment de la requête, via un seul argument :
 
 ```r
-con <- call.mydb()
+con <- connect_cafri()$main
 query_plots(country = "GABON", backbone = "wcvp", extract_individuals = T)
 query_taxa(species = "Dacryodes edulis", backbone = "wcvp", check_synonymy = F)
 ```
@@ -39,7 +39,7 @@ Lorsque `backbone = "wcvp"`, les colonnes taxonomiques standard sont remplacées
 
 La version actuelle du WCVP peut être vérifiée avec le code suivant (il s'agit de la plus récente, de début janvier 2026) :
 ```r
-con.taxa <- call.mydb.taxa()
+con.taxa <- connect_cafri()$taxa
 get_wcvp_status(con_taxa = con.taxa)
 ```
 

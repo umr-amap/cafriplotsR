@@ -33,8 +33,9 @@ Subplot features are attributes that describe plots or census events, stored in 
 library(CafriplotsR)
 library(dplyr)
 
-# Connect to database (requires write permissions)
-con <- call.mydb()
+# Connect to both databases in one step (requires write permissions)
+cons <- connect_cafri()
+con <- cons$main
 ```
 
 ## Quick Start Example

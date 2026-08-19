@@ -121,7 +121,7 @@ con_taxa <- call.mydb.taxa()
 L'approche la plus simple - entrez les identifiants lorsque demandé :
 
 ```{r interactive}
-con <- call.mydb()
+cons <- connect_cafri()
 # Entrez le nom d'utilisateur : [votre_utilisateur]
 # Entrez le mot de passe : [votre_mot_de_passe]
 ```
@@ -172,7 +172,7 @@ Vous pouvez passer les identifiants directement, mais ce n'est **pas recommandé
 
 ```{r direct-creds}
 # Évitez ceci dans le code partagé !
-con <- call.mydb(user = "monutilisateur", pass = "monmotdepasse")
+cons <- connect_cafri(user = "monutilisateur", pass = "monmotdepasse")
 ```
 
 ## Nettoyage des Connexions
@@ -245,7 +245,7 @@ La base de données utilise la **sécurité au niveau des lignes (RLS)** pour co
 ### Voir Vos Parcelles Accessibles
 
 ```{r accessible-plots}
-con <- call.mydb()
+con <- connect_cafri()$main
 
 # Voir quelles parcelles vous pouvez accéder
 result <- get_user_accessible_plots(con, "votre_utilisateur")
@@ -305,7 +305,7 @@ Les politiques peuvent accorder différentes opérations :
 
 ```{r auth-fix}
 # Réinitialiser les identifiants et réessayer
-con <- call.mydb(reset = TRUE)
+cons <- connect_cafri(reset = TRUE)
 ```
 
 #### "Erreur SSL SYSCALL : EOF détecté"
@@ -320,7 +320,7 @@ con <- call.mydb(reset = TRUE)
 ```{r ssl-fix}
 # Nettoyer et se reconnecter
 cleanup_connections()
-con <- call.mydb()
+cons <- connect_cafri()
 ```
 
 #### "Trop de connexions"
@@ -338,7 +338,7 @@ cleanup_connections()
 
 # Attendre et réessayer
 Sys.sleep(5)
-con <- call.mydb()
+cons <- connect_cafri()
 ```
 
 #### Délai d'attente de requête ou "Connexion perdue"
@@ -388,13 +388,14 @@ cleanup_connections()
 
 # 3. Se reconnecter à neuf
 library(CafriplotsR)
-con <- call.mydb(reset = TRUE)
+cons <- connect_cafri(reset = TRUE)
 ```
 
 ## Résumé des Bonnes Pratiques
 
 ### À Faire
 
+- **Démarrer les sessions avec `connect_cafri()`** plutôt qu'avec deux appels séparés
 - **Toujours appeler `cleanup_connections()`** avant de fermer R
 - **Utiliser `print_connection_status()`** pour vérifier les connexions
 - **Vérifier votre accès aux parcelles** avec `get_user_accessible_plots()` si les requêtes retournent vide

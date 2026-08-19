@@ -271,7 +271,7 @@ Validez que les colonnes plates correspondent à la hiérarchie id_parent.
 
 ```{r}
 # Depuis la console R :
-con <- call.mydb.taxa()
+con <- connect_cafri()$taxa
 issues <- check_hierarchy_consistency(con)
 
 # Corriger les problèmes automatiquement :
@@ -319,7 +319,7 @@ Pour les mises à jour en masse, utilisez les fonctions R :
 
 ```{r}
 # Vérifier la cohérence pour tous les taxons
-con <- call.mydb.taxa()
+con <- connect_cafri()$taxa
 issues <- check_hierarchy_consistency(con, limit = 1000)
 
 # Corriger tous les parents manquants
@@ -385,7 +385,7 @@ Utilisées pour des **requêtes rapides** et la **compatibilité ascendante**.
 ### L'Application Ne Se Lance Pas
 ```{r}
 # Vérifiez la connexion à la base de données
-con <- call.mydb.taxa()
+con <- connect_cafri()$taxa
 print_connection_status()
 
 # Vérifiez les permissions

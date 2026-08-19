@@ -319,21 +319,31 @@ result <- query_plots(
 
 ### Database Connection
 
-```{r connection}
-# Recommended: interactive credential prompt
-mydb <- call.mydb()
+`connect_cafri()` is the recommended entry point: a single credential prompt
+opens **both** databases at once and stashes the connections, so any package
+function that needs one finds it without re-prompting.
 
-# Use credentials stored in ~/.Renviron
-mydb <- call.mydb(use_env_credentials = TRUE)
+```{r connection}
+# Recommended: one prompt, both databases
+cons <- connect_cafri()
+
+cons$main   # main database connection
+cons$taxa   # taxa database connection
 ```
+
+If `MYDB_USER` and `MYDB_PASS` are stored in your `~/.Renviron` (see
+`setup_db_credentials()`), they are picked up automatically — no argument
+needed. See the
+[Database Connections Guide](database-connections.html) for details.
 
 The taxa database connection is created automatically inside `query_plots()`
 when needed. Supply it explicitly via `con.taxa` to reuse an existing
 connection and avoid repeated prompts:
 
 ```{r connection-taxa}
-mydb      <- call.mydb()
-mydb_taxa <- call.mydb.taxa()
+cons <- connect_cafri()
+mydb      <- cons$main
+mydb_taxa <- cons$taxa
 
 result <- query_plots(
   plot_name = "mbalmayo001",

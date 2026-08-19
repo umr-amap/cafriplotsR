@@ -26,7 +26,7 @@ The motivation is the same as for citation tracking: **transparency about taxono
 The backbone is selected at query time via a single argument:
 
 ```r
-con <- call.mydb()
+con <- connect_cafri()$main
 query_plots(country = "GABON", backbone = "wcvp", extract_individuals = T)
 query_taxa(species = "Dacryodes edulis", backbone = "wcvp", check_synonymy = F)
 ```
@@ -38,7 +38,7 @@ When `backbone = "wcvp"`, the standard taxonomy columns are replaced with the WC
 
 The current version of the WCVP can be checked using the following code line (this is the most recent one from early January 2026):
 ```r
-con.taxa <- call.mydb.taxa()
+con.taxa <- connect_cafri()$taxa
 get_wcvp_status(con_taxa = con.taxa)
 ```
 

@@ -23,11 +23,10 @@ knitr::opts_chunk$set(
 library(tidyverse)
 library(BIOMASS)
 devtools::load_all()
-# Connect to the main database
-mydb <- call.mydb(use_env_credentials = T)
-
-# Connect to the taxa database
-mydb_taxa <- call.mydb.taxa(use_env_credentials = T)
+# Connect to both databases at once (credentials read from .Renviron)
+cons <- connect_cafri()
+mydb <- cons$main
+mydb_taxa <- cons$taxa
 
 ```
 
@@ -50,9 +49,10 @@ library(BIOMASS)
 library(dplyr)
 library(ggplot2)
 
-# Connect to database
-mydb <- call.mydb()
-mydb_taxa <- call.mydb.taxa()
+# Connect to both databases with a single credential prompt
+cons <- connect_cafri()
+mydb <- cons$main
+mydb_taxa <- cons$taxa
 ```
 
 ---

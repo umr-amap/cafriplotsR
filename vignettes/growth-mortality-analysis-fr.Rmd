@@ -37,8 +37,8 @@ Les deux fonctions récupèrent automatiquement les données de la base de donn�
 ### Utilisation de Base
 
 ```{r growth-basic}
-# Se connecter à la base de données
-con <- call.mydb()
+# Se connecter aux deux bases en une seule étape
+con <- connect_cafri()$main
 
 # Calculer la croissance par nom de parcelle
 growth <- compute_growth(plot_names = "mbalmayo001", con = con)
@@ -216,7 +216,7 @@ library(CafriplotsR)
 library(dplyr)
 
 # Se connecter
-con <- call.mydb()
+con <- connect_cafri()$main
 
 # Définir les parcelles à analyser
 my_plots <- c("site_A_plot1", "site_A_plot2", "site_B_plot1")

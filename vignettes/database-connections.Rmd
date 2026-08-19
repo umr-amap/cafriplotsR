@@ -119,7 +119,7 @@ con_taxa <- call.mydb.taxa()
 The simplest approach - enter credentials when prompted:
 
 ```{r interactive}
-con <- call.mydb()
+cons <- connect_cafri()
 # Enter username: [your_username]
 # Enter password: [your_password]
 ```
@@ -170,7 +170,7 @@ You can pass credentials directly, but this is **not recommended** as passwords 
 
 ```{r direct-creds}
 # Avoid this in shared code!
-con <- call.mydb(user = "myuser", pass = "mypassword")
+cons <- connect_cafri(user = "myuser", pass = "mypassword")
 ```
 
 ## Cleaning Up Connections
@@ -243,7 +243,7 @@ The database uses **row-level security (RLS)** to control which plots each user 
 ### View Your Accessible Plots
 
 ```{r accessible-plots}
-con <- call.mydb()
+con <- connect_cafri()$main
 
 # See which plots you can access
 result <- get_user_accessible_plots(con, "your_username")
@@ -303,7 +303,7 @@ Policies can grant different operations:
 
 ```{r auth-fix}
 # Reset credentials and try again
-con <- call.mydb(reset = TRUE)
+cons <- connect_cafri(reset = TRUE)
 ```
 
 #### "SSL SYSCALL error: EOF detected"
@@ -318,7 +318,7 @@ con <- call.mydb(reset = TRUE)
 ```{r ssl-fix}
 # Clean up and reconnect
 cleanup_connections()
-con <- call.mydb()
+cons <- connect_cafri()
 ```
 
 #### "Too many connections"
@@ -336,7 +336,7 @@ cleanup_connections()
 
 # Wait and try again
 Sys.sleep(5)
-con <- call.mydb()
+cons <- connect_cafri()
 ```
 
 #### Query timeout or "Lost connection"
@@ -386,13 +386,14 @@ cleanup_connections()
 
 # 3. Reconnect fresh
 library(CafriplotsR)
-con <- call.mydb(reset = TRUE)
+cons <- connect_cafri(reset = TRUE)
 ```
 
 ## Best Practices Summary
 
 ### Do's
 
+- **Start sessions with `connect_cafri()`** rather than two separate calls
 - **Always call `cleanup_connections()`** before closing R
 - **Use `print_connection_status()`** to verify connections
 - **Check your plot access** with `get_user_accessible_plots()` if queries return empty

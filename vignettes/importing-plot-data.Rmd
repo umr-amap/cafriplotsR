@@ -44,7 +44,7 @@ Before importing data, ensure you have:
 library(CafriplotsR)
 
 # Connect to database (for verification)
-con <- call.mydb()
+con <- connect_cafri()$main
 ```
 
 ---
@@ -208,7 +208,7 @@ launch_import_wizard()
 # 3. Copy admin access code and send to admin
 
 # 4. After admin grants access, verify:
-con <- call.mydb()
+con <- connect_cafri()$main
 my_plots <- query_plots(
   plot_name = c("Plot-A", "Plot-B"),
   exact_match = TRUE,
@@ -399,7 +399,7 @@ Send the generated admin code to your database administrator:
 ```{r}
 # Admin runs this code to grant access
 library(CafriplotsR)
-con <- call.mydb()
+con <- connect_cafri()$main
 
 plot_ids <- DBI::dbGetQuery(con,
   "SELECT id_liste_plots FROM data_liste_plots
@@ -540,7 +540,7 @@ head(verification$individuals)
 library(CafriplotsR)
 
 # 1. Connect
-con <- call.mydb()
+con <- connect_cafri()$main
 
 # 2. Load data
 raw_data <- readxl::read_excel("my_field_data.xlsx")

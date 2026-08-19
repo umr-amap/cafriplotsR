@@ -37,8 +37,8 @@ Both functions automatically fetch data from the database and only require plot 
 ### Basic Usage
 
 ```{r growth-basic}
-# Connect to database
-con <- call.mydb()
+# Connect to both databases in one step
+con <- connect_cafri()$main
 
 # Compute growth by plot name
 growth <- compute_growth(plot_names = "mbalmayo001", con = con)
@@ -216,7 +216,7 @@ library(CafriplotsR)
 library(dplyr)
 
 # Connect
-con <- call.mydb()
+con <- connect_cafri()$main
 
 # Define plots to analyze
 my_plots <- c("site_A_plot1", "site_A_plot2", "site_B_plot1")

@@ -128,9 +128,10 @@ Le package se connecte à deux bases de données PostgreSQL :
 ```r
 library(CafriplotsR)
 
-# Se connecter aux bases de données
-mydb <- call.mydb()
-mydb_taxa <- call.mydb.taxa()
+# Se connecter aux deux bases avec une seule invite d'identifiants
+cons <- connect_cafri()
+mydb <- cons$main
+mydb_taxa <- cons$taxa
 
 # Interroger les parcelles
 plots <- query_plots(id_plot = c(1, 2, 3))
@@ -145,8 +146,9 @@ get_database_fk(mydb)
 ## Fonctions principales
 
 ### Gestion des connexions
-- `call.mydb()` - Se connecter à la base de données principale
-- `call.mydb.taxa()` - Se connecter à la base de données taxonomique
+- `connect_cafri()` - Se connecter aux deux bases en une seule étape (recommandé)
+- `call.mydb()` - Se connecter à la base de données principale uniquement
+- `call.mydb.taxa()` - Se connecter à la base de données taxonomique uniquement
 - `cleanup_connections()` - Fermer toutes les connexions
 - `db_diagnostic()` - Diagnostic de connexion à la base de données
 

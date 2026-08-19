@@ -191,8 +191,8 @@ Une fois les liens établis, vous pouvez les interroger :
 ```{r query-links}
 library(CafriplotsR)
 
-# Se connecter à la base de données
-mydb <- call.mydb()
+# Se connecter aux deux bases en une seule étape
+mydb <- connect_cafri()$main
 
 # Obtenir tous les liens de spécimens pour une parcelle
 links <- query_all_specimen_links(plot_ids = 1, con = mydb)

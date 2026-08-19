@@ -59,7 +59,7 @@ Check if `table_idtax` needs to be refreshed based on how long ago it was last u
 library(CafriplotsR)
 
 # Connect to database
-con <- call.mydb()
+con <- connect_cafri()$main
 
 # Check staleness (warns if > 90 days old)
 staleness <- check_table_idtax_staleness(con)
@@ -128,8 +128,9 @@ Refresh `table_idtax` to synchronize with the latest data from `table_taxa`.
 
 ```{r}
 # Connect to both databases
-con <- call.mydb()
-con_taxa <- call.mydb.taxa()
+cons <- connect_cafri()
+con <- cons$main
+con_taxa <- cons$taxa
 
 # Refresh if stale (checks staleness first)
 result <- update_taxa_link_table(con, con_taxa)
@@ -215,7 +216,7 @@ Retrieve metadata about `table_idtax` refresh history.
 ### Usage
 
 ```{r}
-con <- call.mydb()
+con <- connect_cafri()$main
 
 # Get metadata
 metadata <- get_table_idtax_metadata(con)
@@ -263,8 +264,9 @@ cat(sprintf(
 library(CafriplotsR)
 
 # 1. Connect to databases
-con <- call.mydb()
-con_taxa <- call.mydb.taxa()
+cons <- connect_cafri()
+con <- cons$main
+con_taxa <- cons$taxa
 
 # 2. Check staleness
 staleness <- check_table_idtax_staleness(con, warn_days = 30)
@@ -319,8 +321,9 @@ cleanup_connections()
 **Solution**: Contact the database administrator to run:
 
 ```{r}
-con <- call.mydb()
-con_taxa <- call.mydb.taxa()
+cons <- connect_cafri()
+con <- cons$main
+con_taxa <- cons$taxa
 
 # One-shot schema migration: internal on purpose, so it is reached with :::
 CafriplotsR:::migrate_table_idtax_to_materialized_view(
@@ -337,8 +340,9 @@ CafriplotsR:::migrate_table_idtax_to_materialized_view(
 **Solution**: Run `update_taxa_link_table()` to refresh:
 
 ```{r}
-con <- call.mydb()
-con_taxa <- call.mydb.taxa()
+cons <- connect_cafri()
+con <- cons$main
+con_taxa <- cons$taxa
 update_taxa_link_table(con, con_taxa)
 ```
 

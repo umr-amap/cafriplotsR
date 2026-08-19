@@ -358,13 +358,24 @@ result <- query_plots(
 
 ### Connexion à la Base de Données
 
-```{r connection}
-# Recommandé : invite interactive de saisie des identifiants
-mydb <- call.mydb()
+`connect_cafri()` est le point d'entrée recommandé : une seule invite
+d'identifiants ouvre les **deux** bases simultanément et mémorise les
+connexions, de sorte que toute fonction du package qui en a besoin les
+retrouve sans redemander les identifiants.
 
-# Utiliser les identifiants stockés dans ~/.Renviron
-mydb <- call.mydb(use_env_credentials = TRUE)
+```{r connection}
+# Recommandé : une seule invite, les deux bases
+cons <- connect_cafri()
+
+cons$main   # connexion à la base principale
+cons$taxa   # connexion à la base taxonomique
 ```
+
+Si `MYDB_USER` et `MYDB_PASS` sont enregistrés dans votre `~/.Renviron` (voir
+`setup_db_credentials()`), ils sont utilisés automatiquement — aucun argument
+n'est nécessaire. Voir le
+[Guide des Connexions à la Base de Données](database-connections-fr.html) pour
+plus de détails.
 
 La connexion à la base de données taxonomique est créée automatiquement par
 `query_plots()` lorsqu'elle est nécessaire. Fournissez-la explicitement via
@@ -372,8 +383,9 @@ La connexion à la base de données taxonomique est créée automatiquement par
 répétées :
 
 ```{r connection-taxa}
-mydb      <- call.mydb()
-mydb_taxa <- call.mydb.taxa()
+cons <- connect_cafri()
+mydb      <- cons$main
+mydb_taxa <- cons$taxa
 
 result <- query_plots(
   plot_name = "mbalmayo001",
