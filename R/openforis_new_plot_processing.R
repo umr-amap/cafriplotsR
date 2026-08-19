@@ -1014,13 +1014,7 @@ process_openforis_new_plot <- function(data_dir = NULL,
 
   # Vouchers
   if ("herbarium_nbe_char" %in% names(trees)) {
-    voucher <- if (!is.null(specimen_prefix)) {
-      ifelse(!is.na(trees$herbarium_nbe_char),
-             paste(specimen_prefix, as.character(trees$herbarium_nbe_char)),
-             NA_character_)
-    } else {
-      as.character(trees$herbarium_nbe_char)
-    }
+    voucher <- .apply_specimen_prefix(trees$herbarium_nbe_char, specimen_prefix)
     result$herbarium_nbe_char <- voucher
     result$herbarium_nbe_type <- voucher
   }

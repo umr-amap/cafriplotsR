@@ -711,23 +711,13 @@ process_openforis_census <- function(data_dir = NULL,
 
   # Specimens
   if ("specimen_number" %in% names(data)) {
-    result$specimen_number <- if (!is.null(specimen_prefix)) {
-      ifelse(!is.na(data$specimen_number),
-             paste(specimen_prefix, as.character(data$specimen_number)),
-             NA_character_)
-    } else {
-      as.character(data$specimen_number)
-    }
+    result$specimen_number <- .apply_specimen_prefix(data$specimen_number,
+                                                     specimen_prefix)
   }
 
   if ("herbarium_nbe_char" %in% names(data)) {
-    result$herbarium_nbe_char <- if (!is.null(specimen_prefix)) {
-      ifelse(!is.na(data$herbarium_nbe_char),
-             paste(specimen_prefix, as.character(data$herbarium_nbe_char)),
-             NA_character_)
-    } else {
-      as.character(data$herbarium_nbe_char)
-    }
+    result$herbarium_nbe_char <- .apply_specimen_prefix(data$herbarium_nbe_char,
+                                                        specimen_prefix)
   }
 
   # Multi-stem info
@@ -887,20 +877,12 @@ process_openforis_census <- function(data_dir = NULL,
 
   # Specimen number and herbarium code (with prefix)
   if ("specimen_number" %in% names(spec)) {
-    result$specimen_number <- if (!is.null(specimen_prefix)) {
-      ifelse(!is.na(spec$specimen_number),
-             paste(specimen_prefix, as.character(spec$specimen_number)),
-             NA_character_)
-    } else {
-      as.character(spec$specimen_number)
-    }
+    result$specimen_number <- .apply_specimen_prefix(spec$specimen_number,
+                                                     specimen_prefix)
   }
 
-  result$herbarium_nbe_char <- if (!is.null(specimen_prefix)) {
-    paste(specimen_prefix, as.character(spec$herbarium_nbe_char))
-  } else {
-    as.character(spec$herbarium_nbe_char)
-  }
+  result$herbarium_nbe_char <- .apply_specimen_prefix(spec$herbarium_nbe_char,
+                                                      specimen_prefix)
 
   # Extract numeric collection number from specimen_number
   if ("specimen_number" %in% names(result)) {
@@ -1482,6 +1464,48 @@ process_openforis_census <- function(data_dir = NULL,
     dead_uprooted  = "i",
     not_found      = "k"
   )
+}
+
+
+#' Prefix a voucher number, once
+#'
+#' Field teams are inconsistent about whether they type the herbarium prefix
+#' into the form: one campaign records \code{107}, the next \code{"Pird 107"}
+#' for the same kind of voucher. Pasting the prefix on unconditionally turns
+#' the second into \code{"PIRD Pird 107"}, which is a different — and wrong —
+#' herbarium number.
+#'
+#' A prefix already present is therefore stripped before the canonical one is
+#' applied, whatever its case and whatever separator followed it. The result is
+#' the same string either way, spelled the way \code{prefix} spells it.
+#'
+#' @param x Vector of voucher numbers as recorded.
+#' @param prefix Prefix to apply, e.g. \code{"PIRD"}. NULL or empty returns
+#'   \code{x} as character, untouched.
+#' @return Character vector, NA where \code{x} was NA or blank.
+#' @keywords internal
+.apply_specimen_prefix <- function(x, prefix) {
+
+  out <- trimws(as.character(x))
+  blank <- is.na(out) | !nzchar(out)
+
+  if (is.null(prefix) || length(prefix) == 0 || is.na(prefix[1]) ||
+      !nzchar(trimws(prefix[1]))) {
+    out[blank] <- NA_character_
+    return(out)
+  }
+
+  prefix <- trimws(as.character(prefix[1]))
+  n <- nchar(prefix)
+
+  # Fixed-string comparison, so a prefix with regex metacharacters is safe
+  already <- !blank & tolower(substr(out, 1L, n)) == tolower(prefix)
+  out[already] <- sub("^[[:space:][:punct:]]+", "",
+                      substring(out[already], n + 1L))
+
+  out <- trimws(paste(prefix, out))
+  out[blank] <- NA_character_
+  out
 }
 
 
