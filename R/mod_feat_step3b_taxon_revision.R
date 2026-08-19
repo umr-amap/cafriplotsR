@@ -12,6 +12,7 @@
 #' @param id Module id.
 #' @param i18n Translator object.
 #' @return A `shiny::tagList`.
+#' @keywords internal
 #' @export
 mod_feat_step3b_taxon_revision_ui <- function(id, i18n) {
   ns <- shiny::NS(id)
@@ -37,6 +38,7 @@ mod_feat_step3b_taxon_revision_ui <- function(id, i18n) {
 #' @param con,con_taxa Reactives returning the two connections.
 #' @param i18n Reactive translator.
 #' @return Reactive returning the accepted revisions, or `NULL`.
+#' @keywords internal
 #' @export
 mod_feat_step3b_taxon_revision_server <- function(id, split_result, con,
                                                   con_taxa, i18n) {
@@ -197,6 +199,7 @@ mod_feat_step3b_taxon_revision_server <- function(id, split_result, con,
 #' @param decisions Character vector, one decision per row.
 #' @param i18n Optional translator.
 #' @return Data frame ready for `DT::datatable()`.
+#' @keywords internal
 #' @export
 .census_revision_display <- function(rev, decisions = NULL, i18n = NULL) {
 

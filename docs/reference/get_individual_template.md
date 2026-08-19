@@ -1,0 +1,99 @@
+# Generate Individual Data Import Template
+
+Creates an Excel template for importing individual tree data with proper
+column structure, validation rules, and example data. The template
+includes two sheets: core individual data and optional individual
+features.
+
+## Usage
+
+``` r
+get_individual_template(
+  method = NULL,
+  include_features = TRUE,
+  output_file = "individual_template.xlsx",
+  con = NULL,
+  return_data = FALSE
+)
+```
+
+## Arguments
+
+- method:
+
+  Method type (e.g., "1ha-IRD", "Large"). If NULL, includes all possible
+  columns. Use method_list() to see available methods.
+
+- include_features:
+
+  Logical. If TRUE, includes a second sheet for individual features
+  (traits). Default TRUE.
+
+- output_file:
+
+  Path where the Excel template should be saved. Default:
+  "individual_template.xlsx"
+
+- con:
+
+  Database connection. If NULL, creates temporary connection.
+
+- return_data:
+
+  Logical. If TRUE, returns the template data structure without writing
+  to file or printing messages. Useful for Shiny apps. Default FALSE.
+
+## Value
+
+Invisibly returns the template data structure. Main effect is creating
+the Excel file.
+
+## Pre-requisite - Taxonomy Standardization
+
+\*\*IMPORTANT\*\*: Before importing individuals, you must standardize
+taxonomic names to obtain \`idtax_n\` values. Two options:
+
+1\. \*\*Automatic matching\*\*: Use \`match_taxonomic_names()\` function
+2. \*\*Semi-automatic with validation\*\*: Use the Shiny taxonomic
+matching app (exports CSV/Excel with \`idtax_n\` column added)
+
+The \`idtax_n\` column must not be empty for any individual.
+
+## Template Structure
+
+\*\*Sheet 1: "individuals"\*\* (Core individual data) - Mandatory
+columns: plot_name, tag, idtax_n, original_tax_name - Optional columns:
+herbarium_nbe_type, herbarium_nbe_char, multi_tiges_id - Method-specific
+requirements apply
+
+\*\*Sheet 2: "features"\*\* (Optional individual traits) - Dynamic
+columns from traits_list() - Links: plot_name, tag (to identify
+individual) - Optional: census_date or census_id (for temporal
+measurements)
+
+## Workflow
+
+1\. Generate template: \`get_individual_template()\` 2. Standardize
+taxonomy (separate step!) 3. Fill in template with your data 4. Import:
+Use \`map_individual_columns()\` → \`validate_individual_data()\` →
+\`import_individual_data()\`
+
+## See also
+
+\[traits_list()\] to see available individual features \[method_list()\]
+to see available methods
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+# Generate template for specific method
+get_individual_template(method = "1ha-IRD", output_file = "my_individuals.xlsx")
+
+# Generate template with all possible columns
+get_individual_template(output_file = "full_template.xlsx")
+
+# Without features sheet (individuals only)
+get_individual_template(include_features = FALSE)
+} # }
+```

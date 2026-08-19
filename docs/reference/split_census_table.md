@@ -1,0 +1,250 @@
+# Split a flat census table into remeasures and recruits
+
+Takes the single flat table a field team actually produces for a new
+census — existing stems and recruits interleaved — and classifies every
+row against the individuals already recorded for those plots. The
+classification comes from the database, not from the user, which is the
+whole point: a field team has no way of knowing which tags the database
+already holds.
+
+Rows whose tag is suspiciously close to an existing tag are \*\*not\*\*
+called recruits. They are set aside as \`"review"\`, because creating a
+new individual from a mistyped tag is silent and hard to undo, whereas a
+rejected review row costs one look.
+
+## Usage
+
+``` r
+split_census_table(
+  data,
+  plot_names = NULL,
+  con = NULL,
+  existing = NULL,
+  plot_col = "plot_name",
+  tag_col = "tag",
+  idtax_col = "idtax_n",
+  typo_max_dist = 1L,
+  recruit_tags = c("sequential", "decimal"),
+  exclude_status = "dead"
+)
+
+# S3 method for class 'census_split'
+print(x, ...)
+```
+
+## Arguments
+
+- data:
+
+  Data frame: the flat census table, one row per stem.
+
+- plot_names:
+
+  Character vector restricting the split to these plots. Rows of
+  \`data\` for other plots are returned in \`out_of_scope\`. Defaults to
+  every plot present in \`data\`.
+
+- con:
+
+  Database connection or pool. Required unless \`existing\` is given.
+
+- existing:
+
+  Data frame of individuals already recorded, with at least
+  \`plot_name\` and \`tag\`; \`id_n\`, \`idtax_n\` and \`last_status\`
+  are used when present. Fetched from \`con\` when \`NULL\`.
+
+- plot_col, tag_col, idtax_col:
+
+  Column names in \`data\`.
+
+- typo_max_dist:
+
+  Maximum edit distance at which an unknown tag is treated as a possible
+  typo rather than a recruit. \`0\` disables the check.
+
+- recruit_tags:
+
+  Character vector of recruit-tagging conventions to honour, any of
+  \`"sequential"\` and \`"decimal"\`. A tag that follows one of them is
+  a genuine recruit whatever its edit distance from an existing tag.
+  Without this nearly every recruit sits a character or two from a tag
+  already in use and the real typos are lost in the noise. Pass
+  \`character(0)\` to hold every close tag for review.
+
+  \`"sequential"\`
+
+  : the team continues the plot's numbering, so a numeric tag above
+    every tag already used in that plot is a recruit.
+
+  \`"decimal"\`
+
+  : the team hangs a decimal off the nearest already tagged neighbour —
+    \`45\` gets \`45.1\`, then \`45.2\` — so a tag with a fractional
+    part whose whole part is already used in that plot is a recruit. The
+    parent may itself be a recruit first measured in this same table.
+
+- exclude_status:
+
+  Vital statuses to leave out of the missing-stem report; stems already
+  recorded dead are not expected to reappear.
+
+- x:
+
+  A \`census_split\` object.
+
+- ...:
+
+  Ignored.
+
+## Value
+
+An object of class \`census_split\`, a list with:
+
+- \`data\`:
+
+  \`data\` plus \`row_id\`, \`row_role\`, \`id_n\` and \`split_note\`.
+
+- \`remeasures\`, \`recruits\`, \`review\`, \`invalid\`:
+
+  the four subsets.
+
+- \`possible_typos\`:
+
+  review rows with their nearest existing tag.
+
+- \`ambiguous\`:
+
+  review rows whose plot + tag matches several recorded stems, with the
+  candidate \`id_n\`s.
+
+- \`taxon_drift\`:
+
+  remeasures whose taxon differs from the database — a report, not a
+  reclassification.
+
+- \`missing_stems\`:
+
+  recorded stems with no row in \`data\`.
+
+- \`duplicates\`:
+
+  plot + tag appearing more than once in \`data\`.
+
+- \`existing_duplicates\`:
+
+  the rows of \`existing\` whose plot + tag names more than one
+  \*recorded\* stem, whether or not this census measures it, plus
+  \`n_stems\` and \`in_census\` — a data-quality report on the recorded
+  data itself, one row per stem so it joins back on \`id_n\`.
+
+- \`out_of_scope\`:
+
+  rows for plots outside \`plot_names\`.
+
+- \`summary\`:
+
+  per-plot counts.
+
+## Details
+
+Roles assigned to each row of \`data\`:
+
+- \`remeasure\`:
+
+  plot + tag matches exactly one recorded stem — measurements attach to
+  its \`id_n\`.
+
+- \`recruit\`:
+
+  tag unknown for that plot and unlike any existing tag — a new
+  individual.
+
+- \`review\`:
+
+  either the tag is unknown but within \`typo_max_dist\` of an existing
+  tag (or an adjacent-character swap away from one) \*and\* follows no
+  recognised recruit-tagging convention — see \`recruit_tags\`; or
+  plot + tag matches more than one recorded stem. Needs a human
+  decision.
+
+- \`invalid\`:
+
+  plot name or tag missing.
+
+Only plot and tag decide whether a row is a remeasure. \`idtax_n\` is
+never part of that test — an identification revised between two censuses
+is expected, and letting it break the match would turn every correction
+into a spurious recruit. Revisions are reported in \`taxon_drift\`
+instead.
+
+## Tags that are not unique
+
+Some plots number tags per quadrat rather than per plot, so one plot +
+tag pair can name several recorded stems. Taking the first of them —
+which is what a plain \`match()\` does, silently — would attach a census
+to the wrong tree. Those rows are held for review and listed in
+\`ambiguous\` instead. The columns that once told such stems apart are
+no longer maintained, so there is nothing left to disambiguate them
+with; the split reports them rather than guessing.
+
+A repeated plot + tag is a defect in the recorded data, not in the
+census — the pair is meant to name one stem. \`ambiguous\` only shows
+the ones this census happens to measure, which understates it: the rest
+sit there until some later census walks into them.
+\`existing_duplicates\` therefore extracts every recorded stem caught in
+such a collision across the plots in scope — the \`existing\` rows
+themselves, so they join straight back on \`id_n\` — with \`n_stems\`
+giving the size of the collision and \`in_census\` marking which are
+live in this table.
+
+Pass \`existing\` to run without a database — that is the form used by
+the tests and by anyone working from an exported tag list.
+
+## See also
+
+\[export_census_split()\] to write the pieces out for the wizards.
+
+## Examples
+
+``` r
+existing <- data.frame(
+  plot_name = c("P1", "P1", "P1"),
+  tag       = c("101", "102", "103"),
+  id_n      = c(11L, 12L, 13L),
+  stringsAsFactors = FALSE
+)
+census <- data.frame(
+  plot_name = c("P1", "P1", "P1", "P1", "P1"),
+  tag       = c("101", "102", "104", "102.1", "1O3"),
+  dbh       = c(21.1, 33.4, 10.2, 8.5, 45.0),
+  stringsAsFactors = FALSE
+)
+split <- split_census_table(census, existing = existing)
+split
+#> 
+#> ── Census table split ──
+#> 
+#> 5 rows over 1 plot
+#>   • 2 remeasures (stem already in the database)
+#>   • 2 recruits (new individuals to create)
+#> ! 1 row held for review — the tag is unknown but close to an existing one. See `$possible_typos`.
+#> ℹ 1 recorded stem has no row in this table.
+
+# 101 and 102 are remeasures; 104 continues the numbering and 102.1 hangs a
+# decimal off tag 102, so both are recruits; 1O3 (letter O) is held for
+# review against tag 103.
+split$data[, c("tag", "row_role", "id_n", "split_note")]
+#>     tag  row_role id_n
+#> 1   101 remeasure   11
+#> 2   102 remeasure   12
+#> 3   104   recruit   NA
+#> 4 102.1   recruit   NA
+#> 5   1O3    review   NA
+#>                                                     split_note
+#> 1                                                         <NA>
+#> 2                                                         <NA>
+#> 3 close to existing tag 101 but continues the plot's numbering
+#> 4                                                         <NA>
+#> 5         tag unknown but 1 character(s) from existing tag 103
+```

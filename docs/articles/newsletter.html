@@ -12,8 +12,8 @@
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <meta property="og:title" content="Newsletter">
@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,12 +35,16 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
-<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="nav-item"><a class="nav-link" href="../articles/index.html">Tutorials</a></li>
+<li class="nav-item"><a class="nav-link" href="../reference/index.html">Functions</a></li>
+<li class="active nav-item"><a class="nav-link" href="../articles/newsletter.html">Newsletter</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><a class="nav-link" href="../articles/readme-fr.html">FR</a></li>
+<li class="nav-item"><form class="form-inline" role="search">
+ <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
+</form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR" aria-label="GitHub"><span class="fa fa-github"></span></a></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR/issues" aria-label="Report an issue"><span class="fa fa-bug"></span></a></li>
       </ul>
@@ -67,8 +71,7 @@
 <div class="section level2">
 <h2 id="cafriplotsr-newsletter">CafriplotsR Newsletter<a class="anchor" aria-label="anchor" href="#cafriplotsr-newsletter"></a>
 </h2>
-<p>Updates on major milestones for the CafriplotsR package and the
-Central African forest plots database.</p>
+<p>Updates on major milestones for the CafriplotsR package</p>
 <hr>
 <div class="section level3">
 <h3 id="may-2026">May 2026<a class="anchor" aria-label="anchor" href="#may-2026"></a>
@@ -78,20 +81,22 @@ Central African forest plots database.</p>
 </h4>
 <p><strong>Switch between the internal taxonomic backbone and
 WCVP</strong></p>
-<p>CafriplotsR now ships with support for a second taxonomic backbone:
-the <strong>World Checklist of Vascular Plants (WCVP)</strong>. The
-internal Cafriplots backbone remains the default — it is the reference
-used to assemble the database, link individuals, and curate taxa-level
-trait data — but you can now operate in WCVP space whenever you need to,
-for example, compare with, or contribute to, a global reference.</p>
+<p>CafriplotsR now ships with a second taxonomic backbone: the
+<strong>World Checklist of Vascular Plants (WCVP)</strong>. The internal
+CafriplotsR backbone remains the default but it is now possible to work
+following the WCVP nomenclature.</p>
+<p>The motivation is the same as for citation tracking:
+<strong>transparency about taxonomic provenance</strong>. Whenever data
+leave the database, the user knows exactly which reference system was
+used to interpret each name, and can switch backbones.</p>
 <p>The backbone is selected at query time via a single argument:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"GABON"</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span>, <span class="va">extr</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">main</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"GABON"</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span>, extract_individuals <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/query_taxa.html">query_taxa</a></span><span class="op">(</span>species <span class="op">=</span> <span class="st">"Dacryodes edulis"</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span>, check_synonymy <span class="op">=</span> <span class="cn">F</span><span class="op">)</span></span></code></pre></div>
 <p>When <code>backbone = "wcvp"</code>, the standard taxonomy columns
-are replaced <strong>in place</strong> with the WCVP values. Two extra
-columns make the substitution transparent:</p>
+are replaced with the WCVP data. Two extra columns make the substitution
+transparent:</p>
 <ul>
 <li>
 <code>name_source</code> — <code>"wcvp"</code> if the taxon resolved
@@ -104,13 +109,14 @@ alongside, so you can always trace back to the Cafriplots reference</li>
 <p>The current version of the WCVP can be checked using the following
 code line (this is the most recent one from early January 2026):</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con.taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">con.taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">taxa</span></span>
 <span><span class="fu"><a href="../reference/get_wcvp_status.html">get_wcvp_status</a></span><span class="op">(</span>con_taxa <span class="op">=</span> <span class="va">con.taxa</span><span class="op">)</span></span></code></pre></div>
-<p>Internal IDs (<code>idtax_n</code>, <code>idtax_good_n</code>) are
-<strong>never</strong> overwritten; the WCVP analogues
-(<code>wcvp_plant_name_id</code>,
+<p>Internal IDs (<code>idtax_n</code>, the taxon identifier,
+<code>idtax_good_n</code>, the identifier of the accepted name) are
+preserved; the WCVP analogues (<code>wcvp_plant_name_id</code>,
 <code>wcvp_accepted_plant_name_id</code>) are added as separate columns.
-This keeps every row anchored to both reference systems at once.</p>
+Each row thus remains anchored to both reference systems
+simultaneously.</p>
 <p>The same toggle is available in the interactive apps:</p>
 <ul>
 <li>
@@ -122,19 +128,13 @@ data are present in the taxa database.</li>
 be run in WCVP space; the source of every taxonomic name is documented
 in the output tables via <code>name_source</code>.</li>
 </ul>
-<p>The motivation is the same as for citation tracking:
-<strong>transparency about taxonomic provenance</strong>. Whenever data
-leave the database, the user knows exactly which reference system was
-used to interpret each name, and can switch backbones without
-re-importing or re-curating anything.</p>
 <p><strong>Aggregated taxa-level traits from individual
 measurements</strong></p>
-<p>The package now closes the second half of the <em>virtuous
-circle</em> presented in Barcelona: individual-level measurements (DBH,
-height, crown diameter, bark thickness…) recorded in plots can be
-<strong>aggregated by taxon</strong> and exposed as taxa-level traits,
-ready to be grafted onto any future query — exactly like the existing
-wood-density or seed-mass traits coming from external compilations.</p>
+<p>Individual measurements (e.g. DBH, height, etc.) associated with
+forest inventories can be <strong>aggregated by taxon</strong> and
+exposed as taxa-level traits, ready to be grafted onto any future query
+— exactly like wood density traits or other taxa-level traits coming
+from external compilations.</p>
 <p>Aggregation is <strong>declarative</strong>: a small configuration
 table (<code>trait_aggregation_config</code>) holds rules such as
 <em>“take the 95th percentile of stem diameter, restricted to
@@ -142,42 +142,60 @@ individuals identified at species level or below, with at least 5
 measurements”</em>. The pipeline reads the rules, computes the
 aggregated value per taxon, and writes the result into
 <code>taxa_traits_measures</code>:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/add_trait_aggregation.html">add_trait_aggregation</a></span><span class="op">(</span></span>
-<span>  source_trait_id <span class="op">=</span> <span class="fl">1</span>,         <span class="co"># stem_diameter</span></span>
-<span>  method          <span class="op">=</span> <span class="st">"percentile"</span>,</span>
-<span>  method_param    <span class="op">=</span> <span class="fl">95</span>,</span>
-<span>  min_n           <span class="op">=</span> <span class="fl">5</span></span>
-<span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/rebuild_aggregated_taxa_traits.html">rebuild_aggregated_taxa_traits</a></span><span class="op">(</span><span class="va">con</span>, <span class="va">con_taxa</span><span class="op">)</span></span></code></pre></div>
-<p>Supported methods: <code>mean</code>, <code>median</code>,
-<code>min</code>, <code>max</code>, <code>sum</code>, <code>sd</code>,
-<code>percentile</code>, <code>mode</code>, <code>concat</code>,
-<code>count</code>.</p>
-<p>To keep the transformation method visible — so that p95 of DBH and
-the raw DBH never get mixed up, and so that several methods on the same
-source can coexist — aggregated rows are written into <strong>derived
-traits</strong> named after the source plus the method
-(e.g. <code>stem_diameter_p95</code>, <code>stem_diameter_max</code>).
-If you would rather keep the original trait name, you can pass
-<code>target_trait_id = source_trait_id</code> explicitly.</p>
-<p>Once written, these aggregated traits behave <strong>exactly like any
-other taxa-level trait</strong>: <code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code>
+<p>Once generated, these aggregated traits behave <strong>exactly like
+any other taxa-level trait</strong>: <code><a href="../reference/query_taxa_traits.html">query_taxa_traits()</a></code>
 returns them transparently, and <code><a href="../reference/query_individual_features.html">query_individual_features()</a></code>
-/ <code><a href="../reference/query_plots.html">query_plots()</a></code> graft them onto your individuals through
-the usual taxa link. From the user’s perspective, there is no second
-pipeline to run.</p>
+/ <code><a href="../reference/query_plots.html">query_plots()</a></code> graft them onto inventory individuals
+through the taxonomic link. From the user’s perspective, there is no
+second pipeline to run.</p>
 <blockquote>
 <p><strong>Public access and data sovereignty.</strong> Aggregated
 traits are tagged with a dedicated, <strong>non-public</strong> citation
 (<code>CafriplotsR_aggregated</code>) and the row-level security policy
 on <code>taxa_traits_measures</code> is <code>RESTRICTIVE</code>: the
-public role cannot see them. They are visible only to authenticated
-users with appropriate permissions. This preserves the principle stated
-in the Barcelona presentation — <strong>only aggregated summaries
-circulate, raw plot data never leaves your network, and the
-public-facing portal sees neither</strong>.</p>
+public connection cannot see them. They are visible only to
+authenticated users.</p>
 </blockquote>
+<blockquote>
+<p>This taxa-level trait aggregation system enables a two-way exchange:
+when data are imported, users contribute to better documenting the
+traits of the species they have inventoried, while simultaneously
+benefiting from trait data already included.</p>
+</blockquote>
+<p><strong>Simpler database connection</strong></p>
+<p>Connecting to the database is now a one-line affair. The new
+<code><a href="../reference/connect_cafri.html">connect_cafri()</a></code> replaces the previous two-step pattern of
+calling <code><a href="../reference/call.mydb.html">call.mydb()</a></code> and <code><a href="../reference/call.mydb.taxa.html">call.mydb.taxa()</a></code>
+separately — a single credential prompt opens <strong>both</strong>
+databases at once and stashes the connections so any subsequent package
+function reuses them transparently:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">cons</span><span class="op">$</span><span class="va">main</span>   <span class="co"># main database</span></span>
+<span><span class="va">cons</span><span class="op">$</span><span class="va">taxa</span>   <span class="co"># taxa database</span></span></code></pre></div>
+<p>Three additional improvements come with this change:</p>
+<ul>
+<li>
+<strong><code>.Renviron</code> credentials are now detected
+automatically.</strong> If you previously ran
+<code><a href="../reference/setup_db_credentials.html">setup_db_credentials()</a></code> to persist <code>MYDB_USER</code>
+and <code>MYDB_PASS</code>, you no longer need the
+<code>use_env_credentials = TRUE</code> argument — the package detects
+them and connects automatically.</li>
+<li>
+<strong>Username is now asked before password</strong>, as in any
+standard login form.</li>
+<li>
+<strong>A wrong password no longer stays cached.</strong> Previously
+a typo was stored in memory and every subsequent connection attempt
+reused it until users discovered <code>reset = TRUE</code>.
+Authentication failures now clear the cache and re-prompt automatically
+in interactive mode.</li>
+</ul>
+<p>The existing <code><a href="../reference/call.mydb.html">call.mydb()</a></code> and
+<code><a href="../reference/call.mydb.taxa.html">call.mydb.taxa()</a></code> functions are unchanged for backward
+compatibility. See the <a href="database-connections.html">Database
+Connections Guide</a> for the full reference.</p>
 <hr>
 </div>
 </div>
@@ -288,7 +306,7 @@ TEMPLATE FOR NEW ENTRIES:
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer>

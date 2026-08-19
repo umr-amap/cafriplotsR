@@ -1,0 +1,59 @@
+# Grant permissions on ALL tables and sequences
+
+Grants SELECT, INSERT, UPDATE, DELETE on ALL existing tables and USAGE,
+SELECT on ALL existing sequences in the public schema.
+
+\*\*For database administrators only.\*\*
+
+This is more permissive than \`grant_plot_insert_permissions()\` but
+avoids missing table errors. Note: Does NOT affect future tables (need
+ALTER DEFAULT PRIVILEGES for that).
+
+## Usage
+
+``` r
+grant_all_table_permissions(
+  con,
+  user = NULL,
+  grant_to_public = FALSE,
+  schema = "public"
+)
+```
+
+## Arguments
+
+- con:
+
+  Database connection (must have GRANT privilege)
+
+- user:
+
+  Character. Username or role to grant permissions to. If NULL, must set
+  grant_to_public = TRUE.
+
+- grant_to_public:
+
+  Logical. If TRUE, grants to PUBLIC (all users). Default FALSE for
+  security.
+
+- schema:
+
+  Character. Schema name. Default "public".
+
+## Value
+
+TRUE if successful, FALSE otherwise
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+con <- call.mydb()
+
+# Grant to all users
+grant_all_table_permissions(con, grant_to_public = TRUE)
+
+# Grant to specific user
+grant_all_table_permissions(con, "john.doe")
+} # }
+```

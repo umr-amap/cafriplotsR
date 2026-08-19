@@ -1,0 +1,11 @@
+# Look up a single idtax_n in the cached backbone, returning a tibble with the same shape as the SQL self-join used in the online path
+
+Mirrors the SQL \`SELECT t.\*, a.\* FROM table_taxa t LEFT JOIN
+table_taxa a ON t.idtax_good_n = a.idtax_n\` lookup, returning
+matched_name and accepted_name fields built from the backbone columns.
+
+## Usage
+
+``` r
+.lookup_taxon_in_backbone(backbone, idtax)
+```

@@ -12,8 +12,8 @@
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <meta property="og:title" content="Importer des Données de Parcelles dans la Base de Données">
@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,12 +35,16 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
-<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Tutorials</a></li>
+<li class="nav-item"><a class="nav-link" href="../reference/index.html">Functions</a></li>
+<li class="nav-item"><a class="nav-link" href="../articles/newsletter.html">Newsletter</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><a class="nav-link" href="../articles/readme-fr.html">FR</a></li>
+<li class="nav-item"><form class="form-inline" role="search">
+ <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
+</form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR" aria-label="GitHub"><span class="fa fa-github"></span></a></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR/issues" aria-label="Report an issue"><span class="fa fa-bug"></span></a></li>
       </ul>
@@ -111,7 +115,7 @@ des mesures d’arbres)</li>
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Se connecter à la base de données (pour vérification)</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">main</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
@@ -345,7 +349,7 @@ administrateur de base de données.</p>
 <span><span class="co"># 3. Copier le code d'accès admin et l'envoyer à l'admin</span></span>
 <span></span>
 <span><span class="co"># 4. Après que l'admin accorde l'accès, vérifier :</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">main</span></span>
 <span><span class="va">mes_parcelles</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span></span>
 <span>  plot_name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"Parcelle-A"</span>, <span class="st">"Parcelle-B"</span><span class="op">)</span>,</span>
 <span>  exact_match <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -540,7 +544,7 @@ données :</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># L'admin exécute ce code pour accorder l'accès</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">main</span></span>
 <span></span>
 <span><span class="va">plot_ids</span> <span class="op">&lt;-</span> <span class="fu">DBI</span><span class="fu">::</span><span class="fu"><a href="https://dbi.r-dbi.org/reference/dbGetQuery.html" class="external-link">dbGetQuery</a></span><span class="op">(</span><span class="va">con</span>,</span>
 <span>  <span class="st">"SELECT id_liste_plots FROM data_liste_plots</span></span>
@@ -680,7 +684,7 @@ plot_name, tag, dbh, height, wood_density</p>
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 1. Se connecter</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">main</span></span>
 <span></span>
 <span><span class="co"># 2. Charger les données</span></span>
 <span><span class="va">donnees_brutes</span> <span class="op">&lt;-</span> <span class="fu">readxl</span><span class="fu">::</span><span class="fu"><a href="https://readxl.tidyverse.org/reference/read_excel.html" class="external-link">read_excel</a></span><span class="op">(</span><span class="st">"mes_donnees_terrain.xlsx"</span><span class="op">)</span></span>
@@ -898,7 +902,7 @@ transactionnelle</li>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer>

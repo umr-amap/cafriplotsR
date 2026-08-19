@@ -1,0 +1,497 @@
+# Guide des Connexions à la Base de Données
+
+``` r
+
+library(CafriplotsR)
+```
+
+## Introduction
+
+Ce guide explique comment se connecter aux bases de données CafriplotsR,
+gérer les identifiants de manière sécurisée et résoudre les problèmes de
+connexion courants.
+
+CafriplotsR utilise **deux bases de données PostgreSQL distinctes** : 1.
+**Base de données principale** (`plots_transects`) : Contient les
+données de parcelles, sous-parcelles et arbres individuels 2. **Base de
+données taxonomique** (`rainbio`) : Contient les informations
+taxonomiques et les traits au niveau de l’espèce
+
+## Démarrage Rapide
+
+### Première Connexion
+
+La méthode recommandée pour démarrer une session est
+[`connect_cafri()`](https://umr-amap.github.io/cafriplotsR/reference/connect_cafri.md).
+Elle ouvre les deux bases de données à partir d’une seule invite
+d’identifiants (le même nom d’utilisateur et mot de passe sont valides
+pour les deux) :
+
+``` r
+
+library(CafriplotsR)
+
+# Connecter les deux bases avec une seule invite d'identifiants
+cons <- connect_cafri()
+
+cons$main   # connexion à la base de données principale
+cons$taxa   # connexion à la base de données taxonomique
+
+# Tester vos connexions
+print_connection_status()
+```
+
+Lors de la première utilisation, vous serez invité à entrer :
+
+- **Nom d’utilisateur** : Votre nom d’utilisateur de base de données
+- **Mot de passe** : Votre mot de passe de base de données
+
+Les identifiants sont mis en cache en mémoire pour la durée de votre
+session R, de sorte que tout appel ultérieur à
+[`call.mydb()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.md)
+ou
+[`call.mydb.taxa()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.taxa.md)
+réutilise les mêmes connexions sans nouvelle demande.
+
+## Fonctions de Connexion
+
+### Recommandé : `connect_cafri()`
+
+[`connect_cafri()`](https://umr-amap.github.io/cafriplotsR/reference/connect_cafri.md)
+est un point d’entrée unique qui ouvre les deux bases de données en une
+fois et stocke les connexions en interne, de sorte que les fonctions qui
+récupèrent une connexion via
+[`call.mydb()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.md)
+/
+[`call.mydb.taxa()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.taxa.md)
+plus tard dans la session les retrouvent sans nouvelle invite.
+
+``` r
+
+# Les deux bases en une seule invite
+cons <- connect_cafri()
+
+# Uniquement la base principale (la base taxa sera ouverte à la volée
+# par les fonctions qui en ont besoin, en réutilisant les identifiants
+# en cache — pas de seconde invite)
+cons <- connect_cafri(taxa = FALSE)
+
+# Forcer de nouveaux identifiants (ex. pour changer d'utilisateur)
+cons <- connect_cafri(reset = TRUE)
+
+# Toujours demander une invite, même si MYDB_USER/MYDB_PASS sont définis
+# dans .Renviron
+cons <- connect_cafri(use_env_credentials = FALSE)
+```
+
+Si `MYDB_USER` et `MYDB_PASS` sont définis dans votre `.Renviron` (voir
+« Gestion des Identifiants » ci-dessous),
+[`connect_cafri()`](https://umr-amap.github.io/cafriplotsR/reference/connect_cafri.md)
+les utilise automatiquement sans invite — aucun drapeau requis.
+
+### Fonctions individuelles : `call.mydb()` et `call.mydb.taxa()`
+
+Elles restent disponibles, principalement pour les scripts qui
+n’utilisent qu’une seule des deux bases. Il *n’est pas* nécessaire de
+les appeler à la suite —
+[`connect_cafri()`](https://umr-amap.github.io/cafriplotsR/reference/connect_cafri.md)
+couvre ce cas en une ligne.
+
+``` r
+
+# Base de données principale uniquement
+con <- call.mydb()
+
+# Forcer de nouveaux identifiants (si vous devez changer d'utilisateur)
+con <- call.mydb(reset = TRUE)
+
+# Fournir les identifiants directement (non recommandé pour la sécurité)
+con <- call.mydb(user = "monutilisateur", pass = "monmotdepasse")
+```
+
+``` r
+
+# Base taxonomique uniquement (utilise les identifiants en cache si présents)
+con_taxa <- call.mydb.taxa()
+```
+
+**Important** : La base de données taxonomique est en **lecture seule**
+pour la plupart des utilisateurs. Les opérations d’écriture sont
+réservées aux administrateurs.
+
+## Gestion des Identifiants
+
+### Option 1 : Invites Interactives (Par Défaut)
+
+L’approche la plus simple - entrez les identifiants lorsque demandé :
+
+``` r
+
+cons <- connect_cafri()
+# Entrez le nom d'utilisateur : [votre_utilisateur]
+# Entrez le mot de passe : [votre_mot_de_passe]
+```
+
+**Avantages** : Sécurisé, pas de mots de passe stockés **Inconvénients**
+: Doit entrer les identifiants à chaque nouvelle session R
+
+### Option 2 : Variables d’Environnement (Persistant)
+
+Stockez les identifiants dans votre fichier `.Renviron` pour un
+chargement automatique à chaque session :
+
+``` r
+
+# Exécuter une fois pour configurer
+setup_db_credentials()
+# Suivez les invites pour entrer le nom d'utilisateur et le mot de passe
+```
+
+C’est tout — dès la session R suivante,
+[`connect_cafri()`](https://umr-amap.github.io/cafriplotsR/reference/connect_cafri.md)
+(ainsi que
+[`call.mydb()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.md)
+/
+[`call.mydb.taxa()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.taxa.md))
+récupère automatiquement `MYDB_USER` et `MYDB_PASS` depuis `.Renviron`,
+sans drapeau à retenir :
+
+``` r
+
+cons <- connect_cafri()   # pas d'invite ; identifiants lus depuis .Renviron
+```
+
+Pour forcer une invite ponctuelle malgré tout, passez
+`use_env_credentials = FALSE` :
+
+``` r
+
+cons <- connect_cafri(use_env_credentials = FALSE)
+```
+
+L’ordre de résolution est : arguments `user`/`pass` explicites →
+identifiants en cache → `.Renviron` (`MYDB_USER` / `MYDB_PASS`) → invite
+interactive.
+
+**Attention** : Les identifiants sont stockés en **texte clair** dans
+`~/.Renviron`. N’utilisez ceci que sur votre ordinateur personnel et
+sécurisé.
+
+Pour supprimer les identifiants stockés :
+
+``` r
+
+remove_db_credentials()
+```
+
+### Option 3 : Paramètres Directs (Non Recommandé)
+
+Vous pouvez passer les identifiants directement, mais ce n’est **pas
+recommandé** car les mots de passe peuvent être visibles dans votre code
+ou historique :
+
+``` r
+
+# Évitez ceci dans le code partagé !
+cons <- connect_cafri(user = "monutilisateur", pass = "monmotdepasse")
+```
+
+## Nettoyage des Connexions
+
+### Pourquoi Nettoyer les Connexions ?
+
+Les connexions à la base de données sont des ressources limitées. Ne pas
+les fermer peut causer :
+
+- **Épuisement des connexions** : La base de données refuse les
+  nouvelles connexions
+- **Fuites de mémoire** : Les connexions inutilisées consomment des
+  ressources
+- **Connexions périmées** : Les anciennes connexions peuvent expirer et
+  causer des erreurs
+
+### Quand Nettoyer
+
+Essayez de nettoyer les connexions quand :
+
+1.  Vous avez fini de travailler avec la base de données
+2.  Avant de fermer R/RStudio
+3.  Lors du changement d’utilisateur
+
+### Comment Nettoyer
+
+``` r
+
+# Fermer toutes les connexions et effacer les identifiants en cache
+cleanup_connections()
+```
+
+Cette fonction :
+
+- Ferme la connexion à la base de données principale
+- Ferme la connexion à la base de données taxonomique
+- Efface les identifiants en cache de la mémoire
+
+## Vérification du Statut de Connexion
+
+### Vérification Rapide du Statut
+
+``` r
+
+# Voir le statut actuel des connexions
+print_connection_status()
+```
+
+Exemple de sortie :
+
+    -- Statut des Connexions à la Base de Données --
+    v Base principale : Connecté à plots_transects en tant que monutilisateur
+    v Base taxonomique : Connecté à rainbio en tant que monutilisateur
+
+### Diagnostic Complet
+
+Pour le dépannage, exécutez un diagnostic complet :
+
+``` r
+
+db_diagnostic()
+```
+
+Ceci affiche :
+
+- Le statut de connexion pour les deux bases de données
+- Les détails de configuration (hôte, port, noms des bases)
+- Les résultats des tests de connectivité
+- Les informations de version PostgreSQL
+
+## Vérification de l’Accès aux Données (Sécurité au Niveau des Lignes)
+
+La base de données utilise la **sécurité au niveau des lignes (RLS)**
+pour contrôler quelles parcelles chaque utilisateur peut accéder.
+
+### Voir Vos Parcelles Accessibles
+
+``` r
+
+con <- connect_cafri()$main
+
+# Voir quelles parcelles vous pouvez accéder
+result <- get_user_accessible_plots(con, "votre_utilisateur")
+print(result)
+
+# Obtenir uniquement les IDs de parcelles comme vecteur
+plot_ids <- result$plot_ids[[1]]
+print(plot_ids)
+```
+
+### Voir Vos Politiques
+
+``` r
+
+# Voir toutes les politiques pour un utilisateur
+list_user_policies(con, user = "votre_utilisateur")
+
+# Voir toutes les politiques sur une table
+list_user_policies(con, user = NULL, table = "data_liste_plots")
+```
+
+### Comprendre les Niveaux d’Accès
+
+Les politiques peuvent accorder différentes opérations :
+
+- **SELECT** : Accès en lecture seule
+- **INSERT** : Peut ajouter de nouveaux enregistrements
+- **UPDATE** : Peut modifier les enregistrements existants
+- **DELETE** : Peut supprimer des enregistrements
+- **ALL** : Accès complet (SELECT, INSERT, UPDATE, DELETE)
+
+## Dépannage
+
+### Problèmes Courants et Solutions
+
+#### “Connexion refusée” ou “Impossible de se connecter”
+
+**Causes** :
+
+- Problèmes réseau
+- Le serveur de base de données est arrêté
+- Le pare-feu bloque la connexion
+
+**Solutions** :
+
+1.  Vérifiez votre connexion internet
+2.  Réessayez dans quelques minutes
+3.  Contactez l’administrateur de la base de données
+
+#### “Échec d’authentification”
+
+**Causes** :
+
+- Mauvais nom d’utilisateur ou mot de passe
+- Le compte n’existe pas
+
+**Solutions** :
+
+``` r
+
+# Réinitialiser les identifiants et réessayer
+cons <- connect_cafri(reset = TRUE)
+```
+
+#### “Erreur SSL SYSCALL : EOF détecté”
+
+**Causes** :
+
+- La connexion a été fermée mais est encore utilisée
+- Se produit généralement après la fermeture d’une application Shiny
+
+**Solutions** :
+
+``` r
+
+# Nettoyer et se reconnecter
+cleanup_connections()
+cons <- connect_cafri()
+```
+
+#### “Trop de connexions”
+
+**Causes** :
+
+- Plusieurs connexions non fermées
+- D’autres utilisateurs consomment les connexions
+
+**Solutions** :
+
+``` r
+
+# Nettoyer vos connexions
+cleanup_connections()
+
+# Attendre et réessayer
+Sys.sleep(5)
+cons <- connect_cafri()
+```
+
+#### Délai d’attente de requête ou “Connexion perdue”
+
+**Causes** :
+
+- Requête très volumineuse
+- Instabilité réseau
+- Surcharge du serveur
+
+**Solutions** :
+
+Le package inclut une nouvelle tentative automatique pour les échecs
+transitoires :
+
+``` r
+
+# func_try_fetch réessaie automatiquement les requêtes échouées
+result <- func_try_fetch(con, "SELECT * FROM grande_table")
+```
+
+#### “Permission refusée” ou résultats vides
+
+**Causes** :
+
+- La sécurité au niveau des lignes restreint l’accès
+- L’utilisateur n’a pas de politique pour les parcelles demandées
+
+**Solutions** :
+
+1.  Vérifiez vos parcelles accessibles :
+
+``` r
+
+get_user_accessible_plots(con, "votre_utilisateur")
+```
+
+2.  Contactez l’administrateur pour demander l’accès à des parcelles
+    supplémentaires
+
+### Réinitialisation Complète
+
+Si vous avez des problèmes persistants, faites une réinitialisation
+complète :
+
+``` r
+
+# 1. Nettoyer toutes les connexions
+cleanup_connections()
+
+# 2. Redémarrer la session R
+.rs.restartR()
+
+# 3. Se reconnecter à neuf
+library(CafriplotsR)
+cons <- connect_cafri(reset = TRUE)
+```
+
+## Résumé des Bonnes Pratiques
+
+### À Faire
+
+- **Démarrer les sessions avec
+  [`connect_cafri()`](https://umr-amap.github.io/cafriplotsR/reference/connect_cafri.md)**
+  plutôt qu’avec deux appels séparés
+- **Toujours appeler
+  [`cleanup_connections()`](https://umr-amap.github.io/cafriplotsR/reference/cleanup_connections.md)**
+  avant de fermer R
+- **Utiliser
+  [`print_connection_status()`](https://umr-amap.github.io/cafriplotsR/reference/print_connection_status.md)**
+  pour vérifier les connexions
+- **Vérifier votre accès aux parcelles** avec
+  [`get_user_accessible_plots()`](https://umr-amap.github.io/cafriplotsR/reference/get_user_accessible_plots.md)
+  si les requêtes retournent vide
+- **Utiliser les pools de connexions** dans les applications Shiny
+- **Exécuter
+  [`db_diagnostic()`](https://umr-amap.github.io/cafriplotsR/reference/db_diagnostic.md)**
+  lors du dépannage
+- **Stocker les identifiants dans `.Renviron`** uniquement sur des
+  ordinateurs personnels sécurisés
+
+### À Ne Pas Faire
+
+- **Ne pas coder en dur les mots de passe** dans les scripts
+- **Ne pas partager les identifiants** avec d’autres
+- **Ne pas laisser les connexions ouvertes** indéfiniment
+- **Ne pas ignorer les erreurs SSL** - nettoyer et se reconnecter
+- **Ne pas créer plusieurs connexions** quand une seule suffit
+
+### Flux de Travail Recommandé
+
+``` r
+
+library(CafriplotsR)
+
+# 1. Se connecter aux deux bases de données en une seule étape
+cons <- connect_cafri()
+
+# 2. Vérifier la connexion
+print_connection_status()
+
+# 3. Vérifier votre accès si nécessaire
+get_user_accessible_plots(cons$main, "votre_utilisateur")
+
+# 4. Faire votre travail
+# ... requêtes, mises à jour, etc. ...
+
+# 5. Nettoyer quand terminé
+cleanup_connections()
+```
+
+## Obtenir de l’Aide
+
+Si vous rencontrez des problèmes non couverts ici :
+
+1.  Exécutez
+    [`db_diagnostic()`](https://umr-amap.github.io/cafriplotsR/reference/db_diagnostic.md)
+    et notez la sortie
+2.  Vérifiez vos parcelles accessibles avec
+    [`get_user_accessible_plots()`](https://umr-amap.github.io/cafriplotsR/reference/get_user_accessible_plots.md)
+3.  Contactez l’administrateur de la base de données avec :
+    - La sortie du diagnostic
+    - Le message d’erreur exact
+    - Ce que vous essayiez de faire

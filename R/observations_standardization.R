@@ -395,9 +395,15 @@ standardize_observations <- function(
 }
 
 
-#' Convert `\b` to unicode-safe (?<![[:alpha:]]) / (?![[:alpha:]])
-#' depending on whether the boundary is at the start or end of a token.
-#' Called from \code{.load_observations_ontology}.
+#' @title Rewrite regex word boundaries as unicode-safe lookarounds
+#' @description
+#' Converts each word-boundary escape in a pattern into
+#' \code{(?<![[:alpha:]])} or \code{(?![[:alpha:]])}, depending on whether the
+#' boundary opens or closes a token. Called from
+#' \code{.load_observations_ontology}.
+#' @param pattern Character. A regular expression, possibly containing
+#'   word-boundary escapes.
+#' @return Character. The pattern with each boundary rewritten as a lookaround.
 #' @keywords internal
 .fix_word_boundaries <- function(pattern) {
   # The previous gsub turned every \b into (?<![[:alpha:]]). For boundaries

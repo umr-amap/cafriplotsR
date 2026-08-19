@@ -67,3 +67,4 @@ revisions:
 \seealso{
 [split_census_table()], which produces the drift this consumes.
 }
+\keyword{internal}

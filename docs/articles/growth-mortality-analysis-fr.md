@@ -1,0 +1,301 @@
+# Analyse de la Croissance et de la Mortalité
+
+``` r
+
+library(CafriplotsR)
+```
+
+## Introduction
+
+Cette vignette montre comment calculer les taux de croissance des arbres
+et les statistiques de mortalité/recrutement pour les parcelles
+forestières permanentes avec plusieurs recensements.
+
+Deux fonctions principales sont disponibles :
+
+- [`compute_growth()`](https://umr-amap.github.io/cafriplotsR/reference/compute_growth.md)
+  : Calculer les taux de croissance en diamètre entre les recensements
+- [`compute_mortality()`](https://umr-amap.github.io/cafriplotsR/reference/compute_mortality.md)
+  : Calculer les taux de mortalité et de recrutement
+
+Les deux fonctions récupèrent automatiquement les données de la base de
+données et ne nécessitent que les identifiants de parcelles en entrée.
+
+## Calcul des Taux de Croissance
+
+### Utilisation de Base
+
+``` r
+
+# Se connecter aux deux bases en une seule étape
+con <- connect_cafri()$main
+
+# Calculer la croissance par nom de parcelle
+growth <- compute_growth(plot_names = "mbalmayo001", con = con)
+
+# Ou par ID de parcelle
+growth <- compute_growth(plot_ids = c(1, 2, 3), con = con)
+```
+
+### Comprendre la Sortie
+
+La fonction retourne une liste avec deux composants :
+
+``` r
+
+# Statistiques résumées par parcelle et intervalle de recensement
+growth$summary
+
+# Données de croissance au niveau individuel
+growth$individuals
+```
+
+**Colonnes du résumé :**
+
+- `plot_name` : Identifiant de la parcelle
+- `census_pair` : Intervalle de recensement (ex. “1-2” pour le premier
+  au deuxième recensement)
+- `n_individuals` : Total d’individus mesurés dans les deux recensements
+- `n_valid` : Individus avec des mesures de croissance valides
+- `n_excluded` : Individus exclus en raison d’erreurs de mesure
+- `mean_growth_mm_yr` : Taux de croissance moyen en diamètre (mm/an)
+- `sd_growth_mm_yr` : Écart-type de la croissance
+- `median_growth_mm_yr` : Taux de croissance médian
+- `mean_dbh_1_mm` : DHP moyen au premier recensement (mm)
+- `mean_dbh_2_mm` : DHP moyen au deuxième recensement (mm)
+- `mean_interval_years` : Temps moyen entre les recensements (années)
+
+### Méthodes de Calcul de Croissance
+
+Deux méthodes sont disponibles :
+
+``` r
+
+# Croissance incrémentale (par défaut) : (DHP2 - DHP1) / temps
+growth_inc <- compute_growth(plot_ids = 1, method = "I")
+
+# Croissance exponentielle : (log(DHP2) - log(DHP1)) / temps
+growth_exp <- compute_growth(plot_ids = 1, method = "E")
+```
+
+### Ajustement des Paramètres de Contrôle Qualité
+
+``` r
+
+growth <- compute_growth(
+  plot_ids = 1,
+  mindbh = 100,      # DHP minimum en mm (par défaut : 100)
+  err.limit = 4,     # Limite d'erreur pour la détection de croissance négative (par défaut : 4)
+  maxgrow = 75       # Croissance maximale valide en mm/an (par défaut : 75)
+)
+```
+
+**Contrôle qualité :**
+
+- Les arbres avec DHP \< `mindbh` sont exclus
+- Les croissances négatives extrêmes (erreurs de mesure) sont détectées
+  en utilisant un modèle statistique
+- Les taux de croissance \> `maxgrow` mm/an sont signalés comme erreurs
+
+### Résumé Uniquement
+
+Pour obtenir uniquement les statistiques résumées sans les données
+individuelles :
+
+``` r
+
+growth <- compute_growth(
+  plot_ids = 1,
+  return_individual = FALSE
+)
+```
+
+## Calcul de la Mortalité et du Recrutement
+
+### Utilisation de Base
+
+``` r
+
+# Calculer la mortalité par nom de parcelle
+mort <- compute_mortality(plot_names = "mbalmayo001", con = con)
+
+# Ou par ID de parcelle
+mort <- compute_mortality(plot_ids = c(1, 2, 3), con = con)
+```
+
+### Comprendre la Sortie
+
+La fonction retourne une liste avec trois composants :
+
+``` r
+
+# Statistiques résumées
+mort$summary
+
+# Liste des individus morts
+mort$dead_individuals
+
+# Liste des individus nouvellement recrutés
+mort$recruits
+```
+
+**Colonnes du résumé :**
+
+- `plot_name` : Identifiant de la parcelle
+- `census_pair` : Intervalle de recensement
+- `N_outset` : Nombre d’individus au début de l’intervalle
+- `N_dead` : Nombre de morts
+- `N_survivor` : Nombre de survivants
+- `N_recruits` : Nombre de nouvelles recrues
+- `mortality_rate` : Taux de mortalité exponentiel
+- `mortality_percent_yr` : Pourcentage de mortalité annuel
+- `recruitment_rate` : Taux de recrutement exponentiel
+- `recruitment_percent_yr` : Pourcentage de recrutement annuel
+- `mean_interval_years` : Temps entre les recensements
+- `mean_dbh_dead_cm` : DHP moyen des arbres morts (cm)
+- `mean_dbh_recruit_cm` : DHP moyen des recrues (cm)
+
+### Calcul du Taux de Mortalité
+
+Le taux de mortalité est calculé en utilisant le modèle exponentiel :
+
+``` math
+\lambda = \frac{\ln(N_0) - \ln(N_s)}{t}
+```
+
+Où : - $`N_0`$ = nombre d’individus au départ - $`N_s`$ = nombre de
+survivants - $`t`$ = intervalle de temps en années
+
+Le pourcentage de mortalité annuel est :
+$`(1 - e^{-\lambda}) \times 100`$
+
+### Examiner les Arbres Morts
+
+``` r
+
+# Voir les individus morts avec leurs caractéristiques
+mort$dead_individuals
+
+# Filtrer par taxonomie
+library(dplyr)
+mort$dead_individuals %>%
+  filter(tax_fam == "Fabaceae")
+```
+
+### Examiner les Recrues
+
+``` r
+
+# Voir les individus recrutés
+mort$recruits
+
+# Distribution de taille des recrues
+hist(mort$recruits$dbh_at_recruitment_cm)
+```
+
+## Travailler avec Plusieurs Parcelles
+
+Les deux fonctions peuvent traiter plusieurs parcelles à la fois :
+
+``` r
+
+# Croissance pour plusieurs parcelles
+growth <- compute_growth(
+  plot_names = c("plot001", "plot002", "plot003")
+)
+
+# Les résultats sont combinés avec la colonne plot_name pour l'identification
+growth$summary %>%
+  group_by(plot_name) %>%
+  summarise(
+    mean_growth = mean(mean_growth_mm_yr, na.rm = TRUE),
+    n_intervals = n()
+  )
+```
+
+## Exemple de Flux de Travail Complet
+
+``` r
+
+library(CafriplotsR)
+library(dplyr)
+
+# Se connecter
+con <- connect_cafri()$main
+
+# Définir les parcelles à analyser
+my_plots <- c("site_A_plot1", "site_A_plot2", "site_B_plot1")
+
+# Calculer la croissance
+growth <- compute_growth(plot_names = my_plots, con = con)
+
+# Voir le résumé de croissance
+growth$summary %>%
+  arrange(plot_name, census_pair)
+
+# Calculer la mortalité
+mort <- compute_mortality(plot_names = my_plots, con = con)
+
+# Comparer la mortalité entre les parcelles
+mort$summary %>%
+  select(plot_name, census_pair, mortality_percent_yr, recruitment_percent_yr) %>%
+  arrange(plot_name)
+
+# Identifier les espèces avec une forte mortalité
+mort$dead_individuals %>%
+  count(tax_sp_level, sort = TRUE)
+
+# Nettoyer
+cleanup_connections()
+```
+
+## Dépannage
+
+### “Nécessite au moins 2 recensements”
+
+Cette erreur survient quand les parcelles sélectionnées n’ont pas
+plusieurs enregistrements de recensement :
+
+``` r
+
+# Vérifier si votre parcelle a plusieurs recensements
+query_result <- query_plots(
+  plot_names = "votre_parcelle",
+  show_multiple_census = TRUE,
+  extract_individuals = FALSE
+)
+
+# Regarder census_features pour voir les recensements disponibles
+query_result$census_features
+```
+
+### Pas de Mesures Valides
+
+Si les calculs de croissance retournent peu de mesures valides, vérifiez
+:
+
+1.  **Seuil de DHP minimum** : Diminuez `mindbh` si nécessaire
+2.  **Informations de date** : Assurez-vous que les dates de recensement
+    sont enregistrées dans la base de données
+3.  **Qualité des mesures** : Examinez les individus exclus dans la
+    sortie
+
+``` r
+
+# Vérifier les résultats individuels pour les exclusions
+growth <- compute_growth(plot_ids = 1)
+table(growth$individuals$accepted_growth)
+```
+
+## Références
+
+Méthodologie de filtrage de croissance adaptée de :
+
+- CTFS R Package : <http://ctfs.si.edu/Public/CTFSRPackage/>
+
+Les calculs des taux de mortalité suivent la méthodologie standard de
+dynamique forestière décrite dans :
+
+- Sheil, D., & May, R. M. (1996). Mortality and recruitment rate
+  evaluations in heterogeneous tropical forests. Journal of Ecology,
+  84(1), 91-100.

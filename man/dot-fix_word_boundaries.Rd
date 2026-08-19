@@ -2,15 +2,21 @@
 % Please edit documentation in R/observations_standardization.R
 \name{.fix_word_boundaries}
 \alias{.fix_word_boundaries}
-\title{Convert `\b` to unicode-safe (?<![[:alpha:]]) / (?![[:alpha:]])
-depending on whether the boundary is at the start or end of a token.
-Called from \code{.load_observations_ontology}.}
+\title{Rewrite regex word boundaries as unicode-safe lookarounds}
 \usage{
 .fix_word_boundaries(pattern)
 }
+\arguments{
+\item{pattern}{Character. A regular expression, possibly containing
+word-boundary escapes.}
+}
+\value{
+Character. The pattern with each boundary rewritten as a lookaround.
+}
 \description{
-Convert `\b` to unicode-safe (?<![[:alpha:]]) / (?![[:alpha:]])
-depending on whether the boundary is at the start or end of a token.
-Called from \code{.load_observations_ontology}.
+Converts each word-boundary escape in a pattern into
+\code{(?<![[:alpha:]])} or \code{(?![[:alpha:]])}, depending on whether the
+boundary opens or closes a token. Called from
+\code{.load_observations_ontology}.
 }
 \keyword{internal}

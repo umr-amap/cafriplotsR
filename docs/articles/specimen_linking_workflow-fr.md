@@ -1,0 +1,371 @@
+# Liaison de spécimens d'herbier aux individus d'inventaire
+
+## Introduction
+
+### Le défi : Connaissances taxonomiques déconnectées
+
+Les données d’inventaires forestiers et les données de spécimens
+d’herbier existent souvent dans des silos séparés. Les botanistes de
+terrain collectent des spécimens sur des arbres individuels pendant les
+recensements de parcelles, mais la connexion entre le spécimen témoin et
+l’arbre mesuré est généralement enregistrée uniquement dans les carnets
+de terrain. Lorsque les taxonomistes révisent ultérieurement
+l’identification du spécimen dans l’herbier, ces connaissances
+améliorées ne retournent pas automatiquement vers l’ensemble de données
+écologiques.
+
+**Cela crée un problème fondamental** : Vos données d’inventaire peuvent
+devenir taxonomiquement obsolètes même si l’identification correcte
+existe quelque part dans une base de données d’herbier.
+
+### La solution : Liens formels spécimen-individu
+
+Le package CafriplotsR résout ce problème en créant des **connexions
+persistantes au niveau de la base de données** entre :
+
+- **Les arbres individuels** dans vos parcelles forestières (avec DHP,
+  hauteur, coordonnées, etc.)
+- **Les spécimens d’herbier** collectés sur ces mêmes individus (avec
+  taxonomie vérifiée par des experts)
+
+Une fois liés, les mises à jour taxonomiques des spécimens se propagent
+automatiquement à vos données d’inventaire—pour toujours.
+
+## Comment ça fonctionne : Workflow étape par étape
+
+### Prérequis
+
+Avant de lier des spécimens, assurez-vous d’avoir :
+
+1.  **Accès à la base de données** avec les identifiants appropriés
+2.  **Données de référence d’herbier** dans votre table des individus
+    (voir colonnes ci-dessous)
+3.  **Spécimens déjà saisis** dans la base de données d’herbier
+
+**Comprendre les deux types de colonnes d’herbier :**
+
+Le système utilise deux colonnes pour suivre différents types de
+relations spécimen-individu :
+
+- **`herbarium_nbe_type`** : L’arbre RÉEL où le spécimen d’herbier a été
+  physiquement collecté
+  - Preuve directe : “Ce spécimen a été collecté SUR cet arbre”
+  - Lien de haute confiance
+  - Type de lien : `type_individual`
+- **`herbarium_nbe_char`** : Autres arbres identifiés sur le terrain
+  comme étant de la MÊME ESPÈCE que l’arbre du spécimen
+  - Preuve indirecte : “Nous pensons que cet arbre est de la même espèce
+    que l’arbre du spécimen”
+  - Confiance plus faible (basée sur l’hypothèse d’identification de
+    terrain)
+  - Type de lien : `referenced_individual`
+
+**Justification : Étendre l’utilité des spécimens**
+
+Comme il est impossible de collecter des spécimens d’herbier pour chaque
+arbre dans un inventaire forestier, ce système maximise la valeur des
+spécimens collectés :
+
+1.  Collecter un spécimen d’un individu représentatif (enregistré dans
+    `herbarium_nbe_type`)
+2.  Sur le terrain, identifier d’autres arbres comme étant de la même
+    espèce (enregistrés dans `herbarium_nbe_char`)
+3.  Lier tous ces arbres au spécimen unique
+4.  Quand les taxonomistes révisent le spécimen → tous les arbres liés
+    héritent de l’identification mise à jour
+
+**Le compromis** : Les liens via `herbarium_nbe_char` sont moins fiables
+car ils dépendent de la précision de l’identification de terrain.
+Cependant, ils étendent considérablement l’utilité des spécimens en
+fournissant des mises à jour taxonomiques à beaucoup plus d’arbres que
+ce qui serait autrement possible.
+
+### Étape 1 : Lancer l’application de liaison
+
+``` r
+
+library(CafriplotsR)
+
+# Lancer l'application interactive de liaison de spécimens
+launch_individual_specimen_linking_app()
+```
+
+L’application vous demandera vos identifiants de base de données si vous
+n’êtes pas déjà connecté.
+
+### Étape 2 : Sélectionner les parcelles et filtrer les individus
+
+L’application commence par charger tous les individus de vos parcelles
+accessibles qui ont des informations de référence d’herbier.
+
+**Ce qui se passe :** - Lit la colonne `herbarium_nbe_char` de la table
+`data_individuals` - Cette colonne contient généralement le nom du
+collecteur et le numéro de spécimen (ex : “Dauby 123”, “Smith G. 456”) -
+Affiche un tableau récapitulatif montrant quels individus ont des
+références de spécimens
+
+**Vos actions :** - Examinez les individus avec informations d’herbier -
+Filtrez optionnellement par parcelle, collecteur ou groupe taxonomique -
+Le tableau met en évidence les individus avec références de spécimens
+(fond vert)
+
+### Étape 3 : Analyser les références d’herbier
+
+L’application extrait automatiquement les noms de collecteurs et les
+numéros de spécimens des références textuelles.
+
+**Ce qui se passe :** - Analyse `herbarium_nbe_char` en utilisant la
+reconnaissance de motifs - Gère différents formats : “Dauby 123”, “G.
+Dauby 123”, “Dauby, G. 123” - Fait correspondre les noms de collecteurs
+à la base de données `table_colnam` (table de recherche des personnes) -
+Extrait les numéros de spécimens comme entiers
+
+**Résultat :** - Un tableau montrant les IDs de collecteurs et numéros
+de spécimens analysés - Toute référence non analysable est signalée pour
+révision
+
+### Étape 4 : Récupérer les spécimens correspondants
+
+L’application interroge la base de données d’herbier pour trouver les
+spécimens correspondant aux références analysées.
+
+**Ce qui se passe :** - Regroupe par collecteur et obtient la plage
+min/max des numéros de spécimens - Interroge la table `specimens` en
+utilisant la récupération par lots (très rapide !) - Par exemple : Au
+lieu de 200 requêtes individuelles, fait ~3 requêtes (une par
+collecteur)
+
+**Résultat :** - Un tableau des correspondances potentielles de
+spécimens - Montre l’ID du spécimen, le collecteur, le numéro et
+l’identification taxonomique actuelle
+
+**Note de performance :** L’optimisation des requêtes par lots signifie
+que même les grandes opérations de liaison (200+ individus) se terminent
+en quelques secondes.
+
+### Étape 5 : Valider la concordance taxonomique
+
+Avant de créer des liens, l’application valide que les identifications
+de spécimens et d’individus sont compatibles.
+
+**Ce qui se passe :** - Récupère la taxonomie pour les individus et les
+spécimens depuis la base de données taxa - Construit les noms
+taxonomiques complets (genre + espèce + infraspécifique) - Compare à
+plusieurs niveaux : - **Correspondance exacte** : Même espèce (idtax_n
+correspond) - **Même genre** : Espèce différente mais même genre -
+**Même famille** : Genre différent mais même famille - **Famille
+différente** : Mauvaise identification potentielle
+
+**Indicateurs visuels :** - ✓ Vert = Correspondance exacte (approbation
+automatique recommandée) - Jaune = Même genre (révision recommandée) -
+Orange = Même famille (révision requise) - Rouge = Famille différente (⚠
+erreur probable, vérification manuelle nécessaire)
+
+**Vos actions :** - Examinez le tableau de validation - Cliquez sur
+“Approuver toutes les correspondances exactes” pour les liens sûrs -
+Révisez et approuvez/rejetez manuellement les liens incertains - Filtrez
+par type de correspondance pour vous concentrer sur les cas
+problématiques
+
+### Étape 6 : Créer les liens
+
+Une fois que vous avez approuvé les liens, l’application les écrit dans
+la base de données.
+
+**Ce qui se passe :** - Écrit dans la table `link_individual_specimen`
+avec les colonnes : - `id_n` : ID de l’individu (clé étrangère vers
+`data_individuals`) - `id_specimen` : ID du spécimen (clé étrangère vers
+`specimens`) - `id_linktype` : ID du type de lien (ex :
+“referenced_individual”, “type_individual”) - `created_by` : Votre nom
+d’utilisateur (piste d’audit) - `created_at` : Horodatage (piste
+d’audit)
+
+**Validation :** - Vérifie que toutes les références de clés étrangères
+existent (validation par lots) - Empêche les liens en double - Assure
+l’intégrité des données
+
+**Résultat :** - Message de confirmation montrant le nombre de liens
+créés - Les liens sont maintenant permanents et interrogeables
+
+## Types de liens
+
+Le système supporte plusieurs types de liens pour capturer la nature de
+la relation :
+
+### `type_individual`
+
+Preuve directe : Le spécimen d’herbier a été physiquement collecté **sur
+cet arbre spécifique** pendant le recensement de parcelle. Cela fournit
+le lien de plus haute confiance entre l’individu mesuré et son
+identification taxonomique.
+
+### `referenced_individual`
+
+Preuve indirecte : Cet arbre a été identifié sur le terrain comme étant
+de la **même espèce** qu’un autre arbre sur lequel un spécimen a été
+collecté. L’arbre est lié à ce spécimen, mais le spécimen lui-même n’a
+pas été collecté sur cet individu. Cela étend la valeur taxonomique des
+spécimens collectés à des arbres supplémentaires, bien qu’avec une
+confiance moindre car cela repose sur la précision de l’identification
+de terrain.
+
+**Comment c’est déterminé :** - L’application vérifie si la colonne
+`herbarium_nbe_type` correspond à `herbarium_nbe_char` - Si oui →
+`type_individual` (spécimen collecté sur cet arbre) - Si non →
+`referenced_individual` (arbre identifié comme même espèce)
+
+## Interroger les spécimens liés
+
+Une fois les liens établis, vous pouvez les interroger :
+
+``` r
+
+library(CafriplotsR)
+
+# Se connecter aux deux bases en une seule étape
+mydb <- connect_cafri()$main
+
+# Obtenir tous les liens de spécimens pour une parcelle
+links <- query_all_specimen_links(plot_ids = 1, con = mydb)
+
+# Obtenir les individus avec leurs spécimens liés
+individuals <- query_plots(
+  id_plot = 1,
+  extract_individuals = TRUE,
+  con = mydb
+)
+
+# Vérifier quels individus ont des liens de spécimens
+linked_individuals <- individuals %>%
+  filter(!is.na(id_specimen))
+```
+
+## Avantages en pratique
+
+### Scénario 1 : Révision taxonomique
+
+**État initial :** - Individu \#12345 identifié comme *Guarea
+thompsonii* dans les notes de terrain - Spécimen DAU-1234 collecté sur
+cet individu - Lien créé entre l’individu et le spécimen
+
+**Des années plus tard :** - Un taxonomiste révise le spécimen DAU-1234
+→ *Guarea cedrata* - Mise à jour effectuée dans la base de données
+d’herbier
+
+**Résultat :** - La prochaine requête de l’individu \#12345 retourne
+automatiquement *Guarea cedrata* - Aucune mise à jour manuelle
+nécessaire dans la base de données d’inventaire - Enregistrement
+historique préservé : vous pouvez toujours voir l’ID de terrain
+originale
+
+### Scénario 2 : Métriques de qualité des données
+
+Avec les liens de spécimens, vous pouvez calculer :
+
+``` r
+
+# Proportion d'individus avec soutien de spécimen
+specimen_coverage <- sum(!is.na(individuals$id_specimen)) / nrow(individuals)
+
+# Précision taxonomique : combien d'IDs de terrain correspondent aux IDs de spécimens ?
+accuracy <- sum(individuals$field_idtax == individuals$specimen_idtax, na.rm = TRUE) /
+            sum(!is.na(individuals$id_specimen))
+```
+
+### Scénario 3 : Citation et traçabilité
+
+Lors de la publication, vous pouvez maintenant citer directement les
+spécimens d’herbier :
+
+> “Les identifications d’espèces ont été vérifiées par des spécimens
+> d’herbier (Dauby 123, 145, 167; déposés à LBV) collectés sur les mêmes
+> individus pendant le recensement de parcelle.”
+
+## Schéma de base de données
+
+Le système de liaison utilise ces tables clés :
+
+    data_individuals
+    ├─ id_n (PK)
+    ├─ herbarium_nbe_char (texte de référence du spécimen)
+    ├─ herbarium_nbe_type (référence pour spécimen collecté sur cet arbre)
+    └─ idtax_n (identification de terrain)
+
+    specimens
+    ├─ id_specimen (PK)
+    ├─ id_colnam (ID collecteur → table_colnam)
+    ├─ colnbr (numéro de spécimen)
+    └─ idtax_specimen (identification du spécimen)
+
+    link_individual_specimen
+    ├─ id_link (PK)
+    ├─ id_n (FK → data_individuals)
+    ├─ id_specimen (FK → specimens)
+    ├─ id_linktype (FK → linktypelist)
+    ├─ created_by (audit)
+    └─ created_at (audit)
+
+## Dépannage
+
+### “Aucun spécimen trouvé à récupérer”
+
+**Cause :** La colonne `herbarium_nbe_char` est vide ou non analysable.
+
+**Solution :** - Vérifiez que vos données ont des références de
+spécimens dans le bon format - Utilisez le format : “Nom du collecteur
+\####” (ex : “Dauby 123”)
+
+### “Échec de validation : IDs de spécimens manquants”
+
+**Cause :** Les spécimens n’existent pas encore dans la base de données
+d’herbier.
+
+**Solution :** - Assurez-vous que les spécimens sont d’abord saisis dans
+la table `specimens` - Vérifiez l’orthographe du nom du collecteur
+correspond à `table_colnam`
+
+### “Correspondance taxonomique : Famille différente”
+
+**Cause :** L’identification de terrain et l’identification du spécimen
+sont très différentes.
+
+**Solution :** - C’est souvent une vraie divergence qui mérite
+investigation - Vérifiez les notes de terrain et l’étiquette du
+spécimen - Consultez des taxonomistes avant de créer le lien
+
+## Bonnes pratiques
+
+1.  **Liez les spécimens dès qu’ils sont saisis** : N’attendez pas des
+    années pour établir les connexions.
+
+2.  **Examinez attentivement les divergences taxonomiques** : Des
+    familles différentes indiquent souvent :
+
+    - Mauvaise identification de terrain (courant)
+    - Mauvais spécimen lié (erreur de saisie)
+    - Spécimen mal étiqueté (rare)
+
+3.  **Documentez précisément les types de liens** : Distinguez entre
+    collection directe (`type_individual`) et références
+    d’identification de terrain (`referenced_individual`).
+
+4.  **Maintenez les pistes d’audit** : Ne supprimez jamais les liens;
+    ajoutez-en de nouveaux si des corrections sont nécessaires.
+
+5.  **Mises à jour régulières** : Interrogez périodiquement pour les
+    nouvelles identifications de spécimens afin de garantir que vos
+    données d’inventaire restent à jour.
+
+## Résumé
+
+Le système de liaison de spécimens transforme les données d’inventaire
+statiques en un **jeu de données vivant** qui s’améliore au fil du temps
+à mesure que les connaissances taxonomiques progressent. En créant des
+connexions formelles au niveau de la base de données entre les mesures
+écologiques et les témoins d’herbier, vous assurez que votre recherche
+bénéficie de la révision taxonomique continue—automatiquement,
+définitivement et de manière transparente.
+
+Ce n’est pas seulement de la gestion de données; c’est un changement de
+paradigme vers une **infrastructure de données écologiques cumulative et
+auto-améliorante**.

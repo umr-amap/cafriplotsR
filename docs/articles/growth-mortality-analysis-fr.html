@@ -12,8 +12,8 @@
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <meta property="og:title" content="Analyse de la Croissance et de la Mortalité">
@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,12 +35,16 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
-<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Tutorials</a></li>
+<li class="nav-item"><a class="nav-link" href="../reference/index.html">Functions</a></li>
+<li class="nav-item"><a class="nav-link" href="../articles/newsletter.html">Newsletter</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><a class="nav-link" href="../articles/readme-fr.html">FR</a></li>
+<li class="nav-item"><form class="form-inline" role="search">
+ <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
+</form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR" aria-label="GitHub"><span class="fa fa-github"></span></a></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR/issues" aria-label="Report an issue"><span class="fa fa-bug"></span></a></li>
       </ul>
@@ -92,8 +96,8 @@ entrée.</p>
 <h3 id="utilisation-de-base">Utilisation de Base<a class="anchor" aria-label="anchor" href="#utilisation-de-base"></a>
 </h3>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Se connecter à la base de données</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="co"># Se connecter aux deux bases en une seule étape</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">main</span></span>
 <span></span>
 <span><span class="co"># Calculer la croissance par nom de parcelle</span></span>
 <span><span class="va">growth</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compute_growth.html">compute_growth</a></span><span class="op">(</span>plot_names <span class="op">=</span> <span class="st">"mbalmayo001"</span>, con <span class="op">=</span> <span class="va">con</span><span class="op">)</span></span>
@@ -251,7 +255,7 @@ annuel</li>
 </h3>
 <p>Le taux de mortalité est calculé en utilisant le modèle exponentiel
 :</p>
-<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>=</mo><mfrac><mrow><mo>ln</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>N</mi><mn>0</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mo>ln</mo><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>N</mi><mi>s</mi></msub><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mi>t</mi></mfrac></mrow><annotation encoding="application/x-tex">\lambda = \frac{\ln(N_0) - \ln(N_s)}{t}</annotation></semantics></math></p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>λ</mi><mo>=</mo><mfrac><mrow><mrow><mi mathvariant="normal">ln</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>N</mi><mn>0</mn></msub><mo stretchy="false" form="postfix">)</mo><mo>−</mo><mrow><mi mathvariant="normal">ln</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>N</mi><mi>s</mi></msub><mo stretchy="false" form="postfix">)</mo></mrow><mi>t</mi></mfrac></mrow><annotation encoding="application/x-tex">\lambda = \frac{\ln(N_0) - \ln(N_s)}{t}</annotation></semantics></math></p>
 <p>Où : -
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>N</mi><mn>0</mn></msub><annotation encoding="application/x-tex">N_0</annotation></semantics></math>
 = nombre d’individus au départ -
@@ -260,7 +264,7 @@ annuel</li>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
 = intervalle de temps en années</p>
 <p>Le pourcentage de mortalité annuel est :
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mi>−</mi><mi>λ</mi></mrow></msup><mo stretchy="true" form="postfix">)</mo></mrow><mo>×</mo><mn>100</mn></mrow><annotation encoding="application/x-tex">(1 - e^{-\lambda}) \times 100</annotation></semantics></math></p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">(</mo><mn>1</mn><mo>−</mo><msup><mi>e</mi><mrow><mi>−</mi><mi>λ</mi></mrow></msup><mo stretchy="false" form="postfix">)</mo><mo>×</mo><mn>100</mn></mrow><annotation encoding="application/x-tex">(1 - e^{-\lambda}) \times 100</annotation></semantics></math></p>
 </div>
 <div class="section level3">
 <h3 id="examiner-les-arbres-morts">Examiner les Arbres Morts<a class="anchor" aria-label="anchor" href="#examiner-les-arbres-morts"></a>
@@ -312,7 +316,7 @@ annuel</li>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Se connecter</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">main</span></span>
 <span></span>
 <span><span class="co"># Définir les parcelles à analyser</span></span>
 <span><span class="va">my_plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"site_A_plot1"</span>, <span class="st">"site_A_plot2"</span>, <span class="st">"site_B_plot1"</span><span class="op">)</span></span>
@@ -407,7 +411,7 @@ evaluations in heterogeneous tropical forests. Journal of Ecology,
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer>

@@ -6,11 +6,15 @@
   border-bottom: 3px solid #97BC62;
 }
 
-.navbar-brand, .navbar-nav .nav-link {
+/* Scoped to .navbar on purpose: bootstrap-toc builds the "On this page" list
+   as <ul class="nav navbar-nav"> too, so an unscoped .navbar-nav rule paints
+   that sidebar white on white. */
+.navbar .navbar-brand,
+.navbar .navbar-nav .nav-link {
   color: #ffffff !important;
 }
 
-.navbar-nav .nav-link:hover {
+.navbar .navbar-nav .nav-link:hover {
   color: #97BC62 !important;
 }
 
@@ -75,45 +79,34 @@ pre {
   border-color: #1e4520;
 }
 
-/* Table of contents active link */
-.toc .nav-link.active {
-  color: #2C5F2D !important;
-  border-left: 3px solid #2C5F2D;
+/* "On this page" table of contents.
+   The TOC is built client-side by bootstrap-toc into <nav id="toc">, so it is
+   reached through the #toc id, not a .toc class. */
+
+/* pkgdown collapses the sub-sections of every heading except the one you are
+   currently scrolled to (#toc > .nav .nav { display: none !important }), which
+   makes most of the outline appear only in passing. Keep it all visible. */
+#toc > .nav .nav {
+  display: flex !important;
+  flex-direction: column;
 }
 
-/* Make "On this page" sidebar visible */
-.toc-sidebar {
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-.toc {
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-.toc-item {
-  opacity: 1 !important;
-  visibility: visible !important;
-}
-
-/* Article sidebar styling */
-.article-sidebar {
-  opacity: 1 !important;
-}
-
-.template-article .toc {
-  color: #555555;
+#toc > .nav {
   font-size: 0.95rem;
   line-height: 1.6;
 }
 
-.template-article .toc a {
-  color: #2C5F2D;
+#toc > .nav a.nav-link {
+  color: #555555;
   text-decoration: none;
 }
 
-.template-article .toc a:hover {
-  color: #97BC62;
-  text-decoration: underline;
+#toc > .nav a.nav-link:hover,
+#toc > .nav a.nav-link:focus {
+  color: #2C5F2D;
+}
+
+#toc > .nav a.nav-link.active {
+  color: #2C5F2D;
+  font-weight: 600;
 }

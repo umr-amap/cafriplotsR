@@ -215,6 +215,7 @@
 #'   precisions, `n_voucher`, `n_reference`, `herbarium_nbe_char`, `evidence`,
 #'   `category` and `decision` (`"keep_db"` or `"accept_file"`).
 #' @seealso [split_census_table()], which produces the drift this consumes.
+#' @keywords internal
 #' @export
 .classify_taxon_revisions <- function(drift,
                                       data = NULL,
@@ -333,6 +334,7 @@
 #'   to `decision == "accept_file"`, or `NULL`.
 #' @param con Database connection inside the open transaction.
 #' @return Number of individuals updated.
+#' @keywords internal
 #' @export
 .apply_taxon_revisions <- function(revisions, con) {
 

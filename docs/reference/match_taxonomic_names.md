@@ -1,0 +1,107 @@
+# Match taxonomic names to backbone with intelligent SQL-side strategy
+
+Match taxonomic names using a hierarchical strategy with SQL-side fuzzy
+matching: 1. Exact match on full name (SQL) 2. Genus-constrained fuzzy
+match (SQL SIMILARITY within matched genera) 3. Full fuzzy match (SQL
+SIMILARITY on full database - last resort) Results are scored and ranked
+by match quality.
+
+This approach minimizes data transfer and leverages PostgreSQL's
+optimized SIMILARITY function, making it much faster especially with
+slow connections.
+
+## Usage
+
+``` r
+match_taxonomic_names(
+  names,
+  method = c("auto", "exact", "genus_constrained", "fuzzy", "hierarchical"),
+  max_matches = 10,
+  min_similarity = 0.3,
+  include_synonyms = TRUE,
+  return_scores = TRUE,
+  include_authors = FALSE,
+  con = NULL,
+  backbone = NULL,
+  verbose = TRUE
+)
+```
+
+## Arguments
+
+- names:
+
+  Character vector of taxonomic names to match
+
+- method:
+
+  Matching method: "auto" (default), "exact", "genus_constrained",
+  "fuzzy"
+
+- max_matches:
+
+  Maximum number of suggestions per name (default: 10)
+
+- min_similarity:
+
+  Minimum similarity threshold (0-1, default: 0.3 for SQL SIMILARITY)
+
+- include_synonyms:
+
+  Include synonyms in results (default: TRUE)
+
+- return_scores:
+
+  Return similarity scores (default: TRUE)
+
+- include_authors:
+
+  Try matching with author names (default: FALSE)
+
+- con:
+
+  Database connection. If NULL and \`backbone\` is also NULL, the
+  function will try the cached backbone first and fall back to opening a
+  database connection via \`call.mydb.taxa()\`.
+
+- backbone:
+
+  Optional cached backbone tibble (as returned by
+  \`load_backbone_cache()\`). When supplied, all matching runs in R
+  against this in-memory backbone — no database round-trips, works fully
+  offline.
+
+- verbose:
+
+  Show progress messages (default: TRUE)
+
+## Value
+
+A tibble with columns: - input_name: Original name provided -
+match_rank: Rank of this match (1 = best) - matched_name: Matched name
+from backbone - idtax_n: Taxa ID - idtax_good_n: Accepted taxa ID (for
+synonyms) - match_method: How the match was found (exact,
+genus_constrained, fuzzy) - match_score: Similarity score (if
+return_scores = TRUE) - is_synonym: Whether matched name is a synonym -
+accepted_name: Accepted name (if synonym) - tax_gen: Matched genus -
+tax_esp: Matched species epithet - tax_fam: Matched family
+
+## Author
+
+Claude Code Assistant
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+# Match a single name
+match_taxonomic_names("Gilbertodendron dewevrei")  # Note typo
+
+# Match multiple names
+names <- c("Brachystegia laurentii", "Julbernardia seretii", "Unknown species")
+matches <- match_taxonomic_names(names, max_matches = 5)
+
+# Exact match only
+matches <- match_taxonomic_names(names, method = "exact")
+} # }
+```

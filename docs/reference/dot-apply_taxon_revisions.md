@@ -1,0 +1,41 @@
+# Apply accepted identification revisions
+
+Writes the revisions the user accepted, one \`UPDATE\` per stem plus one
+audit row each in \`followup_updates_individuals\`.
+
+## Usage
+
+``` r
+.apply_taxon_revisions(revisions, con)
+```
+
+## Arguments
+
+- revisions:
+
+  Frame from \[.classify_taxon_revisions()\], already filtered to
+  \`decision == "accept_file"\`, or \`NULL\`.
+
+- con:
+
+  Database connection inside the open transaction.
+
+## Value
+
+Number of individuals updated.
+
+## Details
+
+The audit row follows that table's snapshot convention — a copy of the
+individual's identifying fields — with \`modif_type = 'idtax_n'\`, the
+value already in use there. \`idtax_n\` holds the determination being
+replaced and \`idtax_n_new\` the one replacing it; both columns come
+from the \`followup_idtax\` migration (\`inst/migrations/\`). Without
+them the trail records that a determination moved but not where to,
+which is the state its existing 4,440 identification rows are in — so
+this refuses to run rather than adding to the pile.
+
+\`original_tax_name\` is deliberately untouched: it exists to preserve
+what was written in the field the first time.
+
+Runs inside the caller's open transaction — it does not begin one.

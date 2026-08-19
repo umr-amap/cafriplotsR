@@ -1,0 +1,499 @@
+# Gestion du Référentiel Taxonomique avec l'Application Interactive
+
+``` r
+
+library(CafriplotsR)
+```
+
+## Introduction
+
+La fonction
+[`launch_taxo_backbone_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxo_backbone_app.md)
+fournit une application Shiny interactive pour gérer la base de données
+du référentiel taxonomique des plantes d’Afrique centrale. Cette
+application vous permet de :
+
+- **Parcourir et rechercher** des entrées taxonomiques à tous les
+  niveaux (famille, genre, espèce, etc.)
+- **Visualiser la hiérarchie taxonomique**
+- **Ajouter de nouveaux taxons** soit manuellement, soit en récupérant
+  les informations depuis la base de données TROPICOS
+- **Modifier des taxons existants** avec mises à jour en cascade pour
+  maintenir la cohérence dans la hiérarchie
+- **Gérer la synonymie** incluant la définition, l’inversion et
+  l’annulation de relations synonymiques
+- **Voir les traits** au niveau du taxon
+
+## Prérequis
+
+**Important** : Cette application nécessite des **permissions
+d’écriture** sur la base de données taxonomique. Les utilisateurs
+réguliers ont généralement un accès en **lecture seule**. Contactez
+votre administrateur de base de données si vous avez besoin de gérer les
+données taxonomiques.
+
+Avant de lancer l’application, assurez-vous d’avoir :
+
+**Identifiants de base de données** avec les permissions appropriées
+
+## Démarrage Rapide
+
+Lancer l’application :
+
+``` r
+
+library(CafriplotsR)
+launch_taxo_backbone_app()
+```
+
+Vous serez invité à entrer vos identifiants de base de données. **Ne
+codez jamais les identifiants en dur dans le code** :
+
+``` r
+
+# CORRECT - Invites interactives
+launch_taxo_backbone_app()
+
+# NE JAMAIS FAIRE ÇA - Identifiants dans le code
+# launch_taxo_backbone_app(user = "john.doe", password = "MonM0tDePasse123")
+```
+
+## Fonctionnalités Principales
+
+### 1. Parcourir et Rechercher des Taxons
+
+L’interface de recherche supporte plusieurs modes :
+
+#### Recherche par Nom (tous niveaux taxonomiques)
+
+Rechercher des noms de famille, genre ou espèce :
+
+``` r
+
+# Exemples de recherches :
+# - "Fabaceae" → trouve la famille et tous les taxons de cette famille
+# - "Gilbertiodendron" → trouve le genre et toutes les espèces
+# - "Gilbertiodendron dewevrei" → trouve l'espèce
+```
+
+**Options de Recherche :** - **Correspondance exacte** : Correspondance
+stricte (insensible à la casse) - **Correspondance floue** (par défaut)
+: Correspondance basée sur la similarité pour les fautes de frappe -
+**Inclure les synonymes des taxons recherchés** : Afficher également les
+taxons qui sont des synonymes de votre terme de recherche - **Inclure
+les taxons enfants** : Afficher tous les descendants (ex : toutes les
+espèces d’un genre)
+
+**Filtre de Synonymie :** - **Tous les taxons** : Affiche les noms
+acceptés et les synonymes - **Noms acceptés seulement** : Filtre les
+synonymes (idtax_good_n IS NULL) - **Synonymes seulement** : Affiche
+uniquement les entrées synonymes
+
+#### Recherche Structurée
+
+Utilisez des champs séparés pour genre, espèce, famille, ordre pour des
+requêtes plus précises.
+
+#### Caractéristiques Clés :
+
+- Les résultats montrent le niveau taxonomique, le nom scientifique, le
+  statut de synonymie
+- Cliquez sur une ligne pour sélectionner et voir les détails
+- Le taxon sélectionné apparaît dans tous les autres onglets pour
+  édition/visualisation
+
+### 2. Vue Hiérarchique
+
+Visualisez l’arbre taxonomique complet de la classe jusqu’au taxon
+sélectionné.
+
+**Fonctionnalités :** - **Fil d’Ariane** : Montre la lignée (Classe →
+Ordre → Famille → Genre → Espèce) - **Visualisation arborescente** : Vue
+imbriquée avec niveaux codés par couleur - **Résumé des enfants** :
+Comptage des genres, espèces, taxons infraspécifiques sous le taxon
+sélectionné - **Affichage des ID** : Montre les ID de base de données
+pour référence
+
+**Cas d’Usage :** - Vérifier qu’une espèce est correctement placée dans
+son genre - Vérifier la lignée complète d’un taxon - Comprendre les
+relations parent-enfant
+
+### 3. Ajouter de Nouveaux Taxons
+
+Ajoutez de nouvelles entrées taxonomiques avec liaison automatique aux
+parents.
+
+**Workflow :** 1. Remplissez les informations taxonomiques (genre,
+espèce, famille, etc.) 2. Définissez le niveau taxonomique (famille,
+genre, espèce, infraspécifique) 3. L’application **automatiquement** : -
+Trouve le taxon parent approprié - Le crée s’il manque (ex : crée
+l’entrée genre lors de l’ajout d’une espèce) - Lie via id_parent -
+Valide la hiérarchie
+
+La nouvelle entrée peut être remplie à partir d’une correspondance dans
+TROPICOS. Si aucune correspondance n’est trouvée, la nouvelle entrée
+peut être remplie manuellement.
+
+**Ajout de Morpho-taxons :**
+
+Il est possible d’ajouter un morpho-taxon (nom taxonomique provisoire).
+Cela peut être nécessaire dans plusieurs situations :
+
+- Une espèce considérée comme nouvelle pour la science mais pas encore
+  formellement publiée
+- Un taxon dont l’identification correcte est en attente (ex : matériel
+  stérile sans fleurs ni fruits)
+- Un taxon restreint à une localité ou une parcelle spécifique en
+  attente de description formelle
+
+Nous recommandons de suivre des conventions de nommage cohérentes pour
+les morpho-taxons, car ceux-ci seront visibles par tous les utilisateurs
+:
+
+1.  **Nouvelle espèce en attente de description formelle** : Inclure le
+    nom de l’auteur (futur) si connu Exemple : *Strephonema sp.nov.
+    Lachenaud O.* (où “sp.nov.” est l’épithète spécifique)
+
+2.  **Morpho-taxon restreint à une localité** : Ajouter le nom de la
+    localité dans l’épithète spécifique Exemple : *Diospyros sp.nov. Sao
+    Tomé Nguema*
+
+**Exemple : Ajout d’une Nouvelle Espèce**
+
+``` r
+
+# Dans l'interface de l'application :
+# Genre : Gilbertiodendron
+# Épithète spécifique : newspecies
+# Famille : Fabaceae
+# Ordre : Fabales
+# Classe : Magnoliopsida
+# Niveau : species
+
+# L'application va :
+# 1. Trouver ou créer l'entrée genre "Gilbertiodendron"
+# 2. Lier la nouvelle espèce à ce genre via id_parent
+# 3. Remplir toutes les colonnes plates (tax_gen, tax_fam, tax_order, tax_famclass)
+```
+
+**Notes Importantes :** - Toujours fournir la taxonomie supérieure
+complète - Utiliser l’orthographe correcte et les autorités
+nomenclaturales - Vérifier les doublons avant d’ajouter (ceci est
+vérifié dans tous les cas)
+
+### 4. Modifier des Taxons
+
+Éditez des entrées taxonomiques existantes avec mises à jour en cascade
+automatiques.
+
+**Modifications Simples :** - Changer l’épithète spécifique, l’auteur,
+l’année de publication - Mettre à jour des champs non hiérarchiques
+
+**Changements de Champs Taxonomiques Supérieurs (avec Cascade) :**
+
+Lorsque vous modifiez un champ supérieur (ex : changer l’ordre de la
+famille de NA à “Fabales”), l’application :
+
+1.  **Détecte les descendants** via id_parent (tous les enfants,
+    petits-enfants, etc.)
+2.  **Affiche un modal d’avertissement** avec la liste des taxons
+    affectés
+3.  **Attend la confirmation**
+4.  **Exécute la mise à jour en cascade** :
+    - Met à jour le taxon parent
+    - Trouve ou crée l’entrée du taxon supérieur (ex : ordre “Fabales”)
+    - Met à jour id_parent pour pointer vers lui
+    - Met à jour les colonnes plates sur tous les descendants
+    - Maintient la cohérence
+
+**Exemple : Remplissage d’un Ordre Manquant**
+
+``` r
+
+# Scénario : La famille Asteraceae a tax_order = NA
+# Vous le changez en "Asterales"
+
+# L'application :
+# 1. Trouve tous les genres et espèces dans Asteraceae (via id_parent)
+# 2. Affiche le modal : "Cela affectera 3 843 taxons descendants"
+# 3. Sur confirmation :
+#    - Trouve ou crée l'entrée ordre "Asterales"
+#    - Définit id_parent d'Asteraceae sur Asterales
+#    - Met à jour tax_order = "Asterales" sur tous les 3 843 descendants
+#    - Tout fait dans une transaction (atomique, sûr)
+```
+
+**Gestion des Valeurs NA :** L’application gère en toute sécurité les
+valeurs NA dans tous les champs, prévenant les plantages.
+
+### 5. Définir la Synonymie
+
+Gérez les relations de synonymie entre taxons.
+
+**Trois Modes :**
+
+#### A. Définir une Nouvelle Synonymie
+
+Rendre le taxon sélectionné synonyme d’un autre :
+
+``` r
+
+# 1. Sélectionnez un taxon (ex : "Leguminosae")
+# 2. Cliquez sur "Définir une Nouvelle Synonymie"
+# 3. Entrez le nom accepté : "Fabaceae"
+# 4. L'application :
+#    - Trouve l'entrée Fabaceae
+#    - Définit idtax_good_n de Leguminosae sur idtax_n de Fabaceae
+#    - Affiche la liste des autres synonymes pointant vers le même nom accepté
+```
+
+#### B. Inverser la Synonymie
+
+Lorsque le taxon sélectionné est déjà un synonyme, l’échanger avec le
+nom accepté :
+
+``` r
+
+# Scénario : "Leguminosae" est un synonyme de "Fabaceae"
+# Vous voulez faire de "Leguminosae" le nom accepté
+
+# 1. Sélectionnez "Leguminosae"
+# 2. Cliquez sur "Inverser le Synonyme"
+# 3. L'application affiche :
+#    - Nom accepté actuel : "Fabaceae"
+#    - Autres synonymes qui seront redirigés
+# 4. Sur confirmation :
+#    - "Leguminosae" devient accepté (idtax_good_n = NULL)
+#    - "Fabaceae" devient synonyme pointant vers "Leguminosae"
+#    - Tous les autres synonymes redirigent aussi vers "Leguminosae"
+```
+
+#### C. Annuler la Synonymie
+
+Retirer le statut de synonyme, rendant le taxon indépendant :
+
+``` r
+
+# 1. Sélectionnez un taxon synonyme
+# 2. Cliquez sur "Annuler la Synonymie"
+# 3. Définit idtax_good_n = NULL (devient accepté/indépendant)
+```
+
+**Important :** - Empêche les chaînes de synonymes (A → B → C) - Tous
+les synonymes doivent pointer directement vers un nom accepté - Utilise
+SQL direct pour des opérations atomiques
+
+### 6. Vérification de Cohérence
+
+Validez que les colonnes plates correspondent à la hiérarchie id_parent.
+
+**Ce qui est Vérifié :**
+
+1.  **Espèce → Genre** : tax_gen correspond à l’entrée genre parent
+2.  **Genre → Famille** : tax_fam correspond à l’entrée famille parent
+3.  **Famille → Ordre** : tax_order correspond à l’entrée ordre parent
+4.  **Ordre → Classe** : tax_famclass correspond à l’entrée classe
+    parent
+5.  **Parents Manquants** : Taxons avec champs supérieurs remplis mais
+    sans lien id_parent
+
+**Exécuter la Vérification :**
+
+``` r
+
+# Depuis la console R :
+con <- connect_cafri()$taxa
+issues <- check_hierarchy_consistency(con)
+
+# Corriger les problèmes automatiquement :
+check_hierarchy_consistency(con, fix = TRUE)
+```
+
+**Dans l’Application :** - Voir les incohérences par type - Voir les
+taxons affectés avec détails - Corriger automatiquement ou manuellement
+
+**Exemples de Problèmes :** - Famille “Asteraceae” a tax_order =
+“Asterales” mais id_parent = NULL - Espèce “Coffea arabica” a tax_gen =
+“Coffea” mais le parent est une entrée famille
+
+### 7. Gestion des Traits
+
+Visualisez et ajoutez des traits au niveau espèce aux taxons.
+
+**Fonctionnalités :** - Voir les traits existants pour le taxon
+sélectionné - Ajouter de nouvelles mesures de traits - Lier aux
+définitions de traits - Valider les valeurs de traits
+
+## Utilisation Avancée
+
+### Travailler avec des Doublons
+
+Si vous avez des entrées dupliquées (ex : plusieurs entrées “Fabaceae”)
+:
+
+**Meilleure Pratique :** 1. Identifiez l’entrée **correcte/principale**
+2. Rendez les doublons **synonymes** de la principale 3. Utilisez le
+filtre “Noms acceptés seulement” pour travailler avec la principale
+
+**Pourquoi Ne Pas Supprimer ?** - Maintient la provenance des données -
+Préserve les liens historiques - Peut être inversé si nécessaire
+
+### Opérations par Lots via Console R
+
+Pour les mises à jour en masse, utilisez les fonctions R :
+
+``` r
+
+# Vérifier la cohérence pour tous les taxons
+con <- connect_cafri()$taxa
+issues <- check_hierarchy_consistency(con, limit = 1000)
+
+# Corriger tous les parents manquants
+check_hierarchy_consistency(con, fix = TRUE)
+
+# Mettre à jour plusieurs taxons programmatiquement
+# (Soyez très prudent - testez d'abord sur un sous-ensemble !)
+```
+
+## Le Système Taxonomique Hybride
+
+CafriplotsR utilise une approche **HYBRIDE** pour stocker les données
+taxonomiques :
+
+### Colonnes Plates (Dénormalisées)
+
+- `tax_gen` - Nom du genre
+- `tax_fam` - Nom de la famille
+- `tax_order` - Nom de l’ordre
+- `tax_famclass` - Nom de la classe
+
+Utilisées pour des **requêtes rapides** et la **compatibilité
+ascendante**.
+
+### Structure Hiérarchique
+
+- `id_parent` - Pointe vers l’entrée du taxon parent
+- Permet la **navigation arborescente** et la **validation de
+  hiérarchie**
+
+### Pourquoi Les Deux ?
+
+- **Requêtes rapides** : Filtrer par famille sans jointures de tables
+- **Validation de cohérence** : Vérifier que les relations espèce →
+  genre → famille → ordre sont correctes
+- **Mises à jour flexibles** : Propager les changements lors de
+  modifications de taxons supérieurs
+
+**L’application maintient automatiquement la synchronisation entre les
+deux systèmes.**
+
+## Bonnes Pratiques
+
+### 1. Toujours Vérifier Avant de Modifier
+
+- Recherchez d’abord le taxon
+- Vérifiez que c’est la bonne entrée
+- Vérifiez les synonymes ou doublons
+
+### 2. Comprendre les Impacts en Cascade
+
+- Modifier une famille affecte TOUS les genres et espèces qu’elle
+  contient
+- Examinez attentivement le modal d’avertissement
+- Commencez par de petits changements pour comprendre le comportement
+
+### 3. Maintenir les Standards Nomenclaturaux
+
+- Utilisez le latin botanique correct
+- Suivez les règles ICBN/ICN
+- Incluez les citations d’auteurs quand disponibles
+- Documentez les sources dans les notes
+
+### 4. Vérifications de Cohérence Régulières
+
+- Exécutez hebdomadairement ou après les mises à jour majeures
+- Corrigez rapidement les problèmes
+- Documentez les problèmes récurrents
+
+### 5. Sauvegarde Avant Changements Majeurs
+
+- Contactez l’administrateur de base de données
+- Demandez une sauvegarde avant les mises à jour en masse
+- Testez d’abord sur une base de données de développement
+
+## Dépannage
+
+### L’Application Ne Se Lance Pas
+
+``` r
+
+# Vérifiez la connexion à la base de données
+con <- connect_cafri()$taxa
+print_connection_status()
+
+# Vérifiez les permissions
+db_diagnostic()
+```
+
+### Erreurs “Permission Refusée”
+
+- Vous avez besoin d’un accès en écriture à la base de données
+  taxonomique
+- Contactez l’administrateur de base de données
+- La plupart des utilisateurs ont un accès en lecture seule
+
+### “SSL SYSCALL error: EOF detected”
+
+- Nettoyez les connexions avant de fermer l’application
+- L’application le fait automatiquement via le nettoyage de session
+
+### La Vue Hiérarchique Affiche “Impossible de charger la hiérarchie”
+
+- Le taxon peut ne pas avoir id_parent défini
+- Exécutez la vérification de cohérence pour remplir les parents
+  manquants
+- Contactez l’administrateur si le problème persiste
+
+### La Mise à Jour en Cascade Échoue
+
+- Vérifiez le journal des transactions pour les erreurs
+- Vérifiez que tous les descendants ont des données valides
+- Assurez-vous qu’il n’y a pas de références circulaires
+
+## Nettoyage de Session
+
+L’application nettoie automatiquement les connexions à la base de
+données à la fermeture. Si vous devez nettoyer manuellement :
+
+``` r
+
+# Nettoyer toutes les connexions
+cleanup_connections()
+```
+
+## Obtenir de l’Aide
+
+Pour les problèmes ou questions :
+
+1.  Consultez cette vignette et CLAUDE.md
+2.  Exécutez les diagnostics :
+    [`db_diagnostic()`](https://umr-amap.github.io/cafriplotsR/reference/db_diagnostic.md)
+3.  Contactez l’administrateur de base de données
+4.  Signalez un problème :
+    <https://github.com/anthropics/claude-code/issues>
+
+## Vignettes Associées
+
+- **Guide des Connexions à la Base de Données** : Gestion des connexions
+  et identifiants
+- **Utilisation de l’Application de Standardisation des Noms
+  Taxonomiques** : Faire correspondre des noms externes au référentiel
+- **Mise à Jour des Données** : Workflows généraux de modification de
+  données
+
+------------------------------------------------------------------------
+
+**Note** : Cette application modifie le référentiel taxonomique. Les
+changements affectent tous les utilisateurs et toutes les données liées
+à ces taxons. Vérifiez toujours soigneusement les changements avant de
+confirmer.

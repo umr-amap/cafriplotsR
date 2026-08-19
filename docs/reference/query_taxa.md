@@ -1,0 +1,122 @@
+# List, extract taxa
+
+Query taxa from the taxonomic backbone database using hierarchical
+matching. For species queries, if exact matching fails, the function
+automatically falls back to intelligent fuzzy matching. For higher
+taxonomic ranks (family, genus, order), exact matching is used by
+default.
+
+## Usage
+
+``` r
+query_taxa(
+  class = NULL,
+  family = NULL,
+  genus = NULL,
+  order = NULL,
+  species = NULL,
+  only_genus = FALSE,
+  only_family = FALSE,
+  only_class = FALSE,
+  ids = NULL,
+  verbose = TRUE,
+  exact_match = TRUE,
+  check_synonymy = TRUE,
+  extract_traits = TRUE,
+  include_children = FALSE,
+  min_similarity = 0.3,
+  backbone = c("internal", "wcvp")
+)
+```
+
+## Arguments
+
+- class:
+
+  character string of class
+
+- family:
+
+  string or character vector of family names
+
+- genus:
+
+  string or character vector of genus names
+
+- order:
+
+  string or character vector of order names
+
+- species:
+
+  string or character vector of full species names (genus + species)
+
+- only_genus:
+
+  logical whether to return only genus-level taxa
+
+- only_family:
+
+  logical whether to return only family-level taxa
+
+- only_class:
+
+  logical whether to return only class-level taxa
+
+- ids:
+
+  integer vector of idtax_n to retrieve directly
+
+- verbose:
+
+  logical whether to show progress messages
+
+- exact_match:
+
+  logical if TRUE (default), only exact matches returned. If FALSE, uses
+  intelligent fuzzy matching. Note: fuzzy matching is generally only
+  useful for species names; for family/genus/order queries, exact
+  matching is recommended.
+
+- check_synonymy:
+
+  logical whether to resolve synonyms and include them
+
+- extract_traits:
+
+  logical whether to add trait information
+
+- include_children:
+
+  logical if TRUE, recursively include all descendant taxa (e.g. species
+  within a genus, infraspecific taxa within a species) via the
+  \`id_parent\` foreign key. Default FALSE.
+
+- min_similarity:
+
+  numeric (0-1) minimum similarity score for fuzzy matching (default:
+  0.3)
+
+- backbone:
+
+  character. Which taxonomic backbone to use: `"internal"` (default)
+  uses the internal `table_taxa`; `"wcvp"` enriches results with WCVP
+  names via the link table, adding `wcvp_*` columns and `name_source`.
+
+- tax_nam01:
+
+  string (currently not used in matching)
+
+- tax_nam02:
+
+  string (currently not used in matching)
+
+## Value
+
+A tibble of all taxa
+
+A tibble of taxa with taxonomic hierarchy and optionally traits
+
+## Author
+
+Gilles Dauby, <gilles.dauby@ird.fr>

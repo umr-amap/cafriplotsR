@@ -1,0 +1,748 @@
+# Importer des Données de Parcelles dans la Base de Données
+
+## Aperçu
+
+Cette vignette montre comment importer de nouvelles données de parcelles
+dans la base de données. Le package propose **deux approches** :
+
+1.  **✨ Application Shiny Interactive (Recommandée)** - Interface
+    conviviale avec aperçu visuel et validation guidée
+2.  **💻 Flux de Travail Programmatique (Avancé)** - Code R pour
+    l’automatisation et les workflows personnalisés
+
+Nous **recommandons fortement l’utilisation de l’application Shiny**
+pour la plupart des utilisateurs, en particulier lorsque : - Vous
+importez des données pour la première fois - Vous travaillez avec de
+nouveaux formats de données - Vous souhaitez une confirmation visuelle
+avant l’import - Vous préférez un processus guidé étape par étape
+
+Le flux de travail programmatique est destiné aux utilisateurs avancés
+qui ont besoin d’automatisation ou d’intégration personnalisée.
+
+## Prérequis
+
+Avant d’importer des données, assurez-vous d’avoir :
+
+1.  **Des identifiants de base de données** configurés avec des
+    permissions d’écriture
+2.  **Des noms taxonomiques standardisés** en utilisant
+    [`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md)
+    (voir la vignette taxonomic-app)
+3.  **Les coordonnées et métadonnées de parcelles** au format Excel ou
+    CSV
+4.  **Les données d’arbres individuels** (si vous importez des mesures
+    d’arbres)
+
+``` r
+
+library(CafriplotsR)
+
+# Se connecter à la base de données (pour vérification)
+con <- connect_cafri()$main
+```
+
+------------------------------------------------------------------------
+
+## Importer avec l’Application Shiny (Recommandé)
+
+L’**Assistant d’Import** fournit une interface visuelle complète pour
+importer les métadonnées de parcelles avec validation intégrée, aperçu
+et gestion des erreurs.
+
+### Lancer l’Assistant d’Import
+
+``` r
+
+# Lancer l'Assistant d'Import
+launch_import_wizard()
+
+# Ou spécifier la langue
+launch_import_wizard(language = "fr")  # Interface française
+```
+
+### Guide Étape par Étape
+
+L’Assistant d’Import vous guide à travers 7 étapes :
+
+#### **Étape 1 : Choisir le Type d’Import**
+
+Sélectionnez ce que vous voulez importer : - **Métadonnées de
+Parcelles** - Localisations, dates de recensement, investigateurs -
+**Arbres Individuels** - Mesures et traits d’arbres (à venir)
+
+#### **Étape 2 : Télécharger les Données**
+
+- **Téléchargez votre fichier** (Excel `.xlsx` ou CSV)
+- **Ou téléchargez un modèle** si vous partez de zéro
+- Prévisualisez vos données pour vérifier qu’elles sont bien chargées
+
+**Formats supportés :** - Fichiers Excel (`.xlsx`, `.xls`) - Fichiers
+CSV (délimiteur `,` ou `;`) - Plusieurs feuilles (vous pouvez
+sélectionner quelle feuille importer)
+
+#### **Étape 3 : Mapper les Colonnes**
+
+L’assistant mappe automatiquement vos noms de colonnes au schéma de la
+base de données.
+
+**Colonnes Obligatoires vs Optionnelles :**
+
+En haut de cette étape, vous verrez clairement quelles colonnes sont
+**obligatoires** vs **recommandées** :
+
+- **📌 Colonnes Obligatoires (Mandatory)** - Surlignées en jaune/or
+  - Pour les **Métadonnées de Parcelles** : `plot_name`, `method`,
+    `country`
+  - Pour les **Arbres Individuels** : `plot_name`, `idtax_n`,
+    `original_tax_name`
+  - Vous **ne pouvez pas continuer** tant que toutes les colonnes
+    obligatoires ne sont pas mappées
+- **💡 Colonnes Recommandées (Optionnel)** - Surlignées en bleu
+  - Pour les parcelles : `ddlat`, `ddlon`, `date_y`, `locality_name`,
+    etc.
+  - Ces colonnes améliorent la qualité des données mais ne sont pas
+    obligatoires
+  - Vous pouvez les ignorer si vous n’avez pas ces données
+
+**Mappage Automatique :**
+
+- **✅ Correspondances exactes** - Surlignées en vert
+- **🔍 Correspondances floues** - Suggérées avec scores de confiance
+- **❓ Colonnes non mappées** - Vous pouvez sélectionner manuellement ou
+  ignorer
+
+**Fonctionnalités intelligentes :** - Reconnaît les synonymes (ex : `PI`
+→ `principal_investigator`, `dbh` → `stem_diameter`) - Fournit des
+descriptions de colonnes au survol - Permet d’ignorer les colonnes non
+désirées - Affiche des exemples de valeurs de vos données pour le
+contexte - Mémorise vos choix lors de la navigation arrière
+
+**Validation :** - L’assistant valide que toutes les colonnes
+obligatoires sont mappées - Affiche des messages d’erreur clairs si des
+colonnes obligatoires manquent - Empêche de passer à l’étape suivante
+tant que la validation n’a pas réussi
+
+#### **Étape 4 : Faire Correspondre les Valeurs de Référence**
+
+Pour les colonnes qui référencent des tables de référence (méthode,
+pays, personnes), l’assistant :
+
+- Affiche les correspondances exactes en vert
+- Surligne les valeurs nécessitant une correspondance
+- Fournit une correspondance floue interactive avec scores de similarité
+- Permet de rechercher et sélectionner les valeurs correctes
+
+**Exemple :**
+
+    Votre valeur : "Cameroun"
+    Suggestions :
+      ✓ CAMEROON (95% de similarité)
+      • CAMEROUN (exact mais pas dans la base)
+      • Gabon (20% de similarité)
+
+#### **Étape 5 : Valider les Données**
+
+Vérifications complètes de validation :
+
+✅ **Champs requis** - plot_name, method, country ✅ **Types de
+données** - Les colonnes numériques contiennent des nombres ✅ **Plages
+de valeurs** - Coordonnées dans des plages valides ✅ **Valeurs de
+référence** - Toutes les références existent dans la base ✅
+**Contraintes d’unicité** - Pas de noms de parcelles en double ✅
+**Détection de doublons** - Avertit des ré-imports potentiels
+
+**Détection des Coordonnées UTM :** Si vos coordonnées sont au format
+UTM (valeurs \> 1000), l’assistant : - Les détecte automatiquement -
+Affiche un message d’erreur spécifique - Fournit un outil de conversion
+dans l’étape d’aperçu
+
+#### **Étape 6 : Prévisualiser les Données**
+
+Aperçu visuel de vos données **avant** l’import :
+
+- **Table de données** avec noms de référence enrichis (pas d’IDs)
+- **Carte interactive** montrant les localisations des parcelles
+  - Zoom automatique sur vos parcelles
+  - Regroupement de marqueurs pour beaucoup de parcelles
+  - Cliquez sur les marqueurs pour les détails
+  - Avertissements pour coordonnées invalides/inhabituelles
+- **Outil de conversion UTM** (si coordonnées UTM détectées)
+  - Entrée : zone UTM et hémisphère
+  - Sortie : Coordonnées WGS84 converties
+  - Met à jour la carte en temps réel
+- **Options de téléchargement** - Excel ou CSV avec données enrichies
+
+**Fonctionnalités de la Carte :** - 🗺️ Vérifier visuellement les
+localisations des parcelles - ⚠️ Détecter latitude/longitude inversées -
+📍 Vérifier les problèmes de système de coordonnées - 💡 Conseils utiles
+si les parcelles ne sont pas où prévu
+
+#### **Étape 7 : Exécuter l’Import**
+
+Dernière étape pour importer dans la base de données :
+
+- Mode **Essai à blanc** pour tester sans modifications
+- **Suivi en direct** de la progression pendant l’import
+- **Sécurité transactionnelle** - Import tout-ou-rien
+- **Code d’accès administrateur** généré pour la sécurité au niveau des
+  lignes
+- **Télécharger les résultats** comme script R ou CSV
+
+**Après l’Import :** L’assistant fournit un **code d’accès
+administrateur** qui vous donne la permission d’accéder à vos parcelles
+nouvellement importées. Envoyez ce code à votre administrateur de base
+de données.
+
+### Exemple de Session Complète
+
+``` r
+
+# 1. Lancer l'assistant
+launch_import_wizard()
+
+# 2. Suivre le processus guidé en 7 étapes :
+#    - Choisir "Métadonnées de Parcelles"
+#    - Télécharger votre fichier Excel
+#    - Réviser le mapping automatique des colonnes
+#    - Faire correspondre les valeurs de référence de manière interactive
+#    - Valider les données (corriger les erreurs)
+#    - Prévisualiser les données et la carte
+#    - Exécuter l'import (essayez d'abord l'essai à blanc !)
+
+# 3. Copier le code d'accès admin et l'envoyer à l'admin
+
+# 4. Après que l'admin accorde l'accès, vérifier :
+con <- connect_cafri()$main
+mes_parcelles <- query_plots(
+  plot_name = c("Parcelle-A", "Parcelle-B"),
+  exact_match = TRUE,
+  con = con
+)
+```
+
+### Fonctionnalités de l’Assistant d’Import
+
+**Validation et Prévention des Erreurs :** - ✅ Détection de parcelles
+en double (méthode + pays + coordonnées) - ✅ Détection et conversion
+des coordonnées UTM - ✅ Aperçu de carte interactive - ✅ Correspondance
+de valeurs de référence avec recherche floue - ✅ Retour de validation
+en temps réel - ✅ Détection de lat/lon inversées
+
+**Conception Conviviale :** - 📊 Aperçu visuel des données - 🗺️ Cartes
+interactives - 🔍 Mapping intelligent des colonnes - ⚡ Retour
+instantané - 💾 Options de téléchargement à chaque étape - 🌍 Bilingue
+(Anglais/Français)
+
+**Fonctionnalités de Sécurité :** - 🔒 Mode essai à blanc - ↩︎️ Annulation
+de transaction en cas d’erreur - ✅ Validation étape par étape - 📋
+Messages d’erreur complets
+
+------------------------------------------------------------------------
+
+## Quand Utiliser le Flux de Travail Programmatique
+
+Le flux de travail programmatique est conçu pour les **utilisateurs
+avancés** qui ont besoin de :
+
+- **Automatisation** - Traitement par lots de plusieurs fichiers
+- **Validation personnalisée** - Logique métier supplémentaire
+- **Intégration** - Partie d’un pipeline de données plus large
+- **Script** - Flux de travail d’import reproductibles
+- **Performance** - Import de très grands ensembles de données de
+  manière efficace
+
+**Pour la plupart des utilisateurs, l’application Shiny est
+recommandée** car elle fournit : - De meilleurs messages d’erreur -
+Confirmation visuelle - Résolution interactive de problèmes - Pas de
+codage requis
+
+------------------------------------------------------------------------
+
+## Import Programmatique (Utilisateurs Avancés)
+
+**Cliquer pour développer la documentation du flux programmatique**
+
+Cette section fournit le flux de travail complet en code R pour importer
+des données de manière programmatique.
+
+### Étape 1 : Importer les Métadonnées de Parcelles
+
+#### 1.1 Préparer les Données de Parcelles
+
+Les données de parcelles doivent inclure les métadonnées essentielles :
+
+``` r
+
+# Exemple : Préparer les métadonnées de parcelles
+plot_metadata <- data.frame(
+  plot_name = c("Parcelle-A", "Parcelle-B", "Parcelle-C"),
+  country = c("Gabon", "Gabon", "Cameroon"),
+  locality_name = c("Lopé NP", "Lopé NP", "Réserve du Dja"),
+  ddlat = c(-0.5, -0.52, 3.2),
+  ddlon = c(11.5, 11.48, 13.5),
+  plot_area = c(1, 1, 0.5),  # hectares
+  date_census_1 = as.Date(c("2020-01-15", "2020-02-10", "2019-11-20")),
+  team_leader_1 = c("Jean Dupont", "Marie Martin", "Pierre Wilson"),
+  principal_investigator_1 = c("Dr. Martin", "Dr. Martin", "Dr. Jones"),
+  method = c("1ha-IRD", "1ha-IRD", "0.5ha-custom"),
+  subplot_shape = c("square", "square", "rectangle"),
+  stringsAsFactors = FALSE
+)
+```
+
+#### 1.2 Générer un Modèle d’Import (Optionnel)
+
+``` r
+
+# Générer un modèle avec des exemples
+template <- get_plot_metadata_template(
+  template_type = "permanent_plot",
+  with_examples = TRUE
+)
+
+# Exporter vers Excel
+export_plot_template(
+  file_path = "mon_modele_parcelles.xlsx",
+  template_type = "permanent_plot",
+  with_examples = TRUE
+)
+
+# Voir les colonnes disponibles
+print_template_info("permanent_plot")
+```
+
+#### 1.3 Mapper les Colonnes de Vos Données
+
+``` r
+
+# Charger vos données
+mes_donnees_parcelles <- readxl::read_excel("mes_parcelles.xlsx")
+
+# Obtenir la configuration d'import
+config <- get_import_column_routing(import_type = "plots")
+
+# Mapper les colonnes automatiquement
+resultat_mapping <- map_user_columns(
+  data = mes_donnees_parcelles,
+  config = config,
+  similarity_threshold = 0.6,
+  interactive = TRUE
+)
+
+# Réviser les mappings
+print_mapping_summary(resultat_mapping)
+```
+
+#### 1.4 Valider les Données
+
+``` r
+
+# Valider les métadonnées de parcelles
+validation <- validate_plot_metadata(
+  data = mes_donnees_parcelles,
+  column_mappings = resultat_mapping$mappings,
+  config = config,
+  interactive = TRUE,
+  fix_on_fly = TRUE
+)
+
+# Voir les résultats
+print_validation_results(validation)
+
+# Vérifier la validité
+if (!validation$valid) {
+  View(validation$errors)
+  stop("Corriger les erreurs de validation avant l'import")
+}
+```
+
+#### 1.5 Essai à Blanc (Aperçu)
+
+``` r
+
+# Aperçu sans engagement
+apercu <- import_plot_metadata(
+  data = mes_donnees_parcelles,
+  column_mappings = resultat_mapping$mappings,
+  validation = validation,
+  config = config,
+  dry_run = TRUE,
+  con = con
+)
+
+print_import_result(apercu)
+```
+
+#### 1.6 Import Réel
+
+``` r
+
+# Importer dans la base de données
+resultat <- import_plot_metadata(
+  data = mes_donnees_parcelles,
+  column_mappings = resultat_mapping$mappings,
+  validation = validation,
+  config = config,
+  dry_run = FALSE,
+  interactive = TRUE,
+  con = con
+)
+
+if (resultat$success) {
+  cat("✅ Import réussi de", resultat$n_plots, "parcelles !\n")
+
+  # Sauvegarder le code d'accès admin
+  writeLines(resultat$admin_code, "demande_acces_admin.R")
+}
+```
+
+#### 1.7 Accès Sécurité au Niveau des Lignes
+
+Envoyer le code admin généré à votre administrateur de base de données :
+
+``` r
+
+# L'admin exécute ce code pour accorder l'accès
+library(CafriplotsR)
+con <- connect_cafri()$main
+
+plot_ids <- DBI::dbGetQuery(con,
+  "SELECT id_liste_plots FROM data_liste_plots
+   WHERE plot_name IN ('Parcelle-A', 'Parcelle-B', 'Parcelle-C')")$id_liste_plots
+
+define_user_policy(
+  con = con,
+  user = "votre_nom_utilisateur",
+  ids = plot_ids,
+  table = "data_liste_plots",
+  operations = c("SELECT", "UPDATE"),
+  drop_existing = TRUE
+)
+```
+
+#### 1.8 Vérifier l’Import
+
+``` r
+
+# Après que l'admin accorde l'accès
+parcelles_importees <- query_plots(
+  plot_name = c("Parcelle-A", "Parcelle-B", "Parcelle-C"),
+  exact_match = TRUE,
+  show_multiple_census = TRUE,
+  con = con
+)
+
+print(parcelles_importees$metadata)
+```
+
+------------------------------------------------------------------------
+
+### Étape 2 : Importer les Données d’Arbres Individuels
+
+Une fois les parcelles créées, importer les mesures d’arbres
+individuels.
+
+#### 2.1 Structure des Données
+
+**Option A : Table Plate**
+
+    plot_name | tag | idtax | dbh  | height
+    ----------|-----|-------|------|-------
+    Parcelle-A| 1   | 123   | 35.2 | 18.5
+    Parcelle-A| 2   | 456   | 42.1 | 22.0
+
+**Option B : Deux Tables** - **Individus** : plot_name, tag, idtax,
+species - **Caractéristiques** : plot_name, tag, dbh, height,
+wood_density
+
+#### 2.2 Générer un Modèle
+
+``` r
+
+# Générer le modèle
+get_individual_template(output_file = "modele_arbres.xlsx")
+
+# Voir les infos du modèle
+print_individual_template_info()
+```
+
+#### 2.3 Charger et Mapper les Données
+
+``` r
+
+# Charger les données
+mes_donnees <- readxl::read_excel("mes_arbres.xlsx")
+
+# Mapper les colonnes de manière interactive
+donnees_mappees <- map_individual_columns(
+  data = mes_donnees,
+  interactive = TRUE,
+  con = con
+)
+```
+
+#### 2.4 Valider
+
+``` r
+
+# Valider
+validation <- validate_individual_data(
+  individuals_data = donnees_mappees$individuals,
+  features_data = donnees_mappees$features,
+  method = "1ha-IRD",
+  con = con
+)
+
+# Vérifier les résultats
+print_individual_validation_results(validation)
+
+if (!validation$valid) {
+  stop("Corriger les erreurs de validation d'abord !")
+}
+```
+
+#### 2.5 Importer
+
+``` r
+
+# Essai à blanc
+apercu <- import_individual_data(
+  individuals_data = validation$cleaned_data$individuals,
+  features_data = validation$cleaned_data$features,
+  validation = validation,
+  dry_run = TRUE,
+  con = con
+)
+
+# Import réel
+resultat <- import_individual_data(
+  individuals_data = validation$cleaned_data$individuals,
+  features_data = validation$cleaned_data$features,
+  validation = validation,
+  dry_run = FALSE,
+  con = con
+)
+
+if (resultat$success) {
+  cat("✓ Importé", resultat$n_individuals, "individus\n")
+}
+```
+
+#### 2.6 Vérifier
+
+``` r
+
+# Interroger les données importées
+verification <- query_plots(
+  plot_name = resultat$plot_names,
+  exact_match = TRUE,
+  extract_individuals = TRUE,
+  con = con
+)
+
+head(verification$individuals)
+```
+
+------------------------------------------------------------------------
+
+### Exemple Programmatique Complet
+
+``` r
+
+library(CafriplotsR)
+
+# 1. Se connecter
+con <- connect_cafri()$main
+
+# 2. Charger les données
+donnees_brutes <- readxl::read_excel("mes_donnees_terrain.xlsx")
+
+# 3. Vérifier que les parcelles existent
+parcelles_existantes <- query_plots(
+  plot_name = unique(donnees_brutes$NomParcelle),
+  exact_match = TRUE,
+  con = con
+)
+
+if (nrow(parcelles_existantes) == 0) {
+  stop("Importer d'abord les métadonnées de parcelles !")
+}
+
+# 4. Mapper les colonnes
+donnees_mappees <- map_individual_columns(
+  data = donnees_brutes,
+  interactive = TRUE,
+  con = con
+)
+
+# 5. Valider
+validation <- validate_individual_data(
+  individuals_data = donnees_mappees$individuals,
+  features_data = donnees_mappees$features,
+  method = "1ha-IRD",
+  con = con
+)
+
+if (!validation$valid) {
+  print_individual_validation_results(validation)
+  stop("Corriger les erreurs d'abord !")
+}
+
+# 6. Essai à blanc
+apercu <- import_individual_data(
+  individuals_data = validation$cleaned_data$individuals,
+  features_data = validation$cleaned_data$features,
+  validation = validation,
+  dry_run = TRUE,
+  con = con
+)
+
+# 7. Importer
+resultat <- import_individual_data(
+  individuals_data = validation$cleaned_data$individuals,
+  features_data = validation$cleaned_data$features,
+  validation = validation,
+  dry_run = FALSE,
+  con = con
+)
+
+# 8. Vérifier
+if (resultat$success) {
+  verification <- query_plots(
+    plot_name = resultat$plot_names,
+    exact_match = TRUE,
+    extract_individuals = TRUE,
+    con = con
+  )
+
+  cat("✓ Vérifié :", nrow(verification$individuals), "individus\n")
+}
+
+# 9. Nettoyage
+DBI::dbDisconnect(con)
+```
+
+------------------------------------------------------------------------
+
+### Problèmes Courants et Solutions
+
+**Problème : “Parcelle non trouvée dans la base de données”**
+
+``` r
+
+# Solution : Importer d'abord les métadonnées de parcelles
+query_plots(plot_name = "Parcelle-A", exact_match = TRUE, con = con)
+```
+
+**Problème : “ID taxonomique invalide”**
+
+``` r
+
+# Solution : Utiliser l'app de correspondance taxonomique
+launch_taxonomic_match_app(data = mes_donnees, name_column = "species")
+```
+
+**Problème : “Tags en double dans la parcelle”**
+
+``` r
+
+# Solution : Auto-générer les tags
+mes_donnees$tag <- NULL  # Supprimer la colonne tag
+
+# Ou corriger manuellement
+mes_donnees <- mes_donnees %>%
+  group_by(plot_name) %>%
+  mutate(tag = row_number()) %>%
+  ungroup()
+```
+
+**Problème : “Annulation de transaction en cas d’erreur”** - Vérifier le
+message d’erreur attentivement - Toutes les modifications annulées
+automatiquement - La base de données reste cohérente
+
+------------------------------------------------------------------------
+
+### Avancé : Mapping Personnalisé des Colonnes
+
+``` r
+
+# Définir des synonymes personnalisés pour des imports répétés
+synonymes_personnalises <- list(
+  tag = c("IDArbre", "Numero_Arbre", "ID_Individuel"),
+  stem_diameter = c("DBH", "Diametre", "dbh_cm"),
+  tree_height = c("Hauteur", "H", "hauteur_m")
+)
+
+# Mapper avec synonymes personnalisés (non-interactif)
+donnees_mappees <- map_individual_columns(
+  data = mes_donnees,
+  interactive = FALSE,
+  use_synonyms = TRUE,
+  custom_synonyms = synonymes_personnalises,
+  con = con
+)
+```
+
+------------------------------------------------------------------------
+
+### Bonnes Pratiques
+
+1.  ✅ **Toujours valider d’abord** - Détecter les erreurs tôt
+2.  ✅ **Utiliser l’essai à blanc** - Aperçu avant engagement
+3.  ✅ **Standardiser la taxonomie** - Faire correspondre les noms avant
+    l’import
+4.  ✅ **Importer d’abord les parcelles** - Métadonnées avant individus
+5.  ✅ **Utiliser les transactions** - Annulation automatique en cas
+    d’erreur
+6.  ✅ **Conserver des sauvegardes** - Sauvegardes régulières de la base
+7.  ✅ **Documenter les changements** - Suivre ce qui a été importé
+8.  ✅ **Vérifier les permissions** - Assurer l’accès en écriture
+
+------------------------------------------------------------------------
+
+## Résumé
+
+### Flux de Travail Recommandé (Application Shiny)
+
+1.  ✨ **Lancer l’Assistant d’Import** -
+    [`launch_import_wizard()`](https://umr-amap.github.io/cafriplotsR/reference/launch_import_wizard.md)
+2.  📤 **Télécharger vos données** - Excel ou CSV
+3.  🔗 **Mapper les colonnes** - Automatique avec correspondance floue
+4.  🔍 **Faire correspondre les références** - Correspondance
+    interactive des valeurs
+5.  ✅ **Valider** - Vérifications complètes + détection de doublons
+6.  🗺️ **Prévisualiser** - Confirmation visuelle avec carte
+7.  💾 **Importer** - Exécuter avec sécurité transactionnelle
+
+### Flux Avancé (Programmatique)
+
+Pour l’automatisation et les flux personnalisés : -
+[`map_user_columns()`](https://umr-amap.github.io/cafriplotsR/reference/map_user_columns.md) -
+Mapping de colonnes -
+[`validate_plot_metadata()`](https://umr-amap.github.io/cafriplotsR/reference/validate_plot_metadata.md) -
+Validation des données -
+[`import_plot_metadata()`](https://umr-amap.github.io/cafriplotsR/reference/import_plot_metadata.md) -
+Import de parcelles -
+[`map_individual_columns()`](https://umr-amap.github.io/cafriplotsR/reference/map_individual_columns.md) -
+Mapping des données d’arbres -
+[`validate_individual_data()`](https://umr-amap.github.io/cafriplotsR/reference/validate_individual_data.md) -
+Validation des arbres -
+[`import_individual_data()`](https://umr-amap.github.io/cafriplotsR/reference/import_individual_data.md) -
+Import d’arbres
+
+------------------------------------------------------------------------
+
+## Ressources Additionnelles
+
+- **Correspondance taxonomique** :
+  [`vignette("taxonomic-app")`](https://umr-amap.github.io/cafriplotsR/articles/taxonomic-app.md)
+- **Interrogation des données** :
+  [`vignette("using-query-plots")`](https://umr-amap.github.io/cafriplotsR/articles/using-query-plots.md)
+- **Fonctions de modèles** :
+  [`?get_plot_metadata_template`](https://umr-amap.github.io/cafriplotsR/reference/get_plot_metadata_template.md),
+  [`?get_individual_template`](https://umr-amap.github.io/cafriplotsR/reference/get_individual_template.md)
+- **Validation** :
+  [`?validate_plot_metadata`](https://umr-amap.github.io/cafriplotsR/reference/validate_plot_metadata.md),
+  [`?validate_individual_data`](https://umr-amap.github.io/cafriplotsR/reference/validate_individual_data.md)
+- **Assistant d’Import** :
+  [`?launch_import_wizard`](https://umr-amap.github.io/cafriplotsR/reference/launch_import_wizard.md)

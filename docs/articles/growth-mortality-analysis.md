@@ -1,0 +1,297 @@
+# Growth and Mortality Analysis
+
+``` r
+
+library(CafriplotsR)
+```
+
+## Introduction
+
+This vignette demonstrates how to compute tree growth rates and
+mortality/recruitment statistics for permanent forest plots with
+multiple censuses.
+
+Two main functions are available:
+
+- [`compute_growth()`](https://umr-amap.github.io/cafriplotsR/reference/compute_growth.md):
+  Calculate diameter growth rates between censuses
+- [`compute_mortality()`](https://umr-amap.github.io/cafriplotsR/reference/compute_mortality.md):
+  Calculate mortality and recruitment rates
+
+Both functions automatically fetch data from the database and only
+require plot identifiers as input.
+
+## Computing Growth Rates
+
+### Basic Usage
+
+``` r
+
+# Connect to both databases in one step
+con <- connect_cafri()$main
+
+# Compute growth by plot name
+growth <- compute_growth(plot_names = "mbalmayo001", con = con)
+
+# Or by plot ID
+growth <- compute_growth(plot_ids = c(1, 2, 3), con = con)
+```
+
+### Understanding the Output
+
+The function returns a list with two components:
+
+``` r
+
+# Summary statistics per plot and census interval
+growth$summary
+
+# Individual-level growth data
+growth$individuals
+```
+
+**Summary columns:**
+
+- `plot_name`: Plot identifier
+- `census_pair`: Census interval (e.g., “1-2” for first to second
+  census)
+- `n_individuals`: Total individuals measured in both censuses
+- `n_valid`: Individuals with valid growth measurements
+- `n_excluded`: Individuals excluded due to measurement errors
+- `mean_growth_mm_yr`: Mean diameter growth rate (mm/year)
+- `sd_growth_mm_yr`: Standard deviation of growth
+- `median_growth_mm_yr`: Median growth rate
+- `mean_dbh_1_mm`: Mean DBH at first census (mm)
+- `mean_dbh_2_mm`: Mean DBH at second census (mm)
+- `mean_interval_years`: Mean time between censuses (years)
+
+### Growth Calculation Methods
+
+Two methods are available:
+
+``` r
+
+# Incremental growth (default): (DBH2 - DBH1) / time
+growth_inc <- compute_growth(plot_ids = 1, method = "I")
+
+# Exponential growth: (log(DBH2) - log(DBH1)) / time
+growth_exp <- compute_growth(plot_ids = 1, method = "E")
+```
+
+### Adjusting Quality Control Parameters
+
+``` r
+
+growth <- compute_growth(
+  plot_ids = 1,
+  mindbh = 100,      # Minimum DBH in mm (default: 100)
+  err.limit = 4,     # Error limit for negative growth detection (default: 4)
+  maxgrow = 75       # Maximum valid growth in mm/year (default: 75)
+)
+```
+
+**Quality control:**
+
+- Trees with DBH \< `mindbh` are excluded
+- Extreme negative growth (measurement errors) is detected using a
+  statistical model
+- Growth rates \> `maxgrow` mm/year are flagged as errors
+
+### Summary Only
+
+To get only summary statistics without individual data:
+
+``` r
+
+growth <- compute_growth(
+  plot_ids = 1,
+  return_individual = FALSE
+)
+```
+
+## Computing Mortality and Recruitment
+
+### Basic Usage
+
+``` r
+
+# Compute mortality by plot name
+mort <- compute_mortality(plot_names = "mbalmayo001", con = con)
+
+# Or by plot ID
+mort <- compute_mortality(plot_ids = c(1, 2, 3), con = con)
+```
+
+### Understanding the Output
+
+The function returns a list with three components:
+
+``` r
+
+# Summary statistics
+mort$summary
+
+# List of individuals that died
+mort$dead_individuals
+
+# List of newly recruited individuals
+mort$recruits
+```
+
+**Summary columns:**
+
+- `plot_name`: Plot identifier
+- `census_pair`: Census interval
+- `N_outset`: Number of individuals at start of interval
+- `N_dead`: Number of deaths
+- `N_survivor`: Number of survivors
+- `N_recruits`: Number of new recruits
+- `mortality_rate`: Exponential mortality rate
+- `mortality_percent_yr`: Annual mortality percentage
+- `recruitment_rate`: Exponential recruitment rate
+- `recruitment_percent_yr`: Annual recruitment percentage
+- `mean_interval_years`: Time between censuses
+- `mean_dbh_dead_cm`: Mean DBH of dead trees (cm)
+- `mean_dbh_recruit_cm`: Mean DBH of recruits (cm)
+
+### Mortality Rate Calculation
+
+Mortality rate is calculated using the exponential model:
+
+``` math
+\lambda = \frac{\ln(N_0) - \ln(N_s)}{t}
+```
+
+Where: - $`N_0`$ = number of individuals at start - $`N_s`$ = number of
+survivors - $`t`$ = time interval in years
+
+Annual mortality percentage is: $`(1 - e^{-\lambda}) \times 100`$
+
+### Examining Dead Trees
+
+``` r
+
+# View dead individuals with their characteristics
+mort$dead_individuals
+
+# Filter by taxonomy
+library(dplyr)
+mort$dead_individuals %>%
+  filter(tax_fam == "Fabaceae")
+```
+
+### Examining Recruits
+
+``` r
+
+# View recruited individuals
+mort$recruits
+
+# Size distribution of recruits
+hist(mort$recruits$dbh_at_recruitment_cm)
+```
+
+## Working with Multiple Plots
+
+Both functions can process multiple plots at once:
+
+``` r
+
+# Growth for multiple plots
+growth <- compute_growth(
+  plot_names = c("plot001", "plot002", "plot003")
+)
+
+# Results are combined with plot_name column for identification
+growth$summary %>%
+  group_by(plot_name) %>%
+  summarise(
+    mean_growth = mean(mean_growth_mm_yr, na.rm = TRUE),
+    n_intervals = n()
+  )
+```
+
+## Complete Workflow Example
+
+``` r
+
+library(CafriplotsR)
+library(dplyr)
+
+# Connect
+con <- connect_cafri()$main
+
+# Define plots to analyze
+my_plots <- c("site_A_plot1", "site_A_plot2", "site_B_plot1")
+
+# Compute growth
+growth <- compute_growth(plot_names = my_plots, con = con)
+
+# View growth summary
+growth$summary %>%
+  arrange(plot_name, census_pair)
+
+# Compute mortality
+mort <- compute_mortality(plot_names = my_plots, con = con)
+
+# Compare mortality across plots
+mort$summary %>%
+  select(plot_name, census_pair, mortality_percent_yr, recruitment_percent_yr) %>%
+  arrange(plot_name)
+
+# Identify species with high mortality
+mort$dead_individuals %>%
+  count(tax_sp_level, sort = TRUE)
+
+# Clean up
+cleanup_connections()
+```
+
+## Troubleshooting
+
+### “Need at least 2 censuses”
+
+This error occurs when the selected plots don’t have multiple census
+records:
+
+``` r
+
+# Check if your plot has multiple censuses
+query_result <- query_plots(
+  plot_names = "your_plot",
+  show_multiple_census = TRUE,
+  extract_individuals = FALSE
+)
+
+# Look at census_features to see available censuses
+query_result$census_features
+```
+
+### No valid measurements
+
+If growth calculations return few valid measurements, check:
+
+1.  **Minimum DBH threshold**: Lower `mindbh` if needed
+2.  **Date information**: Ensure census dates are recorded in the
+    database
+3.  **Measurement quality**: Review excluded individuals in the output
+
+``` r
+
+# Check individual results for exclusions
+growth <- compute_growth(plot_ids = 1)
+table(growth$individuals$accepted_growth)
+```
+
+## References
+
+Growth trimming methodology adapted from:
+
+- CTFS R Package: <http://ctfs.si.edu/Public/CTFSRPackage/>
+
+Mortality rate calculations follow standard forest dynamics methodology
+as described in:
+
+- Sheil, D., & May, R. M. (1996). Mortality and recruitment rate
+  evaluations in heterogeneous tropical forests. Journal of Ecology,
+  84(1), 91-100.

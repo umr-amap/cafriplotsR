@@ -20,3 +20,4 @@ Data frame ready for `DT::datatable()`.
 Kept out of the server so the column set and the wording can be tested
 without a Shiny session.
 }
+\keyword{internal}

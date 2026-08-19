@@ -12,8 +12,8 @@
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <meta property="og:title" content="Estimation de la Biomasse Aérienne avec le Package BIOMASS">
@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,12 +35,16 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
-<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Tutorials</a></li>
+<li class="nav-item"><a class="nav-link" href="../reference/index.html">Functions</a></li>
+<li class="nav-item"><a class="nav-link" href="../articles/newsletter.html">Newsletter</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><a class="nav-link" href="../articles/readme-fr.html">FR</a></li>
+<li class="nav-item"><form class="form-inline" role="search">
+ <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
+</form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR" aria-label="GitHub"><span class="fa fa-github"></span></a></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR/issues" aria-label="Report an issue"><span class="fa fa-bug"></span></a></li>
       </ul>
@@ -98,9 +102,10 @@ l’espèce → genre → famille</li>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Se connecter à la base de données</span></span>
-<span><span class="va">mydb</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">mydb_taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="co"># Se connecter aux deux bases avec une seule invite d'identifiants</span></span>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">mydb</span> <span class="op">&lt;-</span> <span class="va">cons</span><span class="op">$</span><span class="va">main</span></span>
+<span><span class="va">mydb_taxa</span> <span class="op">&lt;-</span> <span class="va">cons</span><span class="op">$</span><span class="va">taxa</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
@@ -182,13 +187,13 @@ une sortie structurée optimisée pour l’analyse de biomasse :</p>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Aggregating traits to genus level</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Source information added to columns starting with 'source_'</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Attempt 1 of 10...</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> ✅ Successfully connected and fetched 10251 rows.</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> ✅ Successfully connected and fetched 10253 rows.</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Attempt 1 of 10...</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> ✅ Successfully connected and fetched 6091 rows.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ── <span style="font-weight: bold;">Querying taxa-level traits</span> ──</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fetching trait measurements for 13109 taxon/taxa</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fetching trait measurements for 13111 taxon/taxa</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 19950 measurement(s) for 2492 taxa</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Resolving taxonomic synonyms</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Including synonyms: 2492 taxa expanded to 6053 taxa</span></span>
@@ -201,6 +206,13 @@ une sortie structurée optimisée pour l’analyse de biomasse :</p>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Removed 135 measurement(s) with issues</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Enriching with census information</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Query completed: 4112 measurement(s)</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ── <span style="font-weight: bold;">Querying taxa-level traits</span> ──</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fetching trait measurements for 154 taxon/taxa</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 5064 measurement(s) for 142 taxa</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Resolving taxonomic synonyms</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Query completed</span></span>
 <span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> ids removed - remove_ids = TRUE</span></span>
 <span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Auto-detected output style: 'permanent_plot' based on method field</span></span>
 <span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Output restructured using 'permanent_plot' style. Use names() to see available tables.</span></span></code></pre></div>
@@ -208,7 +220,7 @@ une sortie structurée optimisée pour l’analyse de biomasse :</p>
 <code class="sourceCode R"><span></span>
 <span><span class="co"># Vérifier la structure</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">plot_data</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "metadata"        "individuals"     "height_diameter"</span></span>
+<span><span class="co">#&gt; [1] "metadata"        "individuals"     "height_diameter" "data_sources"</span></span>
 <span><span class="co"># $metadata - Informations au niveau de la parcelle</span></span>
 <span><span class="co"># $individuals - Données d'arbres individuels avec traits</span></span>
 <span><span class="co"># $height_diameter - Paires hauteur-diamètre (prêtes pour la modélisation)</span></span></code></pre></div>
@@ -237,7 +249,7 @@ enrichis</strong> :</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Vérifier quelles données nous avons</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/str.html" class="external-link">str</a></span><span class="op">(</span><span class="va">plot_data</span><span class="op">$</span><span class="va">individuals</span><span class="op">)</span></span>
-<span><span class="co">#&gt; tibble [888 × 35] (S3: tbl_df/tbl/data.frame)</span></span>
+<span><span class="co">#&gt; tibble [888 × 36] (S3: tbl_df/tbl/data.frame)</span></span>
 <span><span class="co">#&gt;  $ id_n                              : int [1:888] 248314 248318 248322 248326 248330 248334 248338 248342 248346 248350 ...</span></span>
 <span><span class="co">#&gt;  $ plot_name                         : chr [1:888] "bouamir001" "bouamir001" "bouamir001" "bouamir001" ...</span></span>
 <span><span class="co">#&gt;  $ tag                               : num [1:888] 1 2 3 4 5 6 7 8 9 10 ...</span></span>
@@ -245,6 +257,7 @@ enrichis</strong> :</p>
 <span><span class="co">#&gt;  $ genus                             : chr [1:888] "Xylopia" "Petersianthus" "Heisteria" "Greenwayodendron" ...</span></span>
 <span><span class="co">#&gt;  $ species                           : chr [1:888] "Xylopia quintasii" "Petersianthus macrocarpus" "Heisteria parvifolia" "Greenwayodendron suaveolens" ...</span></span>
 <span><span class="co">#&gt;  $ dbh                               : num [1:888] 17.7 62.4 57.7 25.9 22.8 ...</span></span>
+<span><span class="co">#&gt;  $ idtax_individual_f                : int [1:888] 6737 626 245 219 1535 344939 828 1757 784 1153 ...</span></span>
 <span><span class="co">#&gt;  $ quadrat                           : chr [1:888] "0_0" "0_0" "0_0" "0_0" ...</span></span>
 <span><span class="co">#&gt;  $ height                            : num [1:888] 12.8 NA NA NA NA ...</span></span>
 <span><span class="co">#&gt;  $ census_date                       : Date[1:888], format: "2018-12-02" "2018-12-02" ...</span></span>
@@ -311,12 +324,12 @@ prête</strong> pour la modélisation :</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 6 × 8</span></span></span>
 <span><span class="co">#&gt;     id_n plot_name    tag     D     H   POM census_name census_date</span></span>
 <span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>     </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> <span style="text-decoration: underline;">249</span>470 bouamir001   290  13.5  8.93  1.3  census_1    2018-12-02 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> <span style="text-decoration: underline;">248</span>738 bouamir001   107  14.7 13.5   1.3  census_1    2018-12-02 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> <span style="text-decoration: underline;">248</span>742 bouamir001   108  56.5 36.8   1.3  census_1    2018-12-02 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> <span style="text-decoration: underline;">248</span>754 bouamir001   111  18.1 18.6   1.3  census_1    2018-12-02 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> <span style="text-decoration: underline;">248</span>890 bouamir001   145  71   28.6   3.5  census_1    2018-12-02 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> <span style="text-decoration: underline;">248</span>938 bouamir001   157  49.1 28.3   2.62 census_1    2018-12-02</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> <span style="text-decoration: underline;">248</span>738 bouamir001   107  14.7  13.5   1.3 census_1    2018-12-02 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> <span style="text-decoration: underline;">248</span>742 bouamir001   108  56.5  36.8   1.3 census_1    2018-12-02 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> <span style="text-decoration: underline;">248</span>754 bouamir001   111  18.1  18.6   1.3 census_1    2018-12-02 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> <span style="text-decoration: underline;">248</span>314 bouamir001     1  17.7  12.8   1.3 census_1    2018-12-02 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> <span style="text-decoration: underline;">248</span>334 bouamir001     6  22.2  15.7   1.3 census_1    2018-12-02 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> <span style="text-decoration: underline;">248</span>342 bouamir001     8  38.4  28.4   1.8 census_1    2018-12-02</span></span>
 <span></span>
 <span><span class="co"># Cette table inclut :</span></span>
 <span><span class="co"># - id_n : ID de l'individu</span></span>
@@ -363,16 +376,14 @@ directement avec BIOMASS :</p>
 <span></span>
 <span><span class="co"># Vérifier l'ajustement du modèle</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">hd_model_global</span><span class="op">)</span></span>
-<span><span class="co">#&gt;              Length Class  Mode     </span></span>
-<span><span class="co">#&gt; input          2    -none- list     </span></span>
-<span><span class="co">#&gt; model          6    nls    list     </span></span>
-<span><span class="co">#&gt; residuals    122    -none- numeric  </span></span>
-<span><span class="co">#&gt; coefficients  12    -none- numeric  </span></span>
-<span><span class="co">#&gt; R.squared      0    -none- NULL     </span></span>
-<span><span class="co">#&gt; formula        7    -none- call     </span></span>
-<span><span class="co">#&gt; method         1    -none- character</span></span>
-<span><span class="co">#&gt; predicted    122    -none- numeric  </span></span>
-<span><span class="co">#&gt; RSE            1    -none- numeric</span></span>
+<span><span class="co">#&gt;           Length Class  Mode     </span></span>
+<span><span class="co">#&gt; input       2    -none- list     </span></span>
+<span><span class="co">#&gt; model       6    nls    list     </span></span>
+<span><span class="co">#&gt; residuals 122    -none- numeric  </span></span>
+<span><span class="co">#&gt; method      1    -none- character</span></span>
+<span><span class="co">#&gt; predicted 122    -none- numeric  </span></span>
+<span><span class="co">#&gt; RSE         1    -none- numeric  </span></span>
+<span><span class="co">#&gt; weighted    1    -none- logical</span></span>
 <span></span>
 <span><span class="co"># Erreur standard résiduelle pour la propagation d'incertitude</span></span>
 <span><span class="va">RSE_global</span> <span class="op">&lt;-</span> <span class="va">hd_model_global</span><span class="op">$</span><span class="va">RSE</span></span>
@@ -436,7 +447,7 @@ paires recommandées) :</p>
 <span><span class="co">#&gt; Warning: Failed to fit group -1.</span></span>
 <span><span class="co">#&gt; Caused by error in `pred$fit`:</span></span>
 <span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> $ operator is invalid for atomic vectors</span></span></code></pre></div>
-<p><img src="biomass-agb-estimation-fr_files/figure-html/plot-hd-models-1.png" alt="" width="100%"></p>
+<p><img src="biomass-agb-estimation-fr_files/figure-html/plot-hd-models-1.png" class="r-plt" alt="" width="100%"></p>
 <hr>
 </div>
 </div>
@@ -641,7 +652,7 @@ estimating above-ground biomass and its uncertainty in tropical forests.
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer>

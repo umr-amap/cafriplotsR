@@ -1,0 +1,23 @@
+# Database Login Module - Server
+
+Server logic for database authentication with language selection
+
+## Usage
+
+``` r
+mod_database_login_server(id)
+```
+
+## Arguments
+
+- id:
+
+  Module namespace ID
+
+## Value
+
+A reactive list containing: - authenticated: Reactive logical indicating
+connection status - pool_main: Main database connection pool (NULL if
+not connected) - pool_taxa: Taxa database connection pool (NULL if not
+connected) - language: Reactive string returning selected language ("en"
+or "fr")

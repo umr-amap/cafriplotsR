@@ -1,0 +1,241 @@
+# Newsletter
+
+## CafriplotsR Newsletter
+
+Actualités sur les grandes étapes du package CafriplotsR
+
+------------------------------------------------------------------------
+
+### Mai 2026
+
+#### Nouvelles fonctionnalités
+
+**Basculer entre le référentiel taxonomique interne et WCVP**
+
+CafriplotsR intègre désormais un second référentiel taxonomique : le
+**World Checklist of Vascular Plants (WCVP)**. Le référentiel interne à
+CafriplotsR reste le référentiel par défaut mais il est maintenant
+possible de travailler en suivant la nomenclature de WCVP.
+
+La motivation est la même que pour le suivi des citations : **la
+transparence sur la provenance taxonomique**. Lorsque les données
+quittent la base, l’utilisateur sait exactement quel référentiel a été
+utilisé pour interpréter chaque nom, et peut basculer entre
+référentiels.
+
+Le référentiel se choisit au moment de la requête, via un seul argument
+:
+
+``` r
+
+con <- connect_cafri()$main
+query_plots(country = "GABON", backbone = "wcvp", extract_individuals = T)
+query_taxa(species = "Dacryodes edulis", backbone = "wcvp", check_synonymy = F)
+```
+
+Lorsque `backbone = "wcvp"`, les colonnes taxonomiques standard sont
+remplacées par les données de WCVP. Deux colonnes supplémentaires
+rendent cette substitution transparente :
+
+- `name_source` — `"wcvp"` si le taxon a été résolu vers un nom WCVP,
+  `"internal"` si le repli silencieux vers le référentiel Cafriplots a
+  été nécessaire (pas de correspondance WCVP)
+- `alt_taxon_name` — le nom interne d’origine conservé en parallèle,
+  pour pouvoir toujours remonter au référentiel Cafriplots
+
+La version actuelle du WCVP peut être vérifiée avec le code suivant (il
+s’agit de la plus récente, de début janvier 2026) :
+
+``` r
+
+con.taxa <- connect_cafri()$taxa
+get_wcvp_status(con_taxa = con.taxa)
+```
+
+Les identifiants internes (`idtax_n`, l’identifiant du taxa,
+`idtax_good_n`, l’identifiant du synonyme éventuel) sont conservées ;
+les analogues WCVP (`wcvp_plant_name_id`, `wcvp_accepted_plant_name_id`)
+sont ajoutés comme colonnes séparées. Chaque ligne reste donc ancrée
+simultanément aux deux systèmes de référence.
+
+Le même choix est disponible dans les applications interactives :
+
+- **[`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md)**
+  — la fenêtre de sélection du référentiel propose désormais WCVP comme
+  alternative dès que les données WCVP sont présentes dans la base
+  taxonomique.
+- **`launch_query_plots()`** — l’extraction peut être lancée dans
+  l’espace WCVP ; la source de chaque nom taxonomique est documentée
+  dans les tables de sortie via `name_source`.
+
+**Traits agrégés au niveau taxonomique à partir des mesures
+individuelles**
+
+Les mesures individuelles (par ex. DBH, hauteur, etc.) associées aux
+inventaires peuvent être **agrégées par taxon** et exposées comme traits
+au niveau taxon, prêtes à être greffées sur toute requête future —
+exactement comme les traits de densité du bois ou d’autres traits au
+niveau taxon provenant de compilations externes.
+
+L’agrégation est **déclarative** : une petite table de configuration
+(`trait_aggregation_config`) contient des règles du type *« prendre le
+95ᵉ percentile du diamètre de tige, en restreignant aux individus
+identifiés au niveau espèce ou en dessous, avec au moins 5 mesures »*.
+Le pipeline lit les règles, calcule la valeur agrégée par taxon, et
+écrit le résultat dans `taxa_traits_measures` :
+
+Une fois générés, ces traits agrégés se comportent **exactement comme
+n’importe quel autre trait au niveau taxon** :
+[`query_taxa_traits()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa_traits.md)
+les renvoie de manière transparente, et
+[`query_individual_features()`](https://umr-amap.github.io/cafriplotsR/reference/query_individual_features.md)
+/
+[`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+les greffent sur les individus d’inventaires via le lien taxonomique. Du
+point de vue de l’utilisateur, il n’y a pas de second pipeline à
+exécuter.
+
+> **Accès public et souveraineté des données.** Les traits agrégés sont
+> marqués par une citation dédiée et **non publique**
+> (`CafriplotsR_aggregated`), et la politique de sécurité au niveau
+> ligne sur `taxa_traits_measures` est `RESTRICTIVE` : la connexion
+> publique ne peut pas les voir. Ils ne sont visibles que par les
+> utilisateurs authentifiés.
+
+> Ce système d’aggrégation taxonomique de traits permet de mettre en
+> place un échange à double sens: lorsqu’on importe des données, on
+> contribue à mieux documenter les traits des espèces que l’on a
+> inventorier, et simultanément on profite des données de traits déja
+> incluses.
+
+**Connexion à la base de données simplifiée**
+
+Se connecter à la base est désormais l’affaire d’une ligne. La nouvelle
+fonction
+[`connect_cafri()`](https://umr-amap.github.io/cafriplotsR/reference/connect_cafri.md)
+remplace l’ancienne séquence en deux étapes qui appelait séparément
+[`call.mydb()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.md)
+et
+[`call.mydb.taxa()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.taxa.md)
+— une seule invite d’identifiants ouvre les **deux** bases simultanément
+et stocke les connexions afin que toute fonction du package les
+réutilise de manière transparente :
+
+``` r
+
+cons <- connect_cafri()
+cons$main   # base principale
+cons$taxa   # base taxonomique
+```
+
+Trois améliorations supplémentaires accompagnent ce changement :
+
+- **Les identifiants `.Renviron` sont désormais détectés
+  automatiquement.** Si vous aviez exécuté
+  [`setup_db_credentials()`](https://umr-amap.github.io/cafriplotsR/reference/setup_db_credentials.md)
+  pour conserver `MYDB_USER` et `MYDB_PASS`, vous n’avez plus besoin de
+  l’argument `use_env_credentials = TRUE` — le package les détecte et se
+  connecte automatiquement.
+- **Le nom d’utilisateur est maintenant demandé avant le mot de passe**,
+  comme dans tout formulaire de connexion classique.
+- **Un mot de passe erroné ne reste plus en cache.** Auparavant, une
+  faute de frappe restait stockée en mémoire et chaque tentative de
+  connexion suivante la réutilisait jusqu’à découvrir `reset = TRUE`.
+  Les échecs d’authentification effacent désormais le cache et
+  redemandent les identifiants automatiquement en mode interactif.
+
+Les fonctions existantes
+[`call.mydb()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.md)
+et
+[`call.mydb.taxa()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.taxa.md)
+restent inchangées pour la compatibilité ascendante. Voir le [Guide des
+Connexions à la Base de
+Données](https://umr-amap.github.io/cafriplotsR/articles/database-connections-fr.md)
+pour la référence complète.
+
+------------------------------------------------------------------------
+
+### Mars 2026
+
+#### Nouvelles données
+
+**Intégration de la base de données de densité du bois de Tervuren
+(TWDD)**
+
+Une grande base de données de densité du bois — la TWDD — a été ajoutée
+à la base de données. Elle contient **13 332 échantillons** couvrant **2
+994 espèces**, 1 022 genres et 156 familles de plantes sur six
+continents, dont 72 % des enregistrements provenant d’Afrique.
+
+La TWDD ajoute 1 164 espèces, 160 genres et 8 familles de plantes qui
+n’étaient pas documentés auparavant.
+
+Avant l’intégration, la taxonomie de la TWDD a été standardisée selon le
+référentiel taxonomique de CafriplotsR afin d’assurer la cohérence avec
+le reste de la base de données. Au total, **12 970 valeurs** issues de
+la TWDD ont été ajoutées.
+
+> Toute utilisation de ces données doit citer la publication originale :
+>
+> Verbiest W.W.M., Hicter P., Beeckman H. et al. (2026). The Tervuren
+> xylarium Wood Density Database (TWDD). *Scientific Data*, 13, 243.
+> <https://doi.org/10.1038/s41597-026-06563-2>
+
+#### Nouvelles fonctionnalités
+
+**Suivi des citations pour les traits au niveau taxonomique**
+
+Les mesures de traits au niveau des taxons stockées dans la base de
+données sont désormais liées à leurs sources d’origine — études publiées
+ou bases de données de traits d’où les valeurs ont été extraites.
+Lorsque vous enrichissez un jeu de données d’espèces ou explorez des
+traits via les applications interactives
+([`launch_taxo_backbone_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxo_backbone_app.md)
+et
+[`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md)),
+un panneau **Sources de données** dédié liste les citations concernées
+et le nombre de mesures/observations provenant de chaque source.
+
+Cela rend la citation appropriée directe et sans ambiguïté : le panneau
+liste la référence complète de chaque source de sorte que l’utilisateur
+sait ce qu’il faut citer lorsque ces données son utilisées. Ce nouveau
+développement renforce un des objectifs de ce package qui est de
+faciliter l’intégration et la ré-utilisation de ces différents jeux de
+données. Pour cela, il est nécessaire d’être le plus transparent
+possible sur cette intégration de donc de respecter les exigences de
+partage des données des publications et bases de données sous-jacentes.
+
+> **Pour les utilisateurs R :** La fonction
+> [`query_taxa_traits()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa_traits.md)
+> accepte désormais le paramètre `include_citation = TRUE` pour joindre
+> les informations de citation directement au tableau retourné. Les
+> formats de sortie large (*wide*) et long sont tous deux pris en
+> charge.
+
+**Mode accès public pour deux applications Shiny interactives**
+
+Deux applications de la boîte à outils CafriplotsR peuvent désormais
+être lancées **sans identifiants de connexion** — utile pour les
+collaborateurs, les relecteurs, ou toute personne souhaitant explorer
+les données sans demander un compte personnel :
+
+- **Navigateur du référentiel taxonomique**
+  ([`launch_taxo_backbone_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxo_backbone_app.md))
+  : Parcourez le référentiel taxonomique complet, effectuez des
+  recherches par nom ou identifiant, explorez la hiérarchie taxonomique,
+  et extrayez les traits au niveau des taxons en format large ou long
+  avec les citations associées.
+
+- **Application d’harmonisation taxonomique et d’enrichissement en
+  traits**
+  ([`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md))
+  : Chargez une liste d’espèces, standardisez les noms par rapport au
+  référentiel CafriplotsR, et enrichissez-les avec les traits de la base
+  de données — le tout dans une interface guidée, étape par étape.
+
+En mode public, les applications se connectent automatiquement avec des
+identifiants en lecture seule, donc aucune connexion n’est requise. Les
+deux applications affichent une bannière claire indiquant que vous
+opérez en mode public avec accès en lecture seule.
+
+------------------------------------------------------------------------

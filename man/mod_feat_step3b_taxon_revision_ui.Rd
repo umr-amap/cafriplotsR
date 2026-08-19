@@ -17,3 +17,4 @@ A `shiny::tagList`.
 \description{
 UI for the taxon revision step
 }
+\keyword{internal}

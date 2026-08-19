@@ -12,8 +12,8 @@
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <meta property="og:title" content="Guide des Connexions à la Base de Données">
@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,12 +35,16 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
-<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Tutorials</a></li>
+<li class="nav-item"><a class="nav-link" href="../reference/index.html">Functions</a></li>
+<li class="nav-item"><a class="nav-link" href="../articles/newsletter.html">Newsletter</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><a class="nav-link" href="../articles/readme-fr.html">FR</a></li>
+<li class="nav-item"><form class="form-inline" role="search">
+ <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
+</form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR" aria-label="GitHub"><span class="fa fa-github"></span></a></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR/issues" aria-label="Report an issue"><span class="fa fa-bug"></span></a></li>
       </ul>
@@ -85,14 +89,18 @@ taxonomiques et les traits au niveau de l’espèce</p>
 <div class="section level3">
 <h3 id="première-connexion">Première Connexion<a class="anchor" aria-label="anchor" href="#premi%C3%A8re-connexion"></a>
 </h3>
+<p>La méthode recommandée pour démarrer une session est
+<code><a href="../reference/connect_cafri.html">connect_cafri()</a></code>. Elle ouvre les deux bases de données à
+partir d’une seule invite d’identifiants (le même nom d’utilisateur et
+mot de passe sont valides pour les deux) :</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Se connecter à la base de données principale (demandera les identifiants)</span></span>
-<span><span class="va">con_main</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co"># Connecter les deux bases avec une seule invite d'identifiants</span></span>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Se connecter à la base de données taxonomique (utilise les mêmes identifiants)</span></span>
-<span><span class="va">con_taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">cons</span><span class="op">$</span><span class="va">main</span>   <span class="co"># connexion à la base de données principale</span></span>
+<span><span class="va">cons</span><span class="op">$</span><span class="va">taxa</span>   <span class="co"># connexion à la base de données taxonomique</span></span>
 <span></span>
 <span><span class="co"># Tester vos connexions</span></span>
 <span><span class="fu"><a href="../reference/print_connection_status.html">print_connection_status</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
@@ -106,19 +114,52 @@ de données</li>
 données</li>
 </ul>
 <p>Les identifiants sont mis en cache en mémoire pour la durée de votre
-session R.</p>
+session R, de sorte que tout appel ultérieur à <code><a href="../reference/call.mydb.html">call.mydb()</a></code>
+ou <code><a href="../reference/call.mydb.taxa.html">call.mydb.taxa()</a></code> réutilise les mêmes connexions sans
+nouvelle demande.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="fonctions-de-connexion">Fonctions de Connexion<a class="anchor" aria-label="anchor" href="#fonctions-de-connexion"></a>
 </h2>
 <div class="section level3">
-<h3 id="base-de-données-principale-call-mydb">Base de Données Principale : <code>call.mydb()</code><a class="anchor" aria-label="anchor" href="#base-de-donn%C3%A9es-principale-call-mydb"></a>
+<h3 id="recommandé-connect_cafri">Recommandé : <code>connect_cafri()</code><a class="anchor" aria-label="anchor" href="#recommand%C3%A9-connect_cafri"></a>
 </h3>
-<p>Utilisez ceci pour toutes les opérations sur les données de
-parcelles, sous-parcelles et arbres individuels.</p>
+<p><code><a href="../reference/connect_cafri.html">connect_cafri()</a></code> est un point d’entrée unique qui ouvre
+les deux bases de données en une fois et stocke les connexions en
+interne, de sorte que les fonctions qui récupèrent une connexion via
+<code><a href="../reference/call.mydb.html">call.mydb()</a></code> / <code><a href="../reference/call.mydb.taxa.html">call.mydb.taxa()</a></code> plus tard dans
+la session les retrouvent sans nouvelle invite.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Connexion basique</span></span>
+<code class="sourceCode R"><span><span class="co"># Les deux bases en une seule invite</span></span>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Uniquement la base principale (la base taxa sera ouverte à la volée</span></span>
+<span><span class="co"># par les fonctions qui en ont besoin, en réutilisant les identifiants</span></span>
+<span><span class="co"># en cache — pas de seconde invite)</span></span>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span>taxa <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Forcer de nouveaux identifiants (ex. pour changer d'utilisateur)</span></span>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span>reset <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Toujours demander une invite, même si MYDB_USER/MYDB_PASS sont définis</span></span>
+<span><span class="co"># dans .Renviron</span></span>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span>use_env_credentials <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<p>Si <code>MYDB_USER</code> et <code>MYDB_PASS</code> sont définis dans
+votre <code>.Renviron</code> (voir « Gestion des Identifiants »
+ci-dessous), <code><a href="../reference/connect_cafri.html">connect_cafri()</a></code> les utilise automatiquement
+sans invite — aucun drapeau requis.</p>
+</div>
+<div class="section level3">
+<h3 id="fonctions-individuelles-call-mydb-et-call-mydb-taxa">Fonctions individuelles : <code>call.mydb()</code> et
+<code>call.mydb.taxa()</code><a class="anchor" aria-label="anchor" href="#fonctions-individuelles-call-mydb-et-call-mydb-taxa"></a>
+</h3>
+<p>Elles restent disponibles, principalement pour les scripts qui
+n’utilisent qu’une seule des deux bases. Il <em>n’est pas</em>
+nécessaire de les appeler à la suite — <code><a href="../reference/connect_cafri.html">connect_cafri()</a></code>
+couvre ce cas en une ligne.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Base de données principale uniquement</span></span>
 <span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Forcer de nouveaux identifiants (si vous devez changer d'utilisateur)</span></span>
@@ -126,14 +167,8 @@ parcelles, sous-parcelles et arbres individuels.</p>
 <span></span>
 <span><span class="co"># Fournir les identifiants directement (non recommandé pour la sécurité)</span></span>
 <span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span>user <span class="op">=</span> <span class="st">"monutilisateur"</span>, pass <span class="op">=</span> <span class="st">"monmotdepasse"</span><span class="op">)</span></span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="base-de-données-taxonomique-call-mydb-taxa">Base de Données Taxonomique : <code>call.mydb.taxa()</code><a class="anchor" aria-label="anchor" href="#base-de-donn%C3%A9es-taxonomique-call-mydb-taxa"></a>
-</h3>
-<p>Utilisez ceci pour les requêtes taxonomiques et les traits
-d’espèces.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Se connecter à la base de données taxonomique</span></span>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Base taxonomique uniquement (utilise les identifiants en cache si présents)</span></span>
 <span><span class="va">con_taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p><strong>Important</strong> : La base de données taxonomique est en
 <strong>lecture seule</strong> pour la plupart des utilisateurs. Les
@@ -148,8 +183,8 @@ opérations d’écriture sont réservées aux administrateurs.</p>
 </h3>
 <p>L’approche la plus simple - entrez les identifiants lorsque demandé
 :</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co"># Entrez le nom d'utilisateur : [votre_utilisateur]</span></span>
 <span><span class="co"># Entrez le mot de passe : [votre_mot_de_passe]</span></span></code></pre></div>
 <p><strong>Avantages</strong> : Sécurisé, pas de mots de passe stockés
@@ -160,19 +195,31 @@ nouvelle session R</p>
 <h3 id="option-2-variables-denvironnement-persistant">Option 2 : Variables d’Environnement (Persistant)<a class="anchor" aria-label="anchor" href="#option-2-variables-denvironnement-persistant"></a>
 </h3>
 <p>Stockez les identifiants dans votre fichier <code>.Renviron</code>
-pour un chargement automatique :</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+pour un chargement automatique à chaque session :</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Exécuter une fois pour configurer</span></span>
 <span><span class="fu"><a href="../reference/setup_db_credentials.html">setup_db_credentials</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co"># Suivez les invites pour entrer le nom d'utilisateur et le mot de passe</span></span></code></pre></div>
-<p>Puis utilisez avec <code>use_env_credentials = TRUE</code> :</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span>use_env_credentials <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<p>C’est tout — dès la session R suivante, <code><a href="../reference/connect_cafri.html">connect_cafri()</a></code>
+(ainsi que <code><a href="../reference/call.mydb.html">call.mydb()</a></code> / <code><a href="../reference/call.mydb.taxa.html">call.mydb.taxa()</a></code>)
+récupère automatiquement <code>MYDB_USER</code> et
+<code>MYDB_PASS</code> depuis <code>.Renviron</code>, sans drapeau à
+retenir :</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span>   <span class="co"># pas d'invite ; identifiants lus depuis .Renviron</span></span></code></pre></div>
+<p>Pour forcer une invite ponctuelle malgré tout, passez
+<code>use_env_credentials = FALSE</code> :</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span>use_env_credentials <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+<p>L’ordre de résolution est : arguments
+<code>user</code>/<code>pass</code> explicites → identifiants en cache →
+<code>.Renviron</code> (<code>MYDB_USER</code> / <code>MYDB_PASS</code>)
+→ invite interactive.</p>
 <p><strong>Attention</strong> : Les identifiants sont stockés en
 <strong>texte clair</strong> dans <code>~/.Renviron</code>. N’utilisez
 ceci que sur votre ordinateur personnel et sécurisé.</p>
 <p>Pour supprimer les identifiants stockés :</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/remove_db_credentials.html">remove_db_credentials</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
@@ -181,9 +228,9 @@ ceci que sur votre ordinateur personnel et sécurisé.</p>
 <p>Vous pouvez passer les identifiants directement, mais ce n’est
 <strong>pas recommandé</strong> car les mots de passe peuvent être
 visibles dans votre code ou historique :</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Évitez ceci dans le code partagé !</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span>user <span class="op">=</span> <span class="st">"monutilisateur"</span>, pass <span class="op">=</span> <span class="st">"monmotdepasse"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span>user <span class="op">=</span> <span class="st">"monutilisateur"</span>, pass <span class="op">=</span> <span class="st">"monmotdepasse"</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -219,7 +266,7 @@ peuvent expirer et causer des erreurs</li>
 <div class="section level3">
 <h3 id="comment-nettoyer">Comment Nettoyer<a class="anchor" aria-label="anchor" href="#comment-nettoyer"></a>
 </h3>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Fermer toutes les connexions et effacer les identifiants en cache</span></span>
 <span><span class="fu"><a href="../reference/cleanup_connections.html">cleanup_connections</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Cette fonction :</p>
@@ -236,7 +283,7 @@ peuvent expirer et causer des erreurs</li>
 <div class="section level3">
 <h3 id="vérification-rapide-du-statut">Vérification Rapide du Statut<a class="anchor" aria-label="anchor" href="#v%C3%A9rification-rapide-du-statut"></a>
 </h3>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Voir le statut actuel des connexions</span></span>
 <span><span class="fu"><a href="../reference/print_connection_status.html">print_connection_status</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Exemple de sortie :</p>
@@ -248,7 +295,7 @@ v Base taxonomique : Connecté à rainbio en tant que monutilisateur</code></pre
 <h3 id="diagnostic-complet">Diagnostic Complet<a class="anchor" aria-label="anchor" href="#diagnostic-complet"></a>
 </h3>
 <p>Pour le dépannage, exécutez un diagnostic complet :</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/db_diagnostic.html">db_diagnostic</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Ceci affiche :</p>
 <ul>
@@ -269,8 +316,8 @@ accéder.</p>
 <div class="section level3">
 <h3 id="voir-vos-parcelles-accessibles">Voir Vos Parcelles Accessibles<a class="anchor" aria-label="anchor" href="#voir-vos-parcelles-accessibles"></a>
 </h3>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">main</span></span>
 <span></span>
 <span><span class="co"># Voir quelles parcelles vous pouvez accéder</span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/get_user_accessible_plots.html">get_user_accessible_plots</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"votre_utilisateur"</span><span class="op">)</span></span>
@@ -283,7 +330,7 @@ accéder.</p>
 <div class="section level3">
 <h3 id="voir-vos-politiques">Voir Vos Politiques<a class="anchor" aria-label="anchor" href="#voir-vos-politiques"></a>
 </h3>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Voir toutes les politiques pour un utilisateur</span></span>
 <span><span class="fu"><a href="../reference/list_user_policies.html">list_user_policies</a></span><span class="op">(</span><span class="va">con</span>, user <span class="op">=</span> <span class="st">"votre_utilisateur"</span><span class="op">)</span></span>
 <span></span>
@@ -342,9 +389,9 @@ DELETE)</li>
 <li>Le compte n’existe pas</li>
 </ul>
 <p><strong>Solutions</strong> :</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Réinitialiser les identifiants et réessayer</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span>reset <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span>reset <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level4">
 <h4 id="erreur-ssl-syscall-eof-détecté">“Erreur SSL SYSCALL : EOF détecté”<a class="anchor" aria-label="anchor" href="#erreur-ssl-syscall-eof-d%C3%A9tect%C3%A9"></a>
@@ -356,10 +403,10 @@ DELETE)</li>
 Shiny</li>
 </ul>
 <p><strong>Solutions</strong> :</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Nettoyer et se reconnecter</span></span>
 <span><span class="fu"><a href="../reference/cleanup_connections.html">cleanup_connections</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level4">
 <h4 id="trop-de-connexions">“Trop de connexions”<a class="anchor" aria-label="anchor" href="#trop-de-connexions"></a>
@@ -370,13 +417,13 @@ Shiny</li>
 <li>D’autres utilisateurs consomment les connexions</li>
 </ul>
 <p><strong>Solutions</strong> :</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Nettoyer vos connexions</span></span>
 <span><span class="fu"><a href="../reference/cleanup_connections.html">cleanup_connections</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Attendre et réessayer</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Sys.sleep.html" class="external-link">Sys.sleep</a></span><span class="op">(</span><span class="fl">5</span><span class="op">)</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level4">
 <h4 id="délai-dattente-de-requête-ou-connexion-perdue">Délai d’attente de requête ou “Connexion perdue”<a class="anchor" aria-label="anchor" href="#d%C3%A9lai-dattente-de-requ%C3%AAte-ou-connexion-perdue"></a>
@@ -390,7 +437,7 @@ Shiny</li>
 <p><strong>Solutions</strong> :</p>
 <p>Le package inclut une nouvelle tentative automatique pour les échecs
 transitoires :</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># func_try_fetch réessaie automatiquement les requêtes échouées</span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/func_try_fetch.html">func_try_fetch</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"SELECT * FROM grande_table"</span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -406,7 +453,7 @@ transitoires :</p>
 <ol style="list-style-type: decimal">
 <li>Vérifiez vos parcelles accessibles :</li>
 </ol>
-<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/get_user_accessible_plots.html">get_user_accessible_plots</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"votre_utilisateur"</span><span class="op">)</span></span></code></pre></div>
 <ol start="2" style="list-style-type: decimal">
 <li>Contactez l’administrateur pour demander l’accès à des parcelles
@@ -419,7 +466,7 @@ supplémentaires</li>
 </h3>
 <p>Si vous avez des problèmes persistants, faites une réinitialisation
 complète :</p>
-<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb23"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># 1. Nettoyer toutes les connexions</span></span>
 <span><span class="fu"><a href="../reference/cleanup_connections.html">cleanup_connections</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
@@ -428,7 +475,7 @@ complète :</p>
 <span></span>
 <span><span class="co"># 3. Se reconnecter à neuf</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span>reset <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span>reset <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">
@@ -438,6 +485,10 @@ complète :</p>
 <h3 id="à-faire">À Faire<a class="anchor" aria-label="anchor" href="#%C3%A0-faire"></a>
 </h3>
 <ul>
+<li>
+<strong>Démarrer les sessions avec
+<code><a href="../reference/connect_cafri.html">connect_cafri()</a></code></strong> plutôt qu’avec deux appels
+séparés</li>
 <li>
 <strong>Toujours appeler <code><a href="../reference/cleanup_connections.html">cleanup_connections()</a></code></strong>
 avant de fermer R</li>
@@ -483,17 +534,17 @@ suffit</li>
 <div class="section level3">
 <h3 id="flux-de-travail-recommandé">Flux de Travail Recommandé<a class="anchor" aria-label="anchor" href="#flux-de-travail-recommand%C3%A9"></a>
 </h3>
-<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb24"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># 1. Se connecter</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co"># 1. Se connecter aux deux bases de données en une seule étape</span></span>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 2. Vérifier la connexion</span></span>
 <span><span class="fu"><a href="../reference/print_connection_status.html">print_connection_status</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 3. Vérifier votre accès si nécessaire</span></span>
-<span><span class="fu"><a href="../reference/get_user_accessible_plots.html">get_user_accessible_plots</a></span><span class="op">(</span><span class="va">con</span>, <span class="st">"votre_utilisateur"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/get_user_accessible_plots.html">get_user_accessible_plots</a></span><span class="op">(</span><span class="va">cons</span><span class="op">$</span><span class="va">main</span>, <span class="st">"votre_utilisateur"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 4. Faire votre travail</span></span>
 <span><span class="co"># ... requêtes, mises à jour, etc. ...</span></span>
@@ -531,7 +582,7 @@ suffit</li>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer>

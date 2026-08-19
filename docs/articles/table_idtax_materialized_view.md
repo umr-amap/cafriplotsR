@@ -1,0 +1,431 @@
+# Managing table_idtax Materialized View (Advanced)
+
+## Overview
+
+**Note: This vignette is for advanced users with database management
+permissions only.**
+
+The `table_idtax` is a PostgreSQL materialized view that resolves
+taxonomic synonyms by linking `idtax` (any taxon ID) to `idtax_good`
+(the accepted taxon ID). It is based on data from the `table_taxa` table
+in the taxa database.
+
+### Why a Materialized View?
+
+Previously, `table_idtax` was a regular table that required manual
+updates by the database administrator. As a materialized view:
+
+- **Performance**: Query results are pre-computed and cached
+- **Freshness**: Can be refreshed on-demand by authorized users
+- **Consistency**: Always reflects the structure of the source query
+- **Staleness tracking**: Metadata tracks when it was last updated
+
+### How It Works
+
+    table_taxa (taxa DB)
+        ↓
+        [Materialized View Query]
+        ↓
+    table_idtax (main DB) ← Can be refreshed by data managers
+
+The materialized view is refreshed using the
+`REFRESH MATERIALIZED VIEW CONCURRENTLY` command, which: - Does not
+block reads during refresh - Requires a unique index (automatically
+created during migration) - Updates data from the source query
+
+------------------------------------------------------------------------
+
+## Key Functions
+
+### 1. Checking Staleness: `check_table_idtax_staleness()`
+
+Check if `table_idtax` needs to be refreshed based on how long ago it
+was last updated.
+
+#### Usage
+
+``` r
+
+library(CafriplotsR)
+
+# Connect to database
+con <- connect_cafri()$main
+
+# Check staleness (warns if > 90 days old)
+staleness <- check_table_idtax_staleness(con)
+
+# Check staleness with custom threshold
+staleness <- check_table_idtax_staleness(con, warn_days = 30)
+
+# Silent check (no messages)
+staleness <- check_table_idtax_staleness(con, silent = TRUE)
+```
+
+#### Return Value
+
+Returns a list with:
+
+- `is_stale`: Logical, TRUE if older than threshold
+- `days_old`: Numeric, age in days
+- `last_updated`: POSIXct timestamp of last refresh
+- `message`: Character, human-readable status message
+
+#### Example Output
+
+``` r
+
+# Example 1: Fresh data
+# $is_stale
+# [1] FALSE
+#
+# $days_old
+# [1] 15
+#
+# $last_updated
+# [1] "2026-12-28 10:23:45 UTC"
+#
+# $message
+# [1] "table_idtax was refreshed 15 days ago (2026-12-28 10:23:45)"
+
+# Example 2: Stale data (with warning)
+# ✖ Warning: table_idtax is stale (120 days old). Consider refreshing.
+# $is_stale
+# [1] TRUE
+#
+# $days_old
+# [1] 120
+```
+
+#### Practical Use
+
+``` r
+
+# Check before running taxonomic queries
+staleness <- check_table_idtax_staleness(con, warn_days = 60)
+
+if (staleness$is_stale) {
+  message("Consider refreshing table_idtax before proceeding.")
+  # Optionally refresh automatically
+  # update_taxa_link_table(con)
+}
+```
+
+------------------------------------------------------------------------
+
+### 2. Refreshing the View: `update_taxa_link_table()`
+
+Refresh `table_idtax` to synchronize with the latest data from
+`table_taxa`.
+
+#### Usage
+
+``` r
+
+# Connect to both databases
+cons <- connect_cafri()
+con <- cons$main
+con_taxa <- cons$taxa
+
+# Refresh if stale (checks staleness first)
+result <- update_taxa_link_table(con, con_taxa)
+
+# Force refresh regardless of staleness
+result <- update_taxa_link_table(con, con_taxa, force = TRUE)
+
+# Custom staleness threshold (default 90 days)
+result <- update_taxa_link_table(con, con_taxa, warn_days = 30)
+```
+
+#### Behavior
+
+1.  **Checks staleness first** (unless `force = TRUE`)
+    - If recently updated, skips refresh and returns success message
+    - Threshold controlled by `warn_days` parameter
+2.  **Attempts materialized view refresh**
+    - Calls PostgreSQL function `refresh_table_idtax()`
+    - Uses `REFRESH MATERIALIZED VIEW CONCURRENTLY` (non-blocking)
+    - Updates metadata table with timestamp and record count
+3.  **Fallback to legacy method** (if function not available)
+    - Re-fetches data from `table_taxa` via R
+    - Recreates the table (requires admin privileges)
+
+#### Return Value
+
+Returns a list with:
+
+- `success`: Logical, TRUE if refresh succeeded
+- `method`: Character, “materialized_view”, “legacy”, or “skipped”
+- `message`: Character, status message
+- `record_count`: Integer, number of records after refresh
+- `duration`: difftime, time taken for refresh
+
+#### Example Output
+
+``` r
+
+# Example 1: Successful refresh
+# ✔ Successfully refreshed table_idtax via materialized view
+# ℹ 362,093 records refreshed in 2.3 seconds
+#
+# $success
+# [1] TRUE
+#
+# $method
+# [1] "materialized_view"
+#
+# $record_count
+# [1] 362093
+#
+# $duration
+# Time difference of 2.3 secs
+
+# Example 2: Skipped (recently updated)
+# ℹ table_idtax was refreshed 5 days ago. Skipping refresh.
+# ℹ Use force = TRUE to refresh anyway.
+#
+# $success
+# [1] TRUE
+#
+# $method
+# [1] "skipped"
+```
+
+#### Permissions
+
+To refresh the materialized view, you need one of:
+
+1.  **SECURITY DEFINER function privilege**: The `refresh_table_idtax()`
+    function is created with `SECURITY DEFINER`, allowing it to execute
+    with the creator’s (admin’s) privileges
+2.  **data_manager_role**: If granted by the admin (requires
+    `CREATEROLE` privilege)
+3.  **Direct REFRESH privilege**: On the materialized view
+
+Most data managers should have access via the SECURITY DEFINER function.
+
+------------------------------------------------------------------------
+
+### 3. Viewing Metadata: `get_table_idtax_metadata()`
+
+Retrieve metadata about `table_idtax` refresh history.
+
+#### Usage
+
+``` r
+
+con <- connect_cafri()$main
+
+# Get metadata
+metadata <- get_table_idtax_metadata(con)
+```
+
+#### Return Value
+
+Returns a data.frame with:
+
+- `table_name`: Character, always “table_idtax”
+- `last_updated`: POSIXct, timestamp of last refresh
+- `updated_by`: Character, username who performed refresh
+- `record_count`: Integer, number of records after refresh
+- `source_info`: Character, refresh method or migration note
+
+#### Example Output
+
+``` r
+
+#   table_name       last_updated        updated_by record_count
+# 1 table_idtax 2026-12-28 10:23:45           dauby       362093
+#                                          source_info
+# 1 Refreshed via refresh_table_idtax() function
+```
+
+#### Practical Use
+
+``` r
+
+# Check who last refreshed and when
+metadata <- get_table_idtax_metadata(con)
+cat(sprintf(
+  "Last refresh: %s by %s (%s records)\n",
+  metadata$last_updated,
+  metadata$updated_by,
+  format(metadata$record_count, big.mark = ",")
+))
+```
+
+------------------------------------------------------------------------
+
+## Complete Workflow Example
+
+### Scenario: Monthly Data Manager Check
+
+``` r
+
+library(CafriplotsR)
+
+# 1. Connect to databases
+cons <- connect_cafri()
+con <- cons$main
+con_taxa <- cons$taxa
+
+# 2. Check staleness
+staleness <- check_table_idtax_staleness(con, warn_days = 30)
+
+# 3. Refresh if needed
+if (staleness$is_stale) {
+  cat("Table is stale. Refreshing...\n")
+  result <- update_taxa_link_table(con, con_taxa)
+
+  if (result$success) {
+    cat(sprintf("✓ Successfully refreshed %s records\n",
+                format(result$record_count, big.mark = ",")))
+  } else {
+    cat("✗ Refresh failed. Contact admin.\n")
+  }
+} else {
+  cat("Table is up to date. No refresh needed.\n")
+}
+
+# 4. View refresh history
+metadata <- get_table_idtax_metadata(con)
+print(metadata)
+
+# 5. Clean up
+cleanup_connections()
+```
+
+------------------------------------------------------------------------
+
+## Troubleshooting
+
+### Error: “permission denied for materialized view table_idtax”
+
+**Cause**: Your user account does not have permission to refresh the
+materialized view.
+
+**Solution**: Ask the database administrator to:
+
+1.  Grant you the `data_manager_role`:
+
+    ``` sql
+    GRANT data_manager_role TO your_username;
+    ```
+
+2.  Or grant direct permission:
+
+    ``` sql
+    GRANT SELECT, TRIGGER ON table_idtax TO your_username;
+    ```
+
+### Error: “function refresh_table_idtax() does not exist”
+
+**Cause**: The migration to materialized view has not been completed.
+
+**Solution**: Contact the database administrator to run:
+
+``` r
+
+cons <- connect_cafri()
+con <- cons$main
+con_taxa <- cons$taxa
+
+# One-shot schema migration: internal on purpose, so it is reached with :::
+CafriplotsR:::migrate_table_idtax_to_materialized_view(
+  con = con,
+  con_taxa = con_taxa,
+  data_manager_users = c("dauby", "alex", "libalah")
+)
+```
+
+### Warning: “table_idtax is stale”
+
+**Cause**: The materialized view has not been refreshed recently.
+
+**Solution**: Run
+[`update_taxa_link_table()`](https://umr-amap.github.io/cafriplotsR/reference/update_taxa_link_table.md)
+to refresh:
+
+``` r
+
+cons <- connect_cafri()
+con <- cons$main
+con_taxa <- cons$taxa
+update_taxa_link_table(con, con_taxa)
+```
+
+### `update_taxa_link_table()` returns “skipped” but you want to force refresh
+
+**Solution**: Use the `force = TRUE` parameter:
+
+``` r
+
+update_taxa_link_table(con, con_taxa, force = TRUE)
+```
+
+------------------------------------------------------------------------
+
+## Background Information
+
+### What Happens During Refresh?
+
+1.  **PostgreSQL locks the view** for writing (reads still allowed with
+    `CONCURRENTLY`)
+2.  **Executes the source query** on `table_taxa` in the taxa database
+3.  **Replaces old data** with new query results
+4.  **Updates metadata table** with timestamp, record count, and
+    username
+5.  **Releases lock** and returns success
+
+### Performance Considerations
+
+- **Refresh time**: Typically 2-5 seconds for ~360,000 records
+- **No downtime**: Queries continue to work during refresh
+- **Indexes maintained**: Unique index on `idtax` is automatically
+  updated
+- **Metadata overhead**: Minimal (\<1ms)
+
+### Automatic Refresh (Optional)
+
+If the `pg_cron` extension is enabled by the administrator,
+`table_idtax` can be automatically refreshed on a schedule (e.g.,
+monthly on the 1st at 2:00 AM):
+
+``` sql
+-- Requires superuser privileges and pg_cron extension
+SELECT cron.schedule(
+  'refresh_table_idtax_monthly',
+  '0 2 1 * *',
+  'SELECT refresh_table_idtax();'
+);
+```
+
+Check with your administrator if automatic refresh is configured.
+
+------------------------------------------------------------------------
+
+## Summary
+
+| Function | Purpose | Permissions Required |
+|----|----|----|
+| [`check_table_idtax_staleness()`](https://umr-amap.github.io/cafriplotsR/reference/check_table_idtax_staleness.md) | Check if refresh needed | Read access to metadata table |
+| [`update_taxa_link_table()`](https://umr-amap.github.io/cafriplotsR/reference/update_taxa_link_table.md) | Refresh the materialized view | REFRESH privilege or data_manager_role |
+| [`get_table_idtax_metadata()`](https://umr-amap.github.io/cafriplotsR/reference/get_table_idtax_metadata.md) | View refresh history | Read access to metadata table |
+
+**Best Practice**: Check staleness monthly and refresh if older than
+30-90 days.
+
+**Key Advantages**: - Non-admin users can refresh taxonomy data -
+Staleness warnings prevent using outdated synonyms - Metadata provides
+audit trail of refreshes - Concurrent refresh allows queries during
+update
+
+------------------------------------------------------------------------
+
+## Further Reading
+
+- PostgreSQL Materialized Views:
+  <https://www.postgresql.org/docs/current/rules-materializedviews.html>
+- Migration plan: `inst/docs/PLAN_MATERIALIZED_VIEW_MIGRATION.md`
+- Quick reference: `inst/docs/QUICK_REFERENCE_table_idtax.md`
+- Full SQL script:
+  `inst/sql/migration_table_idtax_to_materialized_view.sql`

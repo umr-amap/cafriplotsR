@@ -1,0 +1,74 @@
+# Diagnose why the database cannot be reached
+
+Distinguishes the three situations that all surface as the same
+unhelpful "timeout expired" error when connecting:
+
+1\. the network is fine and the problem lies with the credentials or the
+server itself; 2. the network works in general but blocks the database
+port - the usual case on institutional, campus and corporate
+connections, which often allow only ports 80 and 443 outbound; 3. there
+is no working internet connection at all.
+
+It opens a raw TCP connection to the database host and port, and, if
+that fails, a second one to a control host on port 443 to tell case 2
+from case 3. No credentials are used and nothing is sent, so it is safe
+to run and safe to ask a user to run.
+
+## Usage
+
+``` r
+check_db_network(
+  host = NULL,
+  port = NULL,
+  timeout = 5,
+  control_host = "cran.r-project.org",
+  control_port = 443,
+  verbose = TRUE
+)
+```
+
+## Arguments
+
+- host:
+
+  Character. Database host. Defaults to the configured host.
+
+- port:
+
+  Integer. Database port. Defaults to the configured port.
+
+- timeout:
+
+  Numeric. Seconds to wait for each probe. Default 5. A blocked port
+  typically takes the full timeout; note that on some systems the
+  operating system's own TCP timeout (around 20 seconds) applies
+  instead, so the check can take longer than requested.
+
+- control_host:
+
+  Character. Host used to verify general connectivity. Default
+  \`"cran.r-project.org"\`.
+
+- control_port:
+
+  Integer. Port for the control probe. Default 443.
+
+- verbose:
+
+  Logical. Print the report. Default \`TRUE\`.
+
+## Value
+
+Invisibly, a list with \`host\`, \`port\`, \`database\` (the probe
+result), \`control\` (the control probe, or \`NULL\` if it was not
+needed) and \`verdict\`, one of \`"reachable"\`, \`"port_blocked"\`,
+\`"no_connectivity"\`.
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+# Why did call.mydb() just time out?
+check_db_network()
+} # }
+```

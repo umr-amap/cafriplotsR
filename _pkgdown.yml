@@ -15,13 +15,28 @@ news:
   cran_dates: false
 
 navbar:
-  right:
-    - text: "FR"
+  structure:
+    left:  [articles, reference, newsletter, news]
+    right: [fr, search, github, issues]
+  components:
+    articles:
+      text: "Tutorials"
+      href: articles/index.html
+    reference:
+      text: "Functions"
+      href: reference/index.html
+    newsletter:
+      text: "Newsletter"
+      href: articles/newsletter.html
+    fr:
+      text: "FR"
       href: articles/readme-fr.html
-    - icon: fa-github
+    github:
+      icon: fa-github
       href: https://github.com/umr-amap/cafriplotsR
       aria-label: GitHub
-    - icon: fa-bug
+    issues:
+      icon: fa-bug
       href: https://github.com/umr-amap/cafriplotsR/issues
       aria-label: Report an issue
 
@@ -37,16 +52,16 @@ articles:
     - updating-data
     - biomass-agb-estimation
     - growth-mortality-analysis
-  - title: "Newsletter"
-    contents:
-    - newsletter
-    - newsletter-fr
   - title: "Tools"
     contents:
     - taxonomic-app
     - taxonomic-backbone-app
     - specimen_linking_workflow
     - table_idtax_materialized_view
+  - title: "Newsletter"
+    contents:
+    - newsletter
+    - newsletter-fr
   - title: "Français - Démarrage"
     contents:
     - readme-fr
@@ -70,6 +85,7 @@ reference:
     contents:
       - call.mydb
       - call.mydb.taxa
+      - connect_cafri
       - connect_database
       - create_pool_main
       - create_pool_taxa
@@ -84,6 +100,7 @@ reference:
       - func_try_fetch
       - try_open_postgres_table
       - get_database_fk
+      - check_db_network
 
   - title: "Data Queries"
     desc: "Query plots, individuals, taxa, traits, and specimens from the database"
@@ -111,6 +128,7 @@ reference:
       - subplot_list
       - traits_list
       - traits_taxa_list
+      - get_traitlist
       - PlotFetcher
       - PlotFilterBuilder
       - SpecimenFetcher
@@ -169,6 +187,8 @@ reference:
       - add_subplottype
       - import_plot_metadata
       - import_individual_data
+      - build_specimens_from_tropicos
+      - build_tropicos_upload_table
 
   - title: "Update and Delete"
     desc: "Update existing records and safely delete data with cascade handling"
@@ -183,6 +203,7 @@ reference:
       - update_taxon_parent
       - update_citation
       - apply_citation_backfill
+      - update_specimen_fields
       - safe_delete_individuals
       - safe_delete_plot
       - safe_delete_taxa_traits
@@ -243,6 +264,10 @@ reference:
       - get_import_column_routing
       - enrich_traits_with_measurement_features
       - enrich_with_traits
+      - build_data_sources_table
+      - export_census_split
+      - split_census_table
+      - collect_taxon_revisions
       - print_validation_results
       - print_individual_validation_results
       - print_import_result
@@ -274,6 +299,7 @@ reference:
       - launch_taxa_traits_import
       - launch_taxo_backbone_app
       - launch_taxonomic_match_app
+      - launch_specimen_identification_app
       - shiny_app_query_plots
       - shiny_app_taxo_backbone
       - mod_database_login_ui
@@ -376,6 +402,23 @@ reference:
       - get_cache_metadata
       - load_backbone_cache
       - save_backbone_cache
+
+  - title: "Database Monitoring & Activity"
+    desc: "Monitor database activity, backup row-level security tables, and analyze database usage"
+    contents:
+      - get_db_activity
+      - init_activity_log
+      - log_db_snapshot
+      - summarize_activity_log
+      - read_activity_log
+      - plot_activity_log
+      - print.db_activity
+      - monitor_db
+      - save_db_activity_report
+      - setup_db_activity_scheduler
+      - backup_rls_tables
+      - census_link_evidence
+      - generate_specimen_labels
 
   - title: "Administration & Permissions"
     desc: "User management, database permissions, backup, and migration utilities"

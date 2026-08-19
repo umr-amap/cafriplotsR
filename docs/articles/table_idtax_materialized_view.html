@@ -12,8 +12,8 @@
 <link rel="icon" sizes="any" href="../favicon.ico">
 <link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><link href="../extra.css" rel="stylesheet">
 <meta property="og:title" content="Managing table_idtax Materialized View (Advanced)">
@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,12 +35,16 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
-<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Articles</a></li>
+<li class="active nav-item"><a class="nav-link" href="../articles/index.html">Tutorials</a></li>
+<li class="nav-item"><a class="nav-link" href="../reference/index.html">Functions</a></li>
+<li class="nav-item"><a class="nav-link" href="../articles/newsletter.html">Newsletter</a></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><a class="nav-link" href="../articles/readme-fr.html">FR</a></li>
+<li class="nav-item"><form class="form-inline" role="search">
+ <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
+</form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR" aria-label="GitHub"><span class="fa fa-github"></span></a></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/umr-amap/cafriplotsR/issues" aria-label="Report an issue"><span class="fa fa-bug"></span></a></li>
       </ul>
@@ -126,7 +130,7 @@ long ago it was last updated.</p>
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Connect to database</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">main</span></span>
 <span></span>
 <span><span class="co"># Check staleness (warns if &gt; 90 days old)</span></span>
 <span><span class="va">staleness</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/check_table_idtax_staleness.html">check_table_idtax_staleness</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span>
@@ -202,8 +206,9 @@ from <code>table_taxa</code>.</p>
 </h4>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Connect to both databases</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">con_taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="va">cons</span><span class="op">$</span><span class="va">main</span></span>
+<span><span class="va">con_taxa</span> <span class="op">&lt;-</span> <span class="va">cons</span><span class="op">$</span><span class="va">taxa</span></span>
 <span></span>
 <span><span class="co"># Refresh if stale (checks staleness first)</span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/update_taxa_link_table.html">update_taxa_link_table</a></span><span class="op">(</span><span class="va">con</span>, <span class="va">con_taxa</span><span class="op">)</span></span>
@@ -325,7 +330,7 @@ function.</p>
 <h4 id="usage-2">Usage<a class="anchor" aria-label="anchor" href="#usage-2"></a>
 </h4>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">main</span></span>
 <span></span>
 <span><span class="co"># Get metadata</span></span>
 <span><span class="va">metadata</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/get_table_idtax_metadata.html">get_table_idtax_metadata</a></span><span class="op">(</span><span class="va">con</span><span class="op">)</span></span></code></pre></div>
@@ -385,8 +390,9 @@ note</li>
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># 1. Connect to databases</span></span>
-<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">con_taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="va">cons</span><span class="op">$</span><span class="va">main</span></span>
+<span><span class="va">con_taxa</span> <span class="op">&lt;-</span> <span class="va">cons</span><span class="op">$</span><span class="va">taxa</span></span>
 <span></span>
 <span><span class="co"># 2. Check staleness</span></span>
 <span><span class="va">staleness</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/check_table_idtax_staleness.html">check_table_idtax_staleness</a></span><span class="op">(</span><span class="va">con</span>, warn_days <span class="op">=</span> <span class="fl">30</span><span class="op">)</span></span>
@@ -443,10 +449,12 @@ been completed.</p>
 <p><strong>Solution</strong>: Contact the database administrator to
 run:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">con_taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="va">cons</span><span class="op">$</span><span class="va">main</span></span>
+<span><span class="va">con_taxa</span> <span class="op">&lt;-</span> <span class="va">cons</span><span class="op">$</span><span class="va">taxa</span></span>
 <span></span>
-<span><span class="fu"><a href="../reference/migrate_table_idtax_to_materialized_view.html">migrate_table_idtax_to_materialized_view</a></span><span class="op">(</span></span>
+<span><span class="co"># One-shot schema migration: internal on purpose, so it is reached with :::</span></span>
+<span><span class="fu">CafriplotsR</span><span class="fu">:::</span><span class="fu">migrate_table_idtax_to_materialized_view</span><span class="op">(</span></span>
 <span>  con <span class="op">=</span> <span class="va">con</span>,</span>
 <span>  con_taxa <span class="op">=</span> <span class="va">con_taxa</span>,</span>
 <span>  data_manager_users <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"dauby"</span>, <span class="st">"alex"</span>, <span class="st">"libalah"</span><span class="op">)</span></span>
@@ -460,8 +468,9 @@ recently.</p>
 <p><strong>Solution</strong>: Run <code><a href="../reference/update_taxa_link_table.html">update_taxa_link_table()</a></code>
 to refresh:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.html">call.mydb</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="va">con_taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call.mydb.taxa.html">call.mydb.taxa</a></span><span class="op">(</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">con</span> <span class="op">&lt;-</span> <span class="va">cons</span><span class="op">$</span><span class="va">main</span></span>
+<span><span class="va">con_taxa</span> <span class="op">&lt;-</span> <span class="va">cons</span><span class="op">$</span><span class="va">taxa</span></span>
 <span><span class="fu"><a href="../reference/update_taxa_link_table.html">update_taxa_link_table</a></span><span class="op">(</span><span class="va">con</span>, <span class="va">con_taxa</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
@@ -599,7 +608,7 @@ queries during update</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.3.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer>
