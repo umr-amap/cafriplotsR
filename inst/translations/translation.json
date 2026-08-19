@@ -9072,6 +9072,10 @@
     {
       "en": "%d row(s) removed. %d row(s) will be imported.",
       "fr": "%d ligne(s) retirée(s). %d ligne(s) seront importées."
+    },
+    {
+      "en": "%d measurement(s) carry no census and the same individual already has a value recorded for that feature",
+      "fr": "%d mesure(s) sans inventaire, alors que l'individu correspondant a déjà une valeur enregistrée pour cette caractéristique"
     }
   ]
 }
