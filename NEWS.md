@@ -90,6 +90,11 @@
 
 ### Documentation
 
+* **Feature Wizard, Add Individual Measurements — "trait" reworded to "feature" throughout the step** (`R/mod_feat_step3_measurements.R`, `R/mod_feat_step2_choose_mode.R`) — what this step records is whatever is measured on a stem, and half of it is not a trait *sensu stricto*: `position_x` and `position_y`, a quadrat, a transect section. The rest of the wizard already says feature (Add Plot Features, the feature catalog, `query_individual_features()`), so the step now agrees with it
+  - 26 user-facing strings reworded across the format chooser, the key-column panel, both mapping panels and the error notifications, plus the mode card in Choose Operation. 24 new EN/FR pairs added and the 21 strings left with no caller removed from `inst/translations/translation.json`
+  - `features_field` keeps its own name: its radio label is now "Measured feature" vs "Measurement metadata", since the two roles sit in the same radio group and would otherwise be indistinguishable once the first was called a feature
+  - Nothing changed but wording — trait names, `traits_field` / `features_field` arguments, element ids and the `traitlist` categories are untouched
+
 * **`mod_step1_choose_type_ui()`** — reworded the taxonomic-standardization requirement checkbox to explain the `launch_taxonomic_match_app()` workflow more precisely (standardize the taxa list, keep original names, obtain `idtax_n`) and to correct the column-mapping guidance, which previously referred to a non-existent `idtax` column instead of `idtax_n`. French translation synced.
 
 * **Newsletter vignettes** (`newsletter.Rmd`, `newsletter-fr.Rmd`) — copyedited the WCVP and aggregated-traits sections: dropped marketing language tied to the Barcelona presentation, fixed example calls, added a `get_wcvp_status()` snippet, and clarified the public-access/data-sovereignty note.

@@ -6522,28 +6522,8 @@
       "fr": "Etape 3 : Importer les mesures individuelles"
     },
     {
-      "en": "Upload trait observations (DBH, height, etc.) for existing tagged individuals. Match individuals by plot name and tag number.",
-      "fr": "Importez des observations de traits (DHP, hauteur, etc.) pour des individus existants. Correspondance par nom de parcelle et numero d'etiquette."
-    },
-    {
       "en": "Data Format",
       "fr": "Format des donnees"
-    },
-    {
-      "en": "Wide format (one column per trait)",
-      "fr": "Format large (une colonne par trait)"
-    },
-    {
-      "en": "Long format (trait type + value columns)",
-      "fr": "Format long (colonnes type de trait + valeur)"
-    },
-    {
-      "en": "Wide format: each trait is a separate column. Expected columns: plot_name, tag, and one column per trait (e.g., DBH, height, crown_diameter).",
-      "fr": "Format large : chaque trait est une colonne separee. Colonnes attendues : plot_name, tag, et une colonne par trait (ex. DHP, hauteur, diametre_couronne)."
-    },
-    {
-      "en": "Long format: one row per measurement. Expected columns: plot_name, tag, a column for trait type/name, a column for numeric values, and optionally a column for character values. Additional metadata columns are allowed.",
-      "fr": "Format long : une ligne par mesure. Colonnes attendues : plot_name, tag, une colonne pour le type/nom du trait, une colonne pour les valeurs numeriques, et optionnellement une colonne pour les valeurs textuelles. Des colonnes de metadonnees supplementaires sont autorisees."
     },
     {
       "en": "Tag / Individual number column *",
@@ -6554,36 +6534,12 @@
       "fr": "Mapper les colonnes cles"
     },
     {
-      "en": "Map the plot name and tag columns. Remaining columns will be treated as potential trait columns in the next section.",
-      "fr": "Mappez les colonnes nom de parcelle et etiquette. Les colonnes restantes seront traitees comme colonnes de traits potentielles."
-    },
-    {
-      "en": "Trait type / name column *",
-      "fr": "Colonne type / nom de trait *"
-    },
-    {
       "en": "Numeric value column",
       "fr": "Colonne valeur numerique"
     },
     {
       "en": "Character value column",
       "fr": "Colonne valeur textuelle"
-    },
-    {
-      "en": "Map Columns to Traits",
-      "fr": "Mapper les colonnes aux traits"
-    },
-    {
-      "en": "Map each data column to a trait from the database. Columns mapped to '-- skip --' will be ignored.",
-      "fr": "Mappez chaque colonne de donnees a un trait de la base de donnees. Les colonnes mappees a '-- ignorer --' seront ignorees."
-    },
-    {
-      "en": "Map Trait Names",
-      "fr": "Mapper les noms de traits"
-    },
-    {
-      "en": "Map each trait name from your file to a trait in the database. Unmapped traits will be skipped.",
-      "fr": "Mappez chaque nom de trait de votre fichier a un trait de la base de donnees. Les traits non mappes seront ignores."
     },
     {
       "en": "Samples",
@@ -6618,20 +6574,8 @@
       "fr": "Veuillez mapper la colonne etiquette."
     },
     {
-      "en": "No trait columns mapped. Please map at least one column to a trait.",
-      "fr": "Aucune colonne de trait mappee. Veuillez mapper au moins une colonne a un trait."
-    },
-    {
       "en": "No valid measurements found after mapping.",
       "fr": "Aucune mesure valide trouvee apres le mapping."
-    },
-    {
-      "en": "No trait names mapped. Please map at least one trait.",
-      "fr": "Aucun nom de trait mappe. Veuillez mapper au moins un trait."
-    },
-    {
-      "en": "No rows remaining after filtering to mapped traits.",
-      "fr": "Aucune ligne restante apres filtrage des traits mappes."
     },
     {
       "en": "measurement(s) prepared.",
@@ -6640,14 +6584,6 @@
     {
       "en": "Please map the plot name and tag columns first.",
       "fr": "Veuillez d'abord mapper les colonnes nom de parcelle et etiquette."
-    },
-    {
-      "en": "No remaining columns to map as traits.",
-      "fr": "Aucune colonne restante a mapper comme trait."
-    },
-    {
-      "en": "No trait names found in the selected column.",
-      "fr": "Aucun nom de trait trouve dans la colonne selectionnee."
     },
     {
       "en": "Missing tag column for individual matching.",
@@ -6712,18 +6648,6 @@
     {
       "en": "Add Individual Measurements",
       "fr": "Ajouter des mesures individuelles"
-    },
-    {
-      "en": "Add trait observations (DBH, height, etc.) for existing tagged individuals. Upload a file with plot name, tag and trait values.",
-      "fr": "Ajoutez des observations de traits (DHP, hauteur, etc.) pour des individus existants. Importez un fichier avec nom de parcelle, etiquette et valeurs de traits."
-    },
-    {
-      "en": "Wide format (one column per trait) or long format",
-      "fr": "Format large (une colonne par trait) ou format long"
-    },
-    {
-      "en": "Column/trait name mapping with synonyms",
-      "fr": "Mapping colonnes/noms de traits avec synonymes"
     },
     {
       "en": "Matches individuals by plot name + tag",
@@ -7914,14 +7838,6 @@
       "fr": "Donnée de trait"
     },
     {
-      "en": "Metadata (features_field)",
-      "fr": "Métadonnée (features_field)"
-    },
-    {
-      "en": "No columns designated as trait data. Please assign at least one column as 'Trait data'.",
-      "fr": "Aucune colonne désignée comme donnée de trait. Veuillez désigner au moins une colonne comme 'Donnée de trait'."
-    },
-    {
       "en": "Additional column roles",
       "fr": "Rôles des colonnes supplémentaires"
     },
@@ -9048,6 +8964,102 @@
     {
       "en": "a feature that never changes, such as a quadrat, is repeated in a column per census and the stem reads as though it had been re-located at each campaign.",
       "fr": "une caractéristique qui ne change jamais, comme le quadrat, est répétée dans une colonne par inventaire et la tige semble avoir été relocalisée à chaque campagne."
+    },
+    {
+      "en": "Upload feature observations (DBH, height, position, etc.) for existing tagged individuals. Match individuals by plot name and tag number.",
+      "fr": "Importez des observations de caractéristiques (DHP, hauteur, position, etc.) pour des individus existants. Correspondance par nom de parcelle et numéro d'étiquette."
+    },
+    {
+      "en": "Add feature observations (DBH, height, position, etc.) for existing tagged individuals. Upload a file with plot name, tag and feature values.",
+      "fr": "Ajoutez des observations de caractéristiques (DHP, hauteur, position, etc.) pour des individus existants. Importez un fichier avec nom de parcelle, étiquette et valeurs."
+    },
+    {
+      "en": "Wide format: each feature is a separate column. Expected columns: plot_name, tag, and one column per feature (e.g., DBH, height, position_x).",
+      "fr": "Format large : chaque caractéristique est une colonne séparée. Colonnes attendues : plot_name, tag, et une colonne par caractéristique (ex. DHP, hauteur, position_x)."
+    },
+    {
+      "en": "Long format: one row per measurement. Expected columns: plot_name, tag, a column for feature type/name, a column for numeric values, and optionally a column for character values. Additional metadata columns are allowed.",
+      "fr": "Format long : une ligne par mesure. Colonnes attendues : plot_name, tag, une colonne pour le type/nom de la caractéristique, une colonne pour les valeurs numériques, et optionnellement une colonne pour les valeurs textuelles. Des colonnes de métadonnées supplémentaires sont autorisées."
+    },
+    {
+      "en": "Map the plot name and tag columns. Remaining columns will be treated as potential feature columns in the next section.",
+      "fr": "Mappez les colonnes nom de parcelle et étiquette. Les colonnes restantes seront traitées comme colonnes de caractéristiques potentielles."
+    },
+    {
+      "en": "Map key columns and the feature type/value columns. Additional metadata columns (e.g., year, month, remarks) will be preserved.",
+      "fr": "Mappez les colonnes clés et les colonnes type/valeur de caractéristique. Les colonnes de métadonnées supplémentaires (ex. année, mois, remarques) seront conservées."
+    },
+    {
+      "en": "Map each data column to a feature from the database. Columns mapped to '-- skip --' will be ignored.",
+      "fr": "Mappez chaque colonne de données à une caractéristique de la base de données. Les colonnes mappées à '-- ignorer --' seront ignorées."
+    },
+    {
+      "en": "Map each feature name from your file to a feature in the database. Unmapped names will be skipped.",
+      "fr": "Mappez chaque nom de caractéristique de votre fichier à une caractéristique de la base de données. Les noms non mappés seront ignorés."
+    },
+    {
+      "en": "No columns designated as measured features. Please assign at least one column as 'Measured feature'.",
+      "fr": "Aucune colonne désignée comme caractéristique mesurée. Veuillez désigner au moins une colonne comme « Caractéristique mesurée »."
+    },
+    {
+      "en": "No feature columns mapped. Please map at least one column to a feature.",
+      "fr": "Aucune colonne de caractéristique mappée. Veuillez mapper au moins une colonne à une caractéristique."
+    },
+    {
+      "en": "No rows remaining after filtering to mapped features.",
+      "fr": "Aucune ligne restante après filtrage des caractéristiques mappées."
+    },
+    {
+      "en": "No feature names found in the selected column.",
+      "fr": "Aucun nom de caractéristique trouvé dans la colonne sélectionnée."
+    },
+    {
+      "en": "No feature names mapped. Please map at least one feature.",
+      "fr": "Aucun nom de caractéristique mappé. Veuillez mapper au moins une caractéristique."
+    },
+    {
+      "en": "No remaining columns to map as features.",
+      "fr": "Aucune colonne restante à mapper comme caractéristique."
+    },
+    {
+      "en": "Please map the feature type column first.",
+      "fr": "Veuillez d'abord mapper la colonne du type de caractéristique."
+    },
+    {
+      "en": "Please map the feature type column.",
+      "fr": "Veuillez mapper la colonne du type de caractéristique."
+    },
+    {
+      "en": "Wide format (one column per feature) or long format",
+      "fr": "Format large (une colonne par caractéristique) ou format long"
+    },
+    {
+      "en": "Long format (feature type + value columns)",
+      "fr": "Format long (colonnes type de caractéristique + valeur)"
+    },
+    {
+      "en": "Column/feature name mapping with synonyms",
+      "fr": "Mapping colonnes/noms de caractéristiques avec synonymes"
+    },
+    {
+      "en": "Wide format (one column per feature)",
+      "fr": "Format large (une colonne par caractéristique)"
+    },
+    {
+      "en": "Feature type / name column *",
+      "fr": "Colonne type / nom de caractéristique *"
+    },
+    {
+      "en": "Map Columns to Features",
+      "fr": "Mapper les colonnes aux caractéristiques"
+    },
+    {
+      "en": "Map Feature Names",
+      "fr": "Mapper les noms de caractéristiques"
+    },
+    {
+      "en": "Measured feature",
+      "fr": "Caractéristique mesurée"
     }
   ]
 }

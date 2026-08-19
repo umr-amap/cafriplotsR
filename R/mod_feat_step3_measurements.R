@@ -24,7 +24,7 @@ mod_feat_step3_measurements_ui <- function(id, i18n) {
     ),
 
     shiny::p(
-      i18n$t("Upload trait observations (DBH, height, etc.) for existing tagged individuals. Match individuals by plot name and tag number."),
+      i18n$t("Upload feature observations (DBH, height, position, etc.) for existing tagged individuals. Match individuals by plot name and tag number."),
       style = "color: #6c757d; font-size: 16px; margin-bottom: 30px;"
     ),
 
@@ -35,8 +35,8 @@ mod_feat_step3_measurements_ui <- function(id, i18n) {
       choices = setNames(
         c("wide", "long"),
         c(
-          i18n$t("Wide format (one column per trait)"),
-          i18n$t("Long format (trait type + value columns)")
+          i18n$t("Wide format (one column per feature)"),
+          i18n$t("Long format (feature type + value columns)")
         )
       ),
       selected = "wide",
@@ -365,13 +365,13 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
         shiny::div(
           class = "alert alert-info",
           shiny::icon("info-circle"), " ",
-          i18n()$t("Wide format: each trait is a separate column. Expected columns: plot_name, tag, and one column per trait (e.g., DBH, height, crown_diameter).")
+          i18n()$t("Wide format: each feature is a separate column. Expected columns: plot_name, tag, and one column per feature (e.g., DBH, height, position_x).")
         )
       } else {
         shiny::div(
           class = "alert alert-info",
           shiny::icon("info-circle"), " ",
-          i18n()$t("Long format: one row per measurement. Expected columns: plot_name, tag, a column for trait type/name, a column for numeric values, and optionally a column for character values. Additional metadata columns are allowed.")
+          i18n()$t("Long format: one row per measurement. Expected columns: plot_name, tag, a column for feature type/name, a column for numeric values, and optionally a column for character values. Additional metadata columns are allowed.")
         )
       }
     })
@@ -870,7 +870,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
     shiny::hr(),
     shiny::h4(shiny::icon("exchange-alt"), " ", i18n$t("Map Key Columns")),
     shiny::p(
-      i18n$t("Map the plot name and tag columns. Remaining columns will be treated as potential trait columns in the next section."),
+      i18n$t("Map the plot name and tag columns. Remaining columns will be treated as potential feature columns in the next section."),
       style = "color: #6c757d;"
     ),
     shiny::fluidRow(
@@ -924,7 +924,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
     shiny::hr(),
     shiny::h4(shiny::icon("exchange-alt"), " ", i18n$t("Map Columns")),
     shiny::p(
-      i18n$t("Map key columns and the trait type/value columns. Additional metadata columns (e.g., year, month, remarks) will be preserved."),
+      i18n$t("Map key columns and the feature type/value columns. Additional metadata columns (e.g., year, month, remarks) will be preserved."),
       style = "color: #6c757d;"
     ),
     shiny::fluidRow(
@@ -941,7 +941,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
     ),
     shiny::fluidRow(
       shiny::column(4, shiny::selectInput(
-        ns("map_trait_type"), i18n$t("Trait type / name column *"),
+        ns("map_trait_type"), i18n$t("Feature type / name column *"),
         choices = c(none, user_cols),
         selected = trait_type_guess
       )),
@@ -1037,7 +1037,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   if (length(trait_candidates) == 0) {
     return(shiny::div(
       class = "alert alert-warning",
-      i18n$t("No remaining columns to map as traits.")
+      i18n$t("No remaining columns to map as features.")
     ))
   }
 
@@ -1061,9 +1061,9 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
 
   shiny::tagList(
     shiny::hr(),
-    shiny::h4(shiny::icon("tags"), " ", i18n$t("Map Columns to Traits")),
+    shiny::h4(shiny::icon("tags"), " ", i18n$t("Map Columns to Features")),
     shiny::p(
-      i18n$t("Map each data column to a trait from the database. Columns mapped to '-- skip --' will be ignored."),
+      i18n$t("Map each data column to a feature from the database. Columns mapped to '-- skip --' will be ignored."),
       style = "color: #6c757d;"
     ),
     lapply(trait_candidates, function(col) {
@@ -1129,7 +1129,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
               ),
               choices = setNames(
                 c("trait", "feature"),
-                c(i18n$t("Trait data"), i18n$t("Metadata (features_field)"))
+                c(i18n$t("Measured feature"), i18n$t("Measurement metadata"))
               ),
               selected = "trait",
               inline = TRUE
@@ -1149,7 +1149,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   if (is.null(trait_col) || trait_col == "") {
     return(shiny::div(
       class = "alert alert-secondary",
-      i18n$t("Please map the trait type column first.")
+      i18n$t("Please map the feature type column first.")
     ))
   }
 
@@ -1162,7 +1162,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   if (length(user_trait_names) == 0) {
     return(shiny::div(
       class = "alert alert-warning",
-      i18n$t("No trait names found in the selected column.")
+      i18n$t("No feature names found in the selected column.")
     ))
   }
 
@@ -1199,9 +1199,9 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
 
   shiny::tagList(
     shiny::hr(),
-    shiny::h4(shiny::icon("tags"), " ", i18n$t("Map Trait Names")),
+    shiny::h4(shiny::icon("tags"), " ", i18n$t("Map Feature Names")),
     shiny::p(
-      i18n$t("Map each trait name from your file to a trait in the database. Unmapped traits will be skipped."),
+      i18n$t("Map each feature name from your file to a feature in the database. Unmapped names will be skipped."),
       style = "color: #6c757d;"
     ),
     lapply(user_trait_names, function(name) {
@@ -1259,7 +1259,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
               choices = trait_choices,
               selected = .null_default(matched_trait, ""),
               width = "100%",
-              options = list(placeholder = "(Skip this trait)", allowEmptyOption = TRUE)
+              options = list(placeholder = "(Skip this feature)", allowEmptyOption = TRUE)
             ),
             shiny::uiOutput(ns(paste0("trait_desc_", safe_name)))
           )
@@ -1321,7 +1321,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   }
 
   if (length(trait_mappings) == 0) {
-    shiny::showNotification(i18n$t("No trait columns mapped. Please map at least one column to a trait."), type = "error")
+    shiny::showNotification(i18n$t("No feature columns mapped. Please map at least one column to a feature."), type = "error")
     return(NULL)
   }
 
@@ -1343,7 +1343,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   }
   if (length(traits_field_cols) == 0) {
     shiny::showNotification(
-      i18n$t("No columns designated as trait data. Please assign at least one column as 'Trait data'."),
+      i18n$t("No columns designated as measured features. Please assign at least one column as 'Measured feature'."),
       type = "error"
     )
     return(NULL)
@@ -1431,7 +1431,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   value_char_col <- input$map_value_char
 
   if (is.null(trait_type_col) || trait_type_col == "") {
-    shiny::showNotification(i18n$t("Please map the trait type column."), type = "error")
+    shiny::showNotification(i18n$t("Please map the feature type column."), type = "error")
     return(NULL)
   }
 
@@ -1492,7 +1492,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   }
 
   if (length(trait_name_map) == 0) {
-    shiny::showNotification(i18n$t("No trait names mapped. Please map at least one trait."), type = "error")
+    shiny::showNotification(i18n$t("No feature names mapped. Please map at least one feature."), type = "error")
     return(NULL)
   }
 
@@ -1501,7 +1501,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
   df <- df[df$trait_type %in% mapped_user_names, , drop = FALSE]
 
   if (nrow(df) == 0) {
-    shiny::showNotification(i18n$t("No rows remaining after filtering to mapped traits."), type = "error")
+    shiny::showNotification(i18n$t("No rows remaining after filtering to mapped features."), type = "error")
     return(NULL)
   }
 

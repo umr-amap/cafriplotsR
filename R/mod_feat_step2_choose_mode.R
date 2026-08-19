@@ -177,13 +177,13 @@ mod_feat_step2_choose_mode_ui <- function(id, i18n) {
             i18n$t("Add Individual Measurements")
           ),
           shiny::p(
-            i18n$t("Add trait observations (DBH, height, etc.) for existing tagged individuals. Upload a file with plot name, tag and trait values."),
+            i18n$t("Add feature observations (DBH, height, position, etc.) for existing tagged individuals. Upload a file with plot name, tag and feature values."),
             style = "color: #6c757d;"
           ),
           shiny::tags$ul(
             style = "color: #6c757d; font-size: 14px;",
-            shiny::tags$li(i18n$t("Wide format (one column per trait) or long format")),
-            shiny::tags$li(i18n$t("Column/trait name mapping with synonyms")),
+            shiny::tags$li(i18n$t("Wide format (one column per feature) or long format")),
+            shiny::tags$li(i18n$t("Column/feature name mapping with synonyms")),
             shiny::tags$li(i18n$t("Matches individuals by plot name + tag")),
             shiny::tags$li(i18n$t("Links measurements to a census"))
           )
