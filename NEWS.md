@@ -58,6 +58,14 @@
 
 ### Bug Fixes
 
+* **Feature Wizard, Add Measurements — the "Link to census" box now reflects what was actually mapped** (`R/mod_feat_step3_measurements.R`) — the box pre-selected the latest census for every plot no matter what the file contained, so a position-only import arrived at the write step carrying a census it had no business carrying
+  - Pre-selection is now driven by the policy: when none of the mapped features belong to a census nothing is pre-selected, and the box says so. The selection is only revised when the mapped set genuinely crosses that boundary, so a hand-picked census is never wiped by an unrelated dropdown change
+  - Features the policy excludes are named under the selector — "Recorded for the tree itself, not attached to a census" — rather than being silently dropped later
+  - `.apply_wide_mapping()` and `.apply_long_mapping()` clear the link on those rows before the data leaves the step, so what the screen shows and what is prepared agree
+  - A collapsed "What linking to a census changes" panel states the three consequences, each traced to the code that causes it: one column per campaign from `aggregate_numeric_features_dt()`, the census date from `enrich_census_info()`, and pairing by `compute_growth()`, which greps `^stem_diameter_census_\d+$` and needs at least two
+  - **Fixes a pre-existing blocker**: the Apply button lived inside the census selector, which rendered nothing when the selected plots had no census at all — measurements for those plots could not be prepared. It now always renders
+  - Ten EN/FR pairs added to `inst/translations/translation.json`
+
 * **Census links are now decided by policy on every write path** (`R/feature_census_link.R`, `R/mod_feat_step6_import.R`, `R/census_import_transaction.R`) — a measurement whose feature does not belong to a campaign is no longer stamped with `id_sub_plots`. Mapping a `quadrat` or a `position_x` in the Add Measurements step used to write a census-linked position, which `query_plots(show_multiple_census = TRUE)` then pivots into `quadrat_census_1`, `quadrat_census_2` ... repeating one unchanging value as though the stem had been re-located at each campaign
   - `.unlink_never_features()` clears the link on every row the policy calls `"never"` and names the features it left out; `.never_linked_features()` answers the same question for callers deciding what to *offer* rather than what to *write*
   - `.execute_measurements_import()` re-reads the policy from `traitlist.census_link` immediately before building its records, so the screen cannot decide it
@@ -131,7 +139,6 @@
   - RLS-safe insert path via parametrised `INSERT` (replaces `dbWriteTable`/`COPY`, which PostgreSQL refuses on RLS-protected tables)
   - Citation `CafriplotsR_aggregated` (auto-managed, `is_public = FALSE`) tags all aggregated rows; `RESTRICTIVE` RLS policy hides them from the public role
   - Migration / rollback helpers in `inst/scripts/migrate_add_aggregated_traits.R`
-
 
 * **`mod_extraction_config` — UI redesign with CSS-only tooltips and section cards**
   - Replaced dynamically-rendered UI with a static layout featuring coloured section cards (`.cfg-card`) and collapsible advanced options via native `<details>`
@@ -1333,7 +1340,6 @@
   - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
   - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
 
-
 * **Fixed `list_user_policies()` returning empty results**
   - Added `::name` type cast for proper comparison with PostgreSQL `name[]` array
   - Function now correctly filters policies by username
@@ -1434,7 +1440,6 @@
   - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
   - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
 
-
 * **Fixed `query_plots()` with `output_style` throwing errors on missing columns**
   - Changed column selection from `all_of()` to `any_of()` in output style transformations
   - Functions now gracefully handle missing columns instead of throwing errors
@@ -1519,7 +1524,6 @@
   - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
   - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
   - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
-
 
 * **Restored missing helper functions** accidentally commented out
   - `.rename_data()` (R/helpers.R:307) - Renames columns in datasets
@@ -1614,7 +1618,6 @@
   - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
   - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
 
-
 * **Fixed commented `@export` tag causing roxygen2 errors**
   - Removed `@export` from commented-out `subplot_list()` function in `R/subsplots_features_function.R`
   - Prevents documentation build failures
@@ -1647,7 +1650,6 @@
   - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
   - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
   - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
-
 
 * **Fixed NA input names appearing in trait enrichment**
   - Enrichment module now filters out rows where the input taxonomic name is NA or empty
@@ -1724,7 +1726,6 @@
   - Updated `cleanup_connections()` to properly close pool connections used by Shiny apps
   - Removed `q("no")` calls that were quitting R entirely and crashing RStudio
   - Affects `launch_taxonomic_match_app()` and `launch_query_plots_app()`
-
 
 * **Fixed `query_taxa()` empty results with `only_family = TRUE`**
   - Previously, fuzzy matching by default caused empty results when filtering for family-level taxa
