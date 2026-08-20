@@ -75,7 +75,7 @@ shiny_app_taxo_backbone <- function(pool_taxa = NULL, language = "fr") {
       # Login panel (shown if pool_taxa not provided)
       shiny::conditionalPanel(
         condition = "!output.authenticated",
-        mod_database_login_ui("login")
+        mod_database_login_ui("login", allow_public = TRUE)
       ),
 
       # Main app interface (shown after authentication)
@@ -297,7 +297,7 @@ shiny_app_taxo_backbone <- function(pool_taxa = NULL, language = "fr") {
     # Database authentication
     if (is.null(pool_taxa)) {
       # Use login module for authentication
-      login_output <- mod_database_login_server("login")
+      login_output <- mod_database_login_server("login", allow_public = TRUE)
 
       pool_reactive      <- login_output$pool_taxa   # taxa DB
       pool_main_reactive <- login_output$pool_main   # main DB (for taxa_traits_measures)

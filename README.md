@@ -112,11 +112,12 @@ If this last line prints no error, the package is ready to use.
   compilation?`, answer **No** (type `n` and press Enter).
 
 
-**Note:** You do not need credentials to get started. Every app offers a
+**Note:** You do not need credentials to get started. The taxonomic
+standardization, taxonomic backbone and plot querying apps offer a
 **Connect as public user** button, which opens read-only access to the taxonomy
-and the species traits — all the taxonomic standardization app needs. Plot
-inventory data is what is restricted: querying or updating plots requires your
-own account, and each account sees only the plots it is entitled to.
+and the species traits. Everything that writes to the database — importing,
+updating, managing specimens — requires your own account, and each account sees
+only the plots it is entitled to.
 
 
 ## Package Logic & Access Control

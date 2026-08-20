@@ -3,11 +3,15 @@
 #' UI component for database authentication with language selection
 #'
 #' @param id Module namespace ID
+#' @param allow_public Logical. Show the "Connect as public user" button?
+#'   Defaults to `FALSE`. The public account is read-only, so only apps that
+#'   are useful without write access should opt in (taxonomic matching,
+#'   backbone browsing, plot querying).
 #'
 #' @return A shiny tagList
 #' @keywords internal
 #' @export
-mod_database_login_ui <- function(id) {
+mod_database_login_ui <- function(id, allow_public = FALSE) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
@@ -57,16 +61,20 @@ mod_database_login_ui <- function(id) {
         # Connect button
         shiny::uiOutput(ns("connect_button")),
 
-        # Public access separator
-        shiny::hr(style = "margin-top: 20px; margin-bottom: 15px;"),
-        shiny::div(
-          style = "text-align: center; color: #6c757d; font-size: 0.85em; margin-bottom: 10px;",
-          shiny::uiOutput(ns("or_label"))
-        ),
-
-        # Public access button + notice
-        shiny::uiOutput(ns("public_connect_button")),
-        shiny::uiOutput(ns("public_access_notice")),
+        # Public access separator, button and notice - only for apps that
+        # opt in, since the public account is read-only and cannot drive the
+        # import, update or specimen management apps
+        if (isTRUE(allow_public)) {
+          shiny::tagList(
+            shiny::hr(style = "margin-top: 20px; margin-bottom: 15px;"),
+            shiny::div(
+              style = "text-align: center; color: #6c757d; font-size: 0.85em; margin-bottom: 10px;",
+              shiny::uiOutput(ns("or_label"))
+            ),
+            shiny::uiOutput(ns("public_connect_button")),
+            shiny::uiOutput(ns("public_access_notice"))
+          )
+        },
 
         # Offline (cached backbone) button + notice — only shown when a
         # cache exists on disk
@@ -85,6 +93,9 @@ mod_database_login_ui <- function(id) {
 #' Server logic for database authentication with language selection
 #'
 #' @param id Module namespace ID
+#' @param allow_public Logical. Allow connecting through the read-only public
+#'   account? Defaults to `FALSE`. Must match the value given to
+#'   [mod_database_login_ui()].
 #'
 #' @return A reactive list containing:
 #'   - authenticated: Reactive logical indicating connection status
@@ -94,7 +105,7 @@ mod_database_login_ui <- function(id) {
 #'
 #' @keywords internal
 #' @export
-mod_database_login_server <- function(id) {
+mod_database_login_server <- function(id, allow_public = FALSE) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -495,6 +506,7 @@ mod_database_login_server <- function(id) {
 
     # Public connect button handler
     shiny::observeEvent(input$connect_public, {
+      shiny::req(isTRUE(allow_public))
       rv$error_message <- NULL
       rv$is_public <- FALSE
 

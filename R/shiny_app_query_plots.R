@@ -48,7 +48,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
       # Login panel (shown if pool_main not provided)
       shiny::conditionalPanel(
         condition = "!output.authenticated",
-        mod_database_login_ui("login")
+        mod_database_login_ui("login", allow_public = TRUE)
       ),
 
       # Main app interface (shown after authentication)
@@ -226,7 +226,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
     # Database authentication
     if (is.null(pool_main)) {
       # Use login module for authentication
-      login_output <- mod_database_login_server("login")
+      login_output <- mod_database_login_server("login", allow_public = TRUE)
 
       pool_reactive <- login_output$pool_main
       authenticated_reactive <- login_output$authenticated

@@ -4,10 +4,15 @@
 \alias{mod_database_login_ui}
 \title{Database Login Module - UI}
 \usage{
-mod_database_login_ui(id)
+mod_database_login_ui(id, allow_public = FALSE)
 }
 \arguments{
 \item{id}{Module namespace ID}
+
+\item{allow_public}{Logical. Show the "Connect as public user" button?
+Defaults to `FALSE`. The public account is read-only, so only apps that
+are useful without write access should opt in (taxonomic matching,
+backbone browsing, plot querying).}
 }
 \value{
 A shiny tagList

@@ -4,10 +4,14 @@
 \alias{mod_database_login_server}
 \title{Database Login Module - Server}
 \usage{
-mod_database_login_server(id)
+mod_database_login_server(id, allow_public = FALSE)
 }
 \arguments{
 \item{id}{Module namespace ID}
+
+\item{allow_public}{Logical. Allow connecting through the read-only public
+account? Defaults to `FALSE`. Must match the value given to
+[mod_database_login_ui()].}
 }
 \value{
 A reactive list containing:
