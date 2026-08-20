@@ -103,18 +103,43 @@ de noms taxonomiques</li>
 <div class="section level3">
 <h3 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h3>
+<p>Copiez les trois étapes ci-dessous dans la console R, l’une après
+l’autre.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Installer depuis GitHub</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"tidyverse"</span>, <span class="st">"dbplyr"</span>, <span class="st">"devtools"</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/install-deprecated.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"umr-amap/cafriplotsR"</span>, upgrade <span class="op">=</span> <span class="st">"never"</span><span class="op">)</span></span></code></pre></div>
-<p>En cas de connexion internet lente, l’installation depuis GitHub
-ci-dessus peut échouer. Vous pouvez essayer de lancer d’abord cette
-ligne de code dans la console, elle augmentera le délai d’attente pour
-l’installation :</p>
+<code class="sourceCode R"><span><span class="co"># 1. Laisser plus de temps au téléchargement (utile sur connexion lente)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>timeout <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fl">3000</span>, <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"timeout"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 2. Installer l'utilitaire 'remotes' - nécessaire seulement la première fois</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"remotes"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># 3. Installer CafriplotsR depuis GitHub (les packages requis suivent automatiquement)</span></span>
+<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu"><a href="https://remotes.r-lib.org/reference/install_github.html" class="external-link">install_github</a></span><span class="op">(</span><span class="st">"umr-amap/cafriplotsR"</span>, upgrade <span class="op">=</span> <span class="st">"never"</span><span class="op">)</span></span></code></pre></div>
+<p>Vérifiez ensuite que l’installation a fonctionné :</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>timeout <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fl">3000</span>, <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"timeout"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
-<p><strong>Note :</strong> L’accès à la base de données est restreint et
-nécessite des identifiants appropriés.</p>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://umr-amap.github.io/cafriplotsR/">CafriplotsR</a></span><span class="op">)</span></span></code></pre></div>
+<p>Si cette dernière ligne n’affiche aucune erreur, le package est prêt
+à être utilisé.</p>
+<p><strong>En cas de problème :</strong></p>
+<ul>
+<li>
+<em>« there is no package called ‘remotes’ »</em> — relancez l’étape
+2.</li>
+<li>
+<em>L’installation s’interrompt sur une connexion lente</em> —
+redémarrez R, puis relancez les trois étapes en commençant par l’étape
+1.</li>
+<li>Si R demande
+<code>Do you want to install from sources the package which needs compilation?</code>,
+répondez <strong>non</strong> (tapez <code>n</code> puis Entrée).</li>
+</ul>
+<p><strong>Note :</strong> Aucun identifiant n’est nécessaire pour
+démarrer. Les applications de standardisation taxonomique, de
+consultation du référentiel taxonomique et d’interrogation des parcelles
+proposent un bouton <strong>Connect as public user</strong>, qui ouvre
+un accès en lecture seule à la taxonomie et aux traits d’espèces. Tout
+ce qui écrit dans la base — import, mise à jour, gestion des spécimens —
+nécessite votre propre compte, qui ne donne accès qu’aux seules
+parcelles qui vous sont autorisées.</p>
 </div>
 <div class="section level3">
 <h3 id="logique-du-package-et-contrôle-daccès">Logique du Package et Contrôle d’Accès<a class="anchor" aria-label="anchor" href="#logique-du-package-et-contr%C3%B4le-dacc%C3%A8s"></a>

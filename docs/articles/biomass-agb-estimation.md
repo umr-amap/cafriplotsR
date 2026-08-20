@@ -256,12 +256,12 @@ head(plot_data$height_diameter)
 #> # A tibble: 6 × 8
 #>     id_n plot_name    tag     D     H   POM census_name census_date
 #>    <int> <chr>      <dbl> <dbl> <dbl> <dbl> <chr>       <date>     
-#> 1 248738 bouamir001   107  14.7  13.5   1.3 census_1    2018-12-02 
-#> 2 248742 bouamir001   108  56.5  36.8   1.3 census_1    2018-12-02 
-#> 3 248754 bouamir001   111  18.1  18.6   1.3 census_1    2018-12-02 
-#> 4 248314 bouamir001     1  17.7  12.8   1.3 census_1    2018-12-02 
-#> 5 248334 bouamir001     6  22.2  15.7   1.3 census_1    2018-12-02 
-#> 6 248342 bouamir001     8  38.4  28.4   1.8 census_1    2018-12-02
+#> 1 248314 bouamir001     1  17.7  12.8   1.3 census_1    2018-12-02 
+#> 2 248334 bouamir001     6  22.2  15.7   1.3 census_1    2018-12-02 
+#> 3 248342 bouamir001     8  38.4  28.4   1.8 census_1    2018-12-02 
+#> 4 248346 bouamir001     9 123.   40.4   3.3 census_1    2018-12-02 
+#> 5 248370 bouamir001    15  48.7  25.8   1.3 census_1    2018-12-02 
+#> 6 248738 bouamir001   107  14.7  13.5   1.3 census_1    2018-12-02
 
 # This table includes:
 # - id_n: Individual ID

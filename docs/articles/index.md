@@ -2,6 +2,8 @@
 
 ### Getting Started
 
+- [The CafriplotsR Apps at a
+  Glance](https://umr-amap.github.io/cafriplotsR/articles/apps-overview.md):
 - [Database Connections
   Guide](https://umr-amap.github.io/cafriplotsR/articles/database-connections.md):
 - [Using the Plot Query App and
@@ -40,6 +42,8 @@
 
 - [CafriplotsR - Documentation en
   Français](https://umr-amap.github.io/cafriplotsR/articles/readme-fr.md):
+- [Les applications CafriplotsR en un coup
+  d'œil](https://umr-amap.github.io/cafriplotsR/articles/apps-overview-fr.md):
 - [Guide des Connexions à la Base de
   Données](https://umr-amap.github.io/cafriplotsR/articles/database-connections-fr.md):
 - [Utiliser l'application et

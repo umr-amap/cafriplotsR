@@ -2,6 +2,36 @@
 
 ## CafriplotsR 1.9.8 (Development)
 
+#### Breaking Changes
+
+- **`data_liste_plots.data_d` renamed to `date_d`** — the day-of-survey
+  column has carried a typo since the database was built, beside
+  `date_y` and `date_m`, and the codebase had already split around it:
+  `import_templates.R` hands users a `date_d` column and the validation
+  rules in `import_column_mapping.R` are keyed on `date_d`, while the
+  database, the synonym table, the column descriptions and
+  `get_table_columns()` said `data_d`. A day crossing from one side to
+  the other had nowhere to land
+  - Migration script: `inst/migrations/rename_data_d_to_date_d.R`,
+    `dry_run = TRUE` by default. **Applied 2026-08-20.**
+    `data_liste_plots` and `followup_updates_liste_plots` renamed in one
+    transaction; 1,252 of 2,166 plot rows and 1,767 of 2,298 audit rows
+    carried a day and every one survived unchanged, no view referenced
+    the column, and no `data_d` column remains
+  - **There is no version that accepts both spellings.** Applying the
+    migration without deploying this code, or deploying this code
+    without applying the migration, breaks the plot import path and
+    `R/mod_census_information.R`, which names the column in raw SQL.
+    They are in the same commit and must move together — relevant now
+    only for a restored backup
+  - The audit mirror was included because `backup_direct_records()`
+    copies by column name; leaving it as `data_d` would have broken
+    every plot backup insert
+  - Renamed in `R/add_functions.R`, `R/import_column_mapping.R`
+    (synonyms, descriptions, recommended columns),
+    `R/mod_census_information.R` and `R/updates_tables_functions.R`. No
+    `data_d` reference remains outside the migration itself
+
 #### Code Refactoring
 
 - **Growth form traits consolidated** — collapsed 7 branching
@@ -14,6 +44,90 @@
   `data_traits_measures`.
 
 #### New Features
+
+- **Public login is now opt-in per app** (`R/mod_database_login.R`) —
+  the “Connect as public user” button sat in the shared login UI, so all
+  ten apps offered it, including the import wizards, the record editor
+  and the specimen apps, where a read-only account cannot carry a single
+  workflow to the end
+
+  - [`mod_database_login_ui()`](https://umr-amap.github.io/cafriplotsR/reference/mod_database_login_ui.md)
+    and
+    [`mod_database_login_server()`](https://umr-amap.github.io/cafriplotsR/reference/mod_database_login_server.md)
+    gain `allow_public`, defaulting to `FALSE`. The separator, the
+    button and the read-only notice are built only when it is `TRUE`,
+    and the `connect_public` observer is guarded with
+    `req(isTRUE(allow_public))`, so the public connection cannot be
+    driven from a crafted client either
+  - Three apps opt in:
+    [`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md),
+    [`launch_taxo_backbone_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxo_backbone_app.md)
+    — which already hid its editing controls from public users through
+    `is_public` — and
+    [`launch_query_plots_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_query_plots_app.md),
+    where the row-level security policies decide what a public user
+    actually sees
+  - The seven apps that write to the database now show the credentials
+    form alone
+
+- **[`launch_data_update_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_data_update_app.md)**
+  — new Shiny app (`R/shiny_app_data_update.R`) for correcting plot
+  metadata and individual data one record at a time.
+  [`update_records()`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md)
+  can already do this, but it expects the caller to know which table a
+  value lives in, which is the part that is not obvious
+
+  - **Two sections.** *Plot metadata* loads a plot, edits the columns of
+    `data_liste_plots` (with `method` and `country` as dropdowns rather
+    than foreign keys), and edits its features. *Individual data* finds
+    an individual by plot and tag or by `id_n`, edits
+    `data_individuals`, changes the identification through the embedded
+    `mod_taxa_search` picker, and edits its trait measurements
+  - **Aggregated columns are resolved, never written.** Many columns of
+    an extracted table are not columns of the record: plot features are
+    rows of `data_liste_sub_plots`, individual features are rows of
+    `data_traits_measures`, and one extracted column can be the
+    aggregate of several such rows — which is why
+    `detect_feature_changes()` refuses them. The app shows the aggregate
+    read-only with its record count and aggregation rule (`mean` /
+    `concat`, mirroring
+    [`aggregate_numeric_features_dt()`](https://umr-amap.github.io/cafriplotsR/reference/aggregate_numeric_features_dt.md)
+    and `aggregate_*_plot_features()`), and offers the underlying
+    records as the editable inputs, each labelled with its own id and
+    its census or subplot context
+  - **Reference features are edited by name.** A `table_colnam` feature
+    is a numeric feature holding an `id_table_colnam`, stored in
+    `typevalue`; the app resolves it to the collector’s name for
+    display, offers a dropdown of names, and writes the id back to
+    `typevalue` only. `typevalue_char` is never used for these, and
+    neither is `data_liste_sub_plots.id_colnam` — it is populated on a
+    negligible number of rows and only in error (`typevalue` is set on
+    100% of them: additional_people 3095/3095, data_manager 858/858,
+    principal_investigator 1088/1088, team_leader 2169/2169)
+  - **The flat-column form is an allow-list, not the schema.**
+    `data_individuals` and `data_liste_plots` both carry deprecated
+    columns (`dbh`, `code_individu`, `sous_plot_name`) that nothing
+    writes any more; offering them would invite corrections that change
+    no behaviour, and editing `dbh` would silently disagree with the
+    `stem_diameter` measurements in `data_traits_measures`.
+    [`.upd_direct_fields()`](https://umr-amap.github.io/cafriplotsR/reference/dot-upd_direct_fields.md)
+    intersects `get_table_columns()` with the live schema instead, and
+    reports what it omitted rather than hiding it silently
+  - **Writes reuse the existing machinery.**
+    [`detect_direct_changes()`](https://umr-amap.github.io/cafriplotsR/reference/detect_direct_changes.md)
+    and `execute_direct_updates()` re-read stored values immediately
+    before writing, write only genuine differences, and back records up
+    to their follow-up table where one exists. Flat columns and features
+    go in one transaction, so a failure cannot leave a record
+    half-updated
+  - Manual editing of existing records only — adding and deleting
+    measurements remain the job of
+    [`launch_feature_wizard()`](https://umr-amap.github.io/cafriplotsR/reference/launch_feature_wizard.md)
+    and the `safe_delete_*` functions
+  - New backend in `R/update_app_resolver.R`, one module in
+    `R/mod_update_record.R` serving both sections, 79 assertions in
+    `tests/testthat/test-update-app-resolver.R`, and 51 EN/FR pairs
+    added to `inst/translations/translation.json`
 
 - **Feature Wizard, Validation — the measurements the database already
   holds can be dropped from the import**
@@ -409,6 +523,35 @@
   all three key columns instead of only `id_n` + `id_specimen`.
 
 #### Documentation
+
+- **`apps-overview` vignette, in English and French**
+  (`vignettes/apps-overview.Rmd`, `vignettes/apps-overview-fr.Rmd`) —
+  ten apps and no single page saying what each one is for. The overview
+  groups them by what they do (explore and standardize, import and
+  update, herbarium specimens), states for every app whether the public
+  account suffices or your own is required, and spells out what public
+  access covers and why the write apps do not offer it. Listed under
+  Getting Started and Français - Démarrage
+
+- **README — the access note now says what actually needs credentials**
+  — the note claimed the database is restricted, full stop, which
+  discourages newcomers and is not true: taxonomic standardization,
+  backbone browsing and plot querying all run through the public
+  account. Only inventory writes and per-account plot visibility are
+  restricted. Reworded in `README.md`, `README.fr.md`, `README-fr.md`
+  and `vignettes/readme-fr.Rmd`
+
+- **pkgdown no longer publishes local working notes** —
+  `pkgdown:::package_mds()` globs `*.md` at the package root and offers
+  no way to exclude a file, so a mail draft, the workshop programme, a
+  newsletter draft and the internal `CLAUDE.md` had all been rendered
+  onto the public site; gitignoring them never helped, since pkgdown
+  reads the working directory rather than the index. The notes moved to
+  `inst/notes/`, which the glob does not reach, and `^inst/notes$` was
+  added to `.Rbuildignore` so they are not installed with the package
+  either. The pages already generated from them were deleted, along with
+  their search-index and sitemap entries. `CLAUDE.md` must stay at the
+  root to be read, so its generated pages are gitignored instead
 
 - **Feature Wizard, Add Individual Measurements — “trait” reworded to
   “feature” throughout the step** (`R/mod_feat_step3_measurements.R`,

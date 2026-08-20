@@ -418,6 +418,8 @@ exploration
   : Launch Taxonomic Name Standardization App
 - [`launch_specimen_identification_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_specimen_identification_app.md)
   : Launch Specimen Identification Update App
+- [`launch_data_update_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_data_update_app.md)
+  : Launch the Data Update App
 - [`shiny_app_query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/shiny_app_query_plots.md)
   : Query Plots Shiny App
 - [`shiny_app_taxo_backbone()`](https://umr-amap.github.io/cafriplotsR/reference/shiny_app_taxo_backbone.md)
@@ -579,6 +581,10 @@ Internal Shiny UI and server module components
   : Trait Validation Module - Server
 - [`mod_trait_validation_ui()`](https://umr-amap.github.io/cafriplotsR/reference/mod_trait_validation_ui.md)
   : Trait Validation Module - UI
+- [`mod_update_record_server()`](https://umr-amap.github.io/cafriplotsR/reference/mod_update_record_server.md)
+  : Record update module - server
+- [`mod_update_record_ui()`](https://umr-amap.github.io/cafriplotsR/reference/mod_update_record_ui.md)
+  : Record update module - UI
 - [`model_wd_2`](https://umr-amap.github.io/cafriplotsR/reference/model_wd_1.md)
   : model_wd_1
 - [`model_wd_2`](https://umr-amap.github.io/cafriplotsR/reference/model_wd_2.md)

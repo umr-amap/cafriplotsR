@@ -5,7 +5,7 @@ Server logic for database authentication with language selection
 ## Usage
 
 ``` r
-mod_database_login_server(id)
+mod_database_login_server(id, allow_public = FALSE)
 ```
 
 ## Arguments
@@ -13,6 +13,12 @@ mod_database_login_server(id)
 - id:
 
   Module namespace ID
+
+- allow_public:
+
+  Logical. Allow connecting through the read-only public account?
+  Defaults to \`FALSE\`. Must match the value given to
+  \[mod_database_login_ui()\].
 
 ## Value
 

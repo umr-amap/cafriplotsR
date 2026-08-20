@@ -123,24 +123,44 @@ the concrete needs of potential users in Central Africa.
 
 ## Installation
 
-``` r
-
-# Install from GitHub
-install.packages(c("tidyverse", "dbplyr", "devtools"))
-devtools::install_github("umr-amap/cafriplotsR", upgrade = "never")
-```
-
-In case of slow internet connection, the installation from github above
-may fail. You may try to first launch this code line in the console, it
-will increase the time for trying to install :
+Copy the three steps below into the R console, one after the other.
 
 ``` r
 
+# 1. Allow more time for the download (useful on slow connections)
 options(timeout = max(3000, getOption("timeout")))
+
+# 2. Install the 'remotes' helper - only needed the first time
+if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
+
+# 3. Install CafriplotsR from GitHub (all required packages come with it)
+remotes::install_github("umr-amap/cafriplotsR", upgrade = "never")
 ```
 
-**Note:** Access to the database is restricted and requires appropriate
-credentials.
+Then check that the installation worked:
+
+``` r
+
+library(CafriplotsR)
+```
+
+If this last line prints no error, the package is ready to use.
+
+**Troubleshooting:**
+
+- *“there is no package called ‘remotes’”* — run step 2 again.
+- *Installation stops on a slow connection* — restart R, then run the
+  three steps again starting with step 1.
+- If R asks
+  `Do you want to install from sources the package which needs compilation?`,
+  answer **No** (type `n` and press Enter).
+
+**Note:** You do not need credentials to get started. The taxonomic
+standardization, taxonomic backbone and plot querying apps offer a
+**Connect as public user** button, which opens read-only access to the
+taxonomy and the species traits. Everything that writes to the database
+— importing, updating, managing specimens — requires your own account,
+and each account sees only the plots it is entitled to.
 
 ## Package Logic & Access Control
 
