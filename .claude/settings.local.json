@@ -179,7 +179,9 @@
       "PowerShell(Select-String -Path \"D:\\\\MonDossierR\\\\database.transects\\\\plotsdatabase\\\\R\\\\census_import_transaction.R\" -Pattern \"id_sub_plots|data_traits_measures|traitid\" | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
       "PowerShell(cd \"D:\\\\MonDossierR\\\\database.transects\\\\plotsdatabase\"; Write-Output \"=== .Rbuildignore \\(does it exclude inst?\\) ===\"; Get-Content .Rbuildignore -ErrorAction SilentlyContinue | Where-Object { $_ -match \"inst|migration\" }; Write-Output \"\\(none matching = inst ships\\)\"; Write-Output \"\"; Write-Output \"=== R/ files left with migration in the name ===\"; Get-ChildItem R | Where-Object { $_.Name -match \"migrat\" } | ForEach-Object { $_.Name }; Write-Output \"\\(empty = all gone\\)\")",
       "PowerShell(Select-String -Path .gitignore -Pattern 'CLAUDE|\\\\.claude' ; git ls-files --error-unmatch CLAUDE.md 2>$null; if \\(-not $?\\) { \"CLAUDE.md is NOT tracked\" })",
-      "Bash(R -e \"pkgdown::build_site\\(\\)\")"
+      "Bash(R -e \"pkgdown::build_site\\(\\)\")",
+      "Bash(env)",
+      "Bash(D=\"D:/Papiers-Bourses-colloques/sejours_etrangers_bourses_financements_missions/mission_mbalmayo_fevrier_2026/plot/small_tree\"; ls -la \"$D\"/*.collect 2>&1; unzip -l \"$D/small_trees_first_census_20260224T200947.collect\" 2>&1 | head -20)"
     ],
     "deny": [],
     "ask": []

@@ -28,7 +28,9 @@ app_builders <- list(
   "launch_specimen_import_wizard" =
     function() launch_specimen_import_wizard(lang = "fr"),
   "launch_specimen_identification_app" =
-    function() launch_specimen_identification_app(lang = "fr")
+    function() launch_specimen_identification_app(lang = "fr"),
+  "launch_data_update_app" =
+    function() launch_data_update_app(lang = "fr")
 )
 
 for (nm in names(app_builders)) {

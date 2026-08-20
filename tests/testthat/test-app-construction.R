@@ -180,3 +180,26 @@ test_that("launch_specimen_import_wizard() constructs without error (en)", {
   )
   expect_s3_class(app, "shiny.appobj")
 })
+
+# ── launch_data_update_app ───────────────────────────────────────────────────
+
+test_that("launch_data_update_app() constructs without error (fr)", {
+  expect_no_warning(
+    app <- launch_data_update_app(lang = "fr")
+  )
+  expect_s3_class(app, "shiny.appobj")
+})
+
+test_that("launch_data_update_app() constructs without error (en)", {
+  expect_no_warning(
+    app <- launch_data_update_app(lang = "en")
+  )
+  expect_s3_class(app, "shiny.appobj")
+})
+
+test_that("launch_data_update_app() rejects unsupported language", {
+  expect_error(
+    launch_data_update_app(lang = "de"),
+    "should be one of"
+  )
+})

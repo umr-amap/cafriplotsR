@@ -9076,6 +9076,210 @@
     {
       "en": "%d measurement(s) carry no census and the same individual already has a value recorded for that feature",
       "fr": "%d mesure(s) sans inventaire, alors que l'individu correspondant a déjà une valeur enregistrée pour cette caractéristique"
+    },
+    {
+      "en": "Data Update",
+      "fr": "Mise à jour des données"
+    },
+    {
+      "en": "Update plot metadata and individual data",
+      "fr": "Mettre à jour les métadonnées des placettes et les données des individus"
+    },
+    {
+      "en": "Correct stored values one record at a time. Columns that are in fact features are resolved down to the records behind them, so an aggregated value is never written back as if it were a single field.",
+      "fr": "Corriger les valeurs enregistrées, un enregistrement à la fois. Les colonnes qui sont en réalité des features sont ramenées aux enregistrements qui les composent : une valeur agrégée n'est jamais réécrite comme s'il s'agissait d'un champ unique."
+    },
+    {
+      "en": "Plot metadata",
+      "fr": "Métadonnées des placettes"
+    },
+    {
+      "en": "Individual data",
+      "fr": "Données des individus"
+    },
+    {
+      "en": "1. Select the plot",
+      "fr": "1. Sélectionner la placette"
+    },
+    {
+      "en": "or id_liste_plots",
+      "fr": "ou id_liste_plots"
+    },
+    {
+      "en": "Load record",
+      "fr": "Charger l'enregistrement"
+    },
+    {
+      "en": "1. Find the individual",
+      "fr": "1. Trouver l'individu"
+    },
+    {
+      "en": "or id_n",
+      "fr": "ou id_n"
+    },
+    {
+      "en": "Give a plot, a tag, or an id to search on.",
+      "fr": "Indiquez une placette, un tag ou un identifiant pour lancer la recherche."
+    },
+    {
+      "en": "No individual matches.",
+      "fr": "Aucun individu ne correspond."
+    },
+    {
+      "en": "Found %d individual(s). Click a row to load it.",
+      "fr": "%d individu(s) trouvé(s). Cliquez sur une ligne pour le charger."
+    },
+    {
+      "en": "No record selected.",
+      "fr": "Aucun enregistrement sélectionné."
+    },
+    {
+      "en": "No record with that id.",
+      "fr": "Aucun enregistrement avec cet identifiant."
+    },
+    {
+      "en": "Could not load record:",
+      "fr": "Impossible de charger l'enregistrement :"
+    },
+    {
+      "en": "2. Current stored values",
+      "fr": "2. Valeurs actuellement enregistrées"
+    },
+    {
+      "en": "3. Columns stored directly on the record",
+      "fr": "3. Colonnes stockées directement sur l'enregistrement"
+    },
+    {
+      "en": "These inputs are pre-filled with the stored values and are absolute: clearing one will erase that value in the database.",
+      "fr": "Ces champs sont pré-remplis avec les valeurs enregistrées et sont absolus : vider un champ effacera la valeur correspondante dans la base."
+    },
+    {
+      "en": "Reset to stored values",
+      "fr": "Rétablir les valeurs enregistrées"
+    },
+    {
+      "en": "3b. Change the identification (optional)",
+      "fr": "3b. Modifier l'identification (facultatif)"
+    },
+    {
+      "en": "Current idtax_n: %s (original name: %s)",
+      "fr": "idtax_n actuel : %s (nom d'origine : %s)"
+    },
+    {
+      "en": "Leave the search below untouched to keep the current identification.",
+      "fr": "Laissez la recherche ci-dessous inchangée pour conserver l'identification actuelle."
+    },
+    {
+      "en": "Edit in the identification section below.",
+      "fr": "À modifier dans la section identification ci-dessous."
+    },
+    {
+      "en": "4. Features",
+      "fr": "4. Features"
+    },
+    {
+      "en": "Features are not columns of this record: each one is a separate row in another table. When several rows feed the same column, the value you see in an extracted table is an aggregate and cannot be edited as one value - edit the underlying records below.",
+      "fr": "Les features ne sont pas des colonnes de cet enregistrement : chacune est une ligne distincte dans une autre table. Lorsque plusieurs lignes alimentent la même colonne, la valeur affichée dans une table extraite est une agrégation et ne peut pas être modifiée comme une valeur unique — modifiez les enregistrements sous-jacents ci-dessous."
+    },
+    {
+      "en": "This record has no features recorded.",
+      "fr": "Aucune feature n'est enregistrée pour cet enregistrement."
+    },
+    {
+      "en": "%d feature(s), each backed by a single record.",
+      "fr": "%d feature(s), chacune reposant sur un seul enregistrement."
+    },
+    {
+      "en": "%d of %d feature(s) are aggregated over several records and appear as a single value in extracted tables.",
+      "fr": "%d feature(s) sur %d sont agrégées à partir de plusieurs enregistrements et apparaissent comme une valeur unique dans les tables extraites."
+    },
+    {
+      "en": "aggregated (%s of %d records)",
+      "fr": "agrégée (%s de %d enregistrements)"
+    },
+    {
+      "en": "single record",
+      "fr": "enregistrement unique"
+    },
+    {
+      "en": "Value in extracted table",
+      "fr": "Valeur dans la table extraite"
+    },
+    {
+      "en": "Stored as",
+      "fr": "Stockage"
+    },
+    {
+      "en": "Feature to edit",
+      "fr": "Feature à modifier"
+    },
+    {
+      "en": "One record. Extracted value: %s",
+      "fr": "Un seul enregistrement. Valeur extraite : %s"
+    },
+    {
+      "en": "mean of",
+      "fr": "moyenne des"
+    },
+    {
+      "en": "concatenation of",
+      "fr": "concaténation des"
+    },
+    {
+      "en": "Extracted value '%s' is the %s %d records below. Edit them individually.",
+      "fr": "La valeur extraite « %s » est la %s %d enregistrements ci-dessous. Modifiez-les individuellement."
+    },
+    {
+      "en": "record column",
+      "fr": "colonne de l'enregistrement"
+    },
+    {
+      "en": "Load a record first.",
+      "fr": "Chargez d'abord un enregistrement."
+    },
+    {
+      "en": "Nothing differs from the stored values.",
+      "fr": "Rien ne diffère des valeurs enregistrées."
+    },
+    {
+      "en": "%d value(s) will be written.",
+      "fr": "%d valeur(s) seront écrites."
+    },
+    {
+      "en": "Scope",
+      "fr": "Portée"
+    },
+    {
+      "en": "Target",
+      "fr": "Cible"
+    },
+    {
+      "en": "Applied: %d record column(s) and %d feature value(s) written.",
+      "fr": "Appliqué : %d colonne(s) d'enregistrement et %d valeur(s) de feature écrites."
+    },
+    {
+      "en": "Plot",
+      "fr": "Placette"
+    },
+    {
+      "en": "Feature",
+      "fr": "Feature"
+    },
+    {
+      "en": "Records",
+      "fr": "Enregistrements"
+    },
+    {
+      "en": "Value",
+      "fr": "Valeur"
+    },
+    {
+      "en": "Year",
+      "fr": "Année"
+    },
+    {
+      "en": "%d column(s) of %s are not editable here (deprecated, structural, or set by the database): %s",
+      "fr": "%d colonne(s) de %s ne sont pas modifiables ici (obsolètes, structurelles ou renseignées par la base) : %s"
     }
   ]
 }
