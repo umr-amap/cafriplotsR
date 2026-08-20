@@ -106,7 +106,13 @@ Si cette dernière ligne n'affiche aucune erreur, le package est prêt à être 
 - Si R demande `Do you want to install from sources the package which needs
   compilation?`, répondez **non** (tapez `n` puis Entrée).
 
-**Note :** L'accès à la base de données est restreint et nécessite des identifiants appropriés.
+**Note :** Aucun identifiant n'est nécessaire pour démarrer. Chaque application
+propose un bouton **Connect as public user**, qui ouvre un accès en lecture
+seule à la taxonomie et aux traits d'espèces — tout ce dont l'application de
+standardisation taxonomique a besoin. Ce sont les données d'inventaire qui sont
+restreintes : interroger ou mettre à jour des parcelles nécessite votre propre
+compte, qui ne donne accès qu'aux seules parcelles qui vous sont autorisées.
+
 
 ## Logique du package et contrôle d'accès
 
