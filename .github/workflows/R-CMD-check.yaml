@@ -26,7 +26,7 @@ jobs:
       R_KEEP_PKG_SOURCE: yes
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: r-lib/actions/setup-pandoc@v2
 
@@ -49,7 +49,11 @@ jobs:
           _R_CHECK_FORCE_SUGGESTS_: false
 
       - name: Test coverage
-        if: always() && matrix.config.os == 'ubuntu-latest'
+        # The package check is authoritative. Coverage is reporting only and
+        # must not keep a push job alive indefinitely if covr stalls.
+        if: success() && matrix.config.os == 'ubuntu-latest'
+        continue-on-error: true
+        timeout-minutes: 20
         run: |
           covr::codecov(
             quiet = FALSE,
