@@ -300,6 +300,7 @@ reference:
       - launch_taxo_backbone_app
       - launch_taxonomic_match_app
       - launch_specimen_identification_app
+      - launch_data_update_app
       - shiny_app_query_plots
       - shiny_app_taxo_backbone
       - mod_database_login_ui
@@ -382,6 +383,8 @@ reference:
       - mod_trait_preview_import_ui
       - mod_trait_validation_server
       - mod_trait_validation_ui
+      - mod_update_record_server
+      - mod_update_record_ui
       - model_wd_1
       - model_wd_2
       - phylo_tree
