@@ -8,3 +8,4 @@
 ^codecov\.yml$
 ^inst/docs/.*\.pptx$
 ^inst/docs/.*\.ppt$
+^inst/notes$

@@ -108,3 +108,5 @@ db_diagnostics.txt
 modify_growth_form_traits.R
 openforis_remasures_prep.R
 *.Rproj
+docs/CLAUDE.html
+docs/CLAUDE.md
