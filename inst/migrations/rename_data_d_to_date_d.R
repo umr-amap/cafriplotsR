@@ -1,13 +1,13 @@
-# PENDING MIGRATION - written, not yet applied
+# ARCHIVED MIGRATION - applied 2026-08-20, kept for the record
 #
 # This file is not part of the package namespace. It is installed under
-# inst/migrations/ so that what is done to the database stays readable.
-# See README.md in this directory.
+# inst/migrations/ so that what was done to the database stays readable.
+# See README.md in this directory for what each migration changed and the
+# evidence that it ran.
 #
+# To run one (should not be necessary - these are one-shot):
 #   source(system.file("migrations", "rename_data_d_to_date_d.R", package = "CafriplotsR"))
 #   con <- CafriplotsR::call.mydb()
-#   migrate_data_d_to_date_d(con)                   # rehearsal: prints, changes nothing
-#   migrate_data_d_to_date_d(con, dry_run = FALSE)  # apply
 
 
 #' Migration: rename data_liste_plots.data_d to date_d

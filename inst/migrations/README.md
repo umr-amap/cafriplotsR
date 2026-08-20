@@ -24,36 +24,31 @@ trusting the code.
 | `taxa_hierarchy.R` | added `table_taxa.id_parent` and populated the taxonomic hierarchy | `id_parent` present (**taxa** database) |
 | `specimen_links.R` | created `linktypelist`, added `id_linktype` and audit columns to `data_link_specimens` | both present |
 | `table_idtax_materialized_view.R` | converted `table_idtax` from a table to a materialized view | `pg_class.relkind = 'm'` |
+| `rename_data_d_to_date_d.R` | renamed `data_d` to `date_d` on `data_liste_plots` and `followup_updates_liste_plots` | no `data_d` column remains anywhere in `public` |
 
-## Pending
+## `data_d` → `date_d`: the one that was not backward compatible
 
-Written but **not yet applied**. Move it into the table above once it has run,
-with the evidence.
+Applied 2026-08-20. Both tables renamed in one transaction; 1,252 of 2,166 plot
+rows and 1,767 of 2,298 audit rows carried a day, and every one survived
+unchanged. No view referenced the column.
 
-| Migration | What it will change | Why it is not applied yet |
-|---|---|---|
-| `rename_data_d_to_date_d.R` | renames `data_liste_plots.data_d` to `date_d` (and the same column on any `followup_updates_*` mirror) | it is a breaking rename; the operator chooses when |
+The day column had been `data_d` since the database was built — a typo beside
+`date_y` and `date_m` — and the codebase had already split around it: the
+import templates hand users a `date_d` column and the validation rules are
+keyed on `date_d`, while the database, the synonym table, the column
+descriptions and `get_table_columns()` said `data_d`. A day crossing from one
+side to the other had nowhere to land. Renaming beat adding `date_d` as an
+alias, which is how such a split becomes permanent.
 
-### `data_d` → `date_d`: apply the code with it
+Unlike every other migration here it had **no compatible intermediate state**,
+so all five package references were renamed in the same commit. Applying it
+without that code — or that code without it — breaks the plot import path and
+`R/mod_census_information.R`, which names the column in raw SQL. That matters
+only for a restored backup now, but it is why the two must move together.
 
-Unlike every migration above, this one is **not backward compatible**. The day
-column has been `data_d` since the database was built — a typo beside `date_y`
-and `date_m` — and the codebase had already split around it: the import
-templates hand users a `date_d` column and the validation rules are keyed on
-`date_d`, while the database, the synonym table and `get_table_columns()` said
-`data_d`. A day crossing from one side to the other had nowhere to land.
-
-Every package reference was renamed in the same commit as this migration.
-There is no version that accepts both spellings, so applying the migration
-without deploying that code — or deploying that code without applying the
-migration — breaks the plot import path and `R/mod_census_information.R`, which
-names the column in raw SQL.
-
-The rename itself is cheap: PostgreSQL rewrites no rows and follows the change
-through dependent views, indexes and constraints automatically. The dry run
-reports which tables are in scope, refuses if `date_d` already exists, and
-refuses if any table outside `data_liste_plots` and its audit mirrors carries a
-`data_d` column.
+`followup_updates_liste_plots` was included because `backup_direct_records()`
+copies by column name: leaving the mirror as `data_d` would have broken every
+plot backup insert.
 
 ## Why `real` → `numeric` mattered
 

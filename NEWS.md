@@ -3,9 +3,9 @@
 ### Breaking Changes
 
 * **`data_liste_plots.data_d` renamed to `date_d`** — the day-of-survey column has carried a typo since the database was built, beside `date_y` and `date_m`, and the codebase had already split around it: `import_templates.R` hands users a `date_d` column and the validation rules in `import_column_mapping.R` are keyed on `date_d`, while the database, the synonym table, the column descriptions and `get_table_columns()` said `data_d`. A day crossing from one side to the other had nowhere to land
-  - Migration script: `inst/migrations/rename_data_d_to_date_d.R`, `dry_run = TRUE` by default. **Not yet applied.**
-  - **There is no version that accepts both spellings.** Applying the migration without deploying this code, or deploying this code without applying the migration, breaks the plot import path and `R/mod_census_information.R`, which names the column in raw SQL. Apply them together
-  - The rename is cheap — PostgreSQL rewrites no rows and follows the change through dependent views, indexes and constraints. The dry run reports the tables in scope, refuses if `date_d` already exists, and refuses if any table outside `data_liste_plots` and its `followup_updates_*` mirrors carries a `data_d` column
+  - Migration script: `inst/migrations/rename_data_d_to_date_d.R`, `dry_run = TRUE` by default. **Applied 2026-08-20.** `data_liste_plots` and `followup_updates_liste_plots` renamed in one transaction; 1,252 of 2,166 plot rows and 1,767 of 2,298 audit rows carried a day and every one survived unchanged, no view referenced the column, and no `data_d` column remains
+  - **There is no version that accepts both spellings.** Applying the migration without deploying this code, or deploying this code without applying the migration, breaks the plot import path and `R/mod_census_information.R`, which names the column in raw SQL. They are in the same commit and must move together — relevant now only for a restored backup
+  - The audit mirror was included because `backup_direct_records()` copies by column name; leaving it as `data_d` would have broken every plot backup insert
   - Renamed in `R/add_functions.R`, `R/import_column_mapping.R` (synonyms, descriptions, recommended columns), `R/mod_census_information.R` and `R/updates_tables_functions.R`. No `data_d` reference remains outside the migration itself
 
 ### Code Refactoring
