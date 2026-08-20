@@ -290,54 +290,7 @@ process_openforis_census <- function(data_dir = NULL,
 
   # ---- Specimen number remapping ----
   if (!is.null(specimen_remap_file)) {
-    # Auto-detect from data_dir if just a filename (no path separator)
-    if (!grepl("[/\\\\]", specimen_remap_file) && !is.null(data_dir)) {
-      specimen_remap_file <- file.path(data_dir, specimen_remap_file)
-    }
-    if (!file.exists(specimen_remap_file)) {
-      stop(sprintf("Specimen remap file not found: %s", specimen_remap_file))
-    }
-
-    cli::cli_alert_info("Reading specimen remap table from {.file {specimen_remap_file}}")
-    remap <- as.data.frame(readxl::read_excel(specimen_remap_file))
-
-    if (ncol(remap) < 2) {
-      stop("Specimen remap file must have at least 2 columns (old number, new number)")
-    }
-    # Use first two columns regardless of names
-    remap_old <- remap[[1]]
-    remap_new <- remap[[2]]
-
-    # Check for duplicates in the new numbers
-    dup_new <- remap_new[duplicated(remap_new) & !is.na(remap_new)]
-    if (length(dup_new) > 0) {
-      stop(sprintf(
-        "Duplicate new specimen numbers in remap file: %s",
-        paste(unique(dup_new), collapse = ", ")
-      ))
-    }
-
-    # Apply remapping to specimen_number column
-    if ("specimen_number" %in% names(trees)) {
-      trees$specimen_number_original <- trees$specimen_number
-      match_idx <- match(trees$specimen_number, remap_old)
-      remapped <- !is.na(match_idx)
-      trees$specimen_number[remapped] <- remap_new[match_idx[remapped]]
-      n_remapped <- sum(remapped)
-      cli::cli_alert_success("Remapped {n_remapped} specimen_number(s) ({sum(!remapped & !is.na(trees$specimen_number))} unchanged)")
-    } else {
-      cli::cli_alert_warning("No 'specimen_number' column found — remap skipped")
-    }
-
-    # Apply same remapping to herbarium_nbe_char column
-    if ("herbarium_nbe_char" %in% names(trees)) {
-      trees$herbarium_nbe_char_original <- trees$herbarium_nbe_char
-      match_idx_h <- match(trees$herbarium_nbe_char, remap_old)
-      remapped_h <- !is.na(match_idx_h)
-      trees$herbarium_nbe_char[remapped_h] <- remap_new[match_idx_h[remapped_h]]
-      n_remapped_h <- sum(remapped_h)
-      cli::cli_alert_success("Remapped {n_remapped_h} herbarium_nbe_char(s)")
-    }
+    trees <- .remap_specimen_numbers(trees, specimen_remap_file, data_dir)
   }
 
   # ---- Census metadata ----
@@ -1506,6 +1459,194 @@ process_openforis_census <- function(data_dir = NULL,
   out <- trimws(paste(prefix, out))
   out[blank] <- NA_character_
   out
+}
+
+
+#' Compare a specimen number as text, whatever column type it arrived in
+#'
+#' \code{readxl} returns a column of bare collection numbers as numeric and a
+#' column of prefixed ones as character, so the two sides of a remap have to be
+#' brought to a common form before they can be matched. \code{format()} rather
+#' than \code{as.character()} because the latter renders a large number in
+#' scientific notation, which no remap table spells that way.
+#'
+#' @param x Vector of specimen numbers.
+#' @return Character vector, trimmed.
+#' @keywords internal
+.specimen_key <- function(x) {
+  if (is.numeric(x)) {
+    out <- format(x, scientific = FALSE, trim = TRUE)
+    out[is.na(x)] <- NA_character_
+    return(out)
+  }
+  trimws(as.character(x))
+}
+
+
+#' Substitute specimen numbers from a remap table
+#'
+#' Matches on the number as written first. Anything left over is matched on its
+#' digits alone, keeping whatever preceded them — so a table keyed on bare
+#' numbers (\code{1 -> 4530}) reaches \code{"Pird 1"} as well as \code{1}, and
+#' turns it into \code{"Pird 4530"}.
+#'
+#' That second pass is what makes a remap safe to apply to both the specimen
+#' number and the herbarium code. The two columns of an OpenForis export do not
+#' agree on their form — \code{specimen_nbr} holds \code{107} while the
+#' calculated \code{specimen_name} holds \code{"Pird 107"} — so a literal-only
+#' match renumbers one and not the other, and specimens are deduplicated on the
+#' herbarium code while their collection number is parsed out of the specimen
+#' number. The pair would disagree about which collection it is.
+#'
+#' @param x Vector of specimen numbers to remap.
+#' @param old,new The two columns of the remap table.
+#' @return List with \code{value} (the remapped vector, character) and
+#'   \code{matched} / \code{by_digits} (logical, which rows were substituted and
+#'   which of them needed the second pass).
+#' @keywords internal
+.remap_specimen_column <- function(x, old, new) {
+
+  chr <- .specimen_key(x)
+  old_key <- .specimen_key(old)
+  new_key <- .specimen_key(new)
+
+  out <- chr
+  matched <- rep(FALSE, length(chr))
+  by_digits <- rep(FALSE, length(chr))
+
+  # Pass 1: the number exactly as the remap table spells it
+  i <- match(chr, old_key)
+  ok <- !is.na(i)
+  out[ok] <- new_key[i[ok]]
+  matched[ok] <- TRUE
+
+  # Pass 2: the digits alone, putting back whatever came before them
+  rest <- which(!matched & !is.na(chr) & nzchar(chr))
+  if (length(rest) > 0) {
+    digits <- sub("^[^0-9]*", "", chr[rest])
+    lead <- substr(chr[rest], 1L, nchar(chr[rest]) - nchar(digits))
+    j <- match(digits, old_key)
+    ok2 <- !is.na(j) & nzchar(digits)
+    if (any(ok2)) {
+      idx <- rest[ok2]
+      out[idx] <- paste0(lead[ok2], new_key[j[ok2]])
+      matched[idx] <- TRUE
+      by_digits[idx] <- TRUE
+    }
+  }
+
+  out[is.na(chr)] <- NA_character_
+  list(value = out, matched = matched, by_digits = by_digits)
+}
+
+
+#' Renumber the specimens of an OpenForis export from a correspondence table
+#'
+#' A field team numbers its vouchers from 1 and only later learns which block
+#' of the herbarium series it was allotted, so a whole mission is renumbered in
+#' one go from a two-column table. Both the specimen number and the herbarium
+#' code are substituted, and the values as recorded are kept in
+#' \code{specimen_number_original} and \code{herbarium_nbe_char_original}.
+#'
+#' @param trees Normalised tree data frame.
+#' @param remap_file Path to the xlsx, or a bare filename to look up in
+#'   \code{data_dir}. The first column holds the number as recorded, the second
+#'   its replacement; any further columns are ignored.
+#' @param data_dir Directory a bare filename is resolved against. NULL to
+#'   require a full path.
+#' @return \code{trees} with the substitutions applied.
+#' @keywords internal
+.remap_specimen_numbers <- function(trees, remap_file, data_dir = NULL) {
+
+  # A bare filename is looked up next to the data
+  if (!grepl("[/\\\\]", remap_file) && !is.null(data_dir)) {
+    remap_file <- file.path(data_dir, remap_file)
+  }
+  if (!file.exists(remap_file)) {
+    stop(sprintf("Specimen remap file not found: %s", remap_file))
+  }
+
+  cli::cli_alert_info("Reading specimen remap table from {.file {remap_file}}")
+  remap <- as.data.frame(readxl::read_excel(remap_file))
+
+  if (ncol(remap) < 2) {
+    stop("Specimen remap file must have at least 2 columns (old number, new number)")
+  }
+
+  # The first two columns, whatever they are called
+  remap_old <- remap[[1]]
+  remap_new <- remap[[2]]
+
+  # Two vouchers renumbered onto one number would merge two collections
+  dup_new <- remap_new[duplicated(remap_new) & !is.na(remap_new)]
+  if (length(dup_new) > 0) {
+    stop(sprintf(
+      "Duplicate new specimen numbers in remap file: %s",
+      paste(unique(dup_new), collapse = ", ")
+    ))
+  }
+  dup_old <- remap_old[duplicated(remap_old) & !is.na(remap_old)]
+  if (length(dup_old) > 0) {
+    stop(sprintf(
+      "Duplicate old specimen numbers in remap file: %s",
+      paste(unique(dup_old), collapse = ", ")
+    ))
+  }
+
+  hits <- list()
+
+  for (col in c("specimen_number", "herbarium_nbe_char")) {
+    if (!col %in% names(trees)) {
+      if (col == "specimen_number") {
+        cli::cli_alert_warning("No {.field specimen_number} column found — remap skipped for it")
+      }
+      next
+    }
+
+    res <- .remap_specimen_column(trees[[col]], remap_old, remap_new)
+    trees[[paste0(col, "_original")]] <- trees[[col]]
+    trees[[col]] <- res$value
+    hits[[col]] <- res
+
+    n_hit <- sum(res$matched)
+    n_left <- sum(!is.na(.specimen_key(trees[[paste0(col, "_original")]]))) - n_hit
+    cli::cli_alert_success(
+      "{.field {col}}: {n_hit} value{?s} remapped, {n_left} left unchanged"
+    )
+    if (any(res$by_digits)) {
+      cli::cli_alert_info(
+        "{sum(res$by_digits)} of them matched on the digits alone, keeping the prefix as recorded"
+      )
+    }
+  }
+
+  # A voucher renumbered in one column but not the other would name two
+  # different collections in the same row. Only rows that recorded both are
+  # evidence of that: a stem carrying a number but no herbarium code is a gap
+  # in the export, which .check_openforis_voucher_flag() already reports.
+  if (length(hits) == 2) {
+    both <- !is.na(.specimen_key(trees$specimen_number_original)) &
+      !is.na(.specimen_key(trees$herbarium_nbe_char_original))
+    split <- both &
+      (hits$specimen_number$matched != hits$herbarium_nbe_char$matched)
+    if (any(split)) {
+      n_split <- sum(split)
+      cli::cli_alert_warning(paste(
+        "{n_split} stem{?s} renumbered in one of",
+        "{.field specimen_number} / {.field herbarium_nbe_char} but not the",
+        "other — the two now name different collections; check the remap table"
+      ))
+    }
+  }
+
+  any_hit <- any(vapply(hits, function(h) any(h$matched), logical(1)))
+  if (length(hits) > 0 && !any_hit) {
+    cli::cli_alert_warning(
+      "No specimen number in the export matched the remap table — check that it is the right table for this mission"
+    )
+  }
+
+  trees
 }
 
 

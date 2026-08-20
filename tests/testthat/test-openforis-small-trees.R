@@ -278,3 +278,123 @@ test_that("an empty column says nothing", {
 test_that("a form without those fields at all says nothing", {
   expect_silent(.warn_unused_openforis_columns(data.frame(tag = 1)))
 })
+
+
+# =============================================================================
+# .specimen_key() / .remap_specimen_column()
+# =============================================================================
+
+# A remap table is keyed on bare numbers (1 -> 4530), but the OpenForis export
+# spells the same voucher two ways in two columns: specimen_nbr holds 107 and
+# the calculated specimen_name holds "Pird 107". Both have to be reached, or
+# the pair ends up naming two different collections.
+
+test_that("a large number is not keyed in scientific notation", {
+  expect_equal(.specimen_key(c(1234567, 1e6)), c("1234567", "1000000"))
+})
+
+test_that("numeric and character spellings of one number key alike", {
+  expect_equal(.specimen_key(107), .specimen_key("107"))
+})
+
+test_that("a bare number is substituted", {
+  r <- .remap_specimen_column(c(1, 2, 107), old = c(1, 2), new = c(4530, 4531))
+  expect_equal(r$value, c("4530", "4531", "107"))
+  expect_equal(r$matched, c(TRUE, TRUE, FALSE))
+  expect_false(any(r$by_digits))
+})
+
+test_that("a prefixed number is reached and keeps its prefix", {
+  r <- .remap_specimen_column(c("Pird 1", "PIRD 2"), old = c(1, 2),
+                              new = c(4530, 4531))
+  expect_equal(r$value, c("Pird 4530", "PIRD 4531"))
+  expect_true(all(r$by_digits))
+})
+
+test_that("a literal match is preferred over the digit fallback", {
+  # "1" as recorded maps to 4530; it must not be re-read as the digits of "1"
+  r <- .remap_specimen_column("1", old = c("1", "01"), new = c(4530, 9999))
+  expect_equal(r$value, "4530")
+  expect_false(r$by_digits)
+})
+
+test_that("blanks and NAs are left alone", {
+  r <- .remap_specimen_column(c(NA, ""), old = 1, new = 4530)
+  expect_equal(r$value, c(NA, ""))
+  expect_false(any(r$matched))
+})
+
+test_that("a number absent from the table is untouched", {
+  r <- .remap_specimen_column("Pird 999", old = 1, new = 4530)
+  expect_equal(r$value, "Pird 999")
+  expect_false(r$matched)
+})
+
+
+# =============================================================================
+# .remap_specimen_numbers()
+# =============================================================================
+
+write_remap <- function(old, new, dir = tempdir()) {
+  f <- file.path(dir, paste0("remap-", basename(tempfile()), ".xlsx"))
+  writexl::write_xlsx(data.frame(old = old, new = new), f)
+  f
+}
+
+remap_trees <- function() {
+  data.frame(
+    specimen_number = c(1, 2, NA),
+    herbarium_nbe_char = c("Pird 1", "Pird 2", NA),
+    stringsAsFactors = FALSE
+  )
+}
+
+test_that("both voucher columns are substituted and the originals kept", {
+  f <- write_remap(c(1, 2), c(4530, 4531))
+  out <- suppressMessages(.remap_specimen_numbers(remap_trees(), f))
+
+  expect_equal(out$specimen_number, c("4530", "4531", NA))
+  expect_equal(out$herbarium_nbe_char, c("Pird 4530", "Pird 4531", NA))
+  expect_equal(out$specimen_number_original, c(1, 2, NA))
+  expect_equal(out$herbarium_nbe_char_original, c("Pird 1", "Pird 2", NA))
+})
+
+test_that("a repeated replacement number is refused", {
+  # Two vouchers renumbered onto one number would merge two collections
+  f <- write_remap(c(1, 2), c(4530, 4530))
+  expect_error(.remap_specimen_numbers(remap_trees(), f), "Duplicate new")
+})
+
+test_that("a repeated original number is refused", {
+  f <- write_remap(c(1, 1), c(4530, 4531))
+  expect_error(.remap_specimen_numbers(remap_trees(), f), "Duplicate old")
+})
+
+test_that("a missing file is an error naming it", {
+  expect_error(.remap_specimen_numbers(remap_trees(), "no-such-file.xlsx"),
+               "not found")
+})
+
+test_that("a bare filename is resolved against data_dir", {
+  f <- write_remap(c(1, 2), c(4530, 4531))
+  out <- suppressMessages(
+    .remap_specimen_numbers(remap_trees(), basename(f), dirname(f))
+  )
+  expect_equal(out$specimen_number, c("4530", "4531", NA))
+})
+
+test_that("a table matching nothing is announced rather than applied quietly", {
+  f <- write_remap(c(900, 901), c(4530, 4531))
+  expect_message(.remap_specimen_numbers(remap_trees(), f),
+                 "matched the remap table")
+})
+
+test_that("a stem with a number but no herbarium code is not called a split", {
+  # That is a gap in the export, reported elsewhere -- not a half-applied remap
+  trees <- data.frame(specimen_number = c(1, 2),
+                      herbarium_nbe_char = c("Pird 1", NA),
+                      stringsAsFactors = FALSE)
+  f <- write_remap(c(1, 2), c(4530, 4531))
+  msgs <- testthat::capture_messages(.remap_specimen_numbers(trees, f))
+  expect_false(any(grepl("different collections", msgs)))
+})

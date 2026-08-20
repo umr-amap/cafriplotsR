@@ -37,6 +37,7 @@ process_openforis_small_trees(
   quadrat_sep = "_",
   dbh_max = 10,
   specimen_prefix = NULL,
+  specimen_remap_file = NULL,
   specimen_locality = NULL,
   specimen_country = NULL,
   specimen_col_month = NULL,
@@ -142,7 +143,21 @@ quadrat label (default \code{"_"}).}
 the small-tree protocol (default \code{10}). NULL to skip the check.}
 
 \item{specimen_prefix}{Character prefix for specimen numbers (e.g.
-\code{"PIRD"}). NULL leaves the numbers as-is.}
+\code{"PIRD"}). NULL leaves the numbers as-is. A prefix the field team
+already typed into the form is not repeated — the OpenForis
+\code{specimen_name} is calculated as \code{colnam} plus the number, so it
+usually arrives prefixed already, and inconsistently cased.}
+
+\item{specimen_remap_file}{Path or filename of an xlsx whose first column
+holds the specimen number as recorded and second column its replacement;
+further columns are ignored. A bare filename is looked up in
+\code{data_dir}. Both \code{specimen_number} and \code{herbarium_nbe_char}
+are substituted and the values as recorded kept in
+\code{specimen_number_original} and \code{herbarium_nbe_char_original}.
+Numbers are matched as written and then, for whatever is left, on their
+digits alone with the prefix kept — so a table keyed on bare numbers
+reaches \code{"Pird 1"} as well as \code{1}. The function stops if either
+column of the table repeats a number. NULL (default) skips remapping.}
 
 \item{specimen_locality}{Character. Locality string for specimens.}
 

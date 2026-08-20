@@ -131,7 +131,20 @@
 #' @param dbh_max Numeric. Diameter above which a stem is reported as outside
 #'   the small-tree protocol (default \code{10}). NULL to skip the check.
 #' @param specimen_prefix Character prefix for specimen numbers (e.g.
-#'   \code{"PIRD"}). NULL leaves the numbers as-is.
+#'   \code{"PIRD"}). NULL leaves the numbers as-is. A prefix the field team
+#'   already typed into the form is not repeated — the OpenForis
+#'   \code{specimen_name} is calculated as \code{colnam} plus the number, so it
+#'   usually arrives prefixed already, and inconsistently cased.
+#' @param specimen_remap_file Path or filename of an xlsx whose first column
+#'   holds the specimen number as recorded and second column its replacement;
+#'   further columns are ignored. A bare filename is looked up in
+#'   \code{data_dir}. Both \code{specimen_number} and \code{herbarium_nbe_char}
+#'   are substituted and the values as recorded kept in
+#'   \code{specimen_number_original} and \code{herbarium_nbe_char_original}.
+#'   Numbers are matched as written and then, for whatever is left, on their
+#'   digits alone with the prefix kept — so a table keyed on bare numbers
+#'   reaches \code{"Pird 1"} as well as \code{1}. The function stops if either
+#'   column of the table repeats a number. NULL (default) skips remapping.
 #' @param specimen_locality Character. Locality string for specimens.
 #' @param specimen_country Character. Country for specimens. If NULL, falls
 #'   back to the plot country.
@@ -264,6 +277,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
                                           quadrat_sep = "_",
                                           dbh_max = 10,
                                           specimen_prefix = NULL,
+                                          specimen_remap_file = NULL,
                                           specimen_locality = NULL,
                                           specimen_country = NULL,
                                           specimen_col_month = NULL,
@@ -443,6 +457,13 @@ process_openforis_small_trees <- function(data_dir = NULL,
 
   # ---- Recorded fields with nowhere to go ----
   .warn_unused_openforis_columns(trees)
+
+  # ---- Specimen number remapping ----
+  # Before the individuals and specimens are built: both read the voucher
+  # columns straight off `trees`, so remapping here reaches every table at once.
+  if (!is.null(specimen_remap_file)) {
+    trees <- .remap_specimen_numbers(trees, specimen_remap_file, data_dir)
+  }
 
   # ---- Plot-level table, one row per quadrat ----
   plots <- .prepare_openforis_small_tree_plots(
