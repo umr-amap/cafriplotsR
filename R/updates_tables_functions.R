@@ -4404,7 +4404,7 @@ get_table_columns <- function(table_name, con) {
       # Recommended columns - temporal
       "date_y",              # Year of census/survey (recommended)
       "date_m",              # Month of census/survey (optional)
-      "data_d",              # Day of census/survey (optional)
+      "date_d",              # Day of census/survey (optional)
 
       # Optional columns - plot characteristics
       "subplot_shape"        # Shape of subplot (optional)

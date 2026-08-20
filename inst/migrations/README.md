@@ -24,6 +24,31 @@ trusting the code.
 | `taxa_hierarchy.R` | added `table_taxa.id_parent` and populated the taxonomic hierarchy | `id_parent` present (**taxa** database) |
 | `specimen_links.R` | created `linktypelist`, added `id_linktype` and audit columns to `data_link_specimens` | both present |
 | `table_idtax_materialized_view.R` | converted `table_idtax` from a table to a materialized view | `pg_class.relkind = 'm'` |
+| `rename_data_d_to_date_d.R` | renamed `data_d` to `date_d` on `data_liste_plots` and `followup_updates_liste_plots` | no `data_d` column remains anywhere in `public` |
+
+## `data_d` → `date_d`: the one that was not backward compatible
+
+Applied 2026-08-20. Both tables renamed in one transaction; 1,252 of 2,166 plot
+rows and 1,767 of 2,298 audit rows carried a day, and every one survived
+unchanged. No view referenced the column.
+
+The day column had been `data_d` since the database was built — a typo beside
+`date_y` and `date_m` — and the codebase had already split around it: the
+import templates hand users a `date_d` column and the validation rules are
+keyed on `date_d`, while the database, the synonym table, the column
+descriptions and `get_table_columns()` said `data_d`. A day crossing from one
+side to the other had nowhere to land. Renaming beat adding `date_d` as an
+alias, which is how such a split becomes permanent.
+
+Unlike every other migration here it had **no compatible intermediate state**,
+so all five package references were renamed in the same commit. Applying it
+without that code — or that code without it — breaks the plot import path and
+`R/mod_census_information.R`, which names the column in raw SQL. That matters
+only for a restored backup now, but it is why the two must move together.
+
+`followup_updates_liste_plots` was included because `backup_direct_records()`
+copies by column name: leaving the mirror as `data_d` would have broken every
+plot backup insert.
 
 ## Why `real` → `numeric` mattered
 
