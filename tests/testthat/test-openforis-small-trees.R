@@ -252,3 +252,29 @@ test_that("the check can be switched off", {
                       stringsAsFactors = FALSE)
   expect_null(.flag_oversized_small_trees(trees, dbh_max = NULL))
 })
+
+
+# =============================================================================
+# .warn_unused_openforis_columns()
+# =============================================================================
+
+# angle and distance_to_next_stem are relevant only when the plot sets
+# distance_stems = Yes, so every export seen so far leaves them empty. The
+# warning exists for the day a team switches them on.
+
+test_that("a populated column with nowhere to go is announced", {
+  trees <- data.frame(angle = c(30, NA), distance_to_next_stem = c(NA, NA),
+                      stringsAsFactors = FALSE)
+  expect_message(.warn_unused_openforis_columns(trees), "angle")
+})
+
+test_that("an empty column says nothing", {
+  trees <- data.frame(angle = c(NA_real_, NA_real_),
+                      taxa_vernacular_name = c(NA_character_, ""),
+                      stringsAsFactors = FALSE)
+  expect_silent(.warn_unused_openforis_columns(trees))
+})
+
+test_that("a form without those fields at all says nothing", {
+  expect_silent(.warn_unused_openforis_columns(data.frame(tag = 1)))
+})

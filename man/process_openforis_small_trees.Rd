@@ -126,7 +126,10 @@ inventory is a first census even though the parent plot is older).}
 plot name is zero-padded to, so that the two- and three-digit spellings
 found in the raw files (\code{"mbalmayo01"}, \code{"mbalmayo010"}) resolve
 to the one the database uses (\code{"mbalmayo001"}, \code{"mbalmayo010"}).
-Default \code{3}. NULL disables padding.}
+Default \code{3}, which is the convention the OpenForis form itself states
+for this field — \emph{"using the following format: Mbalmay005 or
+Somalomo010"} — and not merely what the exports happen to contain. NULL
+disables padding.}
 
 \item{plot_name_map}{Named character vector of explicit plot-name
 replacements, applied to the raw value before padding and winning over it
@@ -232,7 +235,7 @@ The small trees are tagged 1..N within their parent plot, and those numbers
 collide head-on with the tags the parent plot already uses for its large
 stems — \code{mbalmayo001} holds tags 1-445 for D >= 10 cm and the small
 trees restart at 1. A repeated plot + tag pair is treated as a data defect
-everywhere else in this package (see \code{\link{split_census}}), and once
+everywhere else in this package (see \code{\link{split_census_table}}), and once
 recorded it cannot be undone, so the small trees cannot be filed under the
 parent plot without mangling their field tags.
 

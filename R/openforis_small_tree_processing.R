@@ -119,7 +119,10 @@
 #'   plot name is zero-padded to, so that the two- and three-digit spellings
 #'   found in the raw files (\code{"mbalmayo01"}, \code{"mbalmayo010"}) resolve
 #'   to the one the database uses (\code{"mbalmayo001"}, \code{"mbalmayo010"}).
-#'   Default \code{3}. NULL disables padding.
+#'   Default \code{3}, which is the convention the OpenForis form itself states
+#'   for this field — \emph{"using the following format: Mbalmay005 or
+#'   Somalomo010"} — and not merely what the exports happen to contain. NULL
+#'   disables padding.
 #' @param plot_name_map Named character vector of explicit plot-name
 #'   replacements, applied to the raw value before padding and winning over it
 #'   (e.g. \code{c("Mbalmayo-09" = "mbalmayo009")}). NULL for none.
@@ -437,6 +440,9 @@ process_openforis_small_trees <- function(data_dir = NULL,
 
   # ---- Stems outside the small-tree diameter range ----
   oversized_stems <- .flag_oversized_small_trees(trees, dbh_max)
+
+  # ---- Recorded fields with nowhere to go ----
+  .warn_unused_openforis_columns(trees)
 
   # ---- Plot-level table, one row per quadrat ----
   plots <- .prepare_openforis_small_tree_plots(
@@ -1074,6 +1080,44 @@ process_openforis_small_trees <- function(data_dir = NULL,
   result <- result[order(result$plot_name, result$tag), , drop = FALSE]
   rownames(result) <- NULL
   result
+}
+
+
+#' Warn about recorded columns this pipeline does not carry forward
+#'
+#' Several fields of the small-tree form are conditional on a plot-level switch
+#' and arrive empty in the exports seen so far: \code{angle} and
+#' \code{distance_to_next_stem} are collected only when the plot sets
+#' \code{distance_stems = Yes}, \code{height_estimate} only when a tree height
+#' was measured. None of them has a home in the output, which is harmless while
+#' they are empty and a silent loss the day a team switches them on.
+#'
+#' \code{taxa_vernacular_name} is in the same position for a different reason:
+#' the form records it, the individuals table has nowhere to put it.
+#'
+#' @param trees Normalised tree data frame.
+#' @return NULL, invisibly. Called for its messages.
+#' @keywords internal
+.warn_unused_openforis_columns <- function(trees) {
+
+  unused <- c(
+    angle = "stem mapping, recorded when the plot sets distance_stems = Yes",
+    distance_to_next_stem = "stem mapping, recorded when the plot sets distance_stems = Yes",
+    height_estimate = "whether tree_height was measured or estimated",
+    taxa_vernacular_name = "vernacular name"
+  )
+
+  for (col in intersect(names(unused), names(trees))) {
+    vals <- trees[[col]]
+    filled <- !is.na(vals) & nzchar(trimws(as.character(vals)))
+    if (!any(filled)) next
+    cli::cli_alert_warning(paste(
+      "{.field {col}} is filled for {sum(filled)} stem{?s} ({unused[[col]]})",
+      "but has nowhere to go in the output — the values are dropped"
+    ))
+  }
+
+  invisible(NULL)
 }
 
 
