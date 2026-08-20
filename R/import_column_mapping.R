@@ -88,7 +88,7 @@
       "sampling_month", "date_month", "month_of_survey", "mois"
     ),
 
-    data_d = c(
+    date_d = c(
       "day", "dd", "survey_day", "surveyday", "survey.day",
       "census_day", "censusday", "census.day", "day_survey",
       "sampling_day", "date_day", "day_of_survey", "jour", "colday",
@@ -319,7 +319,7 @@
       description = paste0("Month of survey/census. Range: 1-12.", plot_metadata_warning),
       category = "Dates"
     ),
-    data_d = list(
+    date_d = list(
       description = paste0("Day of survey/census. Range: 1-31.", plot_metadata_warning),
       category = "Dates"
     ),
@@ -763,7 +763,7 @@ get_import_column_routing <- function(table_type = "plots", con = NULL) {
     } else {
       # Default: plots
       required_cols <- c("plot_name", "method", "country")
-      recommended_cols <- c("ddlat", "ddlon", "date_y", "locality_name", "data_d", "date_m", "date_y")
+      recommended_cols <- c("ddlat", "ddlon", "date_y", "locality_name", "date_d", "date_m", "date_y")
     }
 
     # Add import-specific configuration

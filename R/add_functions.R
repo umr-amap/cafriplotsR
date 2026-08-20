@@ -51,10 +51,10 @@ add_plots <- function(new_data,
     if (any(new_data_renamed$date_m[!is.na(new_data_renamed$date_m)] > 12) |
         any(new_data_renamed$date_m[!is.na(new_data_renamed$date_m)] < 1))
       stop("ERREUR dans date_m, month provided impossible")
-  if (any(colnames(new_data_renamed) == "data_d"))
-    if (any(new_data_renamed$data_d[!is.na(new_data_renamed$data_d)] > 31) |
-        any(new_data_renamed$data_d[!is.na(new_data_renamed$data_d)] < 1))
-      stop("ERREUR dans data_d, day provided impossible")
+  if (any(colnames(new_data_renamed) == "date_d"))
+    if (any(new_data_renamed$date_d[!is.na(new_data_renamed$date_d)] > 31) |
+        any(new_data_renamed$date_d[!is.na(new_data_renamed$date_d)] < 1))
+      stop("ERREUR dans date_d, day provided impossible")
   if (any(colnames(new_data_renamed) == "ddlon"))
     if (any(new_data_renamed$ddlon > 180) |
         any(new_data_renamed$ddlon < -180))

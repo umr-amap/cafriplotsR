@@ -297,7 +297,7 @@ mod_census_information_server <- function(id, imported_plots, con, i18n) {
       tryCatch({
         # Query date information from data_liste_plots
         query <- sprintf("
-          SELECT date_y, date_m, data_d
+          SELECT date_y, date_m, date_d
           FROM data_liste_plots
           WHERE id_liste_plots IN (%s)
           LIMIT 1
@@ -308,7 +308,7 @@ mod_census_information_server <- function(id, imported_plots, con, i18n) {
         if (nrow(date_info) > 0) {
           year_val <- if (!is.na(date_info$date_y[1])) as.integer(date_info$date_y[1]) else NULL
           month_val <- if (!is.na(date_info$date_m[1])) as.integer(date_info$date_m[1]) else NULL
-          day_val <- if (!is.na(date_info$data_d[1])) as.integer(date_info$data_d[1]) else NULL
+          day_val <- if (!is.na(date_info$date_d[1])) as.integer(date_info$date_d[1]) else NULL
 
           # Update inputs if values found
           if (!is.null(year_val)) {

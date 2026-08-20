@@ -25,6 +25,36 @@ trusting the code.
 | `specimen_links.R` | created `linktypelist`, added `id_linktype` and audit columns to `data_link_specimens` | both present |
 | `table_idtax_materialized_view.R` | converted `table_idtax` from a table to a materialized view | `pg_class.relkind = 'm'` |
 
+## Pending
+
+Written but **not yet applied**. Move it into the table above once it has run,
+with the evidence.
+
+| Migration | What it will change | Why it is not applied yet |
+|---|---|---|
+| `rename_data_d_to_date_d.R` | renames `data_liste_plots.data_d` to `date_d` (and the same column on any `followup_updates_*` mirror) | it is a breaking rename; the operator chooses when |
+
+### `data_d` → `date_d`: apply the code with it
+
+Unlike every migration above, this one is **not backward compatible**. The day
+column has been `data_d` since the database was built — a typo beside `date_y`
+and `date_m` — and the codebase had already split around it: the import
+templates hand users a `date_d` column and the validation rules are keyed on
+`date_d`, while the database, the synonym table and `get_table_columns()` said
+`data_d`. A day crossing from one side to the other had nowhere to land.
+
+Every package reference was renamed in the same commit as this migration.
+There is no version that accepts both spellings, so applying the migration
+without deploying that code — or deploying that code without applying the
+migration — breaks the plot import path and `R/mod_census_information.R`, which
+names the column in raw SQL.
+
+The rename itself is cheap: PostgreSQL rewrites no rows and follows the change
+through dependent views, indexes and constraints automatically. The dry run
+reports which tables are in scope, refuses if `date_d` already exists, and
+refuses if any table outside `data_liste_plots` and its audit mirrors carries a
+`data_d` column.
+
 ## Why `real` → `numeric` mattered
 
 `tag_to_numeric.R` is the one worth reading if you read only one. PostgreSQL
