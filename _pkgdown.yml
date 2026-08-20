@@ -43,6 +43,7 @@ navbar:
 articles:
   - title: "Getting Started"
     contents:
+    - apps-overview
     - database-connections
     - using-query-plots
   - title: "Data Import & Analysis"
@@ -65,6 +66,7 @@ articles:
   - title: "Français - Démarrage"
     contents:
     - readme-fr
+    - apps-overview-fr
     - database-connections-fr
     - using-query-plots-fr
   - title: "Français - Import & Analyse"
