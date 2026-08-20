@@ -99,3 +99,12 @@ text_formation.md
 # Root-level output images and libs assets
 basal_area_completeness_*.png
 libs/
+
+# Presentations kept locally only (never distributed with the package)
+*.pptx
+*.ppt
+mail_*.md
+db_diagnostics.txt
+modify_growth_form_traits.R
+openforis_remasures_prep.R
+*.Rproj

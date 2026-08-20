@@ -16,19 +16,34 @@ L'avantage de ce package est de permettre la gestion des inventaires, traits et 
 
 ## Installation
 
-```r
-# Installer depuis GitHub
-install.packages(c("tidyverse", "dbplyr", "devtools"))
-devtools::install_github("umr-amap/cafriplotsR", upgrade = "never")
-
-```
-
-En cas de connexion internet lente, l'installation depuis GitHub ci-dessus peut échouer.
-Vous pouvez essayer de lancer d'abord cette ligne de code dans la console, elle augmentera le délai d'attente pour l'installation :
+Copiez les trois étapes ci-dessous dans la console R, l'une après l'autre.
 
 ```r
+# 1. Laisser plus de temps au téléchargement (utile sur connexion lente)
 options(timeout = max(3000, getOption("timeout")))
+
+# 2. Installer l'utilitaire 'remotes' - nécessaire seulement la première fois
+if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
+
+# 3. Installer CafriplotsR depuis GitHub (les packages requis suivent automatiquement)
+remotes::install_github("umr-amap/cafriplotsR", upgrade = "never")
 ```
+
+Vérifiez ensuite que l'installation a fonctionné :
+
+```r
+library(CafriplotsR)
+```
+
+Si cette dernière ligne n'affiche aucune erreur, le package est prêt à être utilisé.
+
+**En cas de problème :**
+
+- *« there is no package called 'remotes' »* — relancez l'étape 2.
+- *L'installation s'interrompt sur une connexion lente* — redémarrez R, puis
+  relancez les trois étapes en commençant par l'étape 1.
+- Si R demande `Do you want to install from sources the package which needs
+  compilation?`, répondez **non** (tapez `n` puis Entrée).
 
 
 **Note :** L'accès à la base de données est restreint et nécessite des identifiants appropriés.

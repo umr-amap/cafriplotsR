@@ -6,3 +6,5 @@
 ^\.github$
 ^docs$
 ^codecov\.yml$
+^inst/docs/.*\.pptx$
+^inst/docs/.*\.ppt$
