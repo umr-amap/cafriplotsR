@@ -7,11 +7,17 @@
 #'   Defaults to `FALSE`. The public account is read-only, so only apps that
 #'   are useful without write access should opt in (taxonomic matching,
 #'   backbone browsing, plot querying).
+#' @param allow_offline Logical. Show the "Use offline (cached backbone)"
+#'   button? Defaults to `FALSE`. Offline mode leaves the app with no database
+#'   connection at all and only the cached taxonomic backbone, so only the
+#'   taxonomic matching app — the one workflow that can be finished from the
+#'   cache alone — should opt in. The button is shown only when a cache also
+#'   exists on disk.
 #'
 #' @return A shiny tagList
 #' @keywords internal
 #' @export
-mod_database_login_ui <- function(id, allow_public = FALSE) {
+mod_database_login_ui <- function(id, allow_public = FALSE, allow_offline = FALSE) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
@@ -76,10 +82,16 @@ mod_database_login_ui <- function(id, allow_public = FALSE) {
           )
         },
 
-        # Offline (cached backbone) button + notice — only shown when a
-        # cache exists on disk
-        shiny::uiOutput(ns("offline_connect_button")),
-        shiny::uiOutput(ns("offline_access_notice")),
+        # Offline (cached backbone) button + notice — only for apps that opt
+        # in, and then only when a cache exists on disk. Offline mode hands
+        # the app no connection at all, so every app but taxonomic matching
+        # would be left with nothing to work on
+        if (isTRUE(allow_offline)) {
+          shiny::tagList(
+            shiny::uiOutput(ns("offline_connect_button")),
+            shiny::uiOutput(ns("offline_access_notice"))
+          )
+        },
 
         # Hidden output for conditional panel
         shiny::textOutput(ns("has_saved_credentials"))
@@ -96,6 +108,9 @@ mod_database_login_ui <- function(id, allow_public = FALSE) {
 #' @param allow_public Logical. Allow connecting through the read-only public
 #'   account? Defaults to `FALSE`. Must match the value given to
 #'   [mod_database_login_ui()].
+#' @param allow_offline Logical. Allow connecting in offline mode, against the
+#'   cached taxonomic backbone and no database? Defaults to `FALSE`. Must match
+#'   the value given to [mod_database_login_ui()].
 #'
 #' @return A reactive list containing:
 #'   - authenticated: Reactive logical indicating connection status
@@ -105,7 +120,8 @@ mod_database_login_ui <- function(id, allow_public = FALSE) {
 #'
 #' @keywords internal
 #' @export
-mod_database_login_server <- function(id, allow_public = FALSE) {
+mod_database_login_server <- function(id, allow_public = FALSE,
+                                      allow_offline = FALSE) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -305,10 +321,11 @@ mod_database_login_server <- function(id, allow_public = FALSE) {
       )
     })
 
-    # Offline (cached backbone) — only render if a cache exists on disk
+    # Offline (cached backbone) — only for apps that opted in, and only if a
+    # cache exists on disk
     output$offline_connect_button <- shiny::renderUI({
       input$language
-      if (!cache_exists()) return(NULL)
+      if (!isTRUE(allow_offline) || !cache_exists()) return(NULL)
       shiny::tagList(
         shiny::hr(style = "margin-top: 15px; margin-bottom: 10px;"),
         shiny::actionButton(
@@ -325,7 +342,7 @@ mod_database_login_server <- function(id, allow_public = FALSE) {
 
     output$offline_access_notice <- shiny::renderUI({
       input$language
-      if (!cache_exists()) return(NULL)
+      if (!isTRUE(allow_offline) || !cache_exists()) return(NULL)
       meta <- tryCatch(get_cache_metadata(), error = function(e) NULL)
       age <- if (!is.null(meta)) meta$age_display else NULL
       shiny::div(
@@ -601,6 +618,8 @@ mod_database_login_server <- function(id, allow_public = FALSE) {
     # Offline (cached backbone) connect handler — bypasses DB entirely
     shiny::observeEvent(input$connect_offline, {
       rv$error_message <- NULL
+
+      if (!isTRUE(allow_offline)) return()
 
       if (!cache_exists()) {
         rv$error_message <- t("No cached backbone found. Connect online once to download it.")

@@ -69,7 +69,7 @@ app_taxonomic_match <- function(
     # Login panel (shown if pool_taxa not provided)
     shiny::conditionalPanel(
       condition = "!output.authenticated",
-      mod_database_login_ui("login", allow_public = TRUE)
+      mod_database_login_ui("login", allow_public = TRUE, allow_offline = TRUE)
     ),
 
     # Main app interface (shown after authentication)
@@ -203,7 +203,9 @@ app_taxonomic_match <- function(
     # Database authentication
     if (is.null(pool_taxa)) {
       # Use login module for authentication
-      login_output <- mod_database_login_server("login", allow_public = TRUE)
+      login_output <- mod_database_login_server(
+        "login", allow_public = TRUE, allow_offline = TRUE
+      )
 
       pool_main_reactive <- login_output$pool_main
       pool_taxa_reactive <- login_output$pool_taxa
