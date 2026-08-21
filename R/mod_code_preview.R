@@ -346,12 +346,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
               i18n()$t("Copy to clipboard"),
               code_sections$metadata,
               icon = shiny::icon("copy"),
-              class = "btn-sm btn-outline-secondary",
-              onclick = sprintf(
-                "copyCodeToClipboard_%s('%s')",
-                gsub("-", "_", id),
-                ns("code_metadata")
-              )
+              class = "btn-sm btn-outline-secondary"
             ),
             shiny::br(),
             shiny::br()
@@ -378,12 +373,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
               i18n()$t("Copy to clipboard"),
               code_sections$individuals,
               icon = shiny::icon("copy"),
-              class = "btn-sm btn-outline-secondary",
-              onclick = sprintf(
-                "copyCodeToClipboard_%s('%s')",
-                gsub("-", "_", id),
-                ns("code_individuals")
-              )
+              class = "btn-sm btn-outline-secondary"
             ),
             shiny::br(),
             shiny::br()
@@ -410,12 +400,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
               i18n()$t("Copy to clipboard"),
               code_sections$individual_features,
               icon = shiny::icon("copy"),
-              class = "btn-sm btn-outline-secondary",
-              onclick = sprintf(
-                "copyCodeToClipboard_%s('%s')",
-                gsub("-", "_", id),
-                ns("code_individual_features")
-              )
+              class = "btn-sm btn-outline-secondary"
             )
           )
         },
@@ -479,12 +464,7 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
               i18n()$t("Copy complete script"),
               combined_code,
               icon = shiny::icon("copy"),
-              class = "btn-sm btn-outline-secondary",
-              onclick = sprintf(
-                "copyCodeToClipboard_%s('%s')",
-                gsub("-", "_", id),
-                ns("code_combined")
-              )
+              class = "btn-sm btn-outline-secondary"
             )
           )
         }
