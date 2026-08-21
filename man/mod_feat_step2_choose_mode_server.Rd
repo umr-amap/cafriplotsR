@@ -4,12 +4,18 @@
 \alias{mod_feat_step2_choose_mode_server}
 \title{Feature Wizard Step 2: Choose Mode - Server}
 \usage{
-mod_feat_step2_choose_mode_server(id, i18n)
+mod_feat_step2_choose_mode_server(id, i18n, reset = shiny::reactive(NULL))
 }
 \arguments{
 \item{id}{Module namespace ID}
 
 \item{i18n}{Reactive returning translator object}
+
+\item{reset}{Reactive whose change clears the chosen mode. The wizard
+clears its own copy of the mode whenever the plot selection changes, and
+this keeps the module from holding a stale one: a `reactiveVal` set to the
+value it already has notifies nobody, so without this, choosing the same
+mode again after a new plot selection would never reach the wizard.}
 }
 \value{
 Reactive containing selected mode string

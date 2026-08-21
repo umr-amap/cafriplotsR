@@ -92,8 +92,19 @@ mod_feat_step3_plot_features_server <- function(id, selected_plots, operation_mo
 
     prepared_data   <- shiny::reactiveVal(NULL)
     feature_config  <- shiny::reactiveVal(NULL)
-    available_features <- shiny::reactiveVal(NULL)
     uploaded_raw    <- shiny::reactiveVal(NULL)   # raw xlsx, waiting for mapping
+    available_features <- shiny::reactiveVal(NULL)
+
+    # Data prepared for one plot selection must not survive another. Clearing
+    # it also keeps this module in step with the wizard, which drops its own
+    # copy on every new selection: a reactiveVal re-set to the value it already
+    # holds notifies nobody, so preparing identical data a second time would
+    # never reach the wizard and Next would stay out of reach.
+    shiny::observeEvent(selected_plots(), {
+      prepared_data(NULL)
+      feature_config(NULL)
+      uploaded_raw(NULL)
+    }, ignoreInit = TRUE, ignoreNULL = FALSE)
 
     # Load available feature types
     shiny::observe({

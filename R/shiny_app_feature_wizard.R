@@ -484,7 +484,14 @@ feature_wizard_server <- function(input, output, session, translator) {
     })
 
     # Step 2: Choose mode
-    step2_result <- mod_feat_step2_choose_mode_server("fw_step2", i18n = i18n)
+    # A new plot selection clears the mode below, so step 2 has to hear about
+    # it: otherwise its own copy stays put and re-picking the same mode tells
+    # this observer nothing, leaving Next disabled with no way to enable it.
+    step2_result <- mod_feat_step2_choose_mode_server(
+      "fw_step2",
+      i18n = i18n,
+      reset = shiny::reactive(rv$selected_plots)
+    )
 
     shiny::observeEvent(step2_result(), {
       shiny::req(step2_result())
