@@ -269,3 +269,64 @@ test_that("mod_update_record_ui() rejects an unknown entity", {
   )
   expect_error(mod_update_record_ui("x", "specimen", i18n), "should be one of")
 })
+
+# ── features the extraction does not simply aggregate ────────────────────────
+
+test_that(".upd_annotate_aggregation() never averages the census numbers", {
+  # A plot with censuses 1 and 2 must not be described as census 1.5: the
+  # extracted table carries n_census and the dates, not the numbers.
+  recs <- dplyr::tibble(
+    record_id = 1:2, feature = "census", valuetype = "numeric",
+    unit = NA_character_, min_allowed = NA_real_, max_allowed = NA_real_,
+    value_num = c(1, 2), value_char = NA_character_, lookup_id = NA_integer_,
+    value_display = c("1", "2"),
+    year = c(2015L, 2021L), month = c(3L, 6L), day = c(4L, NA),
+    issue = NA_character_, context = NA_character_
+  )
+  ann <- CafriplotsR:::.upd_annotate_aggregation(recs, "plot")
+
+  expect_equal(unique(ann$agg_rule), "census")
+  expect_false(grepl("1.5", unique(ann$aggregate_display), fixed = TRUE))
+  expect_equal(unique(ann$aggregate_display), "n_census = 2 (2015-03-04, 2021-06)")
+})
+
+test_that(".upd_annotate_aggregation() keeps censuses apart for an individual", {
+  # aggregate_numeric_features_dt() averages within a census and pivots to one
+  # column per census, so a single mean over both would be a number the user
+  # never sees.
+  recs <- dplyr::tibble(
+    record_id = 1:3, feature = "stem_diameter", valuetype = "numeric",
+    unit = "cm", min_allowed = NA_real_, max_allowed = NA_real_,
+    value_num = c(12.4, 12.6, 13.1), value_char = NA_character_,
+    lookup_id = NA_integer_, value_display = c("12.4", "12.6", "13.1"),
+    year = 2020L, month = 1L, day = 1L, issue = NA_character_,
+    context = c("census_1", "census_1", "census_2")
+  )
+  ann <- CafriplotsR:::.upd_annotate_aggregation(recs, "individual")
+
+  expect_equal(unique(ann$agg_rule), "per_census")
+  expect_equal(unique(ann$aggregate_display), "census_1: 12.5 | census_2: 13.1")
+})
+
+test_that(".upd_annotate_aggregation() says so when a plot feature is not extracted", {
+  # aggregate_plot_features() only handles numeric, character and table_*.
+  recs <- dplyr::tibble(
+    record_id = 1L, feature = "some_ordinal", valuetype = "ordinal",
+    unit = NA_character_, min_allowed = NA_real_, max_allowed = NA_real_,
+    value_num = NA_real_, value_char = "high", lookup_id = NA_integer_,
+    value_display = "high", year = 2020L, month = 1L, day = 1L,
+    issue = NA_character_, context = NA_character_
+  )
+  ann <- CafriplotsR:::.upd_annotate_aggregation(recs, "plot")
+
+  expect_equal(ann$agg_rule, "not_extracted")
+  expect_true(is.na(ann$aggregate_display))
+})
+
+test_that(".upd_record_dates() degrades from day to month to year", {
+  grp <- dplyr::tibble(year = c(2020L, 2020L, 2020L, NA_integer_),
+                       month = c(5L, 5L, NA, NA),
+                       day = c(4L, NA, NA, NA))
+  expect_equal(CafriplotsR:::.upd_record_dates(grp),
+               c("2020-05-04", "2020-05", "2020", ""))
+})

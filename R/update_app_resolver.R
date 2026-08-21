@@ -481,7 +481,7 @@
       "year", "month", "day", "issue", "context"
     )))
 
-  .upd_annotate_aggregation(out)
+  .upd_annotate_aggregation(out, "plot")
 }
 
 #' Individual feature records behind the columns of an extracted individual table
@@ -542,7 +542,7 @@
       "year", "month", "day", "issue", "context"
     )))
 
-  .upd_annotate_aggregation(out)
+  .upd_annotate_aggregation(out, "individual")
 }
 
 #' Empty feature table with the documented shape
@@ -582,30 +582,146 @@
   out
 }
 
-#' Annotate feature records with how the extracted column aggregates them
+#' Annotate feature records with what the extracted table shows for them
 #'
-#' Mirrors the extraction path: numeric features are averaged
-#' (`aggregate_numeric_plot_features()`, `aggregate_numeric_features_dt()`),
-#' character and table-referenced features are concatenated over unique values.
+#' The extraction does not treat every feature the same way, so neither can
+#' this. `aggregate_plot_features()` averages numeric subplot features, joins
+#' character and table-referenced ones, and hands `census` rows to
+#' `extract_census_dates()` instead - a plot table carries `n_census`,
+#' `first_census`, `last_census` and one `date_census_N` column per census, never
+#' the mean of the census numbers. On the individual side
+#' `aggregate_numeric_features_dt()` / `aggregate_character_features_dt()`
+#' aggregate *within* each census, so a census-linked trait becomes one column
+#' per census rather than one value.
 #'
+#' `agg_rule` records which of those happens; `aggregate_display` is what the
+#' extracted table would show, and is `NA` when there is no single value to show.
+#'
+#' @param records Feature records from one of the two resolvers.
+#' @param entity Either `"plot"` or `"individual"`.
+#' @return `records` with `n_records`, `agg_rule` and `aggregate_display`.
 #' @keywords internal
-.upd_annotate_aggregation <- function(records) {
+.upd_annotate_aggregation <- function(records, entity = c("plot", "individual")) {
+  entity <- match.arg(entity)
   if (nrow(records) == 0) return(.upd_empty_features())
 
-  records %>%
-    dplyr::group_by(.data$feature) %>%
-    dplyr::mutate(
-      n_records = dplyr::n(),
-      agg_rule  = if (isTRUE(dplyr::first(.data$valuetype) == "numeric")) "mean" else "concat",
-      aggregate_display = if (isTRUE(dplyr::first(.data$valuetype) == "numeric")) {
-        if (all(is.na(.data$value_num))) NA_character_
-        else format(mean(.data$value_num, na.rm = TRUE), trim = TRUE)
-      } else {
-        vals <- unique(stats::na.omit(.data$value_display))
-        if (length(vals) == 0) NA_character_ else paste(vals, collapse = ", ")
-      }
-    ) %>%
-    dplyr::ungroup()
+  records$n_records <- NA_integer_
+  records$agg_rule <- NA_character_
+  records$aggregate_display <- NA_character_
+
+  for (idx in split(seq_len(nrow(records)), records$feature)) {
+    grp <- records[idx, , drop = FALSE]
+    rule <- .upd_agg_rule(entity, grp)
+    records$n_records[idx] <- nrow(grp)
+    records$agg_rule[idx] <- rule
+    records$aggregate_display[idx] <- .upd_agg_display(rule, grp)
+  }
+
+  records
+}
+
+#' How the extraction treats one feature's records
+#'
+#' The rule is what the extraction *does*, not how many records happen to be
+#' there: a single record still goes through the same mean or join, and the
+#' caller has `n_records` when it wants to say "one record".
+#'
+#' @return One of `"census"`, `"per_census"`, `"mean"`, `"concat"`,
+#'   `"not_extracted"` or `"other"`.
+#' @keywords internal
+.upd_agg_rule <- function(entity, grp) {
+  vt <- grp$valuetype[1]
+
+  # The census subplot type is the plot's census list, not a measurement.
+  if (entity == "plot" && identical(grp$feature[1], "census")) return("census")
+
+  # A measurement carrying a census belongs to a moment in time, and the
+  # extraction keeps the censuses apart.
+  if (entity == "individual" && any(!is.na(grp$context))) return("per_census")
+
+  numeric_types <- if (entity == "plot") "numeric" else c("numeric", "integer")
+  text_types <- if (entity == "plot") {
+    "character"
+  } else {
+    c("character", "ordinal", "categorical")
+  }
+
+  if (!is.na(vt) && vt %in% numeric_types) return("mean")
+  if (!is.na(vt) && vt %in% text_types) return("concat")
+  # Table references are resolved and joined on the plot side only.
+  if (!is.na(vt) && grepl("^table_", vt) && entity == "plot") return("concat")
+
+  # Nothing in aggregate_plot_features() picks these up.
+  if (entity == "plot") "not_extracted" else "other"
+}
+
+#' The value an extracted table would show for one feature
+#' @keywords internal
+.upd_agg_display <- function(rule, grp) {
+  switch(
+    rule,
+    census     = .upd_census_display(grp),
+    per_census = .upd_per_census_display(grp),
+    mean       = .upd_mean_display(grp),
+    concat = ,
+    other  = {
+      vals <- unique(stats::na.omit(grp$value_display))
+      if (length(vals) == 0) NA_character_ else paste(vals, collapse = ", ")
+    },
+    NA_character_
+  )
+}
+
+#' What a plot table shows for the census feature: how many, and when
+#' @keywords internal
+.upd_census_display <- function(grp) {
+  dates <- .upd_record_dates(grp)[order(grp$value_num, na.last = TRUE)]
+  dates <- dates[nzchar(dates)]
+  if (length(dates) == 0) return(sprintf("n_census = %d", nrow(grp)))
+  sprintf("n_census = %d (%s)", nrow(grp), paste(dates, collapse = ", "))
+}
+
+#' One value per census, the way the extraction keeps them apart
+#' @keywords internal
+.upd_per_census_display <- function(grp) {
+  census <- ifelse(is.na(grp$context), "-", as.character(grp$context))
+  groups <- split(seq_len(nrow(grp)), census)
+  parts <- vapply(names(groups), function(nm) {
+    rows <- grp[groups[[nm]], , drop = FALSE]
+    value <- if (!is.na(rows$valuetype[1]) &&
+                 rows$valuetype[1] %in% c("numeric", "integer")) {
+      .upd_mean_display(rows)
+    } else {
+      vals <- unique(stats::na.omit(rows$value_display))
+      if (length(vals) == 0) NA_character_ else paste(vals, collapse = ", ")
+    }
+    sprintf("%s: %s", nm, if (is.na(value)) "-" else value)
+  }, character(1), USE.NAMES = FALSE)
+  paste(parts, collapse = " | ")
+}
+
+#' Mean of a feature's numeric records, rounded the way the extraction rounds
+#' @keywords internal
+.upd_mean_display <- function(grp) {
+  if (all(is.na(grp$value_num))) return(NA_character_)
+  format(round(mean(grp$value_num, na.rm = TRUE), 2), trim = TRUE)
+}
+
+#' Dates of feature records as `YYYY`, `YYYY-MM` or `YYYY-MM-DD`
+#' @keywords internal
+.upd_record_dates <- function(grp) {
+  out <- rep("", nrow(grp))
+  y <- suppressWarnings(as.integer(grp$year))
+  m <- suppressWarnings(as.integer(grp$month))
+  d <- suppressWarnings(as.integer(grp$day))
+
+  has_y <- !is.na(y)
+  out[has_y] <- as.character(y[has_y])
+  has_m <- has_y & !is.na(m)
+  out[has_m] <- sprintf("%s-%02d", out[has_m], m[has_m])
+  has_d <- has_m & !is.na(d)
+  out[has_d] <- sprintf("%s-%02d", out[has_d], d[has_d])
+  out
 }
 
 #' One row per feature: what the extracted table shows, and from how many records

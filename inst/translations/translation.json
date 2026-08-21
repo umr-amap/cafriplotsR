@@ -9190,24 +9190,8 @@
       "fr": "%d feature(s), chacune reposant sur un seul enregistrement."
     },
     {
-      "en": "%d of %d feature(s) are aggregated over several records and appear as a single value in extracted tables.",
-      "fr": "%d feature(s) sur %d sont agrégées à partir de plusieurs enregistrements et apparaissent comme une valeur unique dans les tables extraites."
-    },
-    {
-      "en": "aggregated (%s of %d records)",
-      "fr": "agrégée (%s de %d enregistrements)"
-    },
-    {
-      "en": "single record",
-      "fr": "enregistrement unique"
-    },
-    {
       "en": "Value in extracted table",
       "fr": "Valeur dans la table extraite"
-    },
-    {
-      "en": "Stored as",
-      "fr": "Stockage"
     },
     {
       "en": "Feature to edit",
@@ -9216,18 +9200,6 @@
     {
       "en": "One record. Extracted value: %s",
       "fr": "Un seul enregistrement. Valeur extraite : %s"
-    },
-    {
-      "en": "mean of",
-      "fr": "moyenne des"
-    },
-    {
-      "en": "concatenation of",
-      "fr": "concaténation des"
-    },
-    {
-      "en": "Extracted value '%s' is the %s %d records below. Edit them individually.",
-      "fr": "La valeur extraite « %s » est la %s %d enregistrements ci-dessous. Modifiez-les individuellement."
     },
     {
       "en": "record column",
@@ -9304,6 +9276,54 @@
     {
       "en": "Not loaded. Use the button above to see the whole record.",
       "fr": "Non chargé. Utilisez le bouton ci-dessus pour voir l'enregistrement complet."
+    },
+    {
+      "en": "one record, shown as it is",
+      "fr": "un seul enregistrement, affiché tel quel"
+    },
+    {
+      "en": "mean of %d records",
+      "fr": "moyenne de %d enregistrements"
+    },
+    {
+      "en": "%d records joined into one text",
+      "fr": "%d enregistrements réunis en un seul texte"
+    },
+    {
+      "en": "one value per census, from %d records",
+      "fr": "une valeur par inventaire, à partir de %d enregistrements"
+    },
+    {
+      "en": "not a value: n_census, first_census, last_census, date_census_N",
+      "fr": "pas une valeur : n_census, first_census, last_census, date_census_N"
+    },
+    {
+      "en": "not carried into extracted tables",
+      "fr": "absente des tables extraites"
+    },
+    {
+      "en": "%d record(s)",
+      "fr": "%d enregistrement(s)"
+    },
+    {
+      "en": "%d of %d feature(s) are backed by several records. An extracted table summarises them - how depends on the feature, and the summary is not editable as one value.",
+      "fr": "%d feature(s) sur %d reposent sur plusieurs enregistrements. Une table extraite les résume - la manière dépend de la feature, et ce résumé ne se modifie pas comme une valeur unique."
+    },
+    {
+      "en": "In an extracted table",
+      "fr": "Dans une table extraite"
+    },
+    {
+      "en": "These %d records are the plot's censuses. An extracted table does not show their numbers: it shows n_census, first_census, last_census and one date_census_N column per census (%s).",
+      "fr": "Ces %d enregistrements sont les inventaires du plot. Une table extraite n'affiche pas leurs numéros : elle affiche n_census, first_census, last_census et une colonne date_census_N par inventaire (%s)."
+    },
+    {
+      "en": "%d record(s). This feature is not carried into extracted tables; the records below are the whole of it.",
+      "fr": "%d enregistrement(s). Cette feature n'apparaît pas dans les tables extraites ; les enregistrements ci-dessous sont tout ce qu'il y a."
+    },
+    {
+      "en": "%d records below. An extracted table shows %s (%s), which cannot be edited as one value - edit the records individually.",
+      "fr": "%d enregistrements ci-dessous. Une table extraite affiche %s (%s), qui ne peut pas être modifié comme une valeur unique - modifiez les enregistrements un par un."
     }
   ]
 }

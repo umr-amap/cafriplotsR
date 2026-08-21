@@ -643,6 +643,28 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       .upd_feature_summary(fr)
     })
 
+    # How the extraction treats a feature. The rule comes from the resolver;
+    # the wording lives here because it needs the translator.
+    rule_label <- function(rule, n) {
+      if (n == 1 && rule %in% c("mean", "concat", "other")) {
+        return(i18n()$t("one record, shown as it is"))
+      }
+      switch(
+        rule,
+        mean       = sprintf(i18n()$t("mean of %d records"), n),
+        concat     = sprintf(i18n()$t("%d records joined into one text"), n),
+        per_census = sprintf(i18n()$t("one value per census, from %d records"), n),
+        census     = i18n()$t("not a value: n_census, first_census, last_census, date_census_N"),
+        not_extracted = i18n()$t("not carried into extracted tables"),
+        sprintf(i18n()$t("%d record(s)"), n)
+      )
+    }
+
+    rule_labels <- function(rules, ns_records) {
+      vapply(seq_along(rules), function(i) rule_label(rules[i], ns_records[i]),
+             character(1))
+    }
+
     output$feature_overview_info <- shiny::renderUI({
       fr <- feat_records()
       shiny::req(fr)
@@ -658,7 +680,7 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
                            nrow(s)))
       } else {
         shiny::div(class = "alert alert-warning", shiny::icon("exclamation-triangle"), " ",
-                   sprintf(i18n()$t("%d of %d feature(s) are aggregated over several records and appear as a single value in extracted tables."),
+                   sprintf(i18n()$t("%d of %d feature(s) are backed by several records. An extracted table summarises them - how depends on the feature, and the summary is not editable as one value."),
                            n_agg, nrow(s)))
       }
     })
@@ -667,19 +689,16 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       s <- feature_summary()
       shiny::req(nrow(s) > 0)
       shown <- s
-      shown$stored_as <- ifelse(
-        shown$is_aggregated,
-        sprintf(i18n()$t("aggregated (%s of %d records)"),
-                shown$agg_rule, shown$n_records),
-        i18n()$t("single record")
-      )
+      shown$stored_as <- rule_labels(shown$agg_rule, shown$n_records)
+      shown$aggregate_display <- ifelse(is.na(shown$aggregate_display), "-",
+                                        shown$aggregate_display)
       shown <- shown[, c("feature", "valuetype", "unit", "n_records",
                          "aggregate_display", "stored_as"), drop = FALSE]
       DT::datatable(
         shown, selection = "none", rownames = FALSE,
         colnames = c(i18n()$t("Feature"), i18n()$t("Value type"), i18n()$t("Unit"),
                      i18n()$t("Records"), i18n()$t("Value in extracted table"),
-                     i18n()$t("Stored as")),
+                     i18n()$t("In an extracted table")),
         options = list(pageLength = 10, scrollX = TRUE, dom = "tip")
       ) %>%
         DT::formatStyle(
@@ -693,13 +712,7 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       choices <- if (nrow(s) == 0) character(0) else {
         stats::setNames(
           s$feature,
-          ifelse(
-            s$is_aggregated,
-            sprintf("%s - %s", s$feature,
-                    sprintf(i18n()$t("aggregated (%s of %d records)"),
-                            s$agg_rule, s$n_records)),
-            sprintf("%s - %s", s$feature, i18n()$t("single record"))
-          )
+          sprintf("%s - %s", s$feature, rule_labels(s$agg_rule, s$n_records))
         )
       }
       shiny::updateSelectInput(session, "feature_pick", choices = choices)
@@ -718,18 +731,30 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       shiny::req(pick, nrow(s) > 0)
       row <- s[s$feature == pick, ]
       shiny::req(nrow(row) == 1)
-      if (!row$is_aggregated) {
+      shown <- if (is.na(row$aggregate_display)) "-" else row$aggregate_display
+
+      if (identical(row$agg_rule, "census")) {
+        shiny::div(
+          class = "alert alert-info", style = "margin-bottom:0;",
+          shiny::icon("info-circle"), " ",
+          sprintf(i18n()$t("These %d records are the plot's censuses. An extracted table does not show their numbers: it shows n_census, first_census, last_census and one date_census_N column per census (%s)."),
+                  row$n_records, shown)
+        )
+      } else if (identical(row$agg_rule, "not_extracted")) {
+        shiny::div(
+          class = "alert alert-secondary", style = "margin-bottom:0;",
+          sprintf(i18n()$t("%d record(s). This feature is not carried into extracted tables; the records below are the whole of it."),
+                  row$n_records)
+        )
+      } else if (!row$is_aggregated) {
         shiny::div(class = "alert alert-secondary", style = "margin-bottom:0;",
-                   sprintf(i18n()$t("One record. Extracted value: %s"),
-                           ifelse(is.na(row$aggregate_display), "-", row$aggregate_display)))
+                   sprintf(i18n()$t("One record. Extracted value: %s"), shown))
       } else {
-        rule <- if (identical(row$agg_rule, "mean")) i18n()$t("mean of") else i18n()$t("concatenation of")
         shiny::div(
           class = "alert alert-warning", style = "margin-bottom:0;",
           shiny::icon("exclamation-triangle"), " ",
-          sprintf(i18n()$t("Extracted value '%s' is the %s %d records below. Edit them individually."),
-                  ifelse(is.na(row$aggregate_display), "-", row$aggregate_display),
-                  rule, row$n_records)
+          sprintf(i18n()$t("%d records below. An extracted table shows %s (%s), which cannot be edited as one value - edit the records individually."),
+                  row$n_records, shown, rule_label(row$agg_rule, row$n_records))
         )
       }
     })
