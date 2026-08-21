@@ -449,6 +449,7 @@ mod_results_display_server <- function(id, results, individual_features_results 
 
           DT::datatable(
             tab_data,
+            extensions = "Buttons",
             options = list(
               pageLength = 25,
               scrollX = TRUE,
@@ -488,10 +489,12 @@ mod_results_display_server <- function(id, results, individual_features_results 
 
       DT::datatable(
         combined,
+        extensions = "Buttons",
         options = list(
           pageLength = 25,
           scrollX = TRUE,
           dom = "Bfrtip",
+          buttons = c("copy", "csv", "excel"),
           ordering = TRUE
         ),
         rownames = FALSE,

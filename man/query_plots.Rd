@@ -10,6 +10,7 @@ query_plots(
   country = NULL,
   locality_name = NULL,
   method = NULL,
+  feature_filters = NULL,
   extract_individuals = FALSE,
   map = FALSE,
   id_individual = NULL,
@@ -49,6 +50,18 @@ query_plots(
 \item{locality_name}{Optional. A single string specifying locality name.}
 
 \item{method}{Optional. Method identifier.}
+
+\item{feature_filters}{Optional. Named list for filtering on plot features --
+the values stored as rows of `data_liste_sub_plots` rather than as columns of
+`data_liste_plots`. Names are feature types (see [plot_feature_filters()]),
+values are character vectors, e.g.
+`list(data_provider = "IRD", principal_investigator = c("Dauby", "Sonke"))`.
+Values of one feature are combined with OR, different features with AND, so
+a plot must satisfy every named feature but may do so through different
+subplot records. Only features whose value reads as text can be used:
+`character` features and lookup features such as the `table_colnam` people
+features, whose names are resolved for you. Matching follows `exact_match`.
+Use [plot_feature_values()] to see what a feature holds.}
 
 \item{extract_individuals}{Logical. Whether to extract individuals. Optional.}
 
@@ -157,6 +170,17 @@ with options to include associated traits and metadata, and to generate interact
   query_plots(country = "Cameroon")
   
   query_plots(plot_name = "mbalmayo001")
+
+  # Filter on plot features rather than on columns of data_liste_plots
+  plot_feature_filters()          # what can be filtered
+  plot_feature_values("data_provider")
+
+  query_plots(
+    feature_filters = list(
+      data_provider          = "IRD",
+      principal_investigator = c("Dauby", "Sonke")
+    )
+  )
 }
 
 

@@ -104,26 +104,86 @@ utils::globalVariables(c(
 
 #' Conditional rclipboard button
 #'
-#' Returns an rclipboard copy button when the rclipboard package is available,
-#' or NULL otherwise.  Drop-in replacement for rclipboard::rclipButton().
+#' Copy-to-clipboard button for the Shiny modules.  When the optional
+#' \pkg{rclipboard} package is installed this is a drop-in call to
+#' \code{rclipboard::rclipButton()}.  When it is not, the button is still
+#' rendered -- a plain \code{actionButton} carrying the text in a
+#' \code{data-clipboard-text} attribute, copied by the small helper script
+#' that \code{.rclipboard_setup()} injects.  It must never return NULL: a
+#' silently missing button reads as a broken app, not as a missing Suggests.
 #'
-#' @param ... Arguments passed to rclipboard::rclipButton()
-#' @return A Shiny tag or NULL
+#' @param inputId Button input ID
+#' @param label Button label
+#' @param clipText Text placed on the clipboard when the button is clicked
+#' @param icon Optional \code{shiny::icon()}
+#' @param ... Further attributes passed to the button
+#' @return A Shiny tag
 #' @keywords internal
 #' @noRd
-.rclip_button <- function(...) {
-  if (!requireNamespace("rclipboard", quietly = TRUE)) return(NULL)
-  rclipboard::rclipButton(...)
+.rclip_button <- function(inputId, label, clipText, icon = NULL, ...) {
+  if (requireNamespace("rclipboard", quietly = TRUE))
+    return(rclipboard::rclipButton(inputId, label, clipText, icon = icon, ...))
+
+  args <- list(...)
+  # Any caller-supplied onclick belongs to rclipboard's own machinery; the
+  # fallback does its copying through the helper below instead.
+  args$onclick <- NULL
+
+  do.call(
+    shiny::actionButton,
+    c(
+      list(
+        inputId = inputId,
+        label = label,
+        icon = icon,
+        `data-clipboard-text` = clipText,
+        onclick = "return cafriCopyToClipboard(this);"
+      ),
+      args
+    )
+  )
 }
 
 #' Conditional rclipboard setup
 #'
-#' Returns rclipboard JS/CSS dependencies when available, or NULL.
+#' Head dependencies for the copy buttons: \pkg{rclipboard}'s own JS when the
+#' package is installed, otherwise a small helper that copies a button's
+#' \code{data-clipboard-text} using the Clipboard API, falling back to
+#' \code{document.execCommand} on browsers that refuse it.
 #'
-#' @return A Shiny dependency tag or NULL
+#' @return A Shiny dependency tag
 #' @keywords internal
 #' @noRd
 .rclipboard_setup <- function() {
-  if (!requireNamespace("rclipboard", quietly = TRUE)) return(NULL)
-  rclipboard::rclipboardSetup()
+  if (requireNamespace("rclipboard", quietly = TRUE))
+    return(rclipboard::rclipboardSetup())
+
+  shiny::tags$head(shiny::tags$script(shiny::HTML(
+    "window.cafriCopyToClipboard = function (btn) {
+  var text = btn.getAttribute('data-clipboard-text') || '';
+  var flash = function () {
+    var original = btn.innerHTML;
+    btn.classList.add('active');
+    setTimeout(function () {
+      btn.classList.remove('active');
+      btn.innerHTML = original;
+    }, 1200);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(flash, function () {});
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    flash();
+  }
+  return false;
+};"
+  )))
 }

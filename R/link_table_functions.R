@@ -444,6 +444,37 @@
 #' @param column_name string name of the column of compared_table
 #'
 #' @export
+#' The table shown by the interactive matching prompt
+#'
+#' What the user types at that prompt is a position in the list of suggestions,
+#' not the database id that the lookup table also carries. Both used to be
+#' shown as bare integer columns -- an `ID` column of row numbers next to
+#' `id_country`, `id_method` or `id_trait` -- with nothing saying which one was
+#' being asked for.
+#'
+#' So the column to type is named `Choice`, the searched column gets its real
+#' name back instead of the internal `comp_value`, and the `perfect_match` flag
+#' is dropped: it is always `FALSE` here, since an exact match never reaches
+#' this prompt.
+#'
+#' @param sel_loc The page of suggestions, carrying `Choice` and `comp_value`.
+#' @param column_name Name the searched column had before `.find_cat()`
+#'   renamed it, used as its header again.
+#' @return A tibble ready to print; `sel_loc` unchanged when it has no rows.
+#' @keywords internal
+#' @noRd
+.find_cat_display <- function(sel_loc, column_name) {
+
+  if (nrow(sel_loc) == 0) return(sel_loc)
+
+  sel_loc %>%
+    dplyr::select(-dplyr::any_of("perfect_match")) %>%
+    # Choice first, then the value being matched: the two things the user
+    # reads, ahead of the ids and whatever else the lookup table carries.
+    dplyr::relocate("Choice", "comp_value") %>%
+    .rename_data(col_old = "comp_value", col_new = column_name)
+}
+
 .find_cat <- function(value_to_search, compared_table, column_name, field_label = NULL) {
 
   # Default field label to column name if not provided
@@ -529,8 +560,7 @@
 
         sel_loc <-
           sorted_matches %>%
-          dplyr::mutate(ID = dplyr::row_number()) %>%
-          dplyr::relocate("ID", .before = "comp_value") %>%
+          dplyr::mutate(Choice = dplyr::row_number()) %>%
           dplyr::slice((1 + (slide - 1) * 10):((slide) * 10))
 
       } else {
@@ -540,20 +570,48 @@
 
       }
 
+      sel_loc_display <- .find_cat_display(sel_loc, column_name)
 
-      # print(sel_loc)
+      if (nrow(sel_loc) > 0) {
+        first_choice <- min(sel_loc$Choice)
+        last_choice  <- max(sel_loc$Choice)
+      } else {
+        first_choice <- NA_integer_
+        last_choice  <- NA_integer_
+      }
 
       sel_loc_html <-
-        sel_loc %>%
-        kableExtra::kable(format = "html", escape = F) %>%
-        kableExtra::kable_styling("striped", full_width = F)
+        sel_loc_display %>%
+        kableExtra::kable(
+          format = "html",
+          escape = F,
+          caption = paste0(
+            "Type the number in the <b>Choice</b> column, not the id"
+          )
+        ) %>%
+        kableExtra::kable_styling("striped", full_width = F) %>%
+        kableExtra::column_spec(1, bold = TRUE)
 
       print(sel_loc_html)
 
       cat("\n")
+
+      if (!is.na(first_choice)) {
+        cli::cli_alert_info(
+          "Showing {first_choice}-{last_choice} of {nrow(sorted_matches)} similar entries"
+        )
+        cat("\n")
+      }
+
       cli::cli_text(cli::col_silver("Options:"))
       cli::cli_ul(c(
-        "Type a number (1-10) to select a match",
+        if (!is.na(first_choice)) {
+          paste0(
+            "Type a number from the ", cli::col_cyan("Choice"), " column (",
+            cli::col_cyan(paste0(first_choice, "-", last_choice)),
+            ") to select that entry"
+          )
+        },
         "Press {cli::col_cyan('ENTER')} to see next 10 matches",
         "Type {cli::col_cyan('G')} to search by pattern",
         "Type {cli::col_cyan('0')} to skip (no match)"

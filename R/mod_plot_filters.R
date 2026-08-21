@@ -138,6 +138,145 @@ mod_plot_filters_server <- function(id, pool, i18n) {
       )
     })
 
+    # ---- Plot feature filters ------------------------------------------
+    #
+    # A plot feature is not a column of `data_liste_plots` but a row of
+    # `data_liste_sub_plots` typed by `subplotype_list`, so it cannot be a
+    # fixed input the way country or method can: the user picks which feature
+    # first, and only then which of its values.
+    #
+    # Rows carry a stable id and their state is kept outside the inputs, so the
+    # panel can be rebuilt -- on a language change, or when a row is added --
+    # without losing what was already chosen.
+    feature_choices   <- shiny::reactiveVal(NULL)
+    feature_values    <- shiny::reactiveVal(list())
+    feature_row_ids   <- shiny::reactiveVal(character(0))
+    feature_row_state <- shiny::reactiveValues()
+
+    next_feature_row_id <- local({
+      counter <- 0
+      function() {
+        counter <<- counter + 1
+        paste0("f", counter)
+      }
+    })
+
+    # One filter row: which feature, which values, and a way to drop it.
+    feature_filter_row <- function(rid, choices_vec, state, tr) {
+      shiny::fluidRow(
+        shiny::column(
+          5,
+          shiny::selectInput(
+            ns(paste0("feature_type_", rid)),
+            label = tr$t("Feature"),
+            choices = c(
+              stats::setNames("", tr$t("Choose a feature...")),
+              choices_vec
+            ),
+            selected = state$feature
+          )
+        ),
+        shiny::column(
+          6,
+          shiny::selectizeInput(
+            ns(paste0("feature_value_", rid)),
+            label = tr$t("Value(s)"),
+            # Only what is already selected: the observer below fills in the
+            # values the database actually holds once a feature is chosen.
+            choices = state$values,
+            selected = state$values,
+            multiple = TRUE,
+            options = list(
+              create = TRUE,
+              placeholder = tr$t("Type or choose a value")
+            )
+          )
+        ),
+        shiny::column(
+          1,
+          shiny::div(
+            style = "margin-top: 25px;",
+            # A plain button setting one shared input, so a single observer
+            # serves every row however many there are.
+            shiny::tags$button(
+              type = "button",
+              class = "btn btn-sm btn-outline-danger",
+              title = tr$t("Remove this feature filter"),
+              onclick = sprintf(
+                "Shiny.setInputValue('%s', '%s', {priority: 'event'});",
+                ns("remove_feature_filter"), rid
+              ),
+              shiny::icon("times")
+            )
+          )
+        )
+      )
+    }
+
+    shiny::observeEvent(input$add_feature_filter, {
+      rid <- next_feature_row_id()
+      feature_row_state[[rid]] <- list(feature = "", values = character(0))
+      feature_row_ids(c(feature_row_ids(), rid))
+    })
+
+    shiny::observeEvent(input$remove_feature_filter, {
+      rid <- input$remove_feature_filter
+      feature_row_ids(setdiff(feature_row_ids(), rid))
+      feature_row_state[[rid]] <- NULL
+    }, ignoreInit = TRUE)
+
+    # Keep the rows' state in step with their inputs. The UI reads this state
+    # only under isolate(), so writing it here cannot re-render the panel and
+    # reset the very inputs being read.
+    shiny::observe({
+      for (rid in feature_row_ids()) {
+        feat <- input[[paste0("feature_type_", rid)]]
+        vals <- input[[paste0("feature_value_", rid)]]
+        shiny::isolate({
+          feature_row_state[[rid]] <- list(
+            feature = if (is.null(feat)) "" else feat,
+            values  = if (is.null(vals)) character(0) else vals
+          )
+        })
+      }
+    })
+
+    # Offer the values a feature actually holds, fetched once per feature.
+    shiny::observe({
+      pool_conn <- con()
+      shiny::req(pool_conn)
+
+      for (rid in feature_row_ids()) {
+        feat <- input[[paste0("feature_type_", rid)]]
+        if (is.null(feat) || !nzchar(feat)) next
+
+        cached <- shiny::isolate(feature_values())
+
+        if (is.null(cached[[feat]])) {
+          cached[[feat]] <- tryCatch(
+            plot_feature_values(feat, con = pool_conn)$value,
+            error = function(e) {
+              cli::cli_alert_warning(
+                "Could not load values for feature {feat}: {e$message}"
+              )
+              character(0)
+            }
+          )
+          feature_values(cached)
+          cli::cli_alert_info(
+            "Loaded {length(cached[[feat]])} value(s) for feature {feat}"
+          )
+        }
+
+        shiny::updateSelectizeInput(
+          session,
+          paste0("feature_value_", rid),
+          choices  = cached[[feat]],
+          selected = shiny::isolate(input[[paste0("feature_value_", rid)]])
+        )
+      }
+    })
+
     # Advanced Filters UI
     output$advanced_filters_ui <- shiny::renderUI({
       shiny::tagList(
@@ -197,7 +336,46 @@ mod_plot_filters_server <- function(id, pool, i18n) {
                 value = TRUE
               )
             )
-          )
+          ),
+
+          shiny::hr(),
+          shiny::h6(
+            shiny::icon("layer-group"), " ",
+            i18n()$t("Plot feature filters")
+          ),
+          shiny::p(
+            i18n()$t("Filter on values stored as plot features rather than as plot columns, such as the data provider or the principal investigator."),
+            class = "text-muted",
+            style = "font-size: 0.85em;"
+          ),
+          {
+            feats <- feature_choices()
+
+            if (is.null(feats) || nrow(feats) == 0) {
+              shiny::div(
+                class = "text-muted",
+                shiny::em(i18n()$t("No filterable plot features available"))
+              )
+            } else {
+              choices_vec <- stats::setNames(feats$feature, feats$feature)
+
+              shiny::tagList(
+                lapply(feature_row_ids(), function(rid) {
+                  state <- shiny::isolate(feature_row_state[[rid]])
+                  if (is.null(state)) {
+                    state <- list(feature = "", values = character(0))
+                  }
+                  feature_filter_row(rid, choices_vec, state, i18n())
+                }),
+                shiny::actionButton(
+                  ns("add_feature_filter"),
+                  i18n()$t("Add feature filter"),
+                  icon = shiny::icon("plus"),
+                  class = "btn-sm btn-outline-primary"
+                )
+              )
+            }
+          }
         )
       )
     })
@@ -298,6 +476,22 @@ mod_plot_filters_server <- function(id, pool, i18n) {
           choices = localities$locality_name
         )
 
+        # Which plot features can be filtered on. Failing here must not cost
+        # the user the rest of the filters, so it is caught on its own.
+        feats <- tryCatch(
+          plot_feature_filters(con = pool_conn),
+          error = function(e) {
+            cli::cli_alert_warning(
+              "Could not load filterable plot features: {e$message}"
+            )
+            NULL
+          }
+        )
+        feature_choices(feats)
+        if (!is.null(feats)) {
+          cli::cli_alert_success("Loaded {nrow(feats)} filterable plot feature(s)")
+        }
+
         choices_loaded(TRUE)
 
       }, error = function(e) {
@@ -327,7 +521,30 @@ mod_plot_filters_server <- function(id, pool, i18n) {
         id_individual = if (!is.null(input$id_individual) && !is.na(input$id_individual)) input$id_individual else NULL,
         id_tax = if (!is.null(input$id_tax) && !is.na(input$id_tax)) input$id_tax else NULL,
         id_specimen = if (!is.null(input$id_specimen) && !is.na(input$id_specimen)) input$id_specimen else NULL,
-        exact_match = if (!is.null(input$exact_match)) input$exact_match else TRUE
+        exact_match = if (!is.null(input$exact_match)) input$exact_match else TRUE,
+
+        # Plot features, as the named list query_plots() expects.
+        feature_filters = {
+          out <- list()
+
+          for (rid in feature_row_ids()) {
+            feat <- input[[paste0("feature_type_", rid)]]
+            vals <- input[[paste0("feature_value_", rid)]]
+
+            if (is.null(feat) || !nzchar(feat)) next
+
+            vals <- as.character(vals)
+            vals <- vals[!is.na(vals) & nzchar(trimws(vals))]
+            if (length(vals) == 0) next
+
+            # Two rows naming the same feature are one filter holding both
+            # sets of values: query_plots() refuses a repeated name, and the
+            # user plainly meant "either of these".
+            out[[feat]] <- unique(c(out[[feat]], vals))
+          }
+
+          if (length(out) == 0) NULL else out
+        }
       )
     })
 
@@ -349,9 +566,17 @@ mod_plot_filters_server <- function(id, pool, i18n) {
       filter_text <- paste(
         names(active_filters),
         "=",
-        sapply(active_filters, function(x) {
-          if (length(x) > 1) paste(x, collapse = ", ") else as.character(x)
-        }),
+        vapply(active_filters, function(x) {
+          # feature_filters is itself a named list, one entry per feature.
+          if (is.list(x)) {
+            paste(
+              names(x), vapply(x, paste, character(1), collapse = ", "),
+              sep = ": ", collapse = " ; "
+            )
+          } else {
+            paste(x, collapse = ", ")
+          }
+        }, character(1)),
         collapse = " | "
       )
 

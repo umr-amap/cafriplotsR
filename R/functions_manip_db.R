@@ -62,6 +62,17 @@ method_list <- function() {
 #' @param country Optional. A single string specifying country.
 #' @param locality_name Optional. A single string specifying locality name.
 #' @param method Optional. Method identifier.
+#' @param feature_filters Optional. Named list for filtering on plot features --
+#'   the values stored as rows of `data_liste_sub_plots` rather than as columns of
+#'   `data_liste_plots`. Names are feature types (see [plot_feature_filters()]),
+#'   values are character vectors, e.g.
+#'   `list(data_provider = "IRD", principal_investigator = c("Dauby", "Sonke"))`.
+#'   Values of one feature are combined with OR, different features with AND, so
+#'   a plot must satisfy every named feature but may do so through different
+#'   subplot records. Only features whose value reads as text can be used:
+#'   `character` features and lookup features such as the `table_colnam` people
+#'   features, whose names are resolved for you. Matching follows `exact_match`.
+#'   Use [plot_feature_values()] to see what a feature holds.
 #' @param extract_individuals Logical. Whether to extract individuals. Optional.
 #' @param map Logical. Whether to generate map. Optional.
 #' @param id_individual Optional. Individual identifiers.
@@ -146,6 +157,17 @@ method_list <- function() {
 #'   query_plots(country = "Cameroon")
 #'   
 #'   query_plots(plot_name = "mbalmayo001")
+#'
+#'   # Filter on plot features rather than on columns of data_liste_plots
+#'   plot_feature_filters()          # what can be filtered
+#'   plot_feature_values("data_provider")
+#'
+#'   query_plots(
+#'     feature_filters = list(
+#'       data_provider          = "IRD",
+#'       principal_investigator = c("Dauby", "Sonke")
+#'     )
+#'   )
 #' }
 #' 
 #' 
@@ -155,6 +177,7 @@ query_plots <- function(plot_name = NULL,
                         country = NULL,
                         locality_name = NULL,
                         method = NULL,
+                        feature_filters = NULL,
                         extract_individuals = FALSE,
                         map = FALSE,
                         id_individual = NULL,
@@ -319,6 +342,10 @@ query_plots <- function(plot_name = NULL,
       query_builder <- query_builder$filter_locality(locality_name)
     }
     
+    if (!is.null(feature_filters)) {
+      query_builder <- query_builder$filter_features(feature_filters, exact_match = exact_match)
+    }
+    
     query <- query_builder$build()
     res <- func_try_fetch(con = mydb, sql = query)
     
@@ -327,6 +354,19 @@ query_plots <- function(plot_name = NULL,
     
     fetcher <- PlotFetcher$new(mydb)
     res <- fetcher$fetch_by_ids(id_plot)
+    
+    # The builder was skipped, so feature filters would otherwise be silently
+    # dropped. Narrow the requested ids instead: asking for these plots *and*
+    # a feature means both, not whichever happened to be applied first.
+    if (!is.null(feature_filters)) {
+      matching <- .plot_ids_matching_features(feature_filters, con = mydb,
+                                              exact_match = exact_match)
+      before <- nrow(res)
+      res <- res %>% dplyr::filter(.data$id_liste_plots %in% matching)
+      cli::cli_alert_info(
+        "Feature filters narrowed {before} plot(s) to {nrow(res)}"
+      )
+    }
   }
   
   res <-
@@ -1587,10 +1627,6 @@ reorganize_individual_columns <- function(individuals) {
 }
 
 
-if (!requireNamespace("R6", quietly = TRUE)) {
-  stop("Package R6 requested. Install with install.packages('R6')")
-}
-
 
 #' Query builder for plot
 #' 
@@ -1607,6 +1643,12 @@ if (!requireNamespace("R6", quietly = TRUE)) {
 #'   build()
 #' }
 #' 
+#' @details
+#' A filter whose value matches nothing in the database adds an unsatisfiable
+#' condition, so the query returns no plots and warns. It does not drop the
+#' condition: an unmatched country silently returning every plot would look
+#' like a successful query.
+#'
 #' @section Methods:
 #' \describe{
 #'   \item{\code{new(connection)}}{
@@ -1640,6 +1682,16 @@ if (!requireNamespace("R6", quietly = TRUE)) {
 #'     Filter plots by locality name(s).
 #'     \itemize{
 #'       \item \code{locality_name}: Character vector of locality name(s)
+#'     }
+#'   }
+#'   \item{\code{filter_features(feature_filters, exact_match = FALSE)}}{
+#'     Filter plots by their features -- rows of \code{data_liste_sub_plots}
+#'     typed by \code{subplotype_list}, not columns of \code{data_liste_plots}.
+#'     Each named feature adds a subquery, so different features are combined
+#'     with AND while the values of one feature are combined with OR.
+#'     \itemize{
+#'       \item \code{feature_filters}: Named list, names being feature types
+#'       \item \code{exact_match}: Logical. If TRUE, match values exactly rather than as substrings
 #'     }
 #'   }
 #'   \item{\code{build(operator = "AND")}}{
@@ -1679,6 +1731,75 @@ PlotFilterBuilder <- R6::R6Class(
         private$conditions <- c(private$conditions, condition)
       }
       invisible(self)
+    },
+
+    # A condition that can never be satisfied.
+    #
+    # A filter whose value matched nothing must return no plots. Dropping the
+    # condition instead silently widens the query: asking for a country that
+    # does not exist would return every plot the user is allowed to see, which
+    # reads as success and is the more dangerous of the two failures.
+    add_impossible = function() {
+      private$add_condition("FALSE")
+      invisible(self)
+    },
+
+    # WHERE fragment matching a character feature, whose value is held in
+    # data_liste_sub_plots.typevalue_char. Values are OR'ed.
+    char_value_clause = function(values, exact_match = FALSE) {
+      parts <- lapply(values, function(v) {
+        if (exact_match) {
+          glue::glue_sql(
+            "LOWER(sp.typevalue_char) = LOWER({v})",
+            v = v, .con = private$con
+          )
+        } else {
+          glue::glue_sql(
+            "LOWER(sp.typevalue_char) LIKE LOWER({pattern})",
+            pattern = paste0("%", v, "%"), .con = private$con
+          )
+        }
+      })
+      paste0("(", paste(parts, collapse = " OR "), ")")
+    },
+
+    # WHERE fragment matching a lookup feature. These store the id of a row of
+    # a lookup table in `typevalue` -- not in `typevalue_char`, and not in
+    # `id_colnam`, which is populated on a negligible number of rows and only
+    # by mistake. The readable values are resolved to ids first, exactly as
+    # filter_method() resolves method names.
+    #
+    # Returns NULL when no lookup row matches, which the caller turns into an
+    # impossible condition.
+    lookup_value_clause = function(values, valuetype, exact_match = FALSE) {
+      lk <- .feature_lookup_spec(valuetype, private$con)
+
+      parts <- lapply(values, function(v) {
+        if (exact_match) {
+          glue::glue_sql(
+            "LOWER({`lk$value_column`}) = LOWER({v})",
+            v = v, .con = private$con
+          )
+        } else {
+          glue::glue_sql(
+            "LOWER({`lk$value_column`}) LIKE LOWER({pattern})",
+            pattern = paste0("%", v, "%"), .con = private$con
+          )
+        }
+      })
+
+      sql <- glue::glue_sql(
+        "SELECT {`lk$id_column`} AS id FROM {`lk$table`} WHERE {DBI::SQL(paste(parts, collapse = ' OR '))}",
+        .con = private$con
+      )
+      found <- func_try_fetch(con = private$con, sql = sql)
+
+      if (nrow(found) == 0) return(NULL)
+
+      glue::glue_sql(
+        "sp.typevalue IN ({ids*})",
+        ids = as.integer(found$id), .con = private$con
+      )
     }
   ),
   
@@ -1713,6 +1834,7 @@ PlotFilterBuilder <- R6::R6Class(
         
         if (length(country_ids) == 0) {
           cli::cli_alert_warning("No valid countries selected")
+          private$add_impossible()
           return(self)
         }
         
@@ -1725,6 +1847,7 @@ PlotFilterBuilder <- R6::R6Class(
         if (nrow(countries_tbl) == 0) {
           cli::cli_alert_warning("No countries found matching: {paste(country, collapse = ', ')}")
           cli::cli_alert_info("Tip: Use interactive = TRUE for fuzzy matching")
+          private$add_impossible()
           return(self)
         }
         
@@ -1763,6 +1886,7 @@ PlotFilterBuilder <- R6::R6Class(
 
         if (length(plot_ids) == 0) {
           cli::cli_alert_warning("No valid plots selected")
+          private$add_impossible()
           return(self)
         }
 
@@ -1823,6 +1947,7 @@ PlotFilterBuilder <- R6::R6Class(
         
         if (length(method_ids) == 0) {
           cli::cli_alert_warning("No valid methods selected")
+          private$add_impossible()
           return(self)
         }
         
@@ -1853,6 +1978,7 @@ PlotFilterBuilder <- R6::R6Class(
         if (nrow(methods_found) == 0) {
           cli::cli_alert_warning("No methods found matching: {paste(method, collapse = ', ')}")
           cli::cli_alert_info("Tip: Use interactive = TRUE for fuzzy matching")
+          private$add_impossible()
           return(self)
         }
         
@@ -1896,6 +2022,67 @@ PlotFilterBuilder <- R6::R6Class(
       return(self)
     },
     
+    # Filter by plot feature
+    #
+    # A plot feature is not a column of data_liste_plots: it is a row of
+    # data_liste_sub_plots typed by subplotype_list. Each named feature adds a
+    # subquery over those rows, so several features are AND'ed (the plot must
+    # satisfy all of them, each possibly through a different subplot record)
+    # while the values of one feature are OR'ed.
+    #
+    # A subquery is used rather than resolving to a vector of plot ids so the
+    # condition stays one round trip and does not grow with the database.
+    filter_features = function(feature_filters, exact_match = FALSE) {
+      if (is.null(feature_filters) || length(feature_filters) == 0) return(self)
+
+      spec <- .validate_feature_filters(feature_filters, private$con)
+
+      for (feature in names(feature_filters)) {
+
+        values <- feature_filters[[feature]]
+        values <- as.character(values)
+        values <- values[!is.na(values) & nzchar(trimws(values))]
+
+        if (length(values) == 0) {
+          cli::cli_alert_warning(
+            "No value given for feature {.val {feature}}: filter ignored."
+          )
+          next
+        }
+
+        valuetype <- spec$valuetype[match(feature, spec$type)]
+
+        value_clause <- if (grepl("^table_", valuetype)) {
+          private$lookup_value_clause(values, valuetype, exact_match = exact_match)
+        } else {
+          private$char_value_clause(values, exact_match = exact_match)
+        }
+
+        if (is.null(value_clause)) {
+          cli::cli_alert_warning(
+            "No {.field {feature}} matching {.val {values}}: no plot can match."
+          )
+          private$add_impossible()
+          next
+        }
+
+        condition <- glue::glue_sql(
+          "id_liste_plots IN (
+             SELECT sp.id_table_liste_plots
+               FROM data_liste_sub_plots sp
+               JOIN subplotype_list spt
+                 ON sp.id_type_sub_plot = spt.id_subplotype
+              WHERE spt.type = {feature}
+                AND {DBI::SQL(value_clause)}
+           )",
+          feature = feature, .con = private$con
+        )
+        private$add_condition(condition)
+      }
+
+      return(self)
+    },
+
     # Build the final SQL query
     build = function(operator = "AND") {
       base_query <- "SELECT * FROM data_liste_plots"

@@ -9235,7 +9235,7 @@
     },
     {
       "en": "Feature",
-      "fr": "Feature"
+      "fr": "Caractéristique"
     },
     {
       "en": "Records",
@@ -9408,6 +9408,38 @@
     {
       "en": "This plot already carries %d '%s' record(s); another one makes the extracted value an aggregate",
       "fr": "Cette parcelle porte déjà %d enregistrement(s) '%s' ; un de plus rend la valeur extraite agrégée"
+    },
+    {
+      "en": "Plot feature filters",
+      "fr": "Filtres sur les caractéristiques du dispositif"
+    },
+    {
+      "en": "Filter on values stored as plot features rather than as plot columns, such as the data provider or the principal investigator.",
+      "fr": "Filtrer sur des valeurs enregistrées comme caractéristiques du dispositif plutôt que comme colonnes, par exemple le fournisseur des données ou le responsable scientifique."
+    },
+    {
+      "en": "No filterable plot features available",
+      "fr": "Aucune caractéristique filtrable disponible"
+    },
+    {
+      "en": "Choose a feature...",
+      "fr": "Choisir une caractéristique..."
+    },
+    {
+      "en": "Value(s)",
+      "fr": "Valeur(s)"
+    },
+    {
+      "en": "Type or choose a value",
+      "fr": "Saisir ou choisir une valeur"
+    },
+    {
+      "en": "Remove this feature filter",
+      "fr": "Supprimer ce filtre"
+    },
+    {
+      "en": "Add feature filter",
+      "fr": "Ajouter un filtre sur caractéristique"
     }
   ]
 }
