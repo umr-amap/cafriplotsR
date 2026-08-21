@@ -9324,6 +9324,46 @@
     {
       "en": "%d records below. An extracted table shows %s (%s), which cannot be edited as one value - edit the records individually.",
       "fr": "%d enregistrements ci-dessous. Une table extraite affiche %s (%s), qui ne peut pas être modifié comme une valeur unique - modifiez les enregistrements un par un."
+    },
+    {
+      "en": "Stored on the individual (idtax_n)",
+      "fr": "Enregistré sur l'individu (idtax_n)"
+    },
+    {
+      "en": "After synonymy (idtax_f)",
+      "fr": "Après synonymie (idtax_f)"
+    },
+    {
+      "en": "Linked specimen",
+      "fr": "Spécimen lié"
+    },
+    {
+      "en": "Specimen identification, after synonymy (idtax_specimen_f)",
+      "fr": "Identification du spécimen, après synonymie (idtax_specimen_f)"
+    },
+    {
+      "en": "Used by extractions (idtax_individual_f)",
+      "fr": "Utilisée par les extractions (idtax_individual_f)"
+    },
+    {
+      "en": "This individual is linked to a specimen, so the specimen's identification is the one extractions use.",
+      "fr": "Cet individu est lié à un spécimen : c'est l'identification du spécimen qu'utilisent les extractions."
+    },
+    {
+      "en": "Changing idtax_n below will be stored, but it will not change the name in an extracted table while the link stands. To correct what extractions show, re-identify the specimen with launch_specimen_identification_app().",
+      "fr": "Modifier idtax_n ci-dessous sera enregistré, mais ne changera pas le nom dans une table extraite tant que le lien existe. Pour corriger ce qu'affichent les extractions, ré-identifiez le spécimen avec launch_specimen_identification_app()."
+    },
+    {
+      "en": "The link is chosen by link type priority first, then by the most recent determination date.",
+      "fr": "Le lien retenu est celui dont le type est le plus prioritaire, puis celui dont la détermination est la plus récente."
+    },
+    {
+      "en": "The stored idtax_n is a synonym: extractions show the accepted taxon it resolves to.",
+      "fr": "L'idtax_n enregistré est un synonyme : les extractions affichent le taxon accepté correspondant."
+    },
+    {
+      "en": "idtax_n will be written, but this individual is linked to specimen %s: extractions will keep showing the specimen's identification (idtax_individual_f). Re-identify the specimen to change what they show.",
+      "fr": "idtax_n sera écrit, mais cet individu est lié au spécimen %s : les extractions continueront d'afficher l'identification du spécimen (idtax_individual_f). Ré-identifiez le spécimen pour changer ce qu'elles affichent."
     }
   ]
 }

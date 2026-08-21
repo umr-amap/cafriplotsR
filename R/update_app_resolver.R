@@ -900,3 +900,188 @@
 
   applied
 }
+
+# -----------------------------------------------------------------------------
+# IDENTIFICATION CASCADE
+# -----------------------------------------------------------------------------
+
+#' The identification an extraction will actually use for an individual
+#'
+#' `merge_individuals_taxa()` does not read `data_individuals.idtax_n` and stop
+#' there. It resolves that id through `table_idtax` synonymy into `idtax_f`,
+#' resolves the identification of the specimen linked to the individual the same
+#' way into `idtax_specimen_f`, and then takes
+#' `idtax_individual_f = coalesce(idtax_specimen_f, idtax_f)`. Everything
+#' downstream - taxonomy, traits, the name in an extracted table - hangs off
+#' `idtax_individual_f`.
+#'
+#' The consequence matters to anyone editing a record: while a specimen is
+#' linked, the specimen's identification wins, and correcting `idtax_n` here
+#' changes nothing an extraction will show.
+#'
+#' The linked specimen is picked the way `merge_individuals_taxa()` picks it:
+#' highest `linktypelist.priority` first, then the most recent determination
+#' date.
+#'
+#' @param id_ind Integer, `data_individuals.id_n`.
+#' @param con A DBI connection to the main database.
+#' @param con_taxa Optional connection or pool to the taxa database, used for
+#'   names only; ids are shown alone without it.
+#' @return A list with `idtax_n`, `original_tax_name`, `idtax_f`, `specimen`
+#'   (`NULL` or a one-row data frame), `idtax_specimen_f`,
+#'   `idtax_individual_f`, `governed_by` (`"specimen"` or `"individual"`),
+#'   `is_synonym`, and `names` (idtax as character -> taxon name).
+#'   `NULL` when there is no such individual.
+#' @keywords internal
+.upd_identification <- function(id_ind, con, con_taxa = NULL) {
+  id_ind <- suppressWarnings(as.integer(id_ind))
+  if (is.na(id_ind)) return(NULL)
+
+  ind <- DBI::dbGetQuery(con, glue::glue_sql(
+    "SELECT id_n, idtax_n, original_tax_name
+       FROM data_individuals WHERE id_n = {id_ind}",
+    .con = con
+  ))
+  if (nrow(ind) == 0) return(NULL)
+
+  idtax_n <- suppressWarnings(as.integer(ind$idtax_n[1]))
+  specimen <- .upd_specimen_link(id_ind, con)
+  idtax_spec_n <- if (is.null(specimen)) {
+    NA_integer_
+  } else {
+    suppressWarnings(as.integer(specimen$idtax_specimen_n[1]))
+  }
+
+  accepted <- .upd_accepted_idtax(c(idtax_n, idtax_spec_n), con)
+  idtax_f <- unname(accepted[as.character(idtax_n)])
+  if (length(idtax_f) == 0 || is.na(idtax_f)) idtax_f <- idtax_n
+  idtax_specimen_f <- if (is.na(idtax_spec_n)) {
+    NA_integer_
+  } else {
+    v <- unname(accepted[as.character(idtax_spec_n)])
+    if (length(v) == 0 || is.na(v)) idtax_spec_n else v
+  }
+
+  idtax_individual_f <- if (!is.na(idtax_specimen_f)) idtax_specimen_f else idtax_f
+
+  names_tbl <- .fetch_taxon_names(
+    c(idtax_n, idtax_f, idtax_spec_n, idtax_specimen_f, idtax_individual_f),
+    con_taxa
+  )
+  taxon_names <- stats::setNames(
+    as.character(names_tbl$taxon_name), as.character(names_tbl$idtax_n)
+  )
+
+  list(
+    id_n               = id_ind,
+    idtax_n            = idtax_n,
+    original_tax_name  = ind$original_tax_name[1],
+    idtax_f            = idtax_f,
+    is_synonym         = !is.na(idtax_f) && !is.na(idtax_n) && idtax_f != idtax_n,
+    specimen           = specimen,
+    idtax_specimen_n   = idtax_spec_n,
+    idtax_specimen_f   = idtax_specimen_f,
+    idtax_individual_f = idtax_individual_f,
+    governed_by        = if (!is.na(idtax_specimen_f)) "specimen" else "individual",
+    names              = taxon_names
+  )
+}
+
+#' The specimen whose identification governs an individual
+#'
+#' Highest link priority first, then the most recent determination date - the
+#' order `merge_individuals_taxa()` sorts by before taking one link per
+#' individual.
+#'
+#' @return A one-row data frame, or `NULL` when nothing is linked.
+#' @keywords internal
+.upd_specimen_link <- function(id_ind, con) {
+  base_select <-
+    "SELECT ls.id_specimen,
+            s.idtax_n AS idtax_specimen_n,
+            s.colnbr, s.suffix, s.dety, s.detm, s.detd,
+            cn.colnam"
+  base_from <-
+    "FROM data_link_specimens ls
+       LEFT JOIN specimens s ON ls.id_specimen = s.id_specimen
+       LEFT JOIN table_colnam cn ON s.id_colnam = cn.id_table_colnam"
+  det_order <-
+    "COALESCE(s.dety, 1900) DESC, COALESCE(s.detm, 1) DESC, COALESCE(s.detd, 1) DESC"
+
+  # linktypelist may not exist on every database; without it every link has the
+  # same priority and only the determination date orders them.
+  res <- tryCatch(
+    DBI::dbGetQuery(con, glue::glue_sql(
+      paste(base_select, ", COALESCE(lt.priority, 0) AS priority",
+            base_from,
+            "LEFT JOIN linktypelist lt ON ls.id_linktype = lt.id_linktype",
+            "WHERE ls.id_n = {id_ind}",
+            "ORDER BY COALESCE(lt.priority, 0) DESC,", det_order,
+            "LIMIT 1"),
+      .con = con
+    )),
+    error = function(e) {
+      tryCatch(
+        DBI::dbGetQuery(con, glue::glue_sql(
+          paste(base_select, ", 0 AS priority", base_from,
+                "WHERE ls.id_n = {id_ind}", "ORDER BY", det_order, "LIMIT 1"),
+          .con = con
+        )),
+        error = function(e2) {
+          message("Note: could not read specimen links (", conditionMessage(e2), ")")
+          NULL
+        }
+      )
+    }
+  )
+
+  if (is.null(res) || nrow(res) == 0) return(NULL)
+  res[1, , drop = FALSE]
+}
+
+#' Accepted id for each taxon id, through `table_idtax` synonymy
+#'
+#' @return Named integer vector, idtax as character -> accepted idtax. Ids the
+#'   table does not know map to themselves.
+#' @keywords internal
+.upd_accepted_idtax <- function(idtax, con) {
+  idtax <- unique(suppressWarnings(as.integer(idtax)))
+  idtax <- idtax[!is.na(idtax)]
+  if (length(idtax) == 0) return(stats::setNames(integer(0), character(0)))
+
+  res <- tryCatch(
+    DBI::dbGetQuery(con, glue::glue_sql(
+      "SELECT idtax_n, idtax_good_n FROM table_idtax WHERE idtax_n IN ({idtax*})",
+      idtax = idtax, .con = con
+    )),
+    error = function(e) {
+      message("Note: could not read table_idtax (", conditionMessage(e), ")")
+      data.frame(idtax_n = integer(0), idtax_good_n = integer(0))
+    }
+  )
+
+  out <- stats::setNames(idtax, as.character(idtax))
+  if (nrow(res) > 0) {
+    good <- suppressWarnings(as.integer(res$idtax_good_n))
+    known <- suppressWarnings(as.integer(res$idtax_n))
+    good[is.na(good)] <- known[is.na(good)]
+    out[as.character(known)] <- good
+  }
+  out
+}
+
+#' A collector's label for a specimen: "Dauby 1234b"
+#' @keywords internal
+.upd_specimen_label <- function(specimen) {
+  if (is.null(specimen) || nrow(specimen) == 0) return(NA_character_)
+  number <- paste0(
+    if (!is.na(specimen$colnbr[1])) as.character(specimen$colnbr[1]) else "",
+    if (!is.na(specimen$suffix[1])) as.character(specimen$suffix[1]) else ""
+  )
+  parts <- c(
+    if (!is.na(specimen$colnam[1])) as.character(specimen$colnam[1]),
+    if (nzchar(number)) number
+  )
+  if (length(parts) == 0) return(paste0("id_specimen ", specimen$id_specimen[1]))
+  paste(parts, collapse = " ")
+}

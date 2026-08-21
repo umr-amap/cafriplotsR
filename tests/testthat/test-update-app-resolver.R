@@ -330,3 +330,129 @@ test_that(".upd_record_dates() degrades from day to month to year", {
   expect_equal(CafriplotsR:::.upd_record_dates(grp),
                c("2020-05-04", "2020-05", "2020", ""))
 })
+
+# ── identification cascade ───────────────────────────────────────────────────
+
+test_that(".upd_accepted_idtax() maps a synonym to its accepted taxon", {
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  DBI::dbWriteTable(con, "table_idtax", data.frame(
+    idtax_n = c(13127L, 500L, 900L),
+    idtax_good_n = c(NA_integer_, 600L, NA_integer_)
+  ))
+
+  acc <- CafriplotsR:::.upd_accepted_idtax(c(13127L, 500L), con)
+  expect_equal(unname(acc["13127"]), 13127L)  # accepted already
+  expect_equal(unname(acc["500"]), 600L)      # synonym resolved
+})
+
+test_that(".upd_accepted_idtax() leaves an unknown id alone", {
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  DBI::dbWriteTable(con, "table_idtax", data.frame(
+    idtax_n = 1L, idtax_good_n = NA_integer_
+  ))
+
+  expect_equal(unname(CafriplotsR:::.upd_accepted_idtax(42L, con)["42"]), 42L)
+})
+
+test_that(".upd_identification() lets a linked specimen govern the identification", {
+  # This is the rule merge_individuals_taxa() applies:
+  # idtax_individual_f = coalesce(idtax_specimen_f, idtax_f).
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  DBI::dbWriteTable(con, "data_individuals", data.frame(
+    id_n = 1L, idtax_n = 500L, original_tax_name = "Afrostyrax kamerunensis"
+  ))
+  DBI::dbWriteTable(con, "table_idtax", data.frame(
+    idtax_n = c(500L, 700L), idtax_good_n = c(600L, NA_integer_)
+  ))
+  DBI::dbWriteTable(con, "data_link_specimens", data.frame(
+    id_n = 1L, id_specimen = 9L, id_linktype = 1L
+  ))
+  DBI::dbWriteTable(con, "specimens", data.frame(
+    id_specimen = 9L, idtax_n = 700L, id_colnam = 3L, colnbr = "1234",
+    suffix = NA_character_, dety = 2019L, detm = 5L, detd = 2L
+  ))
+  DBI::dbWriteTable(con, "table_colnam", data.frame(
+    id_table_colnam = 3L, colnam = "Dauby"
+  ))
+  DBI::dbWriteTable(con, "linktypelist", data.frame(
+    id_linktype = 1L, priority = 100L
+  ))
+
+  ident <- CafriplotsR:::.upd_identification(1L, con, con_taxa = NULL)
+
+  expect_equal(ident$idtax_n, 500L)
+  expect_equal(ident$idtax_f, 600L)           # the individual's own synonymy
+  expect_true(ident$is_synonym)
+  expect_equal(ident$idtax_specimen_f, 700L)  # the specimen's identification
+  expect_equal(ident$idtax_individual_f, 700L)
+  expect_equal(ident$governed_by, "specimen")
+  expect_equal(CafriplotsR:::.upd_specimen_label(ident$specimen), "Dauby 1234")
+})
+
+test_that(".upd_identification() falls back to the individual when nothing is linked", {
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  DBI::dbWriteTable(con, "data_individuals", data.frame(
+    id_n = 1L, idtax_n = 500L, original_tax_name = "Afrostyrax sp."
+  ))
+  DBI::dbWriteTable(con, "table_idtax", data.frame(
+    idtax_n = 500L, idtax_good_n = 600L
+  ))
+  DBI::dbWriteTable(con, "data_link_specimens", data.frame(
+    id_n = integer(0), id_specimen = integer(0), id_linktype = integer(0)
+  ))
+  DBI::dbWriteTable(con, "specimens", data.frame(
+    id_specimen = integer(0), idtax_n = integer(0), id_colnam = integer(0),
+    colnbr = character(0), suffix = character(0),
+    dety = integer(0), detm = integer(0), detd = integer(0)
+  ))
+  DBI::dbWriteTable(con, "table_colnam", data.frame(
+    id_table_colnam = integer(0), colnam = character(0)
+  ))
+  DBI::dbWriteTable(con, "linktypelist", data.frame(
+    id_linktype = integer(0), priority = integer(0)
+  ))
+
+  ident <- CafriplotsR:::.upd_identification(1L, con, con_taxa = NULL)
+
+  expect_null(ident$specimen)
+  expect_true(is.na(ident$idtax_specimen_f))
+  expect_equal(ident$idtax_individual_f, 600L)
+  expect_equal(ident$governed_by, "individual")
+})
+
+test_that(".upd_identification() prefers the higher-priority link", {
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  DBI::dbWriteTable(con, "data_individuals", data.frame(
+    id_n = 1L, idtax_n = 500L, original_tax_name = NA_character_
+  ))
+  DBI::dbWriteTable(con, "table_idtax", data.frame(
+    idtax_n = c(500L, 700L, 800L), idtax_good_n = NA_integer_
+  ))
+  DBI::dbWriteTable(con, "data_link_specimens", data.frame(
+    id_n = c(1L, 1L), id_specimen = c(9L, 10L), id_linktype = c(2L, 1L)
+  ))
+  DBI::dbWriteTable(con, "specimens", data.frame(
+    id_specimen = c(9L, 10L), idtax_n = c(700L, 800L), id_colnam = c(3L, 3L),
+    colnbr = c("1", "2"), suffix = NA_character_,
+    dety = c(2021L, 2005L), detm = 1L, detd = 1L
+  ))
+  DBI::dbWriteTable(con, "table_colnam", data.frame(
+    id_table_colnam = 3L, colnam = "Dauby"
+  ))
+  # Link type 1 outranks 2, even though specimen 9 was determined more recently.
+  DBI::dbWriteTable(con, "linktypelist", data.frame(
+    id_linktype = c(1L, 2L), priority = c(100L, 50L)
+  ))
+
+  ident <- CafriplotsR:::.upd_identification(1L, con, con_taxa = NULL)
+  expect_equal(ident$specimen$id_specimen, 10L)
+  expect_equal(ident$idtax_individual_f, 800L)
+})

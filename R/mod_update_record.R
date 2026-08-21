@@ -87,6 +87,7 @@ mod_update_record_ui <- function(id, entity = c("plot", "individual"), i18n) {
       shiny::h4(shiny::icon("seedling"), " ",
                 i18n$t("3b. Change the identification (optional)")),
       shiny::uiOutput(ns("taxon_current")),
+      shiny::uiOutput(ns("taxon_cascade")),
       mod_taxa_search_ui(ns("taxa_pick"))
     )
   } else {
@@ -219,6 +220,7 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     diff_tbl      <- shiny::reactiveVal(NULL)
     apply_status  <- shiny::reactiveVal(NULL)
     taxa_reset    <- shiny::reactiveVal(0)
+    identification <- shiny::reactiveVal(NULL)  # individuals only: idtax cascade
 
     with_main <- function(fun) {
       shiny::req(pool_main())
@@ -618,6 +620,35 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     }
 
     if (entity == "individual") {
+
+      # The identification an extraction will use is not `idtax_n`: synonymy
+      # and, above all, a linked specimen have the last word. Resolved on load -
+      # three small queries, no extraction.
+      shiny::observeEvent(record(), {
+        identification(NULL)
+        r <- record()
+        shiny::req(r, pool_main())
+        taxa_con <- tryCatch(pool_taxa(), error = function(e) NULL)
+        res <- tryCatch(
+          with_main(function(con) {
+            .upd_identification(r[[spec$id_column]][1], con, taxa_con)
+          }),
+          error = function(e) {
+            cli::cli_alert_warning("Could not resolve the identification: {e$message}")
+            NULL
+          }
+        )
+        identification(res)
+      }, ignoreNULL = FALSE)
+
+      # One taxon of the cascade, as "13127 (Afrostyrax kamerunensis)".
+      taxon_text <- function(ident, id) {
+        if (is.null(id) || length(id) == 0 || is.na(id)) return("-")
+        nm <- ident$names[[as.character(id)]]
+        if (is.null(nm) || is.na(nm)) as.character(id)
+        else sprintf("%s (%s)", id, nm)
+      }
+
       output$taxon_current <- shiny::renderUI({
         r <- record()
         shiny::req(r)
@@ -630,6 +661,62 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
             i18n()$t("Leave the search below untouched to keep the current identification.")
           )
         )
+      })
+
+      output$taxon_cascade <- shiny::renderUI({
+        ident <- identification()
+        if (is.null(ident)) return(NULL)
+
+        rows <- list(
+          list(i18n()$t("Stored on the individual (idtax_n)"),
+               taxon_text(ident, ident$idtax_n)),
+          list(i18n()$t("After synonymy (idtax_f)"),
+               taxon_text(ident, ident$idtax_f))
+        )
+        if (!is.null(ident$specimen)) {
+          rows <- c(rows, list(
+            list(i18n()$t("Linked specimen"),
+                 .upd_fmt(.upd_specimen_label(ident$specimen))),
+            list(i18n()$t("Specimen identification, after synonymy (idtax_specimen_f)"),
+                 taxon_text(ident, ident$idtax_specimen_f))
+          ))
+        }
+        rows <- c(rows, list(
+          list(shiny::tags$b(i18n()$t("Used by extractions (idtax_individual_f)")),
+               shiny::tags$b(taxon_text(ident, ident$idtax_individual_f)))
+        ))
+
+        table <- shiny::tags$table(
+          class = "table table-sm", style = "margin-bottom: 8px;",
+          shiny::tags$tbody(lapply(rows, function(rw) {
+            shiny::tags$tr(shiny::tags$th(rw[[1]], style = "width: 45%;"),
+                           shiny::tags$td(rw[[2]]))
+          }))
+        )
+
+        note <- if (identical(ident$governed_by, "specimen")) {
+          shiny::div(
+            class = "alert alert-warning", style = "margin-bottom: 0;",
+            shiny::icon("exclamation-triangle"), " ",
+            shiny::tags$b(i18n()$t("This individual is linked to a specimen, so the specimen's identification is the one extractions use.")),
+            " ",
+            i18n()$t("Changing idtax_n below will be stored, but it will not change the name in an extracted table while the link stands. To correct what extractions show, re-identify the specimen with launch_specimen_identification_app()."),
+            shiny::br(),
+            shiny::tags$small(
+              i18n()$t("The link is chosen by link type priority first, then by the most recent determination date.")
+            )
+          )
+        } else if (isTRUE(ident$is_synonym)) {
+          shiny::div(
+            class = "alert alert-info", style = "margin-bottom: 0;",
+            shiny::icon("info-circle"), " ",
+            i18n()$t("The stored idtax_n is a synonym: extractions show the accepted taxon it resolves to.")
+          )
+        } else {
+          NULL
+        }
+
+        shiny::div(table, note)
       })
     }
 
@@ -1007,8 +1094,27 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       }
       if (nrow(changed) == 0) return(header)
 
+      # Writing idtax_n while a specimen governs the identification is legal but
+      # inert as far as extractions go. Say it here, where the user is about to
+      # do it.
+      specimen_note <- local({
+        ident <- identification()
+        writes_idtax <- any(changed$target == paste0(spec$table, ".idtax_n"))
+        if (!writes_idtax || is.null(ident) ||
+            !identical(ident$governed_by, "specimen")) {
+          return(NULL)
+        }
+        shiny::div(
+          class = "alert alert-warning",
+          shiny::icon("exclamation-triangle"), " ",
+          sprintf(i18n()$t("idtax_n will be written, but this individual is linked to specimen %s: extractions will keep showing the specimen's identification (idtax_individual_f). Re-identify the specimen to change what they show."),
+                  .upd_fmt(.upd_specimen_label(ident$specimen)))
+        )
+      })
+
       shiny::tagList(
         header,
+        specimen_note,
         shiny::tags$table(
           class = "table table-sm table-bordered",
           shiny::tags$thead(
