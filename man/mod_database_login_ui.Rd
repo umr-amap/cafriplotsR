@@ -4,7 +4,7 @@
 \alias{mod_database_login_ui}
 \title{Database Login Module - UI}
 \usage{
-mod_database_login_ui(id, allow_public = FALSE)
+mod_database_login_ui(id, allow_public = FALSE, allow_offline = FALSE)
 }
 \arguments{
 \item{id}{Module namespace ID}
@@ -13,6 +13,13 @@ mod_database_login_ui(id, allow_public = FALSE)
 Defaults to `FALSE`. The public account is read-only, so only apps that
 are useful without write access should opt in (taxonomic matching,
 backbone browsing, plot querying).}
+
+\item{allow_offline}{Logical. Show the "Use offline (cached backbone)"
+button? Defaults to `FALSE`. Offline mode leaves the app with no database
+connection at all and only the cached taxonomic backbone, so only the
+taxonomic matching app — the one workflow that can be finished from the
+cache alone — should opt in. The button is shown only when a cache also
+exists on disk.}
 }
 \value{
 A shiny tagList
