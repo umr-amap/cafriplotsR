@@ -24,6 +24,27 @@ mod_feat_step3_plot_features_ui <- function(id, i18n) {
       style = "color: #6c757d; font-size: 16px; margin-bottom: 30px;"
     ),
 
+    # What the selected plots already hold. Entering a feature blind is how a
+    # plot ends up with two principal investigators, or with a value recorded
+    # twice for the same year.
+    shiny::wellPanel(
+      shiny::h4(
+        shiny::icon("clipboard-list"), " ",
+        i18n$t("Already recorded for these plots")
+      ),
+      shiny::tags$p(
+        class = "text-muted",
+        shiny::tags$small(i18n$t("Every feature the selected plot(s) already carry, as an extraction would summarise it. A feature that already has a record is not blocked here - adding another one makes the extracted value an aggregate."))
+      ),
+      shiny::uiOutput(ns("existing_info")),
+      shiny::checkboxInput(
+        ns("existing_only_selected"),
+        i18n$t("Only the feature types selected below"),
+        value = FALSE
+      ),
+      DT::DTOutput(ns("existing_tbl"))
+    ),
+
     # Input method toggle
     shiny::radioButtons(
       ns("input_method"),
@@ -71,8 +92,19 @@ mod_feat_step3_plot_features_server <- function(id, selected_plots, operation_mo
 
     prepared_data   <- shiny::reactiveVal(NULL)
     feature_config  <- shiny::reactiveVal(NULL)
-    available_features <- shiny::reactiveVal(NULL)
     uploaded_raw    <- shiny::reactiveVal(NULL)   # raw xlsx, waiting for mapping
+    available_features <- shiny::reactiveVal(NULL)
+
+    # Data prepared for one plot selection must not survive another. Clearing
+    # it also keeps this module in step with the wizard, which drops its own
+    # copy on every new selection: a reactiveVal re-set to the value it already
+    # holds notifies nobody, so preparing identical data a second time would
+    # never reach the wizard and Next would stay out of reach.
+    shiny::observeEvent(selected_plots(), {
+      prepared_data(NULL)
+      feature_config(NULL)
+      uploaded_raw(NULL)
+    }, ignoreInit = TRUE, ignoreNULL = FALSE)
 
     # Load available feature types
     shiny::observe({
@@ -85,13 +117,133 @@ mod_feat_step3_plot_features_server <- function(id, selected_plots, operation_mo
       })
     })
 
+    # --- What the selected plots already hold -------------------------------
+    # The same resolver the update app reads, so both apps summarise a feature
+    # the way an extraction really does rather than each inventing a rule.
+    existing_records <- shiny::reactiveVal(NULL)
+
+    shiny::observe({
+      shiny::req(con())
+      plots <- tryCatch(selected_plots(), error = function(e) NULL)
+      ids <- if (is.null(plots) || !"id_liste_plots" %in% names(plots)) {
+        integer(0)
+      } else {
+        plots$id_liste_plots[!is.na(plots$id_liste_plots)]
+      }
+      if (length(ids) == 0) {
+        existing_records(NULL)
+        return()
+      }
+      existing_records(tryCatch(
+        .upd_plot_feature_records(ids, con()),
+        error = function(e) {
+          cli::cli_alert_warning("Could not load existing features: {e$message}")
+          NULL
+        }
+      ))
+    })
+
+    existing_summary <- shiny::reactive({
+      fr <- existing_records()
+      if (is.null(fr)) return(NULL)
+      .upd_feature_summary(fr)
+    })
+
+    # The table honours the "only what I selected" checkbox; the notes under
+    # each input do not, since they are already about one feature.
+    existing_shown <- shiny::reactive({
+      s <- existing_summary()
+      if (is.null(s)) return(NULL)
+      if (isTRUE(input$existing_only_selected) &&
+          length(input$feature_types) > 0) {
+        s <- s[s$feature %in% input$feature_types, , drop = FALSE]
+      }
+      s
+    })
+
+    output$existing_info <- shiny::renderUI({
+      s <- existing_summary()
+      if (is.null(s)) {
+        return(shiny::div(
+          class = "alert alert-secondary",
+          shiny::icon("info-circle"), " ",
+          i18n()$t("Select plots in step 1 to see what they already hold.")
+        ))
+      }
+      if (nrow(s) == 0) {
+        return(shiny::div(
+          class = "alert alert-info",
+          shiny::icon("info-circle"), " ",
+          i18n()$t("The selected plot(s) carry no feature yet.")
+        ))
+      }
+      n_plots <- length(unique(s$plot_name))
+      n_agg <- sum(s$is_aggregated)
+      msg <- sprintf(
+        i18n()$t("%d feature(s) across %d plot(s)."),
+        nrow(s), n_plots
+      )
+      if (n_agg > 0) {
+        shiny::div(
+          class = "alert alert-warning",
+          shiny::icon("exclamation-triangle"), " ", msg, " ",
+          sprintf(
+            i18n()$t("%d of them are already backed by several records."),
+            n_agg
+          )
+        )
+      } else {
+        shiny::div(class = "alert alert-success", shiny::icon("check"), " ", msg)
+      }
+    })
+
+    output$existing_tbl <- DT::renderDT({
+      s <- existing_shown()
+      shiny::req(s)
+      shiny::req(nrow(s) > 0)
+      .feature_overview_dt(s, i18n(), page_length = 5)
+    })
+
+    # One line under a feature's input: what the selected plots already have
+    # for it. Amber whenever there is something, because a second record turns
+    # the extracted value into an aggregate.
+    existing_note <- function(feat_type) {
+      s <- existing_summary()
+      if (is.null(s) || nrow(s) == 0) return(NULL)
+      rows <- s[s$feature == feat_type, , drop = FALSE]
+      if (nrow(rows) == 0) {
+        return(shiny::div(
+          class = "text-muted",
+          style = "margin: -10px 0 15px 0; font-size: 12px;",
+          shiny::icon("circle-check"), " ",
+          i18n()$t("Nothing recorded yet for the selected plot(s).")
+        ))
+      }
+      per_plot <- vapply(seq_len(nrow(rows)), function(i) {
+        value <- if (is.na(rows$aggregate_display[i])) {
+          .feature_rule_label(rows$agg_rule[i], rows$n_records[i], i18n())
+        } else {
+          rows$aggregate_display[i]
+        }
+        sprintf("%s: %s", rows$plot_name[i], value)
+      }, character(1))
+
+      shiny::div(
+        style = paste("margin: -10px 0 15px 0; font-size: 12px;",
+                      "color: #856404; background: #fff3cd;",
+                      "border-radius: 3px; padding: 6px 8px;"),
+        shiny::icon("exclamation-triangle"), " ",
+        shiny::strong(i18n()$t("Already recorded:")), " ",
+        paste(per_plot, collapse = " | ")
+      )
+    }
+
     # Dynamic feature value inputs (for "add_features" mode)
     output$dynamic_feature_inputs <- shiny::renderUI({
       shiny::req(input$feature_types, available_features())
 
       feat_list <- available_features()
       selected <- input$feature_types
-
       lapply(selected, function(feat_type) {
         feat_info <- feat_list[feat_list$type == feat_type, ]
         if (nrow(feat_info) == 0) return(NULL)
@@ -102,7 +254,7 @@ mod_feat_step3_plot_features_server <- function(id, selected_plots, operation_mo
           paste0(" - ", feat_info$typedescription[1])
         } else ""
 
-        if (vtype == "table_colnam") {
+        control <- if (vtype == "table_colnam") {
           shiny::textInput(
             ns(paste0("feat_val_", feat_type)),
             paste0(label, hint),
@@ -123,6 +275,10 @@ mod_feat_step3_plot_features_server <- function(id, selected_plots, operation_mo
             placeholder = i18n()$t("Enter value")
           )
         }
+
+        # What the selected plots already have for this very feature, right
+        # under the field where a new value is about to be typed.
+        shiny::tagList(control, existing_note(feat_type))
       })
     })
 

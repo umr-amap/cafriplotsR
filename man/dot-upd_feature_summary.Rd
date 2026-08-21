@@ -6,7 +6,14 @@
 \usage{
 .upd_feature_summary(records)
 }
+\arguments{
+\item{records}{Feature records from one of the two resolvers.}
+}
+\value{
+A tibble with one row per feature (per plot, where plots are named).
+}
 \description{
-One row per feature: what the extracted table shows, and from how many records
+Records carrying `plot_name` are summarised per plot, so a selection of
+several plots yields one row per plot and feature.
 }
 \keyword{internal}

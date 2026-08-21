@@ -46,6 +46,18 @@ many records back it, what the extracted table would display, and how that
 display was computed; the editable inputs are the underlying records, each
 labelled with its own id and its census or subplot context.
 
+\strong{Why an identification is not just \code{idtax_n}.}
+\code{merge_individuals_taxa()} resolves the individual's \code{idtax_n}
+through \code{table_idtax} synonymy into \code{idtax_f}, resolves the
+identification of the specimen linked to the individual the same way into
+\code{idtax_specimen_f}, and uses
+\code{idtax_individual_f = coalesce(idtax_specimen_f, idtax_f)} everywhere
+downstream. The identification section shows that whole cascade. While a
+specimen is linked, its identification wins: editing \code{idtax_n} is
+stored but changes nothing an extraction shows, and the app says so both in
+the section and in the preview. Re-identifying the specimen is done with
+\code{\link{launch_specimen_identification_app}}.
+
 Only existing records can be edited. Adding or deleting measurements is done
 with the feature wizard (\code{\link{launch_feature_wizard}}) and the
 \code{safe_delete_*} functions.

@@ -298,15 +298,25 @@ mod_feat_step2_choose_mode_ui <- function(id, i18n) {
 #'
 #' @param id Module namespace ID
 #' @param i18n Reactive returning translator object
+#' @param reset Reactive whose change clears the chosen mode. The wizard
+#'   clears its own copy of the mode whenever the plot selection changes, and
+#'   this keeps the module from holding a stale one: a `reactiveVal` set to the
+#'   value it already has notifies nobody, so without this, choosing the same
+#'   mode again after a new plot selection would never reach the wizard.
 #' @return Reactive containing selected mode string
 #' @keywords internal
 #' @export
-mod_feat_step2_choose_mode_server <- function(id, i18n) {
+mod_feat_step2_choose_mode_server <- function(id, i18n, reset = shiny::reactive(NULL)) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
     selected_mode <- shiny::reactiveVal(NULL)
     all_card_ids <- c("card_census", "card_features", "card_measurements", "card_recruits", "card_multi_stems", "card_stem_status", "card_standardize_obs", "card_import_census")
+
+    shiny::observeEvent(reset(), {
+      selected_mode(NULL)
+      shinyjs::runjs(.mode_clear_js(ns(all_card_ids)))
+    }, ignoreInit = TRUE)
 
     shiny::observeEvent(input$mode_selected, {
       mode <- input$mode_selected
@@ -408,4 +418,25 @@ mod_feat_step2_choose_mode_server <- function(id, i18n) {
   )
 
   paste(others, chosen, reveal, sep = "\n")
+}
+
+#' JavaScript returning every mode card to its unchosen look
+#'
+#' The counterpart of `.mode_selection_js()`: no card selected, none dimmed,
+#' and no scrolling, since a reset happens while another step is on screen.
+#'
+#' @param card_ids Character vector of namespaced card element ids.
+#'
+#' @return A single string of JavaScript.
+#' @keywords internal
+.mode_clear_js <- function(card_ids) {
+  paste(
+    sprintf(
+      paste0("var el = document.getElementById('%s');",
+             " if (el) { el.classList.remove('selected');",
+             " el.classList.remove('dimmed'); }"),
+      card_ids
+    ),
+    collapse = "\n"
+  )
 }

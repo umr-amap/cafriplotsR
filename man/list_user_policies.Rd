@@ -16,7 +16,10 @@ Use NULL to see policies on all tables.}
 }
 \value{
 A data frame with policy information (schemaname, tablename,
-  policyname, roles, cmd, qual).
+  policyname, roles, cmd, qual), plus a `plot_ids` list-column holding the
+  numeric IDs parsed out of each row's `qual` expression (integer(0) when
+  `qual` has none, e.g. NA or an id-less policy such as a global
+  `creator_access_*` policy).
 }
 \description{
 Lists row-level security policies from pg_policies system catalog.

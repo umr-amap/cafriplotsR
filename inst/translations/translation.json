@@ -9190,24 +9190,8 @@
       "fr": "%d feature(s), chacune reposant sur un seul enregistrement."
     },
     {
-      "en": "%d of %d feature(s) are aggregated over several records and appear as a single value in extracted tables.",
-      "fr": "%d feature(s) sur %d sont agrégées à partir de plusieurs enregistrements et apparaissent comme une valeur unique dans les tables extraites."
-    },
-    {
-      "en": "aggregated (%s of %d records)",
-      "fr": "agrégée (%s de %d enregistrements)"
-    },
-    {
-      "en": "single record",
-      "fr": "enregistrement unique"
-    },
-    {
       "en": "Value in extracted table",
       "fr": "Valeur dans la table extraite"
-    },
-    {
-      "en": "Stored as",
-      "fr": "Stockage"
     },
     {
       "en": "Feature to edit",
@@ -9216,18 +9200,6 @@
     {
       "en": "One record. Extracted value: %s",
       "fr": "Un seul enregistrement. Valeur extraite : %s"
-    },
-    {
-      "en": "mean of",
-      "fr": "moyenne des"
-    },
-    {
-      "en": "concatenation of",
-      "fr": "concaténation des"
-    },
-    {
-      "en": "Extracted value '%s' is the %s %d records below. Edit them individually.",
-      "fr": "La valeur extraite « %s » est la %s %d enregistrements ci-dessous. Modifiez-les individuellement."
     },
     {
       "en": "record column",
@@ -9278,8 +9250,164 @@
       "fr": "Année"
     },
     {
-      "en": "%d column(s) of %s are not editable here (deprecated, structural, or set by the database): %s",
-      "fr": "%d colonne(s) de %s ne sont pas modifiables ici (obsolètes, structurelles ou renseignées par la base) : %s"
+      "en": "Hide fields with no value",
+      "fr": "Masquer les champs sans valeur"
+    },
+    {
+      "en": "Loading the full record...",
+      "fr": "Chargement de l'enregistrement complet..."
+    },
+    {
+      "en": "Could not load the full record:",
+      "fr": "Impossible de charger l'enregistrement complet :"
+    },
+    {
+      "en": "%d of %d fields shown.",
+      "fr": "%d champs affichés sur %d."
+    },
+    {
+      "en": "The whole record as an extraction returns it (output_style = \"full\"), features included and columns that cannot be edited here as well. It runs a full extraction, so it is fetched only when you ask for it.",
+      "fr": "L'enregistrement complet tel qu'une extraction le renvoie (output_style = \"full\"), features comprises et colonnes non modifiables ici incluses. C'est une extraction complète, elle n'est donc lancée qu'à votre demande."
+    },
+    {
+      "en": "Show the full record",
+      "fr": "Afficher l'enregistrement complet"
+    },
+    {
+      "en": "Not loaded. Use the button above to see the whole record.",
+      "fr": "Non chargé. Utilisez le bouton ci-dessus pour voir l'enregistrement complet."
+    },
+    {
+      "en": "one record, shown as it is",
+      "fr": "un seul enregistrement, affiché tel quel"
+    },
+    {
+      "en": "mean of %d records",
+      "fr": "moyenne de %d enregistrements"
+    },
+    {
+      "en": "%d records joined into one text",
+      "fr": "%d enregistrements réunis en un seul texte"
+    },
+    {
+      "en": "one value per census, from %d records",
+      "fr": "une valeur par inventaire, à partir de %d enregistrements"
+    },
+    {
+      "en": "not a value: n_census, first_census, last_census, date_census_N",
+      "fr": "pas une valeur : n_census, first_census, last_census, date_census_N"
+    },
+    {
+      "en": "not carried into extracted tables",
+      "fr": "absente des tables extraites"
+    },
+    {
+      "en": "%d record(s)",
+      "fr": "%d enregistrement(s)"
+    },
+    {
+      "en": "%d of %d feature(s) are backed by several records. An extracted table summarises them - how depends on the feature, and the summary is not editable as one value.",
+      "fr": "%d feature(s) sur %d reposent sur plusieurs enregistrements. Une table extraite les résume - la manière dépend de la feature, et ce résumé ne se modifie pas comme une valeur unique."
+    },
+    {
+      "en": "In an extracted table",
+      "fr": "Dans une table extraite"
+    },
+    {
+      "en": "These %d records are the plot's censuses. An extracted table does not show their numbers: it shows n_census, first_census, last_census and one date_census_N column per census (%s).",
+      "fr": "Ces %d enregistrements sont les inventaires du plot. Une table extraite n'affiche pas leurs numéros : elle affiche n_census, first_census, last_census et une colonne date_census_N par inventaire (%s)."
+    },
+    {
+      "en": "%d record(s). This feature is not carried into extracted tables; the records below are the whole of it.",
+      "fr": "%d enregistrement(s). Cette feature n'apparaît pas dans les tables extraites ; les enregistrements ci-dessous sont tout ce qu'il y a."
+    },
+    {
+      "en": "%d records below. An extracted table shows %s (%s), which cannot be edited as one value - edit the records individually.",
+      "fr": "%d enregistrements ci-dessous. Une table extraite affiche %s (%s), qui ne peut pas être modifié comme une valeur unique - modifiez les enregistrements un par un."
+    },
+    {
+      "en": "Stored on the individual (idtax_n)",
+      "fr": "Enregistré sur l'individu (idtax_n)"
+    },
+    {
+      "en": "After synonymy (idtax_f)",
+      "fr": "Après synonymie (idtax_f)"
+    },
+    {
+      "en": "Linked specimen",
+      "fr": "Spécimen lié"
+    },
+    {
+      "en": "Specimen identification, after synonymy (idtax_specimen_f)",
+      "fr": "Identification du spécimen, après synonymie (idtax_specimen_f)"
+    },
+    {
+      "en": "Used by extractions (idtax_individual_f)",
+      "fr": "Utilisée par les extractions (idtax_individual_f)"
+    },
+    {
+      "en": "This individual is linked to a specimen, so the specimen's identification is the one extractions use.",
+      "fr": "Cet individu est lié à un spécimen : c'est l'identification du spécimen qu'utilisent les extractions."
+    },
+    {
+      "en": "Changing idtax_n below will be stored, but it will not change the name in an extracted table while the link stands. To correct what extractions show, re-identify the specimen with launch_specimen_identification_app().",
+      "fr": "Modifier idtax_n ci-dessous sera enregistré, mais ne changera pas le nom dans une table extraite tant que le lien existe. Pour corriger ce qu'affichent les extractions, ré-identifiez le spécimen avec launch_specimen_identification_app()."
+    },
+    {
+      "en": "The link is chosen by link type priority first, then by the most recent determination date.",
+      "fr": "Le lien retenu est celui dont le type est le plus prioritaire, puis celui dont la détermination est la plus récente."
+    },
+    {
+      "en": "The stored idtax_n is a synonym: extractions show the accepted taxon it resolves to.",
+      "fr": "L'idtax_n enregistré est un synonyme : les extractions affichent le taxon accepté correspondant."
+    },
+    {
+      "en": "idtax_n will be written, but this individual is linked to specimen %s: extractions will keep showing the specimen's identification (idtax_individual_f). Re-identify the specimen to change what they show.",
+      "fr": "idtax_n sera écrit, mais cet individu est lié au spécimen %s : les extractions continueront d'afficher l'identification du spécimen (idtax_individual_f). Ré-identifiez le spécimen pour changer ce qu'elles affichent."
+    },
+    {
+      "en": "Already recorded for these plots",
+      "fr": "Déjà enregistré pour ces parcelles"
+    },
+    {
+      "en": "Every feature the selected plot(s) already carry, as an extraction would summarise it. A feature that already has a record is not blocked here - adding another one makes the extracted value an aggregate.",
+      "fr": "Toutes les caractéristiques que portent déjà la ou les parcelles sélectionnées, telles qu'une extraction les résumerait. Une caractéristique déjà enregistrée n'est pas bloquée ici - en ajouter une autre rend la valeur extraite agrégée."
+    },
+    {
+      "en": "Only the feature types selected below",
+      "fr": "Uniquement les types de caractéristiques sélectionnés ci-dessous"
+    },
+    {
+      "en": "Select plots in step 1 to see what they already hold.",
+      "fr": "Sélectionnez des parcelles à l'étape 1 pour voir ce qu'elles portent déjà."
+    },
+    {
+      "en": "The selected plot(s) carry no feature yet.",
+      "fr": "La ou les parcelles sélectionnées ne portent encore aucune caractéristique."
+    },
+    {
+      "en": "%d feature(s) across %d plot(s).",
+      "fr": "%d caractéristique(s) sur %d parcelle(s)."
+    },
+    {
+      "en": "%d of them are already backed by several records.",
+      "fr": "%d d'entre elles reposent déjà sur plusieurs enregistrements."
+    },
+    {
+      "en": "Nothing recorded yet for the selected plot(s).",
+      "fr": "Rien d'enregistré pour la ou les parcelles sélectionnées."
+    },
+    {
+      "en": "Already recorded:",
+      "fr": "Déjà enregistré :"
+    },
+    {
+      "en": "'%s' is already recorded for this plot in %s",
+      "fr": "'%s' est déjà enregistrée pour cette parcelle en %s"
+    },
+    {
+      "en": "This plot already carries %d '%s' record(s); another one makes the extracted value an aggregate",
+      "fr": "Cette parcelle porte déjà %d enregistrement(s) '%s' ; un de plus rend la valeur extraite agrégée"
     }
   ]
 }

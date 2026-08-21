@@ -87,6 +87,7 @@ mod_update_record_ui <- function(id, entity = c("plot", "individual"), i18n) {
       shiny::h4(shiny::icon("seedling"), " ",
                 i18n$t("3b. Change the identification (optional)")),
       shiny::uiOutput(ns("taxon_current")),
+      shiny::uiOutput(ns("taxon_cascade")),
       mod_taxa_search_ui(ns("taxa_pick"))
     )
   } else {
@@ -102,7 +103,28 @@ mod_update_record_ui <- function(id, entity = c("plot", "individual"), i18n) {
       # --- 2. Current values ---
       shiny::wellPanel(
         shiny::h4(shiny::icon("info-circle"), " ", i18n$t("2. Current stored values")),
-        shiny::uiOutput(ns("current_card"))
+        shiny::tags$p(
+          class = "text-muted",
+          shiny::tags$small(
+            i18n$t("The whole record as an extraction returns it (output_style = \"full\"), features included and columns that cannot be edited here as well. It runs a full extraction, so it is fetched only when you ask for it.")
+          )
+        ),
+        shiny::fluidRow(
+          shiny::column(
+            5,
+            shiny::actionButton(
+              ns("load_full"),
+              shiny::tagList(shiny::icon("list"), " ", i18n$t("Show the full record"))
+            )
+          ),
+          shiny::column(
+            7,
+            shiny::checkboxInput(ns("current_hide_empty"),
+                                 i18n$t("Hide fields with no value"), value = TRUE)
+          )
+        ),
+        shiny::uiOutput(ns("current_note")),
+        DT::DTOutput(ns("current_tbl"))
       ),
 
       # --- 3. Flat columns ---
@@ -118,8 +140,7 @@ mod_update_record_ui <- function(id, entity = c("plot", "individual"), i18n) {
         shiny::actionLink(
           ns("reset_direct"),
           label = shiny::tagList(shiny::icon("undo"), " ", i18n$t("Reset to stored values"))
-        ),
-        shiny::uiOutput(ns("hidden_columns"))
+        )
       ),
 
       taxon_panel,
@@ -199,6 +220,7 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     diff_tbl      <- shiny::reactiveVal(NULL)
     apply_status  <- shiny::reactiveVal(NULL)
     taxa_reset    <- shiny::reactiveVal(0)
+    identification <- shiny::reactiveVal(NULL)  # individuals only: idtax cascade
 
     with_main <- function(fun) {
       shiny::req(pool_main())
@@ -373,24 +395,85 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     # 2. CURRENT VALUES
     # =========================================================================
 
-    output$current_card <- shiny::renderUI({
+    # The whole record, as query_plots(output_style = "full") returns it: the
+    # form below shows only what it can write, which is not what the user needs
+    # to review. Fetched apart from the record itself - it is a heavier query,
+    # and a failure here must not stop the record from being edited.
+    current_full <- shiny::reactiveVal(NULL)
+    current_err  <- shiny::reactiveVal(NULL)
+
+    # A new record clears the view; the extraction is only run on demand.
+    shiny::observeEvent(record(), {
+      current_full(NULL)
+      current_err(NULL)
+    }, ignoreNULL = FALSE)
+
+    shiny::observeEvent(input$load_full, {
       r <- record()
-      shiny::req(r)
-      fmt <- function(x) {
-        if (is.null(x) || length(x) == 0 || all(is.na(x))) "-" else as.character(x)
+      shiny::req(r, pool_main())
+      current_err(NULL)
+
+      taxa_con <- tryCatch(pool_taxa(), error = function(e) NULL)
+      res <- tryCatch(
+        shiny::withProgress(
+          message = i18n()$t("Loading the full record..."), value = 0.4,
+          .upd_full_record_view(entity, r[[spec$id_column]][1],
+                                pool_main(), taxa_con)
+        ),
+        error = function(e) {
+          current_err(e$message)
+          NULL
+        }
+      )
+      current_full(res)
+    })
+
+    # Most columns of a full extraction are empty for any one record, so they
+    # are hidden by default rather than paged through.
+    current_view <- shiny::reactive({
+      tb <- current_full()
+      if (is.null(tb)) return(NULL)
+      if (isTRUE(input$current_hide_empty)) {
+        value_cols <- setdiff(names(tb), "field")
+        if (length(value_cols) == 0) return(tb)
+        filled <- Reduce(`|`, lapply(value_cols, function(cl) nzchar(tb[[cl]])))
+        tb <- tb[filled, , drop = FALSE]
       }
-      shown <- intersect(names(r), c(
-        spec$id_column, "plot_name", "tag", "idtax_n", "original_tax_name",
-        "id_method", "id_country", "locality_name", "ddlat", "ddlon",
-        "date_y", "herbarium_nbe_char", "multi_tiges_id"
-      ))
-      shiny::tags$table(
-        class = "table table-sm",
-        shiny::tags$tbody(
-          lapply(shown, function(cl) {
-            shiny::tags$tr(shiny::tags$th(cl), shiny::tags$td(fmt(r[[cl]])))
-          })
-        )
+      tb
+    })
+
+    output$current_note <- shiny::renderUI({
+      shiny::req(record())
+      if (!is.null(current_err())) {
+        return(shiny::div(
+          class = "alert alert-warning",
+          shiny::icon("exclamation-triangle"), " ",
+          paste(i18n()$t("Could not load the full record:"), current_err())
+        ))
+      }
+      tb <- current_full()
+      if (is.null(tb)) {
+        return(shiny::div(
+          class = "text-muted",
+          i18n()$t("Not loaded. Use the button above to see the whole record.")
+        ))
+      }
+      shiny::tags$p(
+        class = "text-muted",
+        shiny::tags$small(sprintf(i18n()$t("%d of %d fields shown."),
+                                  nrow(current_view()), nrow(tb)))
+      )
+    })
+
+    output$current_tbl <- DT::renderDT({
+      tb <- current_view()
+      shiny::req(tb, nrow(tb) > 0)
+      names(tb)[names(tb) == "field"] <- i18n()$t("Field")
+      if (ncol(tb) == 2) names(tb)[2] <- i18n()$t("Value")
+      DT::datatable(
+        tb, rownames = FALSE, selection = "none",
+        options = list(pageLength = 15, scrollX = TRUE, dom = "ftip",
+                       columnDefs = list(list(width = "240px", targets = 0)))
       )
     })
 
@@ -468,23 +551,6 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       shiny::tagList(lapply(rows, function(r) do.call(shiny::fluidRow, r)))
     })
 
-    # Say what is not on the form. The table holds deprecated columns nothing
-    # writes any more; hiding them is right, hiding them silently is not.
-    output$hidden_columns <- shiny::renderUI({
-      fl <- fields()
-      shiny::req(fl)
-      hidden <- attr(fl, "hidden")
-      if (is.null(hidden) || length(hidden) == 0) return(NULL)
-      shiny::tags$p(
-        class = "text-muted", style = "margin-top: 10px;",
-        shiny::tags$small(
-          shiny::icon("eye-slash"), " ",
-          sprintf(i18n()$t("%d column(s) of %s are not editable here (deprecated, structural, or set by the database): %s"),
-                  length(hidden), spec$table, paste(hidden, collapse = ", "))
-        )
-      )
-    })
-
     shiny::observeEvent(input$reset_direct, {
       fl <- fields(); r <- record()
       shiny::req(fl, r)
@@ -554,6 +620,35 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     }
 
     if (entity == "individual") {
+
+      # The identification an extraction will use is not `idtax_n`: synonymy
+      # and, above all, a linked specimen have the last word. Resolved on load -
+      # three small queries, no extraction.
+      shiny::observeEvent(record(), {
+        identification(NULL)
+        r <- record()
+        shiny::req(r, pool_main())
+        taxa_con <- tryCatch(pool_taxa(), error = function(e) NULL)
+        res <- tryCatch(
+          with_main(function(con) {
+            .upd_identification(r[[spec$id_column]][1], con, taxa_con)
+          }),
+          error = function(e) {
+            cli::cli_alert_warning("Could not resolve the identification: {e$message}")
+            NULL
+          }
+        )
+        identification(res)
+      }, ignoreNULL = FALSE)
+
+      # One taxon of the cascade, as "13127 (Afrostyrax kamerunensis)".
+      taxon_text <- function(ident, id) {
+        if (is.null(id) || length(id) == 0 || is.na(id)) return("-")
+        nm <- ident$names[[as.character(id)]]
+        if (is.null(nm) || is.na(nm)) as.character(id)
+        else sprintf("%s (%s)", id, nm)
+      }
+
       output$taxon_current <- shiny::renderUI({
         r <- record()
         shiny::req(r)
@@ -567,6 +662,62 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
           )
         )
       })
+
+      output$taxon_cascade <- shiny::renderUI({
+        ident <- identification()
+        if (is.null(ident)) return(NULL)
+
+        rows <- list(
+          list(i18n()$t("Stored on the individual (idtax_n)"),
+               taxon_text(ident, ident$idtax_n)),
+          list(i18n()$t("After synonymy (idtax_f)"),
+               taxon_text(ident, ident$idtax_f))
+        )
+        if (!is.null(ident$specimen)) {
+          rows <- c(rows, list(
+            list(i18n()$t("Linked specimen"),
+                 .upd_fmt(.upd_specimen_label(ident$specimen))),
+            list(i18n()$t("Specimen identification, after synonymy (idtax_specimen_f)"),
+                 taxon_text(ident, ident$idtax_specimen_f))
+          ))
+        }
+        rows <- c(rows, list(
+          list(shiny::tags$b(i18n()$t("Used by extractions (idtax_individual_f)")),
+               shiny::tags$b(taxon_text(ident, ident$idtax_individual_f)))
+        ))
+
+        table <- shiny::tags$table(
+          class = "table table-sm", style = "margin-bottom: 8px;",
+          shiny::tags$tbody(lapply(rows, function(rw) {
+            shiny::tags$tr(shiny::tags$th(rw[[1]], style = "width: 45%;"),
+                           shiny::tags$td(rw[[2]]))
+          }))
+        )
+
+        note <- if (identical(ident$governed_by, "specimen")) {
+          shiny::div(
+            class = "alert alert-warning", style = "margin-bottom: 0;",
+            shiny::icon("exclamation-triangle"), " ",
+            shiny::tags$b(i18n()$t("This individual is linked to a specimen, so the specimen's identification is the one extractions use.")),
+            " ",
+            i18n()$t("Changing idtax_n below will be stored, but it will not change the name in an extracted table while the link stands. To correct what extractions show, re-identify the specimen with launch_specimen_identification_app()."),
+            shiny::br(),
+            shiny::tags$small(
+              i18n()$t("The link is chosen by link type priority first, then by the most recent determination date.")
+            )
+          )
+        } else if (isTRUE(ident$is_synonym)) {
+          shiny::div(
+            class = "alert alert-info", style = "margin-bottom: 0;",
+            shiny::icon("info-circle"), " ",
+            i18n()$t("The stored idtax_n is a synonym: extractions show the accepted taxon it resolves to.")
+          )
+        } else {
+          NULL
+        }
+
+        shiny::div(table, note)
+      })
     }
 
     # =========================================================================
@@ -578,6 +729,15 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       shiny::req(fr)
       .upd_feature_summary(fr)
     })
+
+    # How the extraction treats a feature, in words. Shared with the feature
+    # wizard, which shows the same overview for the plots it is about to write
+    # to; the translator has to be resolved here.
+    rule_label <- function(rule, n) .feature_rule_label(rule, n, i18n())
+
+    rule_labels <- function(rules, ns_records) {
+      .feature_rule_labels(rules, ns_records, i18n())
+    }
 
     output$feature_overview_info <- shiny::renderUI({
       fr <- feat_records()
@@ -594,7 +754,7 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
                            nrow(s)))
       } else {
         shiny::div(class = "alert alert-warning", shiny::icon("exclamation-triangle"), " ",
-                   sprintf(i18n()$t("%d of %d feature(s) are aggregated over several records and appear as a single value in extracted tables."),
+                   sprintf(i18n()$t("%d of %d feature(s) are backed by several records. An extracted table summarises them - how depends on the feature, and the summary is not editable as one value."),
                            n_agg, nrow(s)))
       }
     })
@@ -602,26 +762,7 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     output$feature_overview_tbl <- DT::renderDT({
       s <- feature_summary()
       shiny::req(nrow(s) > 0)
-      shown <- s
-      shown$stored_as <- ifelse(
-        shown$is_aggregated,
-        sprintf(i18n()$t("aggregated (%s of %d records)"),
-                shown$agg_rule, shown$n_records),
-        i18n()$t("single record")
-      )
-      shown <- shown[, c("feature", "valuetype", "unit", "n_records",
-                         "aggregate_display", "stored_as"), drop = FALSE]
-      DT::datatable(
-        shown, selection = "none", rownames = FALSE,
-        colnames = c(i18n()$t("Feature"), i18n()$t("Value type"), i18n()$t("Unit"),
-                     i18n()$t("Records"), i18n()$t("Value in extracted table"),
-                     i18n()$t("Stored as")),
-        options = list(pageLength = 10, scrollX = TRUE, dom = "tip")
-      ) %>%
-        DT::formatStyle(
-          "n_records", target = "row",
-          backgroundColor = DT::styleInterval(1, c("transparent", "#fff3cd"))
-        )
+      .feature_overview_dt(s, i18n())
     })
 
     shiny::observeEvent(feature_summary(), {
@@ -629,13 +770,7 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       choices <- if (nrow(s) == 0) character(0) else {
         stats::setNames(
           s$feature,
-          ifelse(
-            s$is_aggregated,
-            sprintf("%s - %s", s$feature,
-                    sprintf(i18n()$t("aggregated (%s of %d records)"),
-                            s$agg_rule, s$n_records)),
-            sprintf("%s - %s", s$feature, i18n()$t("single record"))
-          )
+          sprintf("%s - %s", s$feature, rule_labels(s$agg_rule, s$n_records))
         )
       }
       shiny::updateSelectInput(session, "feature_pick", choices = choices)
@@ -654,18 +789,30 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       shiny::req(pick, nrow(s) > 0)
       row <- s[s$feature == pick, ]
       shiny::req(nrow(row) == 1)
-      if (!row$is_aggregated) {
+      shown <- if (is.na(row$aggregate_display)) "-" else row$aggregate_display
+
+      if (identical(row$agg_rule, "census")) {
+        shiny::div(
+          class = "alert alert-info", style = "margin-bottom:0;",
+          shiny::icon("info-circle"), " ",
+          sprintf(i18n()$t("These %d records are the plot's censuses. An extracted table does not show their numbers: it shows n_census, first_census, last_census and one date_census_N column per census (%s)."),
+                  row$n_records, shown)
+        )
+      } else if (identical(row$agg_rule, "not_extracted")) {
+        shiny::div(
+          class = "alert alert-secondary", style = "margin-bottom:0;",
+          sprintf(i18n()$t("%d record(s). This feature is not carried into extracted tables; the records below are the whole of it."),
+                  row$n_records)
+        )
+      } else if (!row$is_aggregated) {
         shiny::div(class = "alert alert-secondary", style = "margin-bottom:0;",
-                   sprintf(i18n()$t("One record. Extracted value: %s"),
-                           ifelse(is.na(row$aggregate_display), "-", row$aggregate_display)))
+                   sprintf(i18n()$t("One record. Extracted value: %s"), shown))
       } else {
-        rule <- if (identical(row$agg_rule, "mean")) i18n()$t("mean of") else i18n()$t("concatenation of")
         shiny::div(
           class = "alert alert-warning", style = "margin-bottom:0;",
           shiny::icon("exclamation-triangle"), " ",
-          sprintf(i18n()$t("Extracted value '%s' is the %s %d records below. Edit them individually."),
-                  ifelse(is.na(row$aggregate_display), "-", row$aggregate_display),
-                  rule, row$n_records)
+          sprintf(i18n()$t("%d records below. An extracted table shows %s (%s), which cannot be edited as one value - edit the records individually."),
+                  row$n_records, shown, rule_label(row$agg_rule, row$n_records))
         )
       }
     })
@@ -918,8 +1065,27 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       }
       if (nrow(changed) == 0) return(header)
 
+      # Writing idtax_n while a specimen governs the identification is legal but
+      # inert as far as extractions go. Say it here, where the user is about to
+      # do it.
+      specimen_note <- local({
+        ident <- identification()
+        writes_idtax <- any(changed$target == paste0(spec$table, ".idtax_n"))
+        if (!writes_idtax || is.null(ident) ||
+            !identical(ident$governed_by, "specimen")) {
+          return(NULL)
+        }
+        shiny::div(
+          class = "alert alert-warning",
+          shiny::icon("exclamation-triangle"), " ",
+          sprintf(i18n()$t("idtax_n will be written, but this individual is linked to specimen %s: extractions will keep showing the specimen's identification (idtax_individual_f). Re-identify the specimen to change what they show."),
+                  .upd_fmt(.upd_specimen_label(ident$specimen)))
+        )
+      })
+
       shiny::tagList(
         header,
+        specimen_note,
         shiny::tags$table(
           class = "table table-sm table-bordered",
           shiny::tags$thead(

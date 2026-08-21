@@ -269,3 +269,302 @@ test_that("mod_update_record_ui() rejects an unknown entity", {
   )
   expect_error(mod_update_record_ui("x", "specimen", i18n), "should be one of")
 })
+
+# ── features the extraction does not simply aggregate ────────────────────────
+
+test_that(".upd_annotate_aggregation() never averages the census numbers", {
+  # A plot with censuses 1 and 2 must not be described as census 1.5: the
+  # extracted table carries n_census and the dates, not the numbers.
+  recs <- dplyr::tibble(
+    record_id = 1:2, feature = "census", valuetype = "numeric",
+    unit = NA_character_, min_allowed = NA_real_, max_allowed = NA_real_,
+    value_num = c(1, 2), value_char = NA_character_, lookup_id = NA_integer_,
+    value_display = c("1", "2"),
+    year = c(2015L, 2021L), month = c(3L, 6L), day = c(4L, NA),
+    issue = NA_character_, context = NA_character_
+  )
+  ann <- CafriplotsR:::.upd_annotate_aggregation(recs, "plot")
+
+  expect_equal(unique(ann$agg_rule), "census")
+  expect_false(grepl("1.5", unique(ann$aggregate_display), fixed = TRUE))
+  expect_equal(unique(ann$aggregate_display), "n_census = 2 (2015-03-04, 2021-06)")
+})
+
+test_that(".upd_annotate_aggregation() keeps censuses apart for an individual", {
+  # aggregate_numeric_features_dt() averages within a census and pivots to one
+  # column per census, so a single mean over both would be a number the user
+  # never sees.
+  recs <- dplyr::tibble(
+    record_id = 1:3, feature = "stem_diameter", valuetype = "numeric",
+    unit = "cm", min_allowed = NA_real_, max_allowed = NA_real_,
+    value_num = c(12.4, 12.6, 13.1), value_char = NA_character_,
+    lookup_id = NA_integer_, value_display = c("12.4", "12.6", "13.1"),
+    year = 2020L, month = 1L, day = 1L, issue = NA_character_,
+    context = c("census_1", "census_1", "census_2")
+  )
+  ann <- CafriplotsR:::.upd_annotate_aggregation(recs, "individual")
+
+  expect_equal(unique(ann$agg_rule), "per_census")
+  expect_equal(unique(ann$aggregate_display), "census_1: 12.5 | census_2: 13.1")
+})
+
+test_that(".upd_annotate_aggregation() says so when a plot feature is not extracted", {
+  # aggregate_plot_features() only handles numeric, character and table_*.
+  recs <- dplyr::tibble(
+    record_id = 1L, feature = "some_ordinal", valuetype = "ordinal",
+    unit = NA_character_, min_allowed = NA_real_, max_allowed = NA_real_,
+    value_num = NA_real_, value_char = "high", lookup_id = NA_integer_,
+    value_display = "high", year = 2020L, month = 1L, day = 1L,
+    issue = NA_character_, context = NA_character_
+  )
+  ann <- CafriplotsR:::.upd_annotate_aggregation(recs, "plot")
+
+  expect_equal(ann$agg_rule, "not_extracted")
+  expect_true(is.na(ann$aggregate_display))
+})
+
+test_that(".upd_record_dates() degrades from day to month to year", {
+  grp <- dplyr::tibble(year = c(2020L, 2020L, 2020L, NA_integer_),
+                       month = c(5L, 5L, NA, NA),
+                       day = c(4L, NA, NA, NA))
+  expect_equal(CafriplotsR:::.upd_record_dates(grp),
+               c("2020-05-04", "2020-05", "2020", ""))
+})
+
+# ── identification cascade ───────────────────────────────────────────────────
+
+test_that(".upd_accepted_idtax() maps a synonym to its accepted taxon", {
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  DBI::dbWriteTable(con, "table_idtax", data.frame(
+    idtax_n = c(13127L, 500L, 900L),
+    idtax_good_n = c(NA_integer_, 600L, NA_integer_)
+  ))
+
+  acc <- CafriplotsR:::.upd_accepted_idtax(c(13127L, 500L), con)
+  expect_equal(unname(acc["13127"]), 13127L)  # accepted already
+  expect_equal(unname(acc["500"]), 600L)      # synonym resolved
+})
+
+test_that(".upd_accepted_idtax() leaves an unknown id alone", {
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  DBI::dbWriteTable(con, "table_idtax", data.frame(
+    idtax_n = 1L, idtax_good_n = NA_integer_
+  ))
+
+  expect_equal(unname(CafriplotsR:::.upd_accepted_idtax(42L, con)["42"]), 42L)
+})
+
+test_that(".upd_identification() lets a linked specimen govern the identification", {
+  # This is the rule merge_individuals_taxa() applies:
+  # idtax_individual_f = coalesce(idtax_specimen_f, idtax_f).
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  DBI::dbWriteTable(con, "data_individuals", data.frame(
+    id_n = 1L, idtax_n = 500L, original_tax_name = "Afrostyrax kamerunensis"
+  ))
+  DBI::dbWriteTable(con, "table_idtax", data.frame(
+    idtax_n = c(500L, 700L), idtax_good_n = c(600L, NA_integer_)
+  ))
+  DBI::dbWriteTable(con, "data_link_specimens", data.frame(
+    id_n = 1L, id_specimen = 9L, id_linktype = 1L
+  ))
+  DBI::dbWriteTable(con, "specimens", data.frame(
+    id_specimen = 9L, idtax_n = 700L, id_colnam = 3L, colnbr = "1234",
+    suffix = NA_character_, dety = 2019L, detm = 5L, detd = 2L
+  ))
+  DBI::dbWriteTable(con, "table_colnam", data.frame(
+    id_table_colnam = 3L, colnam = "Dauby"
+  ))
+  DBI::dbWriteTable(con, "linktypelist", data.frame(
+    id_linktype = 1L, priority = 100L
+  ))
+
+  ident <- CafriplotsR:::.upd_identification(1L, con, con_taxa = NULL)
+
+  expect_equal(ident$idtax_n, 500L)
+  expect_equal(ident$idtax_f, 600L)           # the individual's own synonymy
+  expect_true(ident$is_synonym)
+  expect_equal(ident$idtax_specimen_f, 700L)  # the specimen's identification
+  expect_equal(ident$idtax_individual_f, 700L)
+  expect_equal(ident$governed_by, "specimen")
+  expect_equal(CafriplotsR:::.upd_specimen_label(ident$specimen), "Dauby 1234")
+})
+
+test_that(".upd_identification() falls back to the individual when nothing is linked", {
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  DBI::dbWriteTable(con, "data_individuals", data.frame(
+    id_n = 1L, idtax_n = 500L, original_tax_name = "Afrostyrax sp."
+  ))
+  DBI::dbWriteTable(con, "table_idtax", data.frame(
+    idtax_n = 500L, idtax_good_n = 600L
+  ))
+  DBI::dbWriteTable(con, "data_link_specimens", data.frame(
+    id_n = integer(0), id_specimen = integer(0), id_linktype = integer(0)
+  ))
+  DBI::dbWriteTable(con, "specimens", data.frame(
+    id_specimen = integer(0), idtax_n = integer(0), id_colnam = integer(0),
+    colnbr = character(0), suffix = character(0),
+    dety = integer(0), detm = integer(0), detd = integer(0)
+  ))
+  DBI::dbWriteTable(con, "table_colnam", data.frame(
+    id_table_colnam = integer(0), colnam = character(0)
+  ))
+  DBI::dbWriteTable(con, "linktypelist", data.frame(
+    id_linktype = integer(0), priority = integer(0)
+  ))
+
+  ident <- CafriplotsR:::.upd_identification(1L, con, con_taxa = NULL)
+
+  expect_null(ident$specimen)
+  expect_true(is.na(ident$idtax_specimen_f))
+  expect_equal(ident$idtax_individual_f, 600L)
+  expect_equal(ident$governed_by, "individual")
+})
+
+test_that(".upd_identification() prefers the higher-priority link", {
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  DBI::dbWriteTable(con, "data_individuals", data.frame(
+    id_n = 1L, idtax_n = 500L, original_tax_name = NA_character_
+  ))
+  DBI::dbWriteTable(con, "table_idtax", data.frame(
+    idtax_n = c(500L, 700L, 800L), idtax_good_n = NA_integer_
+  ))
+  DBI::dbWriteTable(con, "data_link_specimens", data.frame(
+    id_n = c(1L, 1L), id_specimen = c(9L, 10L), id_linktype = c(2L, 1L)
+  ))
+  DBI::dbWriteTable(con, "specimens", data.frame(
+    id_specimen = c(9L, 10L), idtax_n = c(700L, 800L), id_colnam = c(3L, 3L),
+    colnbr = c("1", "2"), suffix = NA_character_,
+    dety = c(2021L, 2005L), detm = 1L, detd = 1L
+  ))
+  DBI::dbWriteTable(con, "table_colnam", data.frame(
+    id_table_colnam = 3L, colnam = "Dauby"
+  ))
+  # Link type 1 outranks 2, even though specimen 9 was determined more recently.
+  DBI::dbWriteTable(con, "linktypelist", data.frame(
+    id_linktype = c(1L, 2L), priority = c(100L, 50L)
+  ))
+
+  ident <- CafriplotsR:::.upd_identification(1L, con, con_taxa = NULL)
+  expect_equal(ident$specimen$id_specimen, 10L)
+  expect_equal(ident$idtax_individual_f, 800L)
+})
+
+# ── several plots at once ────────────────────────────────────────────────────
+
+.mk_plot_feature_db <- function() {
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  DBI::dbWriteTable(con, "data_liste_plots", data.frame(
+    id_liste_plots = c(1L, 2L),
+    plot_name = c("BEL-01", "BEL-02"),
+    stringsAsFactors = FALSE
+  ))
+  DBI::dbWriteTable(con, "subplotype_list", data.frame(
+    id_subplotype = c(10L, 20L),
+    type = c("soil_depth", "principal_investigator"),
+    valuetype = c("numeric", "table_colnam"),
+    expectedunit = c("cm", NA_character_),
+    minallowedvalue = NA_real_, maxallowedvalue = NA_real_,
+    stringsAsFactors = FALSE
+  ))
+  DBI::dbWriteTable(con, "table_colnam", data.frame(
+    id_table_colnam = 7L, colnam = "Dauby G.", stringsAsFactors = FALSE
+  ))
+  con
+}
+
+test_that(".upd_plot_feature_records() keeps each plot's records apart", {
+  con <- .mk_plot_feature_db()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  # One soil_depth record in each plot: an aggregate in neither.
+  DBI::dbWriteTable(con, "data_liste_sub_plots", data.frame(
+    id_sub_plots = 1:3,
+    id_table_liste_plots = c(1L, 2L, 2L),
+    id_type_sub_plot = c(10L, 10L, 20L),
+    year = 2020L, month = NA_integer_, day = NA_integer_,
+    typevalue = c(30, 50, 7), typevalue_char = NA_character_,
+    original_subplot_name = NA_character_, issue = NA_character_,
+    stringsAsFactors = FALSE
+  ))
+
+  recs <- CafriplotsR:::.upd_plot_feature_records(c(1L, 2L), con)
+
+  expect_equal(nrow(recs), 3L)
+  expect_true(all(c("id_plot", "plot_name") %in% names(recs)))
+  soil <- recs[recs$feature == "soil_depth", ]
+  expect_equal(unique(soil$n_records), 1L)
+  expect_equal(sort(soil$aggregate_display), c("30", "50"))
+  # A table_colnam value is the id held in typevalue, shown as the name.
+  expect_equal(recs$value_display[recs$feature == "principal_investigator"],
+               "Dauby G.")
+})
+
+test_that(".upd_plot_feature_records() aggregates only within one plot", {
+  con <- .mk_plot_feature_db()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  # Two soil_depth records in plot 1, one in plot 2.
+  DBI::dbWriteTable(con, "data_liste_sub_plots", data.frame(
+    id_sub_plots = 1:3,
+    id_table_liste_plots = c(1L, 1L, 2L),
+    id_type_sub_plot = 10L,
+    year = 2020L, month = NA_integer_, day = NA_integer_,
+    typevalue = c(30, 40, 50), typevalue_char = NA_character_,
+    original_subplot_name = NA_character_, issue = NA_character_,
+    stringsAsFactors = FALSE
+  ))
+
+  recs <- CafriplotsR:::.upd_plot_feature_records(c(1L, 2L), con)
+  s <- CafriplotsR:::.upd_feature_summary(recs)
+
+  expect_equal(s$n_records[s$plot_name == "BEL-01"], 2L)
+  expect_equal(s$n_records[s$plot_name == "BEL-02"], 1L)
+  expect_true(s$is_aggregated[s$plot_name == "BEL-01"])
+  expect_false(s$is_aggregated[s$plot_name == "BEL-02"])
+  expect_equal(s$aggregate_display[s$plot_name == "BEL-01"], "35")
+})
+
+test_that(".upd_plot_feature_records() returns the plot shape when there is nothing", {
+  con <- .mk_plot_feature_db()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  DBI::dbWriteTable(con, "data_liste_sub_plots", data.frame(
+    id_sub_plots = integer(), id_table_liste_plots = integer(),
+    id_type_sub_plot = integer(), year = integer(), month = integer(),
+    day = integer(), typevalue = numeric(), typevalue_char = character(),
+    original_subplot_name = character(), issue = character(),
+    stringsAsFactors = FALSE
+  ))
+
+  recs <- CafriplotsR:::.upd_plot_feature_records(c(1L, 2L), con)
+  expect_equal(nrow(recs), 0L)
+  expect_true(all(c("id_plot", "plot_name") %in% names(recs)))
+  expect_equal(nrow(CafriplotsR:::.upd_feature_summary(recs)), 0L)
+  expect_true("plot_name" %in% names(CafriplotsR:::.upd_feature_summary(recs)))
+
+  # No plot at all: same shape, no query.
+  expect_equal(nrow(CafriplotsR:::.upd_plot_feature_records(integer(0), con)), 0L)
+})
+
+test_that(".upd_feature_summary() still groups by feature alone without plots", {
+  recs <- dplyr::tibble(
+    record_id = 1:2, feature = "wood_density", valuetype = "numeric",
+    unit = NA_character_, min_allowed = NA_real_, max_allowed = NA_real_,
+    value_num = c(0.5, 0.7), value_char = NA_character_,
+    lookup_id = NA_integer_, value_display = c("0.5", "0.7"),
+    year = 2020L, month = NA_integer_, day = NA_integer_,
+    issue = NA_character_, context = NA_character_
+  )
+  s <- CafriplotsR:::.upd_feature_summary(
+    CafriplotsR:::.upd_annotate_aggregation(recs, "plot")
+  )
+
+  expect_false("plot_name" %in% names(s))
+  expect_equal(nrow(s), 1L)
+  expect_equal(s$n_records, 2L)
+})

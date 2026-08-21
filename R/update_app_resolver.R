@@ -251,6 +251,134 @@
   dplyr::as_tibble(res)[1, , drop = FALSE]
 }
 
+# -----------------------------------------------------------------------------
+# FULL RECORD VIEW
+# -----------------------------------------------------------------------------
+
+#' Run a console-oriented query function without letting it reach the UI
+#'
+#' `query_plots()` is written for a console session: it prints, and some of its
+#' branches print an htmlwidget. Inside an app that takes over the RStudio pane
+#' the app itself is running in, which reads as a freeze. Printed output is
+#' swallowed and the viewer is pointed at nothing for the duration of the call;
+#' messages are left alone, so the console still says what the query did.
+#'
+#' @param expr Expression to evaluate.
+#' @return The value of `expr`.
+#' @keywords internal
+.upd_quiet_query <- function(expr) {
+  old <- options(viewer = function(url, ...) invisible(NULL))
+  on.exit(options(old), add = TRUE)
+  out <- NULL
+  utils::capture.output(out <- expr)
+  out
+}
+
+#' The record as `query_plots(output_style = "full")` returns it
+#'
+#' The edit form only carries the columns the app can write. To review what is
+#' stored, the app shows the record the way an extraction shows it - plot
+#' metadata for a plot, the individual row for an individual - with every
+#' column the "full" style keeps, features included. An individual is asked for
+#' with every census kept apart, so nothing measured is left out of the review.
+#'
+#' @param entity Either `"plot"` or `"individual"`.
+#' @param id Integer record id (`id_liste_plots` or `id_n`).
+#' @param con A pool or DBI connection to the main database.
+#' @param con_taxa Optional pool or connection to the taxa database.
+#' @return A tibble with a `field` column and one value column per returned
+#'   row, or `NULL` when the query came back with nothing to show.
+#' @keywords internal
+.upd_full_record_view <- function(entity = c("plot", "individual"), id, con,
+                                  con_taxa = NULL) {
+  entity <- match.arg(entity)
+  id <- as.integer(id)
+  if (is.na(id)) return(NULL)
+
+  res <- .upd_quiet_query(
+    if (entity == "plot") {
+      query_plots(
+        id_plot = id, extract_individuals = FALSE, extract_traits = FALSE,
+        map = FALSE, extract_coordinates = FALSE,
+        remove_ids = FALSE, output_style = "full",
+        con = con, con.taxa = con_taxa
+      )
+    } else {
+      # show_multiple_census keeps every census in its own column. Without it
+      # the extraction collapses them with census_strategy and the review panel
+      # would hide measurements the record actually holds.
+      query_plots(
+        id_individual = id, extract_individuals = TRUE,
+        show_multiple_census = TRUE,
+        map = FALSE, extract_coordinates = FALSE,
+        remove_ids = FALSE, output_style = "full",
+        con = con, con.taxa = con_taxa
+      )
+    }
+  )
+
+  .upd_transpose_record(.upd_full_record_table(res, entity))
+}
+
+#' Pick the table holding the record out of a query_plots() result
+#'
+#' `query_plots()` returns a list of tables, or a bare data frame when only one
+#' table came back.
+#'
+#' @keywords internal
+.upd_full_record_table <- function(res, entity) {
+  if (is.null(res)) return(NULL)
+  if (is.data.frame(res)) return(res)
+  if (!is.list(res)) return(NULL)
+
+  wanted <- if (entity == "plot") {
+    c("metadata", "meta_data")
+  } else {
+    c("individuals", "extract", "metadata", "meta_data")
+  }
+  for (nm in wanted) {
+    if (is.data.frame(res[[nm]])) return(res[[nm]])
+  }
+  NULL
+}
+
+#' One row per column of a record, values rendered as text
+#'
+#' A record read across is unreadable once it has a hundred columns, so it is
+#' turned on its side: one row per column, one value column per record row (an
+#' individual can come back as several rows, one per stem or census).
+#'
+#' @keywords internal
+.upd_transpose_record <- function(tbl) {
+  if (is.null(tbl) || !is.data.frame(tbl) || nrow(tbl) == 0) return(NULL)
+
+  # Drop the sf class first: subsetting an sf object keeps its geometry column
+  # whatever the selection says, and geometry has no honest one-line rendering.
+  tbl <- as.data.frame(tbl, stringsAsFactors = FALSE)
+  keep <- vapply(tbl, function(x) !inherits(x, c("sfc", "sfg")), logical(1))
+  tbl <- tbl[, keep, drop = FALSE]
+  if (ncol(tbl) == 0) return(NULL)
+
+  out <- dplyr::tibble(field = names(tbl))
+  single <- nrow(tbl) == 1
+  for (i in seq_len(nrow(tbl))) {
+    values <- vapply(names(tbl), function(cl) .upd_fmt_value(tbl[[cl]][i]),
+                     character(1), USE.NAMES = FALSE)
+    out[[if (single) "value" else paste0("value_", i)]] <- values
+  }
+  out
+}
+
+#' Render one stored value as a single string, empty when there is none
+#' @keywords internal
+.upd_fmt_value <- function(x) {
+  if (is.list(x)) x <- unlist(x, use.names = FALSE)
+  if (is.null(x) || length(x) == 0) return("")
+  x <- x[!is.na(x)]
+  if (length(x) == 0) return("")
+  paste(trimws(format(x, trim = TRUE)), collapse = ", ")
+}
+
 #' Choices for a lookup column, as a named vector (label -> id)
 #' @keywords internal
 .upd_lookup_choices <- function(lookup_table, lookup_key, lookup_value, con) {
@@ -285,20 +413,32 @@
 
 #' Plot feature records behind the columns of an extracted plot table
 #'
-#' Each row of `data_liste_sub_plots` for the plot, annotated with how many
+#' Each row of `data_liste_sub_plots` for the plots, annotated with how many
 #' records feed the same extracted column (`n_records`) and what that column
 #' would show (`aggregate_display`). When `n_records > 1` the extracted value is
 #' an aggregate and only these records can be edited.
 #'
-#' @param id_plot Integer, `data_liste_plots.id_liste_plots`.
+#' Several plots can be asked for at once, which is how the feature wizard shows
+#' what a whole selection already holds. The annotation is then computed within
+#' each plot: a feature backed by one record in each of three plots is an
+#' aggregate in none of them.
+#'
+#' @param id_plot Integer vector, `data_liste_plots.id_liste_plots`.
 #' @param con A DBI connection.
-#' @return A tibble, one row per subplot record; zero rows if the plot has none.
+#' @return A tibble, one row per subplot record, carrying `id_plot` and
+#'   `plot_name` ahead of the shared feature columns; zero rows if the plots
+#'   have no features.
 #' @keywords internal
 .upd_plot_feature_records <- function(id_plot, con) {
+
+  id_plot <- unique(id_plot[!is.na(id_plot)])
+  if (length(id_plot) == 0) return(.upd_empty_features(with_plot = TRUE))
 
   sql <- glue::glue_sql(
     "SELECT
        sp.id_sub_plots,
+       sp.id_table_liste_plots,
+       p.plot_name,
        sp.year, sp.month, sp.day,
        sp.typevalue, sp.typevalue_char,
        sp.original_subplot_name, sp.issue,
@@ -306,12 +446,13 @@
        spt.minallowedvalue, spt.maxallowedvalue
      FROM data_liste_sub_plots sp
      LEFT JOIN subplotype_list spt ON sp.id_type_sub_plot = spt.id_subplotype
-     WHERE sp.id_table_liste_plots = {id_plot}
-     ORDER BY spt.type, sp.year, sp.id_sub_plots",
-    .con = con
+     LEFT JOIN data_liste_plots p ON sp.id_table_liste_plots = p.id_liste_plots
+     WHERE sp.id_table_liste_plots IN ({id_plot*})
+     ORDER BY p.plot_name, spt.type, sp.year, sp.id_sub_plots",
+    id_plot = id_plot, .con = con
   )
   raw <- dplyr::as_tibble(DBI::dbGetQuery(con, sql))
-  if (nrow(raw) == 0) return(.upd_empty_features())
+  if (nrow(raw) == 0) return(.upd_empty_features(with_plot = TRUE))
 
   # A table_colnam feature is a numeric feature whose value is the
   # table_colnam id, held in `typevalue`. `typevalue_char` is never used for
@@ -331,6 +472,7 @@
   out <- raw %>%
     dplyr::mutate(
       record_id   = .data$id_sub_plots,
+      id_plot     = .data$id_table_liste_plots,
       feature     = .data$type,
       valuetype   = .data$valuetype,
       unit        = .data$expectedunit,
@@ -348,12 +490,13 @@
 
   out <- out %>%
     dplyr::select(dplyr::any_of(c(
+      "id_plot", "plot_name",
       "record_id", "feature", "valuetype", "unit", "min_allowed", "max_allowed",
       "value_num", "value_char", "lookup_id", "value_display",
       "year", "month", "day", "issue", "context"
     )))
 
-  .upd_annotate_aggregation(out)
+  .upd_annotate_aggregation(out, "plot")
 }
 
 #' Individual feature records behind the columns of an extracted individual table
@@ -414,12 +557,16 @@
       "year", "month", "day", "issue", "context"
     )))
 
-  .upd_annotate_aggregation(out)
+  .upd_annotate_aggregation(out, "individual")
 }
 
 #' Empty feature table with the documented shape
+#'
+#' @param with_plot Whether to carry the plot resolver's `id_plot` and
+#'   `plot_name` columns, so a zero-row result has the same shape as a
+#'   populated one.
 #' @keywords internal
-.upd_empty_features <- function() {
+.upd_empty_features <- function(with_plot = FALSE) {
   empty <- dplyr::tibble(
     record_id = integer(), feature = character(), valuetype = character(),
     unit = character(), min_allowed = numeric(), max_allowed = numeric(),
@@ -428,6 +575,12 @@
     day = integer(), issue = character(), context = character(),
     n_records = integer(), agg_rule = character(), aggregate_display = character()
   )
+  if (with_plot) {
+    empty <- dplyr::bind_cols(
+      dplyr::tibble(id_plot = integer(), plot_name = character()),
+      empty
+    )
+  }
   empty
 }
 
@@ -454,44 +607,185 @@
   out
 }
 
-#' Annotate feature records with how the extracted column aggregates them
+#' Annotate feature records with what the extracted table shows for them
 #'
-#' Mirrors the extraction path: numeric features are averaged
-#' (`aggregate_numeric_plot_features()`, `aggregate_numeric_features_dt()`),
-#' character and table-referenced features are concatenated over unique values.
+#' The extraction does not treat every feature the same way, so neither can
+#' this. `aggregate_plot_features()` averages numeric subplot features, joins
+#' character and table-referenced ones, and hands `census` rows to
+#' `extract_census_dates()` instead - a plot table carries `n_census`,
+#' `first_census`, `last_census` and one `date_census_N` column per census, never
+#' the mean of the census numbers. On the individual side
+#' `aggregate_numeric_features_dt()` / `aggregate_character_features_dt()`
+#' aggregate *within* each census, so a census-linked trait becomes one column
+#' per census rather than one value.
 #'
+#' `agg_rule` records which of those happens; `aggregate_display` is what the
+#' extracted table would show, and is `NA` when there is no single value to show.
+#'
+#' @param records Feature records from one of the two resolvers.
+#' @param entity Either `"plot"` or `"individual"`.
+#' @return `records` with `n_records`, `agg_rule` and `aggregate_display`.
 #' @keywords internal
-.upd_annotate_aggregation <- function(records) {
-  if (nrow(records) == 0) return(.upd_empty_features())
+.upd_annotate_aggregation <- function(records, entity = c("plot", "individual")) {
+  entity <- match.arg(entity)
+  if (nrow(records) == 0) {
+    return(.upd_empty_features(with_plot = "id_plot" %in% names(records)))
+  }
 
-  records %>%
-    dplyr::group_by(.data$feature) %>%
-    dplyr::mutate(
-      n_records = dplyr::n(),
-      agg_rule  = if (isTRUE(dplyr::first(.data$valuetype) == "numeric")) "mean" else "concat",
-      aggregate_display = if (isTRUE(dplyr::first(.data$valuetype) == "numeric")) {
-        if (all(is.na(.data$value_num))) NA_character_
-        else format(mean(.data$value_num, na.rm = TRUE), trim = TRUE)
-      } else {
-        vals <- unique(stats::na.omit(.data$value_display))
-        if (length(vals) == 0) NA_character_ else paste(vals, collapse = ", ")
-      }
-    ) %>%
-    dplyr::ungroup()
+  records$n_records <- NA_integer_
+  records$agg_rule <- NA_character_
+  records$aggregate_display <- NA_character_
+
+  # One extracted column per feature, per record the features belong to. When
+  # several plots are asked for at once, each plot has its own column.
+  group_key <- if ("id_plot" %in% names(records)) {
+    paste(records$id_plot, records$feature, sep = "\r")
+  } else {
+    records$feature
+  }
+
+  for (idx in split(seq_len(nrow(records)), group_key)) {
+    grp <- records[idx, , drop = FALSE]
+    rule <- .upd_agg_rule(entity, grp)
+    records$n_records[idx] <- nrow(grp)
+    records$agg_rule[idx] <- rule
+    records$aggregate_display[idx] <- .upd_agg_display(rule, grp)
+  }
+
+  records
+}
+
+#' How the extraction treats one feature's records
+#'
+#' The rule is what the extraction *does*, not how many records happen to be
+#' there: a single record still goes through the same mean or join, and the
+#' caller has `n_records` when it wants to say "one record".
+#'
+#' @return One of `"census"`, `"per_census"`, `"mean"`, `"concat"`,
+#'   `"not_extracted"` or `"other"`.
+#' @keywords internal
+.upd_agg_rule <- function(entity, grp) {
+  vt <- grp$valuetype[1]
+
+  # The census subplot type is the plot's census list, not a measurement.
+  if (entity == "plot" && identical(grp$feature[1], "census")) return("census")
+
+  # A measurement carrying a census belongs to a moment in time, and the
+  # extraction keeps the censuses apart.
+  if (entity == "individual" && any(!is.na(grp$context))) return("per_census")
+
+  numeric_types <- if (entity == "plot") "numeric" else c("numeric", "integer")
+  text_types <- if (entity == "plot") {
+    "character"
+  } else {
+    c("character", "ordinal", "categorical")
+  }
+
+  if (!is.na(vt) && vt %in% numeric_types) return("mean")
+  if (!is.na(vt) && vt %in% text_types) return("concat")
+  # Table references are resolved and joined on the plot side only.
+  if (!is.na(vt) && grepl("^table_", vt) && entity == "plot") return("concat")
+
+  # Nothing in aggregate_plot_features() picks these up.
+  if (entity == "plot") "not_extracted" else "other"
+}
+
+#' The value an extracted table would show for one feature
+#' @keywords internal
+.upd_agg_display <- function(rule, grp) {
+  switch(
+    rule,
+    census     = .upd_census_display(grp),
+    per_census = .upd_per_census_display(grp),
+    mean       = .upd_mean_display(grp),
+    concat = ,
+    other  = {
+      vals <- unique(stats::na.omit(grp$value_display))
+      if (length(vals) == 0) NA_character_ else paste(vals, collapse = ", ")
+    },
+    NA_character_
+  )
+}
+
+#' What a plot table shows for the census feature: how many, and when
+#' @keywords internal
+.upd_census_display <- function(grp) {
+  dates <- .upd_record_dates(grp)[order(grp$value_num, na.last = TRUE)]
+  dates <- dates[nzchar(dates)]
+  if (length(dates) == 0) return(sprintf("n_census = %d", nrow(grp)))
+  sprintf("n_census = %d (%s)", nrow(grp), paste(dates, collapse = ", "))
+}
+
+#' One value per census, the way the extraction keeps them apart
+#' @keywords internal
+.upd_per_census_display <- function(grp) {
+  census <- ifelse(is.na(grp$context), "-", as.character(grp$context))
+  groups <- split(seq_len(nrow(grp)), census)
+  parts <- vapply(names(groups), function(nm) {
+    rows <- grp[groups[[nm]], , drop = FALSE]
+    value <- if (!is.na(rows$valuetype[1]) &&
+                 rows$valuetype[1] %in% c("numeric", "integer")) {
+      .upd_mean_display(rows)
+    } else {
+      vals <- unique(stats::na.omit(rows$value_display))
+      if (length(vals) == 0) NA_character_ else paste(vals, collapse = ", ")
+    }
+    sprintf("%s: %s", nm, if (is.na(value)) "-" else value)
+  }, character(1), USE.NAMES = FALSE)
+  paste(parts, collapse = " | ")
+}
+
+#' Mean of a feature's numeric records, rounded the way the extraction rounds
+#' @keywords internal
+.upd_mean_display <- function(grp) {
+  if (all(is.na(grp$value_num))) return(NA_character_)
+  format(round(mean(grp$value_num, na.rm = TRUE), 2), trim = TRUE)
+}
+
+#' Dates of feature records as `YYYY`, `YYYY-MM` or `YYYY-MM-DD`
+#' @keywords internal
+.upd_record_dates <- function(grp) {
+  out <- rep("", nrow(grp))
+  y <- suppressWarnings(as.integer(grp$year))
+  m <- suppressWarnings(as.integer(grp$month))
+  d <- suppressWarnings(as.integer(grp$day))
+
+  has_y <- !is.na(y)
+  out[has_y] <- as.character(y[has_y])
+  has_m <- has_y & !is.na(m)
+  out[has_m] <- sprintf("%s-%02d", out[has_m], m[has_m])
+  has_d <- has_m & !is.na(d)
+  out[has_d] <- sprintf("%s-%02d", out[has_d], d[has_d])
+  out
 }
 
 #' One row per feature: what the extracted table shows, and from how many records
+#'
+#' Records carrying `plot_name` are summarised per plot, so a selection of
+#' several plots yields one row per plot and feature.
+#'
+#' @param records Feature records from one of the two resolvers.
+#' @return A tibble with one row per feature (per plot, where plots are named).
 #' @keywords internal
 .upd_feature_summary <- function(records) {
+  by_plot <- "plot_name" %in% names(records)
   if (nrow(records) == 0) {
-    return(dplyr::tibble(
+    empty <- dplyr::tibble(
       feature = character(), valuetype = character(), unit = character(),
       n_records = integer(), agg_rule = character(),
       aggregate_display = character(), is_aggregated = logical()
-    ))
+    )
+    if (by_plot) {
+      empty <- dplyr::bind_cols(dplyr::tibble(plot_name = character()), empty)
+    }
+    return(empty)
   }
-  records %>%
-    dplyr::group_by(.data$feature) %>%
+  grouped <- if (by_plot) {
+    dplyr::group_by(records, .data$plot_name, .data$feature)
+  } else {
+    dplyr::group_by(records, .data$feature)
+  }
+  out <- grouped %>%
     dplyr::summarise(
       valuetype         = dplyr::first(.data$valuetype),
       unit              = dplyr::first(.data$unit),
@@ -500,8 +794,14 @@
       aggregate_display = dplyr::first(.data$aggregate_display),
       .groups = "drop"
     ) %>%
-    dplyr::mutate(is_aggregated = .data$n_records > 1) %>%
-    dplyr::arrange(dplyr::desc(.data$is_aggregated), .data$feature)
+    dplyr::mutate(is_aggregated = .data$n_records > 1)
+
+  if (by_plot) {
+    dplyr::arrange(out, .data$plot_name,
+                   dplyr::desc(.data$is_aggregated), .data$feature)
+  } else {
+    dplyr::arrange(out, dplyr::desc(.data$is_aggregated), .data$feature)
+  }
 }
 
 #' Which database column a feature record's value lives in
@@ -655,4 +955,189 @@
   }
 
   applied
+}
+
+# -----------------------------------------------------------------------------
+# IDENTIFICATION CASCADE
+# -----------------------------------------------------------------------------
+
+#' The identification an extraction will actually use for an individual
+#'
+#' `merge_individuals_taxa()` does not read `data_individuals.idtax_n` and stop
+#' there. It resolves that id through `table_idtax` synonymy into `idtax_f`,
+#' resolves the identification of the specimen linked to the individual the same
+#' way into `idtax_specimen_f`, and then takes
+#' `idtax_individual_f = coalesce(idtax_specimen_f, idtax_f)`. Everything
+#' downstream - taxonomy, traits, the name in an extracted table - hangs off
+#' `idtax_individual_f`.
+#'
+#' The consequence matters to anyone editing a record: while a specimen is
+#' linked, the specimen's identification wins, and correcting `idtax_n` here
+#' changes nothing an extraction will show.
+#'
+#' The linked specimen is picked the way `merge_individuals_taxa()` picks it:
+#' highest `linktypelist.priority` first, then the most recent determination
+#' date.
+#'
+#' @param id_ind Integer, `data_individuals.id_n`.
+#' @param con A DBI connection to the main database.
+#' @param con_taxa Optional connection or pool to the taxa database, used for
+#'   names only; ids are shown alone without it.
+#' @return A list with `idtax_n`, `original_tax_name`, `idtax_f`, `specimen`
+#'   (`NULL` or a one-row data frame), `idtax_specimen_f`,
+#'   `idtax_individual_f`, `governed_by` (`"specimen"` or `"individual"`),
+#'   `is_synonym`, and `names` (idtax as character -> taxon name).
+#'   `NULL` when there is no such individual.
+#' @keywords internal
+.upd_identification <- function(id_ind, con, con_taxa = NULL) {
+  id_ind <- suppressWarnings(as.integer(id_ind))
+  if (is.na(id_ind)) return(NULL)
+
+  ind <- DBI::dbGetQuery(con, glue::glue_sql(
+    "SELECT id_n, idtax_n, original_tax_name
+       FROM data_individuals WHERE id_n = {id_ind}",
+    .con = con
+  ))
+  if (nrow(ind) == 0) return(NULL)
+
+  idtax_n <- suppressWarnings(as.integer(ind$idtax_n[1]))
+  specimen <- .upd_specimen_link(id_ind, con)
+  idtax_spec_n <- if (is.null(specimen)) {
+    NA_integer_
+  } else {
+    suppressWarnings(as.integer(specimen$idtax_specimen_n[1]))
+  }
+
+  accepted <- .upd_accepted_idtax(c(idtax_n, idtax_spec_n), con)
+  idtax_f <- unname(accepted[as.character(idtax_n)])
+  if (length(idtax_f) == 0 || is.na(idtax_f)) idtax_f <- idtax_n
+  idtax_specimen_f <- if (is.na(idtax_spec_n)) {
+    NA_integer_
+  } else {
+    v <- unname(accepted[as.character(idtax_spec_n)])
+    if (length(v) == 0 || is.na(v)) idtax_spec_n else v
+  }
+
+  idtax_individual_f <- if (!is.na(idtax_specimen_f)) idtax_specimen_f else idtax_f
+
+  names_tbl <- .fetch_taxon_names(
+    c(idtax_n, idtax_f, idtax_spec_n, idtax_specimen_f, idtax_individual_f),
+    con_taxa
+  )
+  taxon_names <- stats::setNames(
+    as.character(names_tbl$taxon_name), as.character(names_tbl$idtax_n)
+  )
+
+  list(
+    id_n               = id_ind,
+    idtax_n            = idtax_n,
+    original_tax_name  = ind$original_tax_name[1],
+    idtax_f            = idtax_f,
+    is_synonym         = !is.na(idtax_f) && !is.na(idtax_n) && idtax_f != idtax_n,
+    specimen           = specimen,
+    idtax_specimen_n   = idtax_spec_n,
+    idtax_specimen_f   = idtax_specimen_f,
+    idtax_individual_f = idtax_individual_f,
+    governed_by        = if (!is.na(idtax_specimen_f)) "specimen" else "individual",
+    names              = taxon_names
+  )
+}
+
+#' The specimen whose identification governs an individual
+#'
+#' Highest link priority first, then the most recent determination date - the
+#' order `merge_individuals_taxa()` sorts by before taking one link per
+#' individual.
+#'
+#' @return A one-row data frame, or `NULL` when nothing is linked.
+#' @keywords internal
+.upd_specimen_link <- function(id_ind, con) {
+  base_select <-
+    "SELECT ls.id_specimen,
+            s.idtax_n AS idtax_specimen_n,
+            s.colnbr, s.suffix, s.dety, s.detm, s.detd,
+            cn.colnam"
+  base_from <-
+    "FROM data_link_specimens ls
+       LEFT JOIN specimens s ON ls.id_specimen = s.id_specimen
+       LEFT JOIN table_colnam cn ON s.id_colnam = cn.id_table_colnam"
+  det_order <-
+    "COALESCE(s.dety, 1900) DESC, COALESCE(s.detm, 1) DESC, COALESCE(s.detd, 1) DESC"
+
+  # linktypelist may not exist on every database; without it every link has the
+  # same priority and only the determination date orders them.
+  res <- tryCatch(
+    DBI::dbGetQuery(con, glue::glue_sql(
+      paste(base_select, ", COALESCE(lt.priority, 0) AS priority",
+            base_from,
+            "LEFT JOIN linktypelist lt ON ls.id_linktype = lt.id_linktype",
+            "WHERE ls.id_n = {id_ind}",
+            "ORDER BY COALESCE(lt.priority, 0) DESC,", det_order,
+            "LIMIT 1"),
+      .con = con
+    )),
+    error = function(e) {
+      tryCatch(
+        DBI::dbGetQuery(con, glue::glue_sql(
+          paste(base_select, ", 0 AS priority", base_from,
+                "WHERE ls.id_n = {id_ind}", "ORDER BY", det_order, "LIMIT 1"),
+          .con = con
+        )),
+        error = function(e2) {
+          message("Note: could not read specimen links (", conditionMessage(e2), ")")
+          NULL
+        }
+      )
+    }
+  )
+
+  if (is.null(res) || nrow(res) == 0) return(NULL)
+  res[1, , drop = FALSE]
+}
+
+#' Accepted id for each taxon id, through `table_idtax` synonymy
+#'
+#' @return Named integer vector, idtax as character -> accepted idtax. Ids the
+#'   table does not know map to themselves.
+#' @keywords internal
+.upd_accepted_idtax <- function(idtax, con) {
+  idtax <- unique(suppressWarnings(as.integer(idtax)))
+  idtax <- idtax[!is.na(idtax)]
+  if (length(idtax) == 0) return(stats::setNames(integer(0), character(0)))
+
+  res <- tryCatch(
+    DBI::dbGetQuery(con, glue::glue_sql(
+      "SELECT idtax_n, idtax_good_n FROM table_idtax WHERE idtax_n IN ({idtax*})",
+      idtax = idtax, .con = con
+    )),
+    error = function(e) {
+      message("Note: could not read table_idtax (", conditionMessage(e), ")")
+      data.frame(idtax_n = integer(0), idtax_good_n = integer(0))
+    }
+  )
+
+  out <- stats::setNames(idtax, as.character(idtax))
+  if (nrow(res) > 0) {
+    good <- suppressWarnings(as.integer(res$idtax_good_n))
+    known <- suppressWarnings(as.integer(res$idtax_n))
+    good[is.na(good)] <- known[is.na(good)]
+    out[as.character(known)] <- good
+  }
+  out
+}
+
+#' A collector's label for a specimen: "Dauby 1234b"
+#' @keywords internal
+.upd_specimen_label <- function(specimen) {
+  if (is.null(specimen) || nrow(specimen) == 0) return(NA_character_)
+  number <- paste0(
+    if (!is.na(specimen$colnbr[1])) as.character(specimen$colnbr[1]) else "",
+    if (!is.na(specimen$suffix[1])) as.character(specimen$suffix[1]) else ""
+  )
+  parts <- c(
+    if (!is.na(specimen$colnam[1])) as.character(specimen$colnam[1]),
+    if (nzchar(number)) number
+  )
+  if (length(parts) == 0) return(paste0("id_specimen ", specimen$id_specimen[1]))
+  paste(parts, collapse = " ")
 }
