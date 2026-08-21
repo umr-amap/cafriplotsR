@@ -9,3 +9,6 @@
 ^inst/docs/.*\.pptx$
 ^inst/docs/.*\.ppt$
 ^inst/notes$
+^\.claude$
+^\.claude-backup.*$
+^\.claude-config\.yml$

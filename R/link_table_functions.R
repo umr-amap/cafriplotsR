@@ -432,18 +432,6 @@
 }
 
 
-#' Internal function
-#'
-#' Semi automatic matching with a table for comparison
-#'
-#' @return vector
-#'
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#' @param value_to_search string vector of one element
-#' @param compared_table tibble with one column where the value should be compared
-#' @param column_name string name of the column of compared_table
-#'
-#' @export
 #' The table shown by the interactive matching prompt
 #'
 #' What the user types at that prompt is a position in the list of suggestions,
@@ -475,6 +463,19 @@
     .rename_data(col_old = "comp_value", col_new = column_name)
 }
 
+#' Internal function
+#'
+#' Semi automatic matching with a table for comparison
+#'
+#' @return vector
+#'
+#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#' @param value_to_search string vector of one element
+#' @param compared_table tibble with one column where the value should be compared
+#' @param column_name string name of the column of compared_table
+#' @param field_label string shown at the prompt in place of column_name
+#'
+#' @export
 .find_cat <- function(value_to_search, compared_table, column_name, field_label = NULL) {
 
   # Default field label to column name if not provided
