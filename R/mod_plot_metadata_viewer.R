@@ -272,6 +272,7 @@ mod_plot_metadata_viewer_server <- function(id, metadata, i18n) {
       DT::datatable(
         meta_display,
         selection = list(mode = "multiple", selected = seq_len(nrow(meta_display))),
+        extensions = "Buttons",
         options = list(
           pageLength = 10,
           scrollX = TRUE,

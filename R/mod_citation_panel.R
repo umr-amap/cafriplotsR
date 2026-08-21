@@ -45,7 +45,7 @@ mod_citation_panel_server <- function(id, citation_data, i18n) {
         cit,
         rownames  = FALSE,
         filter    = "top",
-        extension = "Buttons",
+        extensions = "Buttons",
         options   = list(
           scrollX    = TRUE,
           pageLength = 25,

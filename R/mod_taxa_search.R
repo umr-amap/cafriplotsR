@@ -568,6 +568,7 @@ mod_taxa_search_server <- function(id, pool, i18n,
       DT::datatable(
         results_display,
         selection = list(mode = "multiple"),
+        extensions = "Buttons",
         options = list(
           pageLength = 25,
           scrollX = TRUE,
