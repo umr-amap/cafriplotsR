@@ -1084,7 +1084,10 @@ define_user_policy <- function(con, user, ids,
 #'   Use NULL to see policies on all tables.
 #'
 #' @returns A data frame with policy information (schemaname, tablename,
-#'   policyname, roles, cmd, qual).
+#'   policyname, roles, cmd, qual), plus a `plot_ids` list-column holding the
+#'   numeric IDs parsed out of each row's `qual` expression (integer(0) when
+#'   `qual` has none, e.g. NA or an id-less policy such as a global
+#'   `creator_access_*` policy).
 #'
 #' @export
 list_user_policies <- function(con, user = NULL, table = "data_liste_plots") {
@@ -1114,7 +1117,20 @@ list_user_policies <- function(con, user = NULL, table = "data_liste_plots") {
 
   sql_base <- paste0(sql_base, " ORDER BY schemaname, tablename, policyname;")
 
-  DBI::dbGetQuery(con, sql_base)
+  policies <- DBI::dbGetQuery(con, sql_base)
+
+  # Parse the numeric plot IDs out of each qual expression (e.g.
+  # "(id_liste_plots = ANY (ARRAY[179, 180, ...]))") so callers don't have
+  # to eyeball the truncated qual string themselves.
+  policies$plot_ids <- lapply(policies$qual, function(qual) {
+    if (is.na(qual)) {
+      return(integer(0))
+    }
+    ids <- as.integer(unlist(regmatches(qual, gregexpr("\\d+", qual))))
+    sort(unique(ids[!is.na(ids) & ids > 0]))
+  })
+
+  policies
 }
 
 #' Get plot IDs accessible to a user
@@ -1187,14 +1203,8 @@ get_user_accessible_plots <- function(con, user, table = "data_liste_plots") {
 
   if (nrow(policies) > 0) {
     for (i in seq_len(nrow(policies))) {
-      qual <- policies$qual[i]
-      cmd  <- policies$cmd[i]
-
-      # Extract plot IDs from the qual expression
-      # Handles both ARRAY[...] and IN (...) syntax
-      ids <- as.integer(unlist(regmatches(qual, gregexpr("\\d+", qual))))
-      ids <- ids[ids > 0]
-      ids <- sort(unique(ids))
+      cmd <- policies$cmd[i]
+      ids <- policies$plot_ids[[i]]
 
       if (length(ids) > 0) {
         row_df <- data.frame(

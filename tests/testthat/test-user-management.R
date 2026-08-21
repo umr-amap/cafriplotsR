@@ -141,3 +141,29 @@ test_that("setup_user_permissions applies read-only grants and plot-scoped SELEC
   expect_equal(policy_call$ids, c(10L, 11L))
   expect_equal(policy_call$operations, "SELECT")
 })
+
+test_that("list_user_policies() parses qual into a numeric plot_ids list-column", {
+  testthat::local_mocked_bindings(
+    .package = "DBI",
+    dbGetQuery = function(con, sql) {
+      data.frame(
+        schemaname = "public",
+        tablename = "data_liste_plots",
+        policyname = c("reader_select", "creator_access_select"),
+        roles = c("{reader}", "{PUBLIC}"),
+        cmd = c("SELECT", "SELECT"),
+        qual = c(
+          "(id_liste_plots = ANY (ARRAY[179, 180, 181]))",
+          NA_character_
+        ),
+        stringsAsFactors = FALSE
+      )
+    }
+  )
+
+  result <- list_user_policies(structure(list(), class = "mock_connection"), user = "reader")
+
+  expect_true("plot_ids" %in% names(result))
+  expect_equal(result$plot_ids[[1]], c(179L, 180L, 181L))
+  expect_equal(result$plot_ids[[2]], integer(0))
+})
