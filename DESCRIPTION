@@ -42,6 +42,7 @@ Imports:
     grDevices
 Suggests:
     getPass,
+    jsonlite,
     openxlsx,
     proj4,
     taxize,

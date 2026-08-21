@@ -74,6 +74,29 @@ mod_code_preview_server <- function(id, filters, selected_plots, extraction_opti
         args <- c(args, sprintf('  tag = "%s"', filters$tag))
       }
 
+      # Plot features: a named list, one entry per feature, so the generated
+      # call stays the semantic filter rather than a list of resolved plot ids.
+      if (!is.null(filters$feature_filters) && length(filters$feature_filters) > 0) {
+        entries <- vapply(
+          names(filters$feature_filters),
+          function(feat) {
+            vals <- filters$feature_filters[[feat]]
+            quoted <- paste0('"', vals, '"', collapse = ", ")
+            if (length(vals) > 1) {
+              sprintf("    %s = c(%s)", feat, quoted)
+            } else {
+              sprintf("    %s = %s", feat, quoted)
+            }
+          },
+          character(1)
+        )
+        args <- c(args, paste0(
+          "  feature_filters = list(\n",
+          paste(entries, collapse = ",\n"),
+          "\n  )"
+        ))
+      }
+
       # Numeric ID filters
       if (!is.null(filters$id_plot)) {
         args <- c(args, sprintf('  id_plot = %s', filters$id_plot))

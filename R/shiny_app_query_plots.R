@@ -429,6 +429,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
             id_individual = filters$id_individual,
             id_tax = filters$id_tax,
             id_specimen = filters$id_specimen,
+            feature_filters = filters$feature_filters,
             exact_match = filters$exact_match,
             extract_individuals = FALSE,  # Only metadata at this stage
             extract_traits = FALSE,
