@@ -118,8 +118,7 @@ mod_update_record_ui <- function(id, entity = c("plot", "individual"), i18n) {
         shiny::actionLink(
           ns("reset_direct"),
           label = shiny::tagList(shiny::icon("undo"), " ", i18n$t("Reset to stored values"))
-        ),
-        shiny::uiOutput(ns("hidden_columns"))
+        )
       ),
 
       taxon_panel,
@@ -466,23 +465,6 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       # Three inputs per row.
       rows <- split(inputs, ceiling(seq_along(inputs) / 3))
       shiny::tagList(lapply(rows, function(r) do.call(shiny::fluidRow, r)))
-    })
-
-    # Say what is not on the form. The table holds deprecated columns nothing
-    # writes any more; hiding them is right, hiding them silently is not.
-    output$hidden_columns <- shiny::renderUI({
-      fl <- fields()
-      shiny::req(fl)
-      hidden <- attr(fl, "hidden")
-      if (is.null(hidden) || length(hidden) == 0) return(NULL)
-      shiny::tags$p(
-        class = "text-muted", style = "margin-top: 10px;",
-        shiny::tags$small(
-          shiny::icon("eye-slash"), " ",
-          sprintf(i18n()$t("%d column(s) of %s are not editable here (deprecated, structural, or set by the database): %s"),
-                  length(hidden), spec$table, paste(hidden, collapse = ", "))
-        )
-      )
     })
 
     shiny::observeEvent(input$reset_direct, {

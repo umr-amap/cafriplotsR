@@ -9276,10 +9276,6 @@
     {
       "en": "Year",
       "fr": "Année"
-    },
-    {
-      "en": "%d column(s) of %s are not editable here (deprecated, structural, or set by the database): %s",
-      "fr": "%d colonne(s) de %s ne sont pas modifiables ici (obsolètes, structurelles ou renseignées par la base) : %s"
     }
   ]
 }
