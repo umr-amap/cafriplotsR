@@ -9276,6 +9276,34 @@
     {
       "en": "Year",
       "fr": "Année"
+    },
+    {
+      "en": "Hide fields with no value",
+      "fr": "Masquer les champs sans valeur"
+    },
+    {
+      "en": "Loading the full record...",
+      "fr": "Chargement de l'enregistrement complet..."
+    },
+    {
+      "en": "Could not load the full record:",
+      "fr": "Impossible de charger l'enregistrement complet :"
+    },
+    {
+      "en": "%d of %d fields shown.",
+      "fr": "%d champs affichés sur %d."
+    },
+    {
+      "en": "The whole record as an extraction returns it (output_style = \"full\"), features included and columns that cannot be edited here as well. It runs a full extraction, so it is fetched only when you ask for it.",
+      "fr": "L'enregistrement complet tel qu'une extraction le renvoie (output_style = \"full\"), features comprises et colonnes non modifiables ici incluses. C'est une extraction complète, elle n'est donc lancée qu'à votre demande."
+    },
+    {
+      "en": "Show the full record",
+      "fr": "Afficher l'enregistrement complet"
+    },
+    {
+      "en": "Not loaded. Use the button above to see the whole record.",
+      "fr": "Non chargé. Utilisez le bouton ci-dessus pour voir l'enregistrement complet."
     }
   ]
 }

@@ -102,7 +102,28 @@ mod_update_record_ui <- function(id, entity = c("plot", "individual"), i18n) {
       # --- 2. Current values ---
       shiny::wellPanel(
         shiny::h4(shiny::icon("info-circle"), " ", i18n$t("2. Current stored values")),
-        shiny::uiOutput(ns("current_card"))
+        shiny::tags$p(
+          class = "text-muted",
+          shiny::tags$small(
+            i18n$t("The whole record as an extraction returns it (output_style = \"full\"), features included and columns that cannot be edited here as well. It runs a full extraction, so it is fetched only when you ask for it.")
+          )
+        ),
+        shiny::fluidRow(
+          shiny::column(
+            5,
+            shiny::actionButton(
+              ns("load_full"),
+              shiny::tagList(shiny::icon("list"), " ", i18n$t("Show the full record"))
+            )
+          ),
+          shiny::column(
+            7,
+            shiny::checkboxInput(ns("current_hide_empty"),
+                                 i18n$t("Hide fields with no value"), value = TRUE)
+          )
+        ),
+        shiny::uiOutput(ns("current_note")),
+        DT::DTOutput(ns("current_tbl"))
       ),
 
       # --- 3. Flat columns ---
@@ -372,24 +393,85 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     # 2. CURRENT VALUES
     # =========================================================================
 
-    output$current_card <- shiny::renderUI({
+    # The whole record, as query_plots(output_style = "full") returns it: the
+    # form below shows only what it can write, which is not what the user needs
+    # to review. Fetched apart from the record itself - it is a heavier query,
+    # and a failure here must not stop the record from being edited.
+    current_full <- shiny::reactiveVal(NULL)
+    current_err  <- shiny::reactiveVal(NULL)
+
+    # A new record clears the view; the extraction is only run on demand.
+    shiny::observeEvent(record(), {
+      current_full(NULL)
+      current_err(NULL)
+    }, ignoreNULL = FALSE)
+
+    shiny::observeEvent(input$load_full, {
       r <- record()
-      shiny::req(r)
-      fmt <- function(x) {
-        if (is.null(x) || length(x) == 0 || all(is.na(x))) "-" else as.character(x)
+      shiny::req(r, pool_main())
+      current_err(NULL)
+
+      taxa_con <- tryCatch(pool_taxa(), error = function(e) NULL)
+      res <- tryCatch(
+        shiny::withProgress(
+          message = i18n()$t("Loading the full record..."), value = 0.4,
+          .upd_full_record_view(entity, r[[spec$id_column]][1],
+                                pool_main(), taxa_con)
+        ),
+        error = function(e) {
+          current_err(e$message)
+          NULL
+        }
+      )
+      current_full(res)
+    })
+
+    # Most columns of a full extraction are empty for any one record, so they
+    # are hidden by default rather than paged through.
+    current_view <- shiny::reactive({
+      tb <- current_full()
+      if (is.null(tb)) return(NULL)
+      if (isTRUE(input$current_hide_empty)) {
+        value_cols <- setdiff(names(tb), "field")
+        if (length(value_cols) == 0) return(tb)
+        filled <- Reduce(`|`, lapply(value_cols, function(cl) nzchar(tb[[cl]])))
+        tb <- tb[filled, , drop = FALSE]
       }
-      shown <- intersect(names(r), c(
-        spec$id_column, "plot_name", "tag", "idtax_n", "original_tax_name",
-        "id_method", "id_country", "locality_name", "ddlat", "ddlon",
-        "date_y", "herbarium_nbe_char", "multi_tiges_id"
-      ))
-      shiny::tags$table(
-        class = "table table-sm",
-        shiny::tags$tbody(
-          lapply(shown, function(cl) {
-            shiny::tags$tr(shiny::tags$th(cl), shiny::tags$td(fmt(r[[cl]])))
-          })
-        )
+      tb
+    })
+
+    output$current_note <- shiny::renderUI({
+      shiny::req(record())
+      if (!is.null(current_err())) {
+        return(shiny::div(
+          class = "alert alert-warning",
+          shiny::icon("exclamation-triangle"), " ",
+          paste(i18n()$t("Could not load the full record:"), current_err())
+        ))
+      }
+      tb <- current_full()
+      if (is.null(tb)) {
+        return(shiny::div(
+          class = "text-muted",
+          i18n()$t("Not loaded. Use the button above to see the whole record.")
+        ))
+      }
+      shiny::tags$p(
+        class = "text-muted",
+        shiny::tags$small(sprintf(i18n()$t("%d of %d fields shown."),
+                                  nrow(current_view()), nrow(tb)))
+      )
+    })
+
+    output$current_tbl <- DT::renderDT({
+      tb <- current_view()
+      shiny::req(tb, nrow(tb) > 0)
+      names(tb)[names(tb) == "field"] <- i18n()$t("Field")
+      if (ncol(tb) == 2) names(tb)[2] <- i18n()$t("Value")
+      DT::datatable(
+        tb, rownames = FALSE, selection = "none",
+        options = list(pageLength = 15, scrollX = TRUE, dom = "ftip",
+                       columnDefs = list(list(width = "240px", targets = 0)))
       )
     })
 

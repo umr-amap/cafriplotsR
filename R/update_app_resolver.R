@@ -251,6 +251,134 @@
   dplyr::as_tibble(res)[1, , drop = FALSE]
 }
 
+# -----------------------------------------------------------------------------
+# FULL RECORD VIEW
+# -----------------------------------------------------------------------------
+
+#' Run a console-oriented query function without letting it reach the UI
+#'
+#' `query_plots()` is written for a console session: it prints, and some of its
+#' branches print an htmlwidget. Inside an app that takes over the RStudio pane
+#' the app itself is running in, which reads as a freeze. Printed output is
+#' swallowed and the viewer is pointed at nothing for the duration of the call;
+#' messages are left alone, so the console still says what the query did.
+#'
+#' @param expr Expression to evaluate.
+#' @return The value of `expr`.
+#' @keywords internal
+.upd_quiet_query <- function(expr) {
+  old <- options(viewer = function(url, ...) invisible(NULL))
+  on.exit(options(old), add = TRUE)
+  out <- NULL
+  utils::capture.output(out <- expr)
+  out
+}
+
+#' The record as `query_plots(output_style = "full")` returns it
+#'
+#' The edit form only carries the columns the app can write. To review what is
+#' stored, the app shows the record the way an extraction shows it - plot
+#' metadata for a plot, the individual row for an individual - with every
+#' column the "full" style keeps, features included. An individual is asked for
+#' with every census kept apart, so nothing measured is left out of the review.
+#'
+#' @param entity Either `"plot"` or `"individual"`.
+#' @param id Integer record id (`id_liste_plots` or `id_n`).
+#' @param con A pool or DBI connection to the main database.
+#' @param con_taxa Optional pool or connection to the taxa database.
+#' @return A tibble with a `field` column and one value column per returned
+#'   row, or `NULL` when the query came back with nothing to show.
+#' @keywords internal
+.upd_full_record_view <- function(entity = c("plot", "individual"), id, con,
+                                  con_taxa = NULL) {
+  entity <- match.arg(entity)
+  id <- as.integer(id)
+  if (is.na(id)) return(NULL)
+
+  res <- .upd_quiet_query(
+    if (entity == "plot") {
+      query_plots(
+        id_plot = id, extract_individuals = FALSE, extract_traits = FALSE,
+        map = FALSE, extract_coordinates = FALSE,
+        remove_ids = FALSE, output_style = "full",
+        con = con, con.taxa = con_taxa
+      )
+    } else {
+      # show_multiple_census keeps every census in its own column. Without it
+      # the extraction collapses them with census_strategy and the review panel
+      # would hide measurements the record actually holds.
+      query_plots(
+        id_individual = id, extract_individuals = TRUE,
+        show_multiple_census = TRUE,
+        map = FALSE, extract_coordinates = FALSE,
+        remove_ids = FALSE, output_style = "full",
+        con = con, con.taxa = con_taxa
+      )
+    }
+  )
+
+  .upd_transpose_record(.upd_full_record_table(res, entity))
+}
+
+#' Pick the table holding the record out of a query_plots() result
+#'
+#' `query_plots()` returns a list of tables, or a bare data frame when only one
+#' table came back.
+#'
+#' @keywords internal
+.upd_full_record_table <- function(res, entity) {
+  if (is.null(res)) return(NULL)
+  if (is.data.frame(res)) return(res)
+  if (!is.list(res)) return(NULL)
+
+  wanted <- if (entity == "plot") {
+    c("metadata", "meta_data")
+  } else {
+    c("individuals", "extract", "metadata", "meta_data")
+  }
+  for (nm in wanted) {
+    if (is.data.frame(res[[nm]])) return(res[[nm]])
+  }
+  NULL
+}
+
+#' One row per column of a record, values rendered as text
+#'
+#' A record read across is unreadable once it has a hundred columns, so it is
+#' turned on its side: one row per column, one value column per record row (an
+#' individual can come back as several rows, one per stem or census).
+#'
+#' @keywords internal
+.upd_transpose_record <- function(tbl) {
+  if (is.null(tbl) || !is.data.frame(tbl) || nrow(tbl) == 0) return(NULL)
+
+  # Drop the sf class first: subsetting an sf object keeps its geometry column
+  # whatever the selection says, and geometry has no honest one-line rendering.
+  tbl <- as.data.frame(tbl, stringsAsFactors = FALSE)
+  keep <- vapply(tbl, function(x) !inherits(x, c("sfc", "sfg")), logical(1))
+  tbl <- tbl[, keep, drop = FALSE]
+  if (ncol(tbl) == 0) return(NULL)
+
+  out <- dplyr::tibble(field = names(tbl))
+  single <- nrow(tbl) == 1
+  for (i in seq_len(nrow(tbl))) {
+    values <- vapply(names(tbl), function(cl) .upd_fmt_value(tbl[[cl]][i]),
+                     character(1), USE.NAMES = FALSE)
+    out[[if (single) "value" else paste0("value_", i)]] <- values
+  }
+  out
+}
+
+#' Render one stored value as a single string, empty when there is none
+#' @keywords internal
+.upd_fmt_value <- function(x) {
+  if (is.list(x)) x <- unlist(x, use.names = FALSE)
+  if (is.null(x) || length(x) == 0) return("")
+  x <- x[!is.na(x)]
+  if (length(x) == 0) return("")
+  paste(trimws(format(x, trim = TRUE)), collapse = ", ")
+}
+
 #' Choices for a lookup column, as a named vector (label -> id)
 #' @keywords internal
 .upd_lookup_choices <- function(lookup_table, lookup_key, lookup_value, con) {
