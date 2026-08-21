@@ -730,26 +730,13 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       .upd_feature_summary(fr)
     })
 
-    # How the extraction treats a feature. The rule comes from the resolver;
-    # the wording lives here because it needs the translator.
-    rule_label <- function(rule, n) {
-      if (n == 1 && rule %in% c("mean", "concat", "other")) {
-        return(i18n()$t("one record, shown as it is"))
-      }
-      switch(
-        rule,
-        mean       = sprintf(i18n()$t("mean of %d records"), n),
-        concat     = sprintf(i18n()$t("%d records joined into one text"), n),
-        per_census = sprintf(i18n()$t("one value per census, from %d records"), n),
-        census     = i18n()$t("not a value: n_census, first_census, last_census, date_census_N"),
-        not_extracted = i18n()$t("not carried into extracted tables"),
-        sprintf(i18n()$t("%d record(s)"), n)
-      )
-    }
+    # How the extraction treats a feature, in words. Shared with the feature
+    # wizard, which shows the same overview for the plots it is about to write
+    # to; the translator has to be resolved here.
+    rule_label <- function(rule, n) .feature_rule_label(rule, n, i18n())
 
     rule_labels <- function(rules, ns_records) {
-      vapply(seq_along(rules), function(i) rule_label(rules[i], ns_records[i]),
-             character(1))
+      .feature_rule_labels(rules, ns_records, i18n())
     }
 
     output$feature_overview_info <- shiny::renderUI({
@@ -775,23 +762,7 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     output$feature_overview_tbl <- DT::renderDT({
       s <- feature_summary()
       shiny::req(nrow(s) > 0)
-      shown <- s
-      shown$stored_as <- rule_labels(shown$agg_rule, shown$n_records)
-      shown$aggregate_display <- ifelse(is.na(shown$aggregate_display), "-",
-                                        shown$aggregate_display)
-      shown <- shown[, c("feature", "valuetype", "unit", "n_records",
-                         "aggregate_display", "stored_as"), drop = FALSE]
-      DT::datatable(
-        shown, selection = "none", rownames = FALSE,
-        colnames = c(i18n()$t("Feature"), i18n()$t("Value type"), i18n()$t("Unit"),
-                     i18n()$t("Records"), i18n()$t("Value in extracted table"),
-                     i18n()$t("In an extracted table")),
-        options = list(pageLength = 10, scrollX = TRUE, dom = "tip")
-      ) %>%
-        DT::formatStyle(
-          "n_records", target = "row",
-          backgroundColor = DT::styleInterval(1, c("transparent", "#fff3cd"))
-        )
+      .feature_overview_dt(s, i18n())
     })
 
     shiny::observeEvent(feature_summary(), {

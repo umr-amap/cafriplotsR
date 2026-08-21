@@ -4,7 +4,12 @@
 \alias{.upd_empty_features}
 \title{Empty feature table with the documented shape}
 \usage{
-.upd_empty_features()
+.upd_empty_features(with_plot = FALSE)
+}
+\arguments{
+\item{with_plot}{Whether to carry the plot resolver's `id_plot` and
+`plot_name` columns, so a zero-row result has the same shape as a
+populated one.}
 }
 \description{
 Empty feature table with the documented shape

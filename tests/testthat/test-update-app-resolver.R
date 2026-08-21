@@ -456,3 +456,115 @@ test_that(".upd_identification() prefers the higher-priority link", {
   expect_equal(ident$specimen$id_specimen, 10L)
   expect_equal(ident$idtax_individual_f, 800L)
 })
+
+# ── several plots at once ────────────────────────────────────────────────────
+
+.mk_plot_feature_db <- function() {
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  DBI::dbWriteTable(con, "data_liste_plots", data.frame(
+    id_liste_plots = c(1L, 2L),
+    plot_name = c("BEL-01", "BEL-02"),
+    stringsAsFactors = FALSE
+  ))
+  DBI::dbWriteTable(con, "subplotype_list", data.frame(
+    id_subplotype = c(10L, 20L),
+    type = c("soil_depth", "principal_investigator"),
+    valuetype = c("numeric", "table_colnam"),
+    expectedunit = c("cm", NA_character_),
+    minallowedvalue = NA_real_, maxallowedvalue = NA_real_,
+    stringsAsFactors = FALSE
+  ))
+  DBI::dbWriteTable(con, "table_colnam", data.frame(
+    id_table_colnam = 7L, colnam = "Dauby G.", stringsAsFactors = FALSE
+  ))
+  con
+}
+
+test_that(".upd_plot_feature_records() keeps each plot's records apart", {
+  con <- .mk_plot_feature_db()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  # One soil_depth record in each plot: an aggregate in neither.
+  DBI::dbWriteTable(con, "data_liste_sub_plots", data.frame(
+    id_sub_plots = 1:3,
+    id_table_liste_plots = c(1L, 2L, 2L),
+    id_type_sub_plot = c(10L, 10L, 20L),
+    year = 2020L, month = NA_integer_, day = NA_integer_,
+    typevalue = c(30, 50, 7), typevalue_char = NA_character_,
+    original_subplot_name = NA_character_, issue = NA_character_,
+    stringsAsFactors = FALSE
+  ))
+
+  recs <- CafriplotsR:::.upd_plot_feature_records(c(1L, 2L), con)
+
+  expect_equal(nrow(recs), 3L)
+  expect_true(all(c("id_plot", "plot_name") %in% names(recs)))
+  soil <- recs[recs$feature == "soil_depth", ]
+  expect_equal(unique(soil$n_records), 1L)
+  expect_equal(sort(soil$aggregate_display), c("30", "50"))
+  # A table_colnam value is the id held in typevalue, shown as the name.
+  expect_equal(recs$value_display[recs$feature == "principal_investigator"],
+               "Dauby G.")
+})
+
+test_that(".upd_plot_feature_records() aggregates only within one plot", {
+  con <- .mk_plot_feature_db()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  # Two soil_depth records in plot 1, one in plot 2.
+  DBI::dbWriteTable(con, "data_liste_sub_plots", data.frame(
+    id_sub_plots = 1:3,
+    id_table_liste_plots = c(1L, 1L, 2L),
+    id_type_sub_plot = 10L,
+    year = 2020L, month = NA_integer_, day = NA_integer_,
+    typevalue = c(30, 40, 50), typevalue_char = NA_character_,
+    original_subplot_name = NA_character_, issue = NA_character_,
+    stringsAsFactors = FALSE
+  ))
+
+  recs <- CafriplotsR:::.upd_plot_feature_records(c(1L, 2L), con)
+  s <- CafriplotsR:::.upd_feature_summary(recs)
+
+  expect_equal(s$n_records[s$plot_name == "BEL-01"], 2L)
+  expect_equal(s$n_records[s$plot_name == "BEL-02"], 1L)
+  expect_true(s$is_aggregated[s$plot_name == "BEL-01"])
+  expect_false(s$is_aggregated[s$plot_name == "BEL-02"])
+  expect_equal(s$aggregate_display[s$plot_name == "BEL-01"], "35")
+})
+
+test_that(".upd_plot_feature_records() returns the plot shape when there is nothing", {
+  con <- .mk_plot_feature_db()
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  DBI::dbWriteTable(con, "data_liste_sub_plots", data.frame(
+    id_sub_plots = integer(), id_table_liste_plots = integer(),
+    id_type_sub_plot = integer(), year = integer(), month = integer(),
+    day = integer(), typevalue = numeric(), typevalue_char = character(),
+    original_subplot_name = character(), issue = character(),
+    stringsAsFactors = FALSE
+  ))
+
+  recs <- CafriplotsR:::.upd_plot_feature_records(c(1L, 2L), con)
+  expect_equal(nrow(recs), 0L)
+  expect_true(all(c("id_plot", "plot_name") %in% names(recs)))
+  expect_equal(nrow(CafriplotsR:::.upd_feature_summary(recs)), 0L)
+  expect_true("plot_name" %in% names(CafriplotsR:::.upd_feature_summary(recs)))
+
+  # No plot at all: same shape, no query.
+  expect_equal(nrow(CafriplotsR:::.upd_plot_feature_records(integer(0), con)), 0L)
+})
+
+test_that(".upd_feature_summary() still groups by feature alone without plots", {
+  recs <- dplyr::tibble(
+    record_id = 1:2, feature = "wood_density", valuetype = "numeric",
+    unit = NA_character_, min_allowed = NA_real_, max_allowed = NA_real_,
+    value_num = c(0.5, 0.7), value_char = NA_character_,
+    lookup_id = NA_integer_, value_display = c("0.5", "0.7"),
+    year = 2020L, month = NA_integer_, day = NA_integer_,
+    issue = NA_character_, context = NA_character_
+  )
+  s <- CafriplotsR:::.upd_feature_summary(
+    CafriplotsR:::.upd_annotate_aggregation(recs, "plot")
+  )
+
+  expect_false("plot_name" %in% names(s))
+  expect_equal(nrow(s), 1L)
+  expect_equal(s$n_records, 2L)
+})

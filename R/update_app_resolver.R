@@ -413,20 +413,32 @@
 
 #' Plot feature records behind the columns of an extracted plot table
 #'
-#' Each row of `data_liste_sub_plots` for the plot, annotated with how many
+#' Each row of `data_liste_sub_plots` for the plots, annotated with how many
 #' records feed the same extracted column (`n_records`) and what that column
 #' would show (`aggregate_display`). When `n_records > 1` the extracted value is
 #' an aggregate and only these records can be edited.
 #'
-#' @param id_plot Integer, `data_liste_plots.id_liste_plots`.
+#' Several plots can be asked for at once, which is how the feature wizard shows
+#' what a whole selection already holds. The annotation is then computed within
+#' each plot: a feature backed by one record in each of three plots is an
+#' aggregate in none of them.
+#'
+#' @param id_plot Integer vector, `data_liste_plots.id_liste_plots`.
 #' @param con A DBI connection.
-#' @return A tibble, one row per subplot record; zero rows if the plot has none.
+#' @return A tibble, one row per subplot record, carrying `id_plot` and
+#'   `plot_name` ahead of the shared feature columns; zero rows if the plots
+#'   have no features.
 #' @keywords internal
 .upd_plot_feature_records <- function(id_plot, con) {
+
+  id_plot <- unique(id_plot[!is.na(id_plot)])
+  if (length(id_plot) == 0) return(.upd_empty_features(with_plot = TRUE))
 
   sql <- glue::glue_sql(
     "SELECT
        sp.id_sub_plots,
+       sp.id_table_liste_plots,
+       p.plot_name,
        sp.year, sp.month, sp.day,
        sp.typevalue, sp.typevalue_char,
        sp.original_subplot_name, sp.issue,
@@ -434,12 +446,13 @@
        spt.minallowedvalue, spt.maxallowedvalue
      FROM data_liste_sub_plots sp
      LEFT JOIN subplotype_list spt ON sp.id_type_sub_plot = spt.id_subplotype
-     WHERE sp.id_table_liste_plots = {id_plot}
-     ORDER BY spt.type, sp.year, sp.id_sub_plots",
-    .con = con
+     LEFT JOIN data_liste_plots p ON sp.id_table_liste_plots = p.id_liste_plots
+     WHERE sp.id_table_liste_plots IN ({id_plot*})
+     ORDER BY p.plot_name, spt.type, sp.year, sp.id_sub_plots",
+    id_plot = id_plot, .con = con
   )
   raw <- dplyr::as_tibble(DBI::dbGetQuery(con, sql))
-  if (nrow(raw) == 0) return(.upd_empty_features())
+  if (nrow(raw) == 0) return(.upd_empty_features(with_plot = TRUE))
 
   # A table_colnam feature is a numeric feature whose value is the
   # table_colnam id, held in `typevalue`. `typevalue_char` is never used for
@@ -459,6 +472,7 @@
   out <- raw %>%
     dplyr::mutate(
       record_id   = .data$id_sub_plots,
+      id_plot     = .data$id_table_liste_plots,
       feature     = .data$type,
       valuetype   = .data$valuetype,
       unit        = .data$expectedunit,
@@ -476,6 +490,7 @@
 
   out <- out %>%
     dplyr::select(dplyr::any_of(c(
+      "id_plot", "plot_name",
       "record_id", "feature", "valuetype", "unit", "min_allowed", "max_allowed",
       "value_num", "value_char", "lookup_id", "value_display",
       "year", "month", "day", "issue", "context"
@@ -546,8 +561,12 @@
 }
 
 #' Empty feature table with the documented shape
+#'
+#' @param with_plot Whether to carry the plot resolver's `id_plot` and
+#'   `plot_name` columns, so a zero-row result has the same shape as a
+#'   populated one.
 #' @keywords internal
-.upd_empty_features <- function() {
+.upd_empty_features <- function(with_plot = FALSE) {
   empty <- dplyr::tibble(
     record_id = integer(), feature = character(), valuetype = character(),
     unit = character(), min_allowed = numeric(), max_allowed = numeric(),
@@ -556,6 +575,12 @@
     day = integer(), issue = character(), context = character(),
     n_records = integer(), agg_rule = character(), aggregate_display = character()
   )
+  if (with_plot) {
+    empty <- dplyr::bind_cols(
+      dplyr::tibble(id_plot = integer(), plot_name = character()),
+      empty
+    )
+  }
   empty
 }
 
@@ -603,13 +628,23 @@
 #' @keywords internal
 .upd_annotate_aggregation <- function(records, entity = c("plot", "individual")) {
   entity <- match.arg(entity)
-  if (nrow(records) == 0) return(.upd_empty_features())
+  if (nrow(records) == 0) {
+    return(.upd_empty_features(with_plot = "id_plot" %in% names(records)))
+  }
 
   records$n_records <- NA_integer_
   records$agg_rule <- NA_character_
   records$aggregate_display <- NA_character_
 
-  for (idx in split(seq_len(nrow(records)), records$feature)) {
+  # One extracted column per feature, per record the features belong to. When
+  # several plots are asked for at once, each plot has its own column.
+  group_key <- if ("id_plot" %in% names(records)) {
+    paste(records$id_plot, records$feature, sep = "\r")
+  } else {
+    records$feature
+  }
+
+  for (idx in split(seq_len(nrow(records)), group_key)) {
     grp <- records[idx, , drop = FALSE]
     rule <- .upd_agg_rule(entity, grp)
     records$n_records[idx] <- nrow(grp)
@@ -725,17 +760,32 @@
 }
 
 #' One row per feature: what the extracted table shows, and from how many records
+#'
+#' Records carrying `plot_name` are summarised per plot, so a selection of
+#' several plots yields one row per plot and feature.
+#'
+#' @param records Feature records from one of the two resolvers.
+#' @return A tibble with one row per feature (per plot, where plots are named).
 #' @keywords internal
 .upd_feature_summary <- function(records) {
+  by_plot <- "plot_name" %in% names(records)
   if (nrow(records) == 0) {
-    return(dplyr::tibble(
+    empty <- dplyr::tibble(
       feature = character(), valuetype = character(), unit = character(),
       n_records = integer(), agg_rule = character(),
       aggregate_display = character(), is_aggregated = logical()
-    ))
+    )
+    if (by_plot) {
+      empty <- dplyr::bind_cols(dplyr::tibble(plot_name = character()), empty)
+    }
+    return(empty)
   }
-  records %>%
-    dplyr::group_by(.data$feature) %>%
+  grouped <- if (by_plot) {
+    dplyr::group_by(records, .data$plot_name, .data$feature)
+  } else {
+    dplyr::group_by(records, .data$feature)
+  }
+  out <- grouped %>%
     dplyr::summarise(
       valuetype         = dplyr::first(.data$valuetype),
       unit              = dplyr::first(.data$unit),
@@ -744,8 +794,14 @@
       aggregate_display = dplyr::first(.data$aggregate_display),
       .groups = "drop"
     ) %>%
-    dplyr::mutate(is_aggregated = .data$n_records > 1) %>%
-    dplyr::arrange(dplyr::desc(.data$is_aggregated), .data$feature)
+    dplyr::mutate(is_aggregated = .data$n_records > 1)
+
+  if (by_plot) {
+    dplyr::arrange(out, .data$plot_name,
+                   dplyr::desc(.data$is_aggregated), .data$feature)
+  } else {
+    dplyr::arrange(out, dplyr::desc(.data$is_aggregated), .data$feature)
+  }
 }
 
 #' Which database column a feature record's value lives in
