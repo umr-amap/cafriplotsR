@@ -9364,6 +9364,42 @@
     {
       "en": "idtax_n will be written, but this individual is linked to specimen %s: extractions will keep showing the specimen's identification (idtax_individual_f). Re-identify the specimen to change what they show.",
       "fr": "idtax_n sera écrit, mais cet individu est lié au spécimen %s : les extractions continueront d'afficher l'identification du spécimen (idtax_individual_f). Ré-identifiez le spécimen pour changer ce qu'elles affichent."
+    },
+    {
+      "en": "Already recorded for these plots",
+      "fr": "Déjà enregistré pour ces parcelles"
+    },
+    {
+      "en": "Every feature the selected plot(s) already carry, as an extraction would summarise it. A feature that already has a record is not blocked here - adding another one makes the extracted value an aggregate.",
+      "fr": "Toutes les caractéristiques que portent déjà la ou les parcelles sélectionnées, telles qu'une extraction les résumerait. Une caractéristique déjà enregistrée n'est pas bloquée ici - en ajouter une autre rend la valeur extraite agrégée."
+    },
+    {
+      "en": "Only the feature types selected below",
+      "fr": "Uniquement les types de caractéristiques sélectionnés ci-dessous"
+    },
+    {
+      "en": "Select plots in step 1 to see what they already hold.",
+      "fr": "Sélectionnez des parcelles à l'étape 1 pour voir ce qu'elles portent déjà."
+    },
+    {
+      "en": "The selected plot(s) carry no feature yet.",
+      "fr": "La ou les parcelles sélectionnées ne portent encore aucune caractéristique."
+    },
+    {
+      "en": "%d feature(s) across %d plot(s).",
+      "fr": "%d caractéristique(s) sur %d parcelle(s)."
+    },
+    {
+      "en": "%d of them are already backed by several records.",
+      "fr": "%d d'entre elles reposent déjà sur plusieurs enregistrements."
+    },
+    {
+      "en": "Nothing recorded yet for the selected plot(s).",
+      "fr": "Rien d'enregistré pour la ou les parcelles sélectionnées."
+    },
+    {
+      "en": "Already recorded:",
+      "fr": "Déjà enregistré :"
     }
   ]
 }
