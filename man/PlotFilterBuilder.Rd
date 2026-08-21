@@ -7,6 +7,12 @@
 Allow building progressively a SQL query to filter plots
 following different criteria using the builder pattern
 }
+\details{
+A filter whose value matches nothing in the database adds an unsatisfiable
+condition, so the query returns no plots and warns. It does not drop the
+condition: an unmatched country silently returning every plot would look
+like a successful query.
+}
 \section{Methods}{
 
 \describe{
@@ -41,6 +47,16 @@ following different criteria using the builder pattern
     Filter plots by locality name(s).
     \itemize{
       \item \code{locality_name}: Character vector of locality name(s)
+    }
+  }
+  \item{\code{filter_features(feature_filters, exact_match = FALSE)}}{
+    Filter plots by their features -- rows of \code{data_liste_sub_plots}
+    typed by \code{subplotype_list}, not columns of \code{data_liste_plots}.
+    Each named feature adds a subquery, so different features are combined
+    with AND while the values of one feature are combined with OR.
+    \itemize{
+      \item \code{feature_filters}: Named list, names being feature types
+      \item \code{exact_match}: Logical. If TRUE, match values exactly rather than as substrings
     }
   }
   \item{\code{build(operator = "AND")}}{
@@ -85,6 +101,7 @@ query <- PlotFilterBuilder$new(con)$
     \item \href{#method-PlotFilterBuilder-filter_plot_name}{\code{PlotFilterBuilder$filter_plot_name()}}
     \item \href{#method-PlotFilterBuilder-filter_method}{\code{PlotFilterBuilder$filter_method()}}
     \item \href{#method-PlotFilterBuilder-filter_locality}{\code{PlotFilterBuilder$filter_locality()}}
+    \item \href{#method-PlotFilterBuilder-filter_features}{\code{PlotFilterBuilder$filter_features()}}
     \item \href{#method-PlotFilterBuilder-build}{\code{PlotFilterBuilder$build()}}
     \item \href{#method-PlotFilterBuilder-build_with_or}{\code{PlotFilterBuilder$build_with_or()}}
     \item \href{#method-PlotFilterBuilder-add_custom_condition}{\code{PlotFilterBuilder$add_custom_condition()}}
@@ -147,6 +164,17 @@ query <- PlotFilterBuilder$new(con)$
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{PlotFilterBuilder$filter_locality(locality_name)}
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-PlotFilterBuilder-filter_features"></a>}}
+\if{latex}{\out{\hypertarget{method-PlotFilterBuilder-filter_features}{}}}
+\subsection{\code{PlotFilterBuilder$filter_features()}}{
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{PlotFilterBuilder$filter_features(feature_filters, exact_match = FALSE)}
     \if{html}{\out{</div>}}
   }
 }

@@ -1661,8 +1661,6 @@ func_try_fetch <-
 #' @export
 try_open_postgres_table <- function(table, con) {
 
-  mydb <- call.mydb()
-
   table_postgre <- NULL
   rep <- TRUE
   rep_try <- 1

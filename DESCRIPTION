@@ -7,6 +7,7 @@ Description: Exploring and updating the database containing plot data from Centr
 License: GPL-2
 Imports:
     shiny,
+    R6,
     shiny.i18n,
     DBI,
     dplyr,
