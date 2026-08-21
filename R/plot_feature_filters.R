@@ -261,7 +261,7 @@ plot_feature_values <- function(feature, con = NULL) {
               COUNT(DISTINCT sp.id_table_liste_plots) AS n_plots
          FROM data_liste_sub_plots sp
          JOIN subplotype_list spt ON sp.id_type_sub_plot = spt.id_subplotype
-         JOIN {`lk$table`} lk ON lk.{`lk$id_column`} = sp.typevalue::integer
+         JOIN {`lk$table`} lk ON lk.{`lk$id_column`} = CAST(sp.typevalue AS INTEGER)
         WHERE spt.type = {feature}
           AND lk.{`lk$value_column`} IS NOT NULL
         GROUP BY 1
@@ -272,13 +272,13 @@ plot_feature_values <- function(feature, con = NULL) {
   } else {
 
     glue::glue_sql(
-      "SELECT BTRIM(sp.typevalue_char) AS value,
+      "SELECT TRIM(sp.typevalue_char) AS value,
               COUNT(DISTINCT sp.id_table_liste_plots) AS n_plots
          FROM data_liste_sub_plots sp
          JOIN subplotype_list spt ON sp.id_type_sub_plot = spt.id_subplotype
         WHERE spt.type = {feature}
           AND sp.typevalue_char IS NOT NULL
-          AND BTRIM(sp.typevalue_char) <> ''
+          AND TRIM(sp.typevalue_char) <> ''
         GROUP BY 1
         ORDER BY 2 DESC, 1",
       feature = feature, .con = con

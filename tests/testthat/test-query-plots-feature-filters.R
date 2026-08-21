@@ -288,6 +288,30 @@ test_that("plot_feature_filters() lists text features and omits measurements", {
   expect_true(all(c("feature", "valuetype", "category", "description") %in% names(res)))
 })
 
+test_that("plot_feature_values() returns the stored values of a character feature", {
+  con <- feature_filter_db()
+  on.exit(DBI::dbDisconnect(con))
+
+  res <- plot_feature_values("data_provider", con = con)
+
+  expect_equal(sort(res$value), c("Herbarium", "IRD", "IRD-CNRS"))
+  expect_true(all(res$n_plots == 1))
+})
+
+test_that("plot_feature_values() resolves a people feature to names", {
+  # The stored value is an id_table_colnam in `typevalue`; what the user needs
+  # to filter on is the name.
+  con <- feature_filter_db()
+  on.exit(DBI::dbDisconnect(con))
+
+  res <- plot_feature_values("principal_investigator", con = con)
+
+  expect_equal(sort(res$value), c("Dauby", "Sonke"))
+  # Dauby leads two of the three plots, so the list is led by them.
+  expect_equal(res$value[1], "Dauby")
+  expect_equal(res$n_plots[res$value == "Dauby"], 2)
+})
+
 test_that("plot_feature_values() refuses a feature that holds measurements", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
