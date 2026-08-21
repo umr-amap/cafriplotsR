@@ -867,6 +867,62 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
           }
         }
 
+        # 3b. Features the selected plots already carry. Never an error - a
+        # second record is sometimes exactly what is wanted - but a plot
+        # quietly ending up with two values, and an extracted column that is
+        # suddenly an aggregate, should not happen unnoticed.
+        if (mode == "add_features" && "id_liste_plots" %in% names(data)) {
+          feat_cols <- intersect(
+            if (is.null(config$subplottype_fields)) {
+              character(0)
+            } else {
+              config$subplottype_fields
+            },
+            names(data)
+          )
+          if (length(feat_cols) > 0) {
+            existing <- tryCatch(
+              .upd_plot_feature_records(
+                unique(data$id_liste_plots[!is.na(data$id_liste_plots)]), con()
+              ),
+              error = function(e) {
+                cli::cli_alert_warning("Could not check existing features: {e$message}")
+                NULL
+              }
+            )
+            if (!is.null(existing) && nrow(existing) > 0) {
+              for (feat in feat_cols) {
+                have <- existing[existing$feature == feat, , drop = FALSE]
+                if (nrow(have) == 0) next
+                for (i in seq_len(nrow(data))) {
+                  val <- data[[feat]][i]
+                  if (length(val) == 0 || is.na(val) ||
+                      !nzchar(trimws(as.character(val)))) next
+                  mine <- have[have$id_plot == data$id_liste_plots[i], , drop = FALSE]
+                  if (nrow(mine) == 0) next
+                  same_year <- !is.na(data$year[i]) &&
+                    any(!is.na(mine$year) & mine$year == data$year[i])
+                  msg <- if (same_year) {
+                    sprintf(
+                      i18n()$t("'%s' is already recorded for this plot in %s"),
+                      feat, as.character(data$year[i])
+                    )
+                  } else {
+                    sprintf(
+                      i18n()$t("This plot already carries %d '%s' record(s); another one makes the extracted value an aggregate"),
+                      nrow(mine), feat
+                    )
+                  }
+                  warnings <- rbind(warnings, data.frame(
+                    row = i, column = feat, warning = msg,
+                    stringsAsFactors = FALSE
+                  ))
+                }
+              }
+            }
+          }
+        }
+
         # 4. Check required fields present
         if (nrow(data) == 0) {
           errors <- rbind(errors, data.frame(

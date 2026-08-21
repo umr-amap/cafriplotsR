@@ -9400,6 +9400,14 @@
     {
       "en": "Already recorded:",
       "fr": "Déjà enregistré :"
+    },
+    {
+      "en": "'%s' is already recorded for this plot in %s",
+      "fr": "'%s' est déjà enregistrée pour cette parcelle en %s"
+    },
+    {
+      "en": "This plot already carries %d '%s' record(s); another one makes the extracted value an aggregate",
+      "fr": "Cette parcelle porte déjà %d enregistrement(s) '%s' ; un de plus rend la valeur extraite agrégée"
     }
   ]
 }
