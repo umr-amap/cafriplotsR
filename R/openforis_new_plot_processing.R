@@ -97,7 +97,10 @@
 #'     original_tax_name, idtax_n, tax_appendix, herbarium_nbe_char,
 #'     herbarium_nbe_type, position_x, position_y, multi_stem,
 #'     number_multi_stem, multi_tiges_id (tag of the main stem, NA for the main
-#'     stem itself). \code{idtax_n} is copied from the OpenForis
+#'     stem itself). \code{herbarium_nbe_char} is repeated on every individual
+#'     identified as the species of a voucher, while \code{herbarium_nbe_type}
+#'     names each specimen once, on the individual it was collected from.
+#'     \code{idtax_n} is copied from the OpenForis
 #'     \code{species_code} without being checked against the taxonomic
 #'     backbone — see the note below.}
 #'   \item{individuals_wide}{The same stems with one column per trait and a
@@ -976,6 +979,10 @@ process_openforis_new_plot <- function(data_dir = NULL,
                                                     quadrat_codes = NULL,
                                                     morpho_codes = NULL) {
 
+  # Sorted up front so that "the first individual carrying a voucher" below is
+  # the lowest tag of the lowest plot name, not an artefact of the file order
+  trees <- trees[order(trees$plot_name, trees$tag), , drop = FALSE]
+
   result <- data.frame(
     plot_name = trees$plot_name,
     tag = trees$tag,
@@ -1012,11 +1019,27 @@ process_openforis_new_plot <- function(data_dir = NULL,
   if ("tax_appendix" %in% names(trees))
     result$tax_appendix <- as.character(trees$tax_appendix)
 
-  # Vouchers
+  # Vouchers: every individual field-identified as the species of a specimen
+  # carries its number in herbarium_nbe_char, but the specimen was collected on
+  # a single tree, so herbarium_nbe_type holds each voucher exactly once
   if ("herbarium_nbe_char" %in% names(trees)) {
     voucher <- .apply_specimen_prefix(trees$herbarium_nbe_char, specimen_prefix)
     result$herbarium_nbe_char <- voucher
-    result$herbarium_nbe_type <- voucher
+    result$herbarium_nbe_type <- .flag_type_individuals(
+      voucher,
+      specimen_number = trees[["specimen_number"]],
+      collected_flag  = trees[["any_voucher"]]
+    )
+
+    n_ref  <- sum(!is.na(result$herbarium_nbe_char))
+    n_type <- sum(!is.na(result$herbarium_nbe_type))
+    if (n_ref > n_type) {
+      cli::cli_alert_info(paste(
+        "{n_ref} individual{?s} carr{?ies/y} a voucher number;",
+        "{n_type} of them flagged as the collected individual",
+        "({.field herbarium_nbe_type})"
+      ))
+    }
   }
 
   if ("position_x" %in% names(trees))
@@ -1028,9 +1051,57 @@ process_openforis_new_plot <- function(data_dir = NULL,
   if ("number_multi_stem" %in% names(trees))
     result$number_multi_stem <- suppressWarnings(as.integer(trees$number_multi_stem))
 
-  result <- result[order(result$plot_name, result$tag), , drop = FALSE]
   rownames(result) <- NULL
   result
+}
+
+
+#' Flag the single individual each herbarium specimen was collected on
+#'
+#' The OpenForis forms write the voucher number on every stem field-identified
+#' as the species of that voucher, so one specimen number can appear on many
+#' individuals. Only one of them is the tree the specimen was actually taken
+#' from, and that is what \code{herbarium_nbe_type} records: one row per
+#' specimen. Among the individuals sharing a voucher, the one flagged as
+#' collected wins, then the one carrying a collection number, ties going to the
+#' first row — the caller sorts by plot name then tag beforehand.
+#'
+#' @param voucher Character vector of voucher numbers, prefix already applied.
+#' @param specimen_number Collection numbers in the same order, or NULL.
+#' @param collected_flag The \code{any_voucher} column in the same order
+#'   (1 = this stem was collected), or NULL when the form has none.
+#' @return Character vector as long as \code{voucher}, holding the voucher on
+#'   the collected individual and \code{NA} on every other individual.
+#' @keywords internal
+.flag_type_individuals <- function(voucher, specimen_number = NULL,
+                                   collected_flag = NULL) {
+
+  voucher <- as.character(voucher)
+  if (length(voucher) == 0) return(character(0))
+
+  key <- trimws(voucher)
+  key[!is.na(key) & !nzchar(key)] <- NA_character_
+
+  filled <- function(x) {
+    if (is.null(x)) return(rep(FALSE, length(key)))
+    x <- trimws(as.character(x))
+    !is.na(x) & nzchar(x)
+  }
+
+  collected <- if (is.null(collected_flag)) {
+    rep(FALSE, length(key))
+  } else {
+    flag <- suppressWarnings(as.numeric(collected_flag)) == 1
+    flag[is.na(flag)] <- FALSE
+    flag
+  }
+
+  ord <- order(!collected, !filled(specimen_number), seq_along(key))
+  is_type <- rep(FALSE, length(key))
+  keep <- !is.na(key[ord]) & !duplicated(key[ord])
+  is_type[ord[keep]] <- TRUE
+
+  ifelse(is_type, voucher, NA_character_)
 }
 
 

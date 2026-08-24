@@ -140,7 +140,10 @@ A list with components:
     original_tax_name, idtax_n, tax_appendix, herbarium_nbe_char,
     herbarium_nbe_type, position_x, position_y, multi_stem,
     number_multi_stem, multi_tiges_id (tag of the main stem, NA for the main
-    stem itself). \code{idtax_n} is copied from the OpenForis
+    stem itself). \code{herbarium_nbe_char} is repeated on every individual
+    identified as the species of a voucher, while \code{herbarium_nbe_type}
+    names each specimen once, on the individual it was collected from.
+    \code{idtax_n} is copied from the OpenForis
     \code{species_code} without being checked against the taxonomic
     backbone — see the note below.}
   \item{individuals_wide}{The same stems with one column per trait and a

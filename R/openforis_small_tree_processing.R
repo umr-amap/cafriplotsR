@@ -180,7 +180,10 @@
 #'     number_multi_stem, multi_tiges_id (tag of the main stem, NA for the main
 #'     stem itself). The two position columns are part of the form but the
 #'     small-tree protocol does not map stems, so in practice they arrive
-#'     empty. \code{idtax_n} is copied from the OpenForis \code{species_code}
+#'     empty. \code{herbarium_nbe_char} is repeated on every individual
+#'     identified as the species of a voucher, while \code{herbarium_nbe_type}
+#'     names each specimen once, on the individual it was collected from.
+#'     \code{idtax_n} is copied from the OpenForis \code{species_code}
 #'     without being checked against the taxonomic backbone — see the note
 #'     below.}
 #'   \item{individuals_wide}{The same stems with one column per trait and a
