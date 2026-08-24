@@ -9440,6 +9440,18 @@
     {
       "en": "Add feature filter",
       "fr": "Ajouter un filtre sur caractéristique"
+    },
+    {
+      "en": "No collector has been matched to the database. Go back to the collector matching step (Step 3) and apply the matches.",
+      "fr": "Aucun collecteur n'a été apparié à la base de données. Revenez à l'étape d'appariement des collecteurs (étape 3) et appliquez les correspondances."
+    },
+    {
+      "en": "No collector and number combination is available to query. Check the collector matching step (Step 3).",
+      "fr": "Aucune combinaison collecteur/numéro n'est disponible pour la requête. Vérifiez l'étape d'appariement des collecteurs (étape 3)."
+    },
+    {
+      "en": "None of the %d collector and number combinations exist in the specimens table. Review the table below, then correct the collector matching or add the missing specimens.",
+      "fr": "Aucune des %d combinaisons collecteur/numéro n'existe dans la table des spécimens. Consultez le tableau ci-dessous, puis corrigez l'appariement des collecteurs ou ajoutez les spécimens manquants."
     }
   ]
 }

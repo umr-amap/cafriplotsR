@@ -79,58 +79,114 @@ mod_specimen_retriever_server <- function(id, parsed_data, collector_matches, co
 
         tryCatch({
           # Extract collector matches
-          if (is.list(matches) && "collector" %in% names(matches)) {
-            collector_map <- matches$collector
-          } else {
-            stop("collector_matches must contain 'collector' element")
+          collector_map <- if (is.list(matches)) matches$collector else NULL
+
+          # Convert to data frame, dropping anything that is not a usable id.
+          # Built defensively so an empty or malformed match list yields an
+          # empty two-column frame rather than breaking the join below.
+          collector_names <- as.character(names(collector_map))
+          collector_ids <- suppressWarnings(as.integer(unlist(collector_map)))
+
+          if (length(collector_names) != length(collector_ids)) {
+            cli::cli_alert_warning("Unexpected collector match structure, ignoring it")
+            collector_names <- character(0)
+            collector_ids <- integer(0)
           }
 
-          # Convert to data frame
           match_df <- data.frame(
-            extracted_collector = names(collector_map),
-            id_colnam = as.integer(unlist(collector_map)),
+            extracted_collector = collector_names,
+            id_colnam = collector_ids,
             stringsAsFactors = FALSE
           )
+          match_df <- match_df[!is.na(match_df$id_colnam), , drop = FALSE]
+
+          if (nrow(match_df) == 0) {
+            cli::cli_alert_warning("No collector was matched to the database")
+            shiny::showNotification(
+              i18n()$t("No collector has been matched to the database. Go back to the collector matching step (Step 3) and apply the matches."),
+              type = "warning",
+              duration = 10
+            )
+          }
 
           # Join with parsed data
           parsed_with_ids <- parsed %>%
             dplyr::left_join(match_df, by = "extracted_collector")
+
+          # The parser always supplies idtax_n, but guard so a malformed
+          # upstream table degrades instead of erroring in the join below
+          if (!"idtax_n" %in% names(parsed_with_ids)) {
+            parsed_with_ids$idtax_n <- NA_integer_
+          }
+          parsed_with_ids <- parsed_with_ids %>%
+            dplyr::rename(individual_idtax_n = idtax_n)
 
           cli::cli_alert_success("Applied collector matches: {nrow(parsed_with_ids)} rows")
 
           shiny::incProgress(0.4, detail = i18n()$t("Querying specimens table..."))
 
           # Get collector summaries with min/max specimen numbers
-          collector_ranges <- parsed_with_ids %>%
-            dplyr::filter(!is.na(id_colnam), !is.na(extracted_number)) %>%
-            dplyr::group_by(id_colnam) %>%
-            dplyr::summarise(
-              min_number = min(extracted_number, na.rm = TRUE),
-              max_number = max(extracted_number, na.rm = TRUE),
-              .groups = "drop"
+          queryable <- parsed_with_ids %>%
+            dplyr::filter(!is.na(id_colnam), !is.na(extracted_number))
+
+          if (nrow(queryable) == 0) {
+            # summarise() would still evaluate min()/max() once on an empty
+            # frame, warning about "no non-missing arguments"
+            collector_ranges <- data.frame(
+              id_colnam = integer(0),
+              min_number = numeric(0),
+              max_number = numeric(0)
             )
-
-          cli::cli_alert_info("Querying specimens for {nrow(collector_ranges)} collectors")
-
-          # Query all specimens for each collector in the number range
-          all_specimens <- purrr::pmap_dfr(
-            list(
-              collector_ranges$id_colnam,
-              collector_ranges$min_number,
-              collector_ranges$max_number
-            ),
-            function(collector_id, min_num, max_num) {
-              cli::cli_alert_info("  Querying collector {collector_id}: specimens {min_num}-{max_num}")
-
-              query_specimens(
-                id_colnam = collector_id,
-                number_min = min_num,
-                number_max = max_num,
-                subset_columns = TRUE,
-                con = con()
+          } else {
+            collector_ranges <- queryable %>%
+              dplyr::group_by(id_colnam) %>%
+              dplyr::summarise(
+                min_number = min(extracted_number, na.rm = TRUE),
+                max_number = max(extracted_number, na.rm = TRUE),
+                .groups = "drop"
               )
-            }
-          )
+          }
+
+          if (nrow(collector_ranges) == 0) {
+            # Nothing queryable: no collector was matched, or no number parsed
+            cli::cli_alert_warning(
+              "No collector/number combination available to query the specimens table"
+            )
+            shiny::showNotification(
+              i18n()$t("No collector and number combination is available to query. Check the collector matching step (Step 3)."),
+              type = "warning",
+              duration = 10
+            )
+            all_specimens <- .empty_retrieved_specimens()
+          } else {
+            cli::cli_alert_info("Querying specimens for {nrow(collector_ranges)} collectors")
+
+            # Query all specimens for each collector in the number range
+            all_specimens <- purrr::pmap_dfr(
+              list(
+                collector_ranges$id_colnam,
+                collector_ranges$min_number,
+                collector_ranges$max_number
+              ),
+              function(collector_id, min_num, max_num) {
+                cli::cli_alert_info("  Querying collector {collector_id}: specimens {min_num}-{max_num}")
+
+                found <- query_specimens(
+                  id_colnam = collector_id,
+                  number_min = min_num,
+                  number_max = max_num,
+                  subset_columns = TRUE,
+                  con = con()
+                )
+
+                # query_specimens() returns the raw, un-enriched table when it
+                # finds nothing, so normalise before the rows are bound
+                .normalize_retrieved_specimens(found)
+              }
+            )
+          }
+
+          all_specimens <- .normalize_retrieved_specimens(all_specimens)
 
           cli::cli_alert_success("Retrieved {nrow(all_specimens)} specimens from database")
 
@@ -138,16 +194,22 @@ mod_specimen_retriever_server <- function(id, parsed_data, collector_matches, co
 
           # Match specimens to parsed data
           # Join on collector ID and specimen number
+          specimens_side <- all_specimens %>%
+            dplyr::select(
+              id_colnam,
+              colnbr,
+              id_specimen,
+              specimen_idtax_n = idtax_f,
+              collector_name = colnam
+            )
+
           preliminary_links <- parsed_with_ids %>%
             dplyr::left_join(
-              all_specimens,
+              specimens_side,
               by = c("id_colnam" = "id_colnam", "extracted_number" = "colnbr")
             ) %>%
             dplyr::mutate(
-              match_status = ifelse(!is.na(id_specimen), "found", "not_found"),
-              individual_idtax_n = idtax_n.x,  # From parsed_with_ids (individuals)
-              specimen_idtax_n = idtax_f,      # From all_specimens
-              collector_name = colnam          # From all_specimens (enriched)
+              match_status = ifelse(!is.na(id_specimen), "found", "not_found")
             ) %>%
             dplyr::select(
               id_n, tag, code_individu, plot_name,
@@ -159,22 +221,42 @@ mod_specimen_retriever_server <- function(id, parsed_data, collector_matches, co
 
           shiny::incProgress(0.8, detail = i18n()$t("Finalizing..."))
 
-          if (nrow(preliminary_links) == 0) {
+          n_found <- sum(!is.na(preliminary_links$id_specimen))
+          n_total <- nrow(preliminary_links)
+
+          if (n_total == 0) {
             cli::cli_alert_warning("No preliminary links found")
+            retrieved_specimens(NULL)
             shiny::showNotification(
               i18n()$t("No matching specimens found in the database."),
               type = "warning",
-              duration = 5
+              duration = 10
             )
             retrieval_complete(FALSE)
+          } else if (n_found == 0) {
+            # The parsed collector/number combinations simply are not in the
+            # specimens table: show what was searched instead of failing
+            cli::cli_alert_warning(
+              "None of the {n_total} collector/number combination(s) exist in the specimens table"
+            )
+            retrieved_specimens(preliminary_links)
+            retrieval_complete(FALSE)
+
+            shiny::incProgress(1, detail = i18n()$t("Complete!"))
+
+            shiny::showNotification(
+              sprintf(
+                i18n()$t("None of the %d collector and number combinations exist in the specimens table. Review the table below, then correct the collector matching or add the missing specimens."),
+                n_total
+              ),
+              type = "warning",
+              duration = NULL
+            )
           } else {
             retrieved_specimens(preliminary_links)
             retrieval_complete(TRUE)
 
             shiny::incProgress(1, detail = i18n()$t("Complete!"))
-
-            n_found <- sum(!is.na(preliminary_links$id_specimen))
-            n_total <- nrow(preliminary_links)
 
             cli::cli_alert_success("Found {n_found}/{n_total} matching specimens")
 
@@ -325,4 +407,55 @@ mod_specimen_retriever_server <- function(id, parsed_data, collector_matches, co
       is_complete = retrieval_complete
     ))
   })
+}
+
+
+#' Empty specimen table with the columns the retriever needs
+#'
+#' `query_specimens()` returns the raw, un-enriched (and possibly zero-column)
+#' table when nothing matches, which breaks the downstream join and mutate.
+#' This gives a zero-row table carrying the columns the retriever relies on.
+#'
+#' @return A zero-row tibble with columns `id_specimen`, `id_colnam`, `colnbr`,
+#'   `idtax_n`, `idtax_f` and `colnam`.
+#' @keywords internal
+.empty_retrieved_specimens <- function() {
+  dplyr::tibble(
+    id_specimen = integer(0),
+    id_colnam = integer(0),
+    colnbr = numeric(0),
+    idtax_n = integer(0),
+    idtax_f = integer(0),
+    colnam = character(0)
+  )
+}
+
+
+#' Ensure a retrieved specimen table carries the expected columns
+#'
+#' Adds any column missing from a `query_specimens()` result - which happens
+#' when no specimen matches, or when collector/taxonomy enrichment was skipped
+#' - filled with `NA` of the right type, so callers can join and select on
+#' them unconditionally.
+#'
+#' @param specimens Data frame returned by `query_specimens()`, or `NULL`.
+#'
+#' @return A tibble with at least the columns of
+#'   [.empty_retrieved_specimens()].
+#' @keywords internal
+.normalize_retrieved_specimens <- function(specimens) {
+
+  template <- .empty_retrieved_specimens()
+
+  if (is.null(specimens) || !is.data.frame(specimens) || nrow(specimens) == 0) {
+    return(template)
+  }
+
+  for (col in names(template)) {
+    if (!col %in% names(specimens)) {
+      specimens[[col]] <- template[[col]][NA_integer_]
+    }
+  }
+
+  dplyr::as_tibble(specimens)
 }
