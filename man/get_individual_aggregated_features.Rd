@@ -33,6 +33,12 @@ drop flagged rows), "include" (keep rows and add issue column), or "ignore"
 
 \item{include_measurement_ids}{Include aggregated id_trait_measures column (default FALSE)}
 
+\item{census_strategy}{Character. Which census to keep when
+`include_multi_census = FALSE`: "last" (default), "first", or "mean" (no
+census filtering, all measurements kept). The census is selected per plot
+across all traits, so a trait with no measurement at the selected census is
+dropped from the result and named in a warning.}
+
 \item{con}{Database connection}
 }
 \value{

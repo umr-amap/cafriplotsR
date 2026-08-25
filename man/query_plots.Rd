@@ -37,7 +37,8 @@ query_plots(
   output_style = "auto",
   backbone = c("internal", "wcvp"),
   con = NULL,
-  con.taxa = NULL
+  con.taxa = NULL,
+  verbose = NULL
 )
 }
 \arguments{
@@ -111,9 +112,22 @@ in the output list. Default is FALSE.}
 \item{include_measurement_ids}{Logical. Whether to include measurement IDs in aggregated output. Optional.}
 
 \item{census_strategy}{Character. Strategy for selecting census when `show_multiple_census = FALSE`.
-Options: "last" (default, most recent census), "first" (earliest census), or "mean" (average across all censuses).
-When "first" or "last" is selected, individuals recruited after the first census or dead before the last census
-will have NA values, reflecting biological reality.}
+  Options: "last" (default, most recent census), "first" (earliest census), or "mean" (average across all censuses).
+  When "first" or "last" is selected, individuals recruited after the first census or dead before the last census
+  will have NA values, reflecting biological reality.
+
+  The census is chosen per plot, not per trait: one census is selected from
+  all of the plot's measurements, and every census-linked trait is then filtered
+  to it. A trait never measured at that census therefore disappears from the
+  output entirely - it returns no column at all, not a column of NAs, because the
+  wide pivot only creates columns for trait/census combinations that carry data.
+  This is common for tree height, which is often measured at the first census or
+  two and not re-measured afterwards. Every dropped trait is named in a warning
+  listing the censuses where it does exist. To keep it, use
+  `show_multiple_census = TRUE` (one `<trait>_census_N` column per census) or
+  `census_strategy = "mean"`. With `output_style = "full"`, height and diameter
+  are also returned unfiltered in the `height_diameter` table, which always
+  spans every census.}
 
 \item{individual_features_format}{Character. Format for individual-level feature measurements.
 `"wide"` (default) returns one row per individual with one column per trait (aggregated).
@@ -152,6 +166,14 @@ If you've already connected with `mydb <- call.mydb()`, pass `con = mydb` to avo
 
 \item{con.taxa}{Optional database connection to taxa database. If NULL, will check for `mydb.taxa` in calling environment,
 otherwise will call call.mydb.taxa() to establish connection. Pass explicitly to avoid credential prompts.}
+
+\item{verbose}{Console verbosity. `"normal"` (the default) reports only what
+was found, what was excluded on the way, and which tables came back;
+`"quiet"` reports nothing but warnings; `"debug"` prints the full
+step-by-step log of every internal query, which is what earlier versions
+always printed. `TRUE` and `FALSE` are accepted as `"debug"` and `"quiet"`.
+Set a session default with `options(CafriplotsR.verbose = "debug")`.
+Interactive matching prompts are never muted.}
 }
 \value{
 A list or data frame containing plot data and associated information. When multiple 

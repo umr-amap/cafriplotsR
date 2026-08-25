@@ -59,6 +59,7 @@ Suggests:
     ggpubr,
     BIOMASS (>= 2.2.4),
     shinytest2,
+    withr,
     chromote,
     RSQLite
 Encoding: UTF-8
