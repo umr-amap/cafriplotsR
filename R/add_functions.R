@@ -3402,28 +3402,148 @@ add_specimens <- function(new_data ,
   
 }
 
-
-
-
-
-#' Add 1ha IRd plot coordinates
+#' Match a requested column name against the columns of a dataset
 #'
-#' print table as html in viewer reordered
+#' Looks up `column` in `names(dataset)`, falling back to a case-insensitive
+#' match (so that `x_theo` is found when `X_theo` is requested). A column that
+#' cannot be found is an error: tidy evaluation would otherwise silently fall
+#' back to a variable of the same name in the calling environment and produce a
+#' wrong result without any warning.
 #'
+#' @param dataset a data.frame
+#' @param column string, the requested column name
+#' @param arg_name string, name of the argument holding `column`, used in messages
+#'
+#' @return string, the name of the matching column of `dataset`
+#'
+#' @noRd
+.match_column <- function(dataset, column, arg_name) {
+
+  if (is.null(column) || length(column) != 1 || !is.character(column) ||
+      is.na(column))
+    stop(paste0("`", arg_name, "` must be a single column name"))
+
+  nms <- names(dataset)
+
+  if (any(nms == column)) return(column)
+
+  hit <- nms[tolower(nms) == tolower(column)]
+
+  if (length(hit) == 1) {
+    cli::cli_alert_info(
+      "Column {.val {column}} not found, using {.val {hit}} instead"
+    )
+    return(hit)
+  }
+
+  stop(paste0("column '", column, "' (argument `", arg_name,
+              "`) not found in dataset. Available columns: ",
+              paste(nms, collapse = ", ")))
+}
+
+
+#' Format one component of a quadrat label
+#'
+#' Whole numbers are written without decimals so that a numeric 20 and a
+#' character "20" both give the subplot feature `..._20_...`.
+#'
+#' @param x vector of X or Y theoretical coordinates
+#'
+#' @return character vector, `NA` where no label could be built
+#'
+#' @noRd
+.format_quadrat_component <- function(x) {
+
+  if (is.numeric(x)) {
+    out <- ifelse(
+      is.na(x),
+      NA_character_,
+      ifelse(x == round(x),
+             format(round(x), trim = TRUE, scientific = FALSE),
+             format(x, trim = TRUE, scientific = FALSE))
+    )
+    return(out)
+  }
+
+  out <- stringr::str_squish(as.character(x))
+  out[is.na(out) | out == ""] <- NA_character_
+  out
+}
+
+
+#' First non missing value of a vector
+#'
+#' @param x a vector
+#'
+#' @return a vector of length one, of the same type as `x`
+#'
+#' @noRd
+.first_non_na <- function(x) {
+  non_na <- x[!is.na(x)]
+  if (length(non_na) > 0) return(non_na[[1]])
+  x[[1]]
+}
+
+
+#' Add 1-ha plot quadrat coordinates
+#'
+#' @description
+#' Reshape a table of quadrat (jalon) GPS coordinates - one row per measured
+#' quadrat, with its theoretical X/Y position within the plot and its measured
+#' latitude and longitude - into the wide, one-row-per-plot layout used by the
+#' \code{ddlat_plot_X_Y_<X>_<Y>} and \code{ddlon_plot_X_Y_<X>_<Y>} subplot features, and
+#' optionally add those features to the database with \code{\link{add_subplot_features}}.
+#'
+#' Several measurements of the same quadrat of the same plot are averaged.
+#' Quadrats missing for a given plot are left empty and are not added.
+#'
+#' @details
+#' Column names are matched case-insensitively, so a dataset holding \code{x_theo}
+#' and \code{y_theo} is accepted with the default \code{X_theo} / \code{Y_theo} arguments. A
+#' column that cannot be found at all raises an error, instead of silently
+#' producing a single meaningless \code{X_theo_Y_theo} quadrat.
+#'
+#' When \code{launch_add_data = TRUE}, or when \code{con} is provided, the generated
+#' feature names are checked against \code{subplotype_list} before anything is
+#' written: \code{\link{add_subplot_features}} would otherwise fall back to an interactive
+#' fuzzy match for an unknown feature and risk storing the coordinates under the
+#' wrong subplot type. Missing types can be created with \code{\link{add_subplottype}}.
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#' @param dataset tibble
+#' @param dataset tibble with one row per measured quadrat
 #' @param ddlat column name of dataset containing latitude in decimal degrees
 #' @param ddlon column name of dataset containing longitude in decimal degrees
-#' @param launch_add_data whether addd data or not
+#' @param launch_add_data logical, whether data should be added to the database,
+#'   \code{FALSE} by default
 #' @param X_theo column that contain the X quadrat name
 #' @param Y_theo column that contain the Y quadrat name
 #' @param check_existing_data check if data already exists
 #' @param add_cols string character vectors with columns names of dataset of additonal information
 #' @param cor_cols string character vectors with colums names corresponding to add_cols
-#' @param collector_field string vector of size one with column name containing the name of the person collecting data
+#' @param collector_field string vector of size one with column name containing
+#'   the name of the person collecting data. It is kept in the returned tables
+#'   but is not written to the database: \code{data_liste_sub_plots} only stores a
+#'   collector for \code{table_colnam} features.
+#' @param plot_name_field column name holding the plot name, \code{"plot_name"} by default
+#' @param con database connection, created if \code{NULL} and needed
 #'
-#' @return print html in viewer
+#' @return a named list of two tibbles, \code{ddlat} and \code{ddlon}, with one row per
+#'   plot and one column per quadrat
+#'
+#' @examples
+#' \dontrun{
+#' jalons <- readxl::read_excel("SOMALOMO_jalons.xlsx")
+#'
+#' # rehearsal: reshape and print, nothing is written
+#' coords <- add_plot_coordinates(jalons, ddlat = "latitude", ddlon = "longitude")
+#'
+#' # add to the database, dating the features with the survey year and month
+#' jalons <- dplyr::mutate(jalons, coly = 2026, colm = 6)
+#' add_plot_coordinates(jalons, ddlat = "latitude", ddlon = "longitude",
+#'                      add_cols = c("coly", "colm"),
+#'                      cor_cols = c("year", "month"),
+#'                      launch_add_data = TRUE)
+#' }
 #' @export
 add_plot_coordinates <-
   function(dataset,
@@ -3435,69 +3555,217 @@ add_plot_coordinates <-
            check_existing_data = TRUE,
            add_cols = NULL,
            cor_cols = NULL,
-           collector_field = NULL) {
-    
-    X_theo_p <- dplyr::sym(X_theo)
-    Y_theo_p <- dplyr::sym(Y_theo)
-    
-    dataset <- 
-      dataset %>% 
-      mutate(quadrat = paste(!!X_theo_p, !!Y_theo_p, sep = "_"))
-    
-    all_q <- dataset %>%
-      distinct(quadrat) %>% pull()
-    
-    all_cols <- c(ddlat, ddlon)
-    
-    res_l <- vector('list', length(all_cols))
-    for (i in 1:length(all_cols)) {
-      col_s <- dplyr::sym(all_cols[i])
-      
-      if (!any(names(dataset) == col_s))
-        stop(glue::glue("{col_s} column not found"))
-      
-      if (i == 1)
-        names_pref <- "ddlat_plot_X_Y_"
-      if (i == 2)
-        names_pref <- "ddlon_plot_X_Y_"
-      
-      dataset <-
-        dataset %>%
-        mutate(!!col_s := as.numeric(!!col_s))
-      
-      res_l[[i]] <-
-        tidyr::pivot_wider(
-          data = dataset,
-          names_from = quadrat,
-          values_from = !!col_s,
-          names_prefix = names_pref
-        ) %>%
-        group_by(plot_name) %>%
-        summarise(across(starts_with(names_pref), ~ mean(.x, na.rm = TRUE)),
-                  across(all_of(add_cols), ~ first(.x)),
-                  across(all_of(collector_field), ~ first(.x)))
-      
-      print(res_l[[i]])
-      
-      if (launch_add_data) {
-        
-        add_subplot_features(new_data = res_l[[i]], 
-                             col_names_select = add_cols, 
-                             col_names_corresp = cor_cols, 
-                             plot_name_field = "plot_name", 
-                             subplottype_field = res_l[[i]] %>% 
-                               dplyr::select(starts_with("ddl")) %>% names(), 
-                             add_data = TRUE,
-                             ask_before_update = FALSE,
-                             check_existing_data = check_existing_data)
-        
-      } else {
-        cli::cli_alert_danger("No data added because launch_add_data is FALSE")
-      }
+           collector_field = NULL,
+           plot_name_field = "plot_name",
+           con = NULL) {
+
+    if (!is.data.frame(dataset))
+      stop("dataset must be a data.frame or a tibble")
+
+    if (!is.null(add_cols) || !is.null(cor_cols))
+      if (length(add_cols) != length(cor_cols))
+        stop("add_cols and cor_cols must have the same length")
+
+    if (length(collector_field) > 1)
+      stop("collector_field must be a single column name")
+
+    ## Resolve every column against the data before using it
+    plot_col <- .match_column(dataset, plot_name_field, "plot_name_field")
+    x_col <- .match_column(dataset, X_theo, "X_theo")
+    y_col <- .match_column(dataset, Y_theo, "Y_theo")
+    lat_col <- .match_column(dataset, ddlat, "ddlat")
+    lon_col <- .match_column(dataset, ddlon, "ddlon")
+
+    extra_cols <- unique(c(add_cols, collector_field))
+    if (length(extra_cols) > 0)
+      extra_cols <-
+        vapply(extra_cols,
+               function(x) .match_column(dataset, x, "add_cols/collector_field"),
+               FUN.VALUE = character(1), USE.NAMES = FALSE)
+
+    dataset <- dplyr::as_tibble(dataset)
+
+    ## Build quadrat labels, e.g. 20 and 100 give "20_100"
+    quad_x <- .format_quadrat_component(dataset[[x_col]])
+    quad_y <- .format_quadrat_component(dataset[[y_col]])
+
+    work <-
+      dplyr::tibble(
+        plot_name = as.character(dataset[[plot_col]]),
+        quadrat = ifelse(is.na(quad_x) | is.na(quad_y),
+                         NA_character_,
+                         paste(quad_x, quad_y, sep = "_")),
+        quad_x = suppressWarnings(as.numeric(quad_x)),
+        quad_y = suppressWarnings(as.numeric(quad_y)),
+        ddlat_value = suppressWarnings(as.numeric(dataset[[lat_col]])),
+        ddlon_value = suppressWarnings(as.numeric(dataset[[lon_col]]))
+      )
+
+    for (i in 1:2) {
+      col_in <- c(lat_col, lon_col)[i]
+      col_out <- c("ddlat_value", "ddlon_value")[i]
+      n_lost <- sum(is.na(work[[col_out]]) & !is.na(dataset[[col_in]]))
+      if (n_lost > 0)
+        cli::cli_alert_warning(
+          "{n_lost} non numeric value{?s} of column {.val {col_in}} ignored"
+        )
     }
-    
+
+    n_dropped <- sum(is.na(work$plot_name) | is.na(work$quadrat))
+    if (n_dropped > 0)
+      cli::cli_alert_warning(
+        "{n_dropped} row{?s} without plot name or without quadrat coordinates ignored"
+      )
+
+    work <-
+      work %>%
+      dplyr::filter(!is.na(.data$plot_name), !is.na(.data$quadrat))
+
+    if (nrow(work) == 0)
+      stop("no row with both a plot name and quadrat coordinates")
+
+    ## Column order: quadrats sorted by X then Y, alphabetically if not numeric
+    quadrat_order <-
+      work %>%
+      dplyr::distinct(.data$quadrat, .data$quad_x, .data$quad_y)
+
+    if (anyNA(quadrat_order$quad_x) || anyNA(quadrat_order$quad_y)) {
+      quadrat_order <- dplyr::arrange(quadrat_order, .data$quadrat)
+    } else {
+      quadrat_order <- dplyr::arrange(quadrat_order, .data$quad_x, .data$quad_y)
+    }
+    quadrat_order <- quadrat_order$quadrat
+
+    ## One value per plot for the additional columns
+    extras <- NULL
+    if (length(extra_cols) > 0) {
+
+      extras <-
+        dplyr::bind_cols(
+          dplyr::tibble(plot_name = as.character(dataset[[plot_col]])),
+          dataset %>% dplyr::select(dplyr::all_of(extra_cols))
+        ) %>%
+        dplyr::filter(!is.na(.data$plot_name))
+
+      ambiguous <-
+        extras %>%
+        dplyr::group_by(.data$plot_name) %>%
+        dplyr::summarise(dplyr::across(dplyr::all_of(extra_cols),
+                                       ~ dplyr::n_distinct(.x, na.rm = TRUE)),
+                         .groups = "drop")
+
+      for (col in extra_cols)
+        if (any(ambiguous[[col]] > 1))
+          cli::cli_alert_warning(
+            "Column {.val {col}} has several values within a plot, the first one is used"
+          )
+
+      extras <-
+        extras %>%
+        dplyr::group_by(.data$plot_name) %>%
+        dplyr::summarise(dplyr::across(dplyr::all_of(extra_cols), .first_non_na),
+                         .groups = "drop")
+    }
+
+    coordinates <-
+      list(ddlat = list(value = "ddlat_value", prefix = "ddlat_plot_X_Y_"),
+           ddlon = list(value = "ddlon_value", prefix = "ddlon_plot_X_Y_"))
+
+    res_l <- vector("list", length(coordinates))
+    names(res_l) <- names(coordinates)
+
+    for (i in seq_along(coordinates)) {
+
+      value_col <- coordinates[[i]]$value
+      names_pref <- coordinates[[i]]$prefix
+
+      res <-
+        work %>%
+        dplyr::group_by(.data$plot_name, .data$quadrat) %>%
+        dplyr::summarise(value = mean(.data[[value_col]], na.rm = TRUE),
+                         .groups = "drop") %>%
+        dplyr::filter(!is.na(.data$value)) %>%
+        tidyr::pivot_wider(names_from = "quadrat",
+                           values_from = "value",
+                           names_prefix = names_pref) %>%
+        dplyr::arrange(.data$plot_name)
+
+      ## Keep quadrat columns in a stable, spatially meaningful order
+      res <-
+        dplyr::relocate(res,
+                        dplyr::any_of(paste0(names_pref, quadrat_order)),
+                        .after = "plot_name")
+
+      if (!is.null(extras))
+        res <- dplyr::left_join(res, extras, by = "plot_name")
+
+      res_l[[i]] <- res
+
+      print(res)
+    }
+
+    ## Guard against unknown subplot features: add_subplot_features() would fall
+    ## back to an interactive fuzzy match and could store the coordinates under
+    ## the wrong feature
+    mydb <- con
+    if (launch_add_data || !is.null(con)) {
+
+      if (is.null(mydb)) mydb <- call.mydb()
+
+      feature_names <-
+        unlist(lapply(seq_along(res_l), function(i)
+          names(res_l[[i]])[startsWith(names(res_l[[i]]),
+                                       coordinates[[i]]$prefix)]),
+          use.names = FALSE)
+
+      known_types <-
+        try_open_postgres_table(table = "subplotype_list", con = mydb) %>%
+        dplyr::select("type") %>%
+        dplyr::collect() %>%
+        dplyr::pull("type")
+
+      missing_types <- setdiff(feature_names, known_types)
+
+      if (length(missing_types) > 0)
+        stop(paste0(
+          length(missing_types),
+          " subplot feature(s) not found in subplotype_list: ",
+          paste(missing_types, collapse = ", "),
+          "\nCreate them with add_subplottype() before adding these coordinates."
+        ))
+    }
+
+    if (!launch_add_data) {
+      cli::cli_alert_danger("No data added because launch_add_data is FALSE")
+      return(res_l)
+    }
+
+    if (!is.null(collector_field))
+      cli::cli_alert_warning(
+        "{.val {collector_field}} is kept in the returned tables but is not stored in the database"
+      )
+
+    for (i in seq_along(res_l)) {
+
+      subplottype_field <-
+        names(res_l[[i]])[startsWith(names(res_l[[i]]),
+                                     coordinates[[i]]$prefix)]
+
+      if (length(subplottype_field) == 0) next
+
+      add_subplot_features(new_data = res_l[[i]],
+                           col_names_select = add_cols,
+                           col_names_corresp = cor_cols,
+                           plot_name_field = "plot_name",
+                           subplottype_field = subplottype_field,
+                           add_data = TRUE,
+                           ask_before_update = FALSE,
+                           check_existing_data = check_existing_data,
+                           con = mydb)
+    }
+
     return(res_l)
-    
+
   }
 
 
