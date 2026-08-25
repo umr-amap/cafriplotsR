@@ -1420,6 +1420,26 @@ update_ident_specimens <- function(colnam = NULL,
 #' Update non-identification fields of a single specimen
 #'
 #' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' Superseded by \code{\link{update_records}}, which writes the same columns
+#' of \code{specimens} (\code{description} included since 1.9.95) through the
+#' generic update path, and additionally offers batch mode and a
+#' \code{execute = FALSE} dry run. Migrate with:
+#'
+#' \preformatted{
+#' ## before
+#' update_specimen_fields(id_speci = 12345,
+#'                        new_values = list(locality = "Mont Bela"))
+#'
+#' ## after
+#' update_records(
+#'   data = data.frame(id_specimen = 12345, locality = "Mont Bela"),
+#'   table_type = "specimens",
+#'   execute = TRUE
+#' )
+#' }
+#'
 #' Updates any of the editable, non-taxonomic columns of the \code{specimens}
 #' table for one specimen: collection date (\code{coly}, \code{colm},
 #' \code{cold}), locality information (\code{locality}, \code{country},
@@ -1453,7 +1473,8 @@ update_ident_specimens <- function(colnam = NULL,
 #'   \code{field}, \code{current} and \code{new}. A zero-row tibble is
 #'   returned when nothing was modified.
 #'
-#' @seealso \code{\link{update_ident_specimens}}
+#' @seealso \code{\link{update_records}}, \code{\link{update_ident_specimens}}
+#' @keywords internal
 #'
 #' @examples
 #' \dontrun{
@@ -1473,6 +1494,17 @@ update_specimen_fields <- function(id_speci,
                                    ask_before_update = TRUE,
                                    show_results = TRUE,
                                    con = NULL) {
+
+  lifecycle::deprecate_warn(
+    when = "1.9.95",
+    what = "update_specimen_fields()",
+    with = "update_records()",
+    details = paste(
+      "update_records(data, table_type = \"specimens\") writes the same",
+      "columns, takes several specimens at once and defaults to a dry run",
+      "(execute = FALSE)."
+    )
+  )
 
   mydb <- if (!is.null(con)) con else call.mydb()
 
@@ -1672,8 +1704,24 @@ update_specimen_fields <- function(id_speci,
 
 #' Update specimens data data
 #'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' Superseded by \code{\link{update_records}} with
+#' \code{table_type = "specimens"} and \code{method = "batch"}. Rename the
+#' columns of \code{new_data} to their database names beforehand (the
+#' \code{col_names_select} / \code{col_names_corresp} pair has no equivalent),
+#' then:
+#'
+#' \preformatted{
+#' update_records(data = new_data, table_type = "specimens",
+#'                method = "batch", execute = TRUE)
+#' }
+#'
 #' Update specimens data plot _ at a time
 #'
+#' @seealso \code{\link{update_records}}
+#' @keywords internal
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #' @param new_data data frame data containing id and new values
@@ -1693,6 +1741,16 @@ update_specimens_batch <- function(new_data,
                                    launch_update = FALSE,
                                    add_backup = TRUE) {
 
+  lifecycle::deprecate_warn(
+    when = "1.9.95",
+    what = "update_specimens_batch()",
+    with = "update_records()",
+    details = paste(
+      "update_records(data, table_type = \"specimens\", method = \"batch\")",
+      "covers the same updates; rename the columns of new_data to their",
+      "database names instead of using col_names_select/col_names_corresp."
+    )
+  )
 
   mydb <- call.mydb()
 
@@ -4434,7 +4492,8 @@ get_table_columns <- function(table_name, con) {
       "country",             # Country
       "locality",            # Locality description
       "ddlat", "ddlon",      # Coordinates
-      "add_col"              # Additional collectors
+      "add_col",             # Additional collectors
+      "description"          # Free-text description of the specimen
     ))
   }
 

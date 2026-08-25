@@ -13,7 +13,7 @@
 #   7. Module shows a diff (current vs new) and a Confirm button.
 #   8. On confirm, update_ident_specimens() is called with
 #      ask_before_update=FALSE for the identification part, and
-#      update_specimen_fields() for the remaining fields.
+#      update_records(table_type = "specimens") for the remaining fields.
 
 # Non-identification specimen fields editable in the manual pane, mapped to
 # the type of shiny input used for them. Names must exist both in the
@@ -251,7 +251,7 @@ mod_specid_manual_server <- function(id, pool_main, pool_taxa, i18n,
     })
 
     # Named list of the section 4b inputs, shaped the way
-    # update_specimen_fields() expects (NA meaning "clear the field").
+    # update_records() expects (NA meaning "clear the field").
     # Fields absent from the queried record are skipped so that a missing
     # column can never be mistaken for a request to erase a value.
     .specimen_field_inputs <- function() {
@@ -708,17 +708,35 @@ mod_specid_manual_server <- function(id, pool_main, pool_taxa, i18n,
 
           shiny::incProgress(0.3)
 
-          # Collection / locality / notes fields
-          changed <- update_specimen_fields(
-            id_speci          = as.integer(s$id_specimen),
-            new_values        = .specimen_field_inputs(),
-            add_backup        = TRUE,
-            ask_before_update = FALSE,
-            show_results      = FALSE,
-            con               = pool_main()
-          )
+          # Collection / locality / notes fields. update_records() takes a
+          # data frame keyed on id_specimen rather than a named list, and
+          # only writes columns whose value actually differs, so passing the
+          # whole section 4b block is safe. interactive = FALSE keeps it from
+          # prompting on the console: none of the 4b fields is a lookup
+          # column, so there is nothing to resolve interactively anyway.
+          field_inputs <- .specimen_field_inputs()
 
-          list(ok = TRUE, n_fields = nrow(changed))
+          n_changed <- 0L
+          if (length(field_inputs) > 0) {
+            res <- update_records(
+              data = data.frame(
+                id_specimen = as.integer(s$id_specimen),
+                field_inputs,
+                stringsAsFactors = FALSE
+              ),
+              table_type      = "specimens",
+              method          = "single",
+              execute         = TRUE,
+              con             = pool_main(),
+              interactive     = FALSE,
+              show_comparison = FALSE
+            )
+            # changes$direct holds one row per modified field, which is what
+            # update_specimen_fields() used to return
+            if (!is.null(res$changes$direct)) n_changed <- nrow(res$changes$direct)
+          }
+
+          list(ok = TRUE, n_fields = n_changed)
         }, error = function(e) list(ok = FALSE, err = e$message))
 
         shiny::incProgress(1)

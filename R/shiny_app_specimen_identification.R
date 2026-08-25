@@ -46,7 +46,7 @@
 #' }
 #'
 #' @seealso \code{\link{update_ident_specimens}},
-#'   \code{\link{update_specimen_fields}},
+#'   \code{\link{update_records}},
 #'   \code{\link{launch_taxonomic_match_app}},
 #'   \code{\link{launch_specimen_import_wizard}}
 #'
