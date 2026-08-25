@@ -1,0 +1,5 @@
+/.quarto/
+**/*.quarto_ipynb
+
+# Rendered runbook - build artifact, and it details a live vulnerability
+PLAN_SECURITY_REMEDIATION.html
