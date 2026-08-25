@@ -38,6 +38,26 @@ Invisibly, a tibble with one row per modified field and the columns
   returned when nothing was modified.
 }
 \description{
+`r lifecycle::badge("deprecated")`
+
+Superseded by \code{\link{update_records}}, which writes the same columns
+of \code{specimens} (\code{description} included since 1.9.95) through the
+generic update path, and additionally offers batch mode and a
+\code{execute = FALSE} dry run. Migrate with:
+
+\preformatted{
+## before
+update_specimen_fields(id_speci = 12345,
+                       new_values = list(locality = "Mont Bela"))
+
+## after
+update_records(
+  data = data.frame(id_specimen = 12345, locality = "Mont Bela"),
+  table_type = "specimens",
+  execute = TRUE
+)
+}
+
 Updates any of the editable, non-taxonomic columns of the \code{specimens}
 table for one specimen: collection date (\code{coly}, \code{colm},
 \code{cold}), locality information (\code{locality}, \code{country},
@@ -65,8 +85,9 @@ update_specimen_fields(id_speci = 12345, new_values = list(description = NA))
 
 }
 \seealso{
-\code{\link{update_ident_specimens}}
+\code{\link{update_records}}, \code{\link{update_ident_specimens}}
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}
 }
+\keyword{internal}

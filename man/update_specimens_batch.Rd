@@ -30,8 +30,25 @@ update_specimens_batch(
 No return value individuals updated
 }
 \description{
+`r lifecycle::badge("deprecated")`
+
+Superseded by \code{\link{update_records}} with
+\code{table_type = "specimens"} and \code{method = "batch"}. Rename the
+columns of \code{new_data} to their database names beforehand (the
+\code{col_names_select} / \code{col_names_corresp} pair has no equivalent),
+then:
+
+\preformatted{
+update_records(data = new_data, table_type = "specimens",
+               method = "batch", execute = TRUE)
+}
+
 Update specimens data plot _ at a time
+}
+\seealso{
+\code{\link{update_records}}
 }
 \author{
 Gilles Dauby, \email{gilles.dauby@ird.fr}
 }
+\keyword{internal}
