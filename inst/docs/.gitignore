@@ -1,5 +1,14 @@
 /.quarto/
 **/*.quarto_ipynb
 
-# Rendered runbook - build artifact, and it details a live vulnerability
-PLAN_SECURITY_REMEDIATION.html
+# Security remediation runbook - source and rendered page alike.
+#
+# Deliberately kept in the working tree and out of git: this repository is
+# public (umr-amap/cafriplotsR), and the runbook names the host, the port,
+# the PostgreSQL version, the grants still open and the file:line where the
+# credential was hardcoded. Committing it would publish a live vulnerability
+# to the very repository the vulnerability is about.
+#
+# Do not commit, do not push, do not remove this rule once the remediation is
+# closed without first checking what the file still discloses.
+PLAN_SECURITY_REMEDIATION.*

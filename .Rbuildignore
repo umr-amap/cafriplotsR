@@ -8,6 +8,7 @@
 ^codecov\.yml$
 ^inst/docs/.*\.pptx$
 ^inst/docs/.*\.ppt$
+^inst/docs/PLAN_SECURITY_REMEDIATION.*$
 ^inst/notes$
 ^\.claude$
 ^\.claude-backup.*$
