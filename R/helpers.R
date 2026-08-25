@@ -39,43 +39,51 @@
 #' @export
 choose_prompt <- function(choices_vec = c("Yes", "No", "Cancel"),
                           message ="") {
-  
-  cli::cli_h1(message)
-  cli::cli_ul(choices_vec)
-  
-  # Prompt
-  selection <- readline(prompt = "Choose from 1 (above) to x (below)")
-  
-  
+
+  # The question and its options are printed with cli, so they have to survive
+  # whatever verbosity filter the calling query installed: an invisible question
+  # above a visible readline() prompt is unanswerable
+  selection <- .verbose_output({
+    cli::cli_h1(message)
+    cli::cli_ul(choices_vec)
+    readline(prompt = "Choose from 1 (above) to x (below)")
+  })
+
   if (selection == "")
     selection <- 1
   print(selection)
-  
+
   # Validate and respond
   selection <- as.integer(selection)
-  if (!is.na(selection) && selection >= 1 && selection <= length(choices_vec)) {
-    cli::cli_alert_success("You selected {.strong {choices_vec[selection]}}.")
-  } else {
-    cli::cli_alert_danger("Invalid selection.")
+  valid <- !is.na(selection) &&
+    selection >= 1 &&
+    selection <= length(choices_vec)
+
+  .verbose_output(
+    if (valid) {
+      cli::cli_alert_success("You selected {.strong {choices_vec[selection]}}.")
+    } else {
+      cli::cli_alert_danger("Invalid selection.")
+    }
+  )
+
+  if (!valid)
     return(NULL)  # Return NULL for invalid selection
-  }
 
   # Initialize return value
   val_logical <- NULL
 
-  if (!is.na(selection)) {
-    if (selection == 1)
-      val_logical <- TRUE
+  if (selection == 1)
+    val_logical <- TRUE
 
-    if (selection == 2)
-      val_logical <- FALSE
+  if (selection == 2)
+    val_logical <- FALSE
 
-    if (selection == 3)
-      val_logical <- NA
-  }
+  if (selection == 3)
+    val_logical <- NA
 
   return(val_logical)
-  
+
 }
 
 

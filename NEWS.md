@@ -123,6 +123,18 @@
 
 * **Shiny login reports the same diagnosis** (`R/mod_database_login.R`) — all four connection paths (main, taxa, and both public-user connections) print the full report to the console and add one translated sentence to the error box, so app users get an actionable message rather than raw driver text. Four EN/FR pairs added to `inst/translations/translation.json`, with a test asserting every hint string is present
 
+
+* **`query_plots(verbose = ...)` cuts the console log down to what the caller acts on** (`R/verbosity.R`, `R/functions_manip_db.R`) — a full extraction narrates every internal step, and a query over sixteen plots scrolled roughly fifty lines past: connection notices, section headers, retry attempts and four separate "Query completed". The lines that matter — what came back, and what was silently dropped on the way — were buried among them
+  - Three levels. `"normal"` (the new default) reports warnings, then closes with a summary of what was found, what was excluded and which tables the result holds. `"quiet"` reports warnings and failures only. `"debug"` prints the full log, exactly what earlier versions always printed. `TRUE` and `FALSE` are accepted as `"debug"` and `"quiet"`, and `options(CafriplotsR.verbose = "debug")` sets a session default
+  - **No message was rewritten to achieve this.** Every `cli` call signals a `cli_message` condition carrying its alert type, so a calling handler dismisses whole severity classes with the `cli_message_handled` restart. The internals still report their work exactly as before; only what reaches the console changes, which is why the `"debug"` output is unchanged rather than reconstructed
+  - **Every exclusion names the argument that controls it.** A count of removed rows is only actionable if you know which knob puts them back, so the summary reads `130 dead individuals, absent from the last census: census_strategy, or show_multiple_census = TRUE to keep every census` and `656 measurements flagged with an issue: issues = "remove", or issues = "include" to keep them`. `traits_to_genera = TRUE` and `wd_fam_level = TRUE` each add a line stating the consequence rather than the setting — that trait values are genus aggregates rather than the taxon's own, with provenance in the `source_*` columns
+  - Counts computed deep in the pipeline reach the summary through a small internal tally, so muting the step log does not lose them. The census strategy is reported as its resolved value: `match.arg()` runs inside the implementation, so the wrapper still holds the raw `c("last", "first", "mean")` default until then
+  - **Interactive prompts are never muted.** `choose_prompt()` and the four `.link_table()` call sites run inside `.verbose_output()`, which lifts the filter — an invisible question above a live `readline()` prompt is unanswerable
+  - The chunking progress bar follows the same rule and appears at `"debug"` only; it is a step trace like the messages around it and leaves a full-width line in the scrollback
+  - `query_plots()` is now a thin wrapper forwarding its 33 arguments to `.query_plots_impl()`, which is the previous function unchanged — a calling handler has to enclose an expression, and the body is some five hundred lines. A test asserts the two signatures match and that every formal is actually forwarded, so they cannot drift apart
+  - `"ids removed - remove_ids = TRUE"` dropped from warning to info: it announces a documented default on every single call rather than reporting an anomaly. It is still there at `"debug"`
+  - 103 assertions across 23 tests in `tests/testthat/test-verbosity.R`, covering which severities survive at each level, that base `message()` and `warning()` are left alone, that the level is restored after an error, and the end-to-end wrapper behaviour with the implementation mocked
+
 ### Bug Fixes
 
 * **`description` could not be updated through `update_records()`** (`R/updates_tables_functions.R`) — `get_table_columns()` returns a hardcoded column list for `specimens`, and `description` was missing from it. `update_records(table_type = "specimens")` therefore reported it as an unrecognised column, dropped it, and — since it was usually the only column being written — aborted with "No updatable columns found in data". The column is now listed, bringing `update_records()` to full parity with `.specimen_editable_fields()`, the list the deprecated `update_specimen_fields()` accepted
@@ -187,6 +199,13 @@
 
 * **`mod_link_executor` / `.add_link_specimens()`** — duplicate links (same `id_n` + `id_specimen` + `id_linktype`) are now prevented at two levels: internal duplicates within a new batch are removed before insertion, and the existing-DB check now matches on all three key columns instead of only `id_n` + `id_specimen`.
 
+
+* **A trait not measured at the selected census vanished without a word** (`R/individual_features_function.R`) — `query_plots(show_multiple_census = FALSE)` keeps one census per plot, and `filter_to_census()` chooses it **per plot, across all traits at once**. Tree height is typically measured at the first census or two and not re-measured, so on a plot with four censuses every height row was dropped — and because the wide pivot builds columns from trait/census combinations that carry data, the result had no `tree_height` column at all rather than a column of `NA`. That is indistinguishable from a plot where height was never measured
+  - The filtering itself is unchanged and deliberate: no value from another census is carried into a column labelled with this one. What was missing was any notice, so every dropped trait is now named, with the remedy on the next line: `Dropped 4 traits with no measurement at the selected (last) census: "crown_width", "flag5_rainfor", "height_of_first_branch", "tree_height"` / `Keep them with show_multiple_census = TRUE or census_strategy = "mean"`. At `"debug"` each trait also reports the censuses where it does exist
+  - `filter_to_census()` now dates the census-linked measurements once and reuses that ordering for both the selection and the report, so the two cannot disagree. Row counts and the census chosen are identical to before
+  - Height and diameter were never actually lost: `output_style = "full"` returns them for every census in the `height_diameter` table, which is built from an unfiltered fetch
+  - 12 assertions across 7 tests in `tests/testthat/test-census-filter-dropped-traits.R`, including that the report stays silent when every trait survives and that non-census measurements pass through untouched
+
 ### Documentation
 
 * **`apps-overview` vignette, in English and French** (`vignettes/apps-overview.Rmd`, `vignettes/apps-overview-fr.Rmd`) — ten apps and no single page saying what each one is for. The overview groups them by what they do (explore and standardize, import and update, herbarium specimens), states for every app whether the public account suffices or your own is required, and spells out what public access covers and why the write apps do not offer it. Listed under Getting Started and Français - Démarrage
@@ -205,6 +224,10 @@
 * **Newsletter vignettes** (`newsletter.Rmd`, `newsletter-fr.Rmd`) — copyedited the WCVP and aggregated-traits sections: dropped marketing language tied to the Barcelona presentation, fixed example calls, added a `get_wcvp_status()` snippet, and clarified the public-access/data-sovereignty note.
 
 * **README — "Troubleshooting Connections"** — new section explaining the `timeout expired` failure that appears on institutional networks, why port 35699 is the reason, the three `check_db_network()` verdicts and the action for each, plus a table of the other common connection errors (rejected credentials, no free connection slots, DNS failure, dropped connection).
+
+
+* **`census_strategy` documents that the census is chosen per plot, not per trait** (`R/functions_manip_db.R`) — the parameter said individuals recruited or dead outside the selected census "will have NA values", which describes a column that exists. It now states that one census is selected from all of a plot's measurements and every census-linked trait filtered to it, that a trait never measured there returns no column rather than a column of `NA`, that tree height is the common case, and that `height_diameter` under `output_style = "full"` still spans every census
+  - `query_individual_features()` and `get_individual_aggregated_features()` had no `@param census_strategy` at all, despite both accepting it — an `R CMD check` warning waiting to happen. Both now document it
 
 ### New Features
 

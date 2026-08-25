@@ -103,6 +103,19 @@ method_list <- function() {
 #'   Options: "last" (default, most recent census), "first" (earliest census), or "mean" (average across all censuses).
 #'   When "first" or "last" is selected, individuals recruited after the first census or dead before the last census
 #'   will have NA values, reflecting biological reality.
+#'
+#'   The census is chosen per plot, not per trait: one census is selected from
+#'   all of the plot's measurements, and every census-linked trait is then filtered
+#'   to it. A trait never measured at that census therefore disappears from the
+#'   output entirely - it returns no column at all, not a column of NAs, because the
+#'   wide pivot only creates columns for trait/census combinations that carry data.
+#'   This is common for tree height, which is often measured at the first census or
+#'   two and not re-measured afterwards. Every dropped trait is named in a warning
+#'   listing the censuses where it does exist. To keep it, use
+#'   `show_multiple_census = TRUE` (one `<trait>_census_N` column per census) or
+#'   `census_strategy = "mean"`. With `output_style = "full"`, height and diameter
+#'   are also returned unfiltered in the `height_diameter` table, which always
+#'   spans every census.
 #' @param include_measurement_ids Logical. Whether to include measurement IDs in aggregated output. Optional.
 #' @param individual_features_format Character. Format for individual-level feature measurements.
 #'   `"wide"` (default) returns one row per individual with one column per trait (aggregated).
@@ -138,6 +151,13 @@ method_list <- function() {
 #'   If you've already connected with `mydb <- call.mydb()`, pass `con = mydb` to avoid re-prompting.
 #' @param con.taxa Optional database connection to taxa database. If NULL, will check for `mydb.taxa` in calling environment,
 #'   otherwise will call call.mydb.taxa() to establish connection. Pass explicitly to avoid credential prompts.
+#' @param verbose Console verbosity. `"normal"` (the default) reports only what
+#'   was found, what was excluded on the way, and which tables came back;
+#'   `"quiet"` reports nothing but warnings; `"debug"` prints the full
+#'   step-by-step log of every internal query, which is what earlier versions
+#'   always printed. `TRUE` and `FALSE` are accepted as `"debug"` and `"quiet"`.
+#'   Set a session default with `options(CafriplotsR.verbose = "debug")`.
+#'   Interactive matching prompts are never muted.
 #'
 #' @returns 
 #' A list or data frame containing plot data and associated information. When multiple 
@@ -173,6 +193,109 @@ method_list <- function() {
 #' 
 #' @export
 query_plots <- function(plot_name = NULL,
+                        tag = NULL,
+                        country = NULL,
+                        locality_name = NULL,
+                        method = NULL,
+                        feature_filters = NULL,
+                        extract_individuals = FALSE,
+                        map = FALSE,
+                        id_individual = NULL,
+                        id_plot = NULL,
+                        id_tax = NULL,
+                        id_specimen = NULL,
+                        interactive = TRUE,
+                        show_multiple_census = FALSE,
+                        extract_coordinates = FALSE,
+                        show_all_coordinates = lifecycle::deprecated(),
+                        remove_ids = TRUE,
+                        extract_traits = TRUE,
+                        extract_individual_features = TRUE,
+                        traits_to_genera = FALSE,
+                        wd_fam_level = FALSE,
+                        include_liana = FALSE,
+                        extract_subplot_features = TRUE,
+                        concatenate_stem = FALSE,
+                        issues = c("remove", "include", "ignore"),
+                        include_measurement_ids = FALSE,
+                        exact_match = FALSE,
+                        census_strategy = c("last", "first", "mean"),
+                        individual_features_format = c("wide", "long", "census_pairs"),
+                        output_style = "auto",
+                        backbone = c("internal", "wcvp"),
+                        con = NULL,
+                        con.taxa = NULL,
+                        verbose = NULL) {
+
+  verbosity <- .resolve_verbosity(verbose)
+  .tally_reset()
+
+  res <- .with_cli_verbosity(verbosity, .query_plots_impl(
+    plot_name = plot_name,
+    tag = tag,
+    country = country,
+    locality_name = locality_name,
+    method = method,
+    feature_filters = feature_filters,
+    extract_individuals = extract_individuals,
+    map = map,
+    id_individual = id_individual,
+    id_plot = id_plot,
+    id_tax = id_tax,
+    id_specimen = id_specimen,
+    interactive = interactive,
+    show_multiple_census = show_multiple_census,
+    extract_coordinates = extract_coordinates,
+    show_all_coordinates = show_all_coordinates,
+    remove_ids = remove_ids,
+    extract_traits = extract_traits,
+    extract_individual_features = extract_individual_features,
+    traits_to_genera = traits_to_genera,
+    wd_fam_level = wd_fam_level,
+    include_liana = include_liana,
+    extract_subplot_features = extract_subplot_features,
+    concatenate_stem = concatenate_stem,
+    issues = issues,
+    include_measurement_ids = include_measurement_ids,
+    exact_match = exact_match,
+    census_strategy = census_strategy,
+    individual_features_format = individual_features_format,
+    output_style = output_style,
+    backbone = backbone,
+    con = con,
+    con.taxa = con.taxa
+  ))
+
+  # Read the resolved level, not the ambient one: the filter above has already
+  # restored whatever was in effect before the call
+  if (!identical(verbosity, "quiet")) {
+    # [1] because match.arg() runs inside the implementation: what is bound here
+    # is still the full default vector unless the caller passed a value
+    .report_query_summary(res, opts = list(
+      census_strategy      = census_strategy[1],
+      show_multiple_census = show_multiple_census,
+      issues               = issues[1],
+      traits_to_genera     = traits_to_genera,
+      wd_fam_level         = wd_fam_level
+    ))
+  }
+
+  res
+}
+
+#' Body of query_plots()
+#'
+#' Split from [query_plots()] so the public function can wrap the whole pipeline
+#' in a single verbosity filter - a calling handler has to enclose an
+#' expression, and enclosing five hundred lines of query body is what this split
+#' buys.
+#'
+#' @inheritParams query_plots
+#'
+#' @return See [query_plots()].
+#' @keywords internal
+#' @noRd
+.query_plots_impl <- function(plot_name = NULL,
                         tag = NULL,
                         country = NULL,
                         locality_name = NULL,
@@ -689,7 +812,7 @@ query_plots <- function(plot_name = NULL,
 
   if (remove_ids & extract_individuals) {
 
-    cli::cli_alert_warning("ids removed - remove_ids = {remove_ids} ")
+    cli::cli_alert_info("ids removed - remove_ids = {remove_ids} ")
 
     res <-
       res %>%
@@ -701,7 +824,7 @@ query_plots <- function(plot_name = NULL,
 
   if (remove_ids & !extract_individuals) {
 
-    cli::cli_alert_warning("Identifiers are removed because the parameter 'remove_ids' = {remove_ids} ")
+    cli::cli_alert_info("Identifiers are removed because the parameter 'remove_ids' = {remove_ids} ")
 
     res <-
       res %>%
@@ -1194,6 +1317,7 @@ enrich_individual_traits <- function(individuals, con, show_multiple_census,
           unique()
         if (length(dead_ids) > 0) {
           individuals <- individuals %>% dplyr::filter(!id_n %in% dead_ids)
+          .tally_add("dead_individuals", length(dead_ids))
           cli::cli_alert_info(
             "Removed {length(dead_ids)} dead/presumed_dead individual(s) at {census_strategy} census"
           )
@@ -1277,6 +1401,7 @@ enrich_individual_traits <- function(individuals, con, show_multiple_census,
           unique()
         if (length(dead_ids) > 0) {
           individuals <- individuals %>% dplyr::filter(!id_n %in% dead_ids)
+          .tally_add("dead_individuals", length(dead_ids))
           cli::cli_alert_info(
             "Removed {length(dead_ids)} dead/presumed_dead individual(s) at {census_strategy} census"
           )
@@ -1818,7 +1943,7 @@ PlotFilterBuilder <- R6::R6Class(
         # Utilisation de .link_table pour correspondance interactive
         data_with_country <- dplyr::tibble(country = country)
         
-        linked_data <- .link_table(
+        linked_data <- .verbose_output(.link_table(
           data_stand = data_with_country,
           column_searched = "country",
           column_name = "country",
@@ -1826,7 +1951,7 @@ PlotFilterBuilder <- R6::R6Class(
           id_table_name = "id_country",
           db_connection = private$con,
           table_name = "table_countries"
-        )
+        ))
         
         country_ids <- linked_data %>%
           filter(!is.na(id_country), id_country != 0) %>%
@@ -1870,7 +1995,7 @@ PlotFilterBuilder <- R6::R6Class(
         # Mode interactif avec .link_table
         data_with_plots <- dplyr::tibble(plot_name = plot_name)
 
-        linked_data <- .link_table(
+        linked_data <- .verbose_output(.link_table(
           data_stand = data_with_plots,
           column_searched = "plot_name",
           column_name = "plot_name",
@@ -1878,7 +2003,7 @@ PlotFilterBuilder <- R6::R6Class(
           id_table_name = "id_liste_plots",
           db_connection = private$con,
           table_name = "data_liste_plots"
-        )
+        ))
 
         plot_ids <- linked_data %>%
           filter(!is.na(id_liste_plots), id_liste_plots != 0) %>%
@@ -1931,7 +2056,7 @@ PlotFilterBuilder <- R6::R6Class(
         # Mode interactif avec .link_table
         data_with_methods <- dplyr::tibble(method = method)
         
-        linked_data <- .link_table(
+        linked_data <- .verbose_output(.link_table(
           data_stand = data_with_methods,
           column_searched = "method",
           column_name = "method",
@@ -1939,7 +2064,7 @@ PlotFilterBuilder <- R6::R6Class(
           id_table_name = "id_method",
           db_connection = private$con,
           table_name = "methodslist"
-        )
+        ))
         
         method_ids <- linked_data %>%
           filter(!is.na(id_method), id_method != 0) %>%
@@ -2286,7 +2411,7 @@ SpecimenFilterBuilder <- R6::R6Class(
         # Interactive mode with .link_table
         data_with_collector <- dplyr::tibble(colnam = collector)
 
-        linked_data <- .link_table(
+        linked_data <- .verbose_output(.link_table(
           data_stand = data_with_collector,
           column_searched = "colnam",
           column_name = "colnam",
@@ -2294,7 +2419,7 @@ SpecimenFilterBuilder <- R6::R6Class(
           id_table_name = "id_table_colnam",
           db_connection = private$con,
           table_name = "table_colnam"
-        )
+        ))
 
         collector_ids <- linked_data %>%
           filter(!is.na(id_table_colnam), id_table_colnam != 0) %>%

@@ -14,6 +14,11 @@
 #'   (keep rows, no issue column).
 #' @param aggregation_mode How to aggregate: "mean", "last", "mode", "concat"
 #' @param include_measurement_ids Include aggregated id_trait_measures column (default FALSE)
+#' @param census_strategy Character. Which census to keep when
+#'   `include_multi_census = FALSE`: "last" (default), "first", or "mean" (no
+#'   census filtering, all measurements kept). The census is selected per plot
+#'   across all traits, so a trait with no measurement at the selected census is
+#'   dropped from the result and named in a warning.
 #' @param con Database connection
 #'
 #' @return Tibble with one row per individual and aggregated feature values
@@ -1159,6 +1164,11 @@ get_mode_dt <- function(x) {
 #'   (keep rows, no issue column).
 #' @param include_metadata Include trait measurement features (only available with format="long")
 #' @param include_individuals Include linked individual data
+#' @param census_strategy Character. Which census to keep when
+#'   `include_multi_census = FALSE`: "last" (default), "first", or "mean" (no
+#'   census filtering, all measurements kept). The census is selected per plot
+#'   across all traits, so a trait with no measurement at the selected census is
+#'   dropped from the result and named in a warning.
 #' @param con Database connection (optional)
 #' @param backbone Character. Which taxonomic backbone to use for synonym resolution
 #'   when fetching linked individuals. \code{"internal"} (default) uses the internal
@@ -1217,6 +1227,7 @@ query_individual_features <- function(
     raw_data <- raw_data %>% filter(is.na(issue))
     n_removed <- n_before - nrow(raw_data)
     if (n_removed > 0) {
+      .tally_add("flagged_measurements", n_removed)
       cli::cli_alert_info("Removed {n_removed} measurement(s) with issues")
     }
   }
@@ -1374,15 +1385,18 @@ fetch_with_chunking <- function(ids, query_fun, chunk_size, con, desc = "data", 
 
   cli::cli_alert_info("Processing {n_chunks} chunk(s) for {desc}")
 
-  pb <- txtProgressBar(min = 0, max = n_chunks, style = 3)
+  # The bar is a step-by-step trace like the messages around it, and leaves a
+  # full-width line in the scrollback, so it follows the same verbosity rule
+  show_progress <- .verbosity_at_least("debug")
+  pb <- if (show_progress) txtProgressBar(min = 0, max = n_chunks, style = 3)
 
   results <- lapply(seq_along(chunks), function(i) {
-    setTxtProgressBar(pb, i)
+    if (show_progress) setTxtProgressBar(pb, i)
     sql <- query_fun(chunks[[i]], trait_ids)
     DBI::dbGetQuery(con, sql) %>% as_tibble(.name_repair = "minimal")
   })
 
-  close(pb)
+  if (show_progress) close(pb)
 
   suppressMessages(bind_rows(results))
 }
@@ -1456,8 +1470,9 @@ filter_to_census <- function(data, strategy = c("first", "last")) {
     return(data)
   }
 
-  # Determine first/last census per plot using proper date computation
-  census_selection <- data_with_census %>%
+  # Date every census-linked measurement once: the same sort key drives both the
+  # census selection below and the report of traits the selection leaves behind.
+  dated <- data_with_census %>%
     mutate(
       day_clean = coalesce(census_day, 1),
       month_clean = coalesce(census_month, 1),
@@ -1468,7 +1483,10 @@ filter_to_census <- function(data, strategy = c("first", "last")) {
     # Use typevalue as fallback if date is missing
     mutate(
       sort_key = if_else(is.na(census_date), as.Date(paste0(typevalue_num, "-01-01")), census_date)
-    ) %>%
+    )
+
+  # Determine first/last census per plot using proper date computation
+  census_selection <- dated %>%
     group_by(id_table_liste_plots) %>%
     {
       if (strategy == "first") {
@@ -1496,8 +1514,72 @@ filter_to_census <- function(data, strategy = c("first", "last")) {
     cli::cli_alert_info("Filtered out {n_removed} measurement(s) from other censuses")
   }
 
+  .report_traits_dropped_by_census(
+    dated       = dated,
+    kept        = data_filtered,
+    passthrough = data_no_census,
+    strategy    = strategy
+  )
+
   # Combine filtered census data with non-census data
   bind_rows(data_filtered, data_no_census)
+}
+
+#' Report traits removed by census selection
+#'
+#' Keeping a single census per plot silently deletes traits that were never
+#' measured at that census. The loss is invisible downstream: the wide pivot
+#' only creates columns for trait/census combinations that carry data, so a
+#' plot whose heights stopped at census 2 comes back with no `tree_height`
+#' column at all - indistinguishable from a plot where height was never
+#' measured. Name every trait that was dropped, and the censuses where it does
+#' exist, so the absence reads as a choice rather than as missing data.
+#'
+#' @param dated Census-linked measurements carrying `trait`, `census_name` and
+#'   the `sort_key` used to order censuses.
+#' @param kept Rows surviving the census filter.
+#' @param passthrough Non-census rows, which the filter never touches.
+#' @param strategy Census strategy applied ("first" or "last").
+#'
+#' @return Invisibly, the character vector of dropped trait names.
+#' @keywords internal
+#' @noRd
+.report_traits_dropped_by_census <- function(dated, kept, passthrough, strategy) {
+
+  if (!"trait" %in% names(dated)) return(invisible(character(0)))
+
+  still_present <- unique(c(kept$trait, passthrough$trait))
+  dropped <- setdiff(unique(dated$trait), still_present)
+  dropped <- dropped[!is.na(dropped)]
+
+  if (length(dropped) == 0) return(invisible(character(0)))
+
+  measured_at <- dated %>%
+    filter(trait %in% dropped) %>%
+    distinct(trait, census_name, sort_key) %>%
+    arrange(trait, sort_key) %>%
+    group_by(trait) %>%
+    summarise(censuses = paste(unique(census_name), collapse = ", "), .groups = "drop")
+
+  .tally_add("dropped_traits", dropped)
+
+  # One line names what was lost - that is what the caller needs to see even at
+  # low verbosity. Which censuses each trait does have is debugging detail.
+  cli::cli_alert_warning(
+    "Dropped {length(dropped)} trait{?s} with no measurement at the selected ({strategy}) census: {.val {measured_at$trait}}"
+  )
+  # Kept short on purpose: cli alerts do not wrap, and this one has to stay
+  # readable at the verbosity where it is the only line the caller sees
+  cli::cli_alert_warning(
+    "{cli::qty(length(dropped))}Keep {?it/them} with {.code show_multiple_census = TRUE} or {.code census_strategy = \"mean\"}"
+  )
+  for (i in seq_len(nrow(measured_at))) {
+    cli::cli_alert_info(
+      "  {measured_at$trait[i]} - measured at {measured_at$censuses[i]} only"
+    )
+  }
+
+  invisible(dropped)
 }
 
 
