@@ -138,7 +138,7 @@ backup_database <- function(backup_dir = "~/database_backups",
     "-U", user,
     "-d", db_name_backup,
     "-F", if (compress) "c" else "p",  # c = custom compressed, p = plain SQL
-    "-f", backup_path
+    "-f", .quote_sys_arg(backup_path)
   )
 
   if (!is.null(exclude_table_data)) {
@@ -495,7 +495,7 @@ restore_database <- function(backup_file,
   }
 
   # Add backup file path
-  args <- c(args, backup_file)
+  args <- c(args, .quote_sys_arg(backup_file))
 
   # Set password via environment variable
   old_pgpass <- Sys.getenv("PGPASSWORD")
@@ -608,4 +608,30 @@ cleanup_old_backups <- function(backup_dir = "~/database_backups",
   }
 
   invisible(length(old_files))
+}
+
+
+#' Quote a command-line argument for `system2()`
+#'
+#' @description
+#' `system2()` pastes its `args` into a single command line without quoting, so
+#' any argument containing a space (a Windows path such as
+#' `D:/Mes Donnees/backups`) is split into several arguments by the shell.
+#' This helper quotes an argument only when it needs it.
+#'
+#' @param x Character string. The argument to quote.
+#'
+#' @returns Character string, quoted if it contains whitespace.
+#'
+#' @keywords internal
+#' @noRd
+.quote_sys_arg <- function(x) {
+  if (length(x) != 1 || is.na(x) || !grepl("[[:space:]]", x)) {
+    return(x)
+  }
+  if (.Platform$OS.type == "windows") {
+    shQuote(x, type = "cmd")
+  } else {
+    shQuote(x)
+  }
 }
