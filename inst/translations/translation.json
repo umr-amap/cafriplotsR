@@ -9492,6 +9492,14 @@
     {
       "en": "No valid stem groupings to update (all tags unmatched or missing parents)",
       "fr": "Aucun regroupement de tiges valide à mettre à jour (toutes les étiquettes sont introuvables ou sans parent)"
+    },
+    {
+      "en": "Remove the %d row(s) whose tag could not be matched to an individual from this import",
+      "fr": "Retirer de cet import les %d ligne(s) dont l'étiquette n'a pu être associée à un individu"
+    },
+    {
+      "en": "Leave this unticked and fix the tag (or the plot) in the source file instead. Tick it to import everything else and skip these rows.",
+      "fr": "Laissez décoché et corrigez plutôt l'étiquette (ou la parcelle) dans le fichier source. Cochez pour importer le reste et ignorer ces lignes."
     }
   ]
 }

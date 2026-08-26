@@ -43,6 +43,9 @@ mod_feat_step5_validation_ui <- function(id, i18n) {
     # Offer to drop what the database already holds
     shiny::uiOutput(ns("existing_filter_ui")),
 
+    # Offer to drop rows whose tag could not be matched to an individual
+    shiny::uiOutput(ns("unmatched_tags_filter_ui")),
+
     # Data preview
     shiny::uiOutput(ns("preview_header")),
     DT::DTOutput(ns("import_preview_table"))
@@ -116,6 +119,10 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
         # individual, feature and census. Kept as row numbers rather than a
         # count so the user can choose to drop them before importing.
         existing_rows <- integer(0)
+
+        # Rows whose tag could not be matched to an individual in the plot.
+        # Kept as row numbers, same reason as existing_rows above.
+        unmatched_tag_rows <- integer(0)
 
         # 1. Validate plots exist and are accessible (skip for modes that use their own linking)
         if (mode %in% c("define_multi_stems", "compute_stem_status", "standardize_observations")) {
@@ -213,35 +220,26 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                 }
 
                 if (length(unmatched) > 0) {
-                  # Show up to 10 unmatched as errors
-                  show_rows <- utils::head(unmatched, 10)
+                  # Every unmatched row becomes an error - the table below
+                  # paginates, so a long list stays reachable instead of
+                  # being silently cut down to ten.
+                  unmatched_tag_rows <- unmatched
                   errors <- rbind(errors, data.frame(
-                    row = show_rows,
+                    row = unmatched,
                     column = "tag",
                     issue = sprintf(
                       i18n()$t("Individual with tag '%s' not found in plot '%s'"),
-                      data$tag[show_rows],
-                      plot_labels[as.character(data$id_liste_plots[show_rows])]
+                      data$tag[unmatched],
+                      plot_labels[as.character(data$id_liste_plots[unmatched])]
                     ),
                     stringsAsFactors = FALSE
                   ))
 
-                  # One line per plot: on a long upload the ten rows above can
-                  # all come from the same plot and hide the others.
+                  # One line per plot: a fast read of where the unmatched
+                  # tags concentrate, alongside the row-by-row list above.
                   warnings <- rbind(warnings, .unmatched_tag_plot_summary(
                     plot_labels[as.character(data$id_liste_plots[unmatched])],
                     i18n()))
-
-                  if (length(unmatched) > 10) {
-                    warnings <- rbind(warnings, data.frame(
-                      row = 0, column = "tag",
-                      warning = sprintf(
-                        i18n()$t("%d more unmatched individuals not shown"),
-                        length(unmatched) - 10
-                      ),
-                      stringsAsFactors = FALSE
-                    ))
-                  }
                 }
               }
             }, error = function(e) {
@@ -967,7 +965,8 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
           errors = errors,
           warnings = warnings,
           data = data,
-          existing_rows = existing_rows
+          existing_rows = existing_rows,
+          unmatched_tag_rows = unmatched_tag_rows
         )
 
         validation_result(result)
@@ -990,13 +989,33 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
       if (is.null(res)) return(NULL)
 
       dup <- res$existing_rows
-      if (is.null(dup) || length(dup) == 0 || !isTRUE(input$drop_existing)) {
-        return(res)
-      }
+      drop_dup <- !is.null(dup) && length(dup) > 0 && isTRUE(input$drop_existing)
 
-      res$data <- res$data[setdiff(seq_len(nrow(res$data)), dup), , drop = FALSE]
+      unmatched <- res$unmatched_tag_rows
+      drop_unmatched <- !is.null(unmatched) && length(unmatched) > 0 &&
+        isTRUE(input$drop_unmatched_tags)
+
+      if (!drop_dup && !drop_unmatched) return(res)
+
+      drop_idx <- union(
+        if (drop_dup) dup else integer(0),
+        if (drop_unmatched) unmatched else integer(0)
+      )
+
+      res$data <- res$data[setdiff(seq_len(nrow(res$data)), drop_idx), , drop = FALSE]
       res$summary$total_rows <- nrow(res$data)
-      res$dropped_existing <- length(dup)
+      if (drop_dup) res$dropped_existing <- length(dup)
+      if (drop_unmatched) {
+        res$dropped_unmatched_tags <- length(unmatched)
+        # The "tag not found" errors raised for those rows no longer apply
+        # once the rows themselves are gone from the import.
+        res$errors <- res$errors[
+          !(res$errors$column == "tag" & res$errors$row %in% unmatched), ,
+          drop = FALSE
+        ]
+        res$summary$errors <- nrow(res$errors)
+        res$valid <- nrow(res$errors) == 0
+      }
 
       if (nrow(res$data) == 0) {
         res$errors <- rbind(res$errors, data.frame(
@@ -1048,6 +1067,49 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
         sprintf(
           i18n()$t("%d row(s) removed. %d row(s) will be imported."),
           res$dropped_existing, nrow(res$data)
+        ),
+        style = "color: #856404; font-weight: 600; margin: 8px 0 0 20px;"
+      )
+    })
+
+    # Offer to drop rows whose tag could not be matched to an individual.
+    # Driven by the unfiltered result, so ticking the box does not make the
+    # box disappear.
+    output$unmatched_tags_filter_ui <- shiny::renderUI({
+      res <- validation_result()
+      if (is.null(res)) return(NULL)
+      n <- length(res$unmatched_tag_rows)
+      if (n == 0) return(NULL)
+
+      shiny::div(
+        class = "alert alert-warning",
+        style = "margin-top: 20px;",
+        shiny::checkboxInput(
+          ns("drop_unmatched_tags"),
+          label = sprintf(
+            i18n()$t("Remove the %d row(s) whose tag could not be matched to an individual from this import"),
+            n
+          ),
+          value = FALSE
+        ),
+        shiny::p(
+          shiny::icon("info-circle"), " ",
+          i18n()$t("Leave this unticked and fix the tag (or the plot) in the source file instead. Tick it to import everything else and skip these rows."),
+          style = "color: #856404; margin: 0 0 0 20px; font-size: 13px;"
+        ),
+        shiny::uiOutput(ns("unmatched_tags_filter_effect"))
+      )
+    })
+
+    output$unmatched_tags_filter_effect <- shiny::renderUI({
+      res <- effective_result()
+      if (is.null(res) || is.null(res$dropped_unmatched_tags)) return(NULL)
+
+      shiny::p(
+        shiny::icon("filter"), " ",
+        sprintf(
+          i18n()$t("%d row(s) removed. %d row(s) will be imported."),
+          res$dropped_unmatched_tags, nrow(res$data)
         ),
         style = "color: #856404; font-weight: 600; margin: 8px 0 0 20px;"
       )
@@ -1136,7 +1198,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
 
       DT::datatable(
         res$errors,
-        options = list(pageLength = 10, dom = "t"),
+        options = list(pageLength = 10, dom = "frtip"),
         rownames = FALSE, class = "display cell-border"
       ) %>% DT::formatStyle(
         columns = 1:3,
@@ -1150,7 +1212,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
 
       DT::datatable(
         res$warnings,
-        options = list(pageLength = 10, dom = "t"),
+        options = list(pageLength = 10, dom = "frtip"),
         rownames = FALSE, class = "display cell-border"
       ) %>% DT::formatStyle(
         columns = 1:3,
