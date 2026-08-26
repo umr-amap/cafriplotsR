@@ -183,12 +183,20 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
             tryCatch({
               plot_ids <- unique(data$id_liste_plots[!is.na(data$id_liste_plots)])
               if (length(plot_ids) > 0) {
+                # data_individuals is read straight from the table, so every
+                # individual the plot holds is a candidate for the match --
+                # including stems recorded as dead, which query_plots() leaves
+                # out unless several censuses are asked for.
                 existing_inds <- DBI::dbGetQuery(con(), sprintf(
                   "SELECT di.tag, di.id_table_liste_plots_n, di.id_n
                    FROM data_individuals di
                    WHERE di.id_table_liste_plots_n IN (%s)",
                   paste(plot_ids, collapse = ",")
                 ))
+
+                # An unmatched tag says nothing on its own once the upload
+                # covers several plots, so every message below names its plot.
+                plot_labels <- .plot_labels_for_ids(con(), plot_ids, data)
 
                 # Check each row
                 unmatched <- integer(0)
@@ -211,11 +219,27 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                     row = show_rows,
                     column = "tag",
                     issue = sprintf(
-                      i18n()$t("Individual with tag '%s' not found in plot"),
-                      data$tag[show_rows]
+                      i18n()$t("Individual with tag '%s' not found in plot '%s'"),
+                      data$tag[show_rows],
+                      plot_labels[as.character(data$id_liste_plots[show_rows])]
                     ),
                     stringsAsFactors = FALSE
                   ))
+
+                  # One line per plot: on a long upload the ten rows above can
+                  # all come from the same plot and hide the others.
+                  per_plot <- table(as.character(data$id_liste_plots[unmatched]))
+                  for (pid in names(per_plot)) {
+                    warnings <- rbind(warnings, data.frame(
+                      row = 0, column = "tag",
+                      warning = sprintf(
+                        i18n()$t("Plot '%s': %d row(s) whose tag is not in the database"),
+                        plot_labels[[pid]], per_plot[[pid]]
+                      ),
+                      stringsAsFactors = FALSE
+                    ))
+                  }
+
                   if (length(unmatched) > 10) {
                     warnings <- rbind(warnings, data.frame(
                       row = 0, column = "tag",
@@ -1366,4 +1390,58 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
     with_census    = sort(unique(candidates$.row[hit_census])),
     without_census = sort(unique(candidates$.row[hit_any]))
   )
+}
+
+
+#' Readable plot labels for a set of plot ids
+#'
+#' A message about a tag that could not be matched is of little use without the
+#' plot it was looked for in. Names are taken from the prepared data when it
+#' carries them and from the database otherwise; an id that resolves to no name
+#' is labelled `#<id>` rather than left as `NA`.
+#'
+#' @param con Database connection, or NULL to skip the database lookup.
+#' @param plot_ids Vector of `id_liste_plots` values.
+#' @param data Optional prepared data frame, used first when it holds both
+#'   `plot_name` and `id_liste_plots`.
+#'
+#' @return Named character vector of labels, indexed by plot id as character.
+#' @keywords internal
+#' @export
+.plot_labels_for_ids <- function(con, plot_ids, data = NULL) {
+  ids <- unique(as.character(plot_ids[!is.na(plot_ids)]))
+  if (length(ids) == 0) return(stats::setNames(character(0), character(0)))
+
+  labels <- stats::setNames(rep(NA_character_, length(ids)), ids)
+
+  if (!is.null(data) && all(c("plot_name", "id_liste_plots") %in% names(data))) {
+    src <- data[!is.na(data$id_liste_plots) & !is.na(data$plot_name), , drop = FALSE]
+    key <- as.character(src$id_liste_plots)
+    keep <- !duplicated(key) & key %in% ids
+    labels[key[keep]] <- as.character(src$plot_name[keep])
+  }
+
+  # Only plain integer ids reach the query: they are pasted into it.
+  todo <- names(labels)[is.na(labels)]
+  todo <- todo[grepl("^[0-9]+$", todo)]
+
+  if (length(todo) > 0 && !is.null(con)) {
+    tryCatch({
+      found <- DBI::dbGetQuery(con, sprintf(
+        "SELECT id_liste_plots, plot_name
+         FROM data_liste_plots
+         WHERE id_liste_plots IN (%s)",
+        paste(todo, collapse = ",")
+      ))
+      if (nrow(found) > 0) {
+        labels[as.character(found$id_liste_plots)] <- as.character(found$plot_name)
+      }
+    }, error = function(e) {
+      cli::cli_alert_warning("Could not fetch plot names: {e$message}")
+    })
+  }
+
+  unknown <- is.na(labels)
+  labels[unknown] <- paste0("#", names(labels)[unknown])
+  labels
 }

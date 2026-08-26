@@ -9456,6 +9456,14 @@
     {
       "en": "Sheet to read",
       "fr": "Feuille à lire"
+    },
+    {
+      "en": "Individual with tag '%s' not found in plot '%s'",
+      "fr": "Individu avec l'étiquette '%s' introuvable dans la parcelle '%s'"
+    },
+    {
+      "en": "Plot '%s': %d row(s) whose tag is not in the database",
+      "fr": "Parcelle '%s' : %d ligne(s) dont l'étiquette est absente de la base de données"
     }
   ]
 }
