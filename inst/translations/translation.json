@@ -9464,6 +9464,34 @@
     {
       "en": "Plot '%s': %d row(s) whose tag is not in the database",
       "fr": "Parcelle '%s' : %d ligne(s) dont l'étiquette est absente de la base de données"
+    },
+    {
+      "en": "Tag %s appears in multiple groups in plot '%s'",
+      "fr": "L'étiquette %s apparaît dans plusieurs groupes dans la parcelle '%s'"
+    },
+    {
+      "en": "Group tag %s not found in plot '%s', neither in the uploaded data nor in the database",
+      "fr": "Étiquette de groupe %s introuvable dans la parcelle '%s', ni dans les données importées ni dans la base de données"
+    },
+    {
+      "en": "Group '%s' in plot '%s' has only 1 member — will be ignored",
+      "fr": "Le groupe '%s' de la parcelle '%s' n'a qu'un seul membre — il sera ignoré"
+    },
+    {
+      "en": "Tag %s not found in plot '%s' — will be skipped",
+      "fr": "Étiquette %s introuvable dans la parcelle '%s' — elle sera ignorée"
+    },
+    {
+      "en": "Parent tag %s not found in plot '%s' — cannot set stem_grouping",
+      "fr": "Étiquette parente %s introuvable dans la parcelle '%s' — impossible de définir stem_grouping"
+    },
+    {
+      "en": "%d stem(s) already have a stem_grouping that will be overwritten",
+      "fr": "%d tige(s) ont déjà un stem_grouping qui sera écrasé"
+    },
+    {
+      "en": "No valid stem groupings to update (all tags unmatched or missing parents)",
+      "fr": "Aucun regroupement de tiges valide à mettre à jour (toutes les étiquettes sont introuvables ou sans parent)"
     }
   ]
 }

@@ -228,17 +228,9 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
 
                   # One line per plot: on a long upload the ten rows above can
                   # all come from the same plot and hide the others.
-                  per_plot <- table(as.character(data$id_liste_plots[unmatched]))
-                  for (pid in names(per_plot)) {
-                    warnings <- rbind(warnings, data.frame(
-                      row = 0, column = "tag",
-                      warning = sprintf(
-                        i18n()$t("Plot '%s': %d row(s) whose tag is not in the database"),
-                        plot_labels[[pid]], per_plot[[pid]]
-                      ),
-                      stringsAsFactors = FALSE
-                    ))
-                  }
+                  warnings <- rbind(warnings, .unmatched_tag_plot_summary(
+                    plot_labels[as.character(data$id_liste_plots[unmatched])],
+                    i18n()))
 
                   if (length(unmatched) > 10) {
                     warnings <- rbind(warnings, data.frame(
@@ -587,8 +579,8 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
               errors <- rbind(errors, data.frame(
                 row = show_dup, column = "tag",
                 issue = sprintf(
-                  i18n()$t("Tag %s appears in multiple groups"),
-                  data$tag[show_dup]
+                  i18n()$t("Tag %s appears in multiple groups in plot '%s'"),
+                  data$tag[show_dup], data$plot_name[show_dup]
                 ),
                 stringsAsFactors = FALSE
               ))
@@ -606,8 +598,8 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                 errors <- rbind(errors, data.frame(
                   row = i, column = "group_tag",
                   issue = sprintf(
-                    i18n()$t("Group tag %s not found as a tag in this plot's data or in the database"),
-                    gt
+                    i18n()$t("Group tag %s not found in plot '%s', neither in the uploaded data nor in the database"),
+                    gt, pl
                   ),
                   stringsAsFactors = FALSE
                 ))
@@ -623,7 +615,10 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                 rows_sg <- which(group_keys == sg)
                 warnings <- rbind(warnings, data.frame(
                   row = rows_sg[1], column = "group_tag",
-                  warning = i18n()$t("Group has only 1 member — will be ignored"),
+                  warning = sprintf(
+                    i18n()$t("Group '%s' in plot '%s' has only 1 member — will be ignored"),
+                    data$group_tag[rows_sg[1]], data$plot_name[rows_sg[1]]
+                  ),
                   stringsAsFactors = FALSE
                 ))
               }
@@ -640,11 +635,13 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                 warnings <- rbind(warnings, data.frame(
                   row = show_rows, column = "tag",
                   warning = sprintf(
-                    i18n()$t("Tag %s not found in database — will be skipped"),
-                    data$tag[show_rows]
+                    i18n()$t("Tag %s not found in plot '%s' — will be skipped"),
+                    data$tag[show_rows], data$plot_name[show_rows]
                   ),
                   stringsAsFactors = FALSE
                 ))
+                warnings <- rbind(warnings, .unmatched_tag_plot_summary(
+                  data$plot_name[unmatched], i18n()))
                 if (length(unmatched) > 10) {
                   warnings <- rbind(warnings, data.frame(
                     row = 0, column = "tag",
@@ -664,8 +661,8 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                 errors <- rbind(errors, data.frame(
                   row = show_rows, column = "group_tag",
                   issue = sprintf(
-                    i18n()$t("Parent tag %s not found in database — cannot set stem_grouping"),
-                    data$group_tag[show_rows]
+                    i18n()$t("Parent tag %s not found in plot '%s' — cannot set stem_grouping"),
+                    data$group_tag[show_rows], data$plot_name[show_rows]
                   ),
                   stringsAsFactors = FALSE
                 ))
@@ -729,11 +726,13 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                     warnings <- rbind(warnings, data.frame(
                       row = show_rows, column = "tag",
                       warning = sprintf(
-                        i18n()$t("Tag %s not found in database — will be skipped"),
-                        data$tag[show_rows]
+                        i18n()$t("Tag %s not found in plot '%s' — will be skipped"),
+                        data$tag[show_rows], data$plot_name[show_rows]
                       ),
                       stringsAsFactors = FALSE
                     ))
+                    warnings <- rbind(warnings, .unmatched_tag_plot_summary(
+                      data$plot_name[unmatched], i18n()))
                   }
                 }
               }, error = function(e) {
@@ -1444,4 +1443,40 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
   unknown <- is.na(labels)
   labels[unknown] <- paste0("#", names(labels)[unknown])
   labels
+}
+
+
+#' Per-plot count of rows whose tag could not be matched
+#'
+#' Only the first ten unmatched rows are listed individually, and on a long
+#' upload those ten can all belong to one plot while other plots go unmentioned.
+#' This adds one line per plot so the whole picture is visible.
+#'
+#' @param plot_labels Character vector of plot labels, one per unmatched row.
+#'   Names or `#<id>` labels both work; see [.plot_labels_for_ids()].
+#' @param i18n Translator object (not the reactive), or NULL for no
+#'   translation.
+#'
+#' @return A data frame of warning rows (`row`, `column`, `warning`), empty
+#'   when nothing is unmatched.
+#' @keywords internal
+#' @export
+.unmatched_tag_plot_summary <- function(plot_labels, i18n = NULL) {
+  empty <- data.frame(row = integer(), column = character(),
+                      warning = character(), stringsAsFactors = FALSE)
+  if (length(plot_labels) == 0) return(empty)
+
+  labs <- as.character(plot_labels)
+  labs[is.na(labs) | !nzchar(labs)] <- "?"
+
+  counts <- table(labs)
+  msg <- "Plot '%s': %d row(s) whose tag is not in the database"
+  if (!is.null(i18n)) msg <- i18n$t(msg)
+
+  data.frame(
+    row = 0L,
+    column = "tag",
+    warning = sprintf(msg, names(counts), as.integer(counts)),
+    stringsAsFactors = FALSE
+  )
 }
