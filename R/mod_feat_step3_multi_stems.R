@@ -127,9 +127,10 @@ mod_feat_step3_multi_stems_ui <- function(id, i18n) {
         shiny::fileInput(
           ns("file_upload"),
           label = i18n$t("Upload grouping file"),
-          accept = c(".xlsx", ".csv"),
+          accept = c(".xlsx", ".xls", ".csv"),
           placeholder = i18n$t("Choose file...")
-        )
+        ),
+        .xlsx_sheet_ui(ns, "file_upload")
       )
     ),
 
@@ -217,24 +218,16 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
     # Upload method
     # ====================================================================
 
-    shiny::observeEvent(input$file_upload, {
-      shiny::req(input$file_upload)
-      file <- input$file_upload
+    # Store uploaded data temporarily
+    uploaded_raw <- shiny::reactiveVal(NULL)
 
-      ext <- tolower(tools::file_ext(file$name))
-      data <- tryCatch({
-        if (ext == "csv") {
-          utils::read.csv(file$datapath, stringsAsFactors = FALSE)
-        } else {
-          as.data.frame(readxl::read_excel(file$datapath))
-        }
-      }, error = function(e) {
-        shiny::showNotification(
-          paste(i18n()$t("Error reading file:"), e$message),
-          type = "error"
-        )
-        return(NULL)
-      })
+    upload_table <- .xlsx_sheet_server(input, output, session, "file_upload", i18n)
+
+    shiny::observeEvent(upload_table(), {
+      # Read errors are reported by .xlsx_sheet_server(); nothing arrives here
+      data <- upload_table()
+
+      uploaded_raw(data)
 
       if (is.null(data) || nrow(data) == 0) return()
 
@@ -282,23 +275,6 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
           )
         )
       })
-    })
-
-    # Store uploaded data temporarily
-    uploaded_raw <- shiny::reactiveVal(NULL)
-
-    shiny::observeEvent(input$file_upload, {
-      shiny::req(input$file_upload)
-      file <- input$file_upload
-      ext <- tolower(tools::file_ext(file$name))
-      data <- tryCatch({
-        if (ext == "csv") {
-          utils::read.csv(file$datapath, stringsAsFactors = FALSE)
-        } else {
-          as.data.frame(readxl::read_excel(file$datapath))
-        }
-      }, error = function(e) NULL)
-      uploaded_raw(data)
     })
 
     shiny::observeEvent(input$btn_apply_upload, {

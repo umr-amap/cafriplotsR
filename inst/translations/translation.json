@@ -9452,6 +9452,10 @@
     {
       "en": "None of the %d collector and number combinations exist in the specimens table. Review the table below, then correct the collector matching or add the missing specimens.",
       "fr": "Aucune des %d combinaisons collecteur/numéro n'existe dans la table des spécimens. Consultez le tableau ci-dessous, puis corrigez l'appariement des collecteurs ou ajoutez les spécimens manquants."
+    },
+    {
+      "en": "Sheet to read",
+      "fr": "Feuille à lire"
     }
   ]
 }
