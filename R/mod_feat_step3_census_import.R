@@ -41,6 +41,7 @@ mod_feat_step3_census_import_ui <- function(id, i18n) {
       accept = c(".xlsx", ".xls"),
       width = "100%"
     ),
+    .xlsx_sheet_ui(ns, "xlsx_file"),
 
     # ---- Column mapping ---------------------------------------------------
     shiny::uiOutput(ns("column_mapping_ui")),
@@ -206,12 +207,13 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
 
     # ---- upload -----------------------------------------------------------
 
-    shiny::observeEvent(input$xlsx_file, {
-      shiny::req(input$xlsx_file)
+    upload_table <- .xlsx_sheet_server(input, output, session, "xlsx_file", i18n)
+
+    shiny::observeEvent(upload_table(), {
       uploaded_raw(NULL); split_result(NULL); prepared(NULL); prepared_config(NULL)
 
       tryCatch({
-        raw <- as.data.frame(readxl::read_excel(input$xlsx_file$datapath, guess_max = 5000))
+        raw <- upload_table()
         if (nrow(raw) == 0) {
           shiny::showNotification(i18n()$t("Uploaded file is empty."), type = "error")
           return()
