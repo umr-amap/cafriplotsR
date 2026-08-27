@@ -146,3 +146,21 @@ test_that("no button and no dangling separator when nothing resolved", {
     })
   )
 })
+
+test_that("a descriptor served without an HTTP status line is accepted", {
+  # file:// reports status 0. It is how a site behind a firewall points
+  # CafriplotsR.public_access_url at a local mirror, so it must not be
+  # mistaken for a failed request.
+  path <- withr::local_tempfile(fileext = ".json")
+  writeLines(
+    '{"enabled": true, "user": "u", "password": "p", "message": ""}', path
+  )
+
+  result <- CafriplotsR:::.public_credential(
+    url = paste0("file://", normalizePath(path, winslash = "/")), force = TRUE
+  )
+  expect_true(result$available)
+  expect_identical(result$user, "u")
+
+  CafriplotsR:::.public_credential_forget()
+})

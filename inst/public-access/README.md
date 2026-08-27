@@ -39,27 +39,35 @@ package.
 
 ## Publishing it
 
-The pkgdown workflow deploys `docs/` to `gh-pages` with `clean: false`
-(`.github/workflows/pkgdown.yaml`), so a file committed straight to that
-branch survives later site rebuilds. That is the whole procedure:
+GitHub Pages serves this repository from **`master`, path `/docs`** (check with
+`gh api repos/umr-amap/cafriplotsR/pages`) — not from `gh-pages`, which does not
+exist here even though `.github/workflows/pkgdown.yaml` deploys to it. So the
+served copy is `docs/public-access.json` on master, and the descriptor is in the
+public repository. That is a deliberate trade: the value is world-readable
+either way, and what matters is that it can be changed and withdrawn in one
+commit.
+
+The master copy lives in `pkgdown/assets/`, which `pkgdown::build_site()` copies
+verbatim into `docs/`. Editing only `docs/` would work until the next site
+rebuild dropped it, so **edit both**:
 
 ```bash
-git fetch origin gh-pages
-git worktree add /tmp/ghp gh-pages
-cp inst/public-access/public-access.json /tmp/ghp/public-access.json
-# edit /tmp/ghp/public-access.json - put the real password in
-cd /tmp/ghp
-git add public-access.json
+# edit pkgdown/assets/public-access.json, then mirror it
+cp pkgdown/assets/public-access.json docs/public-access.json
+git add pkgdown/assets/public-access.json docs/public-access.json
 git commit -m "chore(public-access): rotate public credential"
-git push origin gh-pages
-cd - && git worktree remove /tmp/ghp
+git push origin master
 ```
 
-Live in about 30 seconds. Verify with:
+Live in about a minute. Verify with:
 
 ```r
 CafriplotsR:::.public_credential(force = TRUE)
 ```
+
+The template in this directory stays a placeholder. It documents the shape of
+the file; it is never the file that is served, and a real value put here is a
+value published in a place nothing reads.
 
 ## Rotating
 

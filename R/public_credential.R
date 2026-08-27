@@ -135,7 +135,11 @@
                    "t=", as.integer(Sys.time()))
     handle <- curl::new_handle(timeout = timeout, connecttimeout = timeout)
     response <- curl::curl_fetch_memory(bust, handle = handle)
-    if (!identical(as.integer(response$status_code), 200L)) return(NULL)
+    # 0 is what a scheme with no status line reports — `file://`, which is how
+    # a site behind a firewall points `CafriplotsR.public_access_url` at a
+    # local mirror of the descriptor.
+    status <- as.integer(response$status_code)
+    if (!status %in% c(200L, 0L)) return(NULL)
     jsonlite::fromJSON(rawToChar(response$content), simplifyVector = TRUE)
   }, error = function(e) {
     message("Public access descriptor unavailable (", conditionMessage(e), ").")
