@@ -48,7 +48,8 @@
 #' `table_colnam`), `DeterminationInstitution`, `LocationID`,
 #' `MinimumElevation` (specimens aren't tied to a plot with elevation),
 #' `VegetationDescription`, `Duplicates`, `Institutions`,
-#' `OtherCollectorIDs`, `GeneralKeywords`.
+#' `OtherCollectorIDs`. `GeneralKeywords` is the same by default, but can be
+#' built from `specimens` via `keyword_columns` -- see below.
 #'
 #' `AuthorityKey` is also left blank by default for now -- the template's
 #' example rows suggest it follows a convention (first initial of the
@@ -79,6 +80,14 @@
 #'   all rows. The template uses this to flag the language of
 #'   `DescriptionNote`; there's no way to infer it from the database, so
 #'   override it per batch as needed.
+#' @param keyword_columns Character vector of column names in `specimens`
+#'   (default `NULL`), concatenated row-wise into `GeneralKeywords`. Each
+#'   value is trimmed and blank/`NA` entries are dropped before joining, so
+#'   a row missing some of the listed columns still gets whatever the
+#'   others provide (or `NA` if none do). `NULL` leaves `GeneralKeywords`
+#'   blank, as before.
+#' @param keyword_sep Character, default `"; "`. Separator used to join
+#'   `keyword_columns` values within a row.
 #' @return A tibble with the 31 Tropicos template columns, in template
 #'   column order, one row per input specimen.
 #'
@@ -88,6 +97,12 @@
 #' specimens <- query_specimens(id_colnam = 123, subset_columns = TRUE,
 #'                              show_html = FALSE, con = con)
 #' tropicos_tbl <- build_tropicos_upload_table(specimens, con, authority = "Madagascar")
+#'
+#' # Fold locality and free-text description into GeneralKeywords
+#' tropicos_tbl <- build_tropicos_upload_table(
+#'   specimens, con,
+#'   keyword_columns = c("locality", "description")
+#' )
 #' }
 #'
 #' @export
@@ -96,7 +111,9 @@ build_tropicos_upload_table <- function(specimens, con = NULL,
                                         coordinate_method = "GPS",
                                         elevation_unit = "m",
                                         elevation_method = "GPS",
-                                        date_language = "French") {
+                                        date_language = "French",
+                                        keyword_columns = NULL,
+                                        keyword_sep = "; ") {
 
   if (is.null(con)) con <- call.mydb()
 
@@ -115,6 +132,16 @@ build_tropicos_upload_table <- function(specimens, con = NULL,
     )
   }
 
+  if (!is.null(keyword_columns)) {
+    missing_kw_cols <- setdiff(keyword_columns, names(specimens))
+    if (length(missing_kw_cols) > 0) {
+      stop(
+        "keyword_columns not found in specimens: ", paste(missing_kw_cols, collapse = ", "),
+        call. = FALSE
+      )
+    }
+  }
+
   # Senior collector's Tropicos Person ID, joined via id_colnam. Tolerate
   # the migration not having been run yet (id_tropicos_person column
   # missing) by falling back to NA for everyone.
@@ -131,6 +158,21 @@ build_tropicos_upload_table <- function(specimens, con = NULL,
 
   suffix_txt <- ifelse(is.na(specimens$suffix), "", specimens$suffix)
   add_col_txt <- trimws(ifelse(is.na(specimens$add_col), "", specimens$add_col))
+
+  # GeneralKeywords: row-wise concatenation of keyword_columns, dropping
+  # blank/NA entries per row rather than propagating them into the join.
+  if (is.null(keyword_columns)) {
+    general_keywords <- blank()
+  } else {
+    kw_values <- lapply(keyword_columns, function(col) {
+      trimws(ifelse(is.na(specimens[[col]]), "", as.character(specimens[[col]])))
+    })
+    kw_mat <- do.call(cbind, kw_values)
+    general_keywords <- apply(kw_mat, 1, function(row) {
+      row <- row[nzchar(row)]
+      if (length(row) == 0) NA_character_ else paste(row, collapse = keyword_sep)
+    })
+  }
 
   dplyr::tibble(
     Authority = rep(authority, nrow(specimens)),
@@ -167,7 +209,7 @@ build_tropicos_upload_table <- function(specimens, con = NULL,
     Duplicates = blank(NA_integer_),
     Institutions = blank(),
     OtherCollectorIDs = blank(),
-    GeneralKeywords = blank()
+    GeneralKeywords = general_keywords
   )
 }
 

@@ -11,7 +11,9 @@ build_tropicos_upload_table(
   coordinate_method = "GPS",
   elevation_unit = "m",
   elevation_method = "GPS",
-  date_language = "French"
+  date_language = "French",
+  keyword_columns = NULL,
+  keyword_sep = "; "
 )
 }
 \arguments{
@@ -39,6 +41,16 @@ matching every example row in the template).}
 all rows. The template uses this to flag the language of
 `DescriptionNote`; there's no way to infer it from the database, so
 override it per batch as needed.}
+
+\item{keyword_columns}{Character vector of column names in `specimens`
+(default `NULL`), concatenated row-wise into `GeneralKeywords`. Each
+value is trimmed and blank/`NA` entries are dropped before joining, so
+a row missing some of the listed columns still gets whatever the
+others provide (or `NA` if none do). `NULL` leaves `GeneralKeywords`
+blank, as before.}
+
+\item{keyword_sep}{Character, default `"; "`. Separator used to join
+`keyword_columns` values within a row.}
 }
 \value{
 A tibble with the 31 Tropicos template columns, in template
@@ -73,7 +85,8 @@ A few columns have **no source in the database at all** and are always
 `table_colnam`), `DeterminationInstitution`, `LocationID`,
 `MinimumElevation` (specimens aren't tied to a plot with elevation),
 `VegetationDescription`, `Duplicates`, `Institutions`,
-`OtherCollectorIDs`, `GeneralKeywords`.
+`OtherCollectorIDs`. `GeneralKeywords` is the same by default, but can be
+built from `specimens` via `keyword_columns` -- see below.
 
 `AuthorityKey` is also left blank by default for now -- the template's
 example rows suggest it follows a convention (first initial of the
@@ -93,6 +106,12 @@ con <- call.mydb()
 specimens <- query_specimens(id_colnam = 123, subset_columns = TRUE,
                              show_html = FALSE, con = con)
 tropicos_tbl <- build_tropicos_upload_table(specimens, con, authority = "Madagascar")
+
+# Fold locality and free-text description into GeneralKeywords
+tropicos_tbl <- build_tropicos_upload_table(
+  specimens, con,
+  keyword_columns = c("locality", "description")
+)
 }
 
 }
