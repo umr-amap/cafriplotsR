@@ -29,6 +29,13 @@ les sept autres exigent votre propre compte car elles écrivent dans la base.
 L'une des trois, l'application d'appariement taxonomique, va même plus loin et
 fonctionne aussi hors ligne.
 
+L'une d'entre elles ne demande même pas R. L'application de standardisation
+des noms taxonomiques est aussi **hébergée**, à l'adresse
+<https://cafri-taxomatch.lab.sspcloud.fr> : ouvrez-la dans un navigateur et
+elle se comporte exactement comme l'application locale, connexion publique
+comprise. Utilisez-la pour essayer le paquet, ou pour montrer le flux de
+travail à un collègue sans rien lui faire installer.
+
 ## Quelle application choisir ?
 
 | Application | Lancement | Accès |
@@ -105,6 +112,12 @@ inventaires.
 Commencez ici si vous arrivez avec une liste d'espèces issue de votre terrain.
 C'est aussi la seule application qui fonctionne hors ligne, à partir d'une copie
 locale du référentiel.
+
+Et c'est la seule que vous pouvez aussi utiliser **sans rien installer** :
+<https://cafri-taxomatch.lab.sspcloud.fr> sert la même application depuis
+SSP Cloud. La copie hébergée interroge la même base, si bien qu'une liste
+standardisée exportée là-bas porte les mêmes `idtax_n` qu'une liste produite
+localement.
 
 ### Référentiel taxonomique
 
