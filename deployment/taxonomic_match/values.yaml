@@ -10,6 +10,20 @@
 probePatch:
   image: bitnami/kubectl:latest
 
+# --- Public login credential -------------------------------------------------
+# Name of a Secret holding CAFRI_PUBLIC_USER / CAFRI_PUBLIC_PASS, mounted into
+# the container by the same hook (templates/probe-patch.yaml). Create it out of
+# band so the password stays out of this repository:
+#
+#   kubectl create secret generic cafri-public-credential \
+#     --from-literal=CAFRI_PUBLIC_USER=CafriP_public \
+#     --from-literal=CAFRI_PUBLIC_PASS='<current password>'
+#
+# Optional: without it the app falls back to the published descriptor at
+# https://umr-amap.github.io/cafriplotsR/public-access.json
+publicCredential:
+  secretName: cafri-public-credential
+
 shiny:
 
   # --- Container image -------------------------------------------------------
@@ -37,8 +51,10 @@ shiny:
   # --- Runtime configuration -------------------------------------------------
   # This chart has no env-var field; CAFRI_SERVED=true and CAFRI_LANGUAGE=fr
   # are baked into the image via the Dockerfile ENV instructions instead.
-  # The app authenticates users at runtime via the in-app login module, so NO
-  # database secret is needed here.
+  # Users authenticate at runtime via the in-app login module, so no personal
+  # database credentials are held here. The read-only PUBLIC login is the one
+  # exception: it is supplied through the `publicCredential` Secret above,
+  # never through the image, which is world-pullable from ghcr.io.
 
   # --- Resources -------------------------------------------------------------
   # Taxonomic matching is CPU-light but loads a sizeable backbone; give it

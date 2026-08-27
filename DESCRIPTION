@@ -39,10 +39,11 @@ Imports:
     shinyjs,
     later,
     grid,
-    grDevices
+    grDevices,
+    curl,
+    jsonlite
 Suggests:
     getPass,
-    jsonlite,
     openxlsx,
     proj4,
     taxize,
