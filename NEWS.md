@@ -223,6 +223,10 @@
 
 ### Documentation
 
+* **The app catalogs name the hosted taxonomic app** (`vignettes/apps-overview.Rmd`, `vignettes/apps-overview-fr.Rmd`) — the taxonomic name standardization app has been deployed on SSP Cloud at <https://cafri-taxomatch.lab.sspcloud.fr> since the `deployment/taxonomic_match/` chart landed, and nothing outside that directory said so. A reader looking for a way to try the package without installing R had no reason to suspect one existed
+  - Named twice per language: in the introduction, beside the note that three apps open without credentials, since "needs no account" and "needs no install" are the two questions a newcomer actually has; and in the app's own section, beside the offline note, where it matters that the hosted copy queries the same database and so returns the same `idtax_n` values as a local run
+  - Left out of the *Which app do I need?* table, which answers a different question — which app, not where to run it — and has no column that would hold a URL without distorting it
+
 * **`apps-overview` vignette, in English and French** (`vignettes/apps-overview.Rmd`, `vignettes/apps-overview-fr.Rmd`) — ten apps and no single page saying what each one is for. The overview groups them by what they do (explore and standardize, import and update, herbarium specimens), states for every app whether the public account suffices or your own is required, and spells out what public access covers and why the write apps do not offer it. Listed under Getting Started and Français - Démarrage
 
 * **README — the access note now says what actually needs credentials** — the note claimed the database is restricted, full stop, which discourages newcomers and is not true: taxonomic standardization, backbone browsing and plot querying all run through the public account. Only inventory writes and per-account plot visibility are restricted. Reworded in `README.md`, `README.fr.md`, `README-fr.md` and `vignettes/readme-fr.Rmd`

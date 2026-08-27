@@ -28,6 +28,13 @@ three apps can be opened without any credentials, the other seven need your own
 account because they write to the database. One of the three, the taxonomic
 matching app, goes further still and also runs offline.
 
+One of the three does not need R at all. The taxonomic name standardization
+app is also **hosted**, at
+<https://cafri-taxomatch.lab.sspcloud.fr> — open it in a browser and it
+behaves exactly like the local app, public login included. Use it to try the
+package out, or to point a colleague at the workflow without asking them to
+install anything.
+
 ## Which app do I need?
 
 | App | Launch with | Access |
@@ -99,6 +106,12 @@ later on.
 
 Start here if you arrive with a species list from your own fieldwork. This is
 also the one app that runs offline, from a cached copy of the backbone.
+
+And it is the only one you can use **without installing anything**:
+<https://cafri-taxomatch.lab.sspcloud.fr> serves the same application from
+SSP Cloud. The hosted copy talks to the same database, so a standardized
+list exported there carries the same `idtax_n` values as one produced
+locally.
 
 ### Taxonomic backbone
 
