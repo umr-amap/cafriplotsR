@@ -7,6 +7,7 @@ inst/doc
 .tex
 Export_OVFI/
 .Rprofile
+.Renviron
 
 # Ignore working HTML files in root (presentations, reports, etc.)
 /*.html
