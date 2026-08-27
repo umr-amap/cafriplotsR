@@ -1,4 +1,12 @@
-# Permanent probe fix.
+# Permanent post-install/post-upgrade patches to the sub-chart's Deployment.
+#
+# Two things the upstream `shiny` sub-chart does not expose through values are
+# patched here after the fact: probe timing, and container environment. Both
+# run as a hook, so helm reasserting the chart's own spec on every upgrade is
+# corrected again immediately.
+#
+# ---------------------------------------------------------------------------
+# 1. PROBE TIMING
 #
 # The upstream `shiny` sub-chart hardcodes a tight HTTP GET `/` liveness/
 # readiness probe (timeoutSeconds ~1, failureThreshold 3, periodSeconds 10) and
@@ -17,6 +25,26 @@
 # Because it runs as a post-install/post-upgrade hook, the loosened timing is
 # re-applied on every install and upgrade.
 #
+# ---------------------------------------------------------------------------
+# 2. PUBLIC CREDENTIAL ENVIRONMENT
+#
+# CAFRI_PUBLIC_USER / CAFRI_PUBLIC_PASS let the app offer the read-only public
+# login without reading the published descriptor over the internet — a hosted
+# app must not depend on GitHub Pages being reachable in order to let anyone
+# in, and the credential never leaves the server this way.
+#
+# The Secret is created out of band, so the password is in the cluster and not
+# in this repository:
+#
+#   kubectl create secret generic cafri-public-credential \
+#     --from-literal=CAFRI_PUBLIC_USER=CafriP_public \
+#     --from-literal=CAFRI_PUBLIC_PASS='<current password>'
+#
+# `optional: true` is deliberate. If the Secret is absent the pod still starts
+# and the app falls back to the published descriptor, which is a degraded but
+# working state; a missing Secret must not take the deployment down.
+#
+# ---------------------------------------------------------------------------
 # Requires the release namespace to allow creating ServiceAccount/Role/
 # RoleBinding/Job (granted by the SSP Cloud "admin" Kubernetes role used to
 # install the chart).
@@ -90,4 +118,9 @@ spec:
                 {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/timeoutSeconds","value":10},
                 {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/periodSeconds","value":30},
                 {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/failureThreshold","value":10}
+              ]'
+              kubectl patch deployment {{ .Release.Name }}-shiny --type=json -p='[
+                {"op":"add","path":"/spec/template/spec/containers/0/envFrom","value":[
+                  {"secretRef":{"name":"{{ .Values.publicCredential.secretName | default "cafri-public-credential" }}","optional":true}}
+                ]}
               ]'

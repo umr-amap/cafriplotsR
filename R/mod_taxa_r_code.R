@@ -294,18 +294,22 @@ taxa_with_synonyms <- dplyr::bind_rows(taxa, synonyms)'
 #' @keywords internal
 .build_combined_taxa_code <- function(query_taxa_code, traits_code,
                                        has_selection, is_public = FALSE) {
-  # Connection code
+  # Connection code.
+  #
+  # The public branch used to print the public account's own credentials here,
+  # which handed them to every visitor of the hosted app — and to anyone they
+  # pasted the snippet to. The snippet is a starting point for work in R, and
+  # work in R is done under one's own account, so both branches now prompt.
+  connection_code <- c(
+    "# Connect to databases (credentials will be requested interactively)",
+    "# call.mydb()       # main database",
+    "# call.mydb.taxa()  # taxa database\n"
+  )
   if (is_public) {
     connection_code <- c(
-      "# Connect to databases as public user (read-only access)",
-      'call.mydb(user = "CafriP_public", pass = "CafriPublic01")',
-      'call.mydb.taxa(user = "CafriP_public", pass = "CafriPublic01")\n'
-    )
-  } else {
-    connection_code <- c(
-      "# Connect to databases (credentials will be requested interactively)",
-      "# call.mydb()       # main database",
-      "# call.mydb.taxa()  # taxa database\n"
+      "# You are browsing through the read-only public account. To run this",
+      "# script you need a database account of your own.",
+      connection_code
     )
   }
 

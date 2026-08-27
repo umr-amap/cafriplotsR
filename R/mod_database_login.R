@@ -67,16 +67,14 @@ mod_database_login_ui <- function(id, allow_public = FALSE, allow_offline = FALS
         # Connect button
         shiny::uiOutput(ns("connect_button")),
 
-        # Public access separator, button and notice - only for apps that
-        # opt in, since the public account is read-only and cannot drive the
-        # import, update or specimen management apps
+        # Public access button and notice - only for apps that opt in, since
+        # the public account is read-only and cannot drive the import, update
+        # or specimen management apps. Opting in is a request, not a
+        # guarantee: the credential is resolved at runtime and can be
+        # withdrawn upstream, so the separator travels with the button in the
+        # server rather than being drawn here unconditionally
         if (isTRUE(allow_public)) {
           shiny::tagList(
-            shiny::hr(style = "margin-top: 20px; margin-bottom: 15px;"),
-            shiny::div(
-              style = "text-align: center; color: #6c757d; font-size: 0.85em; margin-bottom: 10px;",
-              shiny::uiOutput(ns("or_label"))
-            ),
             shiny::uiOutput(ns("public_connect_button")),
             shiny::uiOutput(ns("public_access_notice"))
           )
@@ -147,9 +145,15 @@ mod_database_login_server <- function(id, allow_public = FALSE,
       }
     })
 
-    # Public credentials (read-only user — intentionally embedded)
-    public_user     <- "CafriP_public"
-    public_password <- "CafriPublic01"
+    # Public credential — resolved at runtime from the environment or the
+    # published descriptor, never carried in this file. See
+    # R/public_credential.R for why, and what "unavailable" covers.
+    public_access <- if (isTRUE(allow_public)) {
+      .public_credential()
+    } else {
+      .public_credential_result(FALSE)
+    }
+    public_enabled <- isTRUE(allow_public) && isTRUE(public_access$available)
 
     # Reactive values
     rv <- shiny::reactiveValues(
@@ -285,31 +289,48 @@ mod_database_login_server <- function(id, allow_public = FALSE,
       }
     })
 
-    output$or_label <- shiny::renderUI({
-      input$language
-      shiny::tagList(
-        shiny::tags$span(
-          style = "background: #f8f9fa; padding: 0 10px;",
-          t("or")
-        )
-      )
-    })
-
     output$public_connect_button <- shiny::renderUI({
       input$language
-      shiny::actionButton(
-        ns("connect_public"),
-        shiny::tagList(
-          shiny::icon("globe"),
-          paste0(" ", t("Connect as public user"))
+      if (!public_enabled) return(NULL)
+      shiny::tagList(
+        shiny::hr(style = "margin-top: 20px; margin-bottom: 15px;"),
+        shiny::div(
+          style = "text-align: center; color: #6c757d; font-size: 0.85em; margin-bottom: 10px;",
+          shiny::tags$span(
+            style = "background: #f8f9fa; padding: 0 10px;",
+            t("or")
+          )
         ),
-        class = "btn-outline-secondary btn-block",
-        style = "margin-bottom: 8px;"
+        shiny::actionButton(
+          ns("connect_public"),
+          shiny::tagList(
+            shiny::icon("globe"),
+            paste0(" ", t("Connect as public user"))
+          ),
+          class = "btn-outline-secondary btn-block",
+          style = "margin-bottom: 8px;"
+        )
       )
     })
 
     output$public_access_notice <- shiny::renderUI({
       input$language
+      if (!isTRUE(allow_public)) return(NULL)
+
+      # Public access was asked for but cannot be offered. Explain only when
+      # the descriptor says why — a network failure is noise to the user, who
+      # still has their own account and, in some apps, the offline cache.
+      if (!public_enabled) {
+        if (!nzchar(public_access$message)) return(NULL)
+        return(shiny::div(
+          class = "alert alert-secondary",
+          style = "font-size: 0.85em; margin-top: 20px; margin-bottom: 0; padding: 8px 12px;",
+          shiny::icon("circle-info"),
+          " ",
+          public_access$message
+        ))
+      }
+
       shiny::div(
         class = "alert alert-warning",
         style = "font-size: 0.85em; margin-top: 5px; margin-bottom: 0; padding: 8px 12px;",
@@ -523,7 +544,9 @@ mod_database_login_server <- function(id, allow_public = FALSE,
 
     # Public connect button handler
     shiny::observeEvent(input$connect_public, {
-      shiny::req(isTRUE(allow_public))
+      # Re-checked rather than trusted: the button is only rendered when the
+      # credential resolved, but an input can be sent without one
+      shiny::req(public_enabled)
       rv$error_message <- NULL
       rv$is_public <- FALSE
 
@@ -555,8 +578,8 @@ mod_database_login_server <- function(id, allow_public = FALSE,
             host = db_host,
             port = db_port,
             dbname = "plots_transects",
-            user = public_user,
-            password = public_password
+            user = public_access$user,
+            password = public_access$password
           )
           DBI::dbGetQuery(pool_main, "SELECT 1 AS test")
           rv$pool_main <- pool_main
@@ -580,8 +603,8 @@ mod_database_login_server <- function(id, allow_public = FALSE,
             host = db_host,
             port = db_port,
             dbname = "rainbio",
-            user = public_user,
-            password = public_password
+            user = public_access$user,
+            password = public_access$password
           )
           DBI::dbGetQuery(pool_taxa, "SELECT 1 AS test")
           rv$pool_taxa <- pool_taxa

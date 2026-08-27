@@ -18,7 +18,24 @@ without installing R or RStudio.
 The database stays **external** (OVH, `dg474899-001.dbaas.ovh.net:35699`).
 Users authenticate inside the app through the login module — with their own
 credentials, the **public read-only user**, or the **offline cached
-backbone** — so no database secret is stored in the image or the chart.
+backbone** — so no personal database credentials are stored anywhere.
+
+The read-only public login is the one credential the deployment itself holds.
+It is supplied as a Kubernetes Secret named by `publicCredential.secretName`
+in `values.yaml` and injected as `CAFRI_PUBLIC_USER` / `CAFRI_PUBLIC_PASS` by
+the post-install hook. Create it once, before the first install:
+
+```bash
+kubectl create secret generic cafri-public-credential \
+  --from-literal=CAFRI_PUBLIC_USER=CafriP_public \
+  --from-literal=CAFRI_PUBLIC_PASS='<current password>'
+```
+
+It must **not** go in the image (world-pullable from ghcr.io) or in
+`values.yaml` (committed). If the Secret is missing the pod still starts and
+the app falls back to the published descriptor at
+`https://umr-amap.github.io/cafriplotsR/public-access.json` — see
+`inst/public-access/README.md`.
 
 ## One-time setup
 
@@ -175,9 +192,11 @@ heavy concurrent use, run multiple replicas with sticky sessions or ShinyProxy.
 - **Egress to OVH**: the SSP Cloud cluster must allow outbound connections to
   `dg474899-001.dbaas.ovh.net:35699`. Test it once from an SSP Cloud service
   (`pg_isready -h ... -p 35699` or a quick `DBI::dbConnect`) before deploying.
-- **Public URL**: `*.lab.sspcloud.fr` is reachable by anyone. The embedded
-  public read-only user becomes effectively world-usable. That is acceptable
-  for read-only taxonomy/traits, but make it a conscious choice.
+- **Public URL**: `*.lab.sspcloud.fr` is reachable by anyone, so the public
+  read-only login becomes world-usable. That is acceptable for read-only
+  taxonomy/traits, but make it a conscious choice — and note that the
+  credential itself no longer leaves the server, so abuse here means abuse of
+  the app, not of a leaked password.
 - **Concurrency caveat**: the apps currently store connection pools in a
   shared package-global (`.db_env`), and query helpers like `call.mydb.taxa()`
   read from it. Two *simultaneous* users connecting with **different**
