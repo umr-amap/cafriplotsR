@@ -5103,30 +5103,67 @@ detect_feature_changes <- function(data, feature_columns, config, table_type, co
         dplyr::filter(id_data_individuals %in% ids, trait == feat) %>%
         dplyr::group_by(id_data_individuals) %>%
         dplyr::summarise(
+          id_trait_measures = min(id_trait_measures, na.rm = TRUE),
           current_value_num = min(traitvalue, na.rm = TRUE),
           current_value_char = str_squish(min(traitvalue_char, na.rm = TRUE)),
+          valuetype = min(valuetype, na.rm = TRUE),
           .groups = "drop"
         ) %>%
         dplyr::collect()
-      
+
       comparison <- data %>%
         dplyr::select(id_data_individuals = !!sym(config$id_column), new_value = !!sym(feat)) %>%
-        dplyr::left_join(current_values, by = "id_data_individuals") %>%
+        dplyr::filter(!is.na(new_value)) %>%
+        dplyr::left_join(current_values, by = "id_data_individuals")
+
+      # Individuals with no existing measurement for this trait would need an
+      # INSERT, not an UPDATE - update_records() only corrects existing
+      # measurements, so these are reported and skipped rather than guessed at.
+      skipped <- comparison %>% dplyr::filter(is.na(id_trait_measures))
+
+      changed <- comparison %>%
         dplyr::filter(
-          !is.na(new_value) & 
-            ((!is.na(current_value_num) & is.numeric(new_value) & current_value_num != new_value) |
-               (!is.na(current_value_char) & current_value_char != as.character(new_value)) |
-               (is.na(current_value_num) & is.na(current_value_char)))
+          !is.na(id_trait_measures),
+          (is.numeric(new_value) & (is.na(current_value_num) | current_value_num != new_value)) |
+            (!is.numeric(new_value) & (is.na(current_value_char) | current_value_char != as.character(new_value)))
         )
-      
-      if (nrow(comparison) == 0) {
+
+      if (nrow(skipped) > 0) {
+        cli::cli_alert_warning(
+          "{feat}: {nrow(skipped)} individual(s) have no existing measurement - skipped (use add_traits_measures() to insert)"
+        )
+      }
+
+      if (nrow(changed) == 0) {
         cli::cli_alert_info("{feat}: No changes detected")
+        if (nrow(skipped) > 0) {
+          results[[feat]] <- list(
+            success = TRUE, n_changes = 0, changes = NULL,
+            skipped = skipped %>% dplyr::select(id_data_individuals, new_value)
+          )
+        }
         next
       }
-      
-      cli::cli_alert_success("{feat}: {nrow(comparison)} change(s) detected")
-      results[[feat]] <- list(success = TRUE, n_changes = nrow(comparison))
-      
+
+      value_col <- .upd_value_column(changed$valuetype[1], entity = "individual")
+
+      cli::cli_alert_success("{feat}: {nrow(changed)} change(s) detected")
+      results[[feat]] <- list(
+        success = TRUE,
+        n_changes = nrow(changed),
+        changes = tibble(
+          id_trait_measures = changed$id_trait_measures,
+          column = value_col,
+          old_value = if (value_col == "traitvalue") {
+            as.character(changed$current_value_num)
+          } else {
+            changed$current_value_char
+          },
+          new_value = as.character(changed$new_value)
+        ),
+        skipped = if (nrow(skipped) > 0) skipped %>% dplyr::select(id_data_individuals, new_value) else NULL
+      )
+
     } else if (table_type == "plots") {
       ids <- data[[config$id_column]]
       
@@ -5363,15 +5400,50 @@ execute_direct_updates <- function(changes, config, method, con) {
   }
 }
 
-execute_feature_updates <- function(changes, config, table_type, con) {
-  cli::cli_alert_warning("Feature updates not implemented")
-  cli::cli_alert_info("Use 'individual_features' or 'subplot_features' instead")
+execute_feature_updates <- function(changes, config, table_type, method, con) {
+  if (table_type != "individuals") {
+    cli::cli_alert_warning("Feature updates not implemented for '{table_type}'")
+    cli::cli_alert_info("Use 'individual_features' or 'subplot_features' instead")
+    return(invisible(NULL))
+  }
+
+  # `changes` is the per-trait list built by detect_feature_changes(): each
+  # entry may carry a row-level `changes` tibble (id_trait_measures, column,
+  # old_value, new_value) ready to feed straight into execute_direct_updates(),
+  # using the same table/id_column/backup_table as table_type = "individual_features".
+  changes_df <- dplyr::bind_rows(lapply(changes, function(x) x$changes))
+
+  if (nrow(changes_df) == 0) {
+    cli::cli_alert_info("No feature updates to execute")
+  } else {
+    feature_config <- get_column_routing("individual_features", con)
+    execute_direct_updates(changes_df, feature_config, method, con)
+  }
+
+  skipped_df <- dplyr::bind_rows(lapply(names(changes), function(feat) {
+    sk <- changes[[feat]]$skipped
+    if (is.null(sk) || nrow(sk) == 0) return(NULL)
+    sk %>% dplyr::mutate(trait = feat)
+  }))
+
+  if (nrow(skipped_df) > 0) {
+    cli::cli_alert_warning(
+      "{nrow(skipped_df)} value(s) skipped overall (no existing measurement) - use add_traits_measures() to insert them"
+    )
+  }
+
   invisible(NULL)
 }
 
 #' Update records with optional single-record comparison display
 #'
 #' @param data Tibble with records to update. Must include the ID column for the table type.
+#'   For `table_type = "individuals"`, columns named after a trait (e.g. `quadrat`)
+#'   are also accepted alongside `id_n`: the current single measurement for that
+#'   trait is looked up and corrected directly (via `data_traits_measures`), so
+#'   there is no need to pre-fetch `id_trait_measures` yourself. Individuals with
+#'   more than one measurement for that trait, or with no existing measurement at
+#'   all, are reported and left untouched rather than guessed at.
 #' @param table_type Character: type of table. One of "individuals", "plots", "specimens",
 #'   "individual_features", "subplot_features", "individual_features_metadata",
 #'   "methodslist", "table_colnam", "traitlist", or "subplotype_list"
@@ -5504,7 +5576,7 @@ update_records <- function(data,
   if (!is.null(changes$features) && length(changes$features) > 0) {
     has_errors <- any(sapply(changes$features, function(x) !is.null(x$error)))
     if (!has_errors) {
-      execute_feature_updates(changes$features, config, table_type, con)
+      execute_feature_updates(changes$features, config, table_type, method, con)
     }
   }
   
