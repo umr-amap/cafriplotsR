@@ -32,16 +32,20 @@ La fonction `launch_taxonomic_match_app()` fournit une application Shiny interac
 
 Pour accéder à toutes les fonctionnalités, y compris l'enrichissement par les traits, des identifiants de base de données sont nécessaires (voir `setup_db_credentials()`). Au lancement, l'application présente un écran de connexion où vous saisissez vos identifiants.
 
-### Sans identifiants (mode accès public)
+### Sans identifiants
 
-Depuis mars 2026, l'application peut être lancée **sans aucun identifiant de base de données**. Cliquez sur **"Utiliser le mode hors ligne (référence en cache)"** sur l'écran de connexion pour entrer en mode hors ligne :
+Depuis mars 2026, l'application peut être utilisée **sans aucun identifiant de base de données**, par deux voies distinctes.
+
+**Compte public en lecture seule.** Cliquez sur **"Se connecter en tant qu'utilisateur public"** sur l'écran de connexion. La correspondance *et* l'enrichissement par les traits fonctionnent ; l'ajout ou la modification de données n'est pas possible. C'est la voie sans identifiants disponible partout, y compris dans l'application hébergée, et celle à privilégier si vous n'avez tout simplement pas de compte.
+
+**Référence taxonomique en cache (hors ligne).** Cliquez sur **"Utiliser hors ligne (référentiel en cache)"** pour travailler à partir d'une copie locale de la référence :
 
 - La correspondance automatique et les suggestions approximatives fonctionnent via une référence locale en cache
 - La révision manuelle est entièrement fonctionnelle
 - L'onglet Enrichissement par les traits est masqué (nécessite une connexion active)
 - Un badge **"Lecture seule"** est affiché tout au long de la session
 
-Ce mode est utile pour explorer le processus de correspondance, standardiser des noms sans compte personnel, ou travailler depuis des lieux sans accès réseau à la base de données.
+Le mode hors ligne prend tout son sens lorsque la base de données est inaccessible depuis l'endroit où vous travaillez. Il n'apparaît que si vous lancez l'application vous-même depuis R *et* qu'un cache a déjà été téléchargé. L'application hébergée ne le propose pas : le cache y résiderait sur le serveur et non sur votre machine — il ne résoudrait donc rien, et l'accès public couvre déjà le travail sans compte.
 
 ## Démarrage Rapide
 
@@ -361,7 +365,7 @@ Vous pouvez aussi ajuster ceci de manière interactive dans l'onglet Review en u
 
 ### Mode Hors Ligne
 
-Si vous n'avez pas de connexion à la base de données, cliquez sur **"Utiliser le mode hors ligne (référence en cache)"** sur l'écran de connexion. L'application :
+Si vous n'avez pas de connexion à la base de données, cliquez sur **"Utiliser hors ligne (référentiel en cache)"** sur l'écran de connexion. L'application :
 
 - Télécharge et met en cache la référence localement à la première utilisation
 - Effectue la correspondance de chaînes entièrement dans R via `stringdist` (trigramme-Jaccard)
@@ -399,7 +403,7 @@ remove_db_credentials()
 setup_db_credentials()
 ```
 
-Alternativement, utilisez le **mode hors ligne** (cliquez sur "Utiliser le mode hors ligne (référence en cache)" sur l'écran de connexion) pour travailler sans connexion active à la base de données.
+Alternativement, utilisez le **mode hors ligne** (cliquez sur "Utiliser hors ligne (référentiel en cache)" sur l'écran de connexion) pour travailler sans connexion active à la base de données.
 
 ### Pas de Correspondances Approximatives Trouvées
 

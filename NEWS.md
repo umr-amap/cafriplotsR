@@ -19,6 +19,11 @@
 
 ### New Features
 
+* **The login screen can introduce the app it belongs to** (`R/mod_database_login.R`, `R/shiny_app_taxonomic_match.R`) — all ten apps share one login module, whose header reads *"Connect to the CafriplotsR database to access forest plot data."* For an app launched from an R console that is harmless: the user typed the launch call and knows what they asked for. For an app reachable by URL it is the landing page, and the only thing a first-time visitor reads — so the hosted taxonomic matching app at <https://cafri-taxomatch.lab.sspcloud.fr> introduced itself as a plot database, while its own title, subtitle and *About this app* panel sat inside the authenticated panel, invisible until the visitor had already decided to connect
+  - `mod_database_login_server()` gains `intro`, defaulting to `NULL`, which keeps the generic header. Given a list of `title` and `body`, it renders those in its place
+  - Both are **English translation keys, not final text**, and go through the module's own translator, so the intro follows the language toggle like the rest of the screen
+  - Server-side only, unlike `allow_public` and `allow_offline`: the header is a `uiOutput` placeholder, so `mod_database_login_ui()` needs no matching argument and the other nine apps are untouched
+
 * **`query_plots(feature_filters = ...)` filters plots on their features** (`R/plot_feature_filters.R`, `R/functions_manip_db.R`) — a plot carries three kinds of value stored three different ways, and the query function could filter on only two of them. Flat columns (`plot_name`, `locality_name`) and lookup ids (`country` → `id_country`, `method` → `id_method`) were filterable; features were not, although they are what the extracted table shows under names like `data_provider` and `principal_investigator`
   - A feature is not a column of `data_liste_plots` but a row of `data_liste_sub_plots` typed by `subplotype_list`, so it is matched with a subquery rather than a `WHERE` clause on the plots table: `query_plots(feature_filters = list(data_provider = "IRD", principal_investigator = c("Dauby", "Sonke")))`
   - **Values of one feature are combined with OR, different features with AND.** A plot must satisfy every named feature but may do so through different subplot records, which is the only reading that makes sense when each feature is a separate row
@@ -137,6 +142,12 @@
 
 ### Bug Fixes
 
+* **The served app no longer offers an offline button that cannot work** (`R/shiny_app_taxonomic_match.R`) — `app_taxonomic_match()` passed `allow_offline = TRUE` unconditionally, but the button renders only when `cache_exists()`, which looks in `tools::R_user_dir("CafriplotsR", "cache")` on the machine running R. In a container that directory starts empty and `deployment/taxonomic_match/Dockerfile` never seeds it, so on a fresh pod the button was absent — then appeared, for everybody at once, as soon as any single visitor populated the cache in the shared single R process. The login screen therefore differed between visitors for no reason they could see
+  - `allow_offline` is now `!.is_served()`. Nothing is lost by it: offline mode caches the backbone on the user's *own* machine to survive a bad link to the database, which a hosted app cannot do on a visitor's behalf, and working without an account is already covered there by the public read-only login
+
+* **The public-access path is translated** (`inst/translations/translation.json`) — all eight of its strings were absent from the translation file, including the `"Connect as public user"` button itself, the `"Read-only access:"` heading and the notice saying what the account can and cannot do. `shiny.i18n` falls back to the key, so on the hosted app — which sets `CAFRI_LANGUAGE=fr` — the entire credential-free route rendered in English to a French-speaking visitor, on the one screen offering no other way in
+  - The two offline strings whose French had been typed without accents (`referentiel`, `telecharger`) are repaired, and the sidebar's `"Output options"` heading, also untranslated, is added
+
 * **The generated R snippet no longer prints the public account's credentials** (`R/mod_taxa_r_code.R`) — `.build_combined_taxa_code()` wrote `call.mydb(user = "CafriP_public", pass = "...")` into the copyable workflow script whenever the visitor had connected publicly, which handed the credential to every visitor of the hosted app and to anyone they passed the snippet on to. The snippet is a starting point for work in R, and work in R is done under one's own account, so both branches now show the interactive `call.mydb()` form; the public branch adds a line saying an account of one's own is needed to run it
 
 * **`docs/PUBLIC_ACCESS_PLAN.html` removed from the published site**, along with its 12 entries in `docs/search.json`. It carried the public password in full and was served from the pkgdown site. The page also described an access model that the P0 remediation has since superseded
@@ -227,6 +238,15 @@
   - 26 assertions in `tests/testthat/test-public-credential.R`, including that the source tree contains no embedded credential, so a later edit cannot quietly restore one. None of them touch the network
 
 ### Documentation
+
+* **The taxonomic matching app explains itself** (`R/shiny_app_taxonomic_match.R`) — the *About this app* panel was a `<details>` element styled as a tinted info banner with an `info-circle` icon and collapsed by default, so it read as a static notice rather than a control. The workflow description it holds went unread by the first-time visitors it was written for
+  - It now opens on arrival, and is restyled as a bordered card with a hover state and a chevron that rotates on open; the native disclosure triangle is suppressed in favour of the chevron. Collapsing it is still one click
+  - The subtitle no longer paraphrases the title. It carries a sentence that had been sitting in `translation.json`, translated but referenced by nothing, since the panel was written — the one line that names both of the app's tasks: standardizing names, then enriching them with traits
+  - An **Export** item joins the walkthrough, which had described every tab except that one. It points at the per-column descriptions the Export tab already renders rather than restating them. A lead-in names the reference the app matches against, and the panel closes with a link to <https://umr-amap.github.io/cafriplotsR/>
+  - `fluidPage()` gains a `title`, so the browser tab and any bookmark carry the app's name instead of the bare hostname. It is fixed at the app's initial language, because it lands in `<head>` when the UI is built and so cannot follow the in-app toggle
+
+* **The vignettes tell public access apart from offline mode** (`vignettes/taxonomic-app.Rmd`, `vignettes/taxonomic-app-fr.Rmd`) — the *"Without credentials"* section was headed "public access mode" but described only offline mode, and never mentioned the public read-only account at all. It also told readers to click a button the hosted app does not show, under a French label that did not match the one in the interface
+  - Both routes are now described separately: the public account as the one available everywhere, the hosted app included, and offline mode as local-only, with the reason it is local-only
 
 * **The app catalogs name the hosted taxonomic app** (`vignettes/apps-overview.Rmd`, `vignettes/apps-overview-fr.Rmd`) — the taxonomic name standardization app has been deployed on SSP Cloud at <https://cafri-taxomatch.lab.sspcloud.fr> since the `deployment/taxonomic_match/` chart landed, and nothing outside that directory said so. A reader looking for a way to try the package without installing R had no reason to suspect one existed
   - Named twice per language: in the introduction, beside the note that three apps open without credentials, since "needs no account" and "needs no install" are the two questions a newcomer actually has; and in the app's own section, beside the offline note, where it matters that the hosted copy queries the same database and so returns the same `idtax_n` values as a local run

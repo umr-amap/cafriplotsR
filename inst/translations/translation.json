@@ -7895,7 +7895,7 @@
     },
     {
       "en": "Use offline (cached backbone)",
-      "fr": "Utiliser hors ligne (referentiel en cache)"
+      "fr": "Utiliser hors ligne (référentiel en cache)"
     },
     {
       "en": "Offline mode:",
@@ -7911,7 +7911,7 @@
     },
     {
       "en": "No cached backbone found. Connect online once to download it.",
-      "fr": "Aucun referentiel en cache. Connectez-vous une fois en ligne pour le telecharger."
+      "fr": "Aucun référentiel en cache. Connectez-vous une fois en ligne pour le télécharger."
     },
     {
       "en": "Cached backbone is invalid. Please connect online to refresh it.",
@@ -9500,6 +9500,62 @@
     {
       "en": "Leave this unticked and fix the tag (or the plot) in the source file instead. Tick it to import everything else and skip these rows.",
       "fr": "Laissez décoché et corrigez plutôt l'étiquette (ou la parcelle) dans le fichier source. Cochez pour importer le reste et ignorer ces lignes."
+    },
+    {
+      "en": "Your list is matched against the taxonomic backbone, synonyms are resolved to accepted names, and the standardized result can be downloaded as Excel, CSV or RDS.",
+      "fr": "Votre liste est confrontée au référentiel taxonomique, les synonymes sont résolus vers les noms acceptés, et le résultat standardisé peut être téléchargé au format Excel, CSV ou RDS."
+    },
+    {
+      "en": "Connect as public user",
+      "fr": "Se connecter en tant qu'utilisateur public"
+    },
+    {
+      "en": "Read-only access:",
+      "fr": "Accès en lecture seule :"
+    },
+    {
+      "en": "Public authentication gives access to taxonomy and traits only. Adding or modifying data is not available.",
+      "fr": "L'authentification publique donne accès à la taxonomie et aux traits uniquement. L'ajout et la modification de données ne sont pas possibles."
+    },
+    {
+      "en": "Connecting as public user...",
+      "fr": "Connexion en tant qu'utilisateur public..."
+    },
+    {
+      "en": "Public connection failed (main database):",
+      "fr": "Échec de la connexion publique (base principale) :"
+    },
+    {
+      "en": "Public connection failed (taxa database):",
+      "fr": "Échec de la connexion publique (base taxonomique) :"
+    },
+    {
+      "en": "Connected!",
+      "fr": "Connecté !"
+    },
+    {
+      "en": "Connected as public user — read-only access",
+      "fr": "Connecté en tant qu'utilisateur public — accès en lecture seule"
+    },
+    {
+      "en": "Names are checked against the taxonomic backbone maintained with this package. The steps below follow the order you will work through them.",
+      "fr": "Les noms sont confrontés au référentiel taxonomique maintenu avec ce package. Les étapes ci-dessous suivent l'ordre dans lequel vous les parcourrez."
+    },
+    {
+      "en": "Export:",
+      "fr": "Export :"
+    },
+    {
+      "en": "Download the standardized table as Excel, CSV or RDS. Your original columns are kept and the added ones - matched and accepted name, match method and score, taxon identifiers - are described one by one on the Export tab.",
+      "fr": "Téléchargez le tableau standardisé au format Excel, CSV ou RDS. Vos colonnes d'origine sont conservées et les colonnes ajoutées - nom apparié et nom accepté, méthode et score d'appariement, identifiants de taxon - sont décrites une à une dans l'onglet Export."
+    },
+    {
+      "en": "Full documentation:",
+      "fr": "Documentation complète :"
+    },
+    {
+      "en": "Output options",
+      "fr": "Options de sortie"
     }
   ]
 }

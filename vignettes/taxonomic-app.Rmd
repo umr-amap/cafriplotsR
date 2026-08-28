@@ -32,16 +32,20 @@ The `launch_taxonomic_match_app()` function provides an interactive Shiny applic
 
 To access all features including traits enrichment, you need database credentials configured (see `setup_db_credentials()`). Once launched, the app presents a login screen where you enter your credentials.
 
-### Without credentials (public access mode)
+### Without credentials
 
-Since March 2026, the app can be launched **without any database credentials**. Click **"Use offline (cached backbone)"** on the login screen to enter offline mode:
+Since March 2026, the app can be used **without any database credentials**, by either of two routes.
+
+**Public read-only account.** Click **"Connect as public user"** on the login screen. Matching *and* traits enrichment both work; adding or modifying data does not. This is the credential-free route available everywhere, including the hosted app, and it is the one to reach for if you simply have no account.
+
+**Offline cached backbone.** Click **"Use offline (cached backbone)"** to work from a locally cached copy of the backbone:
 
 - Automatic matching and fuzzy suggestions work via a cached local backbone
 - Manual review is fully functional
 - Traits enrichment is hidden (requires a live database connection)
 - A **"Read-only"** badge is displayed to indicate limited permissions
 
-This is useful for exploring the matching workflow, standardizing names without a personal account, or working from locations without network access to the database.
+Offline mode earns its keep when the database is unreachable from where you are working. It appears only when you launch the app yourself from R *and* a cache has already been downloaded. The hosted app does not offer it, because there the cache would sit on the server rather than on your machine — so it would solve nothing, and public access already covers working without an account.
 
 ## Quick Start
 
