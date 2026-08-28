@@ -144,13 +144,20 @@ You can also optionally include an author column.
 
 ### Phase 4: Automatic Matching
 
-Click the **"Start Matching"** button to begin the automatic matching process. The app uses a **five-tier matching strategy**:
+Click the **"Start Matching"** button to begin the automatic matching process.
 
-1. **Exact match on species**: Direct lookup of full name (genus + species)
+**Choosing the backbone copy.** Before matching starts the app may ask whether to use the taxonomic backbone it already has cached or download a fresh copy. The cached copy is much faster and is what you want in ordinary use; download a fresh one after taxa have been added or revised in the database, or if you are unsure how old your cache is. The dialog reports the cache's age so you can decide.
+
+The app then works through the strategy below, stopping at the first stage that matches each name. Names are handled independently, so one list can come back with results from every stage:
+
+1. **Exact match on species**: Direct lookup of the full name (genus + species)
 2. **Exact match on genus**: Match at genus level
 3. **Exact match on family**: Match at family level
-4. **Exact match on class**: Match at class level (e.g., names ending in -opsida, -psida)
-5. **Fuzzy matching**: Approximate string matching (trigram-Jaccard via `stringdist`) for remaining names
+4. **Exact match on higher rank**: Match at order or class level (e.g. names ending in -opsida, -psida)
+5. **Genus-constrained fuzzy match**: When the genus is recognised but the epithet is not, approximate matching is restricted to species *within that genus*. This is what catches most misspellings, and it is far safer than searching the whole backbone because the candidate set is already botanically plausible
+6. **Full fuzzy match**: Approximate string matching (trigram-Jaccard via `stringdist`) across the whole backbone — the last resort, used when even the genus is unrecognised
+
+Stages 1–4 all record `match_method = "exact"`; the rank that matched is recorded in `tax_level`. Stage 5 records `genus_constrained` and stage 6 records `fuzzy`, which is why the two are worth telling apart when you review the results.
 
 ![Matching in progress](images/app-matching-progress.png)
 
@@ -173,19 +180,21 @@ The results table includes:
 
 - **Original name**: Your input name
 - **matched_name**: Name found in backbone
-- **match_method**: How it was matched (`exact_species`, `exact_genus`, `exact_family`, `exact_class`, `fuzzy`, `manual`)
+- **match_method**: How it was matched — `exact`, `genus_constrained`, `fuzzy`, `manual`, `unresolved` or `no_match`. See [Values of `match_method`](#values-of-match_method) for what each one means, and why there is no `exact_species` or `exact_genus`
 - **match_score**: Similarity score (0–1, higher is better)
 - **idtax_n**: Taxon ID in database
 - **is_synonym**: Whether matched name is a synonym
 - **accepted_name**: Current accepted name (if synonym)
 
-**Match quality indicators:**
+**Match quality indicators.** The app colours each score so the table can be scanned rather than read: **green from 90 %** and **blue from 70 %**, with lower scores left uncoloured. As a rule of thumb:
 
 - **Exact match (1.0)**: Perfect match, no review needed
-- **High similarity (>0.8)**: Very likely correct, quick review recommended
-- **Medium similarity (0.5–0.8)**: Possible match, review suggested
-- **Low similarity (<0.5)**: Uncertain, manual review required
+- **High similarity (≥ 0.9, green)**: Very likely correct, quick review recommended
+- **Medium similarity (0.7–0.9, blue)**: Possible match, review suggested
+- **Low similarity (< 0.7)**: Uncertain, manual review required
 - **No match**: Requires manual selection
+
+A name matched by `genus_constrained` deserves more confidence than a plain `fuzzy` match at the same score, because the candidates it was compared against were restricted to species in a genus the app had already recognised.
 
 ### Phase 6: Manual Review
 
@@ -238,11 +247,16 @@ Switch to the **"Traits Enrichment"** tab to add species-level traits to your ma
 
 ![Trait enrichment interface](images/app-enrich-data-interface.png)
 
+A taxon usually carries several measurements of the same trait, from different individuals, sources or studies, so every trait has to be summarised to one value per taxon before it can be added as a column. How that is done depends on the trait's type:
+
+- **Numeric traits** (wood density, seed mass, …) are reported as three columns — the **mean**, the **standard deviation** and **n**, the number of measurements behind it. Always read `n` before using a mean: a wood density averaged from one measurement and one averaged from forty are the same number with very different weight behind them, and an `sd` is only meaningful once `n` is at least a few
+- **Categorical traits** (growth form, phenology, …) are summarised according to the aggregation mode you choose
+
 **Options:**
 
 - **Categorical aggregation mode**:
-  - "mode" — Use most frequent value per taxon
-  - "concat" — Concatenate all unique values
+  - "mode" — Use the most frequent value per taxon. Gives one clean value per taxon, but silently hides disagreement between sources
+  - "concat" — Concatenate all unique values. Keeps every recorded value, so genuine variation and contradictions both stay visible. Prefer this when you intend to inspect the traits rather than compute on them directly
 
 - **Select columns to include**:
   - Original input names
@@ -250,7 +264,7 @@ Switch to the **"Traits Enrichment"** tab to add species-level traits to your ma
   - Taxonomic IDs
   - Match metadata
 
-Available traits include growth form, wood density, leaf traits, and ecological characteristics.
+Available traits include growth form, wood density, leaf traits, and ecological characteristics. Which traits come back depends on what the database actually holds for *your* taxa, so a list of well-studied timber species will be far better covered than a list of herbs.
 
 The enriched data combines your matched taxa with selected traits. A **wide format** (one row per taxon, traits as columns) and a **long format** (one row per taxon × trait combination) are both available as separate sub-tabs:
 
@@ -274,35 +288,57 @@ Switch to the **"Export"** tab to download your standardized dataset:
 - **CSV (.csv)**: Universal tabular format
 - **RDS (.rds)**: R-native format preserving data types
 
-**Selectable columns:**
+**Selectable columns.** Your original columns are always included; the three groups below can each be switched off:
 
-- Original data (all your input columns)
-- Matched IDs (`idtax_n`, `idtax_good_n`)
-- Corrected names (`corrected_name`, `matched_name`)
-- Match metadata (`match_method`, `match_score`, `is_synonym`, `accepted_name`)
-- WCVP columns (`wcvp_plant_name_id`, `wcvp_accepted_plant_name_id`) — see WCVP section below
+- **Matched IDs** — `idtax_n`, `idtax_good_n`
+- **Corrected names** — `corrected_name`, `matched_name`
+- **Match metadata** — `match_method`, `match_score`, `is_synonym`, `accepted_name`
+
+WCVP columns are not one of these groups: they are appended whenever the WCVP option was enabled before matching, and travel with the export either way. The internal `id_data` row identifier is always stripped.
+
+**Column descriptions in the app.** Beside the preview, the Export tab lists every standardized column present in your results with a one-line description of what it holds — the same content as [Understanding Output Columns](#understanding-output-columns) below. Only the columns actually present are described, so the list reflects the options you chose rather than everything the app can produce. Your own input columns are preserved but not described individually, since the app knows nothing about them.
 
 A preview table shows the data before export with pagination controls.
 
 ## Understanding Output Columns
 
-The app adds these columns to your data:
+Your original columns are always preserved. The app appends the columns below — the same descriptions are shown in the app itself, beside the preview table on the Export tab, so you do not have to come back here to read them.
 
 | Column | Description |
 |--------|-------------|
-| `idtax_n` | Matched taxon ID in backbone database |
-| `idtax_good_n` | Accepted taxon ID (for synonyms) |
-| `matched_name` | Name found in backbone |
-| `corrected_name` | Final standardized name |
-| `name_source` | Which backbone was used for the match (internal, WCVP, etc.) |
-| `match_method` | Matching strategy used (`exact_species`, `exact_genus`, `exact_family`, `exact_class`, `fuzzy`, `manual`, `unresolved`) |
-| `match_score` | Similarity score (0–1) |
-| `is_synonym` | TRUE if matched name is a synonym |
-| `accepted_name` | Current accepted name (if synonym) |
-| `family` | Taxonomic family |
-| `genus` | Taxonomic genus |
-| `wcvp_plant_name_id` | WCVP ID for the matched name (optional, see below) |
-| `wcvp_accepted_plant_name_id` | WCVP ID for the accepted name (optional, see below) |
+| `idtax_n` | Identifier of the matched taxon in the taxonomic backbone |
+| `idtax_good_n` | Identifier of the accepted taxon. Differs from `idtax_n` when the matched name is a synonym |
+| `matched_name` | Name found in the backbone corresponding to your input name — this may itself be a synonym |
+| `corrected_name` | Final standardized name: the accepted name when the match is a synonym, or the WCVP name when that option is enabled |
+| `accepted_name` | Accepted name when the matched name is a synonym; empty otherwise |
+| `is_synonym` | `TRUE` when the matched name is a synonym of an accepted name |
+| `match_method` | How the name was matched — see the table below |
+| `match_score` | Similarity between your input name and the matched name, 0 to 1 (1 = exact, or a match you confirmed yourself) |
+
+When the WCVP option is enabled (see [WCVP Integration](#wcvp-integration)), four more columns are appended and `corrected_name` is **replaced** by the WCVP name wherever one exists:
+
+| Column | Description |
+|--------|-------------|
+| `wcvp_taxon_name` | Accepted name from the World Checklist of Vascular Plants |
+| `wcvp_family` | Family according to WCVP |
+| `wcvp_taxon_authors` | Taxonomic authorship according to WCVP |
+| `wcvp_taxon_status` | Status of the name in WCVP (e.g. `Accepted`) |
+| `name_source` | Which reference supplied `corrected_name`: `internal` backbone or `WCVP` |
+
+### Values of `match_method`
+
+| Value | Meaning |
+|-------|---------|
+| `exact` | The name was found verbatim in the backbone. All four exact tiers report `exact` — see the note below |
+| `genus_constrained` | The genus was recognised, so fuzzy matching was restricted to species within that genus. Usually the most trustworthy fuzzy result |
+| `fuzzy` | Approximate match against the whole backbone, used when the genus was not recognised |
+| `manual` | You chose this match yourself on the Review tab |
+| `unresolved` | You marked the name as impossible to resolve on the Review tab |
+| `no_match` | Automatic matching found nothing and the name has not been reviewed yet |
+
+**The exact tier is not recorded in `match_method`.** All four exact tiers — species, genus, family and higher rank — write `exact`. Which one applied is recorded separately in `tax_level` (`genus`, `family`, `order`, `higher`), so read that column rather than expecting `exact_species` or `exact_genus`, which the app never produces.
+
+The app also adds an internal `id_data` row identifier when your file does not already contain one. It is used to keep rows aligned through matching and review, and is removed from every export, so you will not see it in the downloaded file.
 
 ## Advanced Options
 
@@ -326,14 +362,18 @@ launch_taxonomic_match_app(language = "fr")
 
 ### WCVP Integration
 
-The app can optionally enrich results with **World Checklist of Vascular Plants (WCVP)** identifiers. When the taxa database contains WCVP data, a **"Use WCVP names in output"** checkbox appears in the sidebar.
+The app can optionally reconcile results against the **World Checklist of Vascular Plants (WCVP)**, an international reference maintained by the Royal Botanic Gardens, Kew. When the taxa database contains WCVP data, a **"Use WCVP names in output"** checkbox appears in the sidebar. It has no effect on matching itself — names are always matched against the internal backbone first — but it changes what the output reports.
 
-Enabling it adds two columns to your export:
+Enabling it adds four columns:
 
-- `wcvp_plant_name_id` — WCVP identifier for the matched name
-- `wcvp_accepted_plant_name_id` — WCVP identifier for the accepted name
+- `wcvp_taxon_name` — Accepted name according to WCVP
+- `wcvp_family` — Family according to WCVP
+- `wcvp_taxon_authors` — Taxonomic authorship according to WCVP
+- `wcvp_taxon_status` — Status of the name in WCVP (e.g. `Accepted`)
 
-The `name_source` column records which backbone was used, helping you document the taxonomic provenance of each match.
+**It also rewrites `corrected_name`.** Wherever WCVP holds the taxon, `corrected_name` becomes the WCVP name rather than the internal backbone's; taxa absent from WCVP keep their internal name. The `name_source` column records which of the two supplied each value (`internal` or `WCVP`), so the substitution stays auditable — check it before treating `corrected_name` as coming from a single reference.
+
+Enable this when your results must line up with an international checklist, and leave it off when you need names consistent with the rest of the database. The tick box must be set **before** matching, since the enrichment happens as part of that step.
 
 ### Adjusting Fuzzy Matching
 
