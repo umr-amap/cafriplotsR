@@ -488,10 +488,17 @@ app_taxonomic_match <- function(
             style = "margin: 12px 0 0 0; font-size: 0.9em;",
             i18n()$t("Full documentation:"), " ",
             shiny::tags$a(
-              href = "https://umr-amap.github.io/cafriplotsR/",
+              # Straight to this app's own vignette rather than the site
+              # root, and to the copy in the language the interface is
+              # already in - the two exist as separate pkgdown articles.
+              href = if (identical(input$selected_language %||% language, "en")) {
+                "https://umr-amap.github.io/cafriplotsR/articles/taxonomic-app.html"
+              } else {
+                "https://umr-amap.github.io/cafriplotsR/articles/taxonomic-app-fr.html"
+              },
               target = "_blank",
               rel = "noopener noreferrer",
-              "umr-amap.github.io/cafriplotsR"
+              i18n()$t("Using the Taxonomic Name Standardization App")
             )
           )
         )
