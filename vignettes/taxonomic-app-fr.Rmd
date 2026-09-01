@@ -32,16 +32,20 @@ La fonction `launch_taxonomic_match_app()` fournit une application Shiny interac
 
 Pour accéder à toutes les fonctionnalités, y compris l'enrichissement par les traits, des identifiants de base de données sont nécessaires (voir `setup_db_credentials()`). Au lancement, l'application présente un écran de connexion où vous saisissez vos identifiants.
 
-### Sans identifiants (mode accès public)
+### Sans identifiants
 
-Depuis mars 2026, l'application peut être lancée **sans aucun identifiant de base de données**. Cliquez sur **"Utiliser le mode hors ligne (référence en cache)"** sur l'écran de connexion pour entrer en mode hors ligne :
+Depuis mars 2026, l'application peut être utilisée **sans aucun identifiant de base de données**, par deux voies distinctes.
+
+**Compte public en lecture seule.** Cliquez sur **"Se connecter en tant qu'utilisateur public"** sur l'écran de connexion. La correspondance *et* l'enrichissement par les traits fonctionnent ; l'ajout ou la modification de données n'est pas possible. C'est la voie sans identifiants disponible partout, y compris dans l'application hébergée, et celle à privilégier si vous n'avez tout simplement pas de compte.
+
+**Référence taxonomique en cache (hors ligne).** Cliquez sur **"Utiliser hors ligne (référentiel en cache)"** pour travailler à partir d'une copie locale de la référence :
 
 - La correspondance automatique et les suggestions approximatives fonctionnent via une référence locale en cache
 - La révision manuelle est entièrement fonctionnelle
 - L'onglet Enrichissement par les traits est masqué (nécessite une connexion active)
 - Un badge **"Lecture seule"** est affiché tout au long de la session
 
-Ce mode est utile pour explorer le processus de correspondance, standardiser des noms sans compte personnel, ou travailler depuis des lieux sans accès réseau à la base de données.
+Le mode hors ligne prend tout son sens lorsque la base de données est inaccessible depuis l'endroit où vous travaillez. Il n'apparaît que si vous lancez l'application vous-même depuis R *et* qu'un cache a déjà été téléchargé. L'application hébergée ne le propose pas : le cache y résiderait sur le serveur et non sur votre machine — il ne résoudrait donc rien, et l'accès public couvre déjà le travail sans compte.
 
 ## Démarrage Rapide
 
@@ -140,13 +144,20 @@ Vous pouvez aussi optionnellement inclure une colonne d'auteur.
 
 ### Phase 4 : Correspondance Automatique
 
-Cliquez sur le bouton **"Démarrer la Correspondance"** pour commencer le processus de correspondance automatique. L'application utilise une **stratégie de correspondance à cinq niveaux** :
+Cliquez sur le bouton **"Démarrer la Correspondance"** pour commencer le processus de correspondance automatique.
+
+**Choix de la copie du référentiel.** Avant de démarrer, l'application peut demander s'il faut utiliser le référentiel taxonomique déjà en cache ou en télécharger une copie fraîche. La copie en cache est nettement plus rapide et convient à l'usage courant ; téléchargez une copie fraîche après l'ajout ou la révision de taxons dans la base, ou si vous ignorez l'âge de votre cache. La boîte de dialogue indique cet âge pour vous permettre de trancher.
+
+L'application parcourt ensuite la stratégie ci-dessous, en s'arrêtant au premier niveau qui apparie chaque nom. Les noms sont traités indépendamment : une même liste peut donc renvoyer des résultats issus de tous les niveaux :
 
 1. **Correspondance exacte sur l'espèce** : Recherche directe du nom complet (genre + espèce)
 2. **Correspondance exacte sur le genre** : Correspondance au niveau du genre
 3. **Correspondance exacte sur la famille** : Correspondance au niveau de la famille
-4. **Correspondance exacte sur la classe** : Correspondance au niveau de la classe (ex. noms se terminant en -opsida, -psida)
-5. **Correspondance approximative** : Correspondance de chaînes approximative (trigramme-Jaccard via `stringdist`) pour les noms restants
+4. **Correspondance exacte sur un rang supérieur** : Correspondance au niveau de l'ordre ou de la classe (ex. noms se terminant en -opsida, -psida)
+5. **Correspondance approximative contrainte au genre** : Lorsque le genre est reconnu mais pas l'épithète, la correspondance approximative est restreinte aux espèces *de ce genre*. C'est ce niveau qui rattrape la plupart des fautes d'orthographe, et il est bien plus sûr qu'une recherche sur l'ensemble du référentiel puisque l'ensemble des candidats est déjà botaniquement plausible
+6. **Correspondance approximative complète** : Correspondance de chaînes approximative (trigramme-Jaccard via `stringdist`) sur tout le référentiel — le dernier recours, employé lorsque même le genre n'est pas reconnu
+
+Les niveaux 1 à 4 enregistrent tous `match_method = "exact"` ; le rang qui a effectivement apparié est consigné dans `tax_level`. Le niveau 5 enregistre `genus_constrained` et le niveau 6 `fuzzy`, d'où l'intérêt de les distinguer lors de la révision des résultats.
 
 ![Correspondance en cours](images/app-matching-progress.png)
 
@@ -169,19 +180,21 @@ Le tableau des résultats inclut :
 
 - **Nom original** : Votre nom en entrée
 - **matched_name** : Nom trouvé dans la référence
-- **match_method** : Comment il a été apparié (`exact_species`, `exact_genus`, `exact_family`, `exact_class`, `fuzzy`, `manual`)
+- **match_method** : Comment il a été apparié — `exact`, `genus_constrained`, `fuzzy`, `manual`, `unresolved` ou `no_match`. Voir [Valeurs de `match_method`](#valeurs-de-match_method) pour la signification de chacune, et pourquoi il n'existe ni `exact_species` ni `exact_genus`
 - **match_score** : Score de similarité (0–1, plus élevé est meilleur)
 - **idtax_n** : ID du taxon dans la base de données
 - **is_synonym** : Si le nom apparié est un synonyme
 - **accepted_name** : Nom accepté actuel (si synonyme)
 
-**Indicateurs de qualité de correspondance :**
+**Indicateurs de qualité de correspondance.** L'application colore chaque score pour que le tableau se parcoure d'un coup d'œil au lieu de se lire : **vert à partir de 90 %** et **bleu à partir de 70 %**, les scores inférieurs restant sans couleur. En règle générale :
 
 - **Correspondance exacte (1.0)** : Correspondance parfaite, pas de révision nécessaire
-- **Haute similarité (>0.8)** : Très probablement correct, révision rapide recommandée
-- **Similarité moyenne (0.5–0.8)** : Correspondance possible, révision suggérée
-- **Basse similarité (<0.5)** : Incertain, révision manuelle requise
+- **Haute similarité (≥ 0.9, vert)** : Très probablement correct, révision rapide recommandée
+- **Similarité moyenne (0.7–0.9, bleu)** : Correspondance possible, révision suggérée
+- **Basse similarité (< 0.7)** : Incertain, révision manuelle requise
 - **Pas de correspondance** : Nécessite une sélection manuelle
+
+Un nom apparié par `genus_constrained` mérite plus de confiance qu'un `fuzzy` de score équivalent : les candidats auxquels il a été comparé étaient restreints aux espèces d'un genre que l'application avait déjà reconnu.
 
 ### Phase 6 : Révision Manuelle
 
@@ -234,11 +247,16 @@ Passez à l'onglet **"Traits Enrichment"** pour ajouter des traits au niveau de 
 
 ![Interface d'enrichissement des traits](images/app-enrich-data-interface.png)
 
+Un taxon porte généralement plusieurs mesures d'un même trait, issues d'individus, de sources ou d'études différentes : chaque trait doit donc être résumé à une seule valeur par taxon avant de devenir une colonne. La manière de le faire dépend du type de trait :
+
+- **Traits numériques** (densité du bois, masse des graines, …) : restitués sous forme de trois colonnes — la **moyenne**, l'**écart-type** et **n**, le nombre de mesures qui la sous-tendent. Lisez toujours `n` avant d'utiliser une moyenne : une densité du bois moyennée sur une seule mesure et une autre moyennée sur quarante donnent le même nombre avec un poids très différent derrière, et un écart-type n'a de sens qu'à partir de quelques mesures
+- **Traits catégoriels** (forme de croissance, phénologie, …) : résumés selon le mode d'agrégation que vous choisissez
+
 **Options :**
 
 - **Mode d'agrégation catégorielle** :
-  - "mode" — Utiliser la valeur la plus fréquente par taxon
-  - "concat" — Concaténer toutes les valeurs uniques
+  - "mode" — Utiliser la valeur la plus fréquente par taxon. Donne une valeur unique et nette par taxon, mais masque silencieusement les désaccords entre sources
+  - "concat" — Concaténer toutes les valeurs uniques. Conserve chaque valeur enregistrée : la variation réelle comme les contradictions restent visibles. À privilégier lorsque vous comptez examiner les traits plutôt que calculer directement dessus
 
 - **Sélectionner les colonnes à inclure** :
   - Noms d'entrée originaux
@@ -246,7 +264,7 @@ Passez à l'onglet **"Traits Enrichment"** pour ajouter des traits au niveau de 
   - IDs taxonomiques
   - Métadonnées de correspondance
 
-Les traits disponibles incluent la forme de croissance, la densité du bois, les traits foliaires et les caractéristiques écologiques.
+Les traits disponibles incluent la forme de croissance, la densité du bois, les traits foliaires et les caractéristiques écologiques. Les traits effectivement renvoyés dépendent de ce que la base contient pour *vos* taxons : une liste d'essences de bois d'œuvre bien étudiées sera donc bien mieux couverte qu'une liste d'herbacées.
 
 Les données enrichies combinent vos taxons appariés avec les traits sélectionnés. Deux vues sont disponibles sous forme de sous-onglets : un **format large** (une ligne par taxon, traits en colonnes) et un **format long** (une ligne par combinaison taxon × trait) :
 
@@ -270,35 +288,57 @@ Passez à l'onglet **"Export"** pour télécharger votre jeu de données standar
 - **CSV (.csv)** : Format tabulaire universel
 - **RDS (.rds)** : Format natif R préservant les types de données
 
-**Colonnes sélectionnables :**
+**Colonnes sélectionnables.** Vos colonnes d'origine sont toujours incluses ; les trois groupes ci-dessous peuvent chacun être désactivés :
 
-- Données originales (toutes vos colonnes d'entrée)
-- IDs appariés (`idtax_n`, `idtax_good_n`)
-- Noms corrigés (`corrected_name`, `matched_name`)
-- Métadonnées de correspondance (`match_method`, `match_score`, `is_synonym`, `accepted_name`)
-- Colonnes WCVP (`wcvp_plant_name_id`, `wcvp_accepted_plant_name_id`) — voir la section WCVP ci-dessous
+- **IDs appariés** — `idtax_n`, `idtax_good_n`
+- **Noms corrigés** — `corrected_name`, `matched_name`
+- **Métadonnées de correspondance** — `match_method`, `match_score`, `is_synonym`, `accepted_name`
+
+Les colonnes WCVP ne constituent pas l'un de ces groupes : elles sont ajoutées dès lors que l'option WCVP était activée avant la correspondance, et accompagnent l'export dans tous les cas. L'identifiant de ligne interne `id_data` est toujours retiré.
+
+**Descriptions des colonnes dans l'application.** À côté de l'aperçu, l'onglet Export liste chaque colonne standardisée présente dans vos résultats avec une description d'une ligne de son contenu — le même contenu que [Comprendre les Colonnes de Sortie](#comprendre-les-colonnes-de-sortie) ci-dessous. Seules les colonnes réellement présentes sont décrites : la liste reflète donc les options que vous avez choisies, et non tout ce que l'application sait produire. Vos propres colonnes d'entrée sont conservées mais pas décrites une à une, l'application n'en sachant rien.
 
 Un tableau de prévisualisation montre les données avant l'export avec des contrôles de pagination.
 
 ## Comprendre les Colonnes de Sortie
 
-L'application ajoute ces colonnes à vos données :
+Vos colonnes d'origine sont toujours conservées. L'application ajoute les colonnes ci-dessous — les mêmes descriptions sont affichées dans l'application elle-même, à côté du tableau d'aperçu de l'onglet Export : vous n'avez donc pas à revenir ici pour les lire.
 
 | Colonne | Description |
 |---------|-------------|
-| `idtax_n` | ID du taxon apparié dans la base de données de référence |
-| `idtax_good_n` | ID du taxon accepté (pour les synonymes) |
-| `matched_name` | Nom trouvé dans la référence |
-| `corrected_name` | Nom standardisé final |
-| `name_source` | Référence utilisée pour l'appariement (interne, WCVP, etc.) |
-| `match_method` | Stratégie utilisée (`exact_species`, `exact_genus`, `exact_family`, `exact_class`, `fuzzy`, `manual`, `unresolved`) |
-| `match_score` | Score de similarité (0–1) |
-| `is_synonym` | TRUE si le nom apparié est un synonyme |
-| `accepted_name` | Nom accepté actuel (si synonyme) |
-| `family` | Famille taxonomique |
-| `genus` | Genre taxonomique |
-| `wcvp_plant_name_id` | Identifiant WCVP pour le nom apparié (optionnel, voir ci-dessous) |
-| `wcvp_accepted_plant_name_id` | Identifiant WCVP pour le nom accepté (optionnel, voir ci-dessous) |
+| `idtax_n` | Identifiant du taxon apparié dans le référentiel taxonomique |
+| `idtax_good_n` | Identifiant du taxon accepté. Diffère de `idtax_n` lorsque le nom apparié est un synonyme |
+| `matched_name` | Nom trouvé dans le référentiel correspondant à votre nom d'entrée — il peut lui-même être un synonyme |
+| `corrected_name` | Nom standardisé final : le nom accepté lorsque la correspondance est un synonyme, ou le nom WCVP si cette option est activée |
+| `accepted_name` | Nom accepté lorsque le nom apparié est un synonyme ; vide sinon |
+| `is_synonym` | `TRUE` lorsque le nom apparié est un synonyme d'un nom accepté |
+| `match_method` | Comment le nom a été apparié — voir le tableau ci-dessous |
+| `match_score` | Similarité entre votre nom d'entrée et le nom apparié, de 0 à 1 (1 = exact, ou correspondance que vous avez confirmée vous-même) |
+
+Lorsque l'option WCVP est activée (voir [Intégration WCVP](#intégration-wcvp)), quatre colonnes supplémentaires sont ajoutées et `corrected_name` est **remplacé** par le nom WCVP partout où il en existe un :
+
+| Colonne | Description |
+|---------|-------------|
+| `wcvp_taxon_name` | Nom accepté selon le World Checklist of Vascular Plants |
+| `wcvp_family` | Famille selon WCVP |
+| `wcvp_taxon_authors` | Autorité taxonomique selon WCVP |
+| `wcvp_taxon_status` | Statut du nom dans WCVP (ex. `Accepted`) |
+| `name_source` | Référence ayant fourni `corrected_name` : référentiel `internal` ou `WCVP` |
+
+### Valeurs de `match_method`
+
+| Valeur | Signification |
+|--------|---------------|
+| `exact` | Le nom a été trouvé tel quel dans le référentiel. Les quatre niveaux exacts renvoient tous `exact` — voir la note ci-dessous |
+| `genus_constrained` | Le genre a été reconnu : la correspondance approximative a donc été restreinte aux espèces de ce genre. C'est généralement le résultat approximatif le plus fiable |
+| `fuzzy` | Correspondance approximative sur l'ensemble du référentiel, utilisée lorsque le genre n'a pas été reconnu |
+| `manual` | Vous avez choisi cette correspondance vous-même dans l'onglet Review |
+| `unresolved` | Vous avez marqué ce nom comme impossible à résoudre dans l'onglet Review |
+| `no_match` | La correspondance automatique n'a rien trouvé et le nom n'a pas encore été révisé |
+
+**Le niveau exact n'est pas consigné dans `match_method`.** Les quatre niveaux exacts — espèce, genre, famille et rang supérieur — écrivent tous `exact`. Celui qui s'est appliqué est consigné séparément dans `tax_level` (`genus`, `family`, `order`, `higher`) : consultez donc cette colonne plutôt que d'attendre `exact_species` ou `exact_genus`, que l'application ne produit jamais.
+
+L'application ajoute également un identifiant de ligne interne `id_data` lorsque votre fichier n'en contient pas déjà un. Il sert à garder les lignes alignées durant la correspondance et la révision, et il est retiré de tous les exports : vous ne le verrez donc pas dans le fichier téléchargé.
 
 ## Options Avancées
 
@@ -322,14 +362,18 @@ launch_taxonomic_match_app(language = "fr")
 
 ### Intégration WCVP
 
-L'application peut optionnellement enrichir les résultats avec des identifiants **World Checklist of Vascular Plants (WCVP)**. Lorsque la base de données taxa contient des données WCVP, une case à cocher **"Utiliser les noms WCVP en sortie"** apparaît dans la barre latérale.
+L'application peut optionnellement rapprocher les résultats du **World Checklist of Vascular Plants (WCVP)**, référence internationale maintenue par les Royal Botanic Gardens de Kew. Lorsque la base de données taxa contient des données WCVP, une case à cocher **"Utiliser les noms WCVP en sortie"** apparaît dans la barre latérale. Elle ne modifie pas la correspondance elle-même — les noms sont toujours appariés d'abord au référentiel interne — mais elle change ce que rapporte la sortie.
 
-L'activer ajoute deux colonnes à l'export :
+L'activer ajoute quatre colonnes :
 
-- `wcvp_plant_name_id` — Identifiant WCVP pour le nom apparié
-- `wcvp_accepted_plant_name_id` — Identifiant WCVP pour le nom accepté
+- `wcvp_taxon_name` — Nom accepté selon WCVP
+- `wcvp_family` — Famille selon WCVP
+- `wcvp_taxon_authors` — Autorité taxonomique selon WCVP
+- `wcvp_taxon_status` — Statut du nom dans WCVP (ex. `Accepted`)
 
-La colonne `name_source` enregistre quelle référence a été utilisée, vous aidant à documenter la provenance taxonomique de chaque appariement.
+**Elle réécrit également `corrected_name`.** Partout où WCVP contient le taxon, `corrected_name` devient le nom WCVP plutôt que celui du référentiel interne ; les taxons absents de WCVP conservent leur nom interne. La colonne `name_source` enregistre laquelle des deux références a fourni chaque valeur (`internal` ou `WCVP`), ce qui rend la substitution vérifiable — consultez-la avant de considérer que `corrected_name` provient d'une référence unique.
+
+Activez cette option lorsque vos résultats doivent s'aligner sur une liste de référence internationale, et laissez-la désactivée lorsque vous avez besoin de noms cohérents avec le reste de la base. La case doit être cochée **avant** la correspondance, l'enrichissement s'effectuant au cours de cette étape.
 
 ### Ajuster la Correspondance Approximative
 
@@ -361,7 +405,7 @@ Vous pouvez aussi ajuster ceci de manière interactive dans l'onglet Review en u
 
 ### Mode Hors Ligne
 
-Si vous n'avez pas de connexion à la base de données, cliquez sur **"Utiliser le mode hors ligne (référence en cache)"** sur l'écran de connexion. L'application :
+Si vous n'avez pas de connexion à la base de données, cliquez sur **"Utiliser hors ligne (référentiel en cache)"** sur l'écran de connexion. L'application :
 
 - Télécharge et met en cache la référence localement à la première utilisation
 - Effectue la correspondance de chaînes entièrement dans R via `stringdist` (trigramme-Jaccard)
@@ -399,7 +443,7 @@ remove_db_credentials()
 setup_db_credentials()
 ```
 
-Alternativement, utilisez le **mode hors ligne** (cliquez sur "Utiliser le mode hors ligne (référence en cache)" sur l'écran de connexion) pour travailler sans connexion active à la base de données.
+Alternativement, utilisez le **mode hors ligne** (cliquez sur "Utiliser hors ligne (référentiel en cache)" sur l'écran de connexion) pour travailler sans connexion active à la base de données.
 
 ### Pas de Correspondances Approximatives Trouvées
 

@@ -4,16 +4,24 @@
 \alias{.validate_specimen_link}
 \title{Validate Specimen Link Before Adding}
 \usage{
-.validate_specimen_link(id_specimen, id_n, id_linktype, con)
+.validate_specimen_link(
+  id_specimen,
+  id_n,
+  id_linktype,
+  con,
+  id_liste_plots = NA_integer_
+)
 }
 \arguments{
 \item{id_specimen}{Integer specimen ID}
 
-\item{id_n}{Integer individual ID}
+\item{id_n}{Integer individual ID. `NA` for a plot-level link.}
 
 \item{id_linktype}{Integer link type ID}
 
 \item{con}{Database connection}
+
+\item{id_liste_plots}{Integer plot ID. `NA` for an individual-level link.}
 }
 \value{
 List with valid (logical) and errors (character vector)

@@ -328,6 +328,23 @@ safe_delete_plot <- function(plot_ids,
         }
       }
 
+      # ---- 5.0b Plot-level specimen links ----
+      # reference_plot links hang off the plot itself, not off any individual,
+      # so the id_n sweep above never reaches them. They carry a foreign key to
+      # data_liste_plots and would block the plot deletion at step 5.5.
+      if (delete_plot) {
+        n_pl <- DBI::dbGetQuery(raw_con, sprintf("
+          SELECT COUNT(*) as n FROM data_link_specimens WHERE id_liste_plots IN (%s)
+        ", pb_ids_sql))$n
+        if (n_pl > 0) {
+          if (verbose) cli::cli_alert_info("Deleting {n_pl} plot-level specimen link(s)...")
+          n_del <- batch_delete_ids(raw_con, "data_link_specimens", "id_liste_plots",
+                                    pb_ids, "plot-level specimen link(s)")
+          summary$deleted$specimen_links <- summary$deleted$specimen_links + n_del
+          if (verbose) cli::cli_alert_success("  Deleted {n_del} plot-level specimen link(s)")
+        }
+      }
+
       # ---- 5.1 Measurement features (by trait_measure_ids) ----
       if (length(tm_ids) > 0) {
         if (verbose) cli::cli_alert_info("Deleting measurement features...")

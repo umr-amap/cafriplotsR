@@ -2696,8 +2696,11 @@ SpecimenFetcher <- R6::R6Class(
   sql <- glue::glue_sql("SELECT * FROM {`tbl`} WHERE id_specimen IN ({vals*})",
                         vals = id_specimen, .con = con)
   res <- func_try_fetch(con = con, sql = sql)
-  if (nrow(res) == 0) stop("No individuals linked to this specimen")
-  return(res$id_n)
+  # Plot-level links (reference_plot) carry no individual - drop them here
+  # rather than pass an NA id_n down the query.
+  ind_ids <- res$id_n[!is.na(res$id_n)]
+  if (length(ind_ids) == 0) stop("No individuals linked to this specimen")
+  return(ind_ids)
 }
 
 #' Enrich Specimens with Taxonomy
@@ -2804,6 +2807,7 @@ SpecimenFetcher <- R6::R6Class(
   linked_ind <-
     dplyr::tbl(con, "data_link_specimens") %>%
     dplyr::filter(.data$id_specimen %in% !!specimen_ids) %>%
+    dplyr::filter(!is.na(.data$id_n)) %>%
     dplyr::select("id_n", "id_specimen") %>%
     dplyr::collect()
 
