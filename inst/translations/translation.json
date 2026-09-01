@@ -9560,6 +9560,10 @@
     {
       "en": "Using the Taxonomic Name Standardization App",
       "fr": "Utiliser l'Application de Standardisation des Noms Taxonomiques"
+    },
+    {
+      "en": "Existing columns renamed to avoid conflicts with the matching results:",
+      "fr": "Colonnes existantes renommées pour éviter les conflits avec les résultats de correspondance :"
     }
   ]
 }
