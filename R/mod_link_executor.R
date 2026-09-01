@@ -145,7 +145,8 @@ mod_link_executor_server <- function(id, validated_links, con, i18n) {
 
         tryCatch({
           # Map link_type to id_linktype
-          linktypes <- get_linktypes(con())
+          # Only individual-level types: this module pairs specimens with trees.
+          linktypes <- get_linktypes(con(), scope = "individual")
 
           links_to_create <- links %>%
             dplyr::left_join(

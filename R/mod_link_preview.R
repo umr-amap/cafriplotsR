@@ -140,7 +140,8 @@ mod_link_preview_server <- function(id, pool_main, selected_specimens,
       shiny::req(pool_main())
 
       tryCatch({
-        types <- get_linktypes(pool_main())
+        # Only individual-level types: this module pairs specimens with trees.
+        types <- get_linktypes(pool_main(), scope = "individual")
         linktypes(types)
 
         # Update dropdown with database values
