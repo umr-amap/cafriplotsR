@@ -921,7 +921,7 @@ mod_step3_mapping_server <- function(id, data, config, con, i18n) {
       # Warn if name was changed
       if (sanitized_name != original_name) {
         shiny::showNotification(
-          sprintf(i18n()$t("Feature name auto-corrected: '%s' â†’ '%s'"), original_name, sanitized_name),
+          sprintf(i18n()$t("Feature name auto-corrected: '%s' → '%s'"), original_name, sanitized_name),
           type = "warning",
           duration = 5
         )

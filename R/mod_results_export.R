@@ -151,7 +151,9 @@ mod_results_export_server <- function(id, results, original_data, i18n) {
           # Keep only id_data for joining
           orig_cols <- colnames(original_data())
           export_data <- export_data %>%
-            dplyr::select(-dplyr::any_of(setdiff(orig_cols, "id_data")))
+            dplyr::select(-dplyr::any_of(setdiff(
+              orig_cols, c("id_data", "taxonomic_name_combined")
+            )))
         }
 
         # Add matched IDs

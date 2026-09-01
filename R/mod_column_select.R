@@ -198,27 +198,51 @@ mod_column_select_server <- function(id, data, initial_column = NULL, i18n) {
       }
     })
 
+    # Warn once per upload when the file already carries columns the matching
+    # pipeline produces (an `idtax_n` from an earlier run is the common case).
+    shiny::observeEvent(data(), {
+      renamed <- .rename_conflicting_columns(data())$renamed
+
+      if (length(renamed) > 0) {
+        shiny::showNotification(
+          paste0(
+            i18n()$t("Existing columns renamed to avoid conflicts with the matching results:"),
+            " ",
+            paste(names(renamed), "\u2192", renamed, collapse = ", ")
+          ),
+          duration = 10,
+          type = "warning"
+        )
+      }
+    })
+
     # Return reactive list
     return(
       shiny::reactive({
         req(input$column_mode)
 
         if (input$column_mode == "single") {
-          list(
-            column = input$column_name,
-            include_authors = input$include_authors %||% FALSE,
-            data = data()  # Return original data
-          )
+          req(data())
+          sanitised <- .rename_conflicting_columns(data())
+          selected  <- input$column_name
         } else {
           # Multiple column mode
           req(processed_data())
-
-          list(
-            column = "taxonomic_name_combined",
-            include_authors = input$include_authors %||% FALSE,
-            data = processed_data()  # Return data with combined column
-          )
+          sanitised <- .rename_conflicting_columns(processed_data())
+          selected  <- "taxonomic_name_combined"
         }
+
+        # The selected column itself may have been renamed away from a
+        # reserved name — follow it so the two stay in sync.
+        if (selected %in% names(sanitised$renamed)) {
+          selected <- unname(sanitised$renamed[[selected]])
+        }
+
+        list(
+          column = selected,
+          include_authors = input$include_authors %||% FALSE,
+          data = sanitised$data
+        )
       })
     )
   })

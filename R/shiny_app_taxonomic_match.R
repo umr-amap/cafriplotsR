@@ -608,7 +608,9 @@ app_taxonomic_match <- function(
       mod_results_export_server(
         "export",
         results = reviewed_results,
-        original_data = user_data,
+        # Post-selection data: carries the `_input` renames applied to columns
+        # that clash with the matching output, so the drop below matches.
+        original_data = shiny::reactive(column_info()$data),
         i18n = i18n
       )
 
