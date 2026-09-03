@@ -9,7 +9,9 @@
 #' Conditions selecting specimens by collector
 #'
 #' A collector is given either by name, resolved against `table_colnam`, or
-#' directly by id.
+#' directly by id. A name that resolves to nobody yields the unsatisfiable
+#' `FALSE` rather than no condition, so an unknown collector returns no
+#' specimens instead of every specimen.
 #'
 #' @param collector Character vector of collector name(s).
 #' @param id_colnam Integer vector of `table_colnam` id(s), used instead of
@@ -48,7 +50,7 @@
 
     if (length(collector_ids) == 0) {
       cli::cli_alert_warning("No valid collectors selected")
-      return(character(0))
+      return(.sql_impossible())
     }
 
   } else {
@@ -60,7 +62,7 @@
     if (nrow(collectors_tbl) == 0) {
       cli::cli_alert_warning("No collectors found matching: {paste(collector, collapse = ', ')}")
       cli::cli_alert_info("Tip: Use interactive = TRUE for fuzzy matching")
-      return(character(0))
+      return(.sql_impossible())
     }
 
     collector_ids <- collectors_tbl$id_table_colnam

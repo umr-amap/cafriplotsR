@@ -127,7 +127,9 @@ test_that(".specimen_filter_query() combines the filters with AND", {
   expect_equal(selected_specimens(query, con), 2L)
 })
 
-test_that("an unmatched collector is reported", {
+test_that("an unmatched collector selects no specimen, rather than all of them", {
+  # A name that matches nobody must narrow the query to nothing. Dropping the
+  # condition instead would return the whole table and read as success.
   con <- specimen_db()
   on.exit(DBI::dbDisconnect(con))
 
@@ -135,7 +137,16 @@ test_that("an unmatched collector is reported", {
     cond <- CafriplotsR:::.specimen_condition_collector(collector = "Nobody", con = con),
     "No collectors found"
   )
-  expect_length(cond, 0)
+  expect_equal(cond, "FALSE")
+
+  query <- CafriplotsR:::.assemble_specimen_query(cond, con)
+  expect_length(selected_specimens(query, con), 0)
+
+  # And it stays unsatisfiable once combined with the other filters.
+  query <- suppressMessages(CafriplotsR:::.specimen_filter_query(
+    con = con, collector = "Nobody", number_min = 10L
+  ))
+  expect_length(selected_specimens(query, con), 0)
 })
 
 # ── fetching ─────────────────────────────────────────────────────────────────
