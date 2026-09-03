@@ -108,6 +108,8 @@ reference:
     desc: "Query plots, individuals, taxa, traits, and specimens from the database"
     contents:
       - query_plots
+      - plot_feature_filters
+      - plot_feature_values
       - query_subplots
       - query_plot_features
       - query_individual_features
@@ -131,10 +133,6 @@ reference:
       - traits_list
       - traits_taxa_list
       - get_traitlist
-      - PlotFetcher
-      - PlotFilterBuilder
-      - SpecimenFetcher
-      - SpecimenFilterBuilder
       - get_user_accessible_plots
       - match_tax
       - match_taxonomic_names

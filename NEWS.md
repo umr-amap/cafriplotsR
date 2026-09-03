@@ -2,6 +2,8 @@
 
 ### Breaking Changes
 
+* **`PlotFilterBuilder`, `PlotFetcher`, `SpecimenFilterBuilder` and `SpecimenFetcher` are no longer exported** — the four R6 classes were removed along with the `R6` dependency (see *Code Refactoring*). They were query plumbing for `query_plots()` and `query_specimens()`, with no caller anywhere else in the package; code that built a query through one of them should call `query_plots()` / `query_specimens()` instead. Their unused methods — `build_with_or()`, `add_custom_condition()`, `print_conditions()`, `filter_by_ids()`, `fetch_with_filter()`, `fetch_by_collector_and_number()` — have no replacement
+
 * **`update_specimen_fields()` and `update_specimens_batch()` deprecated** in favour of `update_records(table_type = "specimens")` (`R/updates_tables_functions.R`). Both wrote plain columns of `specimens` that `update_records()` already covers; keeping three write paths to one table meant three places to keep in sync, and they had already drifted apart (see the `description` fix below). Both still work, and emit a `lifecycle::deprecate_warn()` naming the replacement
   - `update_records()` is the superset: it takes several specimens at once, defaults to a dry run (`execute = FALSE`), and backs up to the same `followup_updates_specimens` table
   - Migration — `update_specimen_fields(id_speci = 12345, new_values = list(locality = "Mont Bela"))` becomes `update_records(data.frame(id_specimen = 12345, locality = "Mont Bela"), table_type = "specimens", execute = TRUE)`. For `update_specimens_batch()`, rename the columns of `new_data` to their database names first — `col_names_select` / `col_names_corresp` has no equivalent — then add `method = "batch"`
@@ -14,6 +16,14 @@
   - Renamed in `R/add_functions.R`, `R/import_column_mapping.R` (synonyms, descriptions, recommended columns), `R/mod_census_information.R` and `R/updates_tables_functions.R`. No `data_d` reference remains outside the migration itself
 
 ### Code Refactoring
+
+* **The four R6 classes are gone, and with them the `R6` dependency** (`R/plot_query_builder.R`, `R/specimen_query_builder.R`, `R/plot_feature_filters.R`) — `PlotFilterBuilder`, `PlotFetcher`, `SpecimenFilterBuilder` and `SpecimenFetcher` were the package's only use of `R6`. None of them held state between calls: a builder was constructed inside `query_plots()` or `query_specimens()`, fed the filter arguments, `build()`-ed and discarded, its private field accumulating SQL condition strings. Functions returning those strings do the same work
+  - Each filter argument is now translated by its own `.plot_condition_*()` / `.specimen_condition_*()`, which returns that argument's condition(s) as a character vector: none when the argument is `NULL`, and the unsatisfiable `FALSE` when its value matched nothing. `.assemble_plot_query()` and `.assemble_specimen_query()` join the set into one SELECT, and `query_plots()` reaches all of it through a single `.plot_filter_query()` call
+  - The feature clauses moved to `R/plot_feature_filters.R`, beside the validation and lookup-resolution they belong with. `.plot_ids_matching_features()` no longer instantiates a builder to reach them
+  - **No cost to the query.** The SQL text is unchanged and so is the number of round trips — the lookups that resolve names to ids, then one SELECT. What disappears is an R6 environment per query
+  - `.assemble_plot_query()` is deliberately not named `.build_plot_query()`: that name is called by the legacy `query_subplots()` filter path without ever having been defined, and `test-specimens-subplots.R` pins the resulting error. Naming the assembler that would have shadowed a known gap with a silent signature mismatch
+  - Behaviour is unchanged with one exception: `query_specimens(genus =, species =, family =)` now says out loud that it is not applying them. `filter_taxonomy()` stored them in R6 private fields that were never declared and never read, so the query ran with no taxonomic condition and returned every specimen. Resolve the names with `query_taxa()` and pass `idtax_n`, which does filter
+  - Tests: `test-query-plots-feature-filters.R` rewritten against the new functions, and a new `test-specimen-query-builder.R` covers the specimen path, which had none
 
 * **Growth form traits consolidated** — collapsed 7 branching `growth_form_level_*` traits (ids 42–47) into 3 flat traits: `growth_form_level_1` (unchanged, id=41), `growth_form_level_2` (id=120), `growth_form_level_3` (id=121). The previous design encoded hierarchy branches in trait names, unnecessarily multiplying trait definitions. Migration script: `migrate_growth_form_traits.R`. Affected rows: 31,664 + 14,700 in `taxa_traits_measures`; 410 + 748 in `data_traits_measures`.
 
@@ -272,6 +282,8 @@
   - 26 assertions in `tests/testthat/test-public-credential.R`, including that the source tree contains no embedded credential, so a later edit cannot quietly restore one. None of them touch the network
 
 ### Documentation
+
+* **`devtools::document()` runs clean again** (`R/functions_manip_db.R`, `R/add_functions.R`) — roxygen2 reported 44 problems on every run, from two causes. `add_method()` had a bare `@param new_description_method` with no description. The R6 classes carried a hand-written `@section Methods:` list on the class block, which roxygen2 does not read as documentation of the methods it generates topics for; the prose was moved into per-method `@description` / `@param` / `@return` tags, the pattern `PlotFetcher` already used and the reason it alone went unreported. Those classes have since been removed, but the same fix now applies to any R6 class added later
 
 * **The taxonomic matching app explains itself** (`R/shiny_app_taxonomic_match.R`) — the *About this app* panel was a `<details>` element styled as a tinted info banner with an `info-circle` icon and collapsed by default, so it read as a static notice rather than a control. The workflow description it holds went unread by the first-time visitors it was written for
   - It now opens on arrival, and is restyled as a bordered card with a hover state and a chevron that rotates on open; the native disclosure triangle is suppressed in favour of the chevron. Collapsing it is still one click

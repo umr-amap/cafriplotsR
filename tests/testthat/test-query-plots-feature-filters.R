@@ -68,9 +68,19 @@ feature_filter_db <- function() {
   con
 }
 
-# Plots selected by a builder, as a sorted integer vector.
-selected_plots <- function(builder, con) {
-  res <- DBI::dbGetQuery(con, builder$build())
+# The conditions a set of feature filters produces.
+feature_conditions <- function(..., con, exact_match = FALSE) {
+  CafriplotsR:::.feature_conditions(list(...), con, exact_match = exact_match)
+}
+
+# The query a set of conditions builds, as a string.
+built_sql <- function(conditions, con) {
+  as.character(CafriplotsR:::.assemble_plot_query(conditions, con))
+}
+
+# Plots selected by a set of conditions, as a sorted integer vector.
+selected_plots <- function(conditions, con) {
+  res <- DBI::dbGetQuery(con, CafriplotsR:::.assemble_plot_query(conditions, con))
   sort(as.integer(res$id_liste_plots))
 }
 
@@ -134,9 +144,7 @@ test_that("a character feature is matched on typevalue_char", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
 
-  sql <- as.character(
-    PlotFilterBuilder$new(con)$filter_features(list(data_provider = "IRD"))$build()
-  )
+  sql <- built_sql(feature_conditions(data_provider = "IRD", con = con), con)
 
   expect_match(sql, "data_liste_sub_plots", fixed = TRUE)
   expect_match(sql, "typevalue_char", fixed = TRUE)
@@ -149,10 +157,7 @@ test_that("a people feature is matched on the resolved id, not on text", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
 
-  sql <- as.character(
-    PlotFilterBuilder$new(con)$
-      filter_features(list(principal_investigator = "Dauby"))$build()
-  )
+  sql <- built_sql(feature_conditions(principal_investigator = "Dauby", con = con), con)
 
   expect_match(sql, "sp.typevalue IN", fixed = TRUE)
   expect_match(sql, "10", fixed = TRUE)
@@ -163,13 +168,9 @@ test_that("exact_match switches substring matching off", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
 
-  loose <- as.character(
-    PlotFilterBuilder$new(con)$
-      filter_features(list(data_provider = "IRD"))$build()
-  )
-  exact <- as.character(
-    PlotFilterBuilder$new(con)$
-      filter_features(list(data_provider = "IRD"), exact_match = TRUE)$build()
+  loose <- built_sql(feature_conditions(data_provider = "IRD", con = con), con)
+  exact <- built_sql(
+    feature_conditions(data_provider = "IRD", con = con, exact_match = TRUE), con
   )
 
   expect_match(loose, "LIKE", fixed = TRUE)
@@ -182,26 +183,24 @@ test_that("a substring match selects every plot containing the value", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
 
-  b <- PlotFilterBuilder$new(con)$filter_features(list(data_provider = "IRD"))
-  expect_equal(selected_plots(b, con), c(1L, 2L))
+  cond <- feature_conditions(data_provider = "IRD", con = con)
+  expect_equal(selected_plots(cond, con), c(1L, 2L))
 })
 
 test_that("exact_match selects only the plot holding that exact value", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
 
-  b <- PlotFilterBuilder$new(con)$
-    filter_features(list(data_provider = "IRD"), exact_match = TRUE)
-  expect_equal(selected_plots(b, con), 1L)
+  cond <- feature_conditions(data_provider = "IRD", con = con, exact_match = TRUE)
+  expect_equal(selected_plots(cond, con), 1L)
 })
 
 test_that("several values of one feature are combined with OR", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
 
-  b <- PlotFilterBuilder$new(con)$
-    filter_features(list(data_provider = c("Herbarium", "IRD-CNRS")))
-  expect_equal(selected_plots(b, con), c(2L, 3L))
+  cond <- feature_conditions(data_provider = c("Herbarium", "IRD-CNRS"), con = con)
+  expect_equal(selected_plots(cond, con), c(2L, 3L))
 })
 
 test_that("different features are combined with AND", {
@@ -211,20 +210,21 @@ test_that("different features are combined with AND", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
 
-  b <- PlotFilterBuilder$new(con)$filter_features(list(
+  cond <- feature_conditions(
     data_provider          = "IRD",
-    principal_investigator = "Dauby"
-  ))
-  expect_equal(selected_plots(b, con), 1L)
+    principal_investigator = "Dauby",
+    con                    = con
+  )
+  expect_length(cond, 2)
+  expect_equal(selected_plots(cond, con), 1L)
 })
 
 test_that("a people feature resolves the name through table_colnam", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
 
-  b <- PlotFilterBuilder$new(con)$
-    filter_features(list(principal_investigator = "Dauby"))
-  expect_equal(selected_plots(b, con), c(1L, 3L))
+  cond <- feature_conditions(principal_investigator = "Dauby", con = con)
+  expect_equal(selected_plots(cond, con), c(1L, 3L))
 })
 
 # ── an unmatched value returns nothing, and says so ──────────────────────────
@@ -235,34 +235,33 @@ test_that("an unmatched feature value selects no plot", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
 
-  b <- PlotFilterBuilder$new(con)
   expect_message(
-    b$filter_features(list(principal_investigator = "Nobody")),
+    cond <- feature_conditions(principal_investigator = "Nobody", con = con),
     "no plot can match"
   )
-  expect_equal(selected_plots(b, con), integer(0))
+  expect_equal(selected_plots(cond, con), integer(0))
 })
 
 test_that("an unmatched country selects no plot", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
 
-  b <- suppressMessages(
-    PlotFilterBuilder$new(con)$filter_country("Atlantis")
+  cond <- suppressMessages(
+    CafriplotsR:::.plot_condition_country("Atlantis", con)
   )
-  expect_match(as.character(b$build()), "FALSE", fixed = TRUE)
-  expect_equal(selected_plots(b, con), integer(0))
+  expect_match(built_sql(cond, con), "FALSE", fixed = TRUE)
+  expect_equal(selected_plots(cond, con), integer(0))
 })
 
 test_that("an unmatched method selects no plot", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
 
-  b <- suppressMessages(
-    PlotFilterBuilder$new(con)$filter_method("not-a-method")
+  cond <- suppressMessages(
+    CafriplotsR:::.plot_condition_method("not-a-method", con)
   )
-  expect_match(as.character(b$build()), "FALSE", fixed = TRUE)
-  expect_equal(selected_plots(b, con), integer(0))
+  expect_match(built_sql(cond, con), "FALSE", fixed = TRUE)
+  expect_equal(selected_plots(cond, con), integer(0))
 })
 
 test_that("a matched filter still selects its plots", {
@@ -270,9 +269,9 @@ test_that("a matched filter still selects its plots", {
   con <- feature_filter_db()
   on.exit(DBI::dbDisconnect(con))
 
-  b <- suppressMessages(PlotFilterBuilder$new(con)$filter_country("Gabon"))
-  expect_false(grepl("FALSE", as.character(b$build()), fixed = TRUE))
-  expect_equal(selected_plots(b, con), c(1L, 2L))
+  cond <- suppressMessages(CafriplotsR:::.plot_condition_country("Gabon", con))
+  expect_false(grepl("FALSE", built_sql(cond, con), fixed = TRUE))
+  expect_equal(selected_plots(cond, con), c(1L, 2L))
 })
 
 # ── discovery helpers ────────────────────────────────────────────────────────
@@ -334,4 +333,88 @@ test_that(".plot_ids_matching_features() returns the ids the filter selects", {
     list(data_provider = "IRD"), con = con
   )
   expect_equal(sort(ids), c(1L, 2L))
+})
+
+# ── assembling the whole query ───────────────────────────────────────────────
+#
+# query_plots() no longer holds a builder object: each filter argument is
+# turned into conditions by its own function and the set is assembled once.
+# What follows checks that assembly, argument by argument.
+
+test_that("an argument that was not given adds no condition", {
+  con <- feature_filter_db()
+  on.exit(DBI::dbDisconnect(con))
+
+  expect_length(CafriplotsR:::.plot_condition_country(NULL, con), 0)
+  expect_length(CafriplotsR:::.plot_condition_plot_name(NULL, con), 0)
+  expect_length(CafriplotsR:::.plot_condition_method(NULL, con), 0)
+  expect_length(CafriplotsR:::.plot_condition_locality(NULL, con), 0)
+  expect_length(CafriplotsR:::.feature_conditions(NULL, con), 0)
+})
+
+test_that("no condition at all selects every plot", {
+  con <- feature_filter_db()
+  on.exit(DBI::dbDisconnect(con))
+
+  sql <- built_sql(character(0), con)
+  expect_false(grepl("WHERE", sql, fixed = TRUE))
+  expect_equal(selected_plots(character(0), con), c(1L, 2L, 3L))
+})
+
+test_that("a single plot name is a substring match, several are exact", {
+  con <- feature_filter_db()
+  on.exit(DBI::dbDisconnect(con))
+
+  loose <- CafriplotsR:::.plot_condition_plot_name("lph", con)
+  expect_equal(selected_plots(loose, con), 1L)
+
+  several <- CafriplotsR:::.plot_condition_plot_name(c("Alpha", "Gamma"), con)
+  expect_equal(selected_plots(several, con), c(1L, 3L))
+
+  exact <- CafriplotsR:::.plot_condition_plot_name("lph", con, exact_match = TRUE)
+  expect_equal(selected_plots(exact, con), integer(0))
+})
+
+test_that("localities are matched as substrings and OR'ed together", {
+  con <- feature_filter_db()
+  on.exit(DBI::dbDisconnect(con))
+
+  one <- CafriplotsR:::.plot_condition_locality("Loc2", con)
+  expect_equal(selected_plots(one, con), 2L)
+
+  several <- CafriplotsR:::.plot_condition_locality(c("Loc1", "Loc3"), con)
+  expect_equal(selected_plots(several, con), c(1L, 3L))
+})
+
+test_that(".plot_filter_query() combines the filters with AND", {
+  # Gabon holds plots 1 and 2; the Herbarium provided plot 3 only. Asking for
+  # both must return nothing, not the union.
+  con <- feature_filter_db()
+  on.exit(DBI::dbDisconnect(con))
+
+  query <- suppressMessages(CafriplotsR:::.plot_filter_query(
+    con = con, country = "Gabon",
+    feature_filters = list(data_provider = "Herbarium")
+  ))
+  expect_equal(nrow(DBI::dbGetQuery(con, query)), 0)
+
+  query <- suppressMessages(CafriplotsR:::.plot_filter_query(
+    con = con, country = "Gabon",
+    feature_filters = list(data_provider = "IRD")
+  ))
+  res <- DBI::dbGetQuery(con, query)
+  expect_equal(sort(as.integer(res$id_liste_plots)), c(1L, 2L))
+})
+
+test_that(".plot_filter_query() can join its conditions with OR", {
+  con <- feature_filter_db()
+  on.exit(DBI::dbDisconnect(con))
+
+  query <- suppressMessages(CafriplotsR:::.plot_filter_query(
+    con = con, country = "Gabon",
+    feature_filters = list(data_provider = "Herbarium"),
+    operator = "OR"
+  ))
+  res <- DBI::dbGetQuery(con, query)
+  expect_equal(sort(as.integer(res$id_liste_plots)), c(1L, 2L, 3L))
 })
