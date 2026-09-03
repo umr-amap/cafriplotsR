@@ -3780,7 +3780,7 @@ add_plot_coordinates <-
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #' @param new_method string value with new method descriptors, avoid space
-#' @param new_description_method
+#' @param new_description_method string value describing the new method
 #'
 #'
 #' @export
