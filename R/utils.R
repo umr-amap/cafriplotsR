@@ -4,7 +4,7 @@
 NULL
 
 utils::globalVariables(c(
-  "%m-%", ".", ".BY", ".N", ".SD", ".build_plot_query", ".census_typevalue",
+  "%m-%", ".", ".BY", ".N", ".SD", ".census_typevalue",
   ".env", ".original_value", ".src", ".subplot_plot_id", ":=",
   "Crown_spre", "DBH", "DBH_height", "Date", "Family", "Genus",
   "ID", "Identif_co", "Latitude", "Longitude", "N", "New_quadra",

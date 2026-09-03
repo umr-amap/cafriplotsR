@@ -2,22 +2,60 @@
 % Please edit documentation in R/subsplots_features_function.R
 \name{query_subplots}
 \alias{query_subplots}
-\title{Legacy function - wrapper for backward compatibility}
+\title{Subplot features of a set of plots (superseded)}
 \usage{
 query_subplots(
   ids_plots = NULL,
   ids_subplots = NULL,
-  plot_name = NULL,
-  country = NULL,
-  locality_name = NULL,
-  method = NULL,
+  plot_name = lifecycle::deprecated(),
+  country = lifecycle::deprecated(),
+  locality_name = lifecycle::deprecated(),
+  method = lifecycle::deprecated(),
   subtype = NULL,
   verbose = TRUE,
   extract_subplots_obs_features = FALSE,
   con = NULL
 )
 }
+\arguments{
+\item{ids_plots}{Integer vector of `data_liste_plots.id_liste_plots`.}
+
+\item{ids_subplots}{Integer vector of `data_liste_sub_plots.id_sub_plots`.}
+
+\item{plot_name, country, locality_name, method}{`r lifecycle::badge("deprecated")` Never applied; use [query_plots()] to
+resolve the plots and pass their ids as `ids_plots`.}
+
+\item{subtype}{Character. Subplot type to keep, matched as a regular
+expression.}
+
+\item{verbose}{Logical. Whether to announce that the legacy wrapper is in
+use.}
+
+\item{extract_subplots_obs_features}{Logical. Also fetch the features
+attached to subplot observations.}
+
+\item{con}{A DBI connection or pool. Opened with [call.mydb()] if `NULL`.}
+}
+\value{
+A list of `all_subplots`, `all_subplot_pivot` and `census_features`,
+  the old names of `features_raw`, `features_aggregated` and `census_info`.
+}
 \description{
-Legacy function - wrapper for backward compatibility
+`r lifecycle::badge("superseded")`
+}
+\details{
+Kept so that existing code and the census-information module keep running.
+It is a thin wrapper: it calls [query_plot_features()] and renames the three
+elements of the result to their old names.
+
+The plot-filtering arguments are gone. They were served by an internal
+helper that the October 2025 rewrite of [query_plots()] deleted without
+updating this call site, so they have raised
+`could not find function ".build_plot_query"` ever since and never filtered
+anything. Resolve the plots with [query_plots()] and pass the ids instead.
+}
+\seealso{
+[query_plot_features()], which returns the same data under its
+  current names.
 }
 \keyword{internal}
