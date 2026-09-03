@@ -42,7 +42,7 @@ test_that("an argument that was not given adds no condition", {
 
   expect_length(CafriplotsR:::.specimen_condition_collector(con = con), 0)
   expect_length(CafriplotsR:::.specimen_condition_number(con = con), 0)
-  expect_length(CafriplotsR:::.specimen_condition_taxonomy(con = con), 0)
+  expect_length(CafriplotsR:::.specimen_condition_idtax(con = con), 0)
 })
 
 test_that("a collector is resolved from name to id", {
@@ -87,23 +87,25 @@ test_that("collection numbers are matched exactly or as a range", {
   )
 })
 
-test_that("taxonomy filters on idtax_n, and says so for the names it cannot use", {
-  # genus, species and family live in the taxa database; they have never been
-  # applied to the specimens query and must not look as though they were.
+test_that("a taxon is filtered on idtax_n", {
   con <- specimen_db()
   on.exit(DBI::dbDisconnect(con))
 
-  cond <- CafriplotsR:::.specimen_condition_taxonomy(idtax_n = 100L, con = con)
+  cond <- CafriplotsR:::.specimen_condition_idtax(idtax_n = 100L, con = con)
   expect_equal(
     selected_specimens(CafriplotsR:::.assemble_specimen_query(cond, con), con),
     c(1L, 3L)
   )
+})
 
-  expect_message(
-    ignored <- CafriplotsR:::.specimen_condition_taxonomy(genus = "Cola", con = con),
-    "Not applied"
-  )
-  expect_length(ignored, 0)
+test_that("query_specimens() offers no taxonomic filter it cannot honour", {
+  # genus, species and family live in the taxa database, not in `specimens`.
+  # They were accepted and never applied, so a name filter quietly returned
+  # every specimen; they are gone rather than silently ignored.
+  args <- names(formals(CafriplotsR::query_specimens))
+
+  expect_false(any(c("genus", "species", "family") %in% args))
+  expect_true("idtax_n" %in% args)
 })
 
 # ── the whole query ──────────────────────────────────────────────────────────

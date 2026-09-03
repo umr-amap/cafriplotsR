@@ -2333,9 +2333,6 @@ explore_allometric_taxa <- function(genus_searched = NULL,
 #' @param number Integer vector of specimen numbers (exact match)
 #' @param number_min Minimum specimen number (range query)
 #' @param number_max Maximum specimen number (range query)
-#' @param genus Character vector of genus names to filter
-#' @param species Character vector of species names to filter
-#' @param family Character vector of family names to filter
 #' @param id_specimen Integer vector of specimen IDs (direct fetch)
 #' @param idtax_n Integer vector of taxonomy IDs
 #' @param interactive Logical, use interactive fuzzy matching for collectors
@@ -2375,9 +2372,6 @@ query_specimens <- function(collector = NULL,
                             number = NULL,
                             number_min = NULL,
                             number_max = NULL,
-                            genus = NULL,
-                            species = NULL,
-                            family = NULL,
                             id_specimen = NULL,
                             idtax_n = NULL,
                             interactive = TRUE,
@@ -2414,7 +2408,7 @@ query_specimens <- function(collector = NULL,
     # Check if we need any filtering at all
     needs_filtering <- !is.null(collector) || !is.null(id_colnam) ||
                        !is.null(number) || !is.null(number_min) || !is.null(number_max) ||
-                       !is.null(genus) || !is.null(species) || !is.null(family) || !is.null(idtax_n)
+                       !is.null(idtax_n)
 
     if (!needs_filtering) {
       # No filters - fetch all specimens (with warning)
@@ -2430,9 +2424,6 @@ query_specimens <- function(collector = NULL,
         number      = number,
         number_min  = number_min,
         number_max  = number_max,
-        genus       = genus,
-        species     = species,
-        family      = family,
         idtax_n     = idtax_n,
         interactive = interactive
       )

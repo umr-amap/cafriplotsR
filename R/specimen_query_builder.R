@@ -110,33 +110,18 @@
   conditions
 }
 
-#' Conditions selecting specimens by taxonomy
+#' Conditions selecting specimens by taxon
 #'
-#' Only `idtax_n` is a column of `specimens`. Genus, species and family live in
-#' the taxa database and would need a join to be honoured here; they have never
-#' been applied, so they are refused loudly rather than dropped in silence.
+#' `idtax_n` is the only taxonomic column of `specimens`. Filtering by genus,
+#' species or family means resolving the names against the taxa database
+#' first, with `query_taxa()`, and passing the ids found.
 #'
-#' @param genus,species,family Character vectors, currently not supported.
 #' @param idtax_n Integer vector of taxon id(s).
 #' @param con A DBI connection or pool.
 #' @return A character vector of SQL conditions.
 #' @keywords internal
 #' @noRd
-.specimen_condition_taxonomy <- function(genus = NULL, species = NULL,
-                                         family = NULL, idtax_n = NULL, con) {
-
-  unsupported <- c(
-    genus = !is.null(genus), species = !is.null(species), family = !is.null(family)
-  )
-  if (any(unsupported)) {
-    ignored <- names(unsupported)[unsupported]
-    cli::cli_alert_warning(
-      "Not applied to the specimen query: {.arg {ignored}}."
-    )
-    cli::cli_alert_info(
-      "Resolve the names with {.fn query_taxa} and pass {.arg idtax_n} instead."
-    )
-  }
+.specimen_condition_idtax <- function(idtax_n = NULL, con) {
 
   if (is.null(idtax_n)) return(character(0))
 
@@ -180,7 +165,7 @@
 #' @param con A DBI connection or pool.
 #' @param collector,id_colnam Collector, by name or by id.
 #' @param number,number_min,number_max Collection number, exact or range.
-#' @param genus,species,family,idtax_n Taxonomic filters.
+#' @param idtax_n Taxon id(s); names must be resolved with `query_taxa()` first.
 #' @param interactive Logical. If `TRUE`, resolve names through
 #'   `.link_table()` fuzzy matching.
 #' @param operator Character. Join operator between conditions.
@@ -193,9 +178,6 @@
                                    number = NULL,
                                    number_min = NULL,
                                    number_max = NULL,
-                                   genus = NULL,
-                                   species = NULL,
-                                   family = NULL,
                                    idtax_n = NULL,
                                    interactive = FALSE,
                                    operator = "AND") {
@@ -208,10 +190,7 @@
     .specimen_condition_number(
       number = number, number_min = number_min, number_max = number_max, con = con
     ),
-    .specimen_condition_taxonomy(
-      genus = genus, species = species, family = family,
-      idtax_n = idtax_n, con = con
-    )
+    .specimen_condition_idtax(idtax_n = idtax_n, con = con)
   )
 
   .assemble_specimen_query(conditions, con, operator = operator)

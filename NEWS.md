@@ -1,6 +1,11 @@
 # CafriplotsR 1.9.8 (Development)
 
 ### Breaking Changes
+* **`query_specimens()` no longer accepts `genus`, `species` and `family`** (`R/functions_manip_db.R`, `R/specimen_query_builder.R`) — the three arguments were accepted and never applied. `filter_taxonomy()` stored them in R6 private fields that were never declared and never read, so the query ran with no taxonomic condition; worse, supplying one satisfied the `needs_filtering` test and sent the call down the filter branch, which then built a condition-free query. `query_specimens(genus = "Cola")` returned every specimen in the database and looked like a successful search
+  - Passing one now fails with R's own `unused argument`, which is the point: a name filter that cannot be honoured must not be silently absorbed
+  - `idtax_n` is the only taxonomic column of `specimens`, so filtering by name means resolving it first — `query_specimens(idtax_n = query_taxa("Cola nitida")$idtax_n)`
+  - `.specimen_condition_taxonomy()` was three quarters apology and is now `.specimen_condition_idtax()`. No caller in the package, in `inst/scripts/` or in the Shiny modules passed any of the three
+
 
 * **`PlotFilterBuilder`, `PlotFetcher`, `SpecimenFilterBuilder` and `SpecimenFetcher` are no longer exported** — the four R6 classes were removed along with the `R6` dependency (see *Code Refactoring*). They were query plumbing for `query_plots()` and `query_specimens()`, with no caller anywhere else in the package; code that built a query through one of them should call `query_plots()` / `query_specimens()` instead. Their unused methods — `build_with_or()`, `add_custom_condition()`, `print_conditions()`, `filter_by_ids()`, `fetch_with_filter()`, `fetch_by_collector_and_number()` — have no replacement
 
