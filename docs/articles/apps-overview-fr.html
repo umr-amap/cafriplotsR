@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -79,7 +79,16 @@ l’application.</p>
 <p>Chaque application s’ouvre sur le même écran de connexion. Ce qui
 change, c’est <strong>qui peut l’utiliser</strong> : trois applications
 s’ouvrent sans aucun identifiant, les sept autres exigent votre propre
-compte car elles écrivent dans la base.</p>
+compte car elles écrivent dans la base. L’une des trois, l’application
+d’appariement taxonomique, va même plus loin et fonctionne aussi hors
+ligne.</p>
+<p>L’une d’entre elles ne demande même pas R. L’application de
+standardisation des noms taxonomiques est aussi
+<strong>hébergée</strong>, à l’adresse <a href="https://cafri-taxomatch.lab.sspcloud.fr" class="external-link uri">https://cafri-taxomatch.lab.sspcloud.fr</a> : ouvrez-la dans
+un navigateur et elle se comporte exactement comme l’application locale,
+connexion publique comprise. Utilisez-la pour essayer le paquet, ou pour
+montrer le flux de travail à un collègue sans rien lui faire
+installer.</p>
 </div>
 <div class="section level2">
 <h2 id="quelle-application-choisir">Quelle application choisir ?<a class="anchor" aria-label="anchor" href="#quelle-application-choisir"></a>
@@ -99,7 +108,7 @@ compte car elles écrivent dans la base.</p>
 <tr class="odd">
 <td>Standardisation des noms taxonomiques</td>
 <td><code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code></td>
-<td>public ou compte</td>
+<td>public, compte ou hors ligne</td>
 </tr>
 <tr class="even">
 <td>Référentiel taxonomique</td>
@@ -173,6 +182,32 @@ n’affichent pas le bouton public, car un compte en lecture seule ne
 permet d’aller au bout d’aucun de leurs enchaînements.</p>
 </div>
 <div class="section level2">
+<h2 id="travailler-sans-réseau">Travailler sans réseau<a class="anchor" aria-label="anchor" href="#travailler-sans-r%C3%A9seau"></a>
+</h2>
+<p>Une application va plus loin encore et fonctionne sans aucune base de
+données : celle de standardisation des noms taxonomiques propose un
+bouton <strong>Use offline (cached backbone)</strong>. Elle s’appuie sur
+une copie du référentiel taxonomique enregistrée sur votre propre
+machine, ce qui permet de standardiser une liste d’espèces depuis une
+station de terrain, un avion ou tout autre endroit sans route vers le
+serveur.</p>
+<p>Deux points à connaître avant de compter dessus :</p>
+<ul>
+<li>Le bouton n’apparaît qu’une fois le cache constitué. Celui-ci est
+écrit lors de la première utilisation de l’application <strong>en
+ligne</strong> : lancez-la donc une fois connecté avant de partir.</li>
+<li>Hors ligne, vous disposez de l’appariement automatique, des
+suggestions floues et de la révision manuelle. L’onglet d’enrichissement
+par les traits est masqué, car les traits vivent dans la base et rien de
+local ne peut les remplacer.</li>
+</ul>
+<p><strong>Les neuf autres applications n’affichent jamais ce
+bouton.</strong> Le mode hors ligne laisse l’application sans aucune
+connexion, et aucune d’elles n’a alors de quoi travailler : elles
+importent, corrigent ou interrogent des données vivantes. Si vous
+cherchiez ce bouton ailleurs, voilà pourquoi il n’y est pas.</p>
+</div>
+<div class="section level2">
 <h2 id="explorer-et-standardiser">Explorer et standardiser<a class="anchor" aria-label="anchor" href="#explorer-et-standardiser"></a>
 </h2>
 <div class="section level3">
@@ -188,7 +223,13 @@ chacun de vos noms un identifiant de taxon stable
 (<code>idtax_n</code>), ce qui permet ensuite de greffer traits et
 inventaires.</p>
 <p>Commencez ici si vous arrivez avec une liste d’espèces issue de votre
-terrain.</p>
+terrain. C’est aussi la seule application qui fonctionne hors ligne, à
+partir d’une copie locale du référentiel.</p>
+<p>Et c’est la seule que vous pouvez aussi utiliser <strong>sans rien
+installer</strong> : <a href="https://cafri-taxomatch.lab.sspcloud.fr" class="external-link uri">https://cafri-taxomatch.lab.sspcloud.fr</a> sert la même
+application depuis SSP Cloud. La copie hébergée interroge la même base,
+si bien qu’une liste standardisée exportée là-bas porte les mêmes
+<code>idtax_n</code> qu’une liste produite localement.</p>
 </div>
 <div class="section level3">
 <h3 id="référentiel-taxonomique">Référentiel taxonomique<a class="anchor" aria-label="anchor" href="#r%C3%A9f%C3%A9rentiel-taxonomique"></a>

@@ -4,6 +4,119 @@
 
 #### Breaking Changes
 
+- **[`query_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/query_specimens.md)
+  no longer accepts `genus`, `species` and `family`**
+  (`R/functions_manip_db.R`, `R/specimen_query_builder.R`) — the three
+  arguments were accepted and never applied. `filter_taxonomy()` stored
+  them in R6 private fields that were never declared and never read, so
+  the query ran with no taxonomic condition; worse, supplying one
+  satisfied the `needs_filtering` test and sent the call down the filter
+  branch, which then built a condition-free query.
+  `query_specimens(genus = "Cola")` returned every specimen in the
+  database and looked like a successful search
+
+  - Passing one now fails with R’s own `unused argument`, which is the
+    point: a name filter that cannot be honoured must not be silently
+    absorbed
+  - `idtax_n` is the only taxonomic column of `specimens`, so filtering
+    by name means resolving it first —
+    `query_specimens(idtax_n = query_taxa("Cola nitida")$idtax_n)`
+  - `.specimen_condition_taxonomy()` was three quarters apology and is
+    now `.specimen_condition_idtax()`. No caller in the package, in
+    `inst/scripts/` or in the Shiny modules passed any of the three
+
+- **[`query_subplots()`](https://umr-amap.github.io/cafriplotsR/reference/query_subplots.md)
+  no longer accepts `plot_name`, `country`, `locality_name` and
+  `method`** (`R/subsplots_features_function.R`, `R/utils.R`) — the
+  wrapper’s filter branch called `.build_plot_query()`, a helper that
+  stopped existing in 1.9.0. The October 2025 rewrite of
+  [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+  replaced it with `PlotFilterBuilder` and commented the definition out;
+  the reorganisation two days later deleted the comment.
+  [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+  was migrated,
+  [`query_subplots()`](https://umr-amap.github.io/cafriplotsR/reference/query_subplots.md)
+  was not, so every filtered call has raised
+  `could not find function ".build_plot_query"` since. Passing IDs
+  skipped the branch, which is why it went unnoticed
+
+  - Supplying one now raises
+    [`lifecycle::deprecate_stop()`](https://lifecycle.r-lib.org/reference/deprecate_soft.html)
+    naming
+    [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md).
+    There is no behaviour to preserve and so nothing to warn about
+    gently — resolve the plots first and pass their ids:
+    `query_subplots(ids_plots = query_plots(country = "Gabon")$id_liste_plots)`
+  - **Calling with neither `ids_plots` nor `ids_subplots` is now an
+    error.** The removed branch treated “nothing supplied” as every plot
+    in the database; with nothing left to fail first, that would have
+    become a live full-table scan.
+    [`query_plot_features()`](https://umr-amap.github.io/cafriplotsR/reference/query_plot_features.md)
+    is where asking for everything belongs
+  - `".build_plot_query"` is gone from
+    [`globalVariables()`](https://rdrr.io/r/utils/globalVariables.html)
+    in `R/utils.R`, where it had been added to quiet `R CMD check` —
+    which is what kept the missing function invisible
+  - `test-specimens-subplots.R` had a test asserting the
+    `could not find function` error. It now asserts the deprecation
+    error for each of the four arguments, and the new abort
+
+- **`PlotFilterBuilder`, `PlotFetcher`, `SpecimenFilterBuilder` and
+  `SpecimenFetcher` are no longer exported** — the four R6 classes were
+  removed along with the `R6` dependency (see *Code Refactoring*). They
+  were query plumbing for
+  [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+  and
+  [`query_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/query_specimens.md),
+  with no caller anywhere else in the package; code that built a query
+  through one of them should call
+  [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+  /
+  [`query_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/query_specimens.md)
+  instead. Their unused methods — `build_with_or()`,
+  `add_custom_condition()`, `print_conditions()`, `filter_by_ids()`,
+  `fetch_with_filter()`, `fetch_by_collector_and_number()` — have no
+  replacement
+
+- **[`update_specimen_fields()`](https://umr-amap.github.io/cafriplotsR/reference/update_specimen_fields.md)
+  and
+  [`update_specimens_batch()`](https://umr-amap.github.io/cafriplotsR/reference/update_specimens_batch.md)
+  deprecated** in favour of `update_records(table_type = "specimens")`
+  (`R/updates_tables_functions.R`). Both wrote plain columns of
+  `specimens` that
+  [`update_records()`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md)
+  already covers; keeping three write paths to one table meant three
+  places to keep in sync, and they had already drifted apart (see the
+  `description` fix below). Both still work, and emit a
+  [`lifecycle::deprecate_warn()`](https://lifecycle.r-lib.org/reference/deprecate_soft.html)
+  naming the replacement
+
+  - [`update_records()`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md)
+    is the superset: it takes several specimens at once, defaults to a
+    dry run (`execute = FALSE`), and backs up to the same
+    `followup_updates_specimens` table
+  - Migration —
+    `update_specimen_fields(id_speci = 12345, new_values = list(locality = "Mont Bela"))`
+    becomes
+    `update_records(data.frame(id_specimen = 12345, locality = "Mont Bela"), table_type = "specimens", execute = TRUE)`.
+    For
+    [`update_specimens_batch()`](https://umr-amap.github.io/cafriplotsR/reference/update_specimens_batch.md),
+    rename the columns of `new_data` to their database names first —
+    `col_names_select` / `col_names_corresp` has no equivalent — then
+    add `method = "batch"`
+  - **[`update_ident_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/update_ident_specimens.md)
+    is not deprecated.** It resolves genus/species/family to `idtax_n`
+    and can locate a specimen by collector + number, neither of which
+    [`update_records()`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md)
+    does — `get_metadata_mappings_specimens()` states that `idtax_n` is
+    expected to be pre-resolved. It remains the identification path
+  - The single in-package caller, the *“4b. Collection, locality &
+    notes”* pane of
+    [`launch_specimen_identification_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_specimen_identification_app.md)
+    (`R/mod_specid_manual.R`), was migrated to
+    [`update_records()`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md)
+    so the app does not trigger its own deprecation warning
+
 - **`data_liste_plots.data_d` renamed to `date_d`** — the day-of-survey
   column has carried a typo since the database was built, beside
   `date_y` and `date_m`, and the codebase had already split around it:
@@ -12,6 +125,7 @@
   database, the synonym table, the column descriptions and
   `get_table_columns()` said `data_d`. A day crossing from one side to
   the other had nowhere to land
+
   - Migration script: `inst/migrations/rename_data_d_to_date_d.R`,
     `dry_run = TRUE` by default. **Applied 2026-08-20.**
     `data_liste_plots` and `followup_updates_liste_plots` renamed in one
@@ -34,6 +148,89 @@
 
 #### Code Refactoring
 
+- **[`query_subplots()`](https://umr-amap.github.io/cafriplotsR/reference/query_subplots.md)
+  is superseded by
+  [`query_plot_features()`](https://umr-amap.github.io/cafriplotsR/reference/query_plot_features.md)**
+  (`R/subsplots_features_function.R`, `R/mod_census_information.R`,
+  `_pkgdown.yml`) — the two are the same function.
+  [`query_subplots()`](https://umr-amap.github.io/cafriplotsR/reference/query_subplots.md)
+  calls
+  [`query_plot_features()`](https://umr-amap.github.io/cafriplotsR/reference/query_plot_features.md)
+  and renames its three results, and that is its entire body:
+  `ids_plots`/`ids_subplots`/`subtype`/`extract_subplots_obs_features`
+  are
+  `plot_ids`/`subplot_ids`/`subplot_type`/`include_subplot_obs_features`,
+  and `all_subplots`/`all_subplot_pivot`/`census_features` are
+  `features_raw`/`features_aggregated`/`census_info`. It is strictly
+  less capable: `format = "long"` cannot be reached through it, since
+  the wrapper hardcodes `"wide"`
+  - Calling it now emits
+    [`lifecycle::deprecate_warn()`](https://lifecycle.r-lib.org/reference/deprecate_soft.html)
+    once per session naming the replacement and the three renamed
+    results. The `verbose`-gated *“Using legacy wrapper”* message it
+    replaces said the same thing with less information; `verbose` is
+    still accepted and now documented as ignored, since a deprecation
+    warning should not be silenceable by the function’s own flag
+  - The one caller left in the package, the census-information module,
+    was migrated to
+    [`query_plot_features()`](https://umr-amap.github.io/cafriplotsR/reference/query_plot_features.md).
+    It read only `$all_subplots`, so the change is the call and one
+    element name, with no behavioural difference — including on empty
+    results, where both paths return the same
+    [`tibble()`](https://tibble.tidyverse.org/reference/tibble.html)
+  - Moved out of *Data Queries* in the pkgdown reference into a new
+    *Superseded* section, so the index stops offering two equal ways to
+    do one thing
+  - **Not removed.** It is exported and has been on the reference site,
+    so scripts outside this repository may call it. A release of
+    warnings costs one version; a deletion cannot be undone for someone
+    whose script breaks. Nothing inside the package depends on it any
+    more, so removal at 2.0 is a two-line change
+- **The four R6 classes are gone, and with them the `R6` dependency**
+  (`R/plot_query_builder.R`, `R/specimen_query_builder.R`,
+  `R/plot_feature_filters.R`) — `PlotFilterBuilder`, `PlotFetcher`,
+  `SpecimenFilterBuilder` and `SpecimenFetcher` were the package’s only
+  use of `R6`. None of them held state between calls: a builder was
+  constructed inside
+  [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+  or
+  [`query_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/query_specimens.md),
+  fed the filter arguments, `build()`-ed and discarded, its private
+  field accumulating SQL condition strings. Functions returning those
+  strings do the same work
+  - Each filter argument is now translated by its own
+    `.plot_condition_*()` / `.specimen_condition_*()`, which returns
+    that argument’s condition(s) as a character vector: none when the
+    argument is `NULL`, and the unsatisfiable `FALSE` when its value
+    matched nothing. `.assemble_plot_query()` and
+    `.assemble_specimen_query()` join the set into one SELECT, and
+    [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+    reaches all of it through a single `.plot_filter_query()` call
+  - The feature clauses moved to `R/plot_feature_filters.R`, beside the
+    validation and lookup-resolution they belong with.
+    `.plot_ids_matching_features()` no longer instantiates a builder to
+    reach them
+  - **No cost to the query.** The SQL text is unchanged and so is the
+    number of round trips — the lookups that resolve names to ids, then
+    one SELECT. What disappears is an R6 environment per query
+  - `.assemble_plot_query()` is deliberately not named
+    `.build_plot_query()`: that name is called by the legacy
+    [`query_subplots()`](https://umr-amap.github.io/cafriplotsR/reference/query_subplots.md)
+    filter path without ever having been defined, and
+    `test-specimens-subplots.R` pins the resulting error. Naming the
+    assembler that would have shadowed a known gap with a silent
+    signature mismatch
+  - Behaviour is unchanged with one exception:
+    `query_specimens(genus =, species =, family =)` now says out loud
+    that it is not applying them. `filter_taxonomy()` stored them in R6
+    private fields that were never declared and never read, so the query
+    ran with no taxonomic condition and returned every specimen. Resolve
+    the names with
+    [`query_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa.md)
+    and pass `idtax_n`, which does filter
+  - Tests: `test-query-plots-feature-filters.R` rewritten against the
+    new functions, and a new `test-specimen-query-builder.R` covers the
+    specimen path, which had none
 - **Growth form traits consolidated** — collapsed 7 branching
   `growth_form_level_*` traits (ids 42–47) into 3 flat traits:
   `growth_form_level_1` (unchanged, id=41), `growth_form_level_2`
@@ -44,6 +241,168 @@
   `data_traits_measures`.
 
 #### New Features
+
+- **Specimen links can attach to a plot, not only to an individual**
+  (`R/specimen_linking_functions.R`,
+  `inst/migrations/reference_plot_linktype.R`) — `data_link_specimens`
+  has always carried an `id_liste_plots` column beside `id_n`, and no
+  package code ever wrote or read it. 74 rows used it, written directly
+  to the table on 2026-01-06: `id_n` NULL, `id_liste_plots` set, and the
+  free-text `type` reading `reference_plot`. They record a specimen
+  collected somewhere inside a plot where the tree is unknown. Every
+  consumer reached a plot the long way round, through `id_n` →
+  `data_individuals.id_table_liste_plots_n`, so a specimen linked only
+  to a plot looked unlinked
+
+  - **`linktypelist.scope`** — `'individual'` or `'plot'`, saying which
+    of `id_n` and `id_liste_plots` a link type fills. Every pre-existing
+    type is `'individual'`, which is what they are. `reference_plot` is
+    seeded at priority 10, scope `'plot'`
+  - **Priority 10 is deliberately below `referenced_individual` (50).**
+    Priority orders the specimen that governs an individual’s
+    determination
+    (`idtax_individual_f = coalesce(idtax_specimen_f, idtax_f)`), and
+    every one of those sorts filters on `id_n`, which a plot link has
+    not got — so the value is inert there. It is not inert in
+    `mod_link_preview.R`, which preselects the highest-priority type: a
+    plot-level type must never become the default for pairing a specimen
+    with a tree
+  - [`get_linktypes()`](https://umr-amap.github.io/cafriplotsR/reference/get_linktypes.md)
+    gains a `scope` argument and reconstructs the column when the
+    migration has not run, so the package works against either schema.
+    Both linking Shiny modules now ask for individual-level types only
+  - [`.add_link_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/dot-add_link_specimens.md)
+    validates each link against its type’s scope instead of demanding an
+    `id_n` from every one: NAs are dropped before
+    [`setdiff()`](https://generics.r-lib.org/reference/setops.html)
+    (which previously reported the `NA` itself as a missing individual
+    ID and aborted), plot IDs are checked against `data_liste_plots`,
+    and the free-text `type` is written alongside `id_linktype` so the
+    two cannot drift
+  - **The duplicate key gained `id_liste_plots`.** dplyr matches `NA` to
+    `NA` by default, so with the old three-column key two plot links to
+    *different* plots collapsed into one
+  - **[`safe_delete_plot()`](https://umr-amap.github.io/cafriplotsR/reference/safe_delete_plot.md)
+    and the new `fk_id_liste_plots` must move together.** The existing
+    sweep deletes specimen links by `id_n` only, which never reaches a
+    plot-level link; under the foreign key those links would block the
+    plot deletion. A new step 5.0b clears them
+  - Migration `inst/migrations/reference_plot_linktype.R`,
+    `dry_run = TRUE` by default. **Applied 2026-09-01.** The foreign-key
+    phase refuses while orphan plot references exist rather than letting
+    `ALTER TABLE` fail; none were found
+
+- **The login screen can introduce the app it belongs to**
+  (`R/mod_database_login.R`, `R/shiny_app_taxonomic_match.R`) — all ten
+  apps share one login module, whose header reads *“Connect to the
+  CafriplotsR database to access forest plot data.”* For an app launched
+  from an R console that is harmless: the user typed the launch call and
+  knows what they asked for. For an app reachable by URL it is the
+  landing page, and the only thing a first-time visitor reads — so the
+  hosted taxonomic matching app at
+  <https://cafri-taxomatch.lab.sspcloud.fr> introduced itself as a plot
+  database, while its own title, subtitle and *About this app* panel sat
+  inside the authenticated panel, invisible until the visitor had
+  already decided to connect
+
+  - [`mod_database_login_server()`](https://umr-amap.github.io/cafriplotsR/reference/mod_database_login_server.md)
+    gains `intro`, defaulting to `NULL`, which keeps the generic header.
+    Given a list of `title` and `body`, it renders those in its place
+  - Both are **English translation keys, not final text**, and go
+    through the module’s own translator, so the intro follows the
+    language toggle like the rest of the screen
+  - Server-side only, unlike `allow_public` and `allow_offline`: the
+    header is a `uiOutput` placeholder, so
+    [`mod_database_login_ui()`](https://umr-amap.github.io/cafriplotsR/reference/mod_database_login_ui.md)
+    needs no matching argument and the other nine apps are untouched
+
+- **`query_plots(feature_filters = ...)` filters plots on their
+  features** (`R/plot_feature_filters.R`, `R/functions_manip_db.R`) — a
+  plot carries three kinds of value stored three different ways, and the
+  query function could filter on only two of them. Flat columns
+  (`plot_name`, `locality_name`) and lookup ids (`country` →
+  `id_country`, `method` → `id_method`) were filterable; features were
+  not, although they are what the extracted table shows under names like
+  `data_provider` and `principal_investigator`
+
+  - A feature is not a column of `data_liste_plots` but a row of
+    `data_liste_sub_plots` typed by `subplotype_list`, so it is matched
+    with a subquery rather than a `WHERE` clause on the plots table:
+    `query_plots(feature_filters = list(data_provider = "IRD", principal_investigator = c("Dauby", "Sonke")))`
+  - **Values of one feature are combined with OR, different features
+    with AND.** A plot must satisfy every named feature but may do so
+    through different subplot records, which is the only reading that
+    makes sense when each feature is a separate row
+  - **Only features whose value reads as text can be used** —
+    `character` features, held in `typevalue_char`, and lookup features
+    such as the `table_colnam` people features, whose value is an
+    `id_table_colnam` held in `typevalue` and whose names are resolved
+    for you. A numeric feature (`census`, `ddlat`) is refused with an
+    error naming its valuetype, rather than being matched as a string
+    and returning nothing
+  - Matching follows the existing `exact_match` argument: substring by
+    default, equality when `TRUE`, exactly as `plot_name` and
+    `locality_name` already behave
+  - **Explicit ids narrow rather than override.** When
+    [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+    is given `id_plot` (or `id_individual`, `id_tax`, `id_specimen`) it
+    never builds a filter query, so the feature filter would have been
+    silently dropped. It is applied to the fetched ids instead, and
+    reports how many plots it removed
+  - `PlotFilterBuilder` gains `filter_features()`; `R6` is now declared
+    in `Imports`, which it was not despite four
+    [`R6::R6Class()`](https://r6.r-lib.org/reference/R6Class.html) calls
+  - 37 assertions in
+    `tests/testthat/test-query-plots-feature-filters.R`, run against an
+    in-memory SQLite database of the same shape, covering the generated
+    SQL, the plots actually selected, and every validation error
+  - **[`launch_query_plots_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_query_plots_app.md)
+    exposes this under Advanced Filters** (`R/mod_plot_filters.R`) — a
+    feature filter cannot be a fixed input the way country and method
+    are, since the user picks a feature before there are any values to
+    offer. Each filter is therefore a row of its own: a feature dropdown
+    built from
+    [`plot_feature_filters()`](https://umr-amap.github.io/cafriplotsR/reference/plot_feature_filters.md),
+    then a multi-select of that feature’s values, loaded on demand with
+    [`plot_feature_values()`](https://umr-amap.github.io/cafriplotsR/reference/plot_feature_values.md)
+    and cached per feature. Typing a value that is not in the list is
+    allowed, and is matched as a substring
+    - Rows can be added and removed freely. Two rows naming the same
+      feature are merged into one filter holding both sets of values,
+      because
+      [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+      refuses a repeated name and the user plainly meant “either of
+      these”; a row left empty is ignored rather than turned into a
+      filter that matches nothing
+    - The panel is a `renderUI`, rebuilt whenever a row is added or the
+      language is changed, so each row’s state is held outside its
+      inputs and restored on rebuild — otherwise switching language
+      silently emptied every filter the user had set
+    - The generated R code carries `feature_filters = list(...)` rather
+      than the plot ids it resolves to, so the script the user copies
+      out of the app is the same query they built, and runs on its own
+    - Failing to read the feature list costs only the feature section,
+      not the rest of the filters
+    - Eight EN/FR pairs added to `inst/translations/translation.json`,
+      and the shared `"Feature"` entry — which had `fr` set to
+      `"Feature"` — is now translated. 24 assertions in
+      `tests/testthat/test-app-feature-filters.R`, including that a row
+      survives a panel rebuild and that the generated code parses
+
+- **[`plot_feature_filters()`](https://umr-amap.github.io/cafriplotsR/reference/plot_feature_filters.md)
+  and
+  [`plot_feature_values()`](https://umr-amap.github.io/cafriplotsR/reference/plot_feature_values.md)**
+  (`R/plot_feature_filters.R`) — two helpers for finding out what can be
+  filtered before filtering on it.
+  [`plot_feature_filters()`](https://umr-amap.github.io/cafriplotsR/reference/plot_feature_filters.md)
+  lists the features accepted by `feature_filters`, with their
+  valuetype, category and description;
+  [`plot_feature_values()`](https://umr-amap.github.io/cafriplotsR/reference/plot_feature_values.md)
+  returns the distinct values one feature actually holds, with the
+  number of plots carrying each, resolving `table_colnam` ids to
+  readable names.
+  [`subplot_list()`](https://umr-amap.github.io/cafriplotsR/reference/subplot_list.md)
+  remains the way to see every feature type, filterable or not
 
 - **Public login is now opt-in per app** (`R/mod_database_login.R`) —
   the “Connect as public user” button sat in the shared login UI, so all
@@ -70,6 +429,34 @@
   - The seven apps that write to the database now show the credentials
     form alone
 
+- **Offline mode is now opt-in per app** (`R/mod_database_login.R`) —
+  the “Use offline (cached backbone)” button sat in the shared login UI
+  beside the public one, so any app showed it as soon as a cache existed
+  on disk, although only
+  [`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md)
+  does anything with the result
+
+  - Offline mode leaves the session authenticated with `pool_main` and
+    `pool_taxa` set to `NULL`. In the nine other apps that means an app
+    with no connection and nothing to query, import or correct — the
+    button led straight into a dead end
+  - [`mod_database_login_ui()`](https://umr-amap.github.io/cafriplotsR/reference/mod_database_login_ui.md)
+    and
+    [`mod_database_login_server()`](https://umr-amap.github.io/cafriplotsR/reference/mod_database_login_server.md)
+    gain `allow_offline`, defaulting to `FALSE`; the button and its
+    notice are built only when it is `TRUE` *and* a cache exists, and
+    the `connect_offline` observer is guarded as well
+  - [`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md)
+    is the only app that opts in, and it already hides the traits
+    enrichment tab in that mode
+  - `vignettes/apps-overview.Rmd` and `-fr.Rmd` document what offline
+    mode gives (auto matching, fuzzy suggestions, manual review), what
+    it does not (traits enrichment, which has no local substitute), the
+    prerequisite that the cache is only written by an *online* run of
+    the matching app, and that no other app offers it
+  - 10 assertions in `tests/testthat/test-login-gating.R`, including a
+    source scan asserting no second app opts in
+
 - **[`launch_data_update_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_data_update_app.md)**
   — new Shiny app (`R/shiny_app_data_update.R`) for correcting plot
   metadata and individual data one record at a time.
@@ -89,12 +476,40 @@
     `data_traits_measures`, and one extracted column can be the
     aggregate of several such rows — which is why
     `detect_feature_changes()` refuses them. The app shows the aggregate
-    read-only with its record count and aggregation rule (`mean` /
-    `concat`, mirroring
-    [`aggregate_numeric_features_dt()`](https://umr-amap.github.io/cafriplotsR/reference/aggregate_numeric_features_dt.md)
-    and `aggregate_*_plot_features()`), and offers the underlying
-    records as the editable inputs, each labelled with its own id and
-    its census or subplot context
+    read-only and offers the underlying records as the editable inputs,
+    each labelled with its own id and its census or subplot context
+  - **Each feature is described the way its own extraction summarises
+    it**, not with one blanket rule. A plot’s `census` feature is not a
+    value at all — it becomes `n_census`, `first_census`, `last_census`
+    and `date_census_N` — so reporting the mean of censuses 1 and 2 as
+    `1.5` was nonsense. An individual trait measured at several censuses
+    is kept per census by
+    [`aggregate_numeric_features_dt()`](https://umr-amap.github.io/cafriplotsR/reference/aggregate_numeric_features_dt.md),
+    and is shown as `census_1: 12.5 | census_2: 13.1`. Numeric plot
+    features are averaged, text and `table_*` features are joined, and a
+    feature
+    [`aggregate_plot_features()`](https://umr-amap.github.io/cafriplotsR/reference/aggregate_plot_features.md)
+    does not pick up at all is named as such rather than given an
+    invented value
+  - **The whole record, on demand.** “Current stored values” showed a
+    hand-picked set of columns; it now shows the record as
+    `output_style = "full"` returns it, features included, in a `DT`
+    table. It is a full extraction, so it runs only when asked for — and
+    [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+    is console-oriented, printing progress and returning widgets that
+    RStudio would render into the pane the app is running in, so the
+    call is made with the viewer disabled and its output captured
+  - **An identification is not just `idtax_n`.** The panel used to show
+    the stored `idtax_n` and its original name, which is not what an
+    extraction reports:
+    [`merge_individuals_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/merge_individuals_taxa.md)
+    resolves synonymy (`idtax_f`), then lets a linked specimen’s
+    determination override it (`idtax_specimen_f`), and
+    `idtax_individual_f` is what extracted tables carry. The app now
+    shows all four steps, says which one governs, and warns plainly when
+    a specimen governs — editing `idtax_n` there changes nothing an
+    extraction will show, and the specimen is the thing to correct, in
+    [`launch_specimen_identification_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_specimen_identification_app.md)
   - **Reference features are edited by name.** A `table_colnam` feature
     is a numeric feature holding an `id_table_colnam`, stored in
     `typevalue`; the app resolves it to the collector’s name for
@@ -125,9 +540,48 @@
     [`launch_feature_wizard()`](https://umr-amap.github.io/cafriplotsR/reference/launch_feature_wizard.md)
     and the `safe_delete_*` functions
   - New backend in `R/update_app_resolver.R`, one module in
-    `R/mod_update_record.R` serving both sections, 79 assertions in
-    `tests/testthat/test-update-app-resolver.R`, and 51 EN/FR pairs
-    added to `inst/translations/translation.json`
+    `R/mod_update_record.R` serving both sections, 121 assertions in
+    `tests/testthat/test-update-app-resolver.R`, and the EN/FR pairs it
+    needs in `inst/translations/translation.json`. The read-only column
+    notice (“N columns of `data_liste_plots` cannot be edited here”) was
+    dropped: the form is an allow-list of what *can* be corrected, and
+    counting the rest told the user nothing they could act on
+
+- **Feature Wizard, Add Plot Features — what the selected plots already
+  hold is now on screen** (`R/mod_feat_step3_plot_features.R`) — step 3
+  let a user pick a feature type and type a value with no view of what
+  the plot already carries. That is how a plot ends up with two
+  principal investigators, or with the same value recorded twice for the
+  same year
+
+  - A panel at the top of the step lists every feature the selected
+    plots already have, one row per plot and feature, with what an
+    extraction would show for it and how many records back it. A
+    checkbox narrows the list to the feature types being added. In *New
+    Census* mode the same panel is where the plot’s existing censuses
+    appear, as `n_census = 2 (2015-03, 2021-06)`
+  - Under each feature’s input, a line naming the plots that already
+    have a value for that very feature — amber, because a second record
+    turns the extracted value into an aggregate that
+    [`launch_data_update_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_data_update_app.md)
+    can then only edit record by record
+  - Step 5 warns about the same thing at validation time, per row and
+    column: a record for the same year is named as such, otherwise the
+    warning says how many records the plot already carries. Reported as
+    warnings rather than through the “drop these rows” checkbox — one
+    row of an `add_features` import is a plot carrying several feature
+    columns, and dropping the row would discard the columns that were
+    fine. Nothing is blocked; a second record is sometimes exactly what
+    is wanted
+  - The overview is the update app’s, not a second implementation of it.
+    [`.upd_plot_feature_records()`](https://umr-amap.github.io/cafriplotsR/reference/dot-upd_plot_feature_records.md)
+    now takes several plot ids and annotates each plot separately — a
+    feature backed by one record in each of three plots is an aggregate
+    in none of them — and the wording of the extraction rules and the
+    table itself moved to `R/feature_overview.R`, taking a resolved
+    translator so a non-Shiny caller can use them. 15 assertions in
+    `tests/testthat/test-feature-overview.R`, 11 EN/FR pairs added to
+    `inst/translations/translation.json`
 
 - **Feature Wizard, Validation — the measurements the database already
   holds can be dropped from the import**
@@ -372,7 +826,434 @@
   `inst/translations/translation.json`, with a test asserting every hint
   string is present
 
+- **`query_plots(verbose = ...)` cuts the console log down to what the
+  caller acts on** (`R/verbosity.R`, `R/functions_manip_db.R`) — a full
+  extraction narrates every internal step, and a query over sixteen
+  plots scrolled roughly fifty lines past: connection notices, section
+  headers, retry attempts and four separate “Query completed”. The lines
+  that matter — what came back, and what was silently dropped on the way
+  — were buried among them
+
+  - Three levels. `"normal"` (the new default) reports warnings, then
+    closes with a summary of what was found, what was excluded and which
+    tables the result holds. `"quiet"` reports warnings and failures
+    only. `"debug"` prints the full log, exactly what earlier versions
+    always printed. `TRUE` and `FALSE` are accepted as `"debug"` and
+    `"quiet"`, and `options(CafriplotsR.verbose = "debug")` sets a
+    session default
+  - **No message was rewritten to achieve this.** Every `cli` call
+    signals a `cli_message` condition carrying its alert type, so a
+    calling handler dismisses whole severity classes with the
+    `cli_message_handled` restart. The internals still report their work
+    exactly as before; only what reaches the console changes, which is
+    why the `"debug"` output is unchanged rather than reconstructed
+  - **Every exclusion names the argument that controls it.** A count of
+    removed rows is only actionable if you know which knob puts them
+    back, so the summary reads
+    `130 dead individuals, absent from the last census: census_strategy, or show_multiple_census = TRUE to keep every census`
+    and
+    `656 measurements flagged with an issue: issues = "remove", or issues = "include" to keep them`.
+    `traits_to_genera = TRUE` and `wd_fam_level = TRUE` each add a line
+    stating the consequence rather than the setting — that trait values
+    are genus aggregates rather than the taxon’s own, with provenance in
+    the `source_*` columns
+  - Counts computed deep in the pipeline reach the summary through a
+    small internal tally, so muting the step log does not lose them. The
+    census strategy is reported as its resolved value:
+    [`match.arg()`](https://rdrr.io/r/base/match.arg.html) runs inside
+    the implementation, so the wrapper still holds the raw
+    `c("last", "first", "mean")` default until then
+  - **Interactive prompts are never muted.**
+    [`choose_prompt()`](https://umr-amap.github.io/cafriplotsR/reference/choose_prompt.md)
+    and the four
+    [`.link_table()`](https://umr-amap.github.io/cafriplotsR/reference/dot-link_table.md)
+    call sites run inside `.verbose_output()`, which lifts the filter —
+    an invisible question above a live
+    [`readline()`](https://rdrr.io/r/base/readline.html) prompt is
+    unanswerable
+  - The chunking progress bar follows the same rule and appears at
+    `"debug"` only; it is a step trace like the messages around it and
+    leaves a full-width line in the scrollback
+  - [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+    is now a thin wrapper forwarding its 33 arguments to
+    `.query_plots_impl()`, which is the previous function unchanged — a
+    calling handler has to enclose an expression, and the body is some
+    five hundred lines. A test asserts the two signatures match and that
+    every formal is actually forwarded, so they cannot drift apart
+  - `"ids removed - remove_ids = TRUE"` dropped from warning to info: it
+    announces a documented default on every single call rather than
+    reporting an anomaly. It is still there at `"debug"`
+  - 103 assertions across 23 tests in `tests/testthat/test-verbosity.R`,
+    covering which severities survive at each level, that base
+    [`message()`](https://rdrr.io/r/base/message.html) and
+    [`warning()`](https://rdrr.io/r/base/warning.html) are left alone,
+    that the level is restored after an error, and the end-to-end
+    wrapper behaviour with the implementation mocked
+
 #### Bug Fixes
+
+- **An unmatched collector made
+  [`query_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/query_specimens.md)
+  return every specimen** (`R/specimen_query_builder.R`) — a collector
+  name that matched no row of `table_colnam` produced no SQL condition
+  rather than an unsatisfiable one, so
+  `query_specimens(collector = "Dauy")` fell through to a bare
+  `SELECT * FROM specimens` and reported the whole table as a successful
+  result. A typo in a name quietly meant “give me everything”
+
+  - Both no-match branches, the exact lookup and the interactive
+    [`.link_table()`](https://umr-amap.github.io/cafriplotsR/reference/dot-link_table.md)
+    one, now return the unsatisfiable `FALSE` that the plot conditions
+    have always used. The warning naming the unmatched collector is
+    unchanged; what follows it is
+    `No specimens found matching the criteria`
+  - It stays unsatisfiable when combined with the other filters, so
+    `collector = "Nobody", number_min = 10` no longer leaks the results
+    of the number filter
+
+- **192 interface strings had no French translation**
+  (`inst/translations/translation.json`, `R/mod_step3_mapping.R`) —
+  `shiny.i18n` falls back to the English key and warns
+  `'...' translation does not exist` for anything absent from the
+  translation file, so a French user met untranslated labels sitting in
+  the middle of otherwise translated panels. Sweeping every `i18n$t()`
+  and `i18n()$t()` call in `R/` against the file found 192 missing keys,
+  not the two the warnings happened to name
+
+  - French added for all of them — the backbone-selection prompt and the
+    fuzzy-matching progress notice that raised the warnings, and whole
+    panes that had been skipped: the observation standardisation step
+    and its ontology messages, specimen link creation and preview,
+    citation creation in the trait import, taxon synonymy and cascade
+    updates, and the DataTables labels (`Show ... entries`,
+    `Showing _START_ to _END_`) shared by the individual and specimen
+    search tables
+  - **One key was unmatchable rather than merely missing** — the notice
+    at `R/mod_step3_mapping.R:924` carried the Latin-1 mojibake of
+    `'%s' → '%s'`, three garbled characters where the arrow should be,
+    left by a save through a Windows codepage. The translation file has
+    held the correct arrow all along, so that lookup could never hit
+    whatever was added. The source is repaired; the entry needed no
+    change
+  - Verified by re-running the sweep: every key the package asks for at
+    runtime now resolves in both languages. The merge appended only, so
+    no existing entry was reformatted or overwritten
+
+- **An uploaded file already holding an `idtax_n` column crashed the
+  matching app** (`R/mod_column_select.R`, `R/mod_auto_matching.R`) —
+  [`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md)
+  writes its results into the user’s own table with a
+  [`left_join()`](https://dplyr.tidyverse.org/reference/mutate-joins.html),
+  so a file that already carried one of the output column names came
+  back with `idtax_n.x` and `idtax_n.y` and no `idtax_n` at all. Every
+  later step looks for the unsuffixed name, so the run died the moment
+  automatic matching finished, with `object 'idtax_n' not found` raised
+  from the Review tab. This is the ordinary case of re-standardising a
+  table that a previous run had already annotated
+
+  - The clash is now resolved once, in the column-selection module,
+    before anything is joined: a user column named like a pipeline
+    output is parked under an `_input` suffix (`idtax_n` →
+    `idtax_n_input`, `idtax_n_input2` if that is taken too) and the user
+    is told which columns were renamed. Their content is kept, not
+    dropped
+  - **The full set is protected, not just `idtax_n`** — `idtax_good_n`,
+    `matched_name`, `match_method`, `match_score`, `is_synonym`,
+    `accepted_name`, `corrected_name` and the five WCVP columns would
+    each have failed the same way, some of them earlier and less
+    legibly: a pre-existing `is_synonym` breaks the `corrected_name`
+    mutation rather than the review step
+  - **The rename happens upstream of the matching module, not inside
+    it**, because the selected name column may itself be a reserved
+    name. Renaming the data alone would leave `column_name` pointing at
+    a column that no longer exists, and the traits enrichment module
+    reads that same name;
+    [`mod_column_select_server()`](https://umr-amap.github.io/cafriplotsR/reference/mod_column_select_server.md)
+    returns both, so it is the one place they can be kept in step
+  - Export follows the rename: `original_data` is now the post-selection
+    table, so *exclude original columns* still drops a renamed column
+    instead of leaving it behind. `taxonomic_name_combined` is excluded
+    from that drop, which is what the previous wiring did by accident
+    and is worth keeping — dropping it would leave the user with no
+    trace of the name that was matched
+
+- **443 links were typed `reference_plot` when they are
+  `referenced_individual`**
+  (`inst/migrations/reference_plot_mistyped_links.R`) — the migration
+  above read the 74 rows carrying an `id_liste_plots` as the whole
+  population of the `reference_plot` label. It was not. 517 rows carried
+  the string, all written on 2026-01-06 in one session, under one label
+  meaning two different things. The other 443 have an `id_n` and no
+  plot: one specimen serving as the identification reference for several
+  trees of one plot — specimen 39793 for four trees of somalomo002,
+  specimen 39789 for seven of somalomo004. That is individual-level
+  data, and it is what `referenced_individual` already means
+
+  - The backfill phase reported them as anomalies and stamped them
+    anyway, giving them a plot-scope type while they hold an `id_n` —
+    the exact combination
+    [`.check_link_scope()`](https://umr-amap.github.io/cafriplotsR/reference/dot-check_link_scope.md)
+    rejects. That phase now returns `FALSE` and stops instead, so a
+    restored backup cannot repeat it
+  - **The mistyping moved no determination.** Priority 10 only outranks
+    a link whose `id_linktype` is NULL, and no individual holding a
+    mistyped link also held one of those
+  - **The correction is the step that could have moved one.** Retyping
+    raises those links from 10 to 50, which cannot cost them a
+    determination — `type_individual` still outranks at 100 — but turns
+    a loss against an existing `referenced_individual` link into a tie
+    broken by determination date.
+    `report_reference_plot_mistyped_impact()` ranks every affected
+    individual’s links both ways and lists those whose winning specimen
+    changes; it runs as phase 1 of the migration and reported none
+  - Both `id_linktype` and `type` are set, since the free-text column is
+    what the earlier backfill keyed on. The migration refuses outright
+    if any row carries both an individual and a plot, where neither
+    reading would apply
+  - Migration `inst/migrations/reference_plot_mistyped_links.R`,
+    `dry_run = TRUE` by default. **Applied 2026-09-01**, directly after
+    the migration that caused it. Verified: no `reference_plot` row
+    carries an `id_n`, 74 remain and every one has a plot, and `type`
+    and `id_linktype` agree on every link in the table
+
+- **The taxonomic matching vignettes documented columns and values the
+  app has never produced** (`vignettes/taxonomic-app.Rmd`,
+  `vignettes/taxonomic-app-fr.Rmd`) — nothing in the package misbehaved,
+  but anyone writing code against the documented output was writing
+  against a specification that did not exist. Each claim is now checked
+  against `R/taxonomic_matching.R`, `R/mod_auto_matching.R`,
+  `R/mod_name_review.R` and `R/mod_results_export.R`
+
+  - **`match_method`** was documented as `exact_species`, `exact_genus`,
+    `exact_family` and `exact_class`. The engine writes none of them:
+    all four exact tiers record `exact`, and the rank that matched is
+    held separately in `tax_level`. The values a user can actually see
+    are `exact`, `genus_constrained`, `fuzzy` and `no_match` from
+    matching, plus `manual` and `unresolved` set on the Review tab. A
+    filter on `match_method == "exact_species"` silently returned
+    nothing
+  - **The WCVP columns were named wrongly.** The vignettes promised
+    `wcvp_plant_name_id` and `wcvp_accepted_plant_name_id`; the app
+    attaches `wcvp_taxon_name`, `wcvp_family`, `wcvp_taxon_authors` and
+    `wcvp_taxon_status`. More consequentially, enabling WCVP **replaces
+    `corrected_name`** with the WCVP name wherever WCVP holds the taxon,
+    which nothing said — a reader could reasonably have believed
+    `corrected_name` always came from the internal backbone.
+    `name_source` records which reference supplied each value and is the
+    column to check
+  - **`family` and `genus` were listed as output columns.** They are not
+    produced; the internal `tax_gen` and `tax_fam` never surface under
+    those names
+  - **The Export tab was said to offer a WCVP column group.** Three
+    groups toggle — matched IDs, corrected names, match metadata. WCVP
+    columns are appended when the option was enabled and travel with the
+    export regardless
+  - **The match-quality bands did not match the interface.** The prose
+    gave 0.8 and 0.5 as the thresholds worth acting on, while the app
+    colours from 90 % and 70 %, so a reader comparing the two saw
+    different advice in each
+
+- **The served app no longer offers an offline button that cannot work**
+  (`R/shiny_app_taxonomic_match.R`) —
+  [`app_taxonomic_match()`](https://umr-amap.github.io/cafriplotsR/reference/app_taxonomic_match.md)
+  passed `allow_offline = TRUE` unconditionally, but the button renders
+  only when
+  [`cache_exists()`](https://umr-amap.github.io/cafriplotsR/reference/cache_exists.md),
+  which looks in `tools::R_user_dir("CafriplotsR", "cache")` on the
+  machine running R. In a container that directory starts empty and
+  `deployment/taxonomic_match/Dockerfile` never seeds it, so on a fresh
+  pod the button was absent — then appeared, for everybody at once, as
+  soon as any single visitor populated the cache in the shared single R
+  process. The login screen therefore differed between visitors for no
+  reason they could see
+
+  - `allow_offline` is now `!.is_served()`. Nothing is lost by it:
+    offline mode caches the backbone on the user’s *own* machine to
+    survive a bad link to the database, which a hosted app cannot do on
+    a visitor’s behalf, and working without an account is already
+    covered there by the public read-only login
+
+- **The public-access path is translated**
+  (`inst/translations/translation.json`) — all eight of its strings were
+  absent from the translation file, including the
+  `"Connect as public user"` button itself, the `"Read-only access:"`
+  heading and the notice saying what the account can and cannot do.
+  `shiny.i18n` falls back to the key, so on the hosted app — which sets
+  `CAFRI_LANGUAGE=fr` — the entire credential-free route rendered in
+  English to a French-speaking visitor, on the one screen offering no
+  other way in
+
+  - The two offline strings whose French had been typed without accents
+    (`referentiel`, `telecharger`) are repaired, and the sidebar’s
+    `"Output options"` heading, also untranslated, is added
+
+- **The generated R snippet no longer prints the public account’s
+  credentials** (`R/mod_taxa_r_code.R`) —
+  [`.build_combined_taxa_code()`](https://umr-amap.github.io/cafriplotsR/reference/dot-build_combined_taxa_code.md)
+  wrote `call.mydb(user = "CafriP_public", pass = "...")` into the
+  copyable workflow script whenever the visitor had connected publicly,
+  which handed the credential to every visitor of the hosted app and to
+  anyone they passed the snippet on to. The snippet is a starting point
+  for work in R, and work in R is done under one’s own account, so both
+  branches now show the interactive
+  [`call.mydb()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.md)
+  form; the public branch adds a line saying an account of one’s own is
+  needed to run it
+
+- **`docs/PUBLIC_ACCESS_PLAN.html` removed from the published site**,
+  along with its 12 entries in `docs/search.json`. It carried the public
+  password in full and was served from the pkgdown site. The page also
+  described an access model that the P0 remediation has since superseded
+
+- **`description` could not be updated through
+  [`update_records()`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md)**
+  (`R/updates_tables_functions.R`) — `get_table_columns()` returns a
+  hardcoded column list for `specimens`, and `description` was missing
+  from it. `update_records(table_type = "specimens")` therefore reported
+  it as an unrecognised column, dropped it, and — since it was usually
+  the only column being written — aborted with “No updatable columns
+  found in data”. The column is now listed, bringing
+  [`update_records()`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md)
+  to full parity with
+  [`.specimen_editable_fields()`](https://umr-amap.github.io/cafriplotsR/reference/dot-specimen_editable_fields.md),
+  the list the deprecated
+  [`update_specimen_fields()`](https://umr-amap.github.io/cafriplotsR/reference/update_specimen_fields.md)
+  accepted
+
+- **The interactive matching prompt asked for a number without saying
+  which one** (`R/link_table_functions.R`) — when a
+  [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+  filter value does not match exactly,
+  [`.find_cat()`](https://umr-amap.github.io/cafriplotsR/reference/dot-find_cat.md)
+  prints the near misses and asks the user to pick one. The table it
+  printed carried two bare integer columns: a row-number column called
+  `ID`, and the lookup table’s own key — `id_country`, `id_method`,
+  `id_trait` — with nothing distinguishing them. `country = "Gab"`
+  offered a list where both `ID` and `id_country` were plausible
+  readings of “type a number”
+
+  - The column to type is now called `Choice`, comes first, is bold, and
+    the table is captioned “Type the number in the **Choice** column,
+    not the id”
+  - The searched column is shown under its own name (`country`,
+    `method`, `trait`) instead of `comp_value`,
+    [`.find_cat()`](https://umr-amap.github.io/cafriplotsR/reference/dot-find_cat.md)’s
+    internal name for it, and the `perfect_match` flag is no longer
+    shown at all — it is always `FALSE` at this prompt, since an exact
+    match never reaches it
+  - **The prompt said “Type a number (1-10)” on every page**, but the
+    numbering is continuous across pages: pressing ENTER on a 25-match
+    list showed rows numbered 11-20, and 1-10 were no longer on screen.
+    It now names the range actually displayed and says how many matches
+    there are in total
+  - The choice number still indexes `sorted_matches` exactly as before,
+    so every caller that slices the returned table by it is unaffected.
+    The display construction is split out into `.find_cat_display()`,
+    which is testable without the
+    [`readline()`](https://rdrr.io/r/base/readline.html) loop; 14
+    assertions in `tests/testthat/test-link-table.R`
+
+- **A filter that matched nothing returned every plot instead of none**
+  (`R/functions_manip_db.R`) — `PlotFilterBuilder$filter_country()` and
+  `filter_method()` resolve a readable name to an id before filtering on
+  it. When the name matched no row of `table_countries` or
+  `methodslist`, both warned and then `return(self)` — dropping the
+  condition entirely. `query_plots(country = "Atlantis")` therefore ran
+  with no country condition at all and returned every plot the user was
+  allowed to see, which reads as a successful query rather than as a
+  mistake
+
+  - Five paths were affected: the interactive and non-interactive
+    branches of `filter_country()` and `filter_method()`, and the
+    interactive branch of `filter_plot_name()`. All five now add an
+    unsatisfiable condition through the new private `add_impossible()`,
+    so an unmatched value returns no plots and the warning is borne out
+    by the result
+  - The non-interactive branches of `filter_plot_name()` and
+    `filter_locality()` never had the bug: they match against
+    `data_liste_plots` directly, so an unmatched name already yielded
+    nothing
+
+- **[`try_open_postgres_table()`](https://umr-amap.github.io/cafriplotsR/reference/try_open_postgres_table.md)
+  opened a second connection it never used** (`R/connections_db.R`) —
+  the function took a connection as its `con` argument and then called
+  [`call.mydb()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.md)
+  on its first line, assigning the result to a local `mydb` that nothing
+  read. On a session without cached credentials that meant a credential
+  prompt (or a connection attempt) triggered by a function that had
+  already been handed a working connection, including from inside
+  `filter_country()`. The dead line is gone
+
+- **[`print_table()`](https://umr-amap.github.io/cafriplotsR/reference/print_table.md)
+  no longer kills a Shiny app by taking over the RStudio Viewer**
+  (`R/helpers.R`) — running any query in
+  [`launch_query_plots_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_query_plots_app.md)
+  that returned fewer than 100 rows froze the app. The console showed
+  the query succeeding — `Query completed`, `Found 1 plot(s)`,
+  `Selected 1 plots: 1188` — and then
+  `All connections closed and credentials cleared`, with the Results tab
+  never rendering
+
+  - [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+    calls
+    [`print_table()`](https://umr-amap.github.io/cafriplotsR/reference/print_table.md)
+    on its result whenever `nrow(res) < 100`
+    (`R/functions_manip_db.R:688`). That builds a `kableExtra` HTML
+    table and [`print()`](https://rdrr.io/r/base/print.html)s it, which
+    in RStudio navigates the Viewer pane — the pane the app is running
+    in. The websocket closed, so the session died mid-flush: the
+    observers already scheduled finished and logged, no output on the
+    newly selected tab ever rendered, and `session$onSessionEnded()` ran
+    [`cleanup_connections()`](https://umr-amap.github.io/cafriplotsR/reference/cleanup_connections.md).
+    From the user’s side the app simply stopped responding
+  - [`print_table()`](https://umr-amap.github.io/cafriplotsR/reference/print_table.md)
+    now returns invisibly when
+    [`shiny::getDefaultReactiveDomain()`](https://rdrr.io/pkg/shiny/man/domains.html)
+    is non-`NULL`, so it prints from the console exactly as before and
+    stays out of the way inside an app. The guard sits in
+    [`print_table()`](https://umr-amap.github.io/cafriplotsR/reference/print_table.md)
+    rather than at the call site because the same trap was reachable
+    from
+    [`query_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa.md)
+    (`R/taxonomic_query_functions.R:702`, `:1034`) and the specimen
+    queries (`R/functions_manip_db.R:3221`, `:3233`), which the
+    taxonomic and specimen apps call
+
+- **DT export buttons now actually render**
+  (`R/mod_plot_metadata_viewer.R`, `R/mod_results_display.R`,
+  `R/mod_taxa_search.R`, `R/mod_citation_panel.R`) — five tables set
+  `dom = "Bfrtip"` and listed `buttons = c("copy", "csv", "excel")`
+  without declaring `extensions = "Buttons"`. DataTables silently
+  ignores an unregistered `B` in `dom`, so the copy/CSV/Excel buttons
+  were never drawn and nobody got an error saying why
+
+  - The column-documentation table also asked for `B` but configured no
+    buttons; it gets the same copy/CSV/Excel set as its neighbours
+  - `mod_citation_panel.R` spelled the argument `extension =`, which
+    only worked through R’s partial matching; corrected to
+    `extensions =`
+
+- **Feature Wizard — the same mode can be chosen again after changing
+  the plot selection** (`R/mod_feat_step2_choose_mode.R`,
+  `R/shiny_app_feature_wizard.R`) — selecting a plot, choosing a mode,
+  going back to step 1, selecting another plot and choosing the *same*
+  mode again left Next disabled with no way out. Choosing a different
+  mode worked, which made it look arbitrary
+
+  - The wizard clears its copy of the mode whenever the plot selection
+    changes — rightly, since everything downstream was built for the old
+    plots. Step 2 kept its own copy, so clicking the same card set a
+    `reactiveVal` to the value it already held, which notifies nobody:
+    the wizard never heard about the choice and `rv$operation_mode`
+    stayed `NULL`, which is what `can_proceed()` reads. The step still
+    displayed “Selected: Add Plot Features. Click Next to continue.”
+    beside a Next button that refused
+  - Step 2 now takes a `reset` reactive and clears its selection, and
+    its card highlighting, when the plot selection changes, so the next
+    click is a real change. Step 3 clears prepared data on the same
+    signal, where the same trap was waiting one step later: preparing
+    identical data a second time (plots A → B → A) would not have
+    reached the wizard either
 
 - **Feature Wizard, Validation — the “already in the database” check now
   says which comparison it made** (`R/mod_feat_step5_validation.R`) —
@@ -522,7 +1403,237 @@
   are removed before insertion, and the existing-DB check now matches on
   all three key columns instead of only `id_n` + `id_specimen`.
 
+- **A trait not measured at the selected census vanished without a
+  word** (`R/individual_features_function.R`) —
+  `query_plots(show_multiple_census = FALSE)` keeps one census per plot,
+  and
+  [`filter_to_census()`](https://umr-amap.github.io/cafriplotsR/reference/filter_to_census.md)
+  chooses it **per plot, across all traits at once**. Tree height is
+  typically measured at the first census or two and not re-measured, so
+  on a plot with four censuses every height row was dropped — and
+  because the wide pivot builds columns from trait/census combinations
+  that carry data, the result had no `tree_height` column at all rather
+  than a column of `NA`. That is indistinguishable from a plot where
+  height was never measured
+
+  - The filtering itself is unchanged and deliberate: no value from
+    another census is carried into a column labelled with this one. What
+    was missing was any notice, so every dropped trait is now named,
+    with the remedy on the next line:
+    `Dropped 4 traits with no measurement at the selected (last) census: "crown_width", "flag5_rainfor", "height_of_first_branch", "tree_height"`
+    /
+    `Keep them with show_multiple_census = TRUE or census_strategy = "mean"`.
+    At `"debug"` each trait also reports the censuses where it does
+    exist
+  - [`filter_to_census()`](https://umr-amap.github.io/cafriplotsR/reference/filter_to_census.md)
+    now dates the census-linked measurements once and reuses that
+    ordering for both the selection and the report, so the two cannot
+    disagree. Row counts and the census chosen are identical to before
+  - Height and diameter were never actually lost:
+    `output_style = "full"` returns them for every census in the
+    `height_diameter` table, which is built from an unfiltered fetch
+  - 12 assertions across 7 tests in
+    `tests/testthat/test-census-filter-dropped-traits.R`, including that
+    the report stays silent when every trait survives and that
+    non-census measurements pass through untouched
+
+- **`update_records(table_type = "individuals")` now actually writes
+  trait corrections instead of only reporting them**
+  (`R/updates_tables_functions.R`) — `detect_feature_changes()` already
+  resolved a trait-name column (e.g. `quadrat`) to the individual’s
+  current single measurement and reported how many rows would change,
+  but `execute_feature_updates()` was a stub that printed “Feature
+  updates not implemented” and did nothing. Correcting a trait therefore
+  meant bypassing this path entirely: querying
+  `query_individual_features(format = "long")` by hand, joining it back
+  to find `id_trait_measures`, and calling
+  `update_records(..., table_type = "individual_features")` on that
+  instead
+
+  - `detect_feature_changes()` now also resolves `id_trait_measures` and
+    the trait’s `valuetype` per individual, and returns the row-level
+    comparison rather than a bare count. `execute_feature_updates()`
+    feeds that straight into the existing `execute_direct_updates()` —
+    the same backup-then-write path already used for
+    `table_type = "individual_features"` — picking `traitvalue` vs
+    `traitvalue_char` via
+    [`.upd_value_column()`](https://umr-amap.github.io/cafriplotsR/reference/dot-upd_value_column.md)
+  - Scope is deliberately narrow: only an existing single measurement is
+    corrected. An individual with no existing measurement for that trait
+    is reported and left untouched rather than inserted, since that
+    would need `id_sub_plots` and other context this path doesn’t have —
+    insert with
+    [`add_traits_measures()`](https://umr-amap.github.io/cafriplotsR/reference/add_traits_measures.md)
+    instead. An individual with more than one measurement for the trait
+    still aborts with the existing “value is an AGGREGATION” guidance,
+    unchanged
+  - Net effect:
+    `update_records(data.frame(id_n = ..., quadrat = ...), table_type = "individuals", execute = TRUE)`
+    now does the correction directly, with no manual `id_trait_measures`
+    lookup required
+
+#### Infrastructure
+
+- **The public account’s password is no longer shipped in the package**
+  (`R/public_credential.R`, `R/mod_database_login.R`) —
+  `CafriP_public`’s credential was a literal at
+  `R/mod_database_login.R:151-152` in a public repository, and was also
+  rendered into the pkgdown site. The account is read-only and reaches
+  data the project intends to publish, so the value was never a secret;
+  what it could not be was *withdrawn*. The database runs on OVH
+  Webcloud, where no per-role connection limit can be set
+  (`inst/docs/PLAN_SECURITY_REMEDIATION.md`, P0.4), which leaves
+  withdrawal as the only control over a published login exhausting
+  `max_connections` — and a password compiled into the package stays
+  valid in every installed copy until every user reinstalls
+  - The package now ships a URL.
+    [`.public_credential()`](https://umr-amap.github.io/cafriplotsR/reference/dot-public_credential.md)
+    resolves the credential at each app launch from `CAFRI_PUBLIC_USER`
+    / `CAFRI_PUBLIC_PASS` if set, otherwise from a descriptor published
+    at `https://umr-amap.github.io/cafriplotsR/public-access.json`.
+    There is deliberately **no fallback value anywhere in the source**
+  - **Rotating is now an edit to one file** —
+    `pkgdown/assets/public-access.json`, mirrored into `docs/`, which
+    GitHub Pages serves from `master` — picked up by every installation
+    however old, rather than a release. Setting `"enabled": false` there
+    is a kill switch that removes the button everywhere within five
+    minutes; its `message` field is shown in its place. See
+    `inst/public-access/README.md` for the descriptor, the publishing
+    procedure and the rotation and withdrawal runbooks
+  - **No exported signature changes and nothing to do for users.**
+    `allow_public` still means the same thing. Public login is simply
+    absent rather than broken whenever the credential cannot be resolved
+    — no network, a blocked host, a malformed descriptor, or access
+    switched off upstream. The separator and the “or” label moved into
+    the same renderer, so an app that asked for public login is not left
+    with a rule across an empty space
+  - **The descriptor is world-readable, and that is the trade.** Serving
+    it from the published site means the value sits in a public
+    repository exactly as the old literal did; what changes is that it
+    can now be rotated or withdrawn in one commit instead of one
+    release. Keeping the value out of the repository entirely would mean
+    hosting the descriptor off it — the URL is a single constant in
+    `R/public_credential.R`, overridable with
+    `options(CafriplotsR.public_access_url = ...)`
+  - **Served deployments should set the environment variables.** They
+    take precedence over the descriptor, so a hosted app never depends
+    on GitHub Pages being reachable to let anyone in, and the credential
+    never leaves the server. `deployment/taxonomic_match/` supplies them
+    from a Kubernetes Secret named by `publicCredential.secretName`,
+    injected by the existing post-install hook with `optional: true` — a
+    missing Secret degrades to the descriptor rather than taking the pod
+    down. It must not go in the image, which is world-pullable from
+    ghcr.io
+  - `curl` and `jsonlite` move to `Imports` (`jsonlite` was in
+    `Suggests`); the descriptor is read on every launch of an app that
+    offers public login
+  - 26 assertions in `tests/testthat/test-public-credential.R`,
+    including that the source tree contains no embedded credential, so a
+    later edit cannot quietly restore one. None of them touch the
+    network
+
 #### Documentation
+
+- **[`devtools::document()`](https://devtools.r-lib.org/reference/document.html)
+  runs clean again** (`R/functions_manip_db.R`, `R/add_functions.R`) —
+  roxygen2 reported 44 problems on every run, from two causes.
+  [`add_method()`](https://umr-amap.github.io/cafriplotsR/reference/add_method.md)
+  had a bare `@param new_description_method` with no description. The R6
+  classes carried a hand-written `@section Methods:` list on the class
+  block, which roxygen2 does not read as documentation of the methods it
+  generates topics for; the prose was moved into per-method
+  `@description` / `@param` / `@return` tags, the pattern `PlotFetcher`
+  already used and the reason it alone went unreported. Those classes
+  have since been removed, but the same fix now applies to any R6 class
+  added later
+
+- **The taxonomic matching app explains itself**
+  (`R/shiny_app_taxonomic_match.R`) — the *About this app* panel was a
+  `<details>` element styled as a tinted info banner with an
+  `info-circle` icon and collapsed by default, so it read as a static
+  notice rather than a control. The workflow description it holds went
+  unread by the first-time visitors it was written for
+
+  - It now opens on arrival, and is restyled as a bordered card with a
+    hover state and a chevron that rotates on open; the native
+    disclosure triangle is suppressed in favour of the chevron.
+    Collapsing it is still one click
+  - The subtitle no longer paraphrases the title. It carries a sentence
+    that had been sitting in `translation.json`, translated but
+    referenced by nothing, since the panel was written — the one line
+    that names both of the app’s tasks: standardizing names, then
+    enriching them with traits
+  - An **Export** item joins the walkthrough, which had described every
+    tab except that one. It points at the per-column descriptions the
+    Export tab already renders rather than restating them. A lead-in
+    names the reference the app matches against, and the panel closes
+    with a link straight to this app’s own vignette — to the French or
+    the English copy, following the interface language, rather than to
+    the site root a reader would then have to search from
+  - `fluidPage()` gains a `title`, so the browser tab and any bookmark
+    carry the app’s name instead of the bare hostname. It is fixed at
+    the app’s initial language, because it lands in `<head>` when the UI
+    is built and so cannot follow the in-app toggle
+
+- **The taxonomic matching vignettes describe what the app actually
+  does** (`vignettes/taxonomic-app.Rmd`,
+  `vignettes/taxonomic-app-fr.Rmd`) — the walkthrough named every tab
+  but described several of them at a level well below what the interface
+  offers. Both languages gained, at parity:
+
+  - **The backbone copy dialog**, which asks whether to match against
+    the cached backbone or download a fresh one, and was documented
+    nowhere. The guidance is the useful part: cached for ordinary use,
+    fresh after taxa have been added or revised
+  - **The two fuzzy stages, told apart.** The strategy was written as
+    five tiers ending in one “fuzzy matching” step; there are in fact
+    two, and they differ in how much they should be trusted. A
+    genus-constrained match compares only against species in a genus
+    already recognised, so at equal score it is worth more than a match
+    drawn from the whole backbone
+  - **How traits are aggregated.** A taxon carries many measurements of
+    one trait, and the vignette described the categorical modes without
+    ever saying what happens to numeric traits: they come back as mean,
+    sd and **n**. Reading `n` first is the point — a mean over one
+    measurement and a mean over forty are the same number carrying very
+    different weight
+  - **The Export tab’s per-column descriptions**, which the app renders
+    beside the preview and the vignette never mentioned, so readers had
+    no idea the reference was already in front of them
+  - **`id_data`**, the internal row identifier the app adds and strips
+    again on export, and **when to enable WCVP** — including that the
+    box must be ticked before matching, since the enrichment happens
+    during that step
+
+- **The vignettes tell public access apart from offline mode**
+  (`vignettes/taxonomic-app.Rmd`, `vignettes/taxonomic-app-fr.Rmd`) —
+  the *“Without credentials”* section was headed “public access mode”
+  but described only offline mode, and never mentioned the public
+  read-only account at all. It also told readers to click a button the
+  hosted app does not show, under a French label that did not match the
+  one in the interface
+
+  - Both routes are now described separately: the public account as the
+    one available everywhere, the hosted app included, and offline mode
+    as local-only, with the reason it is local-only
+
+- **The app catalogs name the hosted taxonomic app**
+  (`vignettes/apps-overview.Rmd`, `vignettes/apps-overview-fr.Rmd`) —
+  the taxonomic name standardization app has been deployed on SSP Cloud
+  at <https://cafri-taxomatch.lab.sspcloud.fr> since the
+  `deployment/taxonomic_match/` chart landed, and nothing outside that
+  directory said so. A reader looking for a way to try the package
+  without installing R had no reason to suspect one existed
+
+  - Named twice per language: in the introduction, beside the note that
+    three apps open without credentials, since “needs no account” and
+    “needs no install” are the two questions a newcomer actually has;
+    and in the app’s own section, beside the offline note, where it
+    matters that the hosted copy queries the same database and so
+    returns the same `idtax_n` values as a local run
+  - Left out of the *Which app do I need?* table, which answers a
+    different question — which app, not where to run it — and has no
+    column that would hold a URL without distorting it
 
 - **`apps-overview` vignette, in English and French**
   (`vignettes/apps-overview.Rmd`, `vignettes/apps-overview-fr.Rmd`) —
@@ -599,6 +1710,22 @@
   verdicts and the action for each, plus a table of the other common
   connection errors (rejected credentials, no free connection slots, DNS
   failure, dropped connection).
+
+- **`census_strategy` documents that the census is chosen per plot, not
+  per trait** (`R/functions_manip_db.R`) — the parameter said
+  individuals recruited or dead outside the selected census “will have
+  NA values”, which describes a column that exists. It now states that
+  one census is selected from all of a plot’s measurements and every
+  census-linked trait filtered to it, that a trait never measured there
+  returns no column rather than a column of `NA`, that tree height is
+  the common case, and that `height_diameter` under
+  `output_style = "full"` still spans every census
+
+  - [`query_individual_features()`](https://umr-amap.github.io/cafriplotsR/reference/query_individual_features.md)
+    and
+    [`get_individual_aggregated_features()`](https://umr-amap.github.io/cafriplotsR/reference/get_individual_aggregated_features.md)
+    had no `@param census_strategy` at all, despite both accepting it —
+    an `R CMD check` warning waiting to happen. Both now document it
 
 #### New Features
 

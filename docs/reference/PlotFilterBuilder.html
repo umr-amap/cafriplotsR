@@ -9,7 +9,7 @@ following different criteria using the builder pattern"><meta property="og:image
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.95</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,6 +45,13 @@ following different criteria using the builder pattern</p>
 
 
     <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>A filter whose value matches nothing in the database adds an unsatisfiable
+condition, so the query returns no plots and warns. It does not drop the
+condition: an unmatched country silently returning every plot would look
+like a successful query.</p>
+    </div>
+    <div class="section level2">
     <h2 id="methods">Methods<a class="anchor" aria-label="anchor" href="#methods"></a></h2>
 
 
@@ -69,6 +76,14 @@ following different criteria using the builder pattern</p>
 
   <dt><code>filter_locality(locality_name)</code></dt>
 <dd><p>Filter plots by locality name(s).</p><ul><li><p><code>locality_name</code>: Character vector of locality name(s)</p></li>
+</ul><p></p></dd>
+
+  <dt><code>filter_features(feature_filters, exact_match = FALSE)</code></dt>
+<dd><p>Filter plots by their features – rows of <code>data_liste_sub_plots</code>
+    typed by <code>subplotype_list</code>, not columns of <code>data_liste_plots</code>.
+    Each named feature adds a subquery, so different features are combined
+    with AND while the values of one feature are combined with OR.</p><ul><li><p><code>feature_filters</code>: Named list, names being feature types</p></li>
+<li><p><code>exact_match</code>: Logical. If TRUE, match values exactly rather than as substrings</p></li>
 </ul><p></p></dd>
 
   <dt><code>build(operator = "AND")</code></dt>
@@ -99,6 +114,7 @@ following different criteria using the builder pattern</p>
 <li><p><a href="#method-PlotFilterBuilder-filter_plot_name"><code>PlotFilterBuilder$filter_plot_name()</code></a></p></li>
 <li><p><a href="#method-PlotFilterBuilder-filter_method"><code>PlotFilterBuilder$filter_method()</code></a></p></li>
 <li><p><a href="#method-PlotFilterBuilder-filter_locality"><code>PlotFilterBuilder$filter_locality()</code></a></p></li>
+<li><p><a href="#method-PlotFilterBuilder-filter_features"><code>PlotFilterBuilder$filter_features()</code></a></p></li>
 <li><p><a href="#method-PlotFilterBuilder-build"><code>PlotFilterBuilder$build()</code></a></p></li>
 <li><p><a href="#method-PlotFilterBuilder-build_with_or"><code>PlotFilterBuilder$build_with_or()</code></a></p></li>
 <li><p><a href="#method-PlotFilterBuilder-add_custom_condition"><code>PlotFilterBuilder$add_custom_condition()</code></a></p></li>
@@ -153,10 +169,19 @@ following different criteria using the builder pattern</p>
 
 </div>
 
+<p></p><hr><a id="method-PlotFilterBuilder-filter_features"></a><div class="section">
+<h3 id="plotfilterbuilder-filter-features-"><code>PlotFilterBuilder$filter_features()</code><a class="anchor" aria-label="anchor" href="#plotfilterbuilder-filter-features-"></a></h3>
+<p></p><div class="section">
+<h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
+<p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">PlotFilterBuilder</span><span class="op">$</span><span class="fu">filter_features</span><span class="op">(</span><span class="va">feature_filters</span>, exact_match <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
+</div>
+
+</div>
+
 <p></p><hr><a id="method-PlotFilterBuilder-build"></a><div class="section">
 <h3 id="plotfilterbuilder-build-"><code>PlotFilterBuilder$build()</code><a class="anchor" aria-label="anchor" href="#plotfilterbuilder-build-"></a></h3>
 <p></p><div class="section">
-<h4 id="usage-5">Usage<a class="anchor" aria-label="anchor" href="#usage-5"></a></h4>
+<h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">PlotFilterBuilder</span><span class="op">$</span><span class="fu">build</span><span class="op">(</span>operator <span class="op">=</span> <span class="st">"AND"</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -165,7 +190,7 @@ following different criteria using the builder pattern</p>
 <p></p><hr><a id="method-PlotFilterBuilder-build_with_or"></a><div class="section">
 <h3 id="plotfilterbuilder-build-with-or-"><code>PlotFilterBuilder$build_with_or()</code><a class="anchor" aria-label="anchor" href="#plotfilterbuilder-build-with-or-"></a></h3>
 <p></p><div class="section">
-<h4 id="usage-6">Usage<a class="anchor" aria-label="anchor" href="#usage-6"></a></h4>
+<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">PlotFilterBuilder</span><span class="op">$</span><span class="fu">build_with_or</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -174,7 +199,7 @@ following different criteria using the builder pattern</p>
 <p></p><hr><a id="method-PlotFilterBuilder-add_custom_condition"></a><div class="section">
 <h3 id="plotfilterbuilder-add-custom-condition-"><code>PlotFilterBuilder$add_custom_condition()</code><a class="anchor" aria-label="anchor" href="#plotfilterbuilder-add-custom-condition-"></a></h3>
 <p></p><div class="section">
-<h4 id="usage-7">Usage<a class="anchor" aria-label="anchor" href="#usage-7"></a></h4>
+<h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">PlotFilterBuilder</span><span class="op">$</span><span class="fu">add_custom_condition</span><span class="op">(</span><span class="va">condition</span>, wrap_parentheses <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -183,7 +208,7 @@ following different criteria using the builder pattern</p>
 <p></p><hr><a id="method-PlotFilterBuilder-print_conditions"></a><div class="section">
 <h3 id="plotfilterbuilder-print-conditions-"><code>PlotFilterBuilder$print_conditions()</code><a class="anchor" aria-label="anchor" href="#plotfilterbuilder-print-conditions-"></a></h3>
 <p></p><div class="section">
-<h4 id="usage-8">Usage<a class="anchor" aria-label="anchor" href="#usage-8"></a></h4>
+<h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">PlotFilterBuilder</span><span class="op">$</span><span class="fu">print_conditions</span><span class="op">(</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div>
 
@@ -192,7 +217,7 @@ following different criteria using the builder pattern</p>
 <p></p><hr><a id="method-PlotFilterBuilder-clone"></a><div class="section">
 <h3 id="plotfilterbuilder-clone-"><code>PlotFilterBuilder$clone()</code><a class="anchor" aria-label="anchor" href="#plotfilterbuilder-clone-"></a></h3>
 <p>The objects of this class are cloneable with this method.</p><div class="section">
-<h4 id="usage-9">Usage<a class="anchor" aria-label="anchor" href="#usage-9"></a></h4>
+<h4 id="usage-10">Usage<a class="anchor" aria-label="anchor" href="#usage-10"></a></h4>
 <p></p><div class="r"><div class="sourceCode"><pre><code><span><span class="va">PlotFilterBuilder</span><span class="op">$</span><span class="fu">clone</span><span class="op">(</span>deep <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div><p></p></div>
 </div><p></p><div class="section">
 <h4 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h4>

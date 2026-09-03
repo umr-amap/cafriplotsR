@@ -22,6 +22,10 @@ Semi automatic matching with a table for comparison
 
   string name of the column of compared_table
 
+- field_label:
+
+  string shown at the prompt in place of column_name
+
 ## Value
 
 vector

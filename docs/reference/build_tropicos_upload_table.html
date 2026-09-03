@@ -11,7 +11,7 @@ the Tropicos bulk upload "Data" sheet.'><meta property="og:image" content="https
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,9 @@ the Tropicos bulk upload "Data" sheet.</p>
 <span>  coordinate_method <span class="op">=</span> <span class="st">"GPS"</span>,</span>
 <span>  elevation_unit <span class="op">=</span> <span class="st">"m"</span>,</span>
 <span>  elevation_method <span class="op">=</span> <span class="st">"GPS"</span>,</span>
-<span>  date_language <span class="op">=</span> <span class="st">"French"</span></span>
+<span>  date_language <span class="op">=</span> <span class="st">"French"</span>,</span>
+<span>  keyword_columns <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  keyword_sep <span class="op">=</span> <span class="st">"; "</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -101,6 +103,20 @@ all rows. The template uses this to flag the language of
 `DescriptionNote`; there's no way to infer it from the database, so
 override it per batch as needed.</p></dd>
 
+
+<dt id="arg-keyword-columns">keyword_columns<a class="anchor" aria-label="anchor" href="#arg-keyword-columns"></a></dt>
+<dd><p>Character vector of column names in `specimens`
+(default `NULL`), concatenated row-wise into `GeneralKeywords`. Each
+value is trimmed and blank/`NA` entries are dropped before joining, so
+a row missing some of the listed columns still gets whatever the
+others provide (or `NA` if none do). `NULL` leaves `GeneralKeywords`
+blank, as before.</p></dd>
+
+
+<dt id="arg-keyword-sep">keyword_sep<a class="anchor" aria-label="anchor" href="#arg-keyword-sep"></a></dt>
+<dd><p>Character, default `"; "`. Separator used to join
+`keyword_columns` values within a row.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -131,7 +147,8 @@ xlsx.</p>
 `table_colnam`), `DeterminationInstitution`, `LocationID`,
 `MinimumElevation` (specimens aren't tied to a plot with elevation),
 `VegetationDescription`, `Duplicates`, `Institutions`,
-`OtherCollectorIDs`, `GeneralKeywords`.</p>
+`OtherCollectorIDs`. `GeneralKeywords` is the same by default, but can be
+built from `specimens` via `keyword_columns` – see below.</p>
 <p>`AuthorityKey` is also left blank by default for now – the template's
 example rows suggest it follows a convention (first initial of the
 collector's first name + first three letters of their surname, lowercase,
@@ -150,6 +167,12 @@ appended verbatim if present; it is not parsed into individual names.</p>
 <span class="r-in"><span><span class="va">specimens</span> <span class="op">&lt;-</span> <span class="fu"><a href="query_specimens.html">query_specimens</a></span><span class="op">(</span>id_colnam <span class="op">=</span> <span class="fl">123</span>, subset_columns <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
 <span class="r-in"><span>                             show_html <span class="op">=</span> <span class="cn">FALSE</span>, con <span class="op">=</span> <span class="va">con</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">tropicos_tbl</span> <span class="op">&lt;-</span> <span class="fu">build_tropicos_upload_table</span><span class="op">(</span><span class="va">specimens</span>, <span class="va">con</span>, authority <span class="op">=</span> <span class="st">"Madagascar"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Fold locality and free-text description into GeneralKeywords</span></span></span>
+<span class="r-in"><span><span class="va">tropicos_tbl</span> <span class="op">&lt;-</span> <span class="fu">build_tropicos_upload_table</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="va">specimens</span>, <span class="va">con</span>,</span></span>
+<span class="r-in"><span>  keyword_columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"locality"</span>, <span class="st">"description"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

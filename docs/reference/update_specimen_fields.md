@@ -1,5 +1,24 @@
 # Update non-identification fields of a single specimen
 
+\`r lifecycle::badge("deprecated")\`
+
+Superseded by
+[`update_records`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md),
+which writes the same columns of `specimens` (`description` included
+since 1.9.95) through the generic update path, and additionally offers
+batch mode and a `execute = FALSE` dry run. Migrate with:
+
+    ## before
+    update_specimen_fields(id_speci = 12345,
+                           new_values = list(locality = "Mont Bela"))
+
+    ## after
+    update_records(
+      data = data.frame(id_specimen = 12345, locality = "Mont Bela"),
+      table_type = "specimens",
+      execute = TRUE
+    )
+
 Updates any of the editable, non-taxonomic columns of the `specimens`
 table for one specimen: collection date (`coly`, `colm`, `cold`),
 locality information (`locality`, `country`, `ddlat`, `ddlon`),
@@ -68,6 +87,7 @@ was modified.
 
 ## See also
 
+[`update_records`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md),
 [`update_ident_specimens`](https://umr-amap.github.io/cafriplotsR/reference/update_ident_specimens.md)
 
 ## Author

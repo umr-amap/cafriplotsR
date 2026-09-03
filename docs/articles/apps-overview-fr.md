@@ -11,13 +11,22 @@ l’application.
 Chaque application s’ouvre sur le même écran de connexion. Ce qui
 change, c’est **qui peut l’utiliser** : trois applications s’ouvrent
 sans aucun identifiant, les sept autres exigent votre propre compte car
-elles écrivent dans la base.
+elles écrivent dans la base. L’une des trois, l’application
+d’appariement taxonomique, va même plus loin et fonctionne aussi hors
+ligne.
+
+L’une d’entre elles ne demande même pas R. L’application de
+standardisation des noms taxonomiques est aussi **hébergée**, à
+l’adresse <https://cafri-taxomatch.lab.sspcloud.fr> : ouvrez-la dans un
+navigateur et elle se comporte exactement comme l’application locale,
+connexion publique comprise. Utilisez-la pour essayer le paquet, ou pour
+montrer le flux de travail à un collègue sans rien lui faire installer.
 
 ## Quelle application choisir ?
 
 | Application | Lancement | Accès |
 |----|----|----|
-| Standardisation des noms taxonomiques | [`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md) | public ou compte |
+| Standardisation des noms taxonomiques | [`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md) | public, compte ou hors ligne |
 | Référentiel taxonomique | [`launch_taxo_backbone_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxo_backbone_app.md) | public pour consulter, compte pour modifier |
 | Interrogation des parcelles | [`launch_query_plots_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_query_plots_app.md) | public ou compte |
 | Import de données de parcelles | [`launch_import_wizard()`](https://umr-amap.github.io/cafriplotsR/reference/launch_import_wizard.md) | compte |
@@ -50,6 +59,31 @@ enregistrements ou gérer des spécimens. Ces applications n’affichent pas
 le bouton public, car un compte en lecture seule ne permet d’aller au
 bout d’aucun de leurs enchaînements.
 
+## Travailler sans réseau
+
+Une application va plus loin encore et fonctionne sans aucune base de
+données : celle de standardisation des noms taxonomiques propose un
+bouton **Use offline (cached backbone)**. Elle s’appuie sur une copie du
+référentiel taxonomique enregistrée sur votre propre machine, ce qui
+permet de standardiser une liste d’espèces depuis une station de
+terrain, un avion ou tout autre endroit sans route vers le serveur.
+
+Deux points à connaître avant de compter dessus :
+
+- Le bouton n’apparaît qu’une fois le cache constitué. Celui-ci est
+  écrit lors de la première utilisation de l’application **en ligne** :
+  lancez-la donc une fois connecté avant de partir.
+- Hors ligne, vous disposez de l’appariement automatique, des
+  suggestions floues et de la révision manuelle. L’onglet
+  d’enrichissement par les traits est masqué, car les traits vivent dans
+  la base et rien de local ne peut les remplacer.
+
+**Les neuf autres applications n’affichent jamais ce bouton.** Le mode
+hors ligne laisse l’application sans aucune connexion, et aucune d’elles
+n’a alors de quoi travailler : elles importent, corrigent ou interrogent
+des données vivantes. Si vous cherchiez ce bouton ailleurs, voilà
+pourquoi il n’y est pas.
+
 ## Explorer et standardiser
 
 ### Standardisation des noms taxonomiques
@@ -67,7 +101,14 @@ chacun de vos noms un identifiant de taxon stable (`idtax_n`), ce qui
 permet ensuite de greffer traits et inventaires.
 
 Commencez ici si vous arrivez avec une liste d’espèces issue de votre
-terrain.
+terrain. C’est aussi la seule application qui fonctionne hors ligne, à
+partir d’une copie locale du référentiel.
+
+Et c’est la seule que vous pouvez aussi utiliser **sans rien installer**
+: <https://cafri-taxomatch.lab.sspcloud.fr> sert la même application
+depuis SSP Cloud. La copie hébergée interroge la même base, si bien
+qu’une liste standardisée exportée là-bas porte les mêmes `idtax_n`
+qu’une liste produite localement.
 
 ### Référentiel taxonomique
 

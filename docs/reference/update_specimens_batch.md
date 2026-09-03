@@ -1,5 +1,16 @@
 # Update specimens data data
 
+\`r lifecycle::badge("deprecated")\`
+
+Superseded by
+[`update_records`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md)
+with `table_type = "specimens"` and `method = "batch"`. Rename the
+columns of `new_data` to their database names beforehand (the
+`col_names_select` / `col_names_corresp` pair has no equivalent), then:
+
+    update_records(data = new_data, table_type = "specimens",
+                   method = "batch", execute = TRUE)
+
 Update specimens data plot \_ at a time
 
 ## Usage
@@ -45,6 +56,10 @@ update_specimens_batch(
 ## Value
 
 No return value individuals updated
+
+## See also
+
+[`update_records`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md)
 
 ## Author
 

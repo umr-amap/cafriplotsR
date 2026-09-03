@@ -47,8 +47,10 @@ Query plots, individuals, taxa, traits, and specimens from the database
 
 - [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
   : Query plots from database
-- [`query_subplots()`](https://umr-amap.github.io/cafriplotsR/reference/query_subplots.md)
-  : Legacy function - wrapper for backward compatibility
+- [`plot_feature_filters()`](https://umr-amap.github.io/cafriplotsR/reference/plot_feature_filters.md)
+  : Plot features that can be used as a filter
+- [`plot_feature_values()`](https://umr-amap.github.io/cafriplotsR/reference/plot_feature_values.md)
+  : Values a plot feature actually holds
 - [`query_plot_features()`](https://umr-amap.github.io/cafriplotsR/reference/query_plot_features.md)
   : Query subplot features with improved architecture
 - [`query_individual_features()`](https://umr-amap.github.io/cafriplotsR/reference/query_individual_features.md)
@@ -93,14 +95,6 @@ Query plots, individuals, taxa, traits, and specimens from the database
   : List of trait
 - [`get_traitlist()`](https://umr-amap.github.io/cafriplotsR/reference/get_traitlist.md)
   : Return the \`traitlist\` lookup table, cached per session
-- [`PlotFetcher`](https://umr-amap.github.io/cafriplotsR/reference/PlotFetcher.md)
-  : Fetch plot data
-- [`PlotFilterBuilder`](https://umr-amap.github.io/cafriplotsR/reference/PlotFilterBuilder.md)
-  : Query builder for plot
-- [`SpecimenFetcher`](https://umr-amap.github.io/cafriplotsR/reference/SpecimenFetcher.md)
-  : Specimen Fetcher
-- [`SpecimenFilterBuilder`](https://umr-amap.github.io/cafriplotsR/reference/SpecimenFilterBuilder.md)
-  : Specimen Filter Builder
 - [`get_user_accessible_plots()`](https://umr-amap.github.io/cafriplotsR/reference/get_user_accessible_plots.md)
   : Get plot IDs accessible to a user
 - [`match_tax()`](https://umr-amap.github.io/cafriplotsR/reference/match_tax.md)
@@ -123,6 +117,14 @@ Query plots, individuals, taxa, traits, and specimens from the database
   : Get Primary Specimen for Individuals
 - [`get_ref_specimen_ind()`](https://umr-amap.github.io/cafriplotsR/reference/get_ref_specimen_ind.md)
   : Find Unlinked Individuals with Herbarium Information
+
+## Superseded
+
+Kept so that older scripts keep running; use the replacement named in
+each page.
+
+- [`query_subplots()`](https://umr-amap.github.io/cafriplotsR/reference/query_subplots.md)
+  : Subplot features of a set of plots (superseded)
 
 ## Output Styling
 
@@ -172,7 +174,7 @@ Add new plots, individuals, traits, specimens, and taxa to the database
 - [`add_subplot_observations_feat()`](https://umr-amap.github.io/cafriplotsR/reference/add_subplot_observations_feat.md)
   : Add subplot observations features
 - [`add_plot_coordinates()`](https://umr-amap.github.io/cafriplotsR/reference/add_plot_coordinates.md)
-  : Add 1ha IRd plot coordinates
+  : Add 1-ha plot quadrat coordinates
 - [`add_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/add_specimens.md)
   : Add new specimens data
 - [`add_citation()`](https://umr-amap.github.io/cafriplotsR/reference/add_citation.md)

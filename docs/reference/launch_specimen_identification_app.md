@@ -43,7 +43,7 @@ to `idtax_n` values - typically by first using
 ## See also
 
 [`update_ident_specimens`](https://umr-amap.github.io/cafriplotsR/reference/update_ident_specimens.md),
-[`update_specimen_fields`](https://umr-amap.github.io/cafriplotsR/reference/update_specimen_fields.md),
+[`update_records`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md),
 [`launch_taxonomic_match_app`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md),
 [`launch_specimen_import_wizard`](https://umr-amap.github.io/cafriplotsR/reference/launch_specimen_import_wizard.md)
 

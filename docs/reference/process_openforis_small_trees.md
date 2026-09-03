@@ -275,7 +275,10 @@ A list with components:
   position_y, multi_stem, number_multi_stem, multi_tiges_id (tag of the
   main stem, NA for the main stem itself). The two position columns are
   part of the form but the small-tree protocol does not map stems, so in
-  practice they arrive empty. `idtax_n` is copied from the OpenForis
+  practice they arrive empty. `herbarium_nbe_char` is repeated on every
+  individual identified as the species of a voucher, while
+  `herbarium_nbe_type` names each specimen once, on the individual it
+  was collected from. `idtax_n` is copied from the OpenForis
   `species_code` without being checked against the taxonomic backbone —
   see the note below.
 

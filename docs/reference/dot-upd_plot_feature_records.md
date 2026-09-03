@@ -1,6 +1,6 @@
 # Plot feature records behind the columns of an extracted plot table
 
-Each row of \`data_liste_sub_plots\` for the plot, annotated with how
+Each row of \`data_liste_sub_plots\` for the plots, annotated with how
 many records feed the same extracted column (\`n_records\`) and what
 that column would show (\`aggregate_display\`). When \`n_records \> 1\`
 the extracted value is an aggregate and only these records can be
@@ -16,7 +16,7 @@ edited.
 
 - id_plot:
 
-  Integer, \`data_liste_plots.id_liste_plots\`.
+  Integer vector, \`data_liste_plots.id_liste_plots\`.
 
 - con:
 
@@ -24,4 +24,13 @@ edited.
 
 ## Value
 
-A tibble, one row per subplot record; zero rows if the plot has none.
+A tibble, one row per subplot record, carrying \`id_plot\` and
+\`plot_name\` ahead of the shared feature columns; zero rows if the
+plots have no features.
+
+## Details
+
+Several plots can be asked for at once, which is how the feature wizard
+shows what a whole selection already holds. The annotation is then
+computed within each plot: a feature backed by one record in each of
+three plots is an aggregate in none of them.

@@ -1,6 +1,6 @@
-# Legacy function - wrapper for backward compatibility
+# Subplot features of a set of plots (superseded)
 
-Legacy function - wrapper for backward compatibility
+\`r lifecycle::badge("superseded")\`
 
 ## Usage
 
@@ -8,13 +8,71 @@ Legacy function - wrapper for backward compatibility
 query_subplots(
   ids_plots = NULL,
   ids_subplots = NULL,
-  plot_name = NULL,
-  country = NULL,
-  locality_name = NULL,
-  method = NULL,
+  plot_name = lifecycle::deprecated(),
+  country = lifecycle::deprecated(),
+  locality_name = lifecycle::deprecated(),
+  method = lifecycle::deprecated(),
   subtype = NULL,
   verbose = TRUE,
   extract_subplots_obs_features = FALSE,
   con = NULL
 )
 ```
+
+## Arguments
+
+- ids_plots:
+
+  Integer vector of \`data_liste_plots.id_liste_plots\`.
+
+- ids_subplots:
+
+  Integer vector of \`data_liste_sub_plots.id_sub_plots\`.
+
+- plot_name, country, locality_name, method:
+
+  \`r lifecycle::badge("deprecated")\` Never applied; use
+  \[query_plots()\] to resolve the plots and pass their ids as
+  \`ids_plots\`.
+
+- subtype:
+
+  Character. Subplot type to keep, matched as a regular expression.
+
+- verbose:
+
+  Accepted for compatibility and ignored. The deprecation warning is not
+  silenceable.
+
+- extract_subplots_obs_features:
+
+  Logical. Also fetch the features attached to subplot observations.
+
+- con:
+
+  A DBI connection or pool. Opened with \[call.mydb()\] if \`NULL\`.
+
+## Value
+
+A list of \`all_subplots\`, \`all_subplot_pivot\` and
+\`census_features\`, the old names of \`features_raw\`,
+\`features_aggregated\` and \`census_info\`.
+
+## Details
+
+Superseded by \[query_plot_features()\], which does the whole job. All
+this wrapper adds is a second set of names for the same arguments and
+the same three results, so there is no reason to prefer it. It is kept
+only so that code written against the old names keeps running, and it
+warns once per session.
+
+The plot-filtering arguments are gone. They were served by an internal
+helper that the October 2025 rewrite of \[query_plots()\] deleted
+without updating this call site, so they have raised \`could not find
+function ".build_plot_query"\` ever since and never filtered anything.
+Resolve the plots with \[query_plots()\] and pass the ids instead.
+
+## See also
+
+\[query_plot_features()\], which returns the same data under its current
+names.

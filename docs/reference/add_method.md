@@ -14,6 +14,10 @@ add_method(new_method = NULL, new_description_method = NULL)
 
   string value with new method descriptors, avoid space
 
+- new_description_method:
+
+  string value describing the new method
+
 ## Value
 
 nothing

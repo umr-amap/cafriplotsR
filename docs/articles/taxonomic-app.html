@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -95,11 +95,18 @@ launched, the app presents a login screen where you enter your
 credentials.</p>
 </div>
 <div class="section level3">
-<h3 id="without-credentials-public-access-mode">Without credentials (public access mode)<a class="anchor" aria-label="anchor" href="#without-credentials-public-access-mode"></a>
+<h3 id="without-credentials">Without credentials<a class="anchor" aria-label="anchor" href="#without-credentials"></a>
 </h3>
-<p>Since March 2026, the app can be launched <strong>without any
-database credentials</strong>. Click <strong>“Use offline (cached
-backbone)”</strong> on the login screen to enter offline mode:</p>
+<p>Since March 2026, the app can be used <strong>without any database
+credentials</strong>, by either of two routes.</p>
+<p><strong>Public read-only account.</strong> Click <strong>“Connect as
+public user”</strong> on the login screen. Matching <em>and</em> traits
+enrichment both work; adding or modifying data does not. This is the
+credential-free route available everywhere, including the hosted app,
+and it is the one to reach for if you simply have no account.</p>
+<p><strong>Offline cached backbone.</strong> Click <strong>“Use offline
+(cached backbone)”</strong> to work from a locally cached copy of the
+backbone:</p>
 <ul>
 <li>Automatic matching and fuzzy suggestions work via a cached local
 backbone</li>
@@ -109,9 +116,12 @@ connection)</li>
 <li>A <strong>“Read-only”</strong> badge is displayed to indicate
 limited permissions</li>
 </ul>
-<p>This is useful for exploring the matching workflow, standardizing
-names without a personal account, or working from locations without
-network access to the database.</p>
+<p>Offline mode earns its keep when the database is unreachable from
+where you are working. It appears only when you launch the app yourself
+from R <em>and</em> a cache has already been downloaded. The hosted app
+does not offer it, because there the cache would sit on the server
+rather than on your machine — so it would solve nothing, and public
+access already covers working without an account.</p>
 </div>
 </div>
 <div class="section level2">
@@ -246,23 +256,43 @@ available → “Genus species” - Genus only → “Genus” - Family only →
 <h3 id="phase-4-automatic-matching">Phase 4: Automatic Matching<a class="anchor" aria-label="anchor" href="#phase-4-automatic-matching"></a>
 </h3>
 <p>Click the <strong>“Start Matching”</strong> button to begin the
-automatic matching process. The app uses a <strong>five-tier matching
-strategy</strong>:</p>
+automatic matching process.</p>
+<p><strong>Choosing the backbone copy.</strong> Before matching starts
+the app may ask whether to use the taxonomic backbone it already has
+cached or download a fresh copy. The cached copy is much faster and is
+what you want in ordinary use; download a fresh one after taxa have been
+added or revised in the database, or if you are unsure how old your
+cache is. The dialog reports the cache’s age so you can decide.</p>
+<p>The app then works through the strategy below, stopping at the first
+stage that matches each name. Names are handled independently, so one
+list can come back with results from every stage:</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong>Exact match on species</strong>: Direct lookup of full name
-(genus + species)</li>
+<strong>Exact match on species</strong>: Direct lookup of the full
+name (genus + species)</li>
 <li>
 <strong>Exact match on genus</strong>: Match at genus level</li>
 <li>
 <strong>Exact match on family</strong>: Match at family level</li>
 <li>
-<strong>Exact match on class</strong>: Match at class level (e.g.,
-names ending in -opsida, -psida)</li>
+<strong>Exact match on higher rank</strong>: Match at order or class
+level (e.g. names ending in -opsida, -psida)</li>
 <li>
-<strong>Fuzzy matching</strong>: Approximate string matching
-(trigram-Jaccard via <code>stringdist</code>) for remaining names</li>
+<strong>Genus-constrained fuzzy match</strong>: When the genus is
+recognised but the epithet is not, approximate matching is restricted to
+species <em>within that genus</em>. This is what catches most
+misspellings, and it is far safer than searching the whole backbone
+because the candidate set is already botanically plausible</li>
+<li>
+<strong>Full fuzzy match</strong>: Approximate string matching
+(trigram-Jaccard via <code>stringdist</code>) across the whole backbone
+— the last resort, used when even the genus is unrecognised</li>
 </ol>
+<p>Stages 1–4 all record <code>match_method = "exact"</code>; the rank
+that matched is recorded in <code>tax_level</code>. Stage 5 records
+<code>genus_constrained</code> and stage 6 records <code>fuzzy</code>,
+which is why the two are worth telling apart when you review the
+results.</p>
 <div class="float">
 <img src="images/app-matching-progress.png" alt="Matching in progress"><div class="figcaption">Matching in progress</div>
 </div>
@@ -295,10 +325,13 @@ with all names and their match status:</p>
 <li>
 <strong>matched_name</strong>: Name found in backbone</li>
 <li>
-<strong>match_method</strong>: How it was matched
-(<code>exact_species</code>, <code>exact_genus</code>,
-<code>exact_family</code>, <code>exact_class</code>, <code>fuzzy</code>,
-<code>manual</code>)</li>
+<strong>match_method</strong>: How it was matched —
+<code>exact</code>, <code>genus_constrained</code>, <code>fuzzy</code>,
+<code>manual</code>, <code>unresolved</code> or <code>no_match</code>.
+See <a href="#values-of-match_method">Values of
+<code>match_method</code></a> for what each one means, and why there is
+no <code>exact_species</code> or <code>exact_genus</code>
+</li>
 <li>
 <strong>match_score</strong>: Similarity score (0–1, higher is
 better)</li>
@@ -310,23 +343,30 @@ better)</li>
 <strong>accepted_name</strong>: Current accepted name (if
 synonym)</li>
 </ul>
-<p><strong>Match quality indicators:</strong></p>
+<p><strong>Match quality indicators.</strong> The app colours each score
+so the table can be scanned rather than read: <strong>green from 90
+%</strong> and <strong>blue from 70 %</strong>, with lower scores left
+uncoloured. As a rule of thumb:</p>
 <ul>
 <li>
 <strong>Exact match (1.0)</strong>: Perfect match, no review
 needed</li>
 <li>
-<strong>High similarity (&gt;0.8)</strong>: Very likely correct,
-quick review recommended</li>
+<strong>High similarity (≥ 0.9, green)</strong>: Very likely
+correct, quick review recommended</li>
 <li>
-<strong>Medium similarity (0.5–0.8)</strong>: Possible match, review
-suggested</li>
+<strong>Medium similarity (0.7–0.9, blue)</strong>: Possible match,
+review suggested</li>
 <li>
-<strong>Low similarity (&lt;0.5)</strong>: Uncertain, manual review
+<strong>Low similarity (&lt; 0.7)</strong>: Uncertain, manual review
 required</li>
 <li>
 <strong>No match</strong>: Requires manual selection</li>
 </ul>
+<p>A name matched by <code>genus_constrained</code> deserves more
+confidence than a plain <code>fuzzy</code> match at the same score,
+because the candidates it was compared against were restricted to
+species in a genus the app had already recognised.</p>
 </div>
 <div class="section level3">
 <h3 id="phase-6-manual-review">Phase 6: Manual Review<a class="anchor" aria-label="anchor" href="#phase-6-manual-review"></a>
@@ -401,13 +441,35 @@ connection; this tab is hidden in offline mode):</p>
 <div class="float">
 <img src="images/app-enrich-data-interface.png" alt="Trait enrichment interface"><div class="figcaption">Trait enrichment interface</div>
 </div>
+<p>A taxon usually carries several measurements of the same trait, from
+different individuals, sources or studies, so every trait has to be
+summarised to one value per taxon before it can be added as a column.
+How that is done depends on the trait’s type:</p>
+<ul>
+<li>
+<strong>Numeric traits</strong> (wood density, seed mass, …) are
+reported as three columns — the <strong>mean</strong>, the
+<strong>standard deviation</strong> and <strong>n</strong>, the number
+of measurements behind it. Always read <code>n</code> before using a
+mean: a wood density averaged from one measurement and one averaged from
+forty are the same number with very different weight behind them, and an
+<code>sd</code> is only meaningful once <code>n</code> is at least a
+few</li>
+<li>
+<strong>Categorical traits</strong> (growth form, phenology, …) are
+summarised according to the aggregation mode you choose</li>
+</ul>
 <p><strong>Options:</strong></p>
 <ul>
 <li>
 <strong>Categorical aggregation mode</strong>:
 <ul>
-<li>“mode” — Use most frequent value per taxon</li>
-<li>“concat” — Concatenate all unique values</li>
+<li>“mode” — Use the most frequent value per taxon. Gives one clean
+value per taxon, but silently hides disagreement between sources</li>
+<li>“concat” — Concatenate all unique values. Keeps every recorded
+value, so genuine variation and contradictions both stay visible. Prefer
+this when you intend to inspect the traits rather than compute on them
+directly</li>
 </ul>
 </li>
 <li>
@@ -421,7 +483,10 @@ connection; this tab is hidden in offline mode):</p>
 </li>
 </ul>
 <p>Available traits include growth form, wood density, leaf traits, and
-ecological characteristics.</p>
+ecological characteristics. Which traits come back depends on what the
+database actually holds for <em>your</em> taxa, so a list of
+well-studied timber species will be far better covered than a list of
+herbs.</p>
 <p>The enriched data combines your matched taxa with selected traits. A
 <strong>wide format</strong> (one row per taxon, traits as columns) and
 a <strong>long format</strong> (one row per taxon × trait combination)
@@ -459,17 +524,34 @@ collaborators</li>
 <strong>RDS (.rds)</strong>: R-native format preserving data
 types</li>
 </ul>
-<p><strong>Selectable columns:</strong></p>
+<p><strong>Selectable columns.</strong> Your original columns are always
+included; the three groups below can each be switched off:</p>
 <ul>
-<li>Original data (all your input columns)</li>
-<li>Matched IDs (<code>idtax_n</code>, <code>idtax_good_n</code>)</li>
-<li>Corrected names (<code>corrected_name</code>,
-<code>matched_name</code>)</li>
-<li>Match metadata (<code>match_method</code>, <code>match_score</code>,
-<code>is_synonym</code>, <code>accepted_name</code>)</li>
-<li>WCVP columns (<code>wcvp_plant_name_id</code>,
-<code>wcvp_accepted_plant_name_id</code>) — see WCVP section below</li>
+<li>
+<strong>Matched IDs</strong> — <code>idtax_n</code>,
+<code>idtax_good_n</code>
+</li>
+<li>
+<strong>Corrected names</strong> — <code>corrected_name</code>,
+<code>matched_name</code>
+</li>
+<li>
+<strong>Match metadata</strong> — <code>match_method</code>,
+<code>match_score</code>, <code>is_synonym</code>,
+<code>accepted_name</code>
+</li>
 </ul>
+<p>WCVP columns are not one of these groups: they are appended whenever
+the WCVP option was enabled before matching, and travel with the export
+either way. The internal <code>id_data</code> row identifier is always
+stripped.</p>
+<p><strong>Column descriptions in the app.</strong> Beside the preview,
+the Export tab lists every standardized column present in your results
+with a one-line description of what it holds — the same content as <a href="#understanding-output-columns">Understanding Output Columns</a>
+below. Only the columns actually present are described, so the list
+reflects the options you chose rather than everything the app can
+produce. Your own input columns are preserved but not described
+individually, since the app knows nothing about them.</p>
 <p>A preview table shows the data before export with pagination
 controls.</p>
 </div>
@@ -477,7 +559,10 @@ controls.</p>
 <div class="section level2">
 <h2 id="understanding-output-columns">Understanding Output Columns<a class="anchor" aria-label="anchor" href="#understanding-output-columns"></a>
 </h2>
-<p>The app adds these columns to your data:</p>
+<p>Your original columns are always preserved. The app appends the
+columns below — the same descriptions are shown in the app itself,
+beside the preview table on the Export tab, so you do not have to come
+back here to read them.</p>
 <table class="table">
 <colgroup>
 <col width="38%">
@@ -490,61 +575,140 @@ controls.</p>
 <tbody>
 <tr class="odd">
 <td><code>idtax_n</code></td>
-<td>Matched taxon ID in backbone database</td>
+<td>Identifier of the matched taxon in the taxonomic backbone</td>
 </tr>
 <tr class="even">
 <td><code>idtax_good_n</code></td>
-<td>Accepted taxon ID (for synonyms)</td>
+<td>Identifier of the accepted taxon. Differs from <code>idtax_n</code>
+when the matched name is a synonym</td>
 </tr>
 <tr class="odd">
 <td><code>matched_name</code></td>
-<td>Name found in backbone</td>
+<td>Name found in the backbone corresponding to your input name — this
+may itself be a synonym</td>
 </tr>
 <tr class="even">
 <td><code>corrected_name</code></td>
-<td>Final standardized name</td>
-</tr>
-<tr class="odd">
-<td><code>name_source</code></td>
-<td>Which backbone was used for the match (internal, WCVP, etc.)</td>
-</tr>
-<tr class="even">
-<td><code>match_method</code></td>
-<td>Matching strategy used (<code>exact_species</code>,
-<code>exact_genus</code>, <code>exact_family</code>,
-<code>exact_class</code>, <code>fuzzy</code>, <code>manual</code>,
-<code>unresolved</code>)</td>
-</tr>
-<tr class="odd">
-<td><code>match_score</code></td>
-<td>Similarity score (0–1)</td>
-</tr>
-<tr class="even">
-<td><code>is_synonym</code></td>
-<td>TRUE if matched name is a synonym</td>
+<td>Final standardized name: the accepted name when the match is a
+synonym, or the WCVP name when that option is enabled</td>
 </tr>
 <tr class="odd">
 <td><code>accepted_name</code></td>
-<td>Current accepted name (if synonym)</td>
+<td>Accepted name when the matched name is a synonym; empty
+otherwise</td>
 </tr>
 <tr class="even">
-<td><code>family</code></td>
-<td>Taxonomic family</td>
+<td><code>is_synonym</code></td>
+<td>
+<code>TRUE</code> when the matched name is a synonym of an accepted
+name</td>
 </tr>
 <tr class="odd">
-<td><code>genus</code></td>
-<td>Taxonomic genus</td>
+<td><code>match_method</code></td>
+<td>How the name was matched — see the table below</td>
 </tr>
 <tr class="even">
-<td><code>wcvp_plant_name_id</code></td>
-<td>WCVP ID for the matched name (optional, see below)</td>
-</tr>
-<tr class="odd">
-<td><code>wcvp_accepted_plant_name_id</code></td>
-<td>WCVP ID for the accepted name (optional, see below)</td>
+<td><code>match_score</code></td>
+<td>Similarity between your input name and the matched name, 0 to 1 (1 =
+exact, or a match you confirmed yourself)</td>
 </tr>
 </tbody>
 </table>
+<p>When the WCVP option is enabled (see <a href="#wcvp-integration">WCVP
+Integration</a>), four more columns are appended and
+<code>corrected_name</code> is <strong>replaced</strong> by the WCVP
+name wherever one exists:</p>
+<table class="table">
+<colgroup>
+<col width="38%">
+<col width="61%">
+</colgroup>
+<thead><tr class="header">
+<th>Column</th>
+<th>Description</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>wcvp_taxon_name</code></td>
+<td>Accepted name from the World Checklist of Vascular Plants</td>
+</tr>
+<tr class="even">
+<td><code>wcvp_family</code></td>
+<td>Family according to WCVP</td>
+</tr>
+<tr class="odd">
+<td><code>wcvp_taxon_authors</code></td>
+<td>Taxonomic authorship according to WCVP</td>
+</tr>
+<tr class="even">
+<td><code>wcvp_taxon_status</code></td>
+<td>Status of the name in WCVP (e.g. <code>Accepted</code>)</td>
+</tr>
+<tr class="odd">
+<td><code>name_source</code></td>
+<td>Which reference supplied <code>corrected_name</code>:
+<code>internal</code> backbone or <code>WCVP</code>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="section level3">
+<h3 id="values-of-match_method">Values of <code>match_method</code><a class="anchor" aria-label="anchor" href="#values-of-match_method"></a>
+</h3>
+<table class="table">
+<colgroup>
+<col width="43%">
+<col width="56%">
+</colgroup>
+<thead><tr class="header">
+<th>Value</th>
+<th>Meaning</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>exact</code></td>
+<td>The name was found verbatim in the backbone. All four exact tiers
+report <code>exact</code> — see the note below</td>
+</tr>
+<tr class="even">
+<td><code>genus_constrained</code></td>
+<td>The genus was recognised, so fuzzy matching was restricted to
+species within that genus. Usually the most trustworthy fuzzy
+result</td>
+</tr>
+<tr class="odd">
+<td><code>fuzzy</code></td>
+<td>Approximate match against the whole backbone, used when the genus
+was not recognised</td>
+</tr>
+<tr class="even">
+<td><code>manual</code></td>
+<td>You chose this match yourself on the Review tab</td>
+</tr>
+<tr class="odd">
+<td><code>unresolved</code></td>
+<td>You marked the name as impossible to resolve on the Review tab</td>
+</tr>
+<tr class="even">
+<td><code>no_match</code></td>
+<td>Automatic matching found nothing and the name has not been reviewed
+yet</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The exact tier is not recorded in
+<code>match_method</code>.</strong> All four exact tiers — species,
+genus, family and higher rank — write <code>exact</code>. Which one
+applied is recorded separately in <code>tax_level</code>
+(<code>genus</code>, <code>family</code>, <code>order</code>,
+<code>higher</code>), so read that column rather than expecting
+<code>exact_species</code> or <code>exact_genus</code>, which the app
+never produces.</p>
+<p>The app also adds an internal <code>id_data</code> row identifier
+when your file does not already contain one. It is used to keep rows
+aligned through matching and review, and is removed from every export,
+so you will not see it in the downloaded file.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="advanced-options">Advanced Options<a class="anchor" aria-label="anchor" href="#advanced-options"></a>
@@ -569,21 +733,38 @@ language programmatically:</p>
 <div class="section level3">
 <h3 id="wcvp-integration">WCVP Integration<a class="anchor" aria-label="anchor" href="#wcvp-integration"></a>
 </h3>
-<p>The app can optionally enrich results with <strong>World Checklist of
-Vascular Plants (WCVP)</strong> identifiers. When the taxa database
+<p>The app can optionally reconcile results against the <strong>World
+Checklist of Vascular Plants (WCVP)</strong>, an international reference
+maintained by the Royal Botanic Gardens, Kew. When the taxa database
 contains WCVP data, a <strong>“Use WCVP names in output”</strong>
-checkbox appears in the sidebar.</p>
-<p>Enabling it adds two columns to your export:</p>
+checkbox appears in the sidebar. It has no effect on matching itself —
+names are always matched against the internal backbone first — but it
+changes what the output reports.</p>
+<p>Enabling it adds four columns:</p>
 <ul>
 <li>
-<code>wcvp_plant_name_id</code> — WCVP identifier for the matched
-name</li>
+<code>wcvp_taxon_name</code> — Accepted name according to WCVP</li>
 <li>
-<code>wcvp_accepted_plant_name_id</code> — WCVP identifier for the
-accepted name</li>
+<code>wcvp_family</code> — Family according to WCVP</li>
+<li>
+<code>wcvp_taxon_authors</code> — Taxonomic authorship according to
+WCVP</li>
+<li>
+<code>wcvp_taxon_status</code> — Status of the name in WCVP
+(e.g. <code>Accepted</code>)</li>
 </ul>
-<p>The <code>name_source</code> column records which backbone was used,
-helping you document the taxonomic provenance of each match.</p>
+<p><strong>It also rewrites <code>corrected_name</code>.</strong>
+Wherever WCVP holds the taxon, <code>corrected_name</code> becomes the
+WCVP name rather than the internal backbone’s; taxa absent from WCVP
+keep their internal name. The <code>name_source</code> column records
+which of the two supplied each value (<code>internal</code> or
+<code>WCVP</code>), so the substitution stays auditable — check it
+before treating <code>corrected_name</code> as coming from a single
+reference.</p>
+<p>Enable this when your results must line up with an international
+checklist, and leave it off when you need names consistent with the rest
+of the database. The tick box must be set <strong>before</strong>
+matching, since the enrichment happens as part of that step.</p>
 </div>
 <div class="section level3">
 <h3 id="adjusting-fuzzy-matching">Adjusting Fuzzy Matching<a class="anchor" aria-label="anchor" href="#adjusting-fuzzy-matching"></a>

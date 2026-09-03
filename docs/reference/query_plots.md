@@ -13,6 +13,7 @@ query_plots(
   country = NULL,
   locality_name = NULL,
   method = NULL,
+  feature_filters = NULL,
   extract_individuals = FALSE,
   map = FALSE,
   id_individual = NULL,
@@ -39,7 +40,8 @@ query_plots(
   output_style = "auto",
   backbone = c("internal", "wcvp"),
   con = NULL,
-  con.taxa = NULL
+  con.taxa = NULL,
+  verbose = NULL
 )
 ```
 
@@ -64,6 +66,21 @@ query_plots(
 - method:
 
   Optional. Method identifier.
+
+- feature_filters:
+
+  Optional. Named list for filtering on plot features – the values
+  stored as rows of \`data_liste_sub_plots\` rather than as columns of
+  \`data_liste_plots\`. Names are feature types (see
+  \[plot_feature_filters()\]), values are character vectors, e.g.
+  \`list(data_provider = "IRD", principal_investigator = c("Dauby",
+  "Sonke"))\`. Values of one feature are combined with OR, different
+  features with AND, so a plot must satisfy every named feature but may
+  do so through different subplot records. Only features whose value
+  reads as text can be used: \`character\` features and lookup features
+  such as the \`table_colnam\` people features, whose names are resolved
+  for you. Matching follows \`exact_match\`. Use
+  \[plot_feature_values()\] to see what a feature holds.
 
 - extract_individuals:
 
@@ -167,6 +184,20 @@ query_plots(
   census or dead before the last census will have NA values, reflecting
   biological reality.
 
+  The census is chosen per plot, not per trait: one census is selected
+  from all of the plot's measurements, and every census-linked trait is
+  then filtered to it. A trait never measured at that census therefore
+  disappears from the output entirely - it returns no column at all, not
+  a column of NAs, because the wide pivot only creates columns for
+  trait/census combinations that carry data. This is common for tree
+  height, which is often measured at the first census or two and not
+  re-measured afterwards. Every dropped trait is named in a warning
+  listing the censuses where it does exist. To keep it, use
+  \`show_multiple_census = TRUE\` (one \`\<trait\>\_census_N\` column
+  per census) or \`census_strategy = "mean"\`. With \`output_style =
+  "full"\`, height and diameter are also returned unfiltered in the
+  \`height_diameter\` table, which always spans every census.
+
 - individual_features_format:
 
   Character. Format for individual-level feature measurements.
@@ -220,6 +251,17 @@ query_plots(
   call.mydb.taxa() to establish connection. Pass explicitly to avoid
   credential prompts.
 
+- verbose:
+
+  Console verbosity. \`"normal"\` (the default) reports only what was
+  found, what was excluded on the way, and which tables came back;
+  \`"quiet"\` reports nothing but warnings; \`"debug"\` prints the full
+  step-by-step log of every internal query, which is what earlier
+  versions always printed. \`TRUE\` and \`FALSE\` are accepted as
+  \`"debug"\` and \`"quiet"\`. Set a session default with
+  \`options(CafriplotsR.verbose = "debug")\`. Interactive matching
+  prompts are never muted.
+
 ## Value
 
 A list or data frame containing plot data and associated information.
@@ -238,6 +280,17 @@ if (FALSE) { # \dontrun{
   query_plots(country = "Cameroon")
   
   query_plots(plot_name = "mbalmayo001")
+
+  # Filter on plot features rather than on columns of data_liste_plots
+  plot_feature_filters()          # what can be filtered
+  plot_feature_values("data_provider")
+
+  query_plots(
+    feature_filters = list(
+      data_provider          = "IRD",
+      principal_investigator = c("Dauby", "Sonke")
+    )
+  )
 } # }
 
 ```

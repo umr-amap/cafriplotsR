@@ -57,6 +57,14 @@ query_individual_features(
 
   Include linked individual data
 
+- census_strategy:
+
+  Character. Which census to keep when \`include_multi_census = FALSE\`:
+  "last" (default), "first", or "mean" (no census filtering, all
+  measurements kept). The census is selected per plot across all traits,
+  so a trait with no measurement at the selected census is dropped from
+  the result and named in a warning.
+
 - con:
 
   Database connection (optional)

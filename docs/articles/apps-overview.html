@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -79,7 +79,13 @@ the app.</p>
 <p>Each app opens on the same login screen. What differs is <strong>who
 may use it</strong>: three apps can be opened without any credentials,
 the other seven need your own account because they write to the
-database.</p>
+database. One of the three, the taxonomic matching app, goes further
+still and also runs offline.</p>
+<p>One of the three does not need R at all. The taxonomic name
+standardization app is also <strong>hosted</strong>, at <a href="https://cafri-taxomatch.lab.sspcloud.fr" class="external-link uri">https://cafri-taxomatch.lab.sspcloud.fr</a> — open it in a
+browser and it behaves exactly like the local app, public login
+included. Use it to try the package out, or to point a colleague at the
+workflow without asking them to install anything.</p>
 </div>
 <div class="section level2">
 <h2 id="which-app-do-i-need">Which app do I need?<a class="anchor" aria-label="anchor" href="#which-app-do-i-need"></a>
@@ -99,7 +105,7 @@ database.</p>
 <tr class="odd">
 <td>Taxonomic name standardization</td>
 <td><code><a href="../reference/launch_taxonomic_match_app.html">launch_taxonomic_match_app()</a></code></td>
-<td>public or account</td>
+<td>public, account, or offline</td>
 </tr>
 <tr class="even">
 <td>Taxonomic backbone</td>
@@ -172,6 +178,30 @@ because a read-only account cannot complete a single one of their
 workflows.</p>
 </div>
 <div class="section level2">
+<h2 id="working-without-a-network">Working without a network<a class="anchor" aria-label="anchor" href="#working-without-a-network"></a>
+</h2>
+<p>One app goes further and runs with no database at all: the taxonomic
+name standardization app offers a <strong>Use offline (cached
+backbone)</strong> button. It works from a copy of the taxonomic
+backbone saved on your own machine, so you can standardize a species
+list from a field station, a plane or any other place without a route to
+the server.</p>
+<p>Two things are worth knowing before you rely on it:</p>
+<ul>
+<li>The button only appears once a cache exists. The cache is written
+the first time you run the matching app <strong>online</strong>, so run
+it connected once before you leave.</li>
+<li>Offline, you get automatic matching, fuzzy suggestions and manual
+review. The traits enrichment tab is hidden, because traits live in the
+database and nothing local can stand in for them.</li>
+</ul>
+<p><strong>The other nine apps never show this button.</strong> Offline
+mode leaves the app with no connection, and none of them has anything to
+work on in that state — they import, correct or query live data. If you
+were expecting the button somewhere else, that is why it is not
+there.</p>
+</div>
+<div class="section level2">
 <h2 id="explore-and-standardize">Explore and standardize<a class="anchor" aria-label="anchor" href="#explore-and-standardize"></a>
 </h2>
 <div class="section level3">
@@ -185,8 +215,14 @@ review of whatever the matcher could not resolve on its own, and export
 of the standardized list. The result gives each of your names a stable
 taxon identifier (<code>idtax_n</code>), which is what lets you join
 traits and inventories later on.</p>
-<p>Start here if you arrive with a species list from your own
-fieldwork.</p>
+<p>Start here if you arrive with a species list from your own fieldwork.
+This is also the one app that runs offline, from a cached copy of the
+backbone.</p>
+<p>And it is the only one you can use <strong>without installing
+anything</strong>: <a href="https://cafri-taxomatch.lab.sspcloud.fr" class="external-link uri">https://cafri-taxomatch.lab.sspcloud.fr</a> serves the same
+application from SSP Cloud. The hosted copy talks to the same database,
+so a standardized list exported there carries the same
+<code>idtax_n</code> values as one produced locally.</p>
 </div>
 <div class="section level3">
 <h3 id="taxonomic-backbone">Taxonomic backbone<a class="anchor" aria-label="anchor" href="#taxonomic-backbone"></a>

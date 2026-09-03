@@ -9,7 +9,7 @@ Includes validation to ensure foreign key references exist."><meta property="og:
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,7 +60,9 @@ Includes validation to ensure foreign key references exist.</p>
 
 
 <dl><dt id="arg-new-data">new_data<a class="anchor" aria-label="anchor" href="#arg-new-data"></a></dt>
-<dd><p>Tibble with columns: id_specimen, id_n, and either id_linktype or type</p></dd>
+<dd><p>Tibble with column id_specimen, either id_linktype or type,
+and - depending on the scope of that link type - id_n (individual-level)
+or id_liste_plots (plot-level).</p></dd>
 
 
 <dt id="arg-col-names-select">col_names_select<a class="anchor" aria-label="anchor" href="#arg-col-names-select"></a></dt>
@@ -93,13 +95,17 @@ Default TRUE.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Link types:
-- type_individual (id_linktype=1): Specimen collected from this specific individual
-- referenced_individual (id_linktype=2): Specimen represents same species but from different individual</p>
+    <p>Link types, and the column each one fills:
+- type_individual: specimen collected from this specific individual (id_n)
+- referenced_individual: specimen of the same species from a different
+  individual (id_n)
+- reference_plot: specimen collected within a plot, the individual tree
+  unknown (id_liste_plots)</p>
+<p>Which of the two a type expects is `linktypelist.scope`, checked here.</p>
 <p>The function:
 1. Renames columns to standard names
-2. Checks for duplicate links (same id_specimen + id_n already in database)
-3. Validates FK references if validate=TRUE
+2. Checks for duplicate links (same specimen, individual, type and plot)
+3. Validates FK references and link scope if validate=TRUE
 4. Sets audit columns (created_by, created_at)
 5. Adds links if launch_adding_data=TRUE</p>
     </div>
