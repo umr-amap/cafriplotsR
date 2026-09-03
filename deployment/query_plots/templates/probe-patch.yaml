@@ -1,0 +1,126 @@
+# Permanent post-install/post-upgrade patches to the sub-chart's Deployment.
+#
+# Two things the upstream `shiny` sub-chart does not expose through values are
+# patched here after the fact: probe timing, and container environment. Both
+# run as a hook, so helm reasserting the chart's own spec on every upgrade is
+# corrected again immediately.
+#
+# ---------------------------------------------------------------------------
+# 1. PROBE TIMING
+#
+# The upstream `shiny` sub-chart hardcodes a tight HTTP GET `/` liveness/
+# readiness probe (timeoutSeconds ~1, failureThreshold 3, periodSeconds 10) and
+# does NOT expose it via values. That probe is rendered by the single shared R
+# worker, so while one session runs a long plot query the worker is
+# blocked, the probe times out, and Kubernetes restarts the pod (crash loop
+# under concurrency).
+#
+# We keep the SAME handler type (httpGet) and only loosen the timing so the
+# probe tolerates a busy worker for several minutes. This is deliberate: a
+# probe may have only one handler type, so switching httpGet -> tcpSocket would
+# make `helm upgrade` produce an invalid two-handler probe (helm reasserts the
+# chart's httpGet against a live tcpSocket). Patching only timing fields keeps
+# the handler unchanged, so it strategic-merges cleanly on every upgrade.
+#
+# Because it runs as a post-install/post-upgrade hook, the loosened timing is
+# re-applied on every install and upgrade.
+#
+# ---------------------------------------------------------------------------
+# 2. PUBLIC CREDENTIAL ENVIRONMENT
+#
+# CAFRI_PUBLIC_USER / CAFRI_PUBLIC_PASS let the app offer the read-only public
+# login without reading the published descriptor over the internet — a hosted
+# app must not depend on GitHub Pages being reachable in order to let anyone
+# in, and the credential never leaves the server this way.
+#
+# The Secret is created out of band, so the password is in the cluster and not
+# in this repository:
+#
+#   kubectl create secret generic cafri-public-credential \
+#     --from-literal=CAFRI_PUBLIC_USER=CafriP_public \
+#     --from-literal=CAFRI_PUBLIC_PASS='<current password>'
+#
+# `optional: true` is deliberate. If the Secret is absent the pod still starts
+# and the app falls back to the published descriptor, which is a degraded but
+# working state; a missing Secret must not take the deployment down.
+#
+# ---------------------------------------------------------------------------
+# Requires the release namespace to allow creating ServiceAccount/Role/
+# RoleBinding/Job (granted by the SSP Cloud "admin" Kubernetes role used to
+# install the chart).
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-probe-patcher
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Release.Name }}-probe-patcher
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Release.Name }}-probe-patcher
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: before-hook-creation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ .Release.Name }}-probe-patcher
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-probe-patcher
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-probe-patch
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 120
+  template:
+    spec:
+      serviceAccountName: {{ .Release.Name }}-probe-patcher
+      restartPolicy: Never
+      containers:
+        - name: kubectl
+          # Any image containing kubectl. Override via probePatch.image if this
+          # one is unavailable on your cluster's registry.
+          image: {{ .Values.probePatch.image | default "bitnami/kubectl:latest" }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              kubectl patch deployment {{ .Release.Name }}-shiny --type=json -p='[
+                {"op":"add","path":"/spec/template/spec/containers/0/livenessProbe/timeoutSeconds","value":10},
+                {"op":"add","path":"/spec/template/spec/containers/0/livenessProbe/periodSeconds","value":30},
+                {"op":"add","path":"/spec/template/spec/containers/0/livenessProbe/failureThreshold","value":10},
+                {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/timeoutSeconds","value":10},
+                {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/periodSeconds","value":30},
+                {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/failureThreshold","value":10}
+              ]'
+              kubectl patch deployment {{ .Release.Name }}-shiny --type=json -p='[
+                {"op":"add","path":"/spec/template/spec/containers/0/envFrom","value":[
+                  {"secretRef":{"name":"{{ .Values.publicCredential.secretName | default "cafri-public-credential" }}","optional":true}}
+                ]}
+              ]'

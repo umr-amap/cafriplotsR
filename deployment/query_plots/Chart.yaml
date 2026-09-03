@@ -1,0 +1,13 @@
+apiVersion: v2
+name: cafri-query-plots
+description: Query Plots Shiny app (CafriplotsR) on SSP Cloud
+type: application
+version: 0.1.0
+appVersion: "1.9.951"
+
+# Inherit SSP Cloud's generic Shiny chart (InseeFrLab helm-charts repo).
+# Run `helm dependency update` in this directory to fetch it into charts/.
+dependencies:
+  - name: shiny
+    version: 0.17.0
+    repository: https://inseefrlab.github.io/helm-charts
