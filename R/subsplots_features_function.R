@@ -448,39 +448,96 @@ extract_census_dates <- function(census_data) {
 # LEGACY WRAPPER FOR BACKWARD COMPATIBILITY
 # -----------------------------------------------------------------------------
 
-#' Legacy function - wrapper for backward compatibility
+#' Subplot features of a set of plots (superseded)
+#'
+#' `r lifecycle::badge("superseded")`
+#'
+#' Superseded by [query_plot_features()], which does the whole job. All this
+#' wrapper adds is a second set of names for the same arguments and the same
+#' three results, so there is no reason to prefer it. It is kept only so that
+#' code written against the old names keeps running, and it warns once per
+#' session.
+#'
+#' The plot-filtering arguments are gone. They were served by an internal
+#' helper that the October 2025 rewrite of [query_plots()] deleted without
+#' updating this call site, so they have raised
+#' `could not find function ".build_plot_query"` ever since and never filtered
+#' anything. Resolve the plots with [query_plots()] and pass the ids instead.
+#'
+#' @param ids_plots Integer vector of `data_liste_plots.id_liste_plots`.
+#' @param ids_subplots Integer vector of `data_liste_sub_plots.id_sub_plots`.
+#' @param plot_name,country,locality_name,method
+#'   `r lifecycle::badge("deprecated")` Never applied; use [query_plots()] to
+#'   resolve the plots and pass their ids as `ids_plots`.
+#' @param subtype Character. Subplot type to keep, matched as a regular
+#'   expression.
+#' @param verbose Accepted for compatibility and ignored. The deprecation
+#'   warning is not silenceable.
+#' @param extract_subplots_obs_features Logical. Also fetch the features
+#'   attached to subplot observations.
+#' @param con A DBI connection or pool. Opened with [call.mydb()] if `NULL`.
+#'
+#' @return A list of `all_subplots`, `all_subplot_pivot` and `census_features`,
+#'   the old names of `features_raw`, `features_aggregated` and `census_info`.
+#'
+#' @seealso [query_plot_features()], which returns the same data under its
+#'   current names.
 #' @keywords internal
 #' @export
 query_subplots <- function(
     ids_plots = NULL,
     ids_subplots = NULL,
-    plot_name = NULL,
-    country = NULL,
-    locality_name = NULL,
-    method = NULL,
+    plot_name = lifecycle::deprecated(),
+    country = lifecycle::deprecated(),
+    locality_name = lifecycle::deprecated(),
+    method = lifecycle::deprecated(),
     subtype = NULL,
     verbose = TRUE,
     extract_subplots_obs_features = FALSE,
     con = NULL
 ) {
 
-  if (verbose) {
-    cli::cli_alert_info("Using legacy wrapper - consider migrating to query_plot_features()")
+  lifecycle::deprecate_warn(
+    when = "1.9.8",
+    what = "query_subplots()",
+    with = "query_plot_features()",
+    details = paste(
+      "The results are the same three tables under their current names:",
+      "all_subplots is features_raw, all_subplot_pivot is features_aggregated,",
+      "and census_features is census_info."
+    )
+  )
+
+  # These four never reached a working query, so there is no behaviour to keep
+  # and nothing to warn about gently: stopping is the only honest answer.
+  supplied <- c(
+    plot_name     = lifecycle::is_present(plot_name),
+    country       = lifecycle::is_present(country),
+    locality_name = lifecycle::is_present(locality_name),
+    method        = lifecycle::is_present(method)
+  )
+
+  if (any(supplied)) {
+    lifecycle::deprecate_stop(
+      when = "1.9.8",
+      what = paste0("query_subplots(", names(supplied)[supplied][1], ")"),
+      with = "query_plots()",
+      details = paste(
+        "Filtering plots here has never worked: the helper behind these",
+        "arguments was removed in 1.9.0. Resolve the plots first, then pass",
+        'their ids, e.g. query_subplots(ids_plots = query_plots(country =',
+        '"Gabon")$id_liste_plots).'
+      )
+    )
   }
 
-  # Handle plot filtering if needed
+  # The removed branch used to turn "no ids and no filters" into every plot in
+  # the database. Ask for that explicitly rather than by omission.
   if (is.null(ids_plots) && is.null(ids_subplots)) {
-    # Build plot query based on filters
-    if (is.null(con)) con <- call.mydb()
-    queried_plots_sql <- .build_plot_query(
-      con = con,
-      plot_name = plot_name,
-      country = country,
-      locality_name = locality_name,
-      method = method
-    )
-    queried_plots <- func_try_fetch(con = con, sql = queried_plots_sql)
-    ids_plots <- queried_plots$id_liste_plots
+    cli::cli_abort(c(
+      "{.arg ids_plots} or {.arg ids_subplots} is required.",
+      i = "To fetch the features of every plot, call {.fn query_plot_features} directly."
+    ))
   }
 
   # Call new function

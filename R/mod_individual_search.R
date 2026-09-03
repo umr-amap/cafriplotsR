@@ -215,7 +215,7 @@ mod_individual_search_server <- function(id, pool_main, pool_taxa, i18n) {
         linked_ids <- tryCatch({
           DBI::dbGetQuery(
             actual_con,
-            "SELECT DISTINCT id_n FROM data_link_specimens"
+            "SELECT DISTINCT id_n FROM data_link_specimens WHERE id_n IS NOT NULL"
           )$id_n
         }, error = function(e) integer(0))
 

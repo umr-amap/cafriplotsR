@@ -8,6 +8,8 @@ add_method(new_method = NULL, new_description_method = NULL)
 }
 \arguments{
 \item{new_method}{string value with new method descriptors, avoid space}
+
+\item{new_description_method}{string value describing the new method}
 }
 \value{
 nothing

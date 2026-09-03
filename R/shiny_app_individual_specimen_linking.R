@@ -417,7 +417,7 @@ launch_individual_specimen_linking_app <- function(lang = "fr") {
 
         tryCatch({
           # Query individuals based on filters
-          # This uses the PlotFetcher with filters, then extracts individuals
+          # This queries plots with filters, then extracts individuals
           individuals <- .get_individuals_with_herbarium(
             filters = filters,
             con = pool_main()

@@ -109,6 +109,21 @@ mod_database_login_ui <- function(id, allow_public = FALSE, allow_offline = FALS
 #' @param allow_offline Logical. Allow connecting in offline mode, against the
 #'   cached taxonomic backbone and no database? Defaults to `FALSE`. Must match
 #'   the value given to [mod_database_login_ui()].
+#' @param intro Optional named list describing the app the visitor has landed
+#'   on, shown in place of the generic connection header. Use `title` for the
+#'   app name and `body` for a character vector of paragraphs. Both are treated
+#'   as *English translation keys*, not final text, so they are re-translated
+#'   when the visitor flips the language toggle - add each string to
+#'   `inst/translations/translation.json` or it renders in English only.
+#'   Defaults to `NULL`, which keeps the generic header.
+#'
+#'   This only matters for apps reachable by URL, where the login screen is the
+#'   landing page and the generic header is the sole thing a first-time visitor
+#'   reads. Apps launched from an R console already have the user's intent.
+#'
+#'   Unlike `allow_public` and `allow_offline`, this belongs to the server
+#'   alone: the header is a `uiOutput` placeholder, so the UI function needs no
+#'   matching argument.
 #'
 #' @return A reactive list containing:
 #'   - authenticated: Reactive logical indicating connection status
@@ -119,7 +134,8 @@ mod_database_login_ui <- function(id, allow_public = FALSE, allow_offline = FALS
 #' @keywords internal
 #' @export
 mod_database_login_server <- function(id, allow_public = FALSE,
-                                      allow_offline = FALSE) {
+                                      allow_offline = FALSE,
+                                      intro = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -183,6 +199,27 @@ mod_database_login_server <- function(id, allow_public = FALSE,
 
     output$login_header <- shiny::renderUI({
       input$language  # trigger re-render on language change
+
+      # An app that is reachable by URL introduces itself here, because this
+      # screen is all a first-time visitor sees. Without it they get the
+      # generic header below, which names the plots database - the wrong
+      # subject for, say, the taxonomic matching app.
+      if (!is.null(intro)) {
+        return(shiny::tagList(
+          shiny::h3(
+            t(intro$title %||% ""),
+            style = "text-align: center; margin-bottom: 15px;"
+          ),
+          lapply(intro$body %||% character(0), function(paragraph) {
+            shiny::p(
+              t(paragraph),
+              class = "text-muted",
+              style = "text-align: center; margin-bottom: 10px;"
+            )
+          })
+        ))
+      }
+
       shiny::tagList(
         shiny::h3(
           shiny::icon("database"),

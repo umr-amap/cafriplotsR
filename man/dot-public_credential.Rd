@@ -4,10 +4,17 @@
 \alias{.public_credential}
 \title{Resolve the public login credential}
 \usage{
-.public_credential(url = .public_credential_url, timeout = 5, force = FALSE)
+.public_credential(
+  url = getOption("CafriplotsR.public_access_url", .public_credential_url),
+  timeout = 5,
+  force = FALSE
+)
 }
 \arguments{
-\item{url}{Descriptor to read. Defaults to the published one.}
+\item{url}{Descriptor to read. Defaults to the published one, or to
+`getOption("CafriplotsR.public_access_url")` when set — which is how a
+test, or a site mirroring the descriptor behind its own firewall, points
+this elsewhere.}
 
 \item{timeout}{Seconds to wait for it. Kept short: this runs while the user
 is looking at the login screen.}

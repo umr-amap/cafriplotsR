@@ -155,6 +155,149 @@
   spec
 }
 
+#' WHERE fragment matching a character feature
+#'
+#' The value of a character feature is held in
+#' `data_liste_sub_plots.typevalue_char`. Several values are OR'ed.
+#'
+#' @param values Character vector of values to match.
+#' @param con A DBI connection or pool.
+#' @param exact_match Logical. If `TRUE`, match values exactly.
+#' @return A single SQL fragment, as a string.
+#' @keywords internal
+#' @noRd
+.feature_char_clause <- function(values, con, exact_match = FALSE) {
+
+  parts <- lapply(values, function(v) {
+    if (exact_match) {
+      glue::glue_sql("LOWER(sp.typevalue_char) = LOWER({v})", v = v, .con = con)
+    } else {
+      glue::glue_sql(
+        "LOWER(sp.typevalue_char) LIKE LOWER({pattern})",
+        pattern = paste0("%", v, "%"), .con = con
+      )
+    }
+  })
+
+  paste0("(", paste(parts, collapse = " OR "), ")")
+}
+
+#' WHERE fragment matching a lookup feature
+#'
+#' Lookup features store the id of a row of a lookup table in `typevalue` --
+#' not in `typevalue_char`, and not in `id_colnam`, which is populated on a
+#' negligible number of rows and only by mistake. The readable values are
+#' resolved to ids first, exactly as `.plot_condition_method()` resolves method
+#' names.
+#'
+#' @param values Character vector of values to match.
+#' @param valuetype The feature's valuetype, e.g. `"table_colnam"`.
+#' @param con A DBI connection or pool.
+#' @param exact_match Logical. If `TRUE`, match values exactly.
+#' @return A single SQL fragment, or `NULL` when no lookup row matches, which
+#'   the caller turns into an impossible condition.
+#' @keywords internal
+#' @noRd
+.feature_lookup_clause <- function(values, valuetype, con, exact_match = FALSE) {
+
+  lk <- .feature_lookup_spec(valuetype, con)
+
+  parts <- lapply(values, function(v) {
+    if (exact_match) {
+      glue::glue_sql("LOWER({`lk$value_column`}) = LOWER({v})", v = v, .con = con)
+    } else {
+      glue::glue_sql(
+        "LOWER({`lk$value_column`}) LIKE LOWER({pattern})",
+        pattern = paste0("%", v, "%"), .con = con
+      )
+    }
+  })
+
+  sql <- glue::glue_sql(
+    "SELECT {`lk$id_column`} AS id FROM {`lk$table`} WHERE {DBI::SQL(paste(parts, collapse = ' OR '))}",
+    .con = con
+  )
+  found <- func_try_fetch(con = con, sql = sql)
+
+  if (nrow(found) == 0) return(NULL)
+
+  as.character(glue::glue_sql(
+    "sp.typevalue IN ({ids*})", ids = as.integer(found$id), .con = con
+  ))
+}
+
+#' Conditions selecting plots by their features
+#'
+#' A plot feature is not a column of `data_liste_plots`: it is a row of
+#' `data_liste_sub_plots` typed by `subplotype_list`. Each named feature gets
+#' its own subquery over those rows, so several features are AND'ed -- the plot
+#' must satisfy all of them, each possibly through a different subplot record --
+#' while the values of one feature are OR'ed.
+#'
+#' A subquery is used rather than resolving to a vector of plot ids so the
+#' condition stays one round trip and does not grow with the database.
+#'
+#' @param feature_filters A named list, names being feature types.
+#' @param con A DBI connection or pool.
+#' @param exact_match Logical. If `TRUE`, match values exactly rather than as
+#'   substrings.
+#' @return A character vector of SQL conditions, one per feature.
+#' @keywords internal
+#' @noRd
+.feature_conditions <- function(feature_filters, con, exact_match = FALSE) {
+
+  if (is.null(feature_filters) || length(feature_filters) == 0) {
+    return(character(0))
+  }
+
+  spec <- .validate_feature_filters(feature_filters, con)
+
+  conditions <- character(0)
+
+  for (feature in names(feature_filters)) {
+
+    values <- as.character(feature_filters[[feature]])
+    values <- values[!is.na(values) & nzchar(trimws(values))]
+
+    if (length(values) == 0) {
+      cli::cli_alert_warning(
+        "No value given for feature {.val {feature}}: filter ignored."
+      )
+      next
+    }
+
+    valuetype <- spec$valuetype[match(feature, spec$type)]
+
+    value_clause <- if (grepl("^table_", valuetype)) {
+      .feature_lookup_clause(values, valuetype, con, exact_match = exact_match)
+    } else {
+      .feature_char_clause(values, con, exact_match = exact_match)
+    }
+
+    if (is.null(value_clause)) {
+      cli::cli_alert_warning(
+        "No {.field {feature}} matching {.val {values}}: no plot can match."
+      )
+      conditions <- c(conditions, .sql_impossible())
+      next
+    }
+
+    conditions <- c(conditions, as.character(glue::glue_sql(
+      "id_liste_plots IN (
+         SELECT sp.id_table_liste_plots
+           FROM data_liste_sub_plots sp
+           JOIN subplotype_list spt
+             ON sp.id_type_sub_plot = spt.id_subplotype
+          WHERE spt.type = {feature}
+            AND {DBI::SQL(value_clause)}
+       )",
+      feature = feature, .con = con
+    )))
+  }
+
+  conditions
+}
+
 #' Plot ids whose features satisfy a set of feature filters
 #'
 #' Used when [query_plots()] was given explicit ids and so never built a filter
@@ -162,14 +305,13 @@
 #'
 #' @param feature_filters A named list, names being feature types.
 #' @param con A DBI connection or pool.
-#' @param exact_match Logical, passed through to the builder.
+#' @param exact_match Logical, passed through to the feature conditions.
 #' @return An integer vector of `data_liste_plots.id_liste_plots`.
 #' @keywords internal
 #' @noRd
 .plot_ids_matching_features <- function(feature_filters, con, exact_match = FALSE) {
-  builder <- PlotFilterBuilder$new(con)
-  builder$filter_features(feature_filters, exact_match = exact_match)
-  res <- func_try_fetch(con = con, sql = builder$build())
+  conditions <- .feature_conditions(feature_filters, con, exact_match = exact_match)
+  res <- func_try_fetch(con = con, sql = .assemble_plot_query(conditions, con))
   if (nrow(res) == 0) return(integer(0))
   as.integer(res$id_liste_plots)
 }

@@ -108,7 +108,8 @@ reference:
     desc: "Query plots, individuals, taxa, traits, and specimens from the database"
     contents:
       - query_plots
-      - query_subplots
+      - plot_feature_filters
+      - plot_feature_values
       - query_plot_features
       - query_individual_features
       - get_individual_aggregated_features
@@ -131,10 +132,6 @@ reference:
       - traits_list
       - traits_taxa_list
       - get_traitlist
-      - PlotFetcher
-      - PlotFilterBuilder
-      - SpecimenFetcher
-      - SpecimenFilterBuilder
       - get_user_accessible_plots
       - match_tax
       - match_taxonomic_names
@@ -146,6 +143,11 @@ reference:
       - get_updates_diconame
       - get_primary_specimen_link
       - get_ref_specimen_ind
+
+  - title: "Superseded"
+    desc: "Kept so that older scripts keep running; use the replacement named in each page."
+    contents:
+      - query_subplots
 
   - title: "Output Styling"
     desc: "Configure custom output styles for query results"

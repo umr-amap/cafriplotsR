@@ -7895,7 +7895,7 @@
     },
     {
       "en": "Use offline (cached backbone)",
-      "fr": "Utiliser hors ligne (referentiel en cache)"
+      "fr": "Utiliser hors ligne (référentiel en cache)"
     },
     {
       "en": "Offline mode:",
@@ -7911,7 +7911,7 @@
     },
     {
       "en": "No cached backbone found. Connect online once to download it.",
-      "fr": "Aucun referentiel en cache. Connectez-vous une fois en ligne pour le telecharger."
+      "fr": "Aucun référentiel en cache. Connectez-vous une fois en ligne pour le télécharger."
     },
     {
       "en": "Cached backbone is invalid. Please connect online to refresh it.",
@@ -9500,6 +9500,834 @@
     {
       "en": "Leave this unticked and fix the tag (or the plot) in the source file instead. Tick it to import everything else and skip these rows.",
       "fr": "Laissez décoché et corrigez plutôt l'étiquette (ou la parcelle) dans le fichier source. Cochez pour importer le reste et ignorer ces lignes."
+    },
+    {
+      "en": "Your list is matched against the taxonomic backbone, synonyms are resolved to accepted names, and the standardized result can be downloaded as Excel, CSV or RDS.",
+      "fr": "Votre liste est confrontée au référentiel taxonomique, les synonymes sont résolus vers les noms acceptés, et le résultat standardisé peut être téléchargé au format Excel, CSV ou RDS."
+    },
+    {
+      "en": "Connect as public user",
+      "fr": "Se connecter en tant qu'utilisateur public"
+    },
+    {
+      "en": "Read-only access:",
+      "fr": "Accès en lecture seule :"
+    },
+    {
+      "en": "Public authentication gives access to taxonomy and traits only. Adding or modifying data is not available.",
+      "fr": "L'authentification publique donne accès à la taxonomie et aux traits uniquement. L'ajout et la modification de données ne sont pas possibles."
+    },
+    {
+      "en": "Connecting as public user...",
+      "fr": "Connexion en tant qu'utilisateur public..."
+    },
+    {
+      "en": "Public connection failed (main database):",
+      "fr": "Échec de la connexion publique (base principale) :"
+    },
+    {
+      "en": "Public connection failed (taxa database):",
+      "fr": "Échec de la connexion publique (base taxonomique) :"
+    },
+    {
+      "en": "Connected!",
+      "fr": "Connecté !"
+    },
+    {
+      "en": "Connected as public user — read-only access",
+      "fr": "Connecté en tant qu'utilisateur public — accès en lecture seule"
+    },
+    {
+      "en": "Names are checked against the taxonomic backbone maintained with this package. The steps below follow the order you will work through them.",
+      "fr": "Les noms sont confrontés au référentiel taxonomique maintenu avec ce package. Les étapes ci-dessous suivent l'ordre dans lequel vous les parcourrez."
+    },
+    {
+      "en": "Export:",
+      "fr": "Export :"
+    },
+    {
+      "en": "Download the standardized table as Excel, CSV or RDS. Your original columns are kept and the added ones - matched and accepted name, match method and score, taxon identifiers - are described one by one on the Export tab.",
+      "fr": "Téléchargez le tableau standardisé au format Excel, CSV ou RDS. Vos colonnes d'origine sont conservées et les colonnes ajoutées - nom apparié et nom accepté, méthode et score d'appariement, identifiants de taxon - sont décrites une à une dans l'onglet Export."
+    },
+    {
+      "en": "Full documentation:",
+      "fr": "Documentation complète :"
+    },
+    {
+      "en": "Output options",
+      "fr": "Options de sortie"
+    },
+    {
+      "en": "Using the Taxonomic Name Standardization App",
+      "fr": "Utiliser l'Application de Standardisation des Noms Taxonomiques"
+    },
+    {
+      "en": "Existing columns renamed to avoid conflicts with the matching results:",
+      "fr": "Colonnes existantes renommées pour éviter les conflits avec les résultats de correspondance :"
+    },
+    {
+      "en": "%d fuzzy matches applied.",
+      "fr": "%d correspondances approximatives appliquées."
+    },
+    {
+      "en": "%d fuzzy matches still need a selection.",
+      "fr": "%d correspondances approximatives nécessitent encore une sélection."
+    },
+    {
+      "en": "%d links have been created between individuals and specimens.",
+      "fr": "%d liens ont été créés entre les individus et les spécimens."
+    },
+    {
+      "en": "%d links would be created in the database.",
+      "fr": "%d liens seraient créés dans la base de données."
+    },
+    {
+      "en": "%d rows ready after mapping.",
+      "fr": "%d lignes prêtes après la correspondance des colonnes."
+    },
+    {
+      "en": "... and %d more",
+      "fr": "... et %d de plus"
+    },
+    {
+      "en": "Accepted",
+      "fr": "Accepté"
+    },
+    {
+      "en": "Accepted name:",
+      "fr": "Nom accepté :"
+    },
+    {
+      "en": "Accepted taxon found",
+      "fr": "Taxon accepté trouvé"
+    },
+    {
+      "en": "Accepted taxon not found",
+      "fr": "Taxon accepté introuvable"
+    },
+    {
+      "en": "Additional people column",
+      "fr": "Colonne des personnes additionnelles"
+    },
+    {
+      "en": "All",
+      "fr": "Tous"
+    },
+    {
+      "en": "Apply",
+      "fr": "Appliquer"
+    },
+    {
+      "en": "Apply Fuzzy Matches",
+      "fr": "Appliquer les correspondances approximatives"
+    },
+    {
+      "en": "Apply Mapping & Preview",
+      "fr": "Appliquer la correspondance et prévisualiser"
+    },
+    {
+      "en": "Applying collector matches...",
+      "fr": "Application des correspondances de récolteurs..."
+    },
+    {
+      "en": "Author:",
+      "fr": "Auteur :"
+    },
+    {
+      "en": "Authors",
+      "fr": "Auteurs"
+    },
+    {
+      "en": "Auto-detected %d field(s):",
+      "fr": "%d champ(s) détecté(s) automatiquement :"
+    },
+    {
+      "en": "Cascade update successful! Updated %d taxa (1 parent + %d descendants)",
+      "fr": "Mise à jour en cascade réussie ! %d taxons mis à jour (1 parent + %d descendants)"
+    },
+    {
+      "en": "Census number auto-detected as next census for each plot.",
+      "fr": "Numéro de recensement détecté automatiquement comme recensement suivant pour chaque placette."
+    },
+    {
+      "en": "Census number column (optional — auto-detected if absent)",
+      "fr": "Colonne du numéro de recensement (facultative — détectée automatiquement si absente)"
+    },
+    {
+      "en": "Choose which backbone version to use for matching:",
+      "fr": "Choisir la version du référentiel à utiliser pour l'appariement :"
+    },
+    {
+      "en": "Citation '%s' created",
+      "fr": "Citation '%s' créée"
+    },
+    {
+      "en": "Citation (database/dataset source)",
+      "fr": "Citation (source de la base ou du jeu de données)"
+    },
+    {
+      "en": "Citation key",
+      "fr": "Clé de citation"
+    },
+    {
+      "en": "Citation key and title are required.",
+      "fr": "La clé de citation et le titre sont obligatoires."
+    },
+    {
+      "en": "Class:",
+      "fr": "Classe :"
+    },
+    {
+      "en": "Classifies phrases via the ontology CSV (mortality risk: 20 tokens; dawkins: 5 classes)",
+      "fr": "Classe les expressions via le CSV d'ontologie (risque de mortalité : 20 marqueurs ; dawkins : 5 classes)"
+    },
+    {
+      "en": "Comparing taxonomy...",
+      "fr": "Comparaison de la taxonomie..."
+    },
+    {
+      "en": "Compute or recompute vital status (alive / dead / presumed_dead) for all stems of the selected plots. Run AFTER adding new measurements and recruits for a census.",
+      "fr": "Calculer ou recalculer le statut vital (alive / dead / presumed_dead) pour toutes les tiges des placettes sélectionnées. À exécuter APRÈS l'ajout des nouvelles mesures et des recrues d'un recensement."
+    },
+    {
+      "en": "Confirm — Derived Rows Look Correct",
+      "fr": "Confirmer — les lignes dérivées sont correctes"
+    },
+    {
+      "en": "Contact:",
+      "fr": "Contact :"
+    },
+    {
+      "en": "Create links",
+      "fr": "Créer les liens"
+    },
+    {
+      "en": "Create New Citation",
+      "fr": "Créer une nouvelle citation"
+    },
+    {
+      "en": "Creating links in database...",
+      "fr": "Création des liens dans la base de données..."
+    },
+    {
+      "en": "Creating links...",
+      "fr": "Création des liens..."
+    },
+    {
+      "en": "Data manager column",
+      "fr": "Colonne du gestionnaire de données"
+    },
+    {
+      "en": "Dataset name",
+      "fr": "Nom du jeu de données"
+    },
+    {
+      "en": "dawkins skipped (already exist)",
+      "fr": "dawkins ignorés (déjà existants)"
+    },
+    {
+      "en": "dawkins_index values",
+      "fr": "valeurs de dawkins_index"
+    },
+    {
+      "en": "Day column",
+      "fr": "Colonne du jour"
+    },
+    {
+      "en": "Derived / Computed Traits",
+      "fr": "Traits dérivés / calculés"
+    },
+    {
+      "en": "Dry run complete",
+      "fr": "Simulation terminée"
+    },
+    {
+      "en": "Dry run: %d links would be created",
+      "fr": "Simulation : %d liens seraient créés"
+    },
+    {
+      "en": "Dry run: %d specimens would be imported",
+      "fr": "Simulation : %d spécimens seraient importés"
+    },
+    {
+      "en": "e.g., dewevrei",
+      "fr": "ex. : dewevrei"
+    },
+    {
+      "en": "e.g., Fabaceae",
+      "fr": "ex. : Fabaceae"
+    },
+    {
+      "en": "e.g., Fabales",
+      "fr": "ex. : Fabales"
+    },
+    {
+      "en": "e.g., Gilbertiodendron",
+      "fr": "ex. : Gilbertiodendron"
+    },
+    {
+      "en": "Enter search criteria and click Search",
+      "fr": "Saisir les critères de recherche puis cliquer sur Rechercher"
+    },
+    {
+      "en": "entries",
+      "fr": "entrées"
+    },
+    {
+      "en": "Error",
+      "fr": "Erreur"
+    },
+    {
+      "en": "Error during cascade update:",
+      "fr": "Erreur lors de la mise à jour en cascade :"
+    },
+    {
+      "en": "Error fetching trait table:",
+      "fr": "Erreur lors de la récupération de la table des traits :"
+    },
+    {
+      "en": "Error parsing herbarium data:",
+      "fr": "Erreur lors de l'analyse des données d'herbier :"
+    },
+    {
+      "en": "Error retrieving specimens:",
+      "fr": "Erreur lors de la récupération des spécimens :"
+    },
+    {
+      "en": "Error saving citation:",
+      "fr": "Erreur lors de l'enregistrement de la citation :"
+    },
+    {
+      "en": "Error setting synonymies:",
+      "fr": "Erreur lors de la définition des synonymies :"
+    },
+    {
+      "en": "Error standardizing observations:",
+      "fr": "Erreur lors de la standardisation des observations :"
+    },
+    {
+      "en": "Error validating taxonomy:",
+      "fr": "Erreur lors de la validation de la taxonomie :"
+    },
+    {
+      "en": "Extracting collector names and numbers...",
+      "fr": "Extraction des noms et numéros de récolteurs..."
+    },
+    {
+      "en": "Fetches free-text 'observations' for every stem of the selected plots",
+      "fr": "Récupère les 'observations' en texte libre pour chaque tige des placettes sélectionnées"
+    },
+    {
+      "en": "Fetching WCVP names...",
+      "fr": "Récupération des noms WCVP..."
+    },
+    {
+      "en": "Finalizing...",
+      "fr": "Finalisation..."
+    },
+    {
+      "en": "Found",
+      "fr": "Trouvé"
+    },
+    {
+      "en": "Found %d matching specimens out of %d potential links.",
+      "fr": "%d spécimens correspondants trouvés sur %d liens potentiels."
+    },
+    {
+      "en": "Found 1 taxon - automatically selected",
+      "fr": "1 taxon trouvé - sélectionné automatiquement"
+    },
+    {
+      "en": "Full title of the article or dataset",
+      "fr": "Titre complet de l'article ou du jeu de données"
+    },
+    {
+      "en": "Fuzzy matching:",
+      "fr": "Appariement approximatif :"
+    },
+    {
+      "en": "Growth forms added successfully!",
+      "fr": "Formes de croissance ajoutées avec succès !"
+    },
+    {
+      "en": "ID: %s",
+      "fr": "ID : %s"
+    },
+    {
+      "en": "Individuals/Specimens",
+      "fr": "Individus/Spécimens"
+    },
+    {
+      "en": "Journal / Publisher",
+      "fr": "Revue / Éditeur"
+    },
+    {
+      "en": "Less common: If this new entry should point to an existing taxon as the accepted name",
+      "fr": "Moins courant : si cette nouvelle entrée doit pointer vers un taxon existant comme nom accepté"
+    },
+    {
+      "en": "Lets you review derived rows and unresolved phrases before any DB write",
+      "fr": "Permet de réviser les lignes dérivées et les expressions non résolues avant toute écriture en base"
+    },
+    {
+      "en": "Level",
+      "fr": "Niveau"
+    },
+    {
+      "en": "Link Creation Failed",
+      "fr": "Échec de la création des liens"
+    },
+    {
+      "en": "Links Created Successfully!",
+      "fr": "Liens créés avec succès !"
+    },
+    {
+      "en": "Load Plot Info",
+      "fr": "Charger les informations de la placette"
+    },
+    {
+      "en": "Loaded %d rows — please map columns below.",
+      "fr": "%d lignes chargées — veuillez faire correspondre les colonnes ci-dessous."
+    },
+    {
+      "en": "Loaded %d rows, %d columns. Please map columns below.",
+      "fr": "%d lignes et %d colonnes chargées. Veuillez faire correspondre les colonnes ci-dessous."
+    },
+    {
+      "en": "Long Format",
+      "fr": "Format long"
+    },
+    {
+      "en": "Matching to individuals...",
+      "fr": "Appariement avec les individus..."
+    },
+    {
+      "en": "Maximum file size",
+      "fr": "Taille de fichier maximale"
+    },
+    {
+      "en": "Month column",
+      "fr": "Colonne du mois"
+    },
+    {
+      "en": "mortality_risk_flag tokens",
+      "fr": "marqueurs mortality_risk_flag"
+    },
+    {
+      "en": "Most common: If an existing taxon should be updated to point to this new entry as the accepted name",
+      "fr": "Le plus courant : si un taxon existant doit être mis à jour pour pointer vers cette nouvelle entrée comme nom accepté"
+    },
+    {
+      "en": "Multiple taxa found - select the correct one:",
+      "fr": "Plusieurs taxons trouvés - sélectionner le bon :"
+    },
+    {
+      "en": "NA or zero idtax",
+      "fr": "idtax NA ou nul"
+    },
+    {
+      "en": "names replaced with WCVP names",
+      "fr": "noms remplacés par les noms WCVP"
+    },
+    {
+      "en": "NEVER overwrites existing dawkins_index measurements",
+      "fr": "N'écrase JAMAIS les mesures dawkins_index existantes"
+    },
+    {
+      "en": "New citation",
+      "fr": "Nouvelle citation"
+    },
+    {
+      "en": "No aggregated trait data available for this taxon.",
+      "fr": "Aucune donnée de trait agrégée disponible pour ce taxon."
+    },
+    {
+      "en": "No detailed measurements available for this taxon.",
+      "fr": "Aucune mesure détaillée disponible pour ce taxon."
+    },
+    {
+      "en": "No matching specimens found in the database.",
+      "fr": "Aucun spécimen correspondant trouvé dans la base de données."
+    },
+    {
+      "en": "No matching specimens found. Check collector names and numbers.",
+      "fr": "Aucun spécimen correspondant trouvé. Vérifier les noms et numéros de récolteurs."
+    },
+    {
+      "en": "No phrases matched the ontology.",
+      "fr": "Aucune expression ne correspond à l'ontologie."
+    },
+    {
+      "en": "No specimens found to validate.",
+      "fr": "Aucun spécimen à valider."
+    },
+    {
+      "en": "No taxa found matching your search",
+      "fr": "Aucun taxon ne correspond à votre recherche"
+    },
+    {
+      "en": "No taxa selected",
+      "fr": "Aucun taxon sélectionné"
+    },
+    {
+      "en": "No trait data found for this taxon",
+      "fr": "Aucune donnée de trait trouvée pour ce taxon"
+    },
+    {
+      "en": "No valid herbarium information could be parsed.",
+      "fr": "Aucune information d'herbier valide n'a pu être analysée."
+    },
+    {
+      "en": "Not Found",
+      "fr": "Introuvable"
+    },
+    {
+      "en": "Order:",
+      "fr": "Ordre :"
+    },
+    {
+      "en": "Original 'observations' trait is not modified",
+      "fr": "Le trait 'observations' d'origine n'est pas modifié"
+    },
+    {
+      "en": "Parse free-text 'observations' into standardized rows for mortality_risk_flag (multi-token) and dawkins_index (single value). Existing dawkins values are never overwritten.",
+      "fr": "Analyser les 'observations' en texte libre pour produire des lignes standardisées pour mortality_risk_flag (plusieurs marqueurs) et dawkins_index (valeur unique). Les valeurs dawkins existantes ne sont jamais écrasées."
+    },
+    {
+      "en": "Parsing complete! You can proceed to match collectors.",
+      "fr": "Analyse terminée ! Vous pouvez passer à l'appariement des récolteurs."
+    },
+    {
+      "en": "Parsing herbarium information...",
+      "fr": "Analyse des informations d'herbier..."
+    },
+    {
+      "en": "Performing cascade update...",
+      "fr": "Mise à jour en cascade en cours..."
+    },
+    {
+      "en": "Phrases below matched no ontology pattern. Edit inst/ontology/observations_ontology.csv to capture recurring ones, then re-run the step.",
+      "fr": "Les expressions ci-dessous ne correspondent à aucun motif de l'ontologie. Modifiez inst/ontology/observations_ontology.csv pour prendre en compte celles qui reviennent, puis relancez l'étape."
+    },
+    {
+      "en": "Please map plot name and tag columns first.",
+      "fr": "Veuillez d'abord faire correspondre les colonnes du nom de placette et du tag."
+    },
+    {
+      "en": "Please map the plot name column.",
+      "fr": "Veuillez faire correspondre la colonne du nom de placette."
+    },
+    {
+      "en": "Please provide binomial name or taxon ID",
+      "fr": "Veuillez fournir un nom binomial ou un identifiant de taxon"
+    },
+    {
+      "en": "Please select at least one plot.",
+      "fr": "Veuillez sélectionner au moins une placette."
+    },
+    {
+      "en": "Please verify the mappings below and adjust any that are wrong.",
+      "fr": "Veuillez vérifier les correspondances ci-dessous et corriger celles qui sont erronées."
+    },
+    {
+      "en": "Prerequisite: This step parses existing 'observations' (trait id 13) for the stems of the selected plots.",
+      "fr": "Prérequis : cette étape analyse les 'observations' existantes (trait id 13) pour les tiges des placettes sélectionnées."
+    },
+    {
+      "en": "Preview of links to create:",
+      "fr": "Aperçu des liens à créer :"
+    },
+    {
+      "en": "Principal investigator column",
+      "fr": "Colonne du chercheur principal"
+    },
+    {
+      "en": "Querying specimens table...",
+      "fr": "Interrogation de la table des spécimens..."
+    },
+    {
+      "en": "Querying taxonomic information...",
+      "fr": "Interrogation des informations taxonomiques..."
+    },
+    {
+      "en": "Rank:",
+      "fr": "Rang :"
+    },
+    {
+      "en": "Ready to import your data into the database. This operation will",
+      "fr": "Prêt à importer vos données dans la base de données. Cette opération va"
+    },
+    {
+      "en": "Regex ontology (editable CSV in inst/ontology/)",
+      "fr": "Ontologie d'expressions régulières (CSV modifiable dans inst/ontology/)"
+    },
+    {
+      "en": "Required fields",
+      "fr": "Champs obligatoires"
+    },
+    {
+      "en": "Retrieving specimens from database...",
+      "fr": "Récupération des spécimens depuis la base de données..."
+    },
+    {
+      "en": "Retroactively corrects presumed_dead → alive",
+      "fr": "Corrige rétroactivement presumed_dead → alive"
+    },
+    {
+      "en": "Review derived rows + unresolved phrases before DB write",
+      "fr": "Réviser les lignes dérivées et les expressions non résolues avant l'écriture en base"
+    },
+    {
+      "en": "Review Standardized Rows",
+      "fr": "Réviser les lignes standardisées"
+    },
+    {
+      "en": "Review table before any database write",
+      "fr": "Réviser la table avant toute écriture en base de données"
+    },
+    {
+      "en": "Review the table above. If the derived values look correct, confirm to proceed.",
+      "fr": "Vérifiez la table ci-dessus. Si les valeurs dérivées sont correctes, confirmez pour continuer."
+    },
+    {
+      "en": "Rows Removed",
+      "fr": "Lignes supprimées"
+    },
+    {
+      "en": "Run after adding measurements for a census",
+      "fr": "À exécuter après l'ajout des mesures d'un recensement"
+    },
+    {
+      "en": "Run AFTER importing new census observations. Free-text phrases are matched against an editable regex ontology and turned into rows for the 'mortality_risk_flag' and 'dawkins_index' traits. Original 'observations' rows are not modified.",
+      "fr": "À exécuter APRÈS l'import des observations d'un nouveau recensement. Les expressions en texte libre sont confrontées à une ontologie d'expressions régulières modifiable, puis converties en lignes pour les traits 'mortality_risk_flag' et 'dawkins_index'. Les lignes 'observations' d'origine ne sont pas modifiées."
+    },
+    {
+      "en": "Run Standardization",
+      "fr": "Lancer la standardisation"
+    },
+    {
+      "en": "Save citation",
+      "fr": "Enregistrer la citation"
+    },
+    {
+      "en": "Search:",
+      "fr": "Rechercher :"
+    },
+    {
+      "en": "Searching...",
+      "fr": "Recherche en cours..."
+    },
+    {
+      "en": "Select accepted taxon:",
+      "fr": "Sélectionner le taxon accepté :"
+    },
+    {
+      "en": "Select growth form characteristics for this taxon. You can skip this step if you don't have this information.",
+      "fr": "Sélectionnez les caractéristiques de forme de croissance de ce taxon. Vous pouvez ignorer cette étape si vous ne disposez pas de cette information."
+    },
+    {
+      "en": "Select the citation for the database or dataset this import comes from. This is distinct from the 'reference' field which records the original source of each measurement.",
+      "fr": "Sélectionnez la citation de la base ou du jeu de données dont provient cet import. Ceci est distinct du champ 'reference' qui enregistre la source d'origine de chaque mesure."
+    },
+    {
+      "en": "Select which columns contain primary trait observations (e.g. wood density, max height). At least one trait column is required.",
+      "fr": "Sélectionnez les colonnes contenant les observations de traits principaux (ex. densité du bois, hauteur maximale). Au moins une colonne de trait est requise."
+    },
+    {
+      "en": "Short unique identifier — use only letters, digits, underscores",
+      "fr": "Identifiant court et unique — utilisez uniquement des lettres, des chiffres et des tirets bas"
+    },
+    {
+      "en": "Show",
+      "fr": "Afficher"
+    },
+    {
+      "en": "Species:",
+      "fr": "Espèce :"
+    },
+    {
+      "en": "Specimens retrieved! You can proceed to taxonomic validation.",
+      "fr": "Spécimens récupérés ! Vous pouvez passer à la validation taxonomique."
+    },
+    {
+      "en": "Splits 'cassé bas; beaucoup de lianes' into atomic phrases",
+      "fr": "Découpe 'cassé bas; beaucoup de lianes' en expressions atomiques"
+    },
+    {
+      "en": "Splits multi-observation entries (separators ';' or ', ') into atomic phrases",
+      "fr": "Découpe les entrées à observations multiples (séparateurs ';' ou ', ') en expressions atomiques"
+    },
+    {
+      "en": "Standardization Summary",
+      "fr": "Résumé de la standardisation"
+    },
+    {
+      "en": "Standardize Observations",
+      "fr": "Standardiser les observations"
+    },
+    {
+      "en": "Standardized %d row(s).",
+      "fr": "%d ligne(s) standardisée(s)."
+    },
+    {
+      "en": "Standardized observation records to write: %d",
+      "fr": "Enregistrements d'observations standardisées à écrire : %d"
+    },
+    {
+      "en": "Standardized table confirmed. You can now proceed to the import step.",
+      "fr": "Table standardisée confirmée. Vous pouvez maintenant passer à l'étape d'import."
+    },
+    {
+      "en": "Standardizing observations for %d stems...",
+      "fr": "Standardisation des observations pour %d tiges..."
+    },
+    {
+      "en": "Standardizing observations...",
+      "fr": "Standardisation des observations..."
+    },
+    {
+      "en": "Status:",
+      "fr": "Statut :"
+    },
+    {
+      "en": "Step 3: Standardize Observations",
+      "fr": "Étape 3 : standardiser les observations"
+    },
+    {
+      "en": "Success!",
+      "fr": "Succès !"
+    },
+    {
+      "en": "Successfully created %d links!",
+      "fr": "%d liens créés avec succès !"
+    },
+    {
+      "en": "Successfully parsed %d potential links from %d individuals.",
+      "fr": "%d liens potentiels analysés avec succès à partir de %d individus."
+    },
+    {
+      "en": "Supported formats",
+      "fr": "Formats pris en charge"
+    },
+    {
+      "en": "synonym(s) pointing to it.",
+      "fr": "synonyme(s) pointant vers lui."
+    },
+    {
+      "en": "Synonyms that will be updated:",
+      "fr": "Synonymes qui seront mis à jour :"
+    },
+    {
+      "en": "taxa",
+      "fr": "taxons"
+    },
+    {
+      "en": "taxa - please select one",
+      "fr": "taxons - veuillez en sélectionner un"
+    },
+    {
+      "en": "Taxon ID:",
+      "fr": "ID du taxon :"
+    },
+    {
+      "en": "Team Leader",
+      "fr": "Chef d'équipe"
+    },
+    {
+      "en": "Team leader column",
+      "fr": "Colonne du chef d'équipe"
+    },
+    {
+      "en": "The links are now stored in the data_link_specimens table and can be queried using query_all_specimen_links().",
+      "fr": "Les liens sont désormais enregistrés dans la table data_link_specimens et peuvent être interrogés avec query_all_specimen_links()."
+    },
+    {
+      "en": "The taxon you are setting as synonym currently has",
+      "fr": "Le taxon que vous définissez comme synonyme possède actuellement"
+    },
+    {
+      "en": "These synonyms will be automatically redirected to the new accepted name to avoid synonym chains.",
+      "fr": "Ces synonymes seront automatiquement redirigés vers le nouveau nom accepté afin d'éviter les chaînes de synonymes."
+    },
+    {
+      "en": "Title",
+      "fr": "Titre"
+    },
+    {
+      "en": "to",
+      "fr": "à"
+    },
+    {
+      "en": "Total derived rows",
+      "fr": "Total des lignes dérivées"
+    },
+    {
+      "en": "Trait Table",
+      "fr": "Table des traits"
+    },
+    {
+      "en": "Uncheck 'Dry run' and click 'Create Links' again to perform the actual operation.",
+      "fr": "Décochez 'Simulation' puis cliquez à nouveau sur 'Créer les liens' pour exécuter réellement l'opération."
+    },
+    {
+      "en": "Unresolved phrase patterns",
+      "fr": "Motifs d'expressions non résolus"
+    },
+    {
+      "en": "Unresolved Phrases (consider extending the ontology)",
+      "fr": "Expressions non résolues (envisagez d'étendre l'ontologie)"
+    },
+    {
+      "en": "Upload an xlsx file. You will map columns to expected fields after upload. A 'plot_name' column (or equivalent) is required; census number is optional and will be auto-detected if absent.",
+      "fr": "Téléchargez un fichier xlsx. Vous ferez correspondre les colonnes aux champs attendus après le téléchargement. Une colonne 'plot_name' (ou équivalente) est requise ; le numéro de recensement est facultatif et sera détecté automatiquement s'il est absent."
+    },
+    {
+      "en": "Use 'Update Taxon' or 'Synonymy Management' tabs to modify this record",
+      "fr": "Utilisez les onglets 'Mettre à jour le taxon' ou 'Gestion des synonymies' pour modifier cet enregistrement"
+    },
+    {
+      "en": "Use the search filters above and click 'Search' to browse taxa",
+      "fr": "Utilisez les filtres de recherche ci-dessus et cliquez sur 'Rechercher' pour parcourir les taxons"
+    },
+    {
+      "en": "Uses diameter, observations, and RainFor flags",
+      "fr": "Utilise le diamètre, les observations et les indicateurs RainFor"
+    },
+    {
+      "en": "Validating links...",
+      "fr": "Validation des liens..."
+    },
+    {
+      "en": "Validating taxonomy...",
+      "fr": "Validation de la taxonomie..."
+    },
+    {
+      "en": "Warning: Existing synonyms will be updated",
+      "fr": "Attention : les synonymes existants seront mis à jour"
+    },
+    {
+      "en": "WCVP names not available. Internal names used.",
+      "fr": "Noms WCVP non disponibles. Noms internes utilisés."
+    },
+    {
+      "en": "What's next?",
+      "fr": "Et ensuite ?"
+    },
+    {
+      "en": "Wide Format",
+      "fr": "Format large"
+    },
+    {
+      "en": "Writing %d standardized observation row(s) — please wait...",
+      "fr": "Écriture de %d ligne(s) d'observation standardisée(s) — veuillez patienter..."
+    },
+    {
+      "en": "Year column",
+      "fr": "Colonne de l'année"
+    },
+    {
+      "en": "Year:",
+      "fr": "Année :"
     }
   ]
 }

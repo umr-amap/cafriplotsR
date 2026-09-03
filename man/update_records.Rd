@@ -18,7 +18,13 @@ update_records(
 )
 }
 \arguments{
-\item{data}{Tibble with records to update. Must include the ID column for the table type.}
+\item{data}{Tibble with records to update. Must include the ID column for the table type.
+For `table_type = "individuals"`, columns named after a trait (e.g. `quadrat`)
+are also accepted alongside `id_n`: the current single measurement for that
+trait is looked up and corrected directly (via `data_traits_measures`), so
+there is no need to pre-fetch `id_trait_measures` yourself. Individuals with
+more than one measurement for that trait, or with no existing measurement at
+all, are reported and left untouched rather than guessed at.}
 
 \item{table_type}{Character: type of table. One of "individuals", "plots", "specimens",
 "individual_features", "subplot_features", "individual_features_metadata",

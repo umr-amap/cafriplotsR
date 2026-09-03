@@ -155,20 +155,19 @@ mod_census_information_server <- function(id, imported_plots, con, i18n) {
       plots <- imported_plots()
 
       tryCatch({
-        # Use existing query_subplots function to get all subplot features
         plot_ids <- plots$id_liste_plots
 
         cli::cli_alert_info("Querying subplot features for plot IDs: {paste(plot_ids, collapse=', ')}")
 
-        subplot_results <- query_subplots(ids_plots = plot_ids, con = con(), verbose = FALSE)
+        subplot_results <- query_plot_features(plot_ids = plot_ids, con = con())
 
         # Check if we have subplot data
-        if (is.null(subplot_results) || is.null(subplot_results$all_subplots)) {
+        if (is.null(subplot_results) || is.null(subplot_results$features_raw)) {
           cli::cli_alert_warning("No subplot data returned")
           return(NULL)
         }
 
-        all_subplots <- subplot_results$all_subplots
+        all_subplots <- subplot_results$features_raw
 
         cli::cli_alert_info("Total subplots returned: {nrow(all_subplots)}")
 
@@ -409,7 +408,7 @@ mod_census_information_server <- function(id, imported_plots, con, i18n) {
         if (!is.null(people_features_result)) {
           people_data <- people_features_result$raw_data
 
-          # Get unique feature types (from 'type' column in query_subplots result)
+          # Get unique feature types (the "type" column of the features)
           feature_types <- unique(people_data$type)
           features_to_add <- feature_types
 

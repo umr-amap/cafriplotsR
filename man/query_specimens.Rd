@@ -10,9 +10,6 @@ query_specimens(
   number = NULL,
   number_min = NULL,
   number_max = NULL,
-  genus = NULL,
-  species = NULL,
-  family = NULL,
   id_specimen = NULL,
   idtax_n = NULL,
   interactive = TRUE,
@@ -34,12 +31,6 @@ query_specimens(
 \item{number_min}{Minimum specimen number (range query)}
 
 \item{number_max}{Maximum specimen number (range query)}
-
-\item{genus}{Character vector of genus names to filter}
-
-\item{species}{Character vector of species names to filter}
-
-\item{family}{Character vector of family names to filter}
 
 \item{id_specimen}{Integer vector of specimen IDs (direct fetch)}
 

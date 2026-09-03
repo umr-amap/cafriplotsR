@@ -53,6 +53,52 @@
 }
 
 # ---------------------------------------------------------------------------
+# Output column protection
+# ---------------------------------------------------------------------------
+
+# Columns the matching pipeline writes into the user's table. If an uploaded
+# file already carries one of them (e.g. an `idtax_n` left over from a previous
+# run), the join with the match results silently yields `idtax_n.x` /
+# `idtax_n.y`, and every downstream step — review, export — then fails looking
+# for the unsuffixed name.
+.taxo_match_output_columns <- function() {
+  c(
+    "idtax_n", "idtax_good_n", "matched_name", "match_method", "match_score",
+    "is_synonym", "accepted_name", "corrected_name",
+    "wcvp_taxon_name", "wcvp_family", "wcvp_taxon_authors",
+    "wcvp_taxon_status", "name_source"
+  )
+}
+
+# Park user columns that clash with the pipeline output under an `_input`
+# suffix, so their content survives while the output names stay free.
+# Returns the data plus a named vector old name -> new name.
+.rename_conflicting_columns <- function(df) {
+  clashing <- intersect(names(df), .taxo_match_output_columns())
+
+  if (length(clashing) == 0) {
+    return(list(data = df, renamed = character(0)))
+  }
+
+  taken <- names(df)
+  new_names <- character(length(clashing))
+
+  for (i in seq_along(clashing)) {
+    candidate <- paste0(clashing[i], "_input")
+    suffix <- 2L
+    while (candidate %in% taken) {
+      candidate <- paste0(clashing[i], "_input", suffix)
+      suffix <- suffix + 1L
+    }
+    new_names[i] <- candidate
+    taken <- c(taken, candidate)
+  }
+
+  names(df)[match(clashing, names(df))] <- new_names
+  list(data = df, renamed = stats::setNames(new_names, clashing))
+}
+
+# ---------------------------------------------------------------------------
 
 #' Auto Matching Module - UI
 #'

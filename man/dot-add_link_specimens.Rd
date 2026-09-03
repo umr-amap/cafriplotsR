@@ -14,7 +14,9 @@
 )
 }
 \arguments{
-\item{new_data}{Tibble with columns: id_specimen, id_n, and either id_linktype or type}
+\item{new_data}{Tibble with column id_specimen, either id_linktype or type,
+and - depending on the scope of that link type - id_n (individual-level)
+or id_liste_plots (plot-level).}
 
 \item{col_names_select}{Character vector of column names in new_data to use.
 If NULL, uses all columns of new_data.}
@@ -38,14 +40,19 @@ Creates links between herbarium specimens and individual trees in the database.
 Includes validation to ensure foreign key references exist.
 }
 \details{
-Link types:
-- type_individual (id_linktype=1): Specimen collected from this specific individual
-- referenced_individual (id_linktype=2): Specimen represents same species but from different individual
+Link types, and the column each one fills:
+- type_individual: specimen collected from this specific individual (id_n)
+- referenced_individual: specimen of the same species from a different
+  individual (id_n)
+- reference_plot: specimen collected within a plot, the individual tree
+  unknown (id_liste_plots)
+
+Which of the two a type expects is `linktypelist.scope`, checked here.
 
 The function:
 1. Renames columns to standard names
-2. Checks for duplicate links (same id_specimen + id_n already in database)
-3. Validates FK references if validate=TRUE
+2. Checks for duplicate links (same specimen, individual, type and plot)
+3. Validates FK references and link scope if validate=TRUE
 4. Sets audit columns (created_by, created_at)
 5. Adds links if launch_adding_data=TRUE
 }
