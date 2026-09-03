@@ -11,9 +11,6 @@ query_specimens(
   number = NULL,
   number_min = NULL,
   number_max = NULL,
-  genus = NULL,
-  species = NULL,
-  family = NULL,
   id_specimen = NULL,
   idtax_n = NULL,
   interactive = TRUE,
@@ -47,18 +44,6 @@ query_specimens(
 - number_max:
 
   Maximum specimen number (range query)
-
-- genus:
-
-  Character vector of genus names to filter
-
-- species:
-
-  Character vector of species names to filter
-
-- family:
-
-  Character vector of family names to filter
 
 - id_specimen:
 

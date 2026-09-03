@@ -3,6 +3,13 @@
 Allow building progressively a SQL query to filter plots following
 different criteria using the builder pattern
 
+## Details
+
+A filter whose value matches nothing in the database adds an
+unsatisfiable condition, so the query returns no plots and warns. It
+does not drop the condition: an unmatched country silently returning
+every plot would look like a successful query.
+
 ## Methods
 
 - `new(connection)`:
@@ -40,6 +47,18 @@ different criteria using the builder pattern
   Filter plots by locality name(s).
 
   - `locality_name`: Character vector of locality name(s)
+
+- `filter_features(feature_filters, exact_match = FALSE)`:
+
+  Filter plots by their features – rows of `data_liste_sub_plots` typed
+  by `subplotype_list`, not columns of `data_liste_plots`. Each named
+  feature adds a subquery, so different features are combined with AND
+  while the values of one feature are combined with OR.
+
+  - `feature_filters`: Named list, names being feature types
+
+  - `exact_match`: Logical. If TRUE, match values exactly rather than as
+    substrings
 
 - `build(operator = "AND")`:
 
@@ -80,6 +99,8 @@ different criteria using the builder pattern
 - [`PlotFilterBuilder$filter_method()`](#method-PlotFilterBuilder-filter_method)
 
 - [`PlotFilterBuilder$filter_locality()`](#method-PlotFilterBuilder-filter_locality)
+
+- [`PlotFilterBuilder$filter_features()`](#method-PlotFilterBuilder-filter_features)
 
 - [`PlotFilterBuilder$build()`](#method-PlotFilterBuilder-build)
 
@@ -134,6 +155,14 @@ different criteria using the builder pattern
 #### Usage
 
     PlotFilterBuilder$filter_locality(locality_name)
+
+------------------------------------------------------------------------
+
+### `PlotFilterBuilder$filter_features()`
+
+#### Usage
+
+    PlotFilterBuilder$filter_features(feature_filters, exact_match = FALSE)
 
 ------------------------------------------------------------------------
 

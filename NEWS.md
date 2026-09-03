@@ -179,6 +179,10 @@
 
 ### Bug Fixes
 
+* **The Query Plots app tore the server down when any one visitor left** (`R/shiny_app_query_plots.R`) — its `onSessionEnded` handler called `cleanup_connections()` and `stopApp()` unconditionally. That is correct for a local `launch_query_plots_app()` session, where closing the tab should free the connection and return the console, and fatal once hosted: shiny-server runs a single R process for every visitor, so the first closed tab ended everyone else's session and dropped their pool
+  - Now guarded by `.is_served()`, exactly as `shiny_app_taxonomic_match()` has been. Under a hosted server the handler returns early and the process survives; locally nothing changes
+  - Found while preparing the SSP Cloud deployment (see *Infrastructure*), not in use — the app has only ever run locally, where the behaviour was right
+
 * **An unmatched collector made `query_specimens()` return every specimen** (`R/specimen_query_builder.R`) — a collector name that matched no row of `table_colnam` produced no SQL condition rather than an unsatisfiable one, so `query_specimens(collector = "Dauy")` fell through to a bare `SELECT * FROM specimens` and reported the whole table as a successful result. A typo in a name quietly meant "give me everything"
   - Both no-match branches, the exact lookup and the interactive `.link_table()` one, now return the unsatisfiable `FALSE` that the plot conditions have always used. The warning naming the unmatched collector is unchanged; what follows it is `No specimens found matching the criteria`
   - It stays unsatisfiable when combined with the other filters, so `collector = "Nobody", number_min = 10` no longer leaks the results of the number filter
@@ -293,6 +297,11 @@
   - Net effect: `update_records(data.frame(id_n = ..., quadrat = ...), table_type = "individuals", execute = TRUE)` now does the correction directly, with no manual `id_trait_measures` lookup required
 
 ### Infrastructure
+
+* **The Query Plots app can be deployed on SSP Cloud** (`deployment/query_plots/`, `inst/app/query_plots/app.R`, `.github/workflows/docker-query-plots.yml`) — a second hosted app alongside the taxonomic matcher, published at `cafri-queryplots.lab.sspcloud.fr`. The scaffold mirrors `deployment/taxonomic_match/` deliberately, so there is one deployment procedure to know rather than two: a shiny-server entry point returning the app object, a `rocker/shiny` Dockerfile installing only hard dependencies, a Helm chart wrapping InseeFrLab's generic `shiny` chart, and a CI job pushing `ghcr.io/umr-amap/cafri-queryplots` to the GitHub Container Registry
+  - Both releases share one `cafri-public-credential` Secret and one namespace; the probe-patch hook is templated on the release name, so nothing collides. `deployment/query_plots/README.md` records only what differs from the taxonomic-match deployment
+  - The image adds the `zip` system package, which the taxonomic-match image does not need — `mod_results_display` shells out to `utils::zip()` for the CSV and shapefile downloads, and without the binary both buttons fail at runtime rather than at build time
+  - **Read the security note in that README before making the hostname public.** `*.lab.sspcloud.fr` is world-reachable, so the read-only public login becomes world-usable, and this app hands out bulk inventory exports where the taxonomic matcher hands out names. What that exposes is whatever `CafriP_public` is granted in PostgreSQL
 
 * **The public account's password is no longer shipped in the package** (`R/public_credential.R`, `R/mod_database_login.R`) — `CafriP_public`'s credential was a literal at `R/mod_database_login.R:151-152` in a public repository, and was also rendered into the pkgdown site. The account is read-only and reaches data the project intends to publish, so the value was never a secret; what it could not be was *withdrawn*. The database runs on OVH Webcloud, where no per-role connection limit can be set (`inst/docs/PLAN_SECURITY_REMEDIATION.md`, P0.4), which leaves withdrawal as the only control over a published login exhausting `max_connections` — and a password compiled into the package stays valid in every installed copy until every user reinstalls
   - The package now ships a URL. `.public_credential()` resolves the credential at each app launch from `CAFRI_PUBLIC_USER` / `CAFRI_PUBLIC_PASS` if set, otherwise from a descriptor published at `https://umr-amap.github.io/cafriplotsR/public-access.json`. There is deliberately **no fallback value anywhere in the source**

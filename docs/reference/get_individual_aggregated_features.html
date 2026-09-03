@@ -11,7 +11,7 @@ optimal performance on large datasets."><meta property="og:image" content="https
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -93,6 +93,14 @@ drop flagged rows), "include" (keep rows and add issue column), or "ignore"
 
 <dt id="arg-include-measurement-ids">include_measurement_ids<a class="anchor" aria-label="anchor" href="#arg-include-measurement-ids"></a></dt>
 <dd><p>Include aggregated id_trait_measures column (default FALSE)</p></dd>
+
+
+<dt id="arg-census-strategy">census_strategy<a class="anchor" aria-label="anchor" href="#arg-census-strategy"></a></dt>
+<dd><p>Character. Which census to keep when
+`include_multi_census = FALSE`: "last" (default), "first", or "mean" (no
+census filtering, all measurements kept). The census is selected per plot
+across all traits, so a trait with no measurement at the selected census is
+dropped from the result and named in a warning.</p></dd>
 
 
 <dt id="arg-con">con<a class="anchor" aria-label="anchor" href="#arg-con"></a></dt>

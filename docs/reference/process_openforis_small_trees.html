@@ -13,7 +13,7 @@ already established 1-ha plot — and returns clean tables ready for import."><m
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -322,7 +322,10 @@ normalised, resolves the parent plot more reliably than the tidied
     number_multi_stem, multi_tiges_id (tag of the main stem, NA for the main
     stem itself). The two position columns are part of the form but the
     small-tree protocol does not map stems, so in practice they arrive
-    empty. <code>idtax_n</code> is copied from the OpenForis <code>species_code</code>
+    empty. <code>herbarium_nbe_char</code> is repeated on every individual
+    identified as the species of a voucher, while <code>herbarium_nbe_type</code>
+    names each specimen once, on the individual it was collected from.
+    <code>idtax_n</code> is copied from the OpenForis <code>species_code</code>
     without being checked against the taxonomic backbone — see the note
     below.</p></dd>
 

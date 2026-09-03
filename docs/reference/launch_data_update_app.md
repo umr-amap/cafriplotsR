@@ -52,6 +52,18 @@ how that display was computed; the editable inputs are the underlying
 records, each labelled with its own id and its census or subplot
 context.
 
+**Why an identification is not just `idtax_n`.**
+[`merge_individuals_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/merge_individuals_taxa.md)
+resolves the individual's `idtax_n` through `table_idtax` synonymy into
+`idtax_f`, resolves the identification of the specimen linked to the
+individual the same way into `idtax_specimen_f`, and uses
+`idtax_individual_f = coalesce(idtax_specimen_f, idtax_f)` everywhere
+downstream. The identification section shows that whole cascade. While a
+specimen is linked, its identification wins: editing `idtax_n` is stored
+but changes nothing an extraction shows, and the app says so both in the
+section and in the preview. Re-identifying the specimen is done with
+[`launch_specimen_identification_app`](https://umr-amap.github.io/cafriplotsR/reference/launch_specimen_identification_app.md).
+
 Only existing records can be edited. Adding or deleting measurements is
 done with the feature wizard
 ([`launch_feature_wizard`](https://umr-amap.github.io/cafriplotsR/reference/launch_feature_wizard.md))

@@ -1,0 +1,48 @@
+# The identification an extraction will actually use for an individual
+
+\`merge_individuals_taxa()\` does not read \`data_individuals.idtax_n\`
+and stop there. It resolves that id through \`table_idtax\` synonymy
+into \`idtax_f\`, resolves the identification of the specimen linked to
+the individual the same way into \`idtax_specimen_f\`, and then takes
+\`idtax_individual_f = coalesce(idtax_specimen_f, idtax_f)\`. Everything
+downstream - taxonomy, traits, the name in an extracted table - hangs
+off \`idtax_individual_f\`.
+
+## Usage
+
+``` r
+.upd_identification(id_ind, con, con_taxa = NULL)
+```
+
+## Arguments
+
+- id_ind:
+
+  Integer, \`data_individuals.id_n\`.
+
+- con:
+
+  A DBI connection to the main database.
+
+- con_taxa:
+
+  Optional connection or pool to the taxa database, used for names only;
+  ids are shown alone without it.
+
+## Value
+
+A list with \`idtax_n\`, \`original_tax_name\`, \`idtax_f\`,
+\`specimen\` (\`NULL\` or a one-row data frame), \`idtax_specimen_f\`,
+\`idtax_individual_f\`, \`governed_by\` (\`"specimen"\` or
+\`"individual"\`), \`is_synonym\`, and \`names\` (idtax as character -\>
+taxon name). \`NULL\` when there is no such individual.
+
+## Details
+
+The consequence matters to anyone editing a record: while a specimen is
+linked, the specimen's identification wins, and correcting \`idtax_n\`
+here changes nothing an extraction will show.
+
+The linked specimen is picked the way \`merge_individuals_taxa()\` picks
+it: highest \`linktypelist.priority\` first, then the most recent
+determination date.

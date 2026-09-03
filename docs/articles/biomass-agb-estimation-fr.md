@@ -56,96 +56,15 @@ plot_data <- query_plots(
   ## génère une colonne qui indique la source de l'information
   traits_to_genera = T
 )
-#> ── Building plot filter query ──────────────────────────────────────────────────
-#> ℹ Attempt 1 of 10...
-#> ✔ ✅ Successfully connected and fetched 2 rows.
-#> 
-#> ── Querying plot features ──
-#> 
-#> ✔ Found 115 feature(s) for 2 plot(s)
-#> ℹ Enriching with subplot observation features
-#> 
-#> ── Aggregating features to wide format ──
-#> 
-#> ✔ Query completed
-#> ── Processing individuals ──────────────────────────────────────────────────────
-#> ℹ Selected first census date column: date_census_1
-#> ℹ Fetching individuals
-#> ℹ Fetching individuals...
-#> ✔ Fetched 888 individual(s)
-#> ℹ Loading specimen links...
-#> ℹ Loading 92 specimen(s)...
-#> ℹ Loading synonyms for 179 taxa...
-#> ✔ Loaded 179 synonym record(s)
-#> ℹ Assembling individual data...
-#> ℹ Enriching with taxonomic backbone...
-#> ✔ Successfully fetched 888 individual(s)
-#> ✔ Processed 888 individuals
-#> ── Processing traits ───────────────────────────────────────────────────────────
-#> ℹ Enriching with individual-level traits
-#> 
-#> ── Fetching individual features ──
-#> 
-#> ── Fetching trait measurements ──
-#> 
-#> ℹ Removed 135 measurement(s) with issues
-#> ℹ Enriching with census information for first census selection
-#> ✔ Selected first census for 2 plot(s)
-#> ℹ Filtered out 5345 measurement(s) from other censuses
-#> ✔ Query completed: 6878 measurement(s)
-#> 
-#> ── Aggregating features by individual ──
-#> 
-#> ℹ Aggregating 4597 numeric measurement(s)
-#> ℹ Aggregating 2281 character measurement(s)
-#> ✔ Aggregated 888 individual(s)
-#> ℹ Enriching with taxonomic-level traits
-#> 
-#> ── Querying taxa-level traits ──
-#> 
-#> ℹ Fetching trait measurements for 154 taxon/taxa
-#> ✔ Found 5064 measurement(s) for 142 taxa
-#> ℹ Resolving taxonomic synonyms
-#> 
-#> ── Processing traits to wide format ──
-#> 
-#> ℹ Aggregating numeric traits
-#> ℹ Aggregating categorical traits (mode)
-#> ✔ Query completed
-#> ✔ Added 24 numeric taxonomic trait column(s)
-#> ✔ Added 16 categorical taxonomic trait column(s)
-#> ℹ Aggregating traits to genus level
-#> ℹ Source information added to columns starting with 'source_'
-#> ℹ Attempt 1 of 10...
-#> ✔ ✅ Successfully connected and fetched 10253 rows.
-#> ℹ Attempt 1 of 10...
-#> ✔ ✅ Successfully connected and fetched 6091 rows.
-#> 
-#> ── Querying taxa-level traits ──
-#> 
-#> ℹ Fetching trait measurements for 13111 taxon/taxa
-#> ✔ Found 19950 measurement(s) for 2492 taxa
-#> ℹ Resolving taxonomic synonyms
-#> ℹ Including synonyms: 2492 taxa expanded to 6053 taxa
-#> ℹ Adding taxonomic information
-#> ✔ Query completed
-#> ℹ Setting wood density SD to averaged species and genus level according to BIOMASS dataset
-#> 
-#> ── Fetching trait measurements ──
-#> 
-#> ℹ Removed 135 measurement(s) with issues
-#> ℹ Enriching with census information
-#> ✔ Query completed: 4112 measurement(s)
-#> 
-#> ── Querying taxa-level traits ──
-#> 
-#> ℹ Fetching trait measurements for 154 taxon/taxa
-#> ✔ Found 5064 measurement(s) for 142 taxa
-#> ℹ Resolving taxonomic synonyms
-#> ✔ Query completed
-#> ! ids removed - remove_ids = TRUE
-#> ℹ Auto-detected output style: 'permanent_plot' based on method field
-#> ✔ Output restructured using 'permanent_plot' style. Use names() to see available tables.
+#> ! Dropped 4 traits with no measurement at the selected (first) census: "flag2_rainfor", "light_observations", "mortality_risk_flag", and "stem_diameter_observations"
+#> ! Keep them with `show_multiple_census = TRUE` or `census_strategy = "mean"`
+#> ✔ 2 plots, 888 individuals, permanent_plot style
+#> ℹ Excluded:
+#> • 270 measurements flagged with an issue: `issues = "remove"`, or `issues =
+#>   "include"` to keep them
+#> ℹ Taxonomic traits are genus-level aggregates, not values of the taxon itself:
+#>   `traits_to_genera = TRUE`, provenance in the source_* columns
+#> ℹ Tables: metadata, individuals, height_diameter, and data_sources
 ```
 
 ``` r
@@ -260,12 +179,12 @@ head(plot_data$height_diameter)
 #> # A tibble: 6 × 8
 #>     id_n plot_name    tag     D     H   POM census_name census_date
 #>    <int> <chr>      <dbl> <dbl> <dbl> <dbl> <chr>       <date>     
-#> 1 248314 bouamir001     1  17.7  12.8   1.3 census_1    2018-12-02 
-#> 2 248334 bouamir001     6  22.2  15.7   1.3 census_1    2018-12-02 
-#> 3 248342 bouamir001     8  38.4  28.4   1.8 census_1    2018-12-02 
-#> 4 248346 bouamir001     9 123.   40.4   3.3 census_1    2018-12-02 
-#> 5 248370 bouamir001    15  48.7  25.8   1.3 census_1    2018-12-02 
-#> 6 248738 bouamir001   107  14.7  13.5   1.3 census_1    2018-12-02
+#> 1 248314 bouamir001     1  17.7  12.8  1.3  census_1    2018-12-02 
+#> 2 248738 bouamir001   107  14.7  13.5  1.3  census_1    2018-12-02 
+#> 3 248742 bouamir001   108  56.5  36.8  1.3  census_1    2018-12-02 
+#> 4 248754 bouamir001   111  18.1  18.6  1.3  census_1    2018-12-02 
+#> 5 248890 bouamir001   145  71    28.6  3.5  census_1    2018-12-02 
+#> 6 248938 bouamir001   157  49.1  28.3  2.62 census_1    2018-12-02
 
 # Cette table inclut :
 # - id_n : ID de l'individu

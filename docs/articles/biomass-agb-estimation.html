@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -125,96 +125,15 @@ output optimized for biomass analysis:</p>
 <span>  <span class="co">## generate a column that indicates the source of information</span></span>
 <span>  traits_to_genera <span class="op">=</span> <span class="cn">TRUE</span> </span>
 <span><span class="op">)</span></span>
-<span><span class="co">#&gt; ── Building plot filter query ──────────────────────────────────────────────────</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Attempt 1 of 10...</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> ✅ Successfully connected and fetched 2 rows.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Querying plot features</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 115 feature(s) for 2 plot(s)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Enriching with subplot observation features</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Aggregating features to wide format</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Query completed</span></span>
-<span><span class="co">#&gt; ── Processing individuals ──────────────────────────────────────────────────────</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Selected first census date column: date_census_1</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fetching individuals</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fetching individuals...</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Fetched 888 individual(s)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Loading specimen links...</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Loading 92 specimen(s)...</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Loading synonyms for 179 taxa...</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Loaded 179 synonym record(s)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Assembling individual data...</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Enriching with taxonomic backbone...</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Successfully fetched 888 individual(s)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Processed 888 individuals</span></span>
-<span><span class="co">#&gt; ── Processing traits ───────────────────────────────────────────────────────────</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Enriching with individual-level traits</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Fetching individual features</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Fetching trait measurements</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Removed 135 measurement(s) with issues</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Enriching with census information for first census selection</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Selected first census for 2 plot(s)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Filtered out 5345 measurement(s) from other censuses</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Query completed: 6878 measurement(s)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Aggregating features by individual</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Aggregating 4597 numeric measurement(s)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Aggregating 2281 character measurement(s)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Aggregated 888 individual(s)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Enriching with taxonomic-level traits</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Querying taxa-level traits</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fetching trait measurements for 154 taxon/taxa</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 5064 measurement(s) for 142 taxa</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Resolving taxonomic synonyms</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Processing traits to wide format</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Aggregating numeric traits</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Aggregating categorical traits (mode)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Query completed</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Added 24 numeric taxonomic trait column(s)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Added 16 categorical taxonomic trait column(s)</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Aggregating traits to genus level</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Source information added to columns starting with 'source_'</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Attempt 1 of 10...</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> ✅ Successfully connected and fetched 10253 rows.</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Attempt 1 of 10...</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> ✅ Successfully connected and fetched 6091 rows.</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Querying taxa-level traits</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fetching trait measurements for 13111 taxon/taxa</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 19950 measurement(s) for 2492 taxa</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Resolving taxonomic synonyms</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Including synonyms: 2492 taxa expanded to 6053 taxa</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Adding taxonomic information</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Query completed</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Setting wood density SD to averaged species and genus level according to BIOMASS dataset</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Fetching trait measurements</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Removed 135 measurement(s) with issues</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Enriching with census information</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Query completed: 4112 measurement(s)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; ── <span style="font-weight: bold;">Querying taxa-level traits</span> ──</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Fetching trait measurements for 154 taxon/taxa</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Found 5064 measurement(s) for 142 taxa</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Resolving taxonomic synonyms</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Query completed</span></span>
-<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> ids removed - remove_ids = TRUE</span></span>
-<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Auto-detected output style: 'permanent_plot' based on method field</span></span>
-<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> Output restructured using 'permanent_plot' style. Use names() to see available tables.</span></span></code></pre></div>
+<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> Dropped 4 traits with no measurement at the selected (first) census: <span style="color: #0000BB;">"flag2_rainfor"</span>, <span style="color: #0000BB;">"light_observations"</span>, <span style="color: #0000BB;">"mortality_risk_flag"</span>, and <span style="color: #0000BB;">"stem_diameter_observations"</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BBBB00;">!</span> Keep them with `show_multiple_census = TRUE` or `census_strategy = "mean"`</span></span>
+<span><span class="co">#&gt; <span style="color: #00BB00;">✔</span> 2 plots, 888 individuals, permanent_plot style</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Excluded:</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">•</span> 270 measurements flagged with an issue: `issues = "remove"`, or `issues =</span></span>
+<span><span class="co">#&gt;   "include"` to keep them</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Taxonomic traits are genus-level aggregates, not values of the taxon itself:</span></span>
+<span><span class="co">#&gt;   `traits_to_genera = TRUE`, provenance in the <span style="color: #00BB00;">source_*</span> columns</span></span>
+<span><span class="co">#&gt; <span style="color: #00BBBB;">ℹ</span> Tables: <span style="color: #00BB00;">metadata</span>, <span style="color: #00BB00;">individuals</span>, <span style="color: #00BB00;">height_diameter</span>, and <span style="color: #00BB00;">data_sources</span></span></span></code></pre></div>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span></span>
 <span><span class="co"># Check structure</span></span>
@@ -321,12 +240,12 @@ ready</strong> for modeling:</p>
 <span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 6 × 8</span></span></span>
 <span><span class="co">#&gt;     id_n plot_name    tag     D     H   POM census_name census_date</span></span>
 <span><span class="co">#&gt;    <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span>       <span style="color: #949494; font-style: italic;">&lt;date&gt;</span>     </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> <span style="text-decoration: underline;">248</span>314 bouamir001     1  17.7  12.8   1.3 census_1    2018-12-02 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> <span style="text-decoration: underline;">248</span>334 bouamir001     6  22.2  15.7   1.3 census_1    2018-12-02 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> <span style="text-decoration: underline;">248</span>342 bouamir001     8  38.4  28.4   1.8 census_1    2018-12-02 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> <span style="text-decoration: underline;">248</span>346 bouamir001     9 123.   40.4   3.3 census_1    2018-12-02 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> <span style="text-decoration: underline;">248</span>370 bouamir001    15  48.7  25.8   1.3 census_1    2018-12-02 </span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> <span style="text-decoration: underline;">248</span>738 bouamir001   107  14.7  13.5   1.3 census_1    2018-12-02</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> <span style="text-decoration: underline;">248</span>314 bouamir001     1  17.7  12.8  1.3  census_1    2018-12-02 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> <span style="text-decoration: underline;">248</span>738 bouamir001   107  14.7  13.5  1.3  census_1    2018-12-02 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span> <span style="text-decoration: underline;">248</span>742 bouamir001   108  56.5  36.8  1.3  census_1    2018-12-02 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span> <span style="text-decoration: underline;">248</span>754 bouamir001   111  18.1  18.6  1.3  census_1    2018-12-02 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span> <span style="text-decoration: underline;">248</span>890 bouamir001   145  71    28.6  3.5  census_1    2018-12-02 </span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span> <span style="text-decoration: underline;">248</span>938 bouamir001   157  49.1  28.3  2.62 census_1    2018-12-02</span></span>
 <span></span>
 <span><span class="co"># This table includes:</span></span>
 <span><span class="co"># - id_n: Individual ID</span></span>

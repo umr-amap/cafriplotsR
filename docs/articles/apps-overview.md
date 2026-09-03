@@ -10,13 +10,22 @@ the app.
 
 Each app opens on the same login screen. What differs is **who may use
 it**: three apps can be opened without any credentials, the other seven
-need your own account because they write to the database.
+need your own account because they write to the database. One of the
+three, the taxonomic matching app, goes further still and also runs
+offline.
+
+One of the three does not need R at all. The taxonomic name
+standardization app is also **hosted**, at
+<https://cafri-taxomatch.lab.sspcloud.fr> — open it in a browser and it
+behaves exactly like the local app, public login included. Use it to try
+the package out, or to point a colleague at the workflow without asking
+them to install anything.
 
 ## Which app do I need?
 
 | App | Launch with | Access |
 |----|----|----|
-| Taxonomic name standardization | [`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md) | public or account |
+| Taxonomic name standardization | [`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md) | public, account, or offline |
 | Taxonomic backbone | [`launch_taxo_backbone_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxo_backbone_app.md) | public to browse, account to edit |
 | Plot querying | [`launch_query_plots_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_query_plots_app.md) | public or account |
 | Plot data import | [`launch_import_wizard()`](https://umr-amap.github.io/cafriplotsR/reference/launch_import_wizard.md) | account |
@@ -46,6 +55,28 @@ It is **not** enough to import data, correct records, or manage
 specimens. Those apps do not show the public button at all, because a
 read-only account cannot complete a single one of their workflows.
 
+## Working without a network
+
+One app goes further and runs with no database at all: the taxonomic
+name standardization app offers a **Use offline (cached backbone)**
+button. It works from a copy of the taxonomic backbone saved on your own
+machine, so you can standardize a species list from a field station, a
+plane or any other place without a route to the server.
+
+Two things are worth knowing before you rely on it:
+
+- The button only appears once a cache exists. The cache is written the
+  first time you run the matching app **online**, so run it connected
+  once before you leave.
+- Offline, you get automatic matching, fuzzy suggestions and manual
+  review. The traits enrichment tab is hidden, because traits live in
+  the database and nothing local can stand in for them.
+
+**The other nine apps never show this button.** Offline mode leaves the
+app with no connection, and none of them has anything to work on in that
+state — they import, correct or query live data. If you were expecting
+the button somewhere else, that is why it is not there.
+
 ## Explore and standardize
 
 ### Taxonomic name standardization
@@ -63,6 +94,14 @@ identifier (`idtax_n`), which is what lets you join traits and
 inventories later on.
 
 Start here if you arrive with a species list from your own fieldwork.
+This is also the one app that runs offline, from a cached copy of the
+backbone.
+
+And it is the only one you can use **without installing anything**:
+<https://cafri-taxomatch.lab.sspcloud.fr> serves the same application
+from SSP Cloud. The hosted copy talks to the same database, so a
+standardized list exported there carries the same `idtax_n` values as
+one produced locally.
 
 ### Taxonomic backbone
 

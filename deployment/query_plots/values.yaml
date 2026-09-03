@@ -1,0 +1,76 @@
+# Values for the SSP Cloud generic "shiny" chart.
+# Settings for the upstream chart live under the `shiny:` key because it is
+# inherited as a sub-chart (see Chart.yaml). Top-level keys configure this
+# wrapper chart's own resources (e.g. the probe-patch hook).
+
+# --- Probe patch hook --------------------------------------------------------
+# Image (must contain kubectl) used by the post-install/post-upgrade hook that
+# loosens the sub-chart's tight HTTP probe timing. See templates/probe-patch.yaml.
+# Override if this image can't be pulled here.
+probePatch:
+  image: bitnami/kubectl:latest
+
+# --- Public login credential -------------------------------------------------
+# Name of a Secret holding CAFRI_PUBLIC_USER / CAFRI_PUBLIC_PASS, mounted into
+# the container by the same hook (templates/probe-patch.yaml). Create it out of
+# band so the password stays out of this repository:
+#
+#   kubectl create secret generic cafri-public-credential \
+#     --from-literal=CAFRI_PUBLIC_USER=CafriP_public \
+#     --from-literal=CAFRI_PUBLIC_PASS='<current password>'
+#
+# The SAME Secret is shared with the taxonomic-match release - create it once
+# per namespace, not once per app.
+#
+# Optional: without it the app falls back to the published descriptor at
+# https://umr-amap.github.io/cafriplotsR/public-access.json
+publicCredential:
+  secretName: cafri-public-credential
+
+shiny:
+
+  # --- Container image -------------------------------------------------------
+  # Points at the image built and pushed to GitHub Container Registry by the
+  # GitHub Actions workflow. The package must be set to Public (repo Packages
+  # tab) so SSP Cloud can pull it without credentials.
+  # Owner is lowercase: ghcr.io/umr-amap/cafri-queryplots
+  image:
+    repository: ghcr.io/umr-amap/cafri-queryplots
+    tag: latest
+    pullPolicy: Always
+
+  # shiny-server listens on 3838 (the chart's default service.port is 80).
+  service:
+    port: 3838
+
+  # --- Public URL ------------------------------------------------------------
+  # Only the hostname is overridden; the chart's default ingress annotations
+  # (nginx class + 3600s proxy-read-timeout for Shiny websockets) and tls: true
+  # are kept as-is. Must differ from the taxonomic-match hostname.
+  ingress:
+    enabled: true
+    hostname: cafri-queryplots.lab.sspcloud.fr
+
+  # --- Runtime configuration -------------------------------------------------
+  # This chart has no env-var field; CAFRI_SERVED=true and CAFRI_LANGUAGE=fr
+  # are baked into the image via the Dockerfile ENV instructions instead.
+  # Users authenticate at runtime via the in-app login module, so no personal
+  # database credentials are held here. The read-only PUBLIC login is the one
+  # exception: it is supplied through the `publicCredential` Secret above,
+  # never through the image, which is world-pullable from ghcr.io.
+
+  # --- Resources -------------------------------------------------------------
+  # Plot queries pull large result sets into memory and render maps (sf +
+  # leaflet) and plotly figures, so this app is more memory-hungry than the
+  # taxonomic matcher. Tune after observing real usage.
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "2Gi"
+    limits:
+      cpu: "2"
+      memory: "8Gi"
+
+  # S3/MinIO and PostgreSQL sub-features of the chart are intentionally left
+  # disabled: the database is external (OVH) and reached over the internet from
+  # within the app, not provisioned by this chart.

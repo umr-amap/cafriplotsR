@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.94</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,7 +42,7 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">mod_database_login_ui</span><span class="op">(</span><span class="va">id</span>, allow_public <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">mod_database_login_ui</span><span class="op">(</span><span class="va">id</span>, allow_public <span class="op">=</span> <span class="cn">FALSE</span>, allow_offline <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -58,6 +58,15 @@
 Defaults to `FALSE`. The public account is read-only, so only apps that
 are useful without write access should opt in (taxonomic matching,
 backbone browsing, plot querying).</p></dd>
+
+
+<dt id="arg-allow-offline">allow_offline<a class="anchor" aria-label="anchor" href="#arg-allow-offline"></a></dt>
+<dd><p>Logical. Show the "Use offline (cached backbone)"
+button? Defaults to `FALSE`. Offline mode leaves the app with no database
+connection at all and only the cached taxonomic backbone, so only the
+taxonomic matching app — the one workflow that can be finished from the
+cache alone — should opt in. The button is shown only when a cache also
+exists on disk.</p></dd>
 
 </dl></div>
     <div class="section level2">

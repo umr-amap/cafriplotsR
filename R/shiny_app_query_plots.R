@@ -247,8 +247,13 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
       shiny::updateSelectInput(session, "selected_language", selected = lang)
     })
 
-    # Stop app and quit R when browser is closed
+    # Stop app and quit R when browser is closed.
+    # Under a hosted server one R process serves every visitor, so a single
+    # session ending must not tear down the process (see .is_served()).
     session$onSessionEnded(function() {
+      if (.is_served()) {
+        return(invisible(NULL))
+      }
       # Clean up all connections and credentials
       tryCatch({
         cleanup_connections()

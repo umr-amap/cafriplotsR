@@ -5,7 +5,12 @@ Server logic for database authentication with language selection
 ## Usage
 
 ``` r
-mod_database_login_server(id, allow_public = FALSE)
+mod_database_login_server(
+  id,
+  allow_public = FALSE,
+  allow_offline = FALSE,
+  intro = NULL
+)
 ```
 
 ## Arguments
@@ -19,6 +24,31 @@ mod_database_login_server(id, allow_public = FALSE)
   Logical. Allow connecting through the read-only public account?
   Defaults to \`FALSE\`. Must match the value given to
   \[mod_database_login_ui()\].
+
+- allow_offline:
+
+  Logical. Allow connecting in offline mode, against the cached
+  taxonomic backbone and no database? Defaults to \`FALSE\`. Must match
+  the value given to \[mod_database_login_ui()\].
+
+- intro:
+
+  Optional named list describing the app the visitor has landed on,
+  shown in place of the generic connection header. Use \`title\` for the
+  app name and \`body\` for a character vector of paragraphs. Both are
+  treated as \*English translation keys\*, not final text, so they are
+  re-translated when the visitor flips the language toggle - add each
+  string to \`inst/translations/translation.json\` or it renders in
+  English only. Defaults to \`NULL\`, which keeps the generic header.
+
+  This only matters for apps reachable by URL, where the login screen is
+  the landing page and the generic header is the sole thing a first-time
+  visitor reads. Apps launched from an R console already have the user's
+  intent.
+
+  Unlike \`allow_public\` and \`allow_offline\`, this belongs to the
+  server alone: the header is a \`uiOutput\` placeholder, so the UI
+  function needs no matching argument.
 
 ## Value
 

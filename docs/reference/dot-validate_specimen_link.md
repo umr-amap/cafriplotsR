@@ -5,7 +5,13 @@ Internal function to validate that all foreign key references exist.
 ## Usage
 
 ``` r
-.validate_specimen_link(id_specimen, id_n, id_linktype, con)
+.validate_specimen_link(
+  id_specimen,
+  id_n,
+  id_linktype,
+  con,
+  id_liste_plots = NA_integer_
+)
 ```
 
 ## Arguments
@@ -16,7 +22,7 @@ Internal function to validate that all foreign key references exist.
 
 - id_n:
 
-  Integer individual ID
+  Integer individual ID. \`NA\` for a plot-level link.
 
 - id_linktype:
 
@@ -25,6 +31,10 @@ Internal function to validate that all foreign key references exist.
 - con:
 
   Database connection
+
+- id_liste_plots:
+
+  Integer plot ID. \`NA\` for an individual-level link.
 
 ## Value
 
