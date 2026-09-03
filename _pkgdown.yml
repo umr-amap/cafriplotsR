@@ -110,7 +110,6 @@ reference:
       - query_plots
       - plot_feature_filters
       - plot_feature_values
-      - query_subplots
       - query_plot_features
       - query_individual_features
       - get_individual_aggregated_features
@@ -144,6 +143,11 @@ reference:
       - get_updates_diconame
       - get_primary_specimen_link
       - get_ref_specimen_ind
+
+  - title: "Superseded"
+    desc: "Kept so that older scripts keep running; use the replacement named in each page."
+    contents:
+      - query_subplots
 
   - title: "Output Styling"
     desc: "Configure custom output styles for query results"

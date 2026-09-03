@@ -67,9 +67,16 @@ test_that("query_subplots delegates supplied IDs and preserves the legacy result
   )
 
   con <- structure(list(), class = "mock_con")
-  result <- query_subplots(
-    ids_plots = c(1L, 2L), ids_subplots = 10L, subtype = "census",
-    extract_subplots_obs_features = TRUE, verbose = FALSE, con = con
+
+  # The wrapper is superseded, so the call warns; the renaming it exists for
+  # must still be exact.
+  withr::local_options(lifecycle_verbosity = "warning")
+  expect_warning(
+    result <- query_subplots(
+      ids_plots = c(1L, 2L), ids_subplots = 10L, subtype = "census",
+      extract_subplots_obs_features = TRUE, verbose = FALSE, con = con
+    ),
+    class = "lifecycle_warning_deprecated"
   )
 
   expect_equal(captured, list(c(1L, 2L), 10L, "census", "wide", TRUE, con))
@@ -80,6 +87,7 @@ test_that("query_subplots refuses the plot filters it never applied", {
   # These four were served by an internal helper deleted in 1.9.0; the call
   # site was left behind, so they raised `could not find function` rather than
   # filtering. They are now a deprecation error pointing at query_plots().
+  withr::local_options(lifecycle_verbosity = "quiet")
   con <- structure(list(), class = "mock_con")
 
   for (arg in c("plot_name", "country", "locality_name", "method")) {
@@ -95,6 +103,7 @@ test_that("query_subplots refuses the plot filters it never applied", {
 
 test_that("query_subplots asks for ids rather than fetching every plot", {
   # The removed filter branch used to treat "nothing supplied" as "everything".
+  withr::local_options(lifecycle_verbosity = "quiet")
   con <- structure(list(), class = "mock_con")
   expect_error(
     query_subplots(verbose = FALSE, con = con),

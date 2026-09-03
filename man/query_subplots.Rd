@@ -28,8 +28,8 @@ resolve the plots and pass their ids as `ids_plots`.}
 \item{subtype}{Character. Subplot type to keep, matched as a regular
 expression.}
 
-\item{verbose}{Logical. Whether to announce that the legacy wrapper is in
-use.}
+\item{verbose}{Accepted for compatibility and ignored. The deprecation
+warning is not silenceable.}
 
 \item{extract_subplots_obs_features}{Logical. Also fetch the features
 attached to subplot observations.}
@@ -44,9 +44,11 @@ A list of `all_subplots`, `all_subplot_pivot` and `census_features`,
 `r lifecycle::badge("superseded")`
 }
 \details{
-Kept so that existing code and the census-information module keep running.
-It is a thin wrapper: it calls [query_plot_features()] and renames the three
-elements of the result to their old names.
+Superseded by [query_plot_features()], which does the whole job. All this
+wrapper adds is a second set of names for the same arguments and the same
+three results, so there is no reason to prefer it. It is kept only so that
+code written against the old names keeps running, and it warns once per
+session.
 
 The plot-filtering arguments are gone. They were served by an internal
 helper that the October 2025 rewrite of [query_plots()] deleted without

@@ -452,9 +452,11 @@ extract_census_dates <- function(census_data) {
 #'
 #' `r lifecycle::badge("superseded")`
 #'
-#' Kept so that existing code and the census-information module keep running.
-#' It is a thin wrapper: it calls [query_plot_features()] and renames the three
-#' elements of the result to their old names.
+#' Superseded by [query_plot_features()], which does the whole job. All this
+#' wrapper adds is a second set of names for the same arguments and the same
+#' three results, so there is no reason to prefer it. It is kept only so that
+#' code written against the old names keeps running, and it warns once per
+#' session.
 #'
 #' The plot-filtering arguments are gone. They were served by an internal
 #' helper that the October 2025 rewrite of [query_plots()] deleted without
@@ -469,8 +471,8 @@ extract_census_dates <- function(census_data) {
 #'   resolve the plots and pass their ids as `ids_plots`.
 #' @param subtype Character. Subplot type to keep, matched as a regular
 #'   expression.
-#' @param verbose Logical. Whether to announce that the legacy wrapper is in
-#'   use.
+#' @param verbose Accepted for compatibility and ignored. The deprecation
+#'   warning is not silenceable.
 #' @param extract_subplots_obs_features Logical. Also fetch the features
 #'   attached to subplot observations.
 #' @param con A DBI connection or pool. Opened with [call.mydb()] if `NULL`.
@@ -495,9 +497,16 @@ query_subplots <- function(
     con = NULL
 ) {
 
-  if (verbose) {
-    cli::cli_alert_info("Using legacy wrapper - consider migrating to query_plot_features()")
-  }
+  lifecycle::deprecate_warn(
+    when = "1.9.8",
+    what = "query_subplots()",
+    with = "query_plot_features()",
+    details = paste(
+      "The results are the same three tables under their current names:",
+      "all_subplots is features_raw, all_subplot_pivot is features_aggregated,",
+      "and census_features is census_info."
+    )
+  )
 
   # These four never reached a working query, so there is no behaviour to keep
   # and nothing to warn about gently: stopping is the only honest answer.
