@@ -4,19 +4,37 @@
 \alias{mod_citation_panel_server}
 \title{Citation Panel Module - Server}
 \usage{
-mod_citation_panel_server(id, citation_data, i18n)
+mod_citation_panel_server(
+  id,
+  citation_data,
+  i18n,
+  count_col = "n_taxa",
+  context = c("traits", "plots")
+)
 }
 \arguments{
 \item{id}{Module namespace ID}
 
-\item{citation_data}{Reactive returning a citations x traits pivot table from
-\code{build_data_sources_table()} with columns: \code{citation_key},
-optionally \code{citation_authors}, \code{citation_year},
-\code{citation_title}, \code{citation_dataset_name}, \code{n_taxa}, and
-one column per trait containing measurement counts. Returns NULL when no
+\item{citation_data}{Reactive returning a citations x traits (or, for
+plots, citations x country) pivot table from
+\code{build_data_sources_table()} / \code{build_plot_data_sources_table()}
+with columns: \code{citation_key}, optionally \code{citation_authors},
+\code{citation_year}, \code{citation_title}, \code{citation_dataset_name},
+a count column (\code{n_taxa} or \code{n_plots}, see \code{count_col}),
+and one column per trait/country containing counts. Returns NULL when no
 data is available.}
 
 \item{i18n}{Reactive returning a shiny.i18n translator object}
+
+\item{count_col}{Name of the summary count column to exclude, alongside the
+citation metadata columns, when computing the per-column breakdown total
+(\code{"n_taxa"} for trait citations, \code{"n_plots"} for plot
+citations). Defaults to \code{"n_taxa"}.}
+
+\item{context}{Either \code{"traits"} (default) or \code{"plots"} - selects
+the wording used in the banner, warning message and stat labels, since
+the same module backs both the trait-measurement "Data Sources" tab and
+the plot-level "Plot Data Sources" tab.}
 }
 \description{
 Renders a panel listing data sources and citations for trait measurements.

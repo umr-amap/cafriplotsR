@@ -5994,6 +5994,26 @@
       "fr": "Sources contribuant à votre jeu de données enrichi"
     },
     {
+      "en": "Plot Data Sources",
+      "fr": "Sources de données des placettes"
+    },
+    {
+      "en": "No citation information available for these plots. Citations may not have been assigned yet.",
+      "fr": "Aucune information de citation disponible pour ces placettes. Les citations peuvent ne pas encore avoir été attribuées."
+    },
+    {
+      "en": "The plot data in your dataset comes from the databases and publications listed below. If you use these data in a publication, you must cite or acknowledge each source accordingly. Proper attribution ensures the sustainability of open data initiatives and recognizes the work of data collectors and curators.",
+      "fr": "Les données de placettes de votre jeu de données proviennent des bases de données et publications listées ci-dessous. Si vous utilisez ces données dans une publication, vous devez citer ou mentionner chaque source. Une attribution correcte assure la pérennité des initiatives de données ouvertes et reconnaît le travail des collecteurs et curateurs de données."
+    },
+    {
+      "en": "Total plots",
+      "fr": "Total des placettes"
+    },
+    {
+      "en": "Sources contributing to your plots",
+      "fr": "Sources contribuant à vos placettes"
+    },
+    {
       "en": "Unassigned source",
       "fr": "Source non attribuée"
     },

@@ -10,7 +10,8 @@ mod_results_display_server(
   individual_features_results = NULL,
   i18n,
   con = NULL,
-  citation_data = NULL
+  citation_data = NULL,
+  plot_citation_data = NULL
 )
 }
 \arguments{
@@ -25,6 +26,12 @@ mod_results_display_server(
 \item{con}{Reactive returning a database connection (for column documentation)}
 
 \item{citation_data}{Reactive returning a citation summary data.frame (optional, see mod_citation_panel_server)}
+
+\item{plot_citation_data}{Reactive returning a plot-level citation summary
+data.frame from \code{build_plot_data_sources_table()} (optional, see
+mod_citation_panel_server). Unlike \code{citation_data} (which reflects
+the extracted individuals/traits), this is available as soon as plot
+metadata is loaded.}
 }
 \description{
 Server logic for results display and download

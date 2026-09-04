@@ -26,17 +26,27 @@ mod_results_display_ui <- function(id) {
 #' @param i18n Reactive returning shiny.i18n translator
 #' @param con Reactive returning a database connection (for column documentation)
 #' @param citation_data Reactive returning a citation summary data.frame (optional, see mod_citation_panel_server)
+#' @param plot_citation_data Reactive returning a plot-level citation summary
+#'   data.frame from \code{build_plot_data_sources_table()} (optional, see
+#'   mod_citation_panel_server). Unlike \code{citation_data} (which reflects
+#'   the extracted individuals/traits), this is available as soon as plot
+#'   metadata is loaded.
 #'
 #' @return NULL
 #'
 #' @keywords internal
 #' @export
-mod_results_display_server <- function(id, results, individual_features_results = NULL, i18n, con = NULL, citation_data = NULL) {
+mod_results_display_server <- function(id, results, individual_features_results = NULL, i18n, con = NULL, citation_data = NULL, plot_citation_data = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
     if (!is.null(citation_data)) {
       mod_citation_panel_server("citations", citation_data = citation_data, i18n = i18n)
+    }
+
+    if (!is.null(plot_citation_data)) {
+      mod_citation_panel_server("plot_citations", citation_data = plot_citation_data, i18n = i18n,
+                                 count_col = "n_plots", context = "plots")
     }
 
     # Main UI with translations
@@ -416,11 +426,23 @@ mod_results_display_server <- function(id, results, individual_features_results 
         list()
       }
 
-      # Create tabsetPanel with tabs + optional citation tab + documentation tab
+      # Add Plot Data Sources tab if plot-level citation data is available
+      plot_citation_tab_list <- if (!is.null(plot_citation_data) && !is.null(plot_citation_data())) {
+        list(shiny::tabPanel(
+          title = shiny::tagList(shiny::icon("map-marker-alt"), " ", i18n()$t("Plot Data Sources")),
+          shiny::br(),
+          mod_citation_panel_ui(ns("plot_citations"))
+        ))
+      } else {
+        list()
+      }
+
+      # Create tabsetPanel with tabs + optional citation tabs + documentation tab
       do.call(shiny::tabsetPanel, c(
         list(id = ns("results_tabs"), type = "tabs"),
         tabs,
         citation_tab_list,
+        plot_citation_tab_list,
         list(coldoc_tab)
       ))
     })
