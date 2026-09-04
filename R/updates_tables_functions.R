@@ -4465,7 +4465,15 @@ get_table_columns <- function(table_name, con) {
       "date_d",              # Day of census/survey (optional)
 
       # Optional columns - plot characteristics
-      "subplot_shape"        # Shape of subplot (optional)
+      "subplot_shape",       # Shape of subplot (optional)
+
+      # Data source
+      "id_citation"          # FK to table_citations (optional) - unlike
+                              # method/country there is no friendly-name
+                              # metadata mapping for it yet, so the caller
+                              # supplies the id directly, same as
+                              # taxa_traits_measures.id_citation. Look it up
+                              # with query_citations() first.
 
       # Note: The following are NOT included because they are:
       # - team_leader, principal_investigator, data_manager, additional_people,

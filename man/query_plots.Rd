@@ -176,10 +176,16 @@ Set a session default with `options(CafriplotsR.verbose = "debug")`.
 Interactive matching prompts are never muted.}
 }
 \value{
-A list or data frame containing plot data and associated information. When multiple 
-components are requested, returns a list with elements like `extract`, `census_features`, 
-`coordinates`, and `coordinates_sf`. If only one component is available, returns that 
-component directly. Returns `NA` if no plots are found matching the criteria.
+A list or data frame containing plot data and associated information. When multiple
+components are requested, returns a list with elements like `extract`, `census_features`,
+`coordinates`, and `coordinates_sf`. When any queried plot has `id_citation` set
+(see `data_liste_plots.id_citation` / `table_citations`), also includes
+`plot_sources`: a citations x country pivot built by
+[build_plot_data_sources_table()], the plot-level counterpart of the
+`data_sources` element added when `extract_individuals = TRUE` and
+`extract_traits = TRUE` resolve taxon-level trait citations. If only one
+component is available, returns that component directly. Returns `NA` if
+no plots are found matching the criteria.
 }
 \description{
 This function queries a PostgreSQL inventory database to return a list of forest plots or individuals, 

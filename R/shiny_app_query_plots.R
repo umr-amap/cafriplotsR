@@ -376,6 +376,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
       individual_features = NULL,
       extracted_plot_ids = NULL,
       citation_summary = NULL,
+      plot_citation_summary = NULL,
       modules_initialized = FALSE
     )
 
@@ -406,6 +407,7 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
         rv$individual_features <- NULL
         rv$extracted_plot_ids <- NULL
         rv$citation_summary <- NULL
+        rv$plot_citation_summary <- NULL
 
         cli::cli_alert_info("Getting filters...")
         # Get filters
@@ -456,6 +458,15 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
           } else {
             cli::cli_alert_warning("Unexpected result structure!")
             rv$metadata <- NULL
+          }
+
+          # Extract plot_sources (citations x country pivot) - built from every
+          # query_plots() call regardless of extraction, so it's available as
+          # soon as metadata is loaded, not only after individual extraction.
+          rv$plot_citation_summary <- if (is.list(result) && !is.data.frame(result)) {
+            result[["plot_sources"]]
+          } else {
+            NULL
           }
 
           # Switch to results page
@@ -678,7 +689,8 @@ shiny_app_query_plots <- function(pool_main = NULL, language = "fr") {
         individual_features_results = shiny::reactive(rv$individual_features),
         i18n = i18n,
         con = pool_reactive,
-        citation_data = shiny::reactive(rv$citation_summary)
+        citation_data = shiny::reactive(rv$citation_summary),
+        plot_citation_data = shiny::reactive(rv$plot_citation_summary)
       )
 
       # Module 5: Code Preview (equivalent R code)
