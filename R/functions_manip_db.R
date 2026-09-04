@@ -159,11 +159,17 @@ method_list <- function() {
 #'   Set a session default with `options(CafriplotsR.verbose = "debug")`.
 #'   Interactive matching prompts are never muted.
 #'
-#' @returns 
-#' A list or data frame containing plot data and associated information. When multiple 
-#' components are requested, returns a list with elements like `extract`, `census_features`, 
-#' `coordinates`, and `coordinates_sf`. If only one component is available, returns that 
-#' component directly. Returns `NA` if no plots are found matching the criteria.
+#' @returns
+#' A list or data frame containing plot data and associated information. When multiple
+#' components are requested, returns a list with elements like `extract`, `census_features`,
+#' `coordinates`, and `coordinates_sf`. When any queried plot has `id_citation` set
+#' (see `data_liste_plots.id_citation` / `table_citations`), also includes
+#' `plot_sources`: a citations x country pivot built by
+#' [build_plot_data_sources_table()], the plot-level counterpart of the
+#' `data_sources` element added when `extract_individuals = TRUE` and
+#' `extract_traits = TRUE` resolve taxon-level trait citations. If only one
+#' component is available, returns that component directly. Returns `NA` if
+#' no plots are found matching the criteria.
 #'
 #' @importFrom DBI dbSendQuery dbFetch dbClearResult dbWriteTable
 #' @importFrom stringr str_flatten str_trim str_extract
@@ -482,8 +488,10 @@ query_plots <- function(plot_name = NULL,
     res %>%
     dplyr::select(-any_of(c("id_old")))
   
-  res <- 
+  res <-
     .link_metadata_tables(res = res, con = mydb)
+
+  res <- .enrich_plot_citation(res, con = mydb)
 
   if (extract_subplot_features & nrow(res) > 0) {
     
@@ -641,8 +649,19 @@ query_plots <- function(plot_name = NULL,
   }
 
   res <- res %>% dplyr::arrange(plot_name)
-  
+
   res_meta_data <- res
+
+  # Build the citations x country pivot from the one-row-per-plot snapshot,
+  # before extract_individuals (if requested) replaces `res` with
+  # individual-level rows that don't carry citation columns.
+  plot_sources <- tryCatch(
+    build_plot_data_sources_table(res_meta_data),
+    error = function(e) {
+      cli::cli_alert_warning("Could not build plot_sources table: {e$message}")
+      NULL
+    }
+  )
 
   if (map) {
 
@@ -857,6 +876,10 @@ query_plots <- function(plot_name = NULL,
 
   if (exists("data_sources") && !is.null(data_sources)) {
     res_list$data_sources <- data_sources
+  }
+
+  if (exists("plot_sources") && !is.null(plot_sources)) {
+    res_list$plot_sources <- plot_sources
   }
 
   if (length(res_list) == 1)

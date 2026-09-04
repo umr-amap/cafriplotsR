@@ -308,6 +308,296 @@ update_citation <- function(id_citation, fields, con = NULL, execute = FALSE) {
 }
 
 # =============================================================================
+# Plot-level citations
+# =============================================================================
+#
+# `data_liste_plots.id_citation` is the plot-level counterpart of
+# `taxa_traits_measures.id_citation`: one citation per plot recording which
+# dataset/study the plot's inventory data comes from. See
+# inst/migrations/add_plot_citations.R for the schema change.
+
+#' Export plots for citation backfill
+#'
+#' Exports `data_liste_plots` to a data frame (optionally saved as Excel)
+#' with a blank `id_citation` column ready to be filled in manually. Once
+#' filled, pass the result to `apply_plot_citation_backfill()`.
+#'
+#' The export contains only the columns needed to identify each plot and
+#' assign a citation: `id_liste_plots`, `plot_name`, `country`, `method`, and
+#' the current `id_citation` (NA where unset).
+#'
+#' @param con Database connection to `plots_transects`. If NULL, calls
+#'   `call.mydb()`.
+#' @param file Path to an `.xlsx` file to write. If NULL (default), returns
+#'   the data frame without writing.
+#' @param only_missing Logical. If TRUE (default), export only rows where
+#'   `id_citation IS NULL`.
+#'
+#' @return A data frame with columns `id_liste_plots`, `plot_name`,
+#'   `country`, `method`, `id_citation`.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # Return as data frame
+#' df <- export_plots_for_citation_backfill(con)
+#'
+#' # Write to Excel for manual editing
+#' export_plots_for_citation_backfill(con, file = "plots_to_cite.xlsx")
+#' }
+#'
+#' @export
+export_plots_for_citation_backfill <- function(con = NULL,
+                                               file = NULL,
+                                               only_missing = TRUE) {
+
+  if (is.null(con)) con <- call.mydb()
+
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+  }, add = TRUE)
+
+  where_sql <- if (only_missing) "WHERE lp.id_citation IS NULL" else ""
+
+  result <- DBI::dbGetQuery(actual_con, paste0("
+    SELECT
+      lp.id_liste_plots,
+      lp.plot_name,
+      tc_country.country,
+      ml.method,
+      lp.id_citation
+    FROM data_liste_plots lp
+    LEFT JOIN table_countries tc_country ON lp.id_country = tc_country.id_country
+    LEFT JOIN methodslist ml ON lp.id_method = ml.id_method
+    ", where_sql, "
+    ORDER BY lp.plot_name
+  "))
+
+  cli::cli_alert_info(
+    "{nrow(result)} plot(s) exported ({if (only_missing) 'missing citation only' else 'all rows'})"
+  )
+
+  if (!is.null(file)) {
+    if (!requireNamespace("openxlsx", quietly = TRUE)) {
+      cli::cli_abort("Package 'openxlsx' required to write Excel. Install with: install.packages('openxlsx')")
+    }
+    citations <- tryCatch(
+      DBI::dbGetQuery(actual_con,
+        "SELECT id_citation, citation_key, authors, year, dataset_name
+         FROM table_citations ORDER BY citation_key"),
+      error = function(e) data.frame()
+    )
+    wb <- openxlsx::createWorkbook()
+    openxlsx::addWorksheet(wb, "plots")
+    openxlsx::writeData(wb, "plots", result)
+    if (nrow(citations) > 0) {
+      openxlsx::addWorksheet(wb, "citations_reference")
+      openxlsx::writeData(wb, "citations_reference", citations)
+    }
+    openxlsx::saveWorkbook(wb, file, overwrite = TRUE)
+    cli::cli_alert_success("Written to {.file {file}}")
+    cli::cli_alert_info("Fill in the 'id_citation' column in the 'plots' sheet, then run apply_plot_citation_backfill()")
+  }
+
+  invisible(result)
+}
+
+#' Apply plot citation backfill from a manually filled data frame
+#'
+#' Takes a data frame (typically the output of
+#' `export_plots_for_citation_backfill()` after manual editing) and updates
+#' `id_citation` in `data_liste_plots` for each row where `id_citation` is not
+#' NA. Rows with NA are skipped.
+#'
+#' @param data Data frame with at minimum two columns: `id_liste_plots`
+#'   (integer, primary key) and `id_citation` (integer, FK to
+#'   `table_citations`). Additional columns are ignored.
+#' @param con Database connection to `plots_transects`. If NULL, calls
+#'   `call.mydb()`.
+#' @param execute Logical. If FALSE (default), shows a preview of what would
+#'   be updated without modifying the database.
+#' @param batch_size Integer. Number of rows per UPDATE batch (default 1000).
+#'
+#' @return Invisible integer: number of rows updated.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#'
+#' # Export, fill manually, apply
+#' df <- export_plots_for_citation_backfill(con)
+#' # ... fill df$id_citation ...
+#' apply_plot_citation_backfill(df, con = con)              # dry run
+#' apply_plot_citation_backfill(df, con = con, execute = TRUE)
+#' }
+#'
+#' @export
+apply_plot_citation_backfill <- function(data,
+                                         con        = NULL,
+                                         execute    = FALSE,
+                                         batch_size = 1000L) {
+
+  if (is.null(con)) con <- call.mydb()
+
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+  on.exit({
+    if (inherits(con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+  }, add = TRUE)
+
+  required <- c("id_liste_plots", "id_citation")
+  missing_cols <- setdiff(required, names(data))
+  if (length(missing_cols) > 0) {
+    cli::cli_abort("data must contain columns: {paste(missing_cols, collapse=', ')}")
+  }
+
+  # Keep only rows where id_citation is filled in
+  to_update <- data[!is.na(data$id_citation), c("id_liste_plots", "id_citation")]
+  to_update$id_liste_plots <- as.integer(to_update$id_liste_plots)
+  to_update$id_citation    <- as.integer(to_update$id_citation)
+
+  n_skip <- nrow(data) - nrow(to_update)
+
+  cli::cli_alert_info("{nrow(to_update)} plot(s) to update, {n_skip} skipped (NA id_citation)")
+
+  if (nrow(to_update) == 0) {
+    cli::cli_alert_info("Nothing to update")
+    return(invisible(0L))
+  }
+
+  # Preview: citation breakdown
+  cit_summary <- as.data.frame(table(to_update$id_citation))
+  names(cit_summary) <- c("id_citation", "n_plots")
+
+  cit_keys <- tryCatch(
+    DBI::dbGetQuery(actual_con,
+      "SELECT id_citation, citation_key FROM table_citations"),
+    error = function(e) data.frame(id_citation = integer(), citation_key = character())
+  )
+  cit_summary$id_citation <- as.integer(as.character(cit_summary$id_citation))
+  cit_summary <- merge(cit_summary, cit_keys, by = "id_citation", all.x = TRUE)
+
+  cli::cli_h3("Citation assignment preview:")
+  for (i in seq_len(nrow(cit_summary))) {
+    r <- cit_summary[i, ]
+    key <- if (!is.na(r$citation_key)) r$citation_key else paste0("id=", r$id_citation)
+    cli::cli_alert_info("  {key}: {r$n_plots} plot(s)")
+  }
+
+  if (!execute) {
+    cli::cli_alert_warning("DRY RUN - no changes applied (rerun with execute = TRUE)")
+    return(invisible(nrow(to_update)))
+  }
+
+  # Batch UPDATE
+  batches <- split(to_update, ceiling(seq_len(nrow(to_update)) / batch_size))
+  n_updated <- 0L
+
+  cli::cli_progress_bar("Updating batches", total = length(batches))
+
+  for (batch in batches) {
+    values_sql <- paste(
+      apply(batch, 1, function(r) paste0("(", r["id_liste_plots"], ",", r["id_citation"], ")")),
+      collapse = ", "
+    )
+    sql <- paste0(
+      "UPDATE data_liste_plots AS lp
+       SET id_citation = v.id_citation
+       FROM (VALUES ", values_sql, ") AS v(id_liste_plots, id_citation)
+       WHERE lp.id_liste_plots = v.id_liste_plots"
+    )
+    tryCatch({
+      n_updated <- n_updated + DBI::dbExecute(actual_con, sql)
+    }, error = function(e) {
+      cli::cli_alert_danger("Batch failed: {e$message}")
+      stop(e)
+    })
+    cli::cli_progress_update()
+  }
+
+  cli::cli_progress_done()
+  cli::cli_alert_success("{n_updated} plot(s) updated")
+
+  invisible(n_updated)
+}
+
+#' Build a plot data sources summary table (citations × country pivot)
+#'
+#' Creates a wide pivot table showing how many plots each data source
+#' contributes per country. Used by \code{\link{query_plots}} to populate the
+#' `plot_sources` element of its result - the plot-level counterpart of
+#' \code{\link{build_data_sources_table}}, which does the same thing for
+#' taxon-level trait citations.
+#'
+#' @param plots_raw Data frame of plots enriched with citation info, as
+#'   returned internally by `query_plots()` before individual extraction.
+#'   Must contain columns \code{id_liste_plots} and \code{citation_key}.
+#'   \code{country}, when present, becomes the pivoted dimension.
+#'
+#' @return A data frame with one row per citation (rows) and, when
+#'   \code{country} is available, one column per country (plot counts),
+#'   preceded by citation metadata columns and an \code{n_plots} column.
+#'   Returns \code{NULL} when \code{plots_raw} is \code{NULL}, empty, or lacks
+#'   the required columns.
+#'
+#' @export
+build_plot_data_sources_table <- function(plots_raw) {
+  if (is.null(plots_raw) || !is.data.frame(plots_raw) || nrow(plots_raw) == 0)
+    return(NULL)
+  if (!all(c("id_liste_plots", "citation_key") %in% names(plots_raw)))
+    return(NULL)
+
+  plots_raw <- plots_raw %>%
+    dplyr::distinct(.data$id_liste_plots, .keep_all = TRUE) %>%
+    dplyr::mutate(
+      citation_key = dplyr::if_else(
+        is.na(.data$citation_key) | .data$citation_key == "",
+        "(no citation)", .data$citation_key
+      )
+    )
+
+  citation_meta_cols <- intersect(
+    c("citation_key", "citation_authors", "citation_year",
+      "citation_title", "citation_dataset_name"),
+    names(plots_raw)
+  )
+
+  citation_meta <- plots_raw %>%
+    dplyr::select(dplyr::all_of(citation_meta_cols)) %>%
+    dplyr::distinct()
+
+  n_plots_summary <- plots_raw %>%
+    dplyr::group_by(.data$citation_key) %>%
+    dplyr::summarise(n_plots = dplyr::n(), .groups = "drop")
+
+  pivot <- n_plots_summary
+  if (length(citation_meta_cols) > 1) {
+    pivot <- citation_meta %>%
+      dplyr::left_join(pivot, by = "citation_key")
+  }
+
+  if ("country" %in% names(plots_raw)) {
+    country_pivot <- plots_raw %>%
+      dplyr::group_by(.data$citation_key, .data$country) %>%
+      dplyr::summarise(n = dplyr::n(), .groups = "drop") %>%
+      tidyr::pivot_wider(
+        id_cols     = "citation_key",
+        names_from  = "country",
+        values_from = "n",
+        values_fill = 0L
+      )
+
+    pivot <- pivot %>%
+      dplyr::left_join(country_pivot, by = "citation_key")
+  }
+
+  country_cols <- setdiff(names(pivot), c(citation_meta_cols, "n_plots"))
+  col_order    <- c(citation_meta_cols, "n_plots", country_cols)
+  pivot %>% dplyr::select(dplyr::any_of(col_order))
+}
+
+# =============================================================================
 # Backfill helpers
 # =============================================================================
 

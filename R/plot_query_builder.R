@@ -343,11 +343,67 @@
   plots
 }
 
+#' Add readable citation info for a plot's data source
+#'
+#' `data_liste_plots` stores the source dataset as `id_citation`; the caller
+#' wants the readable bibliographic fields. Columns are prefixed with
+#' `citation_` (except `citation_key`, kept bare like `fetch_taxa_trait_measurements()`
+#' does for taxon-level trait citations) so they cannot collide with plot
+#' columns. A lookup table that cannot be read is a warning rather than an
+#' error, since the plots themselves are still worth returning.
+#'
+#' `query_plots()` can reach this through more than one path for the same
+#' plots (e.g. `.fetch_plots_by_ids()` calls it, and the shared flow calls it
+#' again downstream) - any citation columns already present are dropped
+#' before rejoining, the same idiom `.link_metadata_tables()` uses for
+#' `country`/`method`, so repeat calls stay idempotent instead of producing
+#' `.x`/`.y` duplicates.
+#'
+#' @param plots A data frame of plots.
+#' @param con A DBI connection or pool.
+#' @return `plots`, with `citation_key`, `citation_authors`, `citation_year`,
+#'   `citation_title`, `citation_journal`, `citation_doi`, and
+#'   `citation_dataset_name` joined in where `id_citation` is set.
+#' @keywords internal
+#' @noRd
+.enrich_plot_citation <- function(plots, con) {
+
+  if (!"id_citation" %in% colnames(plots)) return(plots)
+
+  citation_cols <- c("citation_key", "citation_authors", "citation_year",
+                     "citation_title", "citation_journal", "citation_doi",
+                     "citation_dataset_name")
+
+  cit_tbl <- tryCatch({
+    try_open_postgres_table("table_citations", con) %>%
+      dplyr::select(
+        id_citation,
+        citation_key,
+        citation_authors      = authors,
+        citation_year         = year,
+        citation_title        = title,
+        citation_journal      = journal,
+        citation_doi          = doi,
+        citation_dataset_name = dataset_name
+      ) %>%
+      dplyr::collect()
+  }, error = function(e) {
+    cli::cli_alert_warning("Could not fetch table_citations: {e$message}")
+    NULL
+  })
+
+  if (is.null(cit_tbl)) return(plots)
+
+  plots <- plots %>% dplyr::select(-dplyr::any_of(citation_cols))
+
+  dplyr::left_join(plots, cit_tbl, by = "id_citation")
+}
+
 #' Fetch plots by their identifiers
 #'
 #' @param plot_ids Integer vector of `data_liste_plots.id_liste_plots`.
 #' @param con A DBI connection or pool.
-#' @return A tibble of plots, enriched with country and method.
+#' @return A tibble of plots, enriched with country, method, and citation.
 #' @keywords internal
 #' @noRd
 .fetch_plots_by_ids <- function(plot_ids, con) {
@@ -364,5 +420,6 @@
   plots <- func_try_fetch(con = con, sql = sql) %>%
     dplyr::select(-dplyr::any_of("id_old"))
 
-  .enrich_plot_metadata(plots, con)
+  plots <- .enrich_plot_metadata(plots, con)
+  .enrich_plot_citation(plots, con)
 }
