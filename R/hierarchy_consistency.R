@@ -11,10 +11,59 @@
 # These must stay in sync to maintain data integrity.
 
 
+#' Refuse a connection that cannot answer a hierarchy question
+#'
+#' `table_taxa.id_parent` was added to the **taxa** database (`rainbio`) by
+#' `inst/migrations/taxa_hierarchy.R`. The main database carries its own
+#' `table_taxa` without that column, so a connection from `call.mydb()` reaches
+#' a table of the right name and the wrong shape - and every function in this
+#' file then fails several queries in with a raw PostgreSQL "column
+#' child.id_parent does not exist".
+#'
+#' Checking up front costs one `dbListFields()` and says which of the two things
+#' went wrong.
+#'
+#' @param con A plain DBI connection.
+#' @param caller Name of the calling function, used in the message.
+#' @return `TRUE`, invisibly. Aborts otherwise.
+#' @keywords internal
+.require_taxa_hierarchy <- function(con, caller) {
+  cols <- tryCatch(DBI::dbListFields(con, "table_taxa"),
+                   error = function(e) character(0))
+
+  if (length(cols) == 0) {
+    cli::cli_abort(c(
+      "{.fn {caller}} needs the taxa database, and this connection has no
+       {.field table_taxa}.",
+      "i" = "Connect with {.fn call.mydb.taxa}, or call {.fn {caller}} with no
+             {.arg con} and let it connect for you."
+    ))
+  }
+
+  if (!"id_parent" %in% cols) {
+    cli::cli_abort(c(
+      "{.field table_taxa} on this connection has no {.field id_parent} column,
+       so there is no hierarchy for {.fn {caller}} to check.",
+      "i" = "The main database carries its own {.field table_taxa} without that
+             column - if this connection came from {.fn call.mydb}, use
+             {.fn call.mydb.taxa} instead.",
+      "i" = "If it is the taxa database, then
+             {.file inst/migrations/taxa_hierarchy.R} has not been applied to it."
+    ))
+  }
+
+  invisible(TRUE)
+}
+
+
 #' Check Hierarchy Consistency
 #'
 #' Validates that flat taxonomic columns match the hierarchy defined by id_parent.
 #' Returns taxa where the flat columns don't match their parent entries.
+#'
+#' `id_parent` lives on the **taxa** database (`rainbio`), not the main one.
+#' Passing a `call.mydb()` connection is refused up front rather than part-way
+#' through the checks.
 #'
 #' @param con Database connection to taxa database
 #' @param fix Logical, if TRUE attempts to fix inconsistencies (default FALSE)
@@ -52,6 +101,8 @@ check_hierarchy_consistency <- function(con = NULL, fix = FALSE, limit = 100) {
       pool::poolReturn(actual_con)
     }
   }, add = TRUE)
+
+  .require_taxa_hierarchy(actual_con, "check_hierarchy_consistency")
 
   cli::cli_h1("Checking hierarchy consistency")
 
@@ -536,6 +587,8 @@ update_taxon_parent <- function(idtax_n, new_parent_id, con = NULL,
       pool::poolReturn(actual_con)
     }
   }, add = TRUE)
+
+  .require_taxa_hierarchy(actual_con, "update_taxon_parent")
 
   # Get child taxon info
   child <- DBI::dbGetQuery(actual_con, sprintf(

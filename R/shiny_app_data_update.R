@@ -18,7 +18,8 @@
 #' \itemize{
 #'   \item \strong{Plot metadata} - pick a plot, edit the columns stored
 #'         directly in \code{data_liste_plots} (including the \code{method} and
-#'         \code{country} lookups, offered as dropdowns), and edit its features.
+#'         \code{country} lookups, offered as dropdowns), link it to a parent
+#'         plot, and edit its features.
 #'   \item \strong{Individual data} - find an individual by plot and tag or by
 #'         \code{id_n}, edit the columns of \code{data_individuals}, change its
 #'         identification through an embedded taxonomic search, and edit its
@@ -38,6 +39,21 @@
 #' many records back it, what the extracted table would display, and how that
 #' display was computed; the editable inputs are the underlying records, each
 #' labelled with its own id and its census or subplot context.
+#'
+#' \strong{Linking a plot to another plot.} A plot section carries a parent
+#' plot picker: the plot this one sits inside, chosen among the plots already in
+#' the database, together with the relation that says how
+#' (\code{nested_subsample} - the two overlap on the ground, so their
+#' measurements must never be added; \code{block_member} - this plot tiles part
+#' of the parent, so summing is correct). The two are written as one statement,
+#' because \code{chk_plot_parent_relation_paired} refuses a row holding either
+#' one alone, and they are therefore not offered among the flat columns of
+#' section 3. Plots already below this one are left out of the parent list, so a
+#' loop cannot be built from the app. The section is hidden entirely on a
+#' database where \code{inst/migrations/plot_hierarchy.R} has not been applied.
+#'
+#' A link is stored on the child, so it is changed by loading the child. The
+#' section lists the plots sitting inside the loaded one for reference only.
 #'
 #' \strong{Why an identification is not just \code{idtax_n}.}
 #' \code{merge_individuals_taxa()} resolves the individual's \code{idtax_n}
@@ -72,6 +88,7 @@
 #' }
 #'
 #' @seealso \code{\link{update_records}},
+#'   \code{\link{check_plot_hierarchy_consistency}},
 #'   \code{\link{query_plot_features}},
 #'   \code{\link{query_individual_features}},
 #'   \code{\link{launch_specimen_identification_app}},

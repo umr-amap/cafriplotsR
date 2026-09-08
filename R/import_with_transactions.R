@@ -174,6 +174,16 @@ import_plot_metadata <- function(data,
       progress = progress
     )
 
+    # Step 2b: Link parent plots (no-op unless the hierarchy migration has run)
+    if (progress) cli::cli_h2("Step 2b: Linking parent plots")
+    import_data <- .link_parent_plot_for_import(
+      import_data,
+      actual_con,
+      interactive = interactive,
+      dry_run = dry_run,
+      progress = progress
+    )
+
     # Step 3: Extract and process ALL subplot features
     if (progress) cli::cli_h2("Step 3: Processing subplot features")
     subplot_data <- .extract_and_process_subplot_features(
@@ -668,6 +678,113 @@ DBI::dbDisconnect(con)
 }
 
 
+#' Link Parent Plot for Import
+#'
+#' Resolves the `parent_plot` column (a plot_name, or an id_liste_plots once
+#' step 4 of the wizard has matched it) to `id_parent_plot`.
+#'
+#' Unlike method and country this does not fall back to `.link_table()`: an
+#' unmatched parent is an error, not something to resolve interactively. The
+#' parent is an existing plot the user knows by name, so a miss means either a
+#' typo or that the parent has not been imported yet - and offering a fuzzy
+#' menu of 2,000 plot names would invite attaching a plot to the wrong parent.
+#'
+#' No-ops when the plot hierarchy migration has not been applied.
+#'
+#' @keywords internal
+.link_parent_plot_for_import <- function(data, con, interactive, dry_run, progress) {
+
+  if (!"parent_plot" %in% names(data)) {
+    if (progress) cli::cli_alert_info("No parent_plot column found, skipping")
+    # A relation with nothing to relate to would trip the paired CHECK
+    return(dplyr::select(data, -dplyr::any_of("parent_relation")))
+  }
+
+  if (!.has_plot_hierarchy(con)) {
+    cli::cli_alert_warning(paste(
+      "parent_plot supplied but data_liste_plots has no id_parent_plot column.",
+      "Apply inst/migrations/plot_hierarchy.R first. Dropping the column."
+    ))
+    return(dplyr::select(data, -dplyr::any_of(c("parent_plot", "parent_relation"))))
+  }
+
+  parent_values <- data$parent_plot[
+    !is.na(data$parent_plot) & trimws(data$parent_plot) != ""
+  ]
+
+  if (length(parent_values) == 0) {
+    # Column present but empty. Blank any stray relation so the paired CHECK
+    # is satisfied rather than aborting the transaction.
+    data$id_parent_plot <- NA_integer_
+    if ("parent_relation" %in% names(data)) {
+      data$parent_relation <- NA_character_
+    }
+    return(data)
+  }
+
+  parent_lookup <- DBI::dbGetQuery(
+    con, "SELECT id_liste_plots, plot_name FROM data_liste_plots"
+  )
+
+  are_numeric <- suppressWarnings(!any(is.na(as.numeric(parent_values))))
+
+  if (are_numeric) {
+    # Already ids, from step 4 lookup matching
+    if (progress) cli::cli_alert_info("Parent plot values are already IDs from lookup matching")
+    resolved <- suppressWarnings(as.numeric(data$parent_plot))
+    unmatched <- parent_values[!(as.numeric(parent_values) %in% parent_lookup$id_liste_plots)]
+  } else {
+    if (progress) cli::cli_alert_info("Resolving parent plot names")
+    resolved <- parent_lookup$id_liste_plots[
+      match(trimws(data$parent_plot), parent_lookup$plot_name)
+    ]
+    unmatched <- parent_values[!(trimws(parent_values) %in% parent_lookup$plot_name)]
+  }
+
+  if (length(unmatched) > 0) {
+    stop(sprintf(
+      paste(
+        "Parent plot(s) not found: %s. The parent must be imported before its",
+        "children. This should have been caught by validation!"
+      ),
+      paste(unique(unmatched), collapse = ", ")
+    ))
+  }
+
+  data$id_parent_plot <- as.integer(resolved)
+
+  # The database refuses a parent without a relation, so fail here with a
+  # message that names the column rather than letting the CHECK constraint
+  # abort the transaction.
+  if (!"parent_relation" %in% names(data)) {
+    stop("parent_plot supplied without parent_relation. Both are required.")
+  }
+
+  missing_relation <- which(
+    !is.na(data$id_parent_plot) &
+      (is.na(data$parent_relation) | trimws(data$parent_relation) == "")
+  )
+  if (length(missing_relation) > 0) {
+    stop(sprintf(
+      "parent_relation missing for %d row(s) that have a parent_plot.",
+      length(missing_relation)
+    ))
+  }
+
+  # Blank relation where there is no parent, so the paired CHECK is satisfied
+  data$parent_relation[is.na(data$id_parent_plot)] <- NA_character_
+
+  if (progress) {
+    cli::cli_alert_success(
+      "Parent plots resolved ({length(unique(parent_values))} unique)"
+    )
+  }
+
+  # parent_plot itself is removed later by .prepare_plot_data()
+  return(data)
+}
+
+
 #' Extract and Process ALL Subplot Features
 #'
 #' Identifies ALL subplot feature columns from the imported data by:
@@ -689,6 +806,7 @@ DBI::dbDisconnect(con)
     "plot_name", "locality", "ddlat", "ddlon", "elevation", "plot_area",
     "date_begin", "date_end", "plotshape_area", "plotshape_length",
     "id_method", "id_country", "method", "country",
+    "id_parent_plot", "parent_plot", "parent_relation",
     "data_modif_d", "data_modif_m", "data_modif_y"
   )
 
@@ -852,9 +970,11 @@ DBI::dbDisconnect(con)
   plot_data <- data %>%
     dplyr::select(-dplyr::any_of(people_columns))
 
-  # Remove original method/country if still present (we have id_method/id_country)
+  # Remove friendly-name columns whose ids we now hold
+  # (method/country -> id_method/id_country, parent_plot -> id_parent_plot).
+  # parent_relation is NOT dropped: it is a real column on data_liste_plots.
   plot_data <- plot_data %>%
-    dplyr::select(-dplyr::any_of(c("method", "country")))
+    dplyr::select(-dplyr::any_of(c("method", "country", "parent_plot")))
 
   # Add modification dates
   plot_data <- plot_data %>%

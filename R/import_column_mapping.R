@@ -39,6 +39,18 @@
       "nation", "state", "country code", "country_code"
     ),
 
+    # Plot hierarchy: name of the plot this one sits inside
+    parent_plot = c(
+      "parent", "parent_plot_name", "parentplot", "parent.plot",
+      "plot_parent", "mother_plot", "host_plot", "nested_in", "within_plot",
+      "plot_mere", "plot_parent_name", "placette_mere"
+    ),
+
+    parent_relation = c(
+      "relation", "parent_type", "relation_type", "nesting_type",
+      "plot_relation", "type_relation"
+    ),
+
     # Geographic: Coordinates (MANY variations!)
     ddlat = c(
       "latitude", "lat", "y", "coord_y", "coordy", "coord.y",
@@ -302,6 +314,28 @@
     elevation = list(
       description = paste0("Elevation above sea level in meters. Typical range: -500 to 6000m.", plot_metadata_warning),
       category = "Location"
+    ),
+
+    # Plot hierarchy
+    parent_plot = list(
+      description = paste0(
+        "Name of the plot this one sits inside. The parent must already exist ",
+        "in the database - import parents before children. Requires ",
+        "parent_relation.",
+        plot_metadata_warning
+      ),
+      category = "Hierarchy"
+    ),
+    parent_relation = list(
+      description = paste0(
+        "How this plot sits inside its parent. 'nested_subsample' = the two ",
+        "overlap on the ground and use different protocols (e.g. a 2-10 cm ",
+        "regeneration inventory inside a 1 ha plot) - never sum them. ",
+        "'block_member' = this plot tiles part of a larger block - summing is ",
+        "correct. Required whenever parent_plot is given.",
+        plot_metadata_warning
+      ),
+      category = "Hierarchy"
     ),
 
     # Plot characteristics

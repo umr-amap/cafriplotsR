@@ -714,6 +714,122 @@ validate_plot_metadata <- function(data,
     }
   }
 
+  # Plot hierarchy validation
+  #
+  # Unlike plot_name, which must NOT already exist, parent_plot MUST exist:
+  # the parent is an established plot the new one is being nested into. A
+  # parent and its child in the same spreadsheet will therefore not resolve -
+  # import the parent first. The two columns are also all-or-nothing, because
+  # an untyped parent edge says two plots are related without saying whether
+  # their areas overlap, which is the one fact any aggregation needs.
+  has_parent_col <- "parent_plot" %in% names(data)
+  has_relation_col <- "parent_relation" %in% names(data)
+
+  if (has_parent_col || has_relation_col) {
+
+    parent_vals <- if (has_parent_col) data$parent_plot else rep(NA, nrow(data))
+    relation_vals <- if (has_relation_col) data$parent_relation else rep(NA, nrow(data))
+
+    parent_set <- !is.na(parent_vals) & trimws(as.character(parent_vals)) != ""
+    relation_set <- !is.na(relation_vals) & trimws(as.character(relation_vals)) != ""
+
+    # Paired requirement (mirrors chk_plot_parent_relation_paired)
+    for (row in which(parent_set & !relation_set)) {
+      errors <- c(errors, list(list(
+        column = "parent_relation",
+        row = row,
+        message = paste(
+          "parent_plot is set but parent_relation is missing. Give",
+          "'nested_subsample' (areas overlap, different protocols) or",
+          "'block_member' (this plot tiles part of the parent)."
+        ),
+        value = NA_character_
+      )))
+    }
+
+    for (row in which(relation_set & !parent_set)) {
+      errors <- c(errors, list(list(
+        column = "parent_plot",
+        row = row,
+        message = "parent_relation is set but parent_plot is missing.",
+        value = NA_character_
+      )))
+    }
+
+    # Vocabulary (mirrors chk_plot_parent_relation)
+    valid_relations <- c("nested_subsample", "block_member")
+    for (row in which(relation_set &
+                      !(trimws(as.character(relation_vals)) %in% valid_relations))) {
+      errors <- c(errors, list(list(
+        column = "parent_relation",
+        row = row,
+        message = sprintf(
+          "Invalid parent_relation '%s'. Must be one of: %s.",
+          relation_vals[row],
+          paste(valid_relations, collapse = ", ")
+        ),
+        value = as.character(relation_vals[row])
+      )))
+    }
+
+    # The parent must exist. Values arrive either as plot names (raw upload) or
+    # as id_liste_plots (after step 4 lookup matching), same as method/country.
+    if (any(parent_set)) {
+      parent_lookup <- tryCatch({
+        DBI::dbGetQuery(con, "SELECT id_liste_plots, plot_name FROM data_liste_plots")
+      }, error = function(e) {
+        NULL
+      })
+
+      if (!is.null(parent_lookup)) {
+        supplied <- trimws(as.character(parent_vals))
+        are_numeric <- suppressWarnings(
+          !any(is.na(as.numeric(supplied[parent_set])))
+        )
+
+        if (are_numeric) {
+          invalid_rows <- which(
+            parent_set & !(suppressWarnings(as.numeric(supplied)) %in%
+                             parent_lookup$id_liste_plots)
+          )
+        } else {
+          invalid_rows <- which(parent_set & !(supplied %in% parent_lookup$plot_name))
+        }
+
+        for (row in invalid_rows) {
+          errors <- c(errors, list(list(
+            column = "parent_plot",
+            row = row,
+            message = sprintf(
+              paste(
+                "Parent plot '%s' not found in the database. The parent must",
+                "be imported before its children."
+              ),
+              supplied[row]
+            ),
+            value = supplied[row]
+          )))
+        }
+      }
+
+      # A plot cannot be its own parent (mirrors chk_plot_not_own_parent).
+      if ("plot_name" %in% names(data)) {
+        self_rows <- which(
+          parent_set &
+            trimws(as.character(parent_vals)) == trimws(as.character(data$plot_name))
+        )
+        for (row in self_rows) {
+          errors <- c(errors, list(list(
+            column = "parent_plot",
+            row = row,
+            message = "A plot cannot be its own parent.",
+            value = as.character(parent_vals[row])
+          )))
+        }
+      }
+    }
+  }
+
   # People fields validation (check against table_colnam)
   # Get subplot features that are people fields (valuetype == "table_colnam")
   subplot_info <- tryCatch({

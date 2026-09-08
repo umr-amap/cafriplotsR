@@ -10348,6 +10348,98 @@
     {
       "en": "Year:",
       "fr": "Année :"
+    },
+    {
+      "en": "3b. Parent plot (optional)",
+      "fr": "3b. Placette parente (optionnel)"
+    },
+    {
+      "en": "Link this plot to another plot in the database when the two describe the same ground - a regeneration inventory inside its 1 ha plot, or a plot that tiles part of a larger block. The relation is not a label: it says whether measurements of the two may be added together, so it is required whenever a parent is set.",
+      "fr": "Reliez cette placette à une autre placette de la base lorsque les deux décrivent le même terrain - un inventaire de régénération à l'intérieur de sa placette de 1 ha, ou une placette qui pave une partie d'un bloc plus grand. La relation n'est pas une étiquette : elle dit si les mesures des deux peuvent être additionnées, elle est donc obligatoire dès qu'une parente est indiquée."
+    },
+    {
+      "en": "Parent plot",
+      "fr": "Placette parente"
+    },
+    {
+      "en": "No parent",
+      "fr": "Aucune parente"
+    },
+    {
+      "en": "No relation",
+      "fr": "Aucune relation"
+    },
+    {
+      "en": "Relation to the parent",
+      "fr": "Relation avec la parente"
+    },
+    {
+      "en": "Detach from the parent",
+      "fr": "Détacher de la parente"
+    },
+    {
+      "en": "This plot has no parent.",
+      "fr": "Cette placette n'a pas de parente."
+    },
+    {
+      "en": "Currently a %s of %s.",
+      "fr": "Actuellement %s de %s."
+    },
+    {
+      "en": "That is a deep chain. Plot hierarchies are normally one or two levels; run check_plot_hierarchy_consistency() if this looks wrong.",
+      "fr": "La chaîne est profonde. Une hiérarchie de placettes compte normalement un ou deux niveaux ; lancez check_plot_hierarchy_consistency() si cela semble anormal."
+    },
+    {
+      "en": "%d plot(s) sit inside this one:",
+      "fr": "%d placette(s) se trouvent à l'intérieur de celle-ci :"
+    },
+    {
+      "en": "A link is stored on the child, so it is changed by loading that plot here. Deleting a parent while children point at it is handled by safe_delete_plot().",
+      "fr": "Le lien est stocké sur la placette fille : il se modifie en chargeant cette placette ici. La suppression d'une parente pendant que des filles la désignent est gérée par safe_delete_plot()."
+    },
+    {
+      "en": "nested_subsample - overlaps the parent on the ground, usually a different protocol. Never sum the two.",
+      "fr": "nested_subsample - recouvre la parente sur le terrain, en général avec un protocole différent. Ne jamais additionner les deux."
+    },
+    {
+      "en": "block_member - tiles part of the parent. Summing the two is correct.",
+      "fr": "block_member - pave une partie de la parente. Additionner les deux est correct."
+    },
+    {
+      "en": "A parent plot is selected but no relation. Say whether this plot overlaps the parent (nested_subsample) or tiles it (block_member) - the database refuses one without the other.",
+      "fr": "Une placette parente est sélectionnée mais aucune relation. Indiquez si cette placette recouvre la parente (nested_subsample) ou la pave (block_member) - la base refuse l'une sans l'autre."
+    },
+    {
+      "en": "A relation is selected but no parent plot. Pick a parent, or clear the relation.",
+      "fr": "Une relation est sélectionnée mais aucune placette parente. Choisissez une parente, ou effacez la relation."
+    },
+    {
+      "en": "That relation is not one the database allows.",
+      "fr": "Cette relation n'est pas autorisée par la base."
+    },
+    {
+      "en": "A plot cannot be its own parent.",
+      "fr": "Une placette ne peut pas être sa propre parente."
+    },
+    {
+      "en": "That parent plot no longer exists.",
+      "fr": "Cette placette parente n'existe plus."
+    },
+    {
+      "en": "That plot already sits inside this one, so the link would make a loop.",
+      "fr": "Cette placette se trouve déjà à l'intérieur de celle-ci : le lien créerait une boucle."
+    },
+    {
+      "en": "The parent link is not valid:",
+      "fr": "Le lien de parenté n'est pas valide :"
+    },
+    {
+      "en": "The parent link was updated.",
+      "fr": "Le lien de parenté a été mis à jour."
+    },
+    {
+      "en": "parent plot",
+      "fr": "placette parente"
     }
   ]
 }

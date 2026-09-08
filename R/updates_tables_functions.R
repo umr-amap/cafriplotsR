@@ -4424,6 +4424,45 @@ get_column_routing <- function(table_type, con) {
   configs[[table_type]]
 }
 
+#' Is the Plot Hierarchy Available?
+#'
+#' TRUE when `inst/migrations/plot_hierarchy.R` has been applied, i.e. when
+#' `data_liste_plots` carries both `id_parent_plot` and `parent_relation`.
+#'
+#' The package works either way. Every caller uses this to decide whether to
+#' offer the parent-plot column, so a database that has not been migrated
+#' simply never sees it rather than failing on an unknown column.
+#'
+#' @param con Database connection or pool
+#'
+#' @return Logical, FALSE on any error
+#' @keywords internal
+.has_plot_hierarchy <- function(con) {
+  tryCatch({
+    if (is.null(con)) return(FALSE)
+
+    actual_con <- if (inherits(con, "Pool")) {
+      pool::poolCheckout(con)
+    } else {
+      con
+    }
+
+    on.exit({
+      if (inherits(con, "Pool") && !is.null(actual_con)) {
+        pool::poolReturn(actual_con)
+      }
+    }, add = TRUE)
+
+    cols <- DBI::dbListFields(actual_con, "data_liste_plots")
+    all(c("id_parent_plot", "parent_relation") %in% cols)
+
+  }, error = function(e) {
+    message("Note: could not check for the plot hierarchy columns (",
+            e$message, "). Assuming absent.")
+    FALSE
+  })
+}
+
 get_table_columns <- function(table_name, con) {
 
   # For data_individuals, only specific columns are actually user-editable during import
@@ -4446,7 +4485,7 @@ get_table_columns <- function(table_name, con) {
   # - Features stored in data_liste_sub_plots (team_leader, principal_investigator, etc.)
   # - System columns (date_creation_*, date_modif_*, user_modif)
   if (table_name == "data_liste_plots") {
-    return(c(
+    plot_cols <- c(
       # Required columns
       "plot_name",           # Plot identifier (required, unique)
       "method",              # Survey method (required, lookup to methodslist)
@@ -4478,11 +4517,23 @@ get_table_columns <- function(table_name, con) {
       # Note: The following are NOT included because they are:
       # - team_leader, principal_investigator, data_manager, additional_people,
       #   data_provider → Features in data_liste_sub_plots
-      # - id_method, id_country → Internal IDs filled from lookup matching
+      # - id_method, id_country, id_parent_plot → Internal IDs filled from
+      #   lookup matching
       # - id_liste_plots → Primary key, auto-generated
       # - forest_type, area_plot, topo_comment, notes, co_authorship →
       #   Either deprecated or handled separately
-    ))
+    )
+
+    # Plot hierarchy (optional) - the plot this one sits inside, given as a
+    # plot_name and resolved to id_parent_plot by lookup matching, exactly like
+    # method and country. parent_relation says HOW it sits inside
+    # ("nested_subsample" or "block_member"); the database refuses one without
+    # the other. Offered only once inst/migrations/plot_hierarchy.R has run.
+    if (.has_plot_hierarchy(con)) {
+      plot_cols <- c(plot_cols, "parent_plot", "parent_relation")
+    }
+
+    return(plot_cols)
   }
 
   # For specimens, define editable columns explicitly
@@ -4590,8 +4641,27 @@ get_metadata_mappings_plots <- function(con) {
       lookup_table = "table_countries",
       lookup_key = "id_country",
       lookup_value = "country"
+    ),
+    # The lookup table is data_liste_plots itself: the user supplies the parent
+    # plot's plot_name and step 4 of the import wizard resolves it to an id.
+    # mod_step4_lookup_matching drives itself off names(metadata_mappings), so
+    # this entry is the whole of the UI work. The parent must already be in the
+    # database - a parent and child in the same spreadsheet will not resolve.
+    parent_plot = list(
+      id_col = "id_parent_plot",
+      lookup_table = "data_liste_plots",
+      lookup_key = "id_liste_plots",
+      lookup_value = "plot_name"
     )
   )
+
+  # parent_plot is only offered once the plot hierarchy migration has run.
+  # Without the column there is nowhere to write the resolved id, and asking
+  # the user to match names against a column that does not exist is worse than
+  # not asking. See inst/migrations/plot_hierarchy.R.
+  if (!.has_plot_hierarchy(con)) {
+    mappings$parent_plot <- NULL
+  }
 
   # Feature-level lookups (dynamic - query from subplotype_list)
   # These are features stored in data_liste_sub_plots that use table_colnam for lookups

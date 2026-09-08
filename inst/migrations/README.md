@@ -28,6 +28,66 @@ trusting the code.
 | `reference_plot_linktype.R` | added `linktypelist.scope`, seeded the `reference_plot` type, backfilled `id_linktype`, added `fk_id_liste_plots` | `scope` present, `reference_plot` at priority 10 / scope plot, `fk_id_liste_plots` in `pg_constraint` |
 | `reference_plot_mistyped_links.R` | retyped as `referenced_individual` the 443 links the previous migration mistyped | no `reference_plot` row carries an `id_n`; 74 remain, every one with a plot; `type` and `id_linktype` agree on every link |
 | `add_plot_citations.R` | added `id_citation` (FK to `table_citations`) to `data_liste_plots` | `check_plot_citations_migration()` reports `id_citation` present, migration complete |
+| `plot_hierarchy.R` | added `data_liste_plots.id_parent_plot` and `parent_relation`, with four constraints | `check_plot_hierarchy_migration()` reports both columns, all four constraints, migration complete |
+
+## `plot_hierarchy.R`: the parent link
+
+Applied 2026-09-08, both phases, verified by
+`check_plot_hierarchy_migration()`: both columns present, all four constraints
+(`fk_data_liste_plots_id_parent_plot`, `chk_plot_not_own_parent`,
+`chk_plot_parent_relation`, `chk_plot_parent_relation_paired`) in
+`pg_constraint`, and no plot carrying a parent yet — which is the expected
+state, since the columns are populated by import, not by the migration.
+
+It exists for nested regeneration inventories: 3 quadrats of an existing 1 ha
+plot in which all stems 2-10 cm are monitored. Those are imported as their own
+`data_liste_plots` records with their own method, because a plot must stay
+protocol-homogeneous — every aggregation in the package assumes it — and
+because the small-stem tag series is separate from the parent's and would
+collide with it. `id_parent_plot` is what then records that the two are the
+same piece of ground.
+
+The second column is the point. `table_taxa.id_parent` needs no companion
+because `tax_level` already says what each node is; plots have no such ladder,
+and the arithmetic inverts between the two relations a plot edge can mean:
+children of a `block_member` parent tile it and may be summed, children of a
+`nested_subsample` parent overlap it and may not. A bare parent column would
+invite traversal while withholding that. Hence
+`chk_plot_parent_relation_paired`, which refuses a parent without a relation.
+
+`linktypelist` was the obvious host for the vocabulary and was rejected: its
+`scope` carries `CHECK (scope IN ('individual', 'plot'))`, so a third value
+means constraint surgery on the table governing specimen links, and its
+`priority` column means "which specimen governs a determination", which is
+meaningless here. A closed VARCHAR with a CHECK is the same shape
+`reference_plot_linktype.R` used for `scope` itself.
+
+Two nullable columns, no backfill. All ~2,166 plots keep `id_parent_plot IS
+NULL`, and the package works either way: `.has_plot_hierarchy()` gates the
+import wizard's parent-plot column on the columns being present, so an
+unmigrated database simply never offers it. Migration and code can be applied
+in either order.
+
+Two things the migration could not carry, both since added to `R/` and both
+no-ops on an unmigrated database:
+
+- `check_plot_hierarchy_consistency()` (`R/plot_hierarchy_consistency.R`) — the
+  cycle probe. `chk_plot_not_own_parent` stops A → A; nothing in the schema
+  stops A → B → A, because no constraint can see a chain. It also checks the
+  things a restored copy might have lost — a dangling parent, a broken pairing,
+  a relation outside the vocabulary — and repairs, under `fix = TRUE`, only the
+  three with a single sensible outcome. A parent with no relation is not one of
+  them: whether the child tiles its parent or overlaps it is not recoverable
+  from the data, and guessing corrupts every aggregation over the pair.
+- `safe_delete_plot(child_plots = )`. `ON DELETE SET NULL` mirrors
+  `fk_table_taxa_id_parent`, but here it cannot even orphan cleanly: nulling
+  `id_parent_plot` leaves `parent_relation` behind, which
+  `chk_plot_parent_relation_paired` rejects, so deleting a parent used to abort
+  on a constraint name instead of a sentence. It now defaults to `"stop"` and
+  names the children; `"detach"` keeps them and clears both columns; `"delete"`
+  takes the subtree. The detach runs as an explicit step before the plot
+  delete, in every mode, which also removes any need to order children before
+  parents when both are in the same call.
 
 ## `reference_plot`: a convention that was never written down
 
