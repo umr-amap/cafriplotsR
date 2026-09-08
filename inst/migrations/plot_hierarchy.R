@@ -75,8 +75,11 @@
 #' hierarchy migration.
 #'
 #' `ON DELETE SET NULL` mirrors `fk_table_taxa_id_parent`. It is a backstop
-#' only: `safe_delete_plot()` should refuse to delete a plot that still has
-#' children rather than let them be silently orphaned.
+#' only, and a poor one: nulling `id_parent_plot` leaves `parent_relation`
+#' behind, which `chk_plot_parent_relation_paired` then rejects, so a parent
+#' delete aborts rather than orphaning. `safe_delete_plot(child_plots = )` is
+#' the real handling - it refuses by default, names the children, and detaches
+#' them explicitly when told to.
 #'
 #' @param con Database connection to the main database
 #' @param dry_run If TRUE, only print SQL without executing

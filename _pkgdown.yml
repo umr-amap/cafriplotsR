@@ -455,6 +455,7 @@ reference:
       - diagnose_add_person_setup
       - check_taxa_permissions
       - check_hierarchy_consistency
+      - check_plot_hierarchy_consistency
       - check_table_idtax_staleness
       - get_table_idtax_metadata
       - print_user_access_summary

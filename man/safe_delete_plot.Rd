@@ -12,6 +12,7 @@ safe_delete_plot(
   delete_individuals = TRUE,
   delete_subplots = TRUE,
   delete_plot = TRUE,
+  child_plots = c("stop", "detach", "delete"),
   plot_batch_size = 1L,
   row_batch_size = 2000L,
   verbose = TRUE
@@ -36,6 +37,12 @@ Default TRUE for safety.}
 FALSE combined with \code{delete_subplots = FALSE} to remove only individuals
 and their features while preserving all plot metadata (same as
 \code{\link{safe_delete_individuals}}).}
+
+\item{child_plots}{Character. What to do about plots whose parent is being
+deleted: \code{"stop"} (default, refuse), \code{"detach"} (keep them,
+clear the link) or \code{"delete"} (delete the whole subtree). See the
+Child plots section. Ignored when \code{delete_plot = FALSE}, and on a
+database without the plot hierarchy columns.}
 
 \item{plot_batch_size}{Integer. Number of plots processed per iteration.
 Reduce to 1 (default) for very large plots to avoid memory/query size issues.}
@@ -69,7 +76,39 @@ correct order to respect foreign key constraints:
   with large datasets
 - Uses per-batch transactions (rolls back each batch on error)
 - Detailed logging of each step
+- Refuses to orphan a child plot (see \code{child_plots})
 }
+\section{Child plots}{
+
+A plot can be the parent of another plot - a nested regeneration inventory
+inside its 1 ha host, or the block a set of plots tiles. See
+\code{inst/migrations/plot_hierarchy.R}.
+
+The foreign key is \code{ON DELETE SET NULL}, so deleting a parent clears
+the child's \code{id_parent_plot} and leaves its \code{parent_relation}
+behind - which \code{chk_plot_parent_relation_paired} then rejects. Without
+the handling below, deleting a parent aborts on a constraint nobody has
+heard of instead of saying "this plot has a child". \code{child_plots}
+decides what happens instead:
+
+\describe{
+  \item{\code{"stop"}}{(default) Refuse while any child exists outside the
+    deletion set, and name the children.}
+  \item{\code{"detach"}}{Keep the children, clearing both
+    \code{id_parent_plot} and \code{parent_relation}. The link is lost; the
+    plots and their data are not.}
+  \item{\code{"delete"}}{Add every descendant to the deletion set and delete
+    the whole subtree. Shown in the dry-run and in the confirmation prompt
+    before anything happens.}
+}
+
+Children that are already in \code{plot_ids} are never a problem: their
+parent link is cleared before the plots are removed, in every mode.
+
+This section is a no-op on a database where the hierarchy migration has not
+been applied.
+}
+
 \examples{
 \dontrun{
 con <- call.mydb()
@@ -91,6 +130,17 @@ safe_delete_plot(plot_ids = 123, delete_individuals = FALSE)
 
 # Delete ONLY individuals and their features, keep plot metadata
 safe_delete_plot(plot_ids = 123, delete_plot = FALSE, delete_subplots = FALSE)
+
+# A plot with a nested regeneration inventory attached: keep the child,
+# drop the link
+safe_delete_plot(plot_ids = 123, child_plots = "detach")
+
+# ... or take the whole subtree with it
+safe_delete_plot(plot_ids = 123, child_plots = "delete")
 }
 
+}
+\seealso{
+[check_plot_hierarchy_consistency()] for the state of the parent
+  links themselves.
 }

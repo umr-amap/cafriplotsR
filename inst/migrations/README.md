@@ -68,15 +68,26 @@ import wizard's parent-plot column on the columns being present, so an
 unmigrated database simply never offers it. Migration and code can be applied
 in either order.
 
-Not included, and needed before the hierarchy can be trusted:
+Two things the migration could not carry, both since added to `R/` and both
+no-ops on an unmigrated database:
 
-- `check_plot_hierarchy_consistency()` in `R/` — a recursive-CTE cycle probe.
-  `chk_plot_not_own_parent` stops A → A; nothing yet stops A → B → A.
-- `safe_delete_plot()` awareness. `ON DELETE SET NULL` mirrors
-  `fk_table_taxa_id_parent`, but it silently orphans children, and
-  `safe_delete_plot()` enumerates individuals, measurements, subplots and
-  specimen links without counting child plots. It should refuse, or at least
-  warn, while children exist.
+- `check_plot_hierarchy_consistency()` (`R/plot_hierarchy_consistency.R`) — the
+  cycle probe. `chk_plot_not_own_parent` stops A → A; nothing in the schema
+  stops A → B → A, because no constraint can see a chain. It also checks the
+  things a restored copy might have lost — a dangling parent, a broken pairing,
+  a relation outside the vocabulary — and repairs, under `fix = TRUE`, only the
+  three with a single sensible outcome. A parent with no relation is not one of
+  them: whether the child tiles its parent or overlaps it is not recoverable
+  from the data, and guessing corrupts every aggregation over the pair.
+- `safe_delete_plot(child_plots = )`. `ON DELETE SET NULL` mirrors
+  `fk_table_taxa_id_parent`, but here it cannot even orphan cleanly: nulling
+  `id_parent_plot` leaves `parent_relation` behind, which
+  `chk_plot_parent_relation_paired` rejects, so deleting a parent used to abort
+  on a constraint name instead of a sentence. It now defaults to `"stop"` and
+  names the children; `"detach"` keeps them and clears both columns; `"delete"`
+  takes the subtree. The detach runs as an explicit step before the plot
+  delete, in every mode, which also removes any need to order children before
+  parents when both are in the same call.
 
 ## `reference_plot`: a convention that was never written down
 
