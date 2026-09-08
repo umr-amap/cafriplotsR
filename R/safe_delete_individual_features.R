@@ -36,7 +36,11 @@
 #'   **USE WITH EXTREME CAUTION!**
 #' @param verbose Logical. Show detailed progress? Default TRUE.
 #'
-#' @return List with deletion summary (invisible)
+#' @return List with deletion summary (invisible). Includes `measures_info`,
+#'   a data frame with one row per measurement to be deleted (`id_trait_measures`,
+#'   `id_data_individuals`, `trait`, `traitvalue`, `traitvalue_char`) — useful
+#'   for inspecting which traits are affected when there are more records than
+#'   the console preview shows.
 #'
 #' @examples
 #' \dontrun{
@@ -185,7 +189,30 @@ safe_delete_individual_features <- function(id_trait_measures = NULL,
     if (nrow(measures_info) > 10) {
       cli::cli_alert_info("... and {nrow(measures_info) - 10} more")
     }
+
+    # Breakdown by trait so it's clear which traits are affected, not just
+    # the first few printed records
+    trait_counts <- sort(table(measures_info$trait, useNA = "ifany"), decreasing = TRUE)
+    cli::cli_h2("Breakdown by Trait")
+    # Indexed by position, not by name: `useNA = "ifany"` gives the NA level a
+    # name of NA, and `trait_counts[[NA_character_]]` is a subscript error - so
+    # a measurement whose traitid has no traitlist row (the LEFT JOIN above
+    # keeps it) would abort the very listing meant to reveal it.
+    for (i in seq_along(trait_counts)) {
+      trait_name <- names(trait_counts)[i]
+      label <- if (is.na(trait_name) || !nzchar(trait_name)) {
+        "(unknown trait)"
+      } else {
+        trait_name
+      }
+      n_records <- as.integer(trait_counts[[i]])
+      cli::cli_li("{label}: {n_records} record{?s}")
+    }
   }
+
+  # Keep the full detail available on the returned object (console preview
+  # above only shows the first 10 records)
+  summary$measures_info <- measures_info
 
   # ===== STEP 2: Count related sub-features =====
   if (verbose) cli::cli_h2("Related Data")
