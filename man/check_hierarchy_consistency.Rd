@@ -20,6 +20,11 @@ Data frame with inconsistent taxa, or NULL if all consistent
 Validates that flat taxonomic columns match the hierarchy defined by id_parent.
 Returns taxa where the flat columns don't match their parent entries.
 }
+\details{
+`id_parent` lives on the **taxa** database (`rainbio`), not the main one.
+Passing a `call.mydb()` connection is refused up front rather than part-way
+through the checks.
+}
 \examples{
 \dontrun{
 con <- call.mydb.taxa()
