@@ -28,6 +28,7 @@ query_plots(
   wd_fam_level = FALSE,
   include_liana = FALSE,
   extract_subplot_features = TRUE,
+  extract_plot_links = FALSE,
   concatenate_stem = FALSE,
   issues = c("remove", "include", "ignore"),
   include_measurement_ids = FALSE,
@@ -99,6 +100,25 @@ in the output list. Default is FALSE.}
 \item{include_liana}{Logical. Whether to include lianas. Optional.}
 
 \item{extract_subplot_features}{Logical. Whether to extract subplot features. Optional.}
+
+\item{extract_plot_links}{Logical. Whether to report the plots linked to the
+  queried ones through \code{data_liste_plots.id_parent_plot} - the parent a
+  plot sits in, and the plots sitting in it. When \code{TRUE} the metadata
+  table gains \code{parent_plot_name}, \code{parent_relation} and
+  \code{n_child_plots} (kept whatever the \code{output_style}), and the
+  result gains a \code{plot_links} table with one row per link:
+  \code{plot_id}, \code{plot_name}, \code{role} (\code{"parent"} or
+  \code{"child"}), \code{linked_plot_id}, \code{linked_plot_name},
+  \code{parent_relation}, and \code{linked_in_query} - whether the linked
+  plot is itself in the result. Feed \code{linked_plot_id} back to
+  \code{id_plot} to extract the linked plots themselves. Ignored, with a
+  message, on a database where \code{inst/migrations/plot_hierarchy.R} has
+  not been applied. Default \code{FALSE}.
+
+  Independently of this argument, a warning is raised whenever the result
+  holds both a plot and a plot linked to it: under either relation the two
+  overlap on the ground, so a total taken across them counts the same stems
+  twice, and nothing in the numbers reveals it.}
 
 \item{concatenate_stem}{Logical. Whether to concatenate multiple stems. Optional.}
 

@@ -13,7 +13,9 @@
 #'
 #' @keywords internal
 #' @noRd
-.apply_output_style <- function(data, style, extract_individuals, show_multiple_census = FALSE) {
+.apply_output_style <- function(data, style, extract_individuals,
+                                show_multiple_census = FALSE,
+                                extra_metadata_columns = character(0)) {
 
   # Resolve `style` -> (style_name, style_config). Supports:
   #   * character scalar matching a built-in name
@@ -57,6 +59,7 @@
     coordinates_sf <- data$coordinates_sf
     data_sources <- data$data_sources
     plot_sources <- data$plot_sources
+    plot_links <- data$plot_links
   } else {
     # Simple data frame
     main_data <- data
@@ -67,6 +70,7 @@
     coordinates_sf <- NULL
     data_sources <- NULL
     plot_sources <- NULL
+    plot_links <- NULL
   }
 
   # Initialize result list
@@ -77,7 +81,8 @@
     data = main_data,
     meta_data = meta_data,
     style_config = style_config,
-    extract_individuals = extract_individuals
+    extract_individuals = extract_individuals,
+    extra_columns = extra_metadata_columns
   )
 
   # 2. Extract individuals table (if individuals were extracted)
@@ -120,6 +125,12 @@
     result$plot_sources <- plot_sources
   }
 
+  # 7. Pass through plot_links: the caller asked for them explicitly, so no
+  # style drops them.
+  if (!is.null(plot_links)) {
+    result$plot_links <- plot_links
+  }
+
   # Add class and attributes
   class(result) <- c("plot_query_list", "list")
   attr(result, "style") <- style
@@ -138,7 +149,9 @@
 #'
 #' @keywords internal
 #' @noRd
-.extract_metadata_table <- function(data, meta_data = NULL, style_config, extract_individuals) {
+.extract_metadata_table <- function(data, meta_data = NULL, style_config,
+                                    extract_individuals,
+                                    extra_columns = character(0)) {
 
   # If meta_data table is provided (from res_list$meta_data), use it as the source
   # This table was created before individual extraction and has all plot-level columns
@@ -199,6 +212,12 @@
     for (pattern in style_config$remove_patterns) {
       keep_cols <- grep(pattern, keep_cols, value = TRUE, invert = TRUE, perl = TRUE)
     }
+  }
+
+  # Columns the caller asked for by name are added after the removal patterns,
+  # not before: an explicit request outranks a style's default tidying.
+  if (length(extra_columns) > 0) {
+    keep_cols <- unique(c(keep_cols, intersect(extra_columns, available_cols)))
   }
 
   # Select columns

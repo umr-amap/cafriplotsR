@@ -92,6 +92,24 @@ method_list <- function() {
 #' @param wd_fam_level Logical. Whether to use family-level wood density. Optional.
 #' @param include_liana Logical. Whether to include lianas. Optional.
 #' @param extract_subplot_features Logical. Whether to extract subplot features. Optional.
+#' @param extract_plot_links Logical. Whether to report the plots linked to the
+#'   queried ones through \code{data_liste_plots.id_parent_plot} - the parent a
+#'   plot sits in, and the plots sitting in it. When \code{TRUE} the metadata
+#'   table gains \code{parent_plot_name}, \code{parent_relation} and
+#'   \code{n_child_plots} (kept whatever the \code{output_style}), and the
+#'   result gains a \code{plot_links} table with one row per link:
+#'   \code{plot_id}, \code{plot_name}, \code{role} (\code{"parent"} or
+#'   \code{"child"}), \code{linked_plot_id}, \code{linked_plot_name},
+#'   \code{parent_relation}, and \code{linked_in_query} - whether the linked
+#'   plot is itself in the result. Feed \code{linked_plot_id} back to
+#'   \code{id_plot} to extract the linked plots themselves. Ignored, with a
+#'   message, on a database where \code{inst/migrations/plot_hierarchy.R} has
+#'   not been applied. Default \code{FALSE}.
+#'
+#'   Independently of this argument, a warning is raised whenever the result
+#'   holds both a plot and a plot linked to it: under either relation the two
+#'   overlap on the ground, so a total taken across them counts the same stems
+#'   twice, and nothing in the numbers reveals it.
 #' @param concatenate_stem Logical. Whether to concatenate multiple stems. Optional.
 #' @param issues Character. How to handle flagged measurements. Options:
 #'   \itemize{
@@ -221,6 +239,7 @@ query_plots <- function(plot_name = NULL,
                         wd_fam_level = FALSE,
                         include_liana = FALSE,
                         extract_subplot_features = TRUE,
+                        extract_plot_links = FALSE,
                         concatenate_stem = FALSE,
                         issues = c("remove", "include", "ignore"),
                         include_measurement_ids = FALSE,
@@ -260,6 +279,7 @@ query_plots <- function(plot_name = NULL,
     wd_fam_level = wd_fam_level,
     include_liana = include_liana,
     extract_subplot_features = extract_subplot_features,
+    extract_plot_links = extract_plot_links,
     concatenate_stem = concatenate_stem,
     issues = issues,
     include_measurement_ids = include_measurement_ids,
@@ -324,6 +344,7 @@ query_plots <- function(plot_name = NULL,
                         wd_fam_level = FALSE,
                         include_liana = FALSE,
                         extract_subplot_features = TRUE,
+                        extract_plot_links = FALSE,
                         concatenate_stem = FALSE,
                         issues = c("remove", "include", "ignore"),
                         include_measurement_ids = FALSE,
@@ -492,6 +513,28 @@ query_plots <- function(plot_name = NULL,
     .link_metadata_tables(res = res, con = mydb)
 
   res <- .enrich_plot_citation(res, con = mydb)
+
+  # Plot links --------------------------------------------------------------
+  # Fetched whether or not they were asked for, because the warning below is
+  # not an option: a parent and its child in the same result overlap on the
+  # ground, and nothing in the numbers says so. On an unmigrated database this
+  # returns empty without querying.
+  plot_links <- .plot_link_edges(res$id_liste_plots, con = mydb)
+
+  if (extract_plot_links) {
+    if (nrow(plot_links) == 0) {
+      cli::cli_alert_info("No plot links found for the queried plots")
+    } else {
+      n_links <- nrow(plot_links)
+      n_plots_linked <- length(unique(plot_links$plot_id))
+      cli::cli_alert_info(
+        "{n_links} plot link{?s} found, touching {n_plots_linked} queried plot{?s}"
+      )
+    }
+    res <- .enrich_plot_links(res, plot_links)
+  }
+
+  .warn_overlapping_plot_links(plot_links)
 
   if (extract_subplot_features & nrow(res) > 0) {
     
@@ -882,6 +925,10 @@ query_plots <- function(plot_name = NULL,
     res_list$plot_sources <- plot_sources
   }
 
+  if (extract_plot_links && nrow(plot_links) > 0) {
+    res_list$plot_links <- plot_links
+  }
+
   if (length(res_list) == 1)
     res_list <- res_list[[1]]
 
@@ -921,7 +968,14 @@ query_plots <- function(plot_name = NULL,
       data = res_list,
       style = output_style,
       extract_individuals = extract_individuals,
-      show_multiple_census = show_multiple_census
+      show_multiple_census = show_multiple_census,
+      # A style's metadata_columns is an allow-list, so columns the caller
+      # explicitly asked for have to be named or they are dropped.
+      extra_metadata_columns = if (extract_plot_links) {
+        c("parent_plot_name", "parent_relation", "n_child_plots")
+      } else {
+        character(0)
+      }
     )
 
     # Inform user about restructuring
