@@ -219,7 +219,14 @@
       table_type  = "plots",
       # `plot_name` identifies the plot everywhere else in the schema; renaming
       # it from here would silently orphan file-based references.
-      exclude     = character(0),
+      #
+      # The parent link is excluded because the generic form cannot write it.
+      # `chk_plot_parent_relation_paired` refuses a row holding a parent without
+      # a relation or the other way round, and `execute_direct_updates_single()`
+      # writes one column per statement - so the row between the two statements
+      # is the one the constraint rejects. It gets its own section, backed by
+      # `.upd_apply_plot_link()`, which moves both columns at once.
+      exclude     = c("id_parent_plot", "parent_relation"),
       feature_table   = "data_liste_sub_plots",
       feature_id      = "id_sub_plots",
       feature_type    = "subplot_features"
@@ -878,7 +885,10 @@
 #'
 #' Flat columns and features live in different tables, so applying them
 #' separately can leave a record half-updated if the second write fails. Both
-#' go inside one transaction; anything raised rolls the whole edit back.
+#' go inside one transaction; anything raised rolls the whole edit back. For a
+#' plot the parent link joins them, written by [.upd_apply_plot_link()] rather
+#' than through `values` - see [.upd_entity_spec()] for why it cannot go the
+#' ordinary way.
 #'
 #' @param entity `"plot"` or `"individual"`.
 #' @param id The record id.
@@ -886,17 +896,26 @@
 #' @param features Named list keyed by feature record id (see
 #'   [.upd_apply_feature()]).
 #' @param con A DBI connection.
-#' @return A list with `n_direct` and `n_feature`: how many values were written.
+#' @param link Plots only: `NULL`, or a list with `id_parent_plot` and
+#'   `parent_relation` to write as the plot's parent link.
+#' @return A list with `n_direct`, `n_feature` and `n_link`: how many values
+#'   were written.
 #' @keywords internal
-.upd_apply_all <- function(entity, id, values, features, con) {
+.upd_apply_all <- function(entity, id, values, features, con, link = NULL) {
   DBI::dbBegin(con)
   result <- tryCatch({
     direct_applied  <- .upd_apply_direct(entity, id, values, con)
     feature_applied <- .upd_apply_feature(entity, features, con)
+    link_applied <- if (entity == "plot" && !is.null(link)) {
+      .upd_apply_plot_link(id, link$id_parent_plot, link$parent_relation, con)
+    } else {
+      0L
+    }
     DBI::dbCommit(con)
     list(
       n_direct  = if (is.null(direct_applied)) 0L else nrow(direct_applied),
-      n_feature = if (is.null(feature_applied)) 0L else nrow(feature_applied)
+      n_feature = if (is.null(feature_applied)) 0L else nrow(feature_applied),
+      n_link    = link_applied
     )
   }, error = function(e) {
     tryCatch(DBI::dbRollback(con), error = function(e2) {

@@ -94,6 +94,50 @@ mod_update_record_ui <- function(id, entity = c("plot", "individual"), i18n) {
     NULL
   }
 
+  # The parent link of a plot: two columns of data_liste_plots that the form in
+  # section 3 deliberately does not carry, because they can only be written
+  # together. Hidden entirely on a database where the hierarchy migration has
+  # not run.
+  link_panel <- if (entity == "plot") {
+    shiny::conditionalPanel(
+      condition = sprintf("output['%s']", ns("has_hierarchy")),
+      shiny::wellPanel(
+        shiny::h4(shiny::icon("sitemap"), " ",
+                  i18n$t("3b. Parent plot (optional)")),
+        shiny::tags$p(
+          class = "text-muted",
+          shiny::tags$small(
+            i18n$t("Link this plot to another plot in the database when the two describe the same ground - a regeneration inventory inside its 1 ha plot, or a plot that tiles part of a larger block. The relation is not a label: it says whether measurements of the two may be added together, so it is required whenever a parent is set.")
+          )
+        ),
+        shiny::uiOutput(ns("plot_link_current")),
+        shiny::fluidRow(
+          shiny::column(
+            6,
+            shiny::selectizeInput(
+              ns("parent_plot"), i18n$t("Parent plot"), choices = NULL,
+              options = list(placeholder = i18n$t("No parent"), maxOptions = 100)
+            )
+          ),
+          shiny::column(
+            6,
+            shiny::selectInput(ns("parent_relation"),
+                               i18n$t("Relation to the parent"), choices = NULL)
+          )
+        ),
+        shiny::actionLink(
+          ns("detach_parent"),
+          label = shiny::tagList(shiny::icon("link-slash"), " ",
+                                 i18n$t("Detach from the parent"))
+        ),
+        shiny::uiOutput(ns("plot_link_note")),
+        shiny::uiOutput(ns("plot_children"))
+      )
+    )
+  } else {
+    NULL
+  }
+
   shiny::tagList(
     search_panel,
 
@@ -144,6 +188,7 @@ mod_update_record_ui <- function(id, entity = c("plot", "individual"), i18n) {
       ),
 
       taxon_panel,
+      link_panel,
 
       # --- 4. Features ---
       shiny::wellPanel(
@@ -221,6 +266,8 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     apply_status  <- shiny::reactiveVal(NULL)
     taxa_reset    <- shiny::reactiveVal(0)
     identification <- shiny::reactiveVal(NULL)  # individuals only: idtax cascade
+    plot_link     <- shiny::reactiveVal(NULL)   # plots only: parent, chain, children
+    link_ready    <- shiny::reactiveVal(FALSE)  # plots only: see link_values()
 
     with_main <- function(fun) {
       shiny::req(pool_main())
@@ -720,6 +767,171 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       })
     }
 
+    # ----- Parent plot (plots only) -----
+
+    if (entity == "plot") {
+
+      shiny::observeEvent(record(), {
+        plot_link(NULL)
+        link_ready(FALSE)
+        r <- record()
+        shiny::req(r, pool_main())
+        res <- tryCatch(
+          with_main(function(con) .upd_plot_link(r[[spec$id_column]][1], con)),
+          error = function(e) {
+            cli::cli_alert_warning("Could not read the plot hierarchy: {e$message}")
+            NULL
+          }
+        )
+        plot_link(res)
+
+        if (!is.null(res) && isTRUE(res$available)) {
+          shiny::updateSelectizeInput(
+            session, "parent_plot",
+            choices  = c(stats::setNames("", ""), res$candidates),
+            selected = if (is.na(res$id_parent_plot)) "" else as.character(res$id_parent_plot),
+            server   = TRUE
+          )
+        }
+      }, ignoreNULL = FALSE)
+
+      # A new record resets the relation to what that record stores.
+      shiny::observeEvent(plot_link(), {
+        pl <- plot_link()
+        shiny::req(pl, isTRUE(pl$available))
+        shiny::updateSelectInput(
+          session, "parent_relation",
+          choices  = .upd_relation_choices(i18n()),
+          selected = if (is.na(pl$parent_relation)) "" else pl$parent_relation
+        )
+      })
+
+      # The labels carry the whole meaning of the choice, so a language change
+      # rebuilds them - keeping whatever is selected, which is an edit in
+      # progress and not something a language change may discard.
+      shiny::observeEvent(i18n(), {
+        pl <- shiny::isolate(plot_link())
+        shiny::req(pl, isTRUE(pl$available))
+        shiny::updateSelectInput(
+          session, "parent_relation",
+          choices  = .upd_relation_choices(i18n()),
+          selected = shiny::isolate(input$parent_relation)
+        )
+      }, ignoreInit = TRUE)
+
+      # The section is only trusted once the client has echoed a value back for
+      # the record on screen. Until then `input$parent_plot` may still hold the
+      # previous plot's parent, and reading it would show - and offer to write -
+      # a change nobody asked for.
+      shiny::observeEvent(input$parent_plot, {
+        link_ready(TRUE)
+      }, ignoreInit = TRUE, ignoreNULL = FALSE)
+
+      shiny::observeEvent(input$detach_parent, {
+        shiny::updateSelectizeInput(session, "parent_plot", selected = "")
+        shiny::updateSelectInput(session, "parent_relation", selected = "")
+        link_ready(TRUE)
+      })
+
+      output$plot_link_current <- shiny::renderUI({
+        pl <- plot_link()
+        shiny::req(pl, isTRUE(pl$available))
+
+        if (is.na(pl$id_parent_plot)) {
+          return(shiny::div(class = "alert alert-secondary",
+                            i18n()$t("This plot has no parent.")))
+        }
+
+        chain <- pl$chain
+        path <- if (nrow(chain) > 1) {
+          # Row n's relation is how row n sits inside row n + 1, so the arrows
+          # read from this plot upwards.
+          steps <- vapply(seq_len(nrow(chain) - 1), function(i) {
+            sprintf("%s --%s--> ", chain$plot_name[i], chain$parent_relation[i])
+          }, character(1))
+          paste0(paste(steps, collapse = ""), chain$plot_name[nrow(chain)])
+        } else {
+          NA_character_
+        }
+
+        shiny::div(
+          class = "alert alert-info",
+          shiny::icon("sitemap"), " ",
+          sprintf(i18n()$t("Currently a %s of %s."),
+                  pl$parent_relation, .upd_fmt(pl$parent_name)),
+          if (!is.na(path)) shiny::tagList(shiny::br(), shiny::tags$code(path)),
+          if (nrow(chain) > 3) {
+            shiny::tagList(
+              shiny::br(),
+              shiny::tags$small(i18n()$t("That is a deep chain. Plot hierarchies are normally one or two levels; run check_plot_hierarchy_consistency() if this looks wrong."))
+            )
+          }
+        )
+      })
+
+      output$plot_children <- shiny::renderUI({
+        pl <- plot_link()
+        shiny::req(pl, isTRUE(pl$available))
+        ch <- pl$children
+        if (nrow(ch) == 0) return(NULL)
+
+        shiny::div(
+          style = "margin-top: 14px;",
+          shiny::tags$b(sprintf(i18n()$t("%d plot(s) sit inside this one:"), nrow(ch))),
+          shiny::tags$ul(lapply(seq_len(nrow(ch)), function(i) {
+            shiny::tags$li(sprintf("%s (%s)", ch$plot_name[i], ch$parent_relation[i]))
+          })),
+          shiny::tags$small(
+            class = "text-muted",
+            i18n()$t("A link is stored on the child, so it is changed by loading that plot here. Deleting a parent while children point at it is handled by safe_delete_plot().")
+          )
+        )
+      })
+
+      output$plot_link_note <- shiny::renderUI({
+        problems <- link_problems()
+        if (length(problems) == 0) return(NULL)
+        shiny::div(
+          class = "alert alert-danger", style = "margin-top: 12px;",
+          shiny::icon("exclamation-triangle"), " ",
+          shiny::tags$ul(lapply(problems, function(p) {
+            shiny::tags$li(.upd_link_problem_text(p, i18n()))
+          }))
+        )
+      })
+    }
+
+    output$has_hierarchy <- shiny::reactive({
+      pl <- plot_link()
+      !is.null(pl) && isTRUE(pl$available)
+    })
+    shiny::outputOptions(output, "has_hierarchy", suspendWhenHidden = FALSE)
+
+    # The parent link as the form currently holds it, or NULL when there is
+    # nothing to write: no hierarchy in the database, or the section not yet
+    # showing this record's own values.
+    link_values <- function() {
+      if (entity != "plot") return(NULL)
+      pl <- plot_link()
+      if (is.null(pl) || !isTRUE(pl$available) || !link_ready()) return(NULL)
+      list(
+        id_parent_plot  = .upd_na_int(input$parent_plot),
+        parent_relation = .upd_na_chr(input$parent_relation)
+      )
+    }
+
+    # Live feedback while the form is being filled: the pairing rule and the
+    # vocabulary, both of which the database enforces. The candidate list
+    # already makes a cycle unpickable, and the write re-checks against the
+    # stored hierarchy anyway.
+    link_problems <- shiny::reactive({
+      r <- record()
+      v <- link_values()
+      if (is.null(r) || is.null(v)) return(character(0))
+      .upd_validate_plot_link(r[[spec$id_column]][1],
+                              v$id_parent_plot, v$parent_relation)
+    })
+
     # =========================================================================
     # 4. FEATURES
     # =========================================================================
@@ -1005,6 +1217,37 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
         )
       }
 
+      # The parent link is two columns written as one, so the diff shows both
+      # rows whenever either moves - a relation on its own is meaningless.
+      pl <- plot_link()
+      lv <- link_values()
+      if (!is.null(pl) && !is.null(lv)) {
+        parent_name <- function(pid) {
+          if (is.na(pid)) return("-")
+          hit <- names(pl$candidates)[pl$candidates == as.character(pid)]
+          if (length(hit) == 1) hit else as.character(pid)
+        }
+        link_changed <- !.upd_same(lv$id_parent_plot, pl$id_parent_plot) ||
+          !.upd_same(lv$parent_relation, pl$parent_relation)
+
+        rows[[length(rows) + 1]] <- data.frame(
+          scope   = i18n()$t("parent plot"),
+          target  = paste0(spec$table, ".id_parent_plot"),
+          current = if (is.na(pl$id_parent_plot)) "-" else .upd_fmt(pl$parent_name),
+          new     = parent_name(lv$id_parent_plot),
+          changed = link_changed,
+          stringsAsFactors = FALSE
+        )
+        rows[[length(rows) + 1]] <- data.frame(
+          scope   = i18n()$t("parent plot"),
+          target  = paste0(spec$table, ".parent_relation"),
+          current = .upd_fmt(pl$parent_relation),
+          new     = .upd_fmt(lv$parent_relation),
+          changed = link_changed,
+          stringsAsFactors = FALSE
+        )
+      }
+
       fr <- feat_records()
       for (rid in names(pending_feat())) {
         changes <- pending_feat()[[rid]]
@@ -1126,16 +1369,30 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
         diff_tbl(d)
         return()
       }
+      # A link the database would refuse is refused here, before anything else
+      # in the same transaction is written and rolled back.
+      problems <- link_problems()
+      if (length(problems) > 0) {
+        diff_tbl(d)
+        shiny::showNotification(
+          paste(i18n()$t("The parent link is not valid:"),
+                paste(vapply(problems, .upd_link_problem_text, character(1),
+                             i18n = i18n()), collapse = " ")),
+          type = "error", duration = NULL
+        )
+        return()
+      }
       diff_tbl(d)
 
       id_value <- as.integer(r[[spec$id_column]])
       values   <- direct_inputs()
       features <- pending_feat()
+      link     <- link_values()
 
       shiny::withProgress(message = i18n()$t("Applying update..."), value = 0, {
         result <- tryCatch({
           out <- with_main(function(con) {
-            .upd_apply_all(entity, id_value, values, features, con)
+            .upd_apply_all(entity, id_value, values, features, con, link = link)
           })
           shiny::incProgress(0.5)
           c(list(ok = TRUE), out)
@@ -1160,7 +1417,10 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
         shiny::div(
           class = "alert alert-success", shiny::icon("check-circle"), " ",
           sprintf(i18n()$t("Applied: %d record column(s) and %d feature value(s) written."),
-                  res$n_direct, res$n_feature)
+                  res$n_direct, res$n_feature),
+          if (isTRUE(res$n_link > 0)) {
+            shiny::tagList(" ", i18n()$t("The parent link was updated."))
+          }
         )
       } else {
         shiny::div(class = "alert alert-danger", shiny::icon("times-circle"), " ",
@@ -1191,6 +1451,45 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     x
   }
   identical(norm(a), norm(b))
+}
+
+#' Relation choices for the parent-plot select
+#'
+#' The stored values are the closed vocabulary the CHECK constraint allows; the
+#' labels say what each one means for arithmetic, which is the whole reason the
+#' column exists and the only thing that makes the choice decidable.
+#'
+#' @param i18n A resolved `shiny.i18n` translator.
+#' @return Named character vector, label -> stored value, blank entry first.
+#' @keywords internal
+.upd_relation_choices <- function(i18n) {
+  labels <- c(
+    nested_subsample = i18n$t("nested_subsample - overlaps the parent on the ground, usually a different protocol. Never sum the two."),
+    block_member     = i18n$t("block_member - tiles part of the parent. Summing the two is correct.")
+  )
+  relations <- .plot_parent_relations()
+  labels <- labels[relations]
+  c(stats::setNames("", i18n$t("No relation")),
+    stats::setNames(relations, unname(labels)))
+}
+
+#' A parent-link problem code as a sentence
+#'
+#' @param code One code from [.upd_validate_plot_link()].
+#' @param i18n A resolved `shiny.i18n` translator.
+#' @return A single string.
+#' @keywords internal
+.upd_link_problem_text <- function(code, i18n) {
+  switch(
+    code,
+    relation_missing = i18n$t("A parent plot is selected but no relation. Say whether this plot overlaps the parent (nested_subsample) or tiles it (block_member) - the database refuses one without the other."),
+    parent_missing   = i18n$t("A relation is selected but no parent plot. Pick a parent, or clear the relation."),
+    unknown_relation = i18n$t("That relation is not one the database allows."),
+    self_parent      = i18n$t("A plot cannot be its own parent."),
+    parent_not_found = i18n$t("That parent plot no longer exists."),
+    cycle            = i18n$t("That plot already sits inside this one, so the link would make a loop."),
+    code
+  )
 }
 
 #' Format a value for the diff table
