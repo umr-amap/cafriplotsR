@@ -40,7 +40,11 @@ Default TRUE for safety.}
 \item{verbose}{Logical. Show detailed progress? Default TRUE.}
 }
 \value{
-List with deletion summary (invisible)
+List with deletion summary (invisible). Includes `measures_info`,
+  a data frame with one row per measurement to be deleted (`id_trait_measures`,
+  `id_data_individuals`, `trait`, `traitvalue`, `traitvalue_char`) — useful
+  for inspecting which traits are affected when there are more records than
+  the console preview shows.
 }
 \description{
 **DANGER: This permanently deletes data from the database!**
