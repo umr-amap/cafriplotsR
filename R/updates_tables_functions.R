@@ -2732,6 +2732,9 @@ update_trait_table <- function(new_data,
 #' @param new_tax_fam string new family name
 #' @param new_tax_rank1 string new rank
 #' @param new_tax_name1 string new name of rank1
+#' @param new_author1 string new author of the species name
+#' @param new_author2 string new author of the infraspecific name
+#' @param new_author3 string new additional author
 #' @param new_taxook integer new tax code
 #' @param new_morphocat integer new morphocat code
 #' @param new_detvalue integer new detvalue code
@@ -2763,6 +2766,9 @@ update_dico_name <- function(genus_searched = NULL,
                              new_tax_famclass = NULL,
                              new_introduced_status = NULL,
                              new_tax_rankesp = NULL,
+                             new_author1 = NULL,
+                             new_author2 = NULL,
+                             new_author3 = NULL,
                              ask_before_update = TRUE,
                              add_backup = TRUE,
                              show_results = TRUE,
@@ -2834,7 +2840,10 @@ update_dico_name <- function(genus_searched = NULL,
                 new_id_tax_famclass = new_id_tax_famclass,
                 new_tax_rank = new_tax_rank,
                 new_tax_rank1 = new_tax_rank1,
-                new_tax_rankesp = new_tax_rankesp)
+                new_tax_rankesp = new_tax_rankesp,
+                new_author1 = new_author1,
+                new_author2 = new_author2,
+                new_author3 = new_author3)
 
   if (!any(!is.null(new_vals)) &
       is.null(synonym_of) &
@@ -2890,27 +2899,36 @@ update_dico_name <- function(genus_searched = NULL,
   ## if the modification does not concern synonymies, check if provided values are different for those existing
   if(nrow_query & !cancel_synonymy & is.null(synonym_of)) {
 
+    ## which column of table_taxa each new_* argument writes. Matching on the
+    ## argument name alone missed new_tax_rank1/new_tax_name1 entirely (the
+    ## columns are tax_rank01/tax_nam01), so an infraspecific-only edit was
+    ## reported as "no values are different" and silently dropped; and a bare
+    ## grep() for "tax_rank" also matched new_tax_rank1 and new_tax_rankesp.
+    compared_cols <- c(
+      new_tax_order         = "tax_order",
+      new_tax_esp           = "tax_esp",
+      new_tax_fam           = "tax_fam",
+      new_tax_gen           = "tax_gen",
+      new_tax_rank1         = "tax_rank01",
+      new_tax_rank          = "tax_rank",
+      new_tax_name1         = "tax_nam01",
+      new_introduced_status = "introduced_status",
+      new_tax_rankesp       = "tax_rankesp",
+      new_id_tax_famclass   = "id_tax_famclass",
+      new_author1           = "author1",
+      new_author2           = "author2",
+      new_author3           = "author3"
+    )
+
     query_tax_n <- query_tax
     col_new <- c()
-    for (i in c(
-      "tax_order",
-      "tax_esp",
-      "tax_fam",
-      "tax_gen",
-      "tax_rank01",
-      "tax_rank",
-      "tax_nam01",
-      "introduced_status",
-      "tax_rankesp",
-      "id_tax_famclass"
-    )) {
-      if (any(i == gsub("new_", "", names(new_vals)))) {
-        col_new <- c(col_new, i)
-        var <- enquo(i)
-        query_tax_n <-
-          query_tax_n %>%
-          dplyr::mutate(!!var := new_vals[grep(i, names(new_vals))])
-      }
+    for (arg in intersect(names(compared_cols), names(new_vals))) {
+      i <- compared_cols[[arg]]
+      if (!any(i == colnames(query_tax_n))) next
+      col_new <- c(col_new, i)
+      query_tax_n <-
+        query_tax_n %>%
+        dplyr::mutate(!!i := new_vals[[arg]])
     }
 
     query_tax_n <-
@@ -3128,7 +3146,7 @@ update_dico_name <- function(genus_searched = NULL,
       }
 
       rs <-
-        DBI::dbSendQuery(mydb_taxa, statement="UPDATE table_taxa SET tax_fam=$2, tax_gen=$3, tax_esp=$4, tax_order=$5, idtax_good_n=$6, tax_rank01=$7, tax_nam01=$8, introduced_status=$9, id_tax_famclass=$10, tax_rank=$11, tax_rankesp=$12 WHERE idtax_n = $1",
+        DBI::dbSendQuery(mydb_taxa, statement="UPDATE table_taxa SET tax_fam=$2, tax_gen=$3, tax_esp=$4, tax_order=$5, idtax_good_n=$6, tax_rank01=$7, tax_nam01=$8, introduced_status=$9, id_tax_famclass=$10, tax_rank=$11, tax_rankesp=$12, author1=$13, author2=$14, author3=$15 WHERE idtax_n = $1",
                          params= list(query_tax$idtax_n, # $1
                                       rep(ifelse(!is.null(new_tax_fam), new_tax_fam, query_tax$tax_fam), nrow(query_tax)), # $2
                                       rep(ifelse(!is.null(new_tax_gen), new_tax_gen, query_tax$tax_gen), nrow(query_tax)), # $3
@@ -3141,7 +3159,10 @@ update_dico_name <- function(genus_searched = NULL,
                                       rep(ifelse(!is.null(new_id_tax_famclass), new_id_tax_famclass, query_tax$id_tax_famclass), nrow(query_tax)), # $10
                                       rep(ifelse(!is.null(new_tax_rank), new_tax_rank, query_tax$tax_rank), nrow(query_tax)), # $11
                                       # rep(ifelse(!is.null(new_habit), new_habit, query_tax$a_habit), nrow(query_tax)),  # $12
-                                      rep(ifelse(!is.null(new_tax_rankesp), new_tax_rankesp, query_tax$tax_rankesp), nrow(query_tax))))  # $12
+                                      rep(ifelse(!is.null(new_tax_rankesp), new_tax_rankesp, query_tax$tax_rankesp), nrow(query_tax)), # $12
+                                      rep(ifelse(!is.null(new_author1), new_author1, query_tax$author1), nrow(query_tax)), # $13
+                                      rep(ifelse(!is.null(new_author2), new_author2, query_tax$author2), nrow(query_tax)), # $14
+                                      rep(ifelse(!is.null(new_author3), new_author3, query_tax$author3), nrow(query_tax))))  # $15
 
       DBI::dbClearResult(rs)
 

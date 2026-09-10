@@ -20,6 +20,9 @@ update_dico_name(
   new_tax_famclass = NULL,
   new_introduced_status = NULL,
   new_tax_rankesp = NULL,
+  new_author1 = NULL,
+  new_author2 = NULL,
+  new_author3 = NULL,
   ask_before_update = TRUE,
   add_backup = TRUE,
   show_results = TRUE,
@@ -45,6 +48,12 @@ update_dico_name(
 \item{new_tax_rank1}{string new rank}
 
 \item{new_tax_name1}{string new name of rank1}
+
+\item{new_author1}{string new author of the species name}
+
+\item{new_author2}{string new author of the infraspecific name}
+
+\item{new_author3}{string new additional author}
 
 \item{ask_before_update}{logical TRUE by default, ask for confirmation before updating}
 

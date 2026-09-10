@@ -10520,6 +10520,10 @@
     {
       "en": "No names found in the selected column",
       "fr": "Aucun nom trouvé dans la colonne sélectionnée"
+    },
+    {
+      "en": "Author 1 is the authority of the species name, author 2 that of the infraspecific name.",
+      "fr": "L'auteur 1 est l'autorité du nom d'espèce, l'auteur 2 celle du nom infraspécifique."
     }
   ]
 }

@@ -1,3 +1,62 @@
+# The three authorship columns of table_taxa, edited as one block: author1 is
+# the authority of the species name, author2 that of the infraspecific name,
+# author3 any further authority.
+.taxa_author_fields <- c("author1", "author2", "author3")
+
+# Fields of table_taxa that update_dico_name() knows how to write, mapped to
+# the argument that carries each one. morpho_species is deliberately absent:
+# update_dico_name() has no parameter for it, so the caller writes it directly.
+.taxa_dico_fields <- c(
+  tax_gen      = "new_tax_gen",
+  tax_esp      = "new_tax_esp",
+  tax_fam      = "new_tax_fam",
+  tax_order    = "new_tax_order",
+  tax_famclass = "new_tax_famclass",
+  tax_rank01   = "new_tax_rank1",
+  tax_nam01    = "new_tax_name1",
+  author1      = "new_author1",
+  author2      = "new_author2",
+  author3      = "new_author3"
+)
+
+# Genus and family are the two fields the database will not take as empty, so a
+# blank there is passed through rather than turned into NA.
+.taxa_required_fields <- c("tax_gen", "tax_fam")
+
+#' Turn tracked field changes into update_dico_name() arguments
+#'
+#' @description
+#' Both the simple and the cascade update path need the same translation from
+#' the module's `modified_fields` list to named `update_dico_name()` arguments,
+#' so it lives here rather than twice inline. An emptied field becomes `NA`,
+#' which is how it reaches the database as NULL; fields update_dico_name()
+#' cannot write are dropped and handled by the caller.
+#'
+#' @param modified_fields Named list of `list(old =, new =)` entries, as
+#'   accumulated by the module.
+#'
+#' @return Named list of arguments, empty if nothing update_dico_name()
+#'   handles was modified.
+#'
+#' @keywords internal
+.taxa_update_dico_params <- function(modified_fields) {
+  changed <- intersect(names(.taxa_dico_fields), names(modified_fields))
+
+  params <- lapply(changed, function(f) {
+    new_value <- modified_fields[[f]]$new
+    if (!f %in% .taxa_required_fields &&
+        is.character(new_value) && length(new_value) == 1 && new_value == "") {
+      # Typed: every column here is text, and a bare NA is logical, which is not
+      # something to hand a text parameter binding.
+      NA_character_
+    } else {
+      new_value
+    }
+  })
+
+  stats::setNames(params, unname(.taxa_dico_fields[changed]))
+}
+
 #' Taxa Update Module - UI
 #'
 #' UI component for updating existing taxonomic records
@@ -84,7 +143,8 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
                   shiny::strong("ID:"), " ", taxon$idtax_n, shiny::br(),
                   shiny::strong(i18n()$t("Family:")), " ", na_display(taxon$tax_fam), shiny::br(),
                   shiny::strong(i18n()$t("Genus:")), " ", na_display(taxon$tax_gen), shiny::br(),
-                  shiny::strong(i18n()$t("Species:")), " ", na_display(taxon$tax_esp)
+                  shiny::strong(i18n()$t("Species:")), " ", na_display(taxon$tax_esp), shiny::br(),
+                  shiny::strong(i18n()$t("Author:")), " ", na_display(taxon$author1)
                 )
               }
             ),
@@ -206,6 +266,38 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
               )
             ),
 
+            shiny::h6(i18n()$t("Authors")),
+            shiny::p(
+              class = "text-muted",
+              i18n()$t("Author 1 is the authority of the species name, author 2 that of the infraspecific name.")
+            ),
+            shiny::fluidRow(
+              shiny::column(
+                4,
+                shiny::textInput(
+                  ns("new_author1"),
+                  i18n()$t("Author 1"),
+                  value = ""
+                )
+              ),
+              shiny::column(
+                4,
+                shiny::textInput(
+                  ns("new_author2"),
+                  i18n()$t("Author 2"),
+                  value = ""
+                )
+              ),
+              shiny::column(
+                4,
+                shiny::textInput(
+                  ns("new_author3"),
+                  i18n()$t("Author 3"),
+                  value = ""
+                )
+              )
+            ),
+
             shiny::h6(i18n()$t("Other attributes")),
             shiny::fluidRow(
               shiny::column(
@@ -271,8 +363,11 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
       shiny::updateTextInput(session, "new_tax_fam", value = na_to_empty(taxon$tax_fam))
       shiny::updateTextInput(session, "new_tax_order", value = na_to_empty(taxon$tax_order))
       shiny::updateTextInput(session, "new_tax_famclass", value = na_to_empty(taxon$tax_famclass))
-      shiny::updateSelectInput(session, "new_tax_rank1", selected = na_to_empty(taxon$tax_rank1))
-      shiny::updateTextInput(session, "new_tax_name1", value = na_to_empty(taxon$tax_name1))
+      shiny::updateSelectInput(session, "new_tax_rank1", selected = na_to_empty(taxon$tax_rank01))
+      shiny::updateTextInput(session, "new_tax_name1", value = na_to_empty(taxon$tax_nam01))
+      for (f in .taxa_author_fields) {
+        shiny::updateTextInput(session, paste0("new_", f), value = na_to_empty(taxon[[f]]))
+      }
       shiny::updateCheckboxInput(
         session, "new_morpho_species",
         value = isTRUE(taxon$morpho_species)
@@ -315,11 +410,21 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
       if (!is.null(input$new_tax_famclass) && trimws(input$new_tax_famclass) != na_to_empty(taxon$tax_famclass)) {
         modified$tax_famclass <- list(old = taxon$tax_famclass, new = trimws(input$new_tax_famclass))
       }
-      if (!is.null(input$new_tax_rank1) && input$new_tax_rank1 != na_to_empty(taxon$tax_rank1)) {
-        modified$tax_rank1 <- list(old = taxon$tax_rank1, new = input$new_tax_rank1)
+      # query_taxa() names these tax_rank01 / tax_nam01; reading them as
+      # tax_rank1 / tax_name1 gave NULL, so the form opened blank on an
+      # infraspecific taxon and a cleared field registered no change.
+      if (!is.null(input$new_tax_rank1) && input$new_tax_rank1 != na_to_empty(taxon$tax_rank01)) {
+        modified$tax_rank01 <- list(old = taxon$tax_rank01, new = input$new_tax_rank1)
       }
-      if (!is.null(input$new_tax_name1) && trimws(input$new_tax_name1) != na_to_empty(taxon$tax_name1)) {
-        modified$tax_name1 <- list(old = taxon$tax_name1, new = trimws(input$new_tax_name1))
+      if (!is.null(input$new_tax_name1) && trimws(input$new_tax_name1) != na_to_empty(taxon$tax_nam01)) {
+        modified$tax_nam01 <- list(old = taxon$tax_nam01, new = trimws(input$new_tax_name1))
+      }
+      # Authorship is stored in three parallel columns, edited the same way.
+      for (f in .taxa_author_fields) {
+        val <- input[[paste0("new_", f)]]
+        if (!is.null(val) && trimws(val) != na_to_empty(taxon[[f]])) {
+          modified[[f]] <- list(old = taxon[[f]], new = trimws(val))
+        }
       }
       if (!is.null(input$new_morpho_species) && !identical(input$new_morpho_species, isTRUE(taxon$morpho_species))) {
         modified$morpho_species <- list(old = isTRUE(taxon$morpho_species), new = input$new_morpho_species)
@@ -525,41 +630,21 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
       cli::cli_alert_info("Updating taxon ID {taxon$idtax_n}...")
 
       # Prepare parameters for update_dico_name
-      update_params <- list(
-        id_searched = taxon$idtax_n,
-        ask_before_update = FALSE,
-        add_backup = TRUE,
-        show_results = FALSE,
-        con = pool_conn
+      dico_params <- .taxa_update_dico_params(rv$modified_fields)
+
+      update_params <- c(
+        list(
+          id_searched = taxon$idtax_n,
+          ask_before_update = FALSE,
+          add_backup = TRUE,
+          show_results = FALSE,
+          con = pool_conn
+        ),
+        dico_params
       )
 
-      # Add only modified fields
-      if (!is.null(rv$modified_fields$tax_gen)) {
-        update_params$new_tax_gen <- rv$modified_fields$tax_gen$new
-      }
-      if (!is.null(rv$modified_fields$tax_esp)) {
-        update_params$new_tax_esp <- if (rv$modified_fields$tax_esp$new == "") NA else rv$modified_fields$tax_esp$new
-      }
-      if (!is.null(rv$modified_fields$tax_fam)) {
-        update_params$new_tax_fam <- rv$modified_fields$tax_fam$new
-      }
-      if (!is.null(rv$modified_fields$tax_order)) {
-        update_params$new_tax_order <- if (rv$modified_fields$tax_order$new == "") NA else rv$modified_fields$tax_order$new
-      }
-      if (!is.null(rv$modified_fields$tax_famclass)) {
-        update_params$new_tax_famclass <- if (rv$modified_fields$tax_famclass$new == "") NA else rv$modified_fields$tax_famclass$new
-      }
-      if (!is.null(rv$modified_fields$tax_rank1)) {
-        update_params$new_tax_rank1 <- if (rv$modified_fields$tax_rank1$new == "") NA else rv$modified_fields$tax_rank1$new
-      }
-      if (!is.null(rv$modified_fields$tax_name1)) {
-        update_params$new_tax_name1 <- if (rv$modified_fields$tax_name1$new == "") NA else rv$modified_fields$tax_name1$new
-      }
-
       # Call update_dico_name only if there are fields it handles (it errors if nothing to update)
-      dico_fields <- c("tax_gen", "tax_esp", "tax_fam", "tax_order", "tax_famclass", "tax_rank1", "tax_name1")
-      has_dico_changes <- any(dico_fields %in% names(rv$modified_fields))
-      if (has_dico_changes) {
+      if (length(dico_params) > 0) {
         do.call(update_dico_name, update_params)
       }
 
@@ -623,18 +708,11 @@ mod_taxa_update_server <- function(id, pool, selected_taxon, has_write_permissio
       )
 
       # Add modified fields
-      if (!is.null(rv$modified_fields$tax_gen)) update_params$new_tax_gen <- rv$modified_fields$tax_gen$new
-      if (!is.null(rv$modified_fields$tax_esp)) update_params$new_tax_esp <- if (rv$modified_fields$tax_esp$new == "") NA else rv$modified_fields$tax_esp$new
-      if (!is.null(rv$modified_fields$tax_fam)) update_params$new_tax_fam <- rv$modified_fields$tax_fam$new
-      if (!is.null(rv$modified_fields$tax_order)) update_params$new_tax_order <- if (rv$modified_fields$tax_order$new == "") NA else rv$modified_fields$tax_order$new
-      if (!is.null(rv$modified_fields$tax_famclass)) update_params$new_tax_famclass <- if (rv$modified_fields$tax_famclass$new == "") NA else rv$modified_fields$tax_famclass$new
-      if (!is.null(rv$modified_fields$tax_rank1)) update_params$new_tax_rank1 <- if (rv$modified_fields$tax_rank1$new == "") NA else rv$modified_fields$tax_rank1$new
-      if (!is.null(rv$modified_fields$tax_name1)) update_params$new_tax_name1 <- if (rv$modified_fields$tax_name1$new == "") NA else rv$modified_fields$tax_name1$new
+      dico_params <- .taxa_update_dico_params(rv$modified_fields)
+      update_params <- c(update_params, dico_params)
 
       # Call update_dico_name only if there are fields it handles
-      dico_fields <- c("tax_gen", "tax_esp", "tax_fam", "tax_order", "tax_famclass", "tax_rank1", "tax_name1")
-      has_dico_changes <- any(dico_fields %in% names(rv$modified_fields))
-      if (has_dico_changes) {
+      if (length(dico_params) > 0) {
         do.call(update_dico_name, update_params)
       }
 
