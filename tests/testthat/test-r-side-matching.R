@@ -407,3 +407,123 @@ test_that("hierarchical matching reports exact for an author-carrying name", {
   expect_equal(res$match_method, rep("exact", 3))
   expect_equal(res$idtax_n, c(1L, 2L, 9L))
 })
+
+
+# =============================================================================
+# .promote_exact_genus
+# =============================================================================
+
+# ".split_name_authors()" only calls a trailing word an author when it shows a
+# period, a bracket or a connecting word, so "Centroplacus Pierre" keeps
+# "Pierre" in the searched name. That is deliberate: a bare capitalised word is
+# far more often a mis-capitalised epithet in data being standardised, and that
+# reading is the one worth protecting. The cost was that an exactly known genus
+# came back from the fuzzy stage at 0.59 and went to manual review.
+
+.gc_result <- function(...) {
+  rows <- list(...)
+  dplyr::bind_rows(lapply(rows, function(r) {
+    tibble::tibble(
+      input_name = "x", matched_name = r$name, idtax_n = 1L, idtax_good_n = 1L,
+      match_method = "genus_constrained", match_score = r$score,
+      tax_gen = r$gen, tax_esp = NA_character_, tax_fam = NA_character_,
+      tax_level = r$level
+    )
+  }))
+}
+
+test_that(".promote_exact_genus() calls the genus exact when nothing fits better", {
+  parsed <- parse_taxonomic_name("Centroplacus Pierre")
+  expect_equal(parsed$rank, "genus")
+
+  out <- .promote_exact_genus(
+    .gc_result(
+      list(name = "Centroplacus", gen = "Centroplacus", level = "genus", score = 0.59),
+      list(name = "Centroplacus glaucinus", gen = "Centroplacus", level = "species", score = 0.42)
+    ),
+    parsed
+  )
+
+  expect_equal(out$match_method[1], "exact")
+  expect_equal(out$match_score[1], 1)
+  # The alternatives are left as they were, still available for review
+  expect_equal(out$match_method[2], "genus_constrained")
+  expect_equal(out$match_score[2], 0.42)
+})
+
+test_that(".promote_exact_genus() leaves a better-fitting species alone", {
+  # A capitalised epithet with a typo must stay a species suggestion: collapsing
+  # it to the genus at 1.00 would hide the useful answer behind false certainty.
+  parsed <- parse_taxonomic_name("Garcinia Kolla")
+
+  out <- .promote_exact_genus(
+    .gc_result(
+      list(name = "Garcinia kola", gen = "Garcinia", level = "species", score = 0.77),
+      list(name = "Garcinia", gen = "Garcinia", level = "genus", score = 0.50)
+    ),
+    parsed
+  )
+
+  expect_equal(out$match_method[1], "genus_constrained")
+  expect_equal(out$match_score[1], 0.77)
+})
+
+test_that(".promote_exact_genus() ignores a genus of a different name", {
+  parsed <- parse_taxonomic_name("Centroplacus Pierre")
+
+  out <- .promote_exact_genus(
+    .gc_result(list(name = "Centropodia", gen = "Centropodia", level = "genus", score = 0.24)),
+    parsed
+  )
+
+  expect_equal(out$match_method[1], "genus_constrained")
+})
+
+test_that(".promote_exact_genus() ignores a species-rank name", {
+  parsed <- parse_taxonomic_name("Garcinia kola")
+  expect_equal(parsed$rank, "species")
+
+  out <- .promote_exact_genus(
+    .gc_result(list(name = "Garcinia", gen = "Garcinia", level = "genus", score = 0.55)),
+    parsed
+  )
+
+  expect_equal(out$match_method[1], "genus_constrained")
+})
+
+test_that(".promote_exact_genus() handles an empty result", {
+  out <- .promote_exact_genus(.gc_result(), parse_taxonomic_name("Centroplacus Pierre"))
+  expect_equal(nrow(out), 0L)
+})
+
+
+test_that("a genus with an unabbreviated author is matched exactly end to end", {
+  bb <- .fake_backbone()
+
+  res <- match_taxonomic_names("Brachystegia Benth", backbone = bb, verbose = FALSE)
+
+  expect_equal(res$match_method[1], "exact")
+  expect_equal(res$match_score[1], 1)
+  expect_equal(res$matched_name[1], "Brachystegia")
+  expect_equal(res$tax_level[1], "genus")
+})
+
+test_that("a typo'd capitalised epithet still reaches its species", {
+  bb <- .fake_backbone()
+
+  res <- match_taxonomic_names("Garcinia Kolla", backbone = bb, verbose = FALSE)
+
+  expect_equal(res$matched_name[1], "Garcinia kola")
+  expect_equal(res$match_method[1], "genus_constrained")
+  expect_equal(res$tax_level[1], "species")
+})
+
+test_that("a correctly spelled capitalised epithet is still exact", {
+  bb <- .fake_backbone()
+
+  res <- match_taxonomic_names("Garcinia Kola", backbone = bb, verbose = FALSE)
+
+  expect_equal(res$match_method[1], "exact")
+  expect_equal(res$matched_name[1], "Garcinia kola")
+  expect_equal(res$tax_level[1], "species")
+})
