@@ -47,6 +47,13 @@
 
 ### New Features
 
+* **The authorship columns can be edited from the taxonomic backbone app** (`R/mod_taxa_update.R`, `R/updates_tables_functions.R`) — `launch_taxo_backbone_app()`'s update form could edit every taxonomic rank but not `author1`, `author2` and `author3`, and there was no path to write them at all: `update_dico_name()` had no author parameter and its `UPDATE` statement did not list the columns. A wrong or missing authority — the `"Wilczekra congolensis"` case that surfaced the backbone bug below — could only be repaired with hand-written SQL
+  - `update_dico_name()` gained `new_author1`, `new_author2` and `new_author3`, wired into both the change detection and the statement. An omitted argument rewrites its column with the current value, so existing callers are unaffected
+  - The form gained an **Authors** block, prefilled from the selected taxon, and `author1` now appears in the taxon summary. A muted line states that `author1` is the authority of the species name and `author2` that of the infraspecific name, which is not guessable from the labels and is the kind of thing that gets entered wrong once and copied forever
+  - Clearing a field registers as a change and writes NULL, typed as `NA_character_` — a bare `NA` is logical, and binding one to a text column is not the same request
+  - `.taxa_update_dico_params()` replaces the block that `.perform_update()` and `.perform_cascade_update()` each carried a copy of
+  - **The `UPDATE` itself is covered by reading only**, since no database credentials were available when it was written. Worth exercising on a single taxon before trusting it in production
+
 * **The taxonomic matching app shows the equivalent R code** (`R/mod_taxo_match_r_code.R`, `R/taxonomic_matching.R`) — the app standardises a name list and hands back a table, and nothing said how to do the same run from a script. A user who wanted it reproducible had to reverse-engineer the settings from the results
   - A panel driven by the auto-matching output, so the script it shows always reflects the settings the run actually used — column, method, similarity threshold, author handling, WCVP
   - `standardize_taxonomic_batch()` was brought to parity with `match_taxonomic_names()` so the script it prints is runnable: it gained the `backbone` argument and the `corrected_name` column, and `"hierarchical"` is documented as the alias of `"auto"` that it always was
@@ -225,6 +232,10 @@
   - 103 assertions across 23 tests in `tests/testthat/test-verbosity.R`, covering which severities survive at each level, that base `message()` and `warning()` are left alone, that the level is restored after an error, and the end-to-end wrapper behaviour with the implementation mocked
 
 ### Bug Fixes
+
+* **An infraspecific-only edit was silently dropped by the taxonomic backbone app** (`R/mod_taxa_update.R`, `R/updates_tables_functions.R`) — editing nothing but the infraspecific rank or name came back as *"No update performed because no values are different"*, and the form opened blank on an infraspecific taxon in the first place
+  - Two halves of one naming trap. `query_taxa()` returns `tax_rank01` and `tax_nam01`, while `update_dico_name()`'s arguments are `new_tax_rank1` and `new_tax_name1`. The change-detection loop matched argument names against column names, so those two never matched anything and the edit was reported as no change; the form, meanwhile, read `taxon$tax_rank1` / `taxon$tax_name1`, which `query_taxa()` does not return, so the inputs started empty and clearing an epithet registered nothing either
+  - The loop now uses an explicit argument → column map, which also removes a `grep("tax_rank", ...)` that matched three arguments at once
 
 * **Taxa with no recorded author were missing from the cached backbone** (`R/cache_backbone.R`) — the download ended with `filter(author1 != "ZZ auct.")`, and `NA` propagates through `!=`, so `filter()` dropped every taxon whose `author1` was null. Those names were unmatchable in the app while `match_taxonomic_names()` matched them exactly against the live table, which applies no such filter
   - Reported for `"Wilczekra congolensis"`: the genus and both its species were absent from the backbone entirely, with no indication that anything was missing
