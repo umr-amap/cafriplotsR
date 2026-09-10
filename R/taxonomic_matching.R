@@ -524,6 +524,55 @@ match_taxonomic_names <- function(names,
 
 
 
+#' Recognise a genus that matched exactly inside a genus-constrained result
+#'
+#' @description
+#' A genus-rank name carrying an unabbreviated author ("Centroplacus Pierre")
+#' keeps that author in the searched string: `.split_name_authors()` only calls
+#' a trailing word an author when it shows a period, a bracket or a connecting
+#' word, and a bare capitalised word is far more likely a mis-capitalised
+#' epithet ("Garcinia Kola") in data being standardised. That reading is the
+#' one worth protecting, so the genus is never searched on its own.
+#'
+#' The genus still surfaces here. When no species of the genus fits better, the
+#' genus-level row comes back top - but scored against a string that still
+#' carries the author, which gave Centroplacus 0.59 and sent an exactly known
+#' genus to manual review.
+#'
+#' So: when the best genus-constrained candidate is the genus-level row for
+#' exactly the parsed genus, the genus name did match exactly and is reported
+#' as such. A species that outranks it is left strictly alone - "Garcinia
+#' Kolla" must stay "Garcinia kola" at 0.77 rather than collapse to the genus,
+#' which is the more useful answer and the more likely input.
+#'
+#' @param matches Genus-constrained matches, best first
+#' @param parsed Parsed input name
+#'
+#' @return `matches`, with the first row promoted where applicable
+#'
+#' @keywords internal
+.promote_exact_genus <- function(matches, parsed) {
+
+  if (nrow(matches) == 0L || !identical(parsed$rank, "genus") ||
+      is.na(parsed$genus)) {
+    return(matches)
+  }
+
+  top_is_the_genus <- identical(matches$tax_level[1], "genus") &&
+    !is.na(matches$tax_gen[1]) &&
+    tolower(matches$tax_gen[1]) == tolower(parsed$genus)
+
+  if (!top_is_the_genus) {
+    return(matches)
+  }
+
+  matches$match_method[1] <- "exact"
+  matches$match_score[1]  <- 1
+
+  matches
+}
+
+
 #' Match a single parsed name using SQL-side queries (internal helper)
 #' @keywords internal
 .match_single_name_sql <- function(parsed, con, method, max_matches,
@@ -544,6 +593,7 @@ match_taxonomic_names <- function(names,
   if (method %in% c("auto", "genus_constrained", "hierarchical") && !is.na(parsed$genus)) {
     genus_matches <- .match_genus_constrained_sql(parsed, con, min_similarity,
                                                    include_authors, max_matches)
+    genus_matches <- .promote_exact_genus(genus_matches, parsed)
 
     if (nrow(genus_matches) > 0) {
       if (verbose) cli::cli_alert_info("Found genus-constrained matches")
@@ -1248,6 +1298,8 @@ match_taxonomic_names <- function(names,
   if (method %in% c("auto", "genus_constrained", "hierarchical") && !is.na(parsed$genus)) {
     genus_matches <- .match_genus_constrained_r(parsed, backbone, min_similarity,
                                                 include_authors, max_matches)
+    genus_matches <- .promote_exact_genus(genus_matches, parsed)
+
     if (nrow(genus_matches) > 0) {
       if (verbose) cli::cli_alert_info("Found genus-constrained matches")
       return(genus_matches %>% mutate(match_rank = row_number()))
