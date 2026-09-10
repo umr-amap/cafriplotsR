@@ -208,7 +208,14 @@ app_taxonomic_match <- function(
                 value = "auto_match",
                 icon = shiny::icon("magic"),
                 shiny::br(),
-                mod_auto_matching_ui("auto_match")
+                # What the selected column actually contains, before any run.
+                # A wrong column costs a full matching pass to discover
+                # otherwise, so this sits above the controls, not below.
+                mod_name_preview_ui("name_preview"),
+                mod_auto_matching_ui("auto_match"),
+                # Equivalent R code for the automatic matching, as in the
+                # other apps. Sits under the results it describes.
+                mod_taxo_match_r_code_ui("r_code")
               ),
 
               # Review Tab
@@ -571,6 +578,15 @@ app_taxonomic_match <- function(
         i18n = i18n
       )
 
+      # Preview of the names the next run would look up. Fed by the same two
+      # reactives as the matching module, so what it shows is what will run.
+      mod_name_preview_server(
+        "name_preview",
+        data = shiny::reactive(column_info()$data),
+        column_name = shiny::reactive(column_info()$column),
+        i18n = i18n
+      )
+
       # Auto matching module
       # Use data from column_info (may be modified with combined column)
       use_wcvp_names <- shiny::reactive(isTRUE(input$use_wcvp_names))
@@ -584,6 +600,18 @@ app_taxonomic_match <- function(
         i18n = i18n,
         use_wcvp_names = use_wcvp_names,
         is_offline = is_offline_reactive
+      )
+
+      # Equivalent R code for the automatic matching. Driven by the
+      # auto-matching output, so it only appears once a run has completed and
+      # always reflects the settings that run actually used.
+      mod_taxo_match_r_code_server(
+        "r_code",
+        match_results = match_results,
+        column_info   = column_info,
+        use_wcvp      = use_wcvp_names,
+        is_offline    = is_offline_reactive,
+        i18n          = i18n
       )
 
       # Manual review module — pass cached backbone for offline custom search

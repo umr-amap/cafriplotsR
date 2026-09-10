@@ -14,8 +14,9 @@ A list with components:
   - rank: Detected rank ("family", "order", "genus", "species", or "unknown")
   - genus: Genus name (first word, or NA if family/order detected)
   - species: Species epithet (second word if present)
-  - infraspecific: Full infraspecific part (everything after species)
-  - full_name_no_auth: Genus + species + infraspecific without authors
+  - infraspecific: Infraspecific ranks and epithets, authorship excluded
+  - authors: The authorship string, or NA when the name carries none
+  - full_name_no_auth: Genus + species + infraspecific, without authors
   - input_name: Original input
 }
 \description{
@@ -26,6 +27,7 @@ infraspecific ranks/names, and author names.
 parse_taxonomic_name("Gilbertiodendron dewevrei")
 parse_taxonomic_name("Anthonotha macrophylla var. oblongifolia")
 parse_taxonomic_name("Brachystegia")
+parse_taxonomic_name("Garcinia kola Heckel")$authors
 
 }
 \author{

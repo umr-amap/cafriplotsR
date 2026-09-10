@@ -20,7 +20,10 @@ match_taxonomic_names(
 \arguments{
 \item{names}{Character vector of taxonomic names to match}
 
-\item{method}{Matching method: "auto" (default), "exact", "genus_constrained", "fuzzy"}
+\item{method}{Matching method: "auto" (default), "exact", "genus_constrained",
+"fuzzy". "hierarchical" is an alias of "auto" kept for readability at call
+sites that want the cascade named explicitly - the two are strictly
+equivalent at every dispatch point.}
 
 \item{max_matches}{Maximum number of suggestions per name (default: 10)}
 

@@ -241,3 +241,169 @@ test_that("synonym info is added from cached backbone", {
   expect_true(res$is_synonym[1])
   expect_equal(res$accepted_name[1], "Garcinia kola")
 })
+
+
+# =============================================================================
+# Author names — `include_authors = TRUE`
+#
+# Authors are extra evidence, never a requirement. Two regressions are pinned
+# here: a bare genus name stopped matching exactly as soon as authors were on
+# (the searchable name grew an author the SQL side never adds to a genus row),
+# and a name written without its author lost its exact match for the same
+# reason.
+# =============================================================================
+
+.fake_backbone_auth <- function() {
+  bb <- .fake_backbone()
+  bb$author1 <- c("Heckel", "Oliv.", "De Wild.",
+                  "Heckel", "Benth.", "Troupin",
+                  "L.", "L.", "Benth.",
+                  NA, NA, NA)
+  bb
+}
+
+.fake_backbone_homonym <- function() {
+  bb <- .fake_backbone_auth()
+  # A second "Garcinia kola", under another author: only the author can
+  # tell the two apart.
+  dplyr::bind_rows(bb, dplyr::mutate(bb[1, ], idtax_n = 13L,
+                                     idtax_good_n = 13L,
+                                     author1 = "Vahl ex Oliv."))
+}
+
+test_that(".build_backbone_name_field appends the author to species only", {
+  bb <- .fake_backbone_auth()
+  out <- .build_backbone_name_field(bb, include_authors = TRUE)
+
+  expect_equal(out[1], "Garcinia kola Heckel")
+  # Genus-level row: the SQL side spells this `ELSE tax_gen`, no author.
+  expect_equal(out[7], "Garcinia")
+  expect_true(is.na(out[10]))
+})
+
+test_that("a name written with its author matches exactly", {
+  bb <- .fake_backbone_auth()
+  parsed <- parse_taxonomic_name("Garcinia kola Heckel")
+  parsed$original_input <- "Garcinia kola Heckel"
+
+  res <- .match_exact_r(parsed, bb, include_authors = TRUE, max_matches = 5)
+
+  expect_equal(nrow(res), 1)
+  expect_equal(res$idtax_n[1], 1L)
+  expect_equal(res$match_method[1], "exact")
+})
+
+test_that("a name written without its author still matches exactly", {
+  bb <- .fake_backbone_auth()
+  parsed <- parse_taxonomic_name("Garcinia kola")
+  parsed$original_input <- "Garcinia kola"
+
+  res <- .match_exact_r(parsed, bb, include_authors = TRUE, max_matches = 5)
+
+  expect_equal(nrow(res), 1)
+  expect_equal(res$idtax_n[1], 1L)
+  expect_equal(res$match_method[1], "exact")
+  # The name shown back to the user keeps the author, as the SQL side does.
+  expect_equal(res$matched_name[1], "Garcinia kola Heckel")
+})
+
+test_that("a bare genus name matches exactly with authors on", {
+  bb <- .fake_backbone_auth()
+  parsed <- parse_taxonomic_name("Brachystegia")
+  parsed$original_input <- "Brachystegia"
+
+  res <- .match_exact_r(parsed, bb, include_authors = TRUE, max_matches = 5)
+
+  expect_gt(nrow(res), 0)
+  expect_equal(res$idtax_n[1], 9L)
+  expect_equal(res$match_method[1], "exact")
+})
+
+test_that("a differently spelled author still matches the same name", {
+  bb <- .fake_backbone_auth()
+  parsed <- parse_taxonomic_name("Garcinia kola (Heckel) Baill.")
+  parsed$original_input <- "Garcinia kola (Heckel) Baill."
+
+  res <- .match_exact_r(parsed, bb, include_authors = TRUE, max_matches = 5)
+
+  # The name is what identifies the taxon; the author only ranks candidates.
+  expect_equal(nrow(res), 1)
+  expect_equal(res$idtax_n[1], 1L)
+  expect_equal(res$match_method[1], "exact")
+})
+
+test_that("the author decides between homonyms", {
+  bb <- .fake_backbone_homonym()
+
+  wanted_heckel <- parse_taxonomic_name("Garcinia kola Heckel")
+  wanted_heckel$original_input <- "Garcinia kola Heckel"
+  res1 <- .match_exact_r(wanted_heckel, bb, include_authors = TRUE, max_matches = 5)
+  expect_equal(res1$idtax_n[1], 1L)
+
+  # Same name, other author: the same two rows are found, ranked the other way.
+  wanted_vahl <- parse_taxonomic_name("Garcinia kola Vahl ex Oliv.")
+  wanted_vahl$original_input <- "Garcinia kola Vahl ex Oliv."
+  res2 <- .match_exact_r(wanted_vahl, bb, include_authors = TRUE, max_matches = 5)
+  expect_equal(res2$idtax_n[1], 13L)
+})
+
+test_that("a name that does not exist still finds nothing", {
+  bb <- .fake_backbone_auth()
+  parsed <- parse_taxonomic_name("Nonsensia inexistensus Benth.")
+  parsed$original_input <- "Nonsensia inexistensus Benth."
+
+  res <- .match_exact_r(parsed, bb, include_authors = TRUE, max_matches = 5)
+
+  expect_equal(nrow(res), 0)
+})
+
+
+test_that("a differing author no longer lowers the fuzzy score", {
+  bb <- .fake_backbone_auth()
+
+  # Genus typo, and an author written nothing like the backbone's.
+  parsed <- parse_taxonomic_name("Garcinea kola Hooker f.")
+  parsed$original_input <- "Garcinea kola Hooker f."
+
+  with_auth <- .match_genus_constrained_r(parsed, bb, min_similarity = 0.4,
+                                          include_authors = TRUE,
+                                          max_matches = 3)
+  no_auth <- .match_genus_constrained_r(parsed, bb, min_similarity = 0.4,
+                                        include_authors = FALSE,
+                                        max_matches = 3)
+
+  expect_equal(with_auth$idtax_n[1], 1L)
+  # The score measures the name, so asking for authors cannot change it.
+  expect_equal(with_auth$match_score[1], no_auth$match_score[1])
+  # ...and it is exactly the score the name alone deserves, not one diluted
+  # by the author string.
+  expect_equal(with_auth$match_score[1],
+               .trigram_sim("Garcinia kola", "Garcinea kola"))
+})
+
+test_that("among equally named candidates the closer author comes first", {
+  bb <- .fake_backbone_homonym()
+
+  # Epithet typo, so this goes through the fuzzy path, and both homonyms
+  # score identically on the name.
+  parsed <- parse_taxonomic_name("Garcinia kolla Vahl ex Oliv.")
+  parsed$original_input <- "Garcinia kolla Vahl ex Oliv."
+
+  res <- .match_genus_constrained_r(parsed, bb, min_similarity = 0.4,
+                                    include_authors = TRUE, max_matches = 3)
+
+  expect_equal(res$idtax_n[1], 13L)
+})
+
+test_that("hierarchical matching reports exact for an author-carrying name", {
+  bb <- .fake_backbone_auth()
+
+  res <- match_taxonomic_names(
+    c("Garcinia kola Heckel", "Garcinia punctata", "Brachystegia"),
+    method = "hierarchical", max_matches = 1, min_similarity = 0.6,
+    include_authors = TRUE, backbone = bb, verbose = FALSE
+  )
+
+  expect_equal(res$match_method, rep("exact", 3))
+  expect_equal(res$idtax_n, c(1L, 2L, 9L))
+})

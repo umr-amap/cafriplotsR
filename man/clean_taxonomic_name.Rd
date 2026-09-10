@@ -7,10 +7,11 @@
 clean_taxonomic_name(name)
 }
 \arguments{
-\item{name}{Character string of taxonomic name}
+\item{name}{Character vector of taxonomic names (a single name works too)}
 }
 \value{
-Cleaned taxonomic name (character string)
+Cleaned taxonomic names, same length as `name`. `NA` and empty
+  strings pass through untouched.
 }
 \description{
 Clean taxonomic names by removing common botanical annotation patterns

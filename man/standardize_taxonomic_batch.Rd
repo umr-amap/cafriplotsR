@@ -7,11 +7,12 @@
 standardize_taxonomic_batch(
   data,
   name_column,
-  method = c("auto", "exact", "genus_constrained", "fuzzy"),
+  method = c("auto", "exact", "genus_constrained", "fuzzy", "hierarchical"),
   min_similarity = 0.3,
   include_synonyms = TRUE,
   include_authors = FALSE,
   con = NULL,
+  backbone = NULL,
   verbose = TRUE,
   keep_all_matches = FALSE
 )
@@ -21,7 +22,8 @@ standardize_taxonomic_batch(
 
 \item{name_column}{Name of column containing taxonomic names (quoted or unquoted)}
 
-\item{method}{Matching method: "auto" (default), "exact", "genus_constrained", "fuzzy"}
+\item{method}{Matching method: "auto" (default), "exact", "genus_constrained",
+"fuzzy". "hierarchical" is an alias of "auto".}
 
 \item{min_similarity}{Minimum similarity score (0-1, default: 0.3)}
 
@@ -31,6 +33,11 @@ standardize_taxonomic_batch(
 
 \item{con}{Database connection (if NULL, will call call.mydb.taxa())}
 
+\item{backbone}{Optional cached backbone tibble (as returned by
+[load_backbone_cache()]). When supplied, matching runs in R against this
+in-memory backbone - no database round-trips, works fully offline. Passing
+it explicitly also avoids re-reading the cache from disk on every call.}
+
 \item{verbose}{Show progress messages (default: TRUE)}
 
 \item{keep_all_matches}{Keep all matches (default: FALSE, only keeps best match)}
@@ -38,6 +45,8 @@ standardize_taxonomic_batch(
 \value{
 The input data frame with added columns:
   - matched_name: Best matching name from backbone (or NA if no match)
+  - corrected_name: Final standardized name - the accepted name when the
+    match is a synonym, the matched name otherwise
   - idtax_n: Taxa ID for matched name
   - idtax_good_n: Accepted taxa ID (for synonyms)
   - match_method: How the match was found
@@ -68,6 +77,13 @@ data <- tibble(
 # Add best match for each name
 data_matched <- standardize_taxonomic_batch(data, name_column = "species")
 
+# Match against the cached backbone (no database round-trips)
+data_matched <- standardize_taxonomic_batch(
+  data,
+  name_column = "species",
+  backbone = load_backbone_cache()
+)
+
 # Keep all matches (for manual review)
 data_all_matches <- standardize_taxonomic_batch(
   data,
@@ -76,6 +92,11 @@ data_all_matches <- standardize_taxonomic_batch(
 )
 }
 
+}
+\seealso{
+[launch_taxonomic_match_app()] for the interactive version of the
+  same workflow; its "Equivalent R Code" panel generates a call to this
+  function.
 }
 \author{
 Claude Code Assistant

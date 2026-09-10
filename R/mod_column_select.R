@@ -27,7 +27,10 @@ mod_column_select_ui <- function(id) {
 #' @param initial_column Character, optional pre-selected column name
 #' @param i18n Reactive returning shiny.i18n translator
 #'
-#' @return Reactive list with $column (selected column name), $include_authors (logical), and $data (potentially modified data)
+#' @return Reactive list with $column (selected column name), $include_authors
+#'   (logical), $data (potentially modified data), $mode ("single" or
+#'   "multiple") and, in multiple mode, $genus_column / $species_column /
+#'   $family_column
 #'
 #' @keywords internal
 mod_column_select_server <- function(id, data, initial_column = NULL, i18n) {
@@ -157,7 +160,13 @@ mod_column_select_server <- function(id, data, initial_column = NULL, i18n) {
       df <- data()
 
       if (input$column_mode == "multiple") {
-        req(input$genus_column, input$species_column, input$family_column)
+        # `req()` treats "" as missing, so requiring the three inputs
+        # outright would block as soon as one of them is left at "(none)"
+        # - which is the ordinary case (genus + species, no family). Only
+        # require that the inputs exist; emptiness is handled just below.
+        req(!is.null(input$genus_column),
+            !is.null(input$species_column),
+            !is.null(input$family_column))
 
         # Check that at least one column is selected
         if (input$genus_column == "" && input$species_column == "" && input$family_column == "") {
@@ -241,7 +250,13 @@ mod_column_select_server <- function(id, data, initial_column = NULL, i18n) {
         list(
           column = selected,
           include_authors = input$include_authors %||% FALSE,
-          data = sanitised$data
+          data = sanitised$data,
+          # Kept so the R-code preview can reproduce the multi-column
+          # concatenation rather than only the resulting column.
+          mode = input$column_mode,
+          genus_column = if (identical(input$column_mode, "multiple")) input$genus_column %||% "" else "",
+          species_column = if (identical(input$column_mode, "multiple")) input$species_column %||% "" else "",
+          family_column = if (identical(input$column_mode, "multiple")) input$family_column %||% "" else ""
         )
       })
     )

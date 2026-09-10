@@ -56,6 +56,22 @@ test_that("clean_taxonomic_name leaves clean names unchanged", {
   )
 })
 
+test_that("clean_taxonomic_name cleans a whole vector at once", {
+  # Every caller passes a list, not a name; the per-name loop was pure
+  # overhead. Blanks and NAs must survive in place so the result still lines
+  # up with the input.
+  input <- c("Fabaceae sp.", NA, "Garcinia cf. kola", "", "  Cola_nitida  ")
+
+  expect_equal(
+    clean_taxonomic_name(input),
+    c("Fabaceae", NA, "Garcinia kola", "", "Cola nitida")
+  )
+})
+
+test_that("clean_taxonomic_name returns an empty vector unchanged", {
+  expect_equal(clean_taxonomic_name(character(0)), character(0))
+})
+
 # =============================================================================
 # parse_taxonomic_name()
 # =============================================================================
@@ -95,6 +111,66 @@ test_that("parse_taxonomic_name extracts infraspecific parts", {
   expect_equal(result$species, "macrophylla")
   expect_true(grepl("var", result$infraspecific))
   expect_true(grepl("oblongifolia", result$infraspecific))
+})
+
+
+# =============================================================================
+# Authorship splitting
+#
+# Authors and infraspecific ranks interleave, so the scan cannot stop at the
+# first author it meets. And without an epithet to anchor the split on, only
+# unmistakable authorship is taken as such - a bare capitalised word is far
+# more likely a mis-capitalised epithet.
+# =============================================================================
+
+test_that("parse_taxonomic_name splits a trailing author off the name", {
+  result <- parse_taxonomic_name("Garcinia kola Heckel")
+  expect_equal(result$full_name_no_auth, "Garcinia kola")
+  expect_equal(result$authors, "Heckel")
+})
+
+test_that("parse_taxonomic_name keeps a rank that follows an author", {
+  result <- parse_taxonomic_name(
+    "Anthonotha macrophylla P.Beauv. var. oblongifolia (Baker f.) J.Leonard"
+  )
+  expect_equal(result$full_name_no_auth,
+               "Anthonotha macrophylla var. oblongifolia")
+  expect_equal(result$authors, "P.Beauv. (Baker f.) J.Leonard")
+})
+
+test_that("parse_taxonomic_name reads a parenthesised author", {
+  result <- parse_taxonomic_name("Gilbertiodendron dewevrei (De Wild.) J.Leonard")
+  expect_equal(result$full_name_no_auth, "Gilbertiodendron dewevrei")
+  expect_equal(result$authors, "(De Wild.) J.Leonard")
+})
+
+test_that("parse_taxonomic_name keeps 'ex' with the author", {
+  result <- parse_taxonomic_name("Hyptis elegans Briq. ex Micheli")
+  expect_equal(result$full_name_no_auth, "Hyptis elegans")
+  expect_equal(result$authors, "Briq. ex Micheli")
+})
+
+test_that("parse_taxonomic_name strips an unmistakable author from a genus", {
+  result <- parse_taxonomic_name("Brachystegia Benth.")
+  expect_equal(result$rank, "genus")
+  expect_equal(result$full_name_no_auth, "Brachystegia")
+  expect_equal(result$authors, "Benth.")
+})
+
+test_that("parse_taxonomic_name leaves a mis-capitalised epithet in the name", {
+  # "Kola" carries none of the marks of an author, so it stays where a fuzzy
+  # match can still reach "Garcinia kola".
+  result <- parse_taxonomic_name("Garcinia Kola")
+  expect_equal(result$full_name_no_auth, "Garcinia Kola")
+  expect_true(is.na(result$authors))
+})
+
+test_that("parse_taxonomic_name reports no author when there is none", {
+  expect_true(is.na(parse_taxonomic_name("Garcinia kola")$authors))
+  expect_true(is.na(parse_taxonomic_name("Fabaceae")$authors))
+  expect_true(is.na(
+    parse_taxonomic_name("Anthonotha macrophylla var. oblongifolia")$authors
+  ))
 })
 
 test_that("parse_taxonomic_name handles NA and empty string", {
@@ -214,7 +290,7 @@ test_that("standardize_taxonomic_batch joins best matches back to original data"
 
   testthat::local_mocked_bindings(
     .package = "CafriplotsR",
-    match_taxonomic_names = function(names, method, max_matches, min_similarity, include_synonyms, return_scores, include_authors, con, verbose) {
+    match_taxonomic_names = function(names, method, max_matches, min_similarity, include_synonyms, return_scores, include_authors, con, backbone, verbose) {
       tibble::tibble(
         input_name = c("Garcinia kola", "Garcinia kola", "Unknown species"),
         match_rank = c(1L, 2L, 1L),
@@ -245,7 +321,7 @@ test_that("standardize_taxonomic_batch keeps all matches when requested", {
 
   testthat::local_mocked_bindings(
     .package = "CafriplotsR",
-    match_taxonomic_names = function(names, method, max_matches, min_similarity, include_synonyms, return_scores, include_authors, con, verbose) {
+    match_taxonomic_names = function(names, method, max_matches, min_similarity, include_synonyms, return_scores, include_authors, con, backbone, verbose) {
       tibble::tibble(
         input_name = c("Garcinia kola", "Garcinia kola"),
         match_rank = c(1L, 2L),
@@ -274,6 +350,104 @@ test_that("standardize_taxonomic_batch errors for missing name column", {
     standardize_taxonomic_batch(tibble::tibble(other = "x"), species, verbose = FALSE),
     "Column"
   )
+})
+
+test_that("standardize_taxonomic_batch resolves synonyms into corrected_name", {
+  input <- tibble::tibble(
+    species = c("Aningeria altissima", "Garcinia kola", "Unknown species")
+  )
+
+  testthat::local_mocked_bindings(
+    .package = "CafriplotsR",
+    match_taxonomic_names = function(names, method, max_matches, min_similarity, include_synonyms, return_scores, include_authors, con, backbone, verbose) {
+      tibble::tibble(
+        input_name = c("Aningeria altissima", "Garcinia kola", "Unknown species"),
+        match_rank = c(1L, 1L, 1L),
+        matched_name = c("Aningeria altissima", "Garcinia kola", NA_character_),
+        idtax_n = c(20L, 10L, NA_integer_),
+        idtax_good_n = c(21L, 10L, NA_integer_),
+        match_method = c("exact", "exact", "no_match"),
+        match_score = c(1, 1, NA_real_),
+        is_synonym = c(TRUE, FALSE, NA),
+        accepted_name = c("Pouteria altissima", NA_character_, NA_character_),
+        tax_gen = c("Aningeria", "Garcinia", NA_character_),
+        tax_esp = c("altissima", "kola", NA_character_),
+        tax_fam = c("Sapotaceae", "Clusiaceae", NA_character_)
+      )
+    }
+  )
+
+  result <- standardize_taxonomic_batch(input, species, verbose = FALSE)
+
+  expect_true("corrected_name" %in% names(result))
+  # Synonym -> accepted name; plain match -> matched name; no match -> NA
+  expect_equal(
+    result$corrected_name,
+    c("Pouteria altissima", "Garcinia kola", NA_character_)
+  )
+})
+
+test_that("standardize_taxonomic_batch forwards the cached backbone", {
+  input <- tibble::tibble(species = "Garcinia kola")
+  seen <- NULL
+  fake_backbone <- tibble::tibble(idtax_n = 10L)
+
+  testthat::local_mocked_bindings(
+    .package = "CafriplotsR",
+    match_taxonomic_names = function(names, method, max_matches, min_similarity, include_synonyms, return_scores, include_authors, con, backbone, verbose) {
+      seen <<- backbone
+      tibble::tibble(
+        input_name = "Garcinia kola",
+        match_rank = 1L,
+        matched_name = "Garcinia kola",
+        idtax_n = 10L,
+        idtax_good_n = 10L,
+        match_method = "exact",
+        match_score = 1,
+        is_synonym = FALSE,
+        accepted_name = NA_character_,
+        tax_gen = "Garcinia",
+        tax_esp = "kola",
+        tax_fam = "Clusiaceae"
+      )
+    }
+  )
+
+  standardize_taxonomic_batch(
+    input, species, backbone = fake_backbone, verbose = FALSE
+  )
+
+  expect_identical(seen, fake_backbone)
+})
+
+test_that("standardize_taxonomic_batch accepts hierarchical as an alias of auto", {
+  input <- tibble::tibble(species = "Garcinia kola")
+  seen_method <- NULL
+
+  testthat::local_mocked_bindings(
+    .package = "CafriplotsR",
+    match_taxonomic_names = function(names, method, max_matches, min_similarity, include_synonyms, return_scores, include_authors, con, backbone, verbose) {
+      seen_method <<- method
+      tibble::tibble(
+        input_name = "Garcinia kola",
+        match_rank = 1L,
+        matched_name = "Garcinia kola",
+        idtax_n = 10L,
+        idtax_good_n = 10L,
+        match_method = "exact",
+        match_score = 1,
+        is_synonym = FALSE,
+        accepted_name = NA_character_,
+        tax_gen = "Garcinia",
+        tax_esp = "kola",
+        tax_fam = "Clusiaceae"
+      )
+    }
+  )
+
+  standardize_taxonomic_batch(input, species, method = "hierarchical", verbose = FALSE)
+
+  expect_equal(seen_method, "hierarchical")
 })
 
 test_that('.match_single_name_sql prefers exact matches before later strategies', {
@@ -544,4 +718,33 @@ test_that('.add_synonym_info_sql annotates synonyms and preserves accepted taxa'
   expect_equal(result$is_synonym, c(TRUE, FALSE))
   expect_equal(result$accepted_name[[1]], 'Garcinia kola')
   expect_true(is.na(result$accepted_name[[2]]))
+})
+
+test_that('.match_exact_sql accepts the author-free form when authors are on', {
+  captured <- NULL
+
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    func_try_fetch = function(con, sql) {
+      captured <<- paste(as.character(sql), collapse = '\n')
+      tibble::tibble()
+    }
+  )
+
+  CafriplotsR:::.match_exact_sql(
+    list(rank = 'species', full_name_no_auth = 'Garcinia kola',
+         input_name = 'Garcinia kola Heckel',
+         original_input = 'Garcinia kola Heckel'),
+    DBI::ANSI(),
+    TRUE,
+    5
+  )
+
+  # The author-carrying name is searched...
+  expect_match(captured, "author1", fixed = TRUE)
+  # ...but so is the plain one, so asking for authors can never lose an exact
+  # match that would have been found without them, and the author-carrying hit
+  # is preferred when both fire.
+  expect_match(captured, "OR lower(", fixed = TRUE)
+  expect_match(captured, "ORDER BY CASE WHEN", fixed = TRUE)
 })

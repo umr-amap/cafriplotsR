@@ -35,6 +35,8 @@ Reactive list containing:
     \item \code{data}: Updated data frame with match results
     \item \code{unmatched}: Data frame of unmatched names
     \item \code{stats}: List of matching statistics
+    \item \code{params}: Settings used by the last run (column, similarity
+      threshold, author matching, WCVP option, offline flag)
   }
 }
 \description{
