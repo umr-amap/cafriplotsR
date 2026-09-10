@@ -101,8 +101,33 @@ test_that('load_backbone_cache returns NULL for invalid cached structure', {
   )
 
   saveRDS(tibble::tibble(idtax_n = 1L), file.path(cache_dir, 'backbone_cache.rds'))
-  saveRDS(list(download_date = Sys.Date(), n_records = 1, file_size_bytes = 1, columns = 'idtax_n', cache_version = '1.0'), file.path(cache_dir, 'backbone_metadata.rds'))
+  # Current version, so it is the structure check that rejects this and not
+  # the version check added alongside it.
+  saveRDS(list(download_date = Sys.Date(), n_records = 1, file_size_bytes = 1, columns = 'idtax_n', cache_version = CafriplotsR:::.backbone_cache_version), file.path(cache_dir, 'backbone_metadata.rds'))
 
   expect_null(load_backbone_cache())
+})
+
+test_that('load_backbone_cache discards a cache written by an older version', {
+  # A cache from before a content fix loads fine and looks complete; the only
+  # symptom is names that quietly stop matching. So it must be refused, not
+  # trusted, and callers already read NULL as "download again".
+  cache_dir <- file.path(tempdir(), paste0('cafriplots-cache-', Sys.getpid(), '-', as.integer(stats::runif(1, 1, 1e6))))
+  dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+  on.exit(unlink(cache_dir, recursive = TRUE, force = TRUE), add = TRUE)
+
+  testthat::local_mocked_bindings(
+    .package = 'tools',
+    R_user_dir = function(package, which) cache_dir
+  )
+
+  saveRDS(make_backbone_fixture(), file.path(cache_dir, 'backbone_cache.rds'))
+  saveRDS(list(download_date = Sys.Date(), n_records = 2, file_size_bytes = 1, columns = 'idtax_n', cache_version = '1.0'), file.path(cache_dir, 'backbone_metadata.rds'))
+
+  expect_warning(expect_null(load_backbone_cache()), NA)  # cli, not warning()
+
+  # A cache saved by the current code is accepted again
+  expect_true(save_backbone_cache(make_backbone_fixture()))
+  expect_equal(nrow(load_backbone_cache()), 2)
 })
 

@@ -22,9 +22,10 @@
 #' - "cf.", "cf", "aff.", "?" between genus and species (e.g., "Garcinia cf. kola" → "Garcinia kola")
 #' - Extra whitespace and punctuation
 #'
-#' @param name Character string of taxonomic name
+#' @param name Character vector of taxonomic names (a single name works too)
 #'
-#' @return Cleaned taxonomic name (character string)
+#' @return Cleaned taxonomic names, same length as `name`. `NA` and empty
+#'   strings pass through untouched.
 #'
 #' @author Claude Code Assistant
 #'
@@ -38,9 +39,23 @@
 #' @export
 clean_taxonomic_name <- function(name) {
 
-  if (is.na(name) || name == "") {
+  if (length(name) == 0) {
     return(name)
   }
+
+  # Vectorised. Every caller cleans a whole list at once (the batch matching
+  # stages, the pre-run preview), and doing it one name at a time spent most
+  # of its time re-entering stringr rather than matching anything. Scalar
+  # behaviour is unchanged - including returning NA and "" untouched, which
+  # is what the early return used to do.
+  out  <- name
+  todo <- !is.na(name) & name != ""
+
+  if (!any(todo)) {
+    return(out)
+  }
+
+  name <- name[todo]
 
   # Trim whitespace
   name <- stringr::str_trim(name)
@@ -64,9 +79,91 @@ clean_taxonomic_name <- function(name) {
   # Final trim
   name <- stringr::str_trim(name)
 
-  return(name)
+  out[todo] <- name
+
+  return(out)
 }
 
+
+#' Separate the name part of a taxonomic string from its authorship
+#'
+#' @description
+#' Takes the tokens that follow "Genus epithet" and decides, one by one,
+#' which belong to the name (infraspecific ranks and their epithets) and
+#' which are authorship. Authors and infraspecific ranks interleave -
+#' "Anthonotha macrophylla P.Beauv. var. oblongifolia (Baker f.) J.Leonard" -
+#' so the scan cannot simply stop at the first author it meets.
+#'
+#' A bare lowercase word that is not introduced by a rank marker stays in the
+#' name: it is far more likely a sloppy infraspecific epithet than an author.
+#'
+#' @param parts Character vector of whitespace-separated tokens
+#'
+#' @return A list with `name` and `authors`, both character vectors, each in
+#'   the order the tokens appeared
+#'
+#' @keywords internal
+.split_name_authors <- function(parts) {
+
+  if (length(parts) == 0L) {
+    return(list(name = character(0), authors = character(0), strong = FALSE))
+  }
+
+  # Infraspecific rank markers. "f." is also the botanical abbreviation for
+  # "filius" ("Baker f."), hence the requirement below that a real epithet
+  # follow the marker.
+  markers <- c("var", "subvar", "subsp", "ssp", "f", "fo", "forma", "subf",
+               "cv", "nothosubsp", "nothovar", "prol", "race")
+
+  # Lowercase words that are part of an author string, never an epithet.
+  connectors <- c("ex", "in", "et", "and", "emend", "sensu", "auct", "non",
+                  "nom", "comb", "hort", "van", "von", "de", "del", "der",
+                  "da", "dos", "le", "la", "ter", "den")
+
+  bare       <- tolower(sub("[.]$", "", parts))
+  is_word    <- grepl("^[A-Za-z]+[.]?$", parts)
+  is_epithet <- grepl("^[a-z][a-z-]+$", parts) & !(bare %in% connectors)
+
+  name_idx   <- logical(length(parts))
+  author_idx <- logical(length(parts))
+
+  i <- 1L
+  in_author <- FALSE
+
+  while (i <= length(parts)) {
+    if (is_word[i] && bare[i] %in% markers &&
+        i < length(parts) && is_epithet[i + 1L]) {
+      # A rank and its epithet always belong to the name, even when an
+      # author name precedes them.
+      name_idx[c(i, i + 1L)] <- TRUE
+      in_author <- FALSE
+      i <- i + 2L
+      next
+    }
+
+    looks_author <- grepl("^[[(]", parts[i]) ||
+      grepl("^[A-Z]", parts[i]) ||
+      grepl("[.]", parts[i]) ||
+      bare[i] %in% connectors
+
+    if (in_author || looks_author) {
+      author_idx[i] <- TRUE
+      in_author <- TRUE
+    } else {
+      name_idx[i] <- TRUE
+    }
+
+    i <- i + 1L
+  }
+
+  # "Strong" authorship carries a mark no epithet ever has - a period, a
+  # bracket, or a connecting word. A lone capitalised word ("Garcinia Kola")
+  # is much more likely a mis-capitalised epithet than an author.
+  strong <- any(author_idx) &&
+    any(grepl("[.([]", parts[author_idx]) | bare[author_idx] %in% connectors)
+
+  list(name = parts[name_idx], authors = parts[author_idx], strong = strong)
+}
 
 #' Parse taxonomic name into components
 #'
@@ -80,8 +177,9 @@ clean_taxonomic_name <- function(name) {
 #'   - rank: Detected rank ("family", "order", "genus", "species", or "unknown")
 #'   - genus: Genus name (first word, or NA if family/order detected)
 #'   - species: Species epithet (second word if present)
-#'   - infraspecific: Full infraspecific part (everything after species)
-#'   - full_name_no_auth: Genus + species + infraspecific without authors
+#'   - infraspecific: Infraspecific ranks and epithets, authorship excluded
+#'   - authors: The authorship string, or NA when the name carries none
+#'   - full_name_no_auth: Genus + species + infraspecific, without authors
 #'   - input_name: Original input
 #'
 #' @author Claude Code Assistant
@@ -90,6 +188,7 @@ clean_taxonomic_name <- function(name) {
 #' parse_taxonomic_name("Gilbertiodendron dewevrei")
 #' parse_taxonomic_name("Anthonotha macrophylla var. oblongifolia")
 #' parse_taxonomic_name("Brachystegia")
+#' parse_taxonomic_name("Garcinia kola Heckel")$authors
 #'
 #' @keywords internal
 #' @export
@@ -104,6 +203,7 @@ parse_taxonomic_name <- function(name) {
       genus = NA_character_,
       species = NA_character_,
       infraspecific = NA_character_,
+      authors = NA_character_,
       full_name_no_auth = NA_character_,
       input_name = name
     ))
@@ -118,6 +218,7 @@ parse_taxonomic_name <- function(name) {
       genus = NA_character_,
       species = NA_character_,
       infraspecific = NA_character_,
+      authors = NA_character_,
       full_name_no_auth = NA_character_,
       input_name = name
     ))
@@ -152,6 +253,7 @@ parse_taxonomic_name <- function(name) {
       genus = NA_character_,
       species = NA_character_,
       infraspecific = NA_character_,
+      authors = NA_character_,
       full_name_no_auth = first_word,
       input_name = name
     ))
@@ -174,11 +276,35 @@ parse_taxonomic_name <- function(name) {
     }
   }
 
-  # Extract infraspecific parts (everything after genus+species)
-  infraspecific <- NA_character_
+  # Split what follows genus + epithet into name parts and authorship
+  infra_parts  <- character(0)
+  author_parts <- character(0)
 
   if (length(parts) >= infraspecific_start) {
-    infraspecific <- paste(parts[infraspecific_start:length(parts)], collapse = " ")
+    split <- .split_name_authors(parts[infraspecific_start:length(parts)])
+    infra_parts  <- split$name
+    author_parts <- split$authors
+
+    # Without an epithet there is nothing to anchor the split on, so only
+    # unmistakable authorship ("Brachystegia Benth.") is taken as such -
+    # a bare capitalised word stays in the name, where a mis-capitalised
+    # epithet ("Garcinia Kola") can still be matched.
+    if (is.na(species) && !split$strong) {
+      infra_parts  <- parts[infraspecific_start:length(parts)]
+      author_parts <- character(0)
+    }
+  }
+
+  infraspecific <- if (length(infra_parts) > 0) {
+    paste(infra_parts, collapse = " ")
+  } else {
+    NA_character_
+  }
+
+  authors <- if (length(author_parts) > 0) {
+    paste(author_parts, collapse = " ")
+  } else {
+    NA_character_
   }
 
   # Build full name without authors
@@ -192,6 +318,7 @@ parse_taxonomic_name <- function(name) {
     genus = genus,
     species = species,
     infraspecific = infraspecific,
+    authors = authors,
     full_name_no_auth = full_name_no_auth,
     input_name = name
   ))
@@ -212,7 +339,10 @@ parse_taxonomic_name <- function(name) {
 #' SIMILARITY function, making it much faster especially with slow connections.
 #'
 #' @param names Character vector of taxonomic names to match
-#' @param method Matching method: "auto" (default), "exact", "genus_constrained", "fuzzy"
+#' @param method Matching method: "auto" (default), "exact", "genus_constrained",
+#'   "fuzzy". "hierarchical" is an alias of "auto" kept for readability at call
+#'   sites that want the cascade named explicitly - the two are strictly
+#'   equivalent at every dispatch point.
 #' @param max_matches Maximum number of suggestions per name (default: 10)
 #' @param min_similarity Minimum similarity threshold (0-1, default: 0.3 for SQL SIMILARITY)
 #' @param include_synonyms Include synonyms in results (default: TRUE)
@@ -311,7 +441,7 @@ match_taxonomic_names <- function(names,
 
   # Clean names first (remove sp., cf., etc.)
   if (verbose) cli::cli_alert_info("Cleaning taxonomic names...")
-  cleaned_names <- sapply(valid_names, clean_taxonomic_name)
+  cleaned_names <- clean_taxonomic_name(valid_names)
 
   # Parse all names
   if (verbose) cli::cli_alert_info("Parsing taxonomic names...")
@@ -394,6 +524,55 @@ match_taxonomic_names <- function(names,
 
 
 
+#' Recognise a genus that matched exactly inside a genus-constrained result
+#'
+#' @description
+#' A genus-rank name carrying an unabbreviated author ("Centroplacus Pierre")
+#' keeps that author in the searched string: `.split_name_authors()` only calls
+#' a trailing word an author when it shows a period, a bracket or a connecting
+#' word, and a bare capitalised word is far more likely a mis-capitalised
+#' epithet ("Garcinia Kola") in data being standardised. That reading is the
+#' one worth protecting, so the genus is never searched on its own.
+#'
+#' The genus still surfaces here. When no species of the genus fits better, the
+#' genus-level row comes back top - but scored against a string that still
+#' carries the author, which gave Centroplacus 0.59 and sent an exactly known
+#' genus to manual review.
+#'
+#' So: when the best genus-constrained candidate is the genus-level row for
+#' exactly the parsed genus, the genus name did match exactly and is reported
+#' as such. A species that outranks it is left strictly alone - "Garcinia
+#' Kolla" must stay "Garcinia kola" at 0.77 rather than collapse to the genus,
+#' which is the more useful answer and the more likely input.
+#'
+#' @param matches Genus-constrained matches, best first
+#' @param parsed Parsed input name
+#'
+#' @return `matches`, with the first row promoted where applicable
+#'
+#' @keywords internal
+.promote_exact_genus <- function(matches, parsed) {
+
+  if (nrow(matches) == 0L || !identical(parsed$rank, "genus") ||
+      is.na(parsed$genus)) {
+    return(matches)
+  }
+
+  top_is_the_genus <- identical(matches$tax_level[1], "genus") &&
+    !is.na(matches$tax_gen[1]) &&
+    tolower(matches$tax_gen[1]) == tolower(parsed$genus)
+
+  if (!top_is_the_genus) {
+    return(matches)
+  }
+
+  matches$match_method[1] <- "exact"
+  matches$match_score[1]  <- 1
+
+  matches
+}
+
+
 #' Match a single parsed name using SQL-side queries (internal helper)
 #' @keywords internal
 .match_single_name_sql <- function(parsed, con, method, max_matches,
@@ -414,6 +593,7 @@ match_taxonomic_names <- function(names,
   if (method %in% c("auto", "genus_constrained", "hierarchical") && !is.na(parsed$genus)) {
     genus_matches <- .match_genus_constrained_sql(parsed, con, min_similarity,
                                                    include_authors, max_matches)
+    genus_matches <- .promote_exact_genus(genus_matches, parsed)
 
     if (nrow(genus_matches) > 0) {
       if (verbose) cli::cli_alert_info("Found genus-constrained matches")
@@ -565,7 +745,19 @@ match_taxonomic_names <- function(names,
   }
 
   # For genus/species, use normal matching
-  # Build the name field to search (with or without authors)
+  # The plain field is always needed: with `include_authors` on it is the
+  # fallback, so asking for authors never costs an exact match that would
+  # have been found without them.
+  plain_field <- glue::glue_sql("
+    CASE WHEN tax_esp IS NOT NULL THEN
+      concat(tax_gen, ' ', tax_esp,
+             COALESCE(' ' || tax_rank01, ''),
+             COALESCE(' ' || tax_nam01, ''),
+             COALESCE(' ' || tax_rank02, ''),
+             COALESCE(' ' || tax_nam02, ''))
+    ELSE tax_gen
+    END", .con = con)
+
   if (include_authors) {
     name_field <- glue::glue_sql("
       CASE WHEN tax_esp IS NOT NULL THEN
@@ -580,15 +772,22 @@ match_taxonomic_names <- function(names,
       ELSE tax_gen
       END", .con = con)
   } else {
-    name_field <- glue::glue_sql("
-      CASE WHEN tax_esp IS NOT NULL THEN
-        concat(tax_gen, ' ', tax_esp,
-               COALESCE(' ' || tax_rank01, ''),
-               COALESCE(' ' || tax_nam01, ''),
-               COALESCE(' ' || tax_rank02, ''),
-               COALESCE(' ' || tax_nam02, ''))
-      ELSE tax_gen
-      END", .con = con)
+    name_field <- plain_field
+  }
+
+  # The name alone must match; the author only ranks the candidates. A list
+  # writes "(De Wild.) J.Leonard" where the backbone has "De Wild. ex
+  # J.Leonard", or omits the author entirely - none of that should cost an
+  # exact match on the name itself.
+  search_full  <- parsed$input_name
+  search_plain <- parsed$full_name_no_auth %||% parsed$input_name
+  wanted_auth  <- parsed$authors %||% NA_character_
+
+  author_order <- if (include_authors && !is.na(wanted_auth) && nzchar(wanted_auth)) {
+    glue::glue_sql("SIMILARITY(COALESCE(author1, ''), {wanted_auth}) DESC",
+                   wanted_auth = wanted_auth, .con = con)
+  } else {
+    glue::glue_sql("idtax_n", .con = con)
   }
 
   sql <- glue::glue_sql("
@@ -609,9 +808,13 @@ match_taxonomic_names <- function(names,
       {name_field} AS matched_name,
       1.0 AS similarity_score
     FROM table_taxa
-    WHERE lower({name_field}) = lower({search_name})
+    WHERE lower({name_field}) = lower({search_full})
+       OR lower({plain_field}) = lower({search_plain})
+    ORDER BY CASE WHEN lower({name_field}) = lower({search_full}) THEN 0 ELSE 1 END,
+             {author_order}
     LIMIT {max_matches}
-  ", search_name = parsed$input_name, max_matches = max_matches, .con = con)
+  ", search_full = search_full, search_plain = search_plain,
+     max_matches = max_matches, .con = con)
 
   result <- func_try_fetch(con = con, sql = sql)
 
@@ -686,6 +889,28 @@ match_taxonomic_names <- function(names,
       END", .con = con)
   }
 
+  # Scoring happens on the name alone, so a differently spelled author cannot
+  # drag down a name that matches well; the author only breaks ties.
+  plain_field <- glue::glue_sql("
+    CASE WHEN tax_esp IS NOT NULL THEN
+      concat(tax_gen, ' ', tax_esp,
+             COALESCE(' ' || tax_rank01, ''),
+             COALESCE(' ' || tax_nam01, ''),
+             COALESCE(' ' || tax_rank02, ''),
+             COALESCE(' ' || tax_nam02, ''))
+    ELSE tax_gen
+    END", .con = con)
+
+  search_plain <- parsed$full_name_no_auth %||% parsed$input_name
+  wanted_auth  <- parsed$authors %||% NA_character_
+
+  author_order <- if (include_authors && !is.na(wanted_auth) && nzchar(wanted_auth)) {
+    glue::glue_sql("SIMILARITY(COALESCE(author1, ''), {wanted_auth}) DESC",
+                   wanted_auth = wanted_auth, .con = con)
+  } else {
+    glue::glue_sql("idtax_n", .con = con)
+  }
+
   sql_species <- glue::glue_sql("
     SELECT
       idtax_n,
@@ -702,13 +927,13 @@ match_taxonomic_names <- function(names,
       author2,
       author3,
       {name_field} AS matched_name,
-      SIMILARITY(lower({name_field}), lower({search_name})) AS similarity_score
+      SIMILARITY(lower({plain_field}), lower({search_plain})) AS similarity_score
     FROM table_taxa
     WHERE tax_gen IN ({genera_list*})
-      AND SIMILARITY(lower({name_field}), lower({search_name})) >= {min_sim}
-    ORDER BY similarity_score DESC, tax_esp IS NOT NULL DESC
+      AND SIMILARITY(lower({plain_field}), lower({search_plain})) >= {min_sim}
+    ORDER BY similarity_score DESC, {author_order}, tax_esp IS NOT NULL DESC
     LIMIT {max_matches}
-  ", search_name = parsed$input_name, genera_list = genera_list,
+  ", search_plain = search_plain, genera_list = genera_list,
      min_sim = min_similarity, max_matches = max_matches, .con = con)
 
   result <- func_try_fetch(con = con, sql = sql_species)
@@ -874,6 +1099,28 @@ match_taxonomic_names <- function(names,
       END", .con = con)
   }
 
+  # Scoring happens on the name alone, so a differently spelled author cannot
+  # drag down a name that matches well; the author only breaks ties.
+  plain_field <- glue::glue_sql("
+    CASE WHEN tax_esp IS NOT NULL THEN
+      concat(tax_gen, ' ', tax_esp,
+             COALESCE(' ' || tax_rank01, ''),
+             COALESCE(' ' || tax_nam01, ''),
+             COALESCE(' ' || tax_rank02, ''),
+             COALESCE(' ' || tax_nam02, ''))
+    ELSE tax_gen
+    END", .con = con)
+
+  search_plain <- parsed$full_name_no_auth %||% parsed$input_name
+  wanted_auth  <- parsed$authors %||% NA_character_
+
+  author_order <- if (include_authors && !is.na(wanted_auth) && nzchar(wanted_auth)) {
+    glue::glue_sql("SIMILARITY(COALESCE(author1, ''), {wanted_auth}) DESC",
+                   wanted_auth = wanted_auth, .con = con)
+  } else {
+    glue::glue_sql("idtax_n", .con = con)
+  }
+
   sql <- glue::glue_sql("
     SELECT
       idtax_n,
@@ -890,12 +1137,12 @@ match_taxonomic_names <- function(names,
       author2,
       author3,
       {name_field} AS matched_name,
-      SIMILARITY(lower({name_field}), lower({search_name})) AS similarity_score
+      SIMILARITY(lower({plain_field}), lower({search_plain})) AS similarity_score
     FROM table_taxa
-    WHERE SIMILARITY(lower({name_field}), lower({search_name})) >= {min_sim}
-    ORDER BY similarity_score DESC, tax_esp IS NOT NULL DESC
+    WHERE SIMILARITY(lower({plain_field}), lower({search_plain})) >= {min_sim}
+    ORDER BY similarity_score DESC, {author_order}, tax_esp IS NOT NULL DESC
     LIMIT {max_matches}
-  ", search_name = parsed$input_name, min_sim = min_similarity,
+  ", search_plain = search_plain, min_sim = min_similarity,
      max_matches = max_matches, .con = con)
 
   result <- func_try_fetch(con = con, sql = sql)
@@ -994,7 +1241,11 @@ match_taxonomic_names <- function(names,
   out <- paste0(out, ifelse(has_esp, paste0(" ", backbone$tax_esp), ""))
 
   if (isTRUE(include_authors) && "author1" %in% names(backbone)) {
-    has_a1 <- !is.na(backbone$author1) & backbone$author1 != ""
+    # The SQL side spells this `CASE WHEN tax_esp IS NOT NULL THEN concat(...
+    # author1 ...) ELSE tax_gen END`: a genus-level row carries no author in
+    # the searchable name. Appending one here made every bare genus name
+    # ("Brachystegia") miss its exact match as soon as authors were on.
+    has_a1 <- !is.na(backbone$author1) & backbone$author1 != "" & has_esp
     out <- paste0(out, ifelse(has_a1, paste0(" ", backbone$author1), ""))
   }
 
@@ -1047,6 +1298,8 @@ match_taxonomic_names <- function(names,
   if (method %in% c("auto", "genus_constrained", "hierarchical") && !is.na(parsed$genus)) {
     genus_matches <- .match_genus_constrained_r(parsed, backbone, min_similarity,
                                                 include_authors, max_matches)
+    genus_matches <- .promote_exact_genus(genus_matches, parsed)
+
     if (nrow(genus_matches) > 0) {
       if (verbose) cli::cli_alert_info("Found genus-constrained matches")
       return(genus_matches %>% mutate(match_rank = row_number()))
@@ -1120,8 +1373,25 @@ match_taxonomic_names <- function(names,
   }
 
   # Genus / species: build the full name field and case-insensitive equal
+  target <- tolower(parsed$input_name)
   full_names <- .build_backbone_name_field(backbone, include_authors)
-  hits_idx <- which(tolower(full_names) == tolower(parsed$input_name))
+  hits_idx <- which(tolower(full_names) == target)
+
+  if (length(hits_idx) == 0L) {
+    # Authors vary far more than names do: "(De Wild.) J.Leonard" and
+    # "De Wild. ex J.Leonard" are the same taxon written two ways, and most
+    # lists spell the author loosely or not at all. So the author never gates
+    # the match - the name alone must be equal, and the author is then only
+    # used to rank the candidates.
+    stripped <- parsed$full_name_no_auth %||% parsed$input_name
+
+    if (!is.na(stripped) && nzchar(stripped)) {
+      plain <- .build_backbone_name_field(backbone, include_authors = FALSE)
+      hits_idx <- which(tolower(plain) == tolower(stripped))
+      hits_idx <- .rank_hits_by_author(hits_idx, backbone, parsed,
+                                       include_authors)
+    }
+  }
 
   if (length(hits_idx) == 0L) return(tibble())
 
@@ -1131,6 +1401,64 @@ match_taxonomic_names <- function(names,
   .shape_r_match(hits, parsed, "exact", 1.0, name_col = NULL)
 }
 
+
+#' Similarity between the authorship asked for and the one each row carries
+#'
+#' Returns zeros when authorship was not requested, when the input carries
+#' none, or when the backbone has no author column - so callers can always
+#' add it to an ordering key without branching.
+#'
+#' @param rows A slice of the backbone
+#' @param parsed Parsed input name
+#' @param include_authors Whether authorship was requested
+#'
+#' @return Numeric vector, one score per row of `rows`
+#'
+#' @keywords internal
+.author_sim_vector <- function(rows, parsed, include_authors) {
+
+  n <- nrow(rows)
+  if (is.null(n) || n == 0L) return(numeric(0))
+
+  wanted <- parsed$authors %||% NA_character_
+
+  if (!isTRUE(include_authors) || is.na(wanted) || !nzchar(wanted) ||
+      !"author1" %in% names(rows)) {
+    return(rep(0, n))
+  }
+
+  found <- rows$author1
+  found[is.na(found)] <- ""
+
+  .trigram_sim(found, wanted)
+}
+
+#' Order exact-match candidates by how well their authorship fits
+#'
+#' The name already matched exactly; several backbone rows can share it
+#' (homonyms, or the same name under different authors). When the input
+#' carries an author, it decides which row comes first - the whole point of
+#' matching with authors. Without one, the order is left as it was.
+#'
+#' @param hits_idx Integer positions into `backbone`
+#' @param backbone The cached backbone tibble
+#' @param parsed Parsed input name
+#' @param include_authors Whether authorship was requested
+#'
+#' @return `hits_idx`, reordered
+#'
+#' @keywords internal
+.rank_hits_by_author <- function(hits_idx, backbone, parsed, include_authors) {
+
+  if (length(hits_idx) < 2L || !isTRUE(include_authors)) return(hits_idx)
+
+  sims <- .author_sim_vector(backbone[hits_idx, , drop = FALSE], parsed,
+                             include_authors)
+
+  if (all(sims == 0)) return(hits_idx)
+
+  hits_idx[order(sims, decreasing = TRUE)]
+}
 
 #' Genus-constrained fuzzy match against cached backbone
 #' @keywords internal
@@ -1162,13 +1490,22 @@ match_taxonomic_names <- function(names,
 
   if (nrow(sub) == 0L) return(tibble())
 
-  full_names <- .build_backbone_name_field(sub, include_authors)
-  scores <- .trigram_sim(full_names, parsed$input_name)
+  # Score the name alone, never the name-plus-author string: a differently
+  # spelled author would otherwise drag down the similarity of a name that
+  # is in fact a good match. The author then only breaks ties.
+  full_names  <- .build_backbone_name_field(sub, include_authors)
+  plain_names <- .build_backbone_name_field(sub, include_authors = FALSE)
+  search_name <- parsed$full_name_no_auth %||% parsed$input_name
+
+  scores <- .trigram_sim(plain_names, search_name)
 
   pass <- which(scores >= min_similarity)
   if (length(pass) == 0L) return(tibble())
 
-  ord2 <- order(scores[pass], !is.na(sub$tax_esp[pass]), decreasing = TRUE)
+  auth_sim <- .author_sim_vector(sub, parsed, include_authors)
+
+  ord2 <- order(scores[pass], auth_sim[pass], !is.na(sub$tax_esp[pass]),
+                decreasing = TRUE)
   picked <- pass[ord2[seq_len(min(max_matches, length(ord2)))]]
 
   hits <- sub[picked, , drop = FALSE]
@@ -1226,14 +1563,21 @@ match_taxonomic_names <- function(names,
     return(tibble())
   }
 
-  # Genus / species: full-name fuzzy across the whole backbone
-  full_names <- .build_backbone_name_field(backbone, include_authors)
-  scores <- .trigram_sim(full_names, parsed$input_name)
+  # Genus / species: full-name fuzzy across the whole backbone. As above, the
+  # score is on the name alone and the author only breaks ties.
+  full_names  <- .build_backbone_name_field(backbone, include_authors)
+  plain_names <- .build_backbone_name_field(backbone, include_authors = FALSE)
+  search_name <- parsed$full_name_no_auth %||% parsed$input_name
+
+  scores <- .trigram_sim(plain_names, search_name)
 
   pass <- which(scores >= min_similarity)
   if (length(pass) == 0L) return(tibble())
 
-  ord <- order(scores[pass], !is.na(backbone$tax_esp[pass]), decreasing = TRUE)
+  auth_sim <- .author_sim_vector(backbone, parsed, include_authors)
+
+  ord <- order(scores[pass], auth_sim[pass], !is.na(backbone$tax_esp[pass]),
+               decreasing = TRUE)
   picked <- pass[ord[seq_len(min(max_matches, length(ord)))]]
   hits <- backbone[picked, , drop = FALSE]
   hits$matched_name <- full_names[picked]
@@ -1319,16 +1663,23 @@ match_taxonomic_names <- function(names,
 #'
 #' @param data A data frame or tibble containing taxonomic names
 #' @param name_column Name of column containing taxonomic names (quoted or unquoted)
-#' @param method Matching method: "auto" (default), "exact", "genus_constrained", "fuzzy"
+#' @param method Matching method: "auto" (default), "exact", "genus_constrained",
+#'   "fuzzy". "hierarchical" is an alias of "auto".
 #' @param min_similarity Minimum similarity score (0-1, default: 0.3)
 #' @param include_synonyms Include synonym information (default: TRUE)
 #' @param include_authors Try matching with author names (default: FALSE)
 #' @param con Database connection (if NULL, will call call.mydb.taxa())
+#' @param backbone Optional cached backbone tibble (as returned by
+#'   [load_backbone_cache()]). When supplied, matching runs in R against this
+#'   in-memory backbone - no database round-trips, works fully offline. Passing
+#'   it explicitly also avoids re-reading the cache from disk on every call.
 #' @param verbose Show progress messages (default: TRUE)
 #' @param keep_all_matches Keep all matches (default: FALSE, only keeps best match)
 #'
 #' @return The input data frame with added columns:
 #'   - matched_name: Best matching name from backbone (or NA if no match)
+#'   - corrected_name: Final standardized name - the accepted name when the
+#'     match is a synonym, the matched name otherwise
 #'   - idtax_n: Taxa ID for matched name
 #'   - idtax_good_n: Accepted taxa ID (for synonyms)
 #'   - match_method: How the match was found
@@ -1339,6 +1690,10 @@ match_taxonomic_names <- function(names,
 #'   - is_synonym: Whether match is a synonym
 #'   - accepted_name: Accepted name (if synonym)
 #'   If keep_all_matches = TRUE, returns one row per match with match_rank column
+#'
+#' @seealso [launch_taxonomic_match_app()] for the interactive version of the
+#'   same workflow; its "Equivalent R Code" panel generates a call to this
+#'   function.
 #'
 #' @author Claude Code Assistant
 #'
@@ -1354,6 +1709,13 @@ match_taxonomic_names <- function(names,
 #' # Add best match for each name
 #' data_matched <- standardize_taxonomic_batch(data, name_column = "species")
 #'
+#' # Match against the cached backbone (no database round-trips)
+#' data_matched <- standardize_taxonomic_batch(
+#'   data,
+#'   name_column = "species",
+#'   backbone = load_backbone_cache()
+#' )
+#'
 #' # Keep all matches (for manual review)
 #' data_all_matches <- standardize_taxonomic_batch(
 #'   data,
@@ -1365,11 +1727,13 @@ match_taxonomic_names <- function(names,
 #' @export
 standardize_taxonomic_batch <- function(data,
                                        name_column,
-                                       method = c("auto", "exact", "genus_constrained", "fuzzy"),
+                                       method = c("auto", "exact", "genus_constrained",
+                                                  "fuzzy", "hierarchical"),
                                        min_similarity = 0.3,
                                        include_synonyms = TRUE,
                                        include_authors = FALSE,
                                        con = NULL,
+                                       backbone = NULL,
                                        verbose = TRUE,
                                        keep_all_matches = FALSE) {
 
@@ -1404,6 +1768,7 @@ standardize_taxonomic_batch <- function(data,
     return_scores = TRUE,
     include_authors = include_authors,
     con = con,
+    backbone = backbone,
     verbose = verbose
   )
 
@@ -1427,6 +1792,29 @@ standardize_taxonomic_batch <- function(data,
   # Join back to original data
   result <- data %>%
     dplyr::left_join(matches, by = name_col_str)
+
+  # Final standardized name. This is the column callers actually want to use
+  # downstream, and the one the Shiny app exports: a synonym is replaced by its
+  # accepted name, anything else keeps the name found in the backbone.
+  # `matched_name` is absent only when nothing matched at all.
+  if ("matched_name" %in% names(result)) {
+    if (all(c("is_synonym", "accepted_name") %in% names(result))) {
+      result <- result %>%
+        dplyr::mutate(
+          corrected_name = dplyr::case_when(
+            .data$is_synonym & !is.na(.data$accepted_name) ~ .data$accepted_name,
+            !is.na(.data$matched_name)                     ~ .data$matched_name,
+            TRUE                                           ~ NA_character_
+          )
+        )
+    } else {
+      # include_synonyms = FALSE: no synonymy information to apply
+      result <- result %>%
+        dplyr::mutate(corrected_name = .data$matched_name)
+    }
+  } else {
+    result$corrected_name <- NA_character_
+  }
 
   if (verbose) {
     n_matched <- result %>%

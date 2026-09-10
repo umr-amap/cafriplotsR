@@ -3,6 +3,15 @@
 # Functions for caching the taxonomic backbone to improve performance
 # for users with slow internet connections.
 
+# Bump this whenever a change makes existing caches wrong rather than merely
+# old, so `load_backbone_cache()` discards them and the app downloads again.
+# A stale cache is otherwise invisible: it loads, it looks complete, and the
+# only symptom is names that quietly fail to match.
+#
+# 1.0 -> 1.1: caches written before the "ZZ auct." filter stopped discarding
+#   every taxon with no recorded author are missing those taxa entirely.
+.backbone_cache_version <- "1.1"
+
 #' Get backbone cache directory path
 #'
 #' @description
@@ -136,7 +145,7 @@ save_backbone_cache <- function(backbone_data) {
       n_records = nrow(backbone_data),
       file_size_bytes = file.info(cache_file)$size,
       columns = names(backbone_data),
-      cache_version = "1.0"
+      cache_version = .backbone_cache_version
     )
 
     saveRDS(metadata, metadata_file, compress = FALSE)
@@ -166,8 +175,22 @@ load_backbone_cache <- function() {
 
   cache_dir <- get_backbone_cache_path()
   cache_file <- file.path(cache_dir, "backbone_cache.rds")
+  metadata_file <- file.path(cache_dir, "backbone_metadata.rds")
 
   tryCatch({
+    # Refuse a cache written by a version whose contents we now know to be
+    # wrong. Returning NULL is what callers already treat as "no usable
+    # cache", so this simply routes them to a fresh download.
+    version <- tryCatch(readRDS(metadata_file)$cache_version,
+                        error = function(e) NULL)
+
+    if (!identical(version, .backbone_cache_version)) {
+      cli::cli_alert_warning(
+        "Cached backbone was written by an older version ({version %||% 'unknown'}) and will be re-downloaded"
+      )
+      return(NULL)
+    }
+
     backbone <- readRDS(cache_file)
 
     # Validate structure

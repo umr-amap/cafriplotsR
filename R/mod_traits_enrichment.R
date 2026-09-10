@@ -2,6 +2,76 @@
 #
 # Enriches matched taxonomic names with trait data from the taxa database
 
+#' Taxon ids to ask the trait table for (internal helper)
+#'
+#' @description
+#' Trait measurements are keyed by the taxon they were recorded on, which may
+#' be any member of a synonym group: a name matched to a synonym often has its
+#' traits stored on the accepted taxon, or on a sibling synonym.
+#'
+#' `query_taxa()` handles this by widening the id set *before* fetching -
+#' `.resolve_synonyms()` substitutes the accepted id and binds every synonym of
+#' the group into the result, and that whole vector is what reaches
+#' `query_taxa_traits()`. `include_synonyms = TRUE` does not do this on its own:
+#' inside `query_taxa_traits()` the fetch runs first, on the ids given verbatim,
+#' and synonyms are resolved only afterwards - which regroups what came back but
+#' can no longer widen the search. Asking for the matched id alone therefore
+#' returned nothing at all for any name matched to a synonym.
+#'
+#' @param matched_taxa Data frame carrying `idtax_n` and `idtax_good_n`
+#' @param con_taxa Connection to the taxa database, or NULL to open one
+#'
+#' @return Integer vector of taxon ids covering the full synonym groups
+#'
+#' @keywords internal
+.trait_group_idtax <- function(matched_taxa, con_taxa = NULL) {
+
+  base_ids <- c(matched_taxa$idtax_n, matched_taxa$idtax_good_n)
+  base_ids <- unique(base_ids[!is.na(base_ids)])
+
+  if (length(base_ids) == 0) return(base_ids)
+
+  # The rest of the group, so a measurement recorded on a sibling synonym is
+  # found too. If the taxa database is unreachable the matched/accepted pair
+  # above already covers the common case, so degrade to it rather than fail.
+  tryCatch({
+    mapping <- resolve_taxon_synonyms(
+      idtax = base_ids,
+      include_synonyms = TRUE,
+      con_taxa = con_taxa
+    )
+    all_ids <- unique(c(base_ids, mapping$idtax))
+    sort(all_ids[!is.na(all_ids)])
+  }, error = function(e) {
+    message("Note: could not expand synonym groups (", e$message,
+            "). Using matched and accepted ids only.")
+    sort(base_ids)
+  })
+}
+
+
+#' Key matched taxa the way trait measurements come back (internal helper)
+#'
+#' @description
+#' `query_taxa_traits()` rewrites `idtax` to the accepted id of the group
+#' (`mutate(idtax = idtax_good)`), so measurements always come back keyed by the
+#' accepted taxon - never by the synonym that was matched. Joining them back on
+#' `idtax_n` silently dropped every synonym. This adds the key they actually
+#' carry, using the same rule as `resolve_taxon_synonyms()`.
+#'
+#' @param matched_taxa Data frame carrying `idtax_n` and `idtax_good_n`
+#'
+#' @return `matched_taxa` with an `idtax_resolved` column added
+#'
+#' @keywords internal
+.with_accepted_idtax <- function(matched_taxa) {
+  matched_taxa$idtax_resolved <- ifelse(is.na(matched_taxa$idtax_good_n),
+                                        matched_taxa$idtax_n,
+                                        matched_taxa$idtax_good_n)
+  matched_taxa
+}
+
+
 #' Traits Enrichment Module - UI
 #'
 #' @param id Character, module ID
@@ -248,7 +318,8 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
             !is.na(.data[[selected_col_name]]),  # Exclude NA input names
             .data[[selected_col_name]] != ""  # Exclude empty strings
           ) %>%
-          dplyr::distinct(idtax_n, idtax_good_n, matched_name, corrected_name)
+          dplyr::distinct(idtax_n, idtax_good_n, matched_name, corrected_name) %>%
+          .with_accepted_idtax()
 
         if (nrow(matched_taxa) == 0) {
           shiny::showNotification(
@@ -260,6 +331,10 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
           return(NULL)
         }
 
+        # Ask for the whole synonym group, not just the matched ids: see
+        # .trait_group_idtax().
+        trait_idtax <- .trait_group_idtax(matched_taxa)
+
         # Fetch traits in WIDE format for aggregated view
         shiny::showNotification(
           paste0(i18n()$t("Fetching traits for"), " ", nrow(matched_taxa), " ", i18n()$t("taxa...")),
@@ -269,7 +344,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
         )
 
         traits_result_wide <- query_taxa_traits(
-          idtax = matched_taxa$idtax_n,
+          idtax = trait_idtax,
           format = "wide",
           add_taxa_info = FALSE,  # We already have taxa info
           include_synonyms = TRUE,
@@ -282,7 +357,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
 
         # Fetch traits in LONG format for detailed measurements
         traits_result_long <- query_taxa_traits(
-          idtax = matched_taxa$idtax_n,
+          idtax = trait_idtax,
           format = "long",
           add_taxa_info = FALSE,
           include_synonyms = TRUE,
@@ -327,7 +402,8 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
             !is.na(idtax_n),  # Exclude unmatched taxa
             !is.na(.data[[selected_col_name]]),  # Exclude NA input names
             .data[[selected_col_name]] != ""  # Exclude empty strings
-          )
+          ) %>%
+          .with_accepted_idtax()
 
         if (nrow(enriched_filtered) == 0) {
           shiny::showNotification(
@@ -345,6 +421,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
           dplyr::group_by(
             idtax_n,
             idtax_good_n,
+            idtax_resolved,
             matched_name,
             corrected_name,
             is_synonym,
@@ -368,7 +445,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
           enriched_result <- enriched_result %>%
             dplyr::left_join(
               numeric_traits,
-              by = c("idtax_n" = "idtax")
+              by = c("idtax_resolved" = "idtax")
             )
         }
 
@@ -381,7 +458,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
           enriched_result <- enriched_result %>%
             dplyr::left_join(
               categorical_traits,
-              by = c("idtax_n" = "idtax")
+              by = c("idtax_resolved" = "idtax")
             )
         }
 
@@ -408,6 +485,7 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
         # Keep selected columns plus all trait columns
         # Trait columns are everything except the taxonomic metadata columns
         metadata_cols <- c("input_names", "idtax_n", "idtax_good_n",
+                          "idtax_resolved",
                           "matched_name", "corrected_name", "match_methods",
                           "match_scores", "is_synonym", "accepted_name")
         trait_cols <- setdiff(names(enriched_result), metadata_cols)
@@ -424,19 +502,27 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
         if (!is.null(traits_result_long$traits_raw) && nrow(traits_result_long$traits_raw) > 0) {
           enriched_long <- traits_result_long$traits_raw %>%
             dplyr::left_join(
+              # A measurement belongs to the synonym group, not to one of its
+              # names, so where several inputs resolved to the same taxon their
+              # names are listed together rather than one picked arbitrarily.
               matched_taxa %>%
-                dplyr::select(idtax_n, matched_name, corrected_name),
-              by = c("idtax" = "idtax_n")
+                dplyr::group_by(idtax_resolved) %>%
+                dplyr::summarise(
+                  matched_name = paste(unique(matched_name), collapse = " | "),
+                  corrected_name = paste(unique(corrected_name), collapse = " | "),
+                  .groups = "drop"
+                ),
+              by = c("idtax" = "idtax_resolved")
             ) %>%
             # Add input names by joining with the filtered data
             dplyr::left_join(
               enriched_filtered %>%
-                dplyr::group_by(idtax_n) %>%
+                dplyr::group_by(idtax_resolved) %>%
                 dplyr::summarise(
                   input_names = paste(unique(.data[[selected_col_name]]), collapse = " | "),
                   .groups = "drop"
                 ),
-              by = c("idtax" = "idtax_n")
+              by = c("idtax" = "idtax_resolved")
             ) %>%
             # Reorder columns: input names, matched/corrected names, then trait data
             dplyr::select(

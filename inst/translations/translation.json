@@ -10440,6 +10440,86 @@
     {
       "en": "parent plot",
       "fr": "placette parente"
+    },
+    {
+      "en": "Use this code to reproduce the same automatic matching programmatically with standardize_taxonomic_batch().",
+      "fr": "Utilisez ce code pour reproduire le même appariement automatique de manière programmatique avec standardize_taxonomic_batch()."
+    },
+    {
+      "en": "Data Preparation",
+      "fr": "Préparation des données"
+    },
+    {
+      "en": "WCVP Names",
+      "fr": "Noms WCVP"
+    },
+    {
+      "en": "The manual review step has no programmatic equivalent: it is interactive by nature. Names the automatic matching could not resolve stay unmatched (idtax_n is NA) in the code below - review them in the app, or inspect the ranked suggestions returned by standardize_taxonomic_batch(keep_all_matches = TRUE).",
+      "fr": "L'étape de révision manuelle n'a pas d'équivalent programmatique : elle est interactive par nature. Les noms que l'appariement automatique n'a pas su résoudre restent non appariés (idtax_n vaut NA) dans le code ci-dessous : révisez-les dans l'application, ou examinez les suggestions classées que renvoie standardize_taxonomic_batch(keep_all_matches = TRUE)."
+    },
+    {
+      "en": "Names to be matched",
+      "fr": "Noms à apparier"
+    },
+    {
+      "en": "Check below that the selected column contains what you expect before starting the matching.",
+      "fr": "Vérifiez ci-dessous que la colonne sélectionnée contient bien ce que vous attendez avant de lancer l'appariement."
+    },
+    {
+      "en": "unique names",
+      "fr": "noms uniques"
+    },
+    {
+      "en": "species",
+      "fr": "espèces"
+    },
+    {
+      "en": "genus only",
+      "fr": "genres seuls"
+    },
+    {
+      "en": "family",
+      "fr": "familles"
+    },
+    {
+      "en": "order",
+      "fr": "ordres"
+    },
+    {
+      "en": "class",
+      "fr": "classes"
+    },
+    {
+      "en": "unrecognised",
+      "fr": "non reconnus"
+    },
+    {
+      "en": "rows have no name in the selected column and will not be matched.",
+      "fr": "lignes n'ont aucun nom dans la colonne sélectionnée et ne seront pas appariées."
+    },
+    {
+      "en": "Every entry is read as a genus name, with no specific epithet. If that is not intended, check the column selection.",
+      "fr": "Toutes les entrées sont lues comme des noms de genre, sans épithète spécifique. Si ce n'est pas voulu, vérifiez la sélection des colonnes."
+    },
+    {
+      "en": "Name",
+      "fr": "Nom"
+    },
+    {
+      "en": "Searched as",
+      "fr": "Recherché comme"
+    },
+    {
+      "en": "Occurrences",
+      "fr": "Occurrences"
+    },
+    {
+      "en": "Detected rank",
+      "fr": "Rang détecté"
+    },
+    {
+      "en": "No names found in the selected column",
+      "fr": "Aucun nom trouvé dans la colonne sélectionnée"
     }
   ]
 }

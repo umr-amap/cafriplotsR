@@ -241,3 +241,289 @@ test_that("synonym info is added from cached backbone", {
   expect_true(res$is_synonym[1])
   expect_equal(res$accepted_name[1], "Garcinia kola")
 })
+
+
+# =============================================================================
+# Author names — `include_authors = TRUE`
+#
+# Authors are extra evidence, never a requirement. Two regressions are pinned
+# here: a bare genus name stopped matching exactly as soon as authors were on
+# (the searchable name grew an author the SQL side never adds to a genus row),
+# and a name written without its author lost its exact match for the same
+# reason.
+# =============================================================================
+
+.fake_backbone_auth <- function() {
+  bb <- .fake_backbone()
+  bb$author1 <- c("Heckel", "Oliv.", "De Wild.",
+                  "Heckel", "Benth.", "Troupin",
+                  "L.", "L.", "Benth.",
+                  NA, NA, NA)
+  bb
+}
+
+.fake_backbone_homonym <- function() {
+  bb <- .fake_backbone_auth()
+  # A second "Garcinia kola", under another author: only the author can
+  # tell the two apart.
+  dplyr::bind_rows(bb, dplyr::mutate(bb[1, ], idtax_n = 13L,
+                                     idtax_good_n = 13L,
+                                     author1 = "Vahl ex Oliv."))
+}
+
+test_that(".build_backbone_name_field appends the author to species only", {
+  bb <- .fake_backbone_auth()
+  out <- .build_backbone_name_field(bb, include_authors = TRUE)
+
+  expect_equal(out[1], "Garcinia kola Heckel")
+  # Genus-level row: the SQL side spells this `ELSE tax_gen`, no author.
+  expect_equal(out[7], "Garcinia")
+  expect_true(is.na(out[10]))
+})
+
+test_that("a name written with its author matches exactly", {
+  bb <- .fake_backbone_auth()
+  parsed <- parse_taxonomic_name("Garcinia kola Heckel")
+  parsed$original_input <- "Garcinia kola Heckel"
+
+  res <- .match_exact_r(parsed, bb, include_authors = TRUE, max_matches = 5)
+
+  expect_equal(nrow(res), 1)
+  expect_equal(res$idtax_n[1], 1L)
+  expect_equal(res$match_method[1], "exact")
+})
+
+test_that("a name written without its author still matches exactly", {
+  bb <- .fake_backbone_auth()
+  parsed <- parse_taxonomic_name("Garcinia kola")
+  parsed$original_input <- "Garcinia kola"
+
+  res <- .match_exact_r(parsed, bb, include_authors = TRUE, max_matches = 5)
+
+  expect_equal(nrow(res), 1)
+  expect_equal(res$idtax_n[1], 1L)
+  expect_equal(res$match_method[1], "exact")
+  # The name shown back to the user keeps the author, as the SQL side does.
+  expect_equal(res$matched_name[1], "Garcinia kola Heckel")
+})
+
+test_that("a bare genus name matches exactly with authors on", {
+  bb <- .fake_backbone_auth()
+  parsed <- parse_taxonomic_name("Brachystegia")
+  parsed$original_input <- "Brachystegia"
+
+  res <- .match_exact_r(parsed, bb, include_authors = TRUE, max_matches = 5)
+
+  expect_gt(nrow(res), 0)
+  expect_equal(res$idtax_n[1], 9L)
+  expect_equal(res$match_method[1], "exact")
+})
+
+test_that("a differently spelled author still matches the same name", {
+  bb <- .fake_backbone_auth()
+  parsed <- parse_taxonomic_name("Garcinia kola (Heckel) Baill.")
+  parsed$original_input <- "Garcinia kola (Heckel) Baill."
+
+  res <- .match_exact_r(parsed, bb, include_authors = TRUE, max_matches = 5)
+
+  # The name is what identifies the taxon; the author only ranks candidates.
+  expect_equal(nrow(res), 1)
+  expect_equal(res$idtax_n[1], 1L)
+  expect_equal(res$match_method[1], "exact")
+})
+
+test_that("the author decides between homonyms", {
+  bb <- .fake_backbone_homonym()
+
+  wanted_heckel <- parse_taxonomic_name("Garcinia kola Heckel")
+  wanted_heckel$original_input <- "Garcinia kola Heckel"
+  res1 <- .match_exact_r(wanted_heckel, bb, include_authors = TRUE, max_matches = 5)
+  expect_equal(res1$idtax_n[1], 1L)
+
+  # Same name, other author: the same two rows are found, ranked the other way.
+  wanted_vahl <- parse_taxonomic_name("Garcinia kola Vahl ex Oliv.")
+  wanted_vahl$original_input <- "Garcinia kola Vahl ex Oliv."
+  res2 <- .match_exact_r(wanted_vahl, bb, include_authors = TRUE, max_matches = 5)
+  expect_equal(res2$idtax_n[1], 13L)
+})
+
+test_that("a name that does not exist still finds nothing", {
+  bb <- .fake_backbone_auth()
+  parsed <- parse_taxonomic_name("Nonsensia inexistensus Benth.")
+  parsed$original_input <- "Nonsensia inexistensus Benth."
+
+  res <- .match_exact_r(parsed, bb, include_authors = TRUE, max_matches = 5)
+
+  expect_equal(nrow(res), 0)
+})
+
+
+test_that("a differing author no longer lowers the fuzzy score", {
+  bb <- .fake_backbone_auth()
+
+  # Genus typo, and an author written nothing like the backbone's.
+  parsed <- parse_taxonomic_name("Garcinea kola Hooker f.")
+  parsed$original_input <- "Garcinea kola Hooker f."
+
+  with_auth <- .match_genus_constrained_r(parsed, bb, min_similarity = 0.4,
+                                          include_authors = TRUE,
+                                          max_matches = 3)
+  no_auth <- .match_genus_constrained_r(parsed, bb, min_similarity = 0.4,
+                                        include_authors = FALSE,
+                                        max_matches = 3)
+
+  expect_equal(with_auth$idtax_n[1], 1L)
+  # The score measures the name, so asking for authors cannot change it.
+  expect_equal(with_auth$match_score[1], no_auth$match_score[1])
+  # ...and it is exactly the score the name alone deserves, not one diluted
+  # by the author string.
+  expect_equal(with_auth$match_score[1],
+               .trigram_sim("Garcinia kola", "Garcinea kola"))
+})
+
+test_that("among equally named candidates the closer author comes first", {
+  bb <- .fake_backbone_homonym()
+
+  # Epithet typo, so this goes through the fuzzy path, and both homonyms
+  # score identically on the name.
+  parsed <- parse_taxonomic_name("Garcinia kolla Vahl ex Oliv.")
+  parsed$original_input <- "Garcinia kolla Vahl ex Oliv."
+
+  res <- .match_genus_constrained_r(parsed, bb, min_similarity = 0.4,
+                                    include_authors = TRUE, max_matches = 3)
+
+  expect_equal(res$idtax_n[1], 13L)
+})
+
+test_that("hierarchical matching reports exact for an author-carrying name", {
+  bb <- .fake_backbone_auth()
+
+  res <- match_taxonomic_names(
+    c("Garcinia kola Heckel", "Garcinia punctata", "Brachystegia"),
+    method = "hierarchical", max_matches = 1, min_similarity = 0.6,
+    include_authors = TRUE, backbone = bb, verbose = FALSE
+  )
+
+  expect_equal(res$match_method, rep("exact", 3))
+  expect_equal(res$idtax_n, c(1L, 2L, 9L))
+})
+
+
+# =============================================================================
+# .promote_exact_genus
+# =============================================================================
+
+# ".split_name_authors()" only calls a trailing word an author when it shows a
+# period, a bracket or a connecting word, so "Centroplacus Pierre" keeps
+# "Pierre" in the searched name. That is deliberate: a bare capitalised word is
+# far more often a mis-capitalised epithet in data being standardised, and that
+# reading is the one worth protecting. The cost was that an exactly known genus
+# came back from the fuzzy stage at 0.59 and went to manual review.
+
+.gc_result <- function(...) {
+  rows <- list(...)
+  dplyr::bind_rows(lapply(rows, function(r) {
+    tibble::tibble(
+      input_name = "x", matched_name = r$name, idtax_n = 1L, idtax_good_n = 1L,
+      match_method = "genus_constrained", match_score = r$score,
+      tax_gen = r$gen, tax_esp = NA_character_, tax_fam = NA_character_,
+      tax_level = r$level
+    )
+  }))
+}
+
+test_that(".promote_exact_genus() calls the genus exact when nothing fits better", {
+  parsed <- parse_taxonomic_name("Centroplacus Pierre")
+  expect_equal(parsed$rank, "genus")
+
+  out <- .promote_exact_genus(
+    .gc_result(
+      list(name = "Centroplacus", gen = "Centroplacus", level = "genus", score = 0.59),
+      list(name = "Centroplacus glaucinus", gen = "Centroplacus", level = "species", score = 0.42)
+    ),
+    parsed
+  )
+
+  expect_equal(out$match_method[1], "exact")
+  expect_equal(out$match_score[1], 1)
+  # The alternatives are left as they were, still available for review
+  expect_equal(out$match_method[2], "genus_constrained")
+  expect_equal(out$match_score[2], 0.42)
+})
+
+test_that(".promote_exact_genus() leaves a better-fitting species alone", {
+  # A capitalised epithet with a typo must stay a species suggestion: collapsing
+  # it to the genus at 1.00 would hide the useful answer behind false certainty.
+  parsed <- parse_taxonomic_name("Garcinia Kolla")
+
+  out <- .promote_exact_genus(
+    .gc_result(
+      list(name = "Garcinia kola", gen = "Garcinia", level = "species", score = 0.77),
+      list(name = "Garcinia", gen = "Garcinia", level = "genus", score = 0.50)
+    ),
+    parsed
+  )
+
+  expect_equal(out$match_method[1], "genus_constrained")
+  expect_equal(out$match_score[1], 0.77)
+})
+
+test_that(".promote_exact_genus() ignores a genus of a different name", {
+  parsed <- parse_taxonomic_name("Centroplacus Pierre")
+
+  out <- .promote_exact_genus(
+    .gc_result(list(name = "Centropodia", gen = "Centropodia", level = "genus", score = 0.24)),
+    parsed
+  )
+
+  expect_equal(out$match_method[1], "genus_constrained")
+})
+
+test_that(".promote_exact_genus() ignores a species-rank name", {
+  parsed <- parse_taxonomic_name("Garcinia kola")
+  expect_equal(parsed$rank, "species")
+
+  out <- .promote_exact_genus(
+    .gc_result(list(name = "Garcinia", gen = "Garcinia", level = "genus", score = 0.55)),
+    parsed
+  )
+
+  expect_equal(out$match_method[1], "genus_constrained")
+})
+
+test_that(".promote_exact_genus() handles an empty result", {
+  out <- .promote_exact_genus(.gc_result(), parse_taxonomic_name("Centroplacus Pierre"))
+  expect_equal(nrow(out), 0L)
+})
+
+
+test_that("a genus with an unabbreviated author is matched exactly end to end", {
+  bb <- .fake_backbone()
+
+  res <- match_taxonomic_names("Brachystegia Benth", backbone = bb, verbose = FALSE)
+
+  expect_equal(res$match_method[1], "exact")
+  expect_equal(res$match_score[1], 1)
+  expect_equal(res$matched_name[1], "Brachystegia")
+  expect_equal(res$tax_level[1], "genus")
+})
+
+test_that("a typo'd capitalised epithet still reaches its species", {
+  bb <- .fake_backbone()
+
+  res <- match_taxonomic_names("Garcinia Kolla", backbone = bb, verbose = FALSE)
+
+  expect_equal(res$matched_name[1], "Garcinia kola")
+  expect_equal(res$match_method[1], "genus_constrained")
+  expect_equal(res$tax_level[1], "species")
+})
+
+test_that("a correctly spelled capitalised epithet is still exact", {
+  bb <- .fake_backbone()
+
+  res <- match_taxonomic_names("Garcinia Kola", backbone = bb, verbose = FALSE)
+
+  expect_equal(res$match_method[1], "exact")
+  expect_equal(res$matched_name[1], "Garcinia kola")
+  expect_equal(res$tax_level[1], "species")
+})

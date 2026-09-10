@@ -53,6 +53,45 @@
 }
 
 # ---------------------------------------------------------------------------
+# Backbone shaping
+# ---------------------------------------------------------------------------
+
+#' Shape a freshly downloaded taxon table into the matching backbone
+#'
+#' @description
+#' Drops the `"ZZ auct."` placeholder rows and derives the level keys the
+#' matching stages join on. Split out from the download so the rule that
+#' decides which taxa exist for the app is one testable thing rather than a
+#' line buried in a Shiny observer.
+#'
+#' @param taxa Data frame, the collected `table_taxa` columns.
+#'
+#' @return The same data frame, filtered, with `tax_sp_level`,
+#'   `tax_gen_level`, `tax_fam_level` and `tax_class_level` added.
+#'
+#' @keywords internal
+.shape_backbone <- function(taxa) {
+  taxa %>%
+    # `author1 != "ZZ auct."` alone also discarded every taxon with no
+    # recorded author, because NA propagates through `!=` and `filter()`
+    # keeps only TRUE. Those taxa are perfectly valid - they simply have no
+    # authorship on file - and dropping them made the app unable to find
+    # names that `match_taxonomic_names()` matches exactly against the live
+    # database, which applies no such filter.
+    dplyr::filter(is.na(author1) | author1 != "ZZ auct.") %>%
+    dplyr::mutate(
+      tax_sp_level = dplyr::case_when(
+        !is.na(tax_nam01) & tax_nam01 != "" ~ paste(tax_gen, tax_esp, tax_rank01, tax_nam01),
+        !is.na(tax_esp) & tax_esp != "" ~ paste(tax_gen, tax_esp),
+        TRUE ~ NA_character_
+      ),
+      tax_gen_level   = tax_gen,
+      tax_fam_level   = tax_fam,
+      tax_class_level = tax_famclass
+    )
+}
+
+# ---------------------------------------------------------------------------
 # Output column protection
 # ---------------------------------------------------------------------------
 
@@ -156,6 +195,8 @@ mod_auto_matching_ui <- function(id) {
 #'     \item \code{data}: Updated data frame with match results
 #'     \item \code{unmatched}: Data frame of unmatched names
 #'     \item \code{stats}: List of matching statistics
+#'     \item \code{params}: Settings used by the last run (column, similarity
+#'       threshold, author matching, WCVP option, offline flag)
 #'   }
 #'
 #' @keywords internal
@@ -169,6 +210,11 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
     matched_data        <- shiny::reactiveVal(NULL)
     match_stats         <- shiny::reactiveVal(NULL)
     matching_in_progress <- shiny::reactiveVal(FALSE)
+
+    # Settings actually used by the last run — captured here rather than read
+    # back from the inputs, which the user may have changed since. Consumed by
+    # the R-code preview so the generated script matches what was run.
+    run_params          <- shiny::reactiveVal(NULL)
 
     # Checkpoint / resume state
     resume_mode         <- shiny::reactiveVal(NULL)   # "resume" | "fresh"
@@ -191,6 +237,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       matching_in_progress(FALSE)
       resume_mode(NULL)
       pending_input_hash(NULL)
+      run_params(NULL)
     })
 
     # Module title
@@ -394,22 +441,11 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             tax_level,
             author1
           ) %>%
-          dplyr::collect() %>%
-          dplyr::filter(author1 != "ZZ auct.")
+          dplyr::collect()
 
         shiny::removeNotification("download_backbone")
 
-        backbone <- backbone %>%
-          dplyr::mutate(
-            tax_sp_level = dplyr::case_when(
-              !is.na(tax_nam01) & tax_nam01 != "" ~ paste(tax_gen, tax_esp, tax_rank01, tax_nam01),
-              !is.na(tax_esp) & tax_esp != "" ~ paste(tax_gen, tax_esp),
-              TRUE ~ NA_character_
-            ),
-            tax_gen_level   = tax_gen,
-            tax_fam_level   = tax_fam,
-            tax_class_level = tax_famclass
-          )
+        backbone <- .shape_backbone(backbone)
 
         shiny::showNotification(
           i18n()$t("Caching backbone for future use..."),
@@ -433,6 +469,14 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         } else {
           min_similarity
         }
+
+        run_params(list(
+          column          = col_name,
+          include_authors = incl_authors,
+          min_similarity  = min_sim,
+          use_wcvp        = isTRUE(!is.null(use_wcvp_names) && use_wcvp_names()),
+          is_offline      = isTRUE(is_offline())
+        ))
 
         # --- Decide: restore checkpoint or run exact matching from scratch ---
 
@@ -488,11 +532,30 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             return(NULL)
           }
 
-          cleaned_names <- sapply(unique_names_to_match, clean_taxonomic_name)
+          cleaned_names <- clean_taxonomic_name(unique_names_to_match)
+
+          # Authorship is stripped once, here, so the batch stages below can
+          # match "Genus species Author" on the name alone. Authors vary far
+          # more than names do, and without this every such name skipped the
+          # batch stages entirely and paid for the slow per-name path.
+          stripped_names <- vapply(
+            cleaned_names,
+            function(n) parse_taxonomic_name(n)$full_name_no_auth %||% NA_character_,
+            character(1),
+            USE.NAMES = FALSE
+          )
 
           input_df <- data.frame(
             input_name   = unique_names_to_match,
             cleaned_name = cleaned_names,
+            stringsAsFactors = FALSE
+          )
+
+          # Kept apart from input_df so the extra key never leaks into the
+          # results that are joined back onto the user's data.
+          strip_map <- data.frame(
+            input_name     = unique_names_to_match,
+            stripped_name  = stripped_names,
             stringsAsFactors = FALSE
           )
 
@@ -515,10 +578,64 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
           matches_species <- input_df %>%
             dplyr::left_join(unique_species, by = c("cleaned_name" = "tax_sp_level"))
 
-          # STEP 4: Batch exact — genus level
+          # STEP 3b: Batch exact — species level, author names included
+          # `include_authors` used to reach the per-name fallback only, so a
+          # file written "Genus species Author" matched nothing in this batch
+          # stage and every single name paid for the slow path. The key built
+          # here is the one .build_backbone_name_field() searches on.
           unmatched_after_species <- matches_species %>%
             dplyr::filter(is.na(idtax_n)) %>%
             dplyr::select(input_name, cleaned_name)
+
+          matches_species_auth <- NULL
+
+          if (isTRUE(incl_authors) && "author1" %in% names(backbone)) {
+            # The key is built by the same helper .match_exact_r() searches on,
+            # so this batch stage and the per-name fallback cannot drift apart.
+            sp_auth_key <- .build_backbone_name_field(backbone,
+                                                      include_authors = TRUE)
+
+            unique_species_auth <- backbone %>%
+              dplyr::mutate(tax_sp_auth_level = sp_auth_key) %>%
+              dplyr::filter(!is.na(tax_esp), tax_esp != "",
+                            !is.na(author1), author1 != "",
+                            !is.na(tax_sp_auth_level)) %>%
+              dplyr::group_by(tax_sp_auth_level) %>%
+              dplyr::filter(dplyr::n() == 1) %>%
+              dplyr::ungroup() %>%
+              dplyr::select(
+                tax_sp_auth_level, idtax_n, idtax_good_n,
+                tax_fam, tax_gen, tax_esp, tax_rank01, tax_nam01
+              ) %>%
+              dplyr::mutate(
+                matched_name = tax_sp_auth_level,
+                match_method = "exact",
+                match_score  = 1.0
+              )
+
+            matches_species_auth <- unmatched_after_species %>%
+              dplyr::left_join(unique_species_auth,
+                               by = c("cleaned_name" = "tax_sp_auth_level"))
+
+            unmatched_after_species <- matches_species_auth %>%
+              dplyr::filter(is.na(idtax_n)) %>%
+              dplyr::select(input_name, cleaned_name)
+          }
+
+          # STEP 3c: Batch exact — species level, on the author-stripped name
+          # This is the common case: genus and epithet agree exactly and only
+          # the authorship is written differently.
+          matches_species_strip <- unmatched_after_species %>%
+            dplyr::left_join(strip_map, by = "input_name") %>%
+            dplyr::left_join(unique_species,
+                             by = c("stripped_name" = "tax_sp_level")) %>%
+            dplyr::select(-stripped_name)
+
+          unmatched_after_species <- matches_species_strip %>%
+            dplyr::filter(is.na(idtax_n)) %>%
+            dplyr::select(input_name, cleaned_name)
+
+          # STEP 4: Batch exact — genus level
 
           unique_genera <- backbone %>%
             dplyr::filter(tax_level == "genus", !is.na(tax_gen_level)) %>%
@@ -535,8 +652,17 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
           matches_genus <- unmatched_after_species %>%
             dplyr::left_join(unique_genera, by = c("cleaned_name" = "tax_gen_level"))
 
+          # STEP 4b: Batch exact — genus level, on the author-stripped name
+          matches_genus_strip <- matches_genus %>%
+            dplyr::filter(is.na(idtax_n)) %>%
+            dplyr::select(input_name, cleaned_name) %>%
+            dplyr::left_join(strip_map, by = "input_name") %>%
+            dplyr::left_join(unique_genera,
+                             by = c("stripped_name" = "tax_gen_level")) %>%
+            dplyr::select(-stripped_name)
+
           # STEP 5: Batch exact — family level
-          unmatched_after_genus <- matches_genus %>%
+          unmatched_after_genus <- matches_genus_strip %>%
             dplyr::filter(is.na(idtax_n)) %>%
             dplyr::select(input_name, cleaned_name)
 
@@ -581,9 +707,25 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             dplyr::left_join(unique_classes, by = c("cleaned_name" = "tax_class_level"))
 
           # STEP 6: Combine all exact matches
+          if (!is.null(matches_species_auth)) {
+            matches_species <- matches_species %>%
+              dplyr::rows_update(
+                matches_species_auth %>% dplyr::filter(!is.na(idtax_n)),
+                by = "input_name", unmatched = "ignore"
+              )
+          }
+
           matches_species <- matches_species %>%
             dplyr::rows_update(
+              matches_species_strip %>% dplyr::filter(!is.na(idtax_n)),
+              by = "input_name", unmatched = "ignore"
+            ) %>%
+            dplyr::rows_update(
               matches_genus %>% dplyr::filter(!is.na(idtax_n)),
+              by = "input_name", unmatched = "ignore"
+            ) %>%
+            dplyr::rows_update(
+              matches_genus_strip %>% dplyr::filter(!is.na(idtax_n)),
               by = "input_name", unmatched = "ignore"
             ) %>%
             dplyr::rows_update(
@@ -929,7 +1071,8 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         list(
           data      = matched_data(),
           unmatched = unmatched,
-          stats     = match_stats()
+          stats     = match_stats(),
+          params    = run_params()
         )
       })
     )

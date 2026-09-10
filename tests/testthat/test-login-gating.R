@@ -41,8 +41,13 @@ test_that("only the taxonomic matching app opts into offline mode", {
                           full.names = TRUE)
   skip_if(length(app_files) == 0, "no app sources found")
 
+  # The opt-in is no longer spelled `allow_offline = TRUE`: the taxonomic
+  # matching app gates it on `!.is_served()` and forwards the result. So an
+  # app opts in as soon as it mentions the argument with anything other than
+  # the default FALSE - which is what this test is really about.
   opts_in <- vapply(app_files, function(f) {
-    any(grepl("allow_offline\\s*=\\s*TRUE", readLines(f, warn = FALSE)))
+    mentions <- grep("allow_offline", readLines(f, warn = FALSE), value = TRUE)
+    any(!grepl("allow_offline\\s*=\\s*FALSE", mentions))
   }, logical(1))
 
   expect_equal(

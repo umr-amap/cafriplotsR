@@ -16,7 +16,10 @@ mod_column_select_server(id, data, initial_column = NULL, i18n)
 \item{i18n}{Reactive returning shiny.i18n translator}
 }
 \value{
-Reactive list with $column (selected column name), $include_authors (logical), and $data (potentially modified data)
+Reactive list with $column (selected column name), $include_authors
+  (logical), $data (potentially modified data), $mode ("single" or
+  "multiple") and, in multiple mode, $genus_column / $species_column /
+  $family_column
 }
 \description{
 Column Select Module - Server
