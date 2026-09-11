@@ -420,6 +420,11 @@ match_taxonomic_names <- function(names,
     }
   }
 
+  # Build the backbone-wide name vectors once for the whole call rather than
+  # once per name per matching stage. A no-op when the caller - e.g.
+  # .run_matching_pipeline(), which calls this once per name - already did.
+  if (use_r_side) backbone <- .prepare_backbone_for_matching(backbone)
+
   # Validate inputs
   if (length(names) == 0) {
     cli::cli_alert_warning("No names provided")
@@ -1263,6 +1268,70 @@ match_taxonomic_names <- function(names,
 }
 
 
+#' Precompute the backbone-wide vectors the R-side matchers search
+#'
+#' @description
+#' Every R-side match used to rebuild the searchable name of all ~365,000
+#' backbone rows (`.build_backbone_name_field()`, ~0.9 s) and lowercase it
+#' (~0.4 s) - up to four builds and three lowercasings per name, identical
+#' every time because the backbone does not change during a run. That was two
+#' thirds of the per-name cost. This builds them once and attaches them to the
+#' backbone, where the matchers pick them up.
+#'
+#' The index belongs to the object it was built on. It is only ever attached to
+#' local copies inside `match_taxonomic_names()` and `.run_matching_pipeline()`,
+#' never handed back to a caller, and it is discarded if the row count no longer
+#' agrees - so a filtered backbone recomputes rather than reads stale names.
+#'
+#' @param backbone The cached backbone tibble
+#'
+#' @return `backbone`, with a `cafri_name_index` attribute holding:
+#'   `plain` / `plain_lc` (names without authors, as built and lowercased),
+#'   `auth` / `auth_lc` (the same with authors, when the backbone has them),
+#'   and `genera` (distinct non-missing genera, in first-occurrence order).
+#'
+#' @keywords internal
+.prepare_backbone_for_matching <- function(backbone) {
+  if (!is.null(.valid_name_index(backbone))) return(backbone)
+
+  plain <- .build_backbone_name_field(backbone, include_authors = FALSE)
+  # .build_backbone_name_field() already falls back to the plain name when there
+  # is no author1 column, so `auth` is exactly what include_authors = TRUE builds.
+  auth <- if ("author1" %in% names(backbone)) {
+    .build_backbone_name_field(backbone, include_authors = TRUE)
+  } else {
+    plain
+  }
+  gen <- backbone$tax_gen
+
+  attr(backbone, "cafri_name_index") <- list(
+    n        = nrow(backbone),
+    plain    = plain,
+    plain_lc = tolower(plain),
+    auth     = auth,
+    auth_lc  = tolower(auth),
+    genera   = unique(gen[!is.na(gen)])
+  )
+  backbone
+}
+
+#' The backbone's name index if present and still valid, else NULL
+#' @keywords internal
+.valid_name_index <- function(backbone) {
+  idx <- attr(backbone, "cafri_name_index", exact = TRUE)
+  if (is.null(idx) || !identical(idx$n, nrow(backbone))) NULL else idx
+}
+
+#' The backbone's name index, computing it when absent
+#' @keywords internal
+.backbone_name_index <- function(backbone) {
+  .valid_name_index(backbone) %||%
+    attr(.prepare_backbone_for_matching(backbone), "cafri_name_index",
+         exact = TRUE)
+}
+
+
+
 #' Trigram-Jaccard similarity (R-side equivalent of pg_trgm SIMILARITY)
 #'
 #' PostgreSQL's `SIMILARITY()` from `pg_trgm` is Jaccard on padded trigrams.
@@ -1279,6 +1348,20 @@ match_taxonomic_names <- function(names,
 .trigram_sim <- function(x, y) {
   if (length(x) == 0L) return(numeric(0))
   stringdist::stringsim(tolower(x), tolower(y), method = "jaccard", q = 3L)
+}
+
+#' `.trigram_sim()` for an `x` that is already lowercase
+#'
+#' Lowercasing 365,000 backbone names costs ~0.4 s, and they are the same
+#' names on every call. The index stores them lowered once; this skips the
+#' redundant pass. Same result as `.trigram_sim(x, y)` when `x` is lowercase.
+#'
+#' @param x_lc Lowercase character vector
+#' @param y Single character string to compare each `x_lc` against
+#' @keywords internal
+.trigram_sim_lc <- function(x_lc, y) {
+  if (length(x_lc) == 0L) return(numeric(0))
+  stringdist::stringsim(x_lc, tolower(y), method = "jaccard", q = 3L)
 }
 
 
@@ -1374,8 +1457,10 @@ match_taxonomic_names <- function(names,
 
   # Genus / species: build the full name field and case-insensitive equal
   target <- tolower(parsed$input_name)
-  full_names <- .build_backbone_name_field(backbone, include_authors)
-  hits_idx <- which(tolower(full_names) == target)
+  idx <- .backbone_name_index(backbone)
+  full_names <- if (isTRUE(include_authors)) idx$auth else idx$plain
+  full_lc    <- if (isTRUE(include_authors)) idx$auth_lc else idx$plain_lc
+  hits_idx <- which(full_lc == target)
 
   if (length(hits_idx) == 0L) {
     # Authors vary far more than names do: "(De Wild.) J.Leonard" and
@@ -1386,8 +1471,7 @@ match_taxonomic_names <- function(names,
     stripped <- parsed$full_name_no_auth %||% parsed$input_name
 
     if (!is.na(stripped) && nzchar(stripped)) {
-      plain <- .build_backbone_name_field(backbone, include_authors = FALSE)
-      hits_idx <- which(tolower(plain) == tolower(stripped))
+      hits_idx <- which(idx$plain_lc == tolower(stripped))
       hits_idx <- .rank_hits_by_author(hits_idx, backbone, parsed,
                                        include_authors)
     }
@@ -1467,11 +1551,18 @@ match_taxonomic_names <- function(names,
 
   if (is.na(parsed$genus)) return(tibble())
 
-  # Step 1: candidate genera by trigram similarity on tax_gen
-  genera <- backbone %>%
-    dplyr::filter(!is.na(.data$tax_gen)) %>%
-    dplyr::distinct(.data$tax_gen) %>%
-    dplyr::pull(.data$tax_gen)
+  # Step 1: candidate genera by trigram similarity on tax_gen. The index is
+  # read only if already built: computing it here just for the genera would
+  # cost far more than the distinct() it replaces.
+  idx <- .valid_name_index(backbone)
+  genera <- if (!is.null(idx)) {
+    idx$genera
+  } else {
+    backbone %>%
+      dplyr::filter(!is.na(.data$tax_gen)) %>%
+      dplyr::distinct(.data$tax_gen) %>%
+      dplyr::pull(.data$tax_gen)
+  }
 
   if (length(genera) == 0L) return(tibble())
 
@@ -1565,11 +1656,11 @@ match_taxonomic_names <- function(names,
 
   # Genus / species: full-name fuzzy across the whole backbone. As above, the
   # score is on the name alone and the author only breaks ties.
-  full_names  <- .build_backbone_name_field(backbone, include_authors)
-  plain_names <- .build_backbone_name_field(backbone, include_authors = FALSE)
+  idx <- .backbone_name_index(backbone)
+  full_names  <- if (isTRUE(include_authors)) idx$auth else idx$plain
   search_name <- parsed$full_name_no_auth %||% parsed$input_name
 
-  scores <- .trigram_sim(plain_names, search_name)
+  scores <- .trigram_sim_lc(idx$plain_lc, search_name)
 
   pass <- which(scores >= min_similarity)
   if (length(pass) == 0L) return(tibble())

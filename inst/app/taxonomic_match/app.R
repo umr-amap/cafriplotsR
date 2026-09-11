@@ -16,6 +16,14 @@ Sys.setenv(CAFRI_SERVED = "true")
 
 library(CafriplotsR)
 
+# Size stringdist's and data.table's thread pools to the container's CPU quota.
+# Left alone they size themselves from the node - 128 cores on SSP Cloud
+# against a quota of 2 - and the kernel then throttles the whole container.
+# Must run before any matching worker is started, since workers inherit the
+# OMP_THREAD_LIMIT it exports. No-op outside a CPU-limited container.
+CafriplotsR:::.apply_container_thread_limits()
+
+
 # Initial UI language; override at deploy time with CAFRI_LANGUAGE=en.
 language <- Sys.getenv("CAFRI_LANGUAGE", "fr")
 

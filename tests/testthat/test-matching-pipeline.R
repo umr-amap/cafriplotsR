@@ -191,3 +191,66 @@ test_that("checkpoint helpers honour an explicit path", {
   .delete_matching_checkpoint("explicit_path_hash", path = chk)
   expect_false(file.exists(chk))
 })
+
+# ---------------------------------------------------------------------------
+# Backbone name index (.prepare_backbone_for_matching)
+# ---------------------------------------------------------------------------
+
+test_that("the name index holds exactly what the matchers used to rebuild", {
+  bb  <- .pipeline_backbone()
+  idx <- attr(.prepare_backbone_for_matching(bb), "cafri_name_index")
+
+  expect_identical(idx$plain, .build_backbone_name_field(bb, include_authors = FALSE))
+  expect_identical(idx$auth,  .build_backbone_name_field(bb, include_authors = TRUE))
+  expect_identical(idx$plain_lc, tolower(idx$plain))
+  expect_identical(idx$auth_lc,  tolower(idx$auth))
+  expect_identical(
+    idx$genera,
+    bb %>% dplyr::filter(!is.na(tax_gen)) %>% dplyr::distinct(tax_gen) %>%
+      dplyr::pull(tax_gen)
+  )
+})
+
+test_that("preparing twice is a no-op", {
+  once  <- .prepare_backbone_for_matching(.pipeline_backbone())
+  twice <- .prepare_backbone_for_matching(once)
+  expect_identical(attr(twice, "cafri_name_index"), attr(once, "cafri_name_index"))
+})
+
+test_that("a filtered backbone does not read a stale index", {
+  prepared <- .prepare_backbone_for_matching(.pipeline_backbone())
+  filtered <- prepared[prepared$tax_level == "species", ]
+
+  expect_null(.valid_name_index(filtered))
+  # Recomputed for the rows actually present, not read from the parent.
+  expect_identical(.backbone_name_index(filtered)$plain,
+                   .build_backbone_name_field(filtered, include_authors = FALSE))
+})
+
+test_that("matching gives identical results with and without the index", {
+  bb       <- .pipeline_backbone()
+  prepared <- .prepare_backbone_for_matching(bb)
+  names    <- c("Garcinia kola", "Garcinia kolla", "Garcina kola",
+                "Brachystegia laurenti", "Garcinia", "Clusiaceae",
+                "Zzzzzz qqqqqq")
+
+  for (ia in c(FALSE, TRUE)) for (ms in c(0.3, 0.6)) {
+    run <- function(b) {
+      match_taxonomic_names(names, method = "hierarchical", max_matches = 5,
+                            min_similarity = ms, include_synonyms = TRUE,
+                            include_authors = ia, backbone = b, verbose = FALSE)
+    }
+    # The raw backbone takes the prepare-on-entry path, the prepared one the
+    # no-op path: both must agree. Equivalence with the pre-index code rests on
+    # the index-content test above: the matchers read exactly the vectors they
+    # used to rebuild.
+    expect_identical(run(prepared), run(bb))
+  }
+})
+
+test_that(".trigram_sim_lc() equals .trigram_sim() on lowercase input", {
+  x <- c("Garcinia kola", "brachystegia", NA, "")
+  expect_identical(.trigram_sim_lc(tolower(x), "Garcina Kola"),
+                   .trigram_sim(x, "Garcina Kola"))
+  expect_identical(.trigram_sim_lc(character(0), "x"), numeric(0))
+})
