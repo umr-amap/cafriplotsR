@@ -384,6 +384,11 @@
   # --- STEP 7: Fuzzy matching (shared path for fresh and resume) ---
 
   if (start_idx <= length(still_unmatched)) {
+    # Build the backbone-wide search vectors once, here, instead of inside
+    # every match_taxonomic_names() call below: they are identical for every
+    # name, and rebuilding them was most of the per-name cost.
+    backbone <- .prepare_backbone_for_matching(backbone)
+
     progress("fuzzy_start", i = 0L, n = length(still_unmatched))
 
     # Checkpointing is throttled rather than done on every name. Each
@@ -587,6 +592,12 @@
 #' @export
 #' @keywords internal
 .matching_worker <- function(input_file, result_file) {
+  # Read the quota here as well rather than trusting the parent to have done
+  # it: the parent only applies the cap from the served entry points, and
+  # launch_taxonomic_match_app() run inside any container would otherwise start
+  # workers that size their thread pools from the whole node.
+  .apply_container_thread_limits()
+
   args <- readRDS(input_file)
 
   result <- tryCatch(
