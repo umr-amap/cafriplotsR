@@ -762,12 +762,37 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             type = "message"
           )
 
+          # Checkpointing is throttled rather than done on every name. Each
+          # save re-serialises best_matches AND the whole growing
+          # fuzzy_results list, so saving per name costs O(n^2) writes and
+          # came to dominate long runs. Every 25 names or 30 seconds bounds
+          # the rework on resume to a handful of names while making the I/O
+          # negligible.
+          chk_every_n    <- 25L
+          chk_every_secs <- 30
+          last_chk_index <- start_idx - 1L
+          last_chk_time  <- Sys.time()
+
+          save_checkpoint <- function(index) {
+            .save_matching_checkpoint(
+              input_hash, best_matches, fuzzy_results,
+              still_unmatched, index, total_names
+            )
+            last_chk_index <<- index
+            last_chk_time  <<- Sys.time()
+          }
+
           for (i in start_idx:length(still_unmatched)) {
             # Flush httpuv's pending event queue so the browser-disconnect event
             # can be processed mid-loop (otherwise session$isEnded() stays FALSE
             # because Shiny's event loop is blocked by this synchronous for loop).
             tryCatch(later::run_now(timeoutSecs = 0), error = function(e) NULL)
-            if (session$isEnded()) break
+            if (session$isEnded()) {
+              # Abandoning the run: flush what the throttle is still holding,
+              # so the user resumes from the last name actually matched.
+              if (i > start_idx && last_chk_index < i - 1L) save_checkpoint(i - 1L)
+              break
+            }
 
             name <- still_unmatched[i]
 
@@ -797,11 +822,13 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
 
             fuzzy_results[[i]] <- match_result
 
-            # Persist progress — survives laptop sleep / crash
-            .save_matching_checkpoint(
-              input_hash, best_matches, fuzzy_results,
-              still_unmatched, i, total_names
-            )
+            # Persist progress — survives laptop sleep / crash. Note this is
+            # tempdir(), i.e. the container's filesystem on a served
+            # deployment: it survives a browser reload, not a pod restart.
+            if (i - last_chk_index >= chk_every_n ||
+                as.numeric(difftime(Sys.time(), last_chk_time, units = "secs")) >= chk_every_secs) {
+              save_checkpoint(i)
+            }
           }
 
           shiny::removeNotification("fuzzy_matching")

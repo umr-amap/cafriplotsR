@@ -37,6 +37,14 @@ app_taxonomic_match <- function(
   # Initialize translator (must be before UI for usei18n)
   translator <- init_translator()
 
+  # Shiny caps uploads at 5 MB by default, which a real species list in .xlsx
+  # can exceed. Raised here rather than in the served entry point so a local
+  # launch_taxonomic_match_app() behaves the same as the hosted app. Must stay
+  # in step with nginx.ingress.kubernetes.io/proxy-body-size in
+  # deployment/taxonomic_match/values.yaml: whichever is smaller is the real
+  # limit, and the ingress one rejects the upload before the app sees it.
+  options(shiny.maxRequestSize = 50 * 1024^2)  # 50 MB upload limit
+
   # Offline mode reads a backbone cache from the machine running R. That is
   # the point for a local user on a slow link to the database - but on a
   # served deployment the cache lives in the container, shared by every
