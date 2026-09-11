@@ -237,6 +237,20 @@ visitor *and* by Kubernetes' `GET /` health probes. While that worker is busy
 inside a synchronous computation it answers nothing, so a probe tuned for a
 web server kills a perfectly healthy pod mid-run.
 
+Taxonomic matching itself no longer runs in that process — it is handed to a
+background R process (`.start_matching_job()`) which the app polls, so the
+worker keeps answering probes and other sessions throughout a long match, and
+the run can be cancelled from the UI. What still runs inline is the backbone
+download, and anything the other modules do. If you see this symptom, the
+question is therefore which phase it died in: the logs show the backbone
+download starting, and a match that had already reached the background process
+keeps its checkpoint and can be resumed.
+
+Note the background process only exists when the package is **installed**, as
+it is in the image. Under `devtools::load_all()` the app falls back to running
+the match inline, which is the right behaviour at a console and the wrong one
+on a server — so never serve an app from a source tree.
+
 Check, in order:
 
 ```bash
