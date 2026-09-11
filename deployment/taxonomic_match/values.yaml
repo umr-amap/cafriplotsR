@@ -91,14 +91,27 @@ shiny:
   # never through the image, which is world-pullable from ghcr.io.
 
   # --- Resources -------------------------------------------------------------
-  # Taxonomic matching is CPU-light but loads a sizeable backbone; give it
-  # headroom. Tune after observing real usage.
+  # Matching runs in background R processes (.start_matching_job()), one per
+  # run, all sharing this container's quota with the Shiny worker. Measured
+  # against the production backbone (365k rows, 2026-09-11):
+  #
+  #   per worker   ~600 MB peak RSS
+  #   fuzzy stage  ~7 s per unmatched name, single-threaded
+  #
+  # So limits.cpu is the number of runs that proceed at full speed at once;
+  # past it they don't fail, they share cores and slow down in proportion.
+  # Memory is not the constraint: 8Gi holds ~10 workers beside the parent.
+  #
+  # requests.cpu stays low on purpose. The app idles most of the time, and
+  # the scheduler reserves requests, not limits - so the higher limit is burst
+  # capacity taken only while jobs run. On a busy SSP Cloud node that burst is
+  # not guaranteed, and effective concurrency can dip below the limit.
   resources:
     requests:
       cpu: "500m"
       memory: "2Gi"
     limits:
-      cpu: "2"
+      cpu: "4"
       memory: "8Gi"
 
   # S3/MinIO and PostgreSQL sub-features of the chart are intentionally left
