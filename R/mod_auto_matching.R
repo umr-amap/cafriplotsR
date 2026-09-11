@@ -25,8 +25,14 @@
           sum(utf8ToInt(substr(paste(sorted, collapse = ""), 1L, 500L))))
 }
 
+# `path` is explicit throughout because the matching pipeline may run in a
+# background R process, which has its own tempdir() and would otherwise write
+# its checkpoint somewhere this process can never find. The parent computes the
+# path once and both ends use it. Passing NULL keeps the old local behaviour.
 .save_matching_checkpoint <- function(input_hash, best_matches, fuzzy_results,
-                                      still_unmatched, current_index, total_names) {
+                                      still_unmatched, current_index, total_names,
+                                      path = NULL) {
+  if (is.null(path)) path <- .checkpoint_path(input_hash)
   saveRDS(
     list(
       input_hash     = input_hash,
@@ -37,17 +43,17 @@
       total_names    = total_names,
       timestamp      = Sys.time()
     ),
-    .checkpoint_path(input_hash)
+    path
   )
 }
 
-.load_matching_checkpoint <- function(input_hash) {
-  path <- .checkpoint_path(input_hash)
+.load_matching_checkpoint <- function(input_hash, path = NULL) {
+  if (is.null(path)) path <- .checkpoint_path(input_hash)
   if (file.exists(path)) tryCatch(readRDS(path), error = function(e) NULL) else NULL
 }
 
-.delete_matching_checkpoint <- function(input_hash) {
-  path <- .checkpoint_path(input_hash)
+.delete_matching_checkpoint <- function(input_hash, path = NULL) {
+  if (is.null(path)) path <- .checkpoint_path(input_hash)
   if (file.exists(path)) file.remove(path)
   invisible(NULL)
 }
@@ -221,6 +227,238 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
     pending_input_hash  <- shiny::reactiveVal(NULL)
     trigger_cache_modal <- shiny::reactiveVal(NULL)
 
+    # Handle on the background matching process, when there is one. NULL both
+    # before a run and after it finishes, which is what the polling observer
+    # below keys off.
+    match_job <- shiny::reactiveVal(NULL)
+
+    # Put the module back in a state where the Start button works again.
+    reset_matching_state <- function() {
+      shinybusy::hide_spinner()
+      matching_in_progress(FALSE)
+      resume_mode(NULL)
+      pending_input_hash(NULL)
+      trigger_cache_modal(NULL)
+      cache_choice(NULL)
+    }
+
+    # Everything that happens once the pipeline returns — whether it ran here
+    # or in a worker process. The WCVP lookup lives here rather than in the
+    # pipeline because it needs a database connection, which does not survive
+    # the trip into another process.
+    apply_matching_result <- function(result) {
+      if (is.null(result)) {
+        result <- list(status = "error",
+                       message = "The matching produced no result.")
+      }
+
+      if (identical(result$status, "empty")) {
+        shiny::showNotification(i18n()$t("No data loaded"), type = "warning")
+        reset_matching_state()
+        return(invisible(NULL))
+      }
+
+      if (identical(result$status, "cancelled")) {
+        # The checkpoint is deliberately left in place: cancelling is how a
+        # user parks a long run, and the next Start offers to resume it.
+        shiny::showNotification(
+          i18n()$t("Matching cancelled. Your progress was saved - start again to resume it."),
+          type = "warning",
+          duration = 6
+        )
+        reset_matching_state()
+        return(invisible(NULL))
+      }
+
+      if (identical(result$status, "error")) {
+        shiny::showNotification(
+          paste(i18n()$t("Error:"), result$message),
+          type = "error",
+          duration = 10
+        )
+        reset_matching_state()
+        return(invisible(NULL))
+      }
+
+      updated_data <- result$updated_data
+      match_stats(result$stats)
+
+      # --- Optional WCVP enrichment ---
+      if (isTRUE(!is.null(use_wcvp_names) && use_wcvp_names())) {
+        matched_ids <- unique(stats::na.omit(updated_data$idtax_n))
+
+        if (length(matched_ids) > 0) {
+          shiny::showNotification(
+            i18n()$t("Fetching WCVP names..."),
+            id       = "wcvp_fetch",
+            duration = NULL,
+            type     = "message"
+          )
+
+          wcvp_info <- tryCatch(
+            get_wcvp_names(matched_ids),
+            error = function(e) {
+              message("Could not fetch WCVP names: ", e$message)
+              NULL
+            }
+          )
+
+          shiny::removeNotification("wcvp_fetch")
+
+          if (!is.null(wcvp_info)) {
+            updated_data <- updated_data %>%
+              dplyr::left_join(
+                wcvp_info %>%
+                  dplyr::select(
+                    idtax_n, wcvp_taxon_name, wcvp_family,
+                    wcvp_taxon_authors, wcvp_taxon_status, name_source
+                  ),
+                by = "idtax_n"
+              ) %>%
+              dplyr::mutate(
+                corrected_name = dplyr::if_else(
+                  !is.na(wcvp_taxon_name), wcvp_taxon_name, corrected_name
+                ),
+                name_source = dplyr::coalesce(name_source, "internal")
+              )
+
+            n_wcvp <- sum(!is.na(updated_data$wcvp_taxon_name), na.rm = TRUE)
+            shiny::showNotification(
+              paste0(
+                format(n_wcvp, big.mark = ","), " ",
+                i18n()$t("names replaced with WCVP names")
+              ),
+              duration = 4,
+              type     = "message"
+            )
+          } else {
+            shiny::showNotification(
+              i18n()$t("WCVP names not available. Internal names used."),
+              duration = 5,
+              type     = "warning"
+            )
+          }
+        }
+      }
+
+      matched_data(updated_data)
+
+      shinybusy::hide_spinner()
+      matching_in_progress(FALSE)
+
+      # Reset resume state
+      resume_mode(NULL)
+      pending_input_hash(NULL)
+      trigger_cache_modal(NULL)
+      cache_choice(NULL)
+
+      shiny::showNotification(
+        i18n()$t("Matching complete!"),
+        type = "message",
+        duration = 3
+      )
+    }
+
+    # -----------------------------------------------------------------------
+    # Watching the background matching process
+    # -----------------------------------------------------------------------
+    # A process has no reactive identity, so it has to be polled.
+    # invalidateLater at 600 ms is the compromise: often enough that the name
+    # counter looks live, rare enough to be nothing against a run measured in
+    # minutes. When match_job() is NULL the req() below stops the observer and
+    # no timer is scheduled at all.
+    shiny::observe({
+      job <- match_job()
+      shiny::req(job)
+
+      shiny::invalidateLater(600, session)
+
+      status <- .poll_matching_job(job)
+
+      if (identical(status$state, "running")) {
+        p <- status$progress
+
+        if (!is.null(p) && identical(p$stage, "fuzzy")) {
+          shiny::showNotification(
+            paste0(
+              i18n()$t("Fuzzy matching:"), " ", p$i,
+              " / ", p$n,
+              " (", p$name, ")"
+            ),
+            duration = NULL,
+            closeButton = FALSE,
+            id = "fuzzy_progress",
+            type = "message"
+          )
+        } else if (!is.null(p) && identical(p$stage, "fuzzy_start")) {
+          shiny::showNotification(
+            paste0(
+              i18n()$t("Starting fuzzy matching for"),
+              " ", p$n, " ",
+              i18n()$t("unmatched name(s)... This may take some time.")
+            ),
+            duration = NULL,
+            closeButton = FALSE,
+            id = "fuzzy_progress",
+            type = "message"
+          )
+        } else if (!is.null(p) && identical(p$stage, "resume")) {
+          shiny::showNotification(
+            paste0(
+              i18n()$t("Resuming from name"),
+              " ", p$i, " / ", p$n
+            ),
+            duration = 4,
+            id = "fuzzy_progress",
+            type = "message"
+          )
+        }
+
+        return(invisible(NULL))
+      }
+
+      # Finished, one way or another. Clear the handle first so that nothing
+      # below can schedule another poll.
+      match_job(NULL)
+      shiny::removeNotification("fuzzy_progress")
+
+      if (identical(status$state, "done")) {
+        apply_matching_result(status$result)
+      } else {
+        apply_matching_result(list(status = "error", message = status$message))
+      }
+
+      .cleanup_matching_job(job)
+    })
+
+    # Cancel button (background runs only — see output$start_button)
+    shiny::observeEvent(input$cancel_matching, {
+      job <- match_job()
+      shiny::req(job)
+
+      .cancel_matching_job(job)
+      match_job(NULL)
+      shiny::removeNotification("fuzzy_progress")
+      .cleanup_matching_job(job)
+
+      shiny::showNotification(
+        i18n()$t("Matching cancelled. Your progress was saved - start again to resume it."),
+        type = "warning",
+        duration = 6
+      )
+      reset_matching_state()
+    })
+
+    # A worker started for a session nobody is watching any more is pure waste
+    # on a shared cluster. supervise = TRUE in .start_matching_job() covers the
+    # whole R process dying; this covers one visitor closing one tab.
+    session$onSessionEnded(function() {
+      tryCatch(
+        .cancel_matching_job(shiny::isolate(match_job())),
+        error = function(e) NULL
+      )
+    })
+
     # Cache selection module — triggered after resume choice is made
     cache_choice <- mod_backbone_cache_selection_server(
       id = "backbone_cache",
@@ -264,7 +502,18 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       if (matching_in_progress()) {
         shiny::div(
           shinybusy::use_busy_spinner(spin = "fading-circle"),
-          shiny::p(i18n()$t("Matching in progress..."), style = "color: blue;")
+          shiny::p(i18n()$t("Matching in progress..."), style = "color: blue;"),
+          # Offered only for a background run. An in-process run could not
+          # service the click until it had already finished, so a button there
+          # would do nothing but mislead.
+          if (!is.null(match_job())) {
+            shiny::actionButton(
+              inputId = ns("cancel_matching"),
+              label = i18n()$t("Cancel"),
+              class = "btn-warning btn-sm",
+              icon = shiny::icon("stop")
+            )
+          }
         )
       } else {
         shiny::actionButton(
@@ -460,562 +709,77 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         )
       }
 
-      tryCatch({
-        user_df      <- data()
-        col_name     <- column_name()
-        incl_authors <- include_authors() %||% FALSE
-        min_sim <- if (!is.null(input$min_similarity)) {
-          input$min_similarity / 100
-        } else {
-          min_similarity
-        }
+      user_df      <- data()
+      col_name     <- column_name()
+      incl_authors <- include_authors() %||% FALSE
+      min_sim <- if (!is.null(input$min_similarity)) {
+        input$min_similarity / 100
+      } else {
+        min_similarity
+      }
 
-        run_params(list(
-          column          = col_name,
-          include_authors = incl_authors,
-          min_similarity  = min_sim,
-          use_wcvp        = isTRUE(!is.null(use_wcvp_names) && use_wcvp_names()),
-          is_offline      = isTRUE(is_offline())
-        ))
+      run_params(list(
+        column          = col_name,
+        include_authors = incl_authors,
+        min_similarity  = min_sim,
+        use_wcvp        = isTRUE(!is.null(use_wcvp_names) && use_wcvp_names()),
+        is_offline      = isTRUE(is_offline())
+      ))
 
-        # --- Decide: restore checkpoint or run exact matching from scratch ---
+      # Computed here, in the parent, so that a worker process writes its
+      # checkpoint where this process will look for it on the next run.
+      checkpoint_file <- .checkpoint_path(input_hash)
 
-        best_matches    <- NULL
-        fuzzy_results   <- list()
-        still_unmatched <- character(0)
-        start_idx       <- 1L
-        total_names     <- 0L
-
-        if (rm_mode == "resume") {
-          chk <- .load_matching_checkpoint(input_hash)
-          if (!is.null(chk)) {
-            best_matches    <- chk$best_matches
-            fuzzy_results   <- chk$fuzzy_results
-            still_unmatched <- chk$still_unmatched
-            total_names     <- chk$total_names
-            start_idx       <- chk$current_index + 1L
-
-            shiny::showNotification(
-              paste0(
-                i18n()$t("Resuming from name"),
-                " ", start_idx, " / ", length(still_unmatched)
-              ),
-              duration = 4,
-              type = "message"
-            )
-          } else {
-            # Checkpoint disappeared — fall back to fresh
-            rm_mode <- "fresh"
+      # --- Hand the computation to a background process ------------------
+      # The matching itself is pure (see .run_matching_pipeline()), so it can
+      # run anywhere. Running it *here* would block the single R worker that
+      # Shiny Server shares between every visitor and the health probes, which
+      # is what used to freeze other sessions and get the pod restarted
+      # mid-run. When a worker cannot be started we still run in-process,
+      # because a slow answer beats no answer.
+      if (.async_matching_available()) {
+        job <- tryCatch(
+          .start_matching_job(
+            user_df         = user_df,
+            col_name        = col_name,
+            backbone        = backbone,
+            min_similarity  = min_sim,
+            include_authors = incl_authors,
+            input_hash      = input_hash,
+            rm_mode         = rm_mode,
+            checkpoint_file = checkpoint_file
+          ),
+          error = function(e) {
+            message("Could not start a matching worker (", conditionMessage(e),
+                    "). Falling back to in-process matching.")
+            NULL
           }
-        }
-
-        if (rm_mode == "fresh") {
-          unique_names <- user_df %>%
-            dplyr::pull(!!rlang::sym(col_name)) %>%
-            unique() %>%
-            {ifelse(is.na(.), "NA", .)}
-
-          unique_names_to_match <- unique_names
-          total_names           <- length(unique_names)
-
-          if (total_names == 0) {
-            shiny::showNotification(
-              i18n()$t("No data loaded"),
-              type = "warning"
-            )
-            matching_in_progress(FALSE)
-            shinybusy::hide_spinner()
-            resume_mode(NULL)
-            pending_input_hash(NULL)
-            trigger_cache_modal(NULL)
-            cache_choice(NULL)
-            return(NULL)
-          }
-
-          cleaned_names <- clean_taxonomic_name(unique_names_to_match)
-
-          # Authorship is stripped once, here, so the batch stages below can
-          # match "Genus species Author" on the name alone. Authors vary far
-          # more than names do, and without this every such name skipped the
-          # batch stages entirely and paid for the slow per-name path.
-          stripped_names <- vapply(
-            cleaned_names,
-            function(n) parse_taxonomic_name(n)$full_name_no_auth %||% NA_character_,
-            character(1),
-            USE.NAMES = FALSE
-          )
-
-          input_df <- data.frame(
-            input_name   = unique_names_to_match,
-            cleaned_name = cleaned_names,
-            stringsAsFactors = FALSE
-          )
-
-          # Kept apart from input_df so the extra key never leaks into the
-          # results that are joined back onto the user's data.
-          strip_map <- data.frame(
-            input_name     = unique_names_to_match,
-            stripped_name  = stripped_names,
-            stringsAsFactors = FALSE
-          )
-
-          # STEP 3: Batch exact — species level
-          unique_species <- backbone %>%
-            dplyr::filter(!is.na(tax_sp_level)) %>%
-            dplyr::group_by(tax_sp_level) %>%
-            dplyr::filter(dplyr::n() == 1) %>%
-            dplyr::ungroup() %>%
-            dplyr::select(
-              tax_sp_level, idtax_n, idtax_good_n,
-              tax_fam, tax_gen, tax_esp, tax_rank01, tax_nam01
-            ) %>%
-            dplyr::mutate(
-              matched_name = tax_sp_level,
-              match_method = "exact",
-              match_score  = 1.0
-            )
-
-          matches_species <- input_df %>%
-            dplyr::left_join(unique_species, by = c("cleaned_name" = "tax_sp_level"))
-
-          # STEP 3b: Batch exact — species level, author names included
-          # `include_authors` used to reach the per-name fallback only, so a
-          # file written "Genus species Author" matched nothing in this batch
-          # stage and every single name paid for the slow path. The key built
-          # here is the one .build_backbone_name_field() searches on.
-          unmatched_after_species <- matches_species %>%
-            dplyr::filter(is.na(idtax_n)) %>%
-            dplyr::select(input_name, cleaned_name)
-
-          matches_species_auth <- NULL
-
-          if (isTRUE(incl_authors) && "author1" %in% names(backbone)) {
-            # The key is built by the same helper .match_exact_r() searches on,
-            # so this batch stage and the per-name fallback cannot drift apart.
-            sp_auth_key <- .build_backbone_name_field(backbone,
-                                                      include_authors = TRUE)
-
-            unique_species_auth <- backbone %>%
-              dplyr::mutate(tax_sp_auth_level = sp_auth_key) %>%
-              dplyr::filter(!is.na(tax_esp), tax_esp != "",
-                            !is.na(author1), author1 != "",
-                            !is.na(tax_sp_auth_level)) %>%
-              dplyr::group_by(tax_sp_auth_level) %>%
-              dplyr::filter(dplyr::n() == 1) %>%
-              dplyr::ungroup() %>%
-              dplyr::select(
-                tax_sp_auth_level, idtax_n, idtax_good_n,
-                tax_fam, tax_gen, tax_esp, tax_rank01, tax_nam01
-              ) %>%
-              dplyr::mutate(
-                matched_name = tax_sp_auth_level,
-                match_method = "exact",
-                match_score  = 1.0
-              )
-
-            matches_species_auth <- unmatched_after_species %>%
-              dplyr::left_join(unique_species_auth,
-                               by = c("cleaned_name" = "tax_sp_auth_level"))
-
-            unmatched_after_species <- matches_species_auth %>%
-              dplyr::filter(is.na(idtax_n)) %>%
-              dplyr::select(input_name, cleaned_name)
-          }
-
-          # STEP 3c: Batch exact — species level, on the author-stripped name
-          # This is the common case: genus and epithet agree exactly and only
-          # the authorship is written differently.
-          matches_species_strip <- unmatched_after_species %>%
-            dplyr::left_join(strip_map, by = "input_name") %>%
-            dplyr::left_join(unique_species,
-                             by = c("stripped_name" = "tax_sp_level")) %>%
-            dplyr::select(-stripped_name)
-
-          unmatched_after_species <- matches_species_strip %>%
-            dplyr::filter(is.na(idtax_n)) %>%
-            dplyr::select(input_name, cleaned_name)
-
-          # STEP 4: Batch exact — genus level
-
-          unique_genera <- backbone %>%
-            dplyr::filter(tax_level == "genus", !is.na(tax_gen_level)) %>%
-            dplyr::group_by(tax_gen_level) %>%
-            dplyr::filter(dplyr::n() == 1) %>%
-            dplyr::ungroup() %>%
-            dplyr::select(tax_gen_level, idtax_n, idtax_good_n, tax_fam, tax_gen) %>%
-            dplyr::mutate(
-              matched_name = tax_gen_level,
-              match_method = "exact",
-              match_score  = 1.0
-            )
-
-          matches_genus <- unmatched_after_species %>%
-            dplyr::left_join(unique_genera, by = c("cleaned_name" = "tax_gen_level"))
-
-          # STEP 4b: Batch exact — genus level, on the author-stripped name
-          matches_genus_strip <- matches_genus %>%
-            dplyr::filter(is.na(idtax_n)) %>%
-            dplyr::select(input_name, cleaned_name) %>%
-            dplyr::left_join(strip_map, by = "input_name") %>%
-            dplyr::left_join(unique_genera,
-                             by = c("stripped_name" = "tax_gen_level")) %>%
-            dplyr::select(-stripped_name)
-
-          # STEP 5: Batch exact — family level
-          unmatched_after_genus <- matches_genus_strip %>%
-            dplyr::filter(is.na(idtax_n)) %>%
-            dplyr::select(input_name, cleaned_name)
-
-          unique_families <- backbone %>%
-            dplyr::filter(tax_level == "family", !is.na(tax_fam_level)) %>%
-            dplyr::group_by(tax_fam_level) %>%
-            dplyr::filter(dplyr::n() == 1) %>%
-            dplyr::ungroup() %>%
-            dplyr::select(tax_fam_level, idtax_n, idtax_good_n, tax_fam) %>%
-            dplyr::mutate(
-              matched_name = tax_fam_level,
-              match_method = "exact",
-              match_score  = 1.0
-            )
-
-          matches_family <- unmatched_after_genus %>%
-            dplyr::left_join(unique_families, by = c("cleaned_name" = "tax_fam_level"))
-
-          # STEP 5.5: Batch exact — class level
-          unmatched_after_family <- matches_family %>%
-            dplyr::filter(is.na(idtax_n)) %>%
-            dplyr::select(input_name, cleaned_name)
-
-          unique_classes <- backbone %>%
-            dplyr::filter(tax_level == "higher", !is.na(tax_class_level)) %>%
-            dplyr::group_by(tax_class_level) %>%
-            dplyr::filter(dplyr::n() == 1) %>%
-            dplyr::ungroup() %>%
-            dplyr::select(tax_class_level, idtax_n, idtax_good_n) %>%
-            dplyr::mutate(
-              matched_name = tax_class_level,
-              match_method = "exact",
-              match_score  = 1.0,
-              tax_fam      = NA_character_,
-              tax_gen      = NA_character_,
-              tax_esp      = NA_character_,
-              tax_rank01   = NA_character_,
-              tax_nam01    = NA_character_
-            )
-
-          matches_class <- unmatched_after_family %>%
-            dplyr::left_join(unique_classes, by = c("cleaned_name" = "tax_class_level"))
-
-          # STEP 6: Combine all exact matches
-          if (!is.null(matches_species_auth)) {
-            matches_species <- matches_species %>%
-              dplyr::rows_update(
-                matches_species_auth %>% dplyr::filter(!is.na(idtax_n)),
-                by = "input_name", unmatched = "ignore"
-              )
-          }
-
-          matches_species <- matches_species %>%
-            dplyr::rows_update(
-              matches_species_strip %>% dplyr::filter(!is.na(idtax_n)),
-              by = "input_name", unmatched = "ignore"
-            ) %>%
-            dplyr::rows_update(
-              matches_genus %>% dplyr::filter(!is.na(idtax_n)),
-              by = "input_name", unmatched = "ignore"
-            ) %>%
-            dplyr::rows_update(
-              matches_genus_strip %>% dplyr::filter(!is.na(idtax_n)),
-              by = "input_name", unmatched = "ignore"
-            ) %>%
-            dplyr::rows_update(
-              matches_family %>% dplyr::filter(!is.na(idtax_n)),
-              by = "input_name", unmatched = "ignore"
-            ) %>%
-            dplyr::rows_update(
-              matches_class %>% dplyr::filter(!is.na(idtax_n)),
-              by = "input_name", unmatched = "ignore"
-            )
-
-          best_matches <- matches_species
-
-          still_unmatched <- best_matches %>%
-            dplyr::filter(is.na(idtax_n)) %>%
-            dplyr::pull(input_name)
-
-          fuzzy_results <- list()
-          start_idx     <- 1L
-        }
-
-        # --- STEP 7: Fuzzy matching (shared path for fresh and resume) ---
-
-        if (start_idx <= length(still_unmatched)) {
-          shiny::showNotification(
-            paste0(
-              i18n()$t("Starting fuzzy matching for"),
-              " ", length(still_unmatched), " ",
-              i18n()$t("unmatched name(s)... This may take some time.")
-            ),
-            duration = NULL,
-            closeButton = FALSE,
-            id = "fuzzy_matching",
-            type = "message"
-          )
-
-          # Checkpointing is throttled rather than done on every name. Each
-          # save re-serialises best_matches AND the whole growing
-          # fuzzy_results list, so saving per name costs O(n^2) writes and
-          # came to dominate long runs. Every 25 names or 30 seconds bounds
-          # the rework on resume to a handful of names while making the I/O
-          # negligible.
-          chk_every_n    <- 25L
-          chk_every_secs <- 30
-          last_chk_index <- start_idx - 1L
-          last_chk_time  <- Sys.time()
-
-          save_checkpoint <- function(index) {
-            .save_matching_checkpoint(
-              input_hash, best_matches, fuzzy_results,
-              still_unmatched, index, total_names
-            )
-            last_chk_index <<- index
-            last_chk_time  <<- Sys.time()
-          }
-
-          for (i in start_idx:length(still_unmatched)) {
-            # Flush httpuv's pending event queue so the browser-disconnect event
-            # can be processed mid-loop (otherwise session$isEnded() stays FALSE
-            # because Shiny's event loop is blocked by this synchronous for loop).
-            tryCatch(later::run_now(timeoutSecs = 0), error = function(e) NULL)
-            if (session$isEnded()) {
-              # Abandoning the run: flush what the throttle is still holding,
-              # so the user resumes from the last name actually matched.
-              if (i > start_idx && last_chk_index < i - 1L) save_checkpoint(i - 1L)
-              break
-            }
-
-            name <- still_unmatched[i]
-
-            shiny::showNotification(
-              paste0(
-                i18n()$t("Fuzzy matching:"), " ", i,
-                " / ", length(still_unmatched),
-                " (", name, ")"
-              ),
-              duration = 2,
-              id = "fuzzy_progress",
-              type = "message"
-            )
-
-            match_result <- match_taxonomic_names(
-              names          = name,
-              method         = "hierarchical",
-              max_matches    = 1,
-              min_similarity = min_sim,
-              include_synonyms = TRUE,
-              return_scores  = TRUE,
-              include_authors = incl_authors,
-              con            = NULL,
-              backbone       = backbone,
-              verbose        = FALSE
-            )
-
-            fuzzy_results[[i]] <- match_result
-
-            # Persist progress — survives laptop sleep / crash. Note this is
-            # tempdir(), i.e. the container's filesystem on a served
-            # deployment: it survives a browser reload, not a pod restart.
-            if (i - last_chk_index >= chk_every_n ||
-                as.numeric(difftime(Sys.time(), last_chk_time, units = "secs")) >= chk_every_secs) {
-              save_checkpoint(i)
-            }
-          }
-
-          shiny::removeNotification("fuzzy_matching")
-          shiny::removeNotification("fuzzy_progress")
-
-          if (session$isEnded()) return(NULL)
-
-          # Merge fuzzy results into best_matches
-          fuzzy_matches <- dplyr::bind_rows(fuzzy_results) %>%
-            dplyr::filter(match_rank == 1) %>%
-            dplyr::distinct(input_name, .keep_all = TRUE)
-
-          if (nrow(fuzzy_matches) > 0) {
-            fuzzy_for_update <- fuzzy_matches %>%
-              dplyr::select(
-                input_name, idtax_n, idtax_good_n,
-                matched_name, match_method, match_score,
-                tax_fam, tax_gen, tax_esp
-              )
-
-            best_matches <- best_matches %>%
-              dplyr::rows_update(
-                fuzzy_for_update,
-                by = "input_name", unmatched = "ignore"
-              )
-          }
-        }
-
-        # Matching complete — remove checkpoint file
-        .delete_matching_checkpoint(input_hash)
-
-        # --- Synonym information ---
-        best_matches <- best_matches %>%
-          dplyr::mutate(
-            is_synonym = idtax_n != idtax_good_n & !is.na(idtax_n) & !is.na(idtax_good_n)
-          )
-
-        if (any(best_matches$is_synonym, na.rm = TRUE)) {
-          synonym_ids <- best_matches %>%
-            dplyr::filter(is_synonym) %>%
-            dplyr::pull(idtax_good_n) %>%
-            unique()
-
-          accepted_names <- backbone %>%
-            dplyr::filter(idtax_n %in% synonym_ids) %>%
-            dplyr::mutate(
-              accepted_name = dplyr::case_when(
-                !is.na(tax_nam01) & tax_nam01 != "" ~ paste(tax_gen, tax_esp, tax_rank01, tax_nam01),
-                !is.na(tax_esp)   & tax_esp != ""   ~ paste(tax_gen, tax_esp),
-                !is.na(tax_gen)                     ~ tax_gen,
-                TRUE                                ~ tax_fam
-              )
-            ) %>%
-            dplyr::select(idtax_n, accepted_name) %>%
-            dplyr::distinct(idtax_n, .keep_all = TRUE)
-
-          best_matches <- best_matches %>%
-            dplyr::left_join(accepted_names, by = c("idtax_good_n" = "idtax_n"))
-        } else {
-          best_matches$accepted_name <- NA_character_
-        }
-
-        # --- Statistics ---
-        n_exact    <- sum(best_matches$match_method == "exact",              na.rm = TRUE)
-        n_genus    <- sum(best_matches$match_method == "genus_constrained",  na.rm = TRUE)
-        n_fuzzy    <- sum(best_matches$match_method == "fuzzy",              na.rm = TRUE)
-        n_unmatched <- sum(is.na(best_matches$idtax_n))
-
-        stats <- list(
-          total_names = total_names,
-          n_exact     = n_exact,
-          n_genus     = n_genus,
-          n_fuzzy     = n_fuzzy,
-          n_unmatched = n_unmatched
         )
 
-        match_stats(stats)
-
-        # --- Join with user data ---
-        best_matches_for_join <- best_matches %>%
-          dplyr::select(
-            input_name, idtax_n, idtax_good_n,
-            matched_name, match_method, match_score,
-            is_synonym, accepted_name
-          ) %>%
-          dplyr::distinct(input_name, .keep_all = TRUE) %>%
-          dplyr::rename(!!col_name := input_name)
-
-        updated_data <- user_df %>%
-          dplyr::left_join(best_matches_for_join, by = col_name)
-
-        updated_data <- updated_data %>%
-          dplyr::mutate(
-            corrected_name = dplyr::case_when(
-              is_synonym & !is.na(accepted_name) ~ accepted_name,
-              !is.na(matched_name)               ~ matched_name,
-              TRUE                               ~ NA_character_
-            )
-          )
-
-        # --- Optional WCVP enrichment ---
-        if (isTRUE(!is.null(use_wcvp_names) && use_wcvp_names())) {
-          matched_ids <- unique(stats::na.omit(updated_data$idtax_n))
-
-          if (length(matched_ids) > 0) {
-            shiny::showNotification(
-              i18n()$t("Fetching WCVP names..."),
-              id       = "wcvp_fetch",
-              duration = NULL,
-              type     = "message"
-            )
-
-            wcvp_info <- tryCatch(
-              get_wcvp_names(matched_ids),
-              error = function(e) {
-                message("Could not fetch WCVP names: ", e$message)
-                NULL
-              }
-            )
-
-            shiny::removeNotification("wcvp_fetch")
-
-            if (!is.null(wcvp_info)) {
-              updated_data <- updated_data %>%
-                dplyr::left_join(
-                  wcvp_info %>%
-                    dplyr::select(
-                      idtax_n, wcvp_taxon_name, wcvp_family,
-                      wcvp_taxon_authors, wcvp_taxon_status, name_source
-                    ),
-                  by = "idtax_n"
-                ) %>%
-                dplyr::mutate(
-                  corrected_name = dplyr::if_else(
-                    !is.na(wcvp_taxon_name), wcvp_taxon_name, corrected_name
-                  ),
-                  name_source = dplyr::coalesce(name_source, "internal")
-                )
-
-              n_wcvp <- sum(!is.na(updated_data$wcvp_taxon_name), na.rm = TRUE)
-              shiny::showNotification(
-                paste0(
-                  format(n_wcvp, big.mark = ","), " ",
-                  i18n()$t("names replaced with WCVP names")
-                ),
-                duration = 4,
-                type     = "message"
-              )
-            } else {
-              shiny::showNotification(
-                i18n()$t("WCVP names not available. Internal names used."),
-                duration = 5,
-                type     = "warning"
-              )
-            }
-          }
+        if (!is.null(job)) {
+          match_job(job)
+          # The polling observer below owns the rest of this run.
+          return(invisible(NULL))
         }
+      }
 
-        matched_data(updated_data)
-
-        shinybusy::hide_spinner()
-        matching_in_progress(FALSE)
-
-        # Reset resume state
-        resume_mode(NULL)
-        pending_input_hash(NULL)
-        trigger_cache_modal(NULL)
-        cache_choice(NULL)
-
-        shiny::showNotification(
-          i18n()$t("Matching complete!"),
-          type = "message",
-          duration = 3
+      apply_matching_result(
+        tryCatch(
+          .run_matching_pipeline(
+            user_df         = user_df,
+            col_name        = col_name,
+            backbone        = backbone,
+            min_similarity  = min_sim,
+            include_authors = incl_authors,
+            input_hash      = input_hash,
+            rm_mode         = rm_mode,
+            checkpoint_file = checkpoint_file,
+            cancel_file     = NULL,
+            progress        = NULL
+          ),
+          error = function(e) list(status = "error", message = conditionMessage(e))
         )
-
-      }, error = function(e) {
-        shinybusy::hide_spinner()
-        matching_in_progress(FALSE)
-        resume_mode(NULL)
-        pending_input_hash(NULL)
-
-        shiny::showNotification(
-          paste(i18n()$t("Error:"), e$message),
-          type = "error",
-          duration = 10
-        )
-      })
+      )
     })
 
     # Matching status

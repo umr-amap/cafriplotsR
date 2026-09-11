@@ -10524,6 +10524,10 @@
     {
       "en": "Author 1 is the authority of the species name, author 2 that of the infraspecific name.",
       "fr": "L'auteur 1 est l'autorité du nom d'espèce, l'auteur 2 celle du nom infraspécifique."
+    },
+    {
+      "en": "Matching cancelled. Your progress was saved - start again to resume it.",
+      "fr": "Appariement annulé. Votre progression a été sauvegardée - relancez pour la reprendre."
     }
   ]
 }
