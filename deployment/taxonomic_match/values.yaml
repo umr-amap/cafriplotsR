@@ -5,7 +5,7 @@
 
 # --- Probe patch hook --------------------------------------------------------
 # Image (must contain kubectl) used by the post-install/post-upgrade hook that
-# swaps the sub-chart's hardcoded HTTP probe for a TCP probe. See
+# loosens the sub-chart's tight HTTP probe timing. See
 # templates/probe-patch.yaml. Override if this image can't be pulled here.
 probePatch:
   image: bitnami/kubectl:latest
@@ -41,12 +41,46 @@ shiny:
     port: 3838
 
   # --- Public URL ------------------------------------------------------------
-  # Only the hostname is overridden; the chart's default ingress annotations
-  # (nginx class + 3600s proxy-read-timeout for Shiny websockets) and tls: true
-  # are kept as-is.
+  # tls: true is inherited from the chart. The annotations are restated in full
+  # rather than merged blindly, because the chart ships only two of them and the
+  # rest are load-bearing here:
+  #
+  #   proxy-read-timeout / proxy-send-timeout (3600)
+  #       Shiny's websocket carries no traffic while the single R worker is busy
+  #       computing. Anything shorter and nginx closes the socket mid-run, which
+  #       the browser reports as "Disconnected from the server".
+  #
+  #   proxy-body-size (50m)
+  #       ingress-nginx defaults to 1m and rejects a larger upload with 413
+  #       BEFORE Shiny ever sees it. Users upload species lists as .xlsx, which
+  #       passes 1m easily. Keep this in step with the shiny.maxRequestSize set
+  #       in the app itself.
+  #
+  #   proxy-buffering off
+  #       stream the response instead of buffering it in nginx, so notifications
+  #       and progress reach the browser as they are produced.
   ingress:
     enabled: true
     hostname: cafri-taxomatch.lab.sspcloud.fr
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+      nginx.ingress.kubernetes.io/proxy-buffering: "off"
+
+  # --- Startup probe ---------------------------------------------------------
+  # The chart sets only initialDelaySeconds/timeoutSeconds, leaving the k8s
+  # defaults (periodSeconds 10, failureThreshold 3) — a 30 s budget for the
+  # first `GET /`. That request spawns the R worker and loads CafriplotsR with
+  # sf, leaflet and plotly behind it, which takes longer than that on a cold
+  # pod, and a failed startupProbe kills the container before it ever serves.
+  # 10 s x 30 = five minutes to come up.
+  startupProbe:
+    initialDelaySeconds: 5
+    timeoutSeconds: 10
+    periodSeconds: 10
+    failureThreshold: 30
 
   # --- Runtime configuration -------------------------------------------------
   # This chart has no env-var field; CAFRI_SERVED=true and CAFRI_LANGUAGE=fr

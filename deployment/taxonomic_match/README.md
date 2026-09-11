@@ -224,3 +224,48 @@ docker run --rm -p 3838:3838 cafri-taxomatch:test
 
 So end to end this deployment incurs no cost. The only manual gate is making
 the ghcr.io package Public (step 2 above).
+
+## Troubleshooting: sessions drop during a long run
+
+Symptom: a user starts a match on an uploaded file, it runs for a while, and
+the browser says it is disconnected — often taking every other connected
+session down at the same moment. That last part is the tell: one user's
+browser closing cannot affect another's, so the pod itself went away.
+
+Shiny Server Open Source runs **one R process per app**, shared by every
+visitor *and* by Kubernetes' `GET /` health probes. While that worker is busy
+inside a synchronous computation it answers nothing, so a probe tuned for a
+web server kills a perfectly healthy pod mid-run.
+
+Check, in order:
+
+```bash
+kubectl get pods                      # RESTARTS climbing?
+kubectl describe pod <pod>            # Events: "Liveness probe failed"
+                                      # Last State: Terminated -> Reason
+kubectl logs <pod> --previous         # what the worker was doing when it died
+kubectl top pod                       # headroom against resources.limits
+```
+
+| Last State `Reason` | What happened | Fix |
+|---|---|---|
+| `Error` + "Liveness probe failed" events | the probe patch is not live, or the run exceeded even the loosened window | see below |
+| `OOMKilled` | the run exceeded `resources.limits.memory` | raise the limit in `values.yaml`, or shrink the working set |
+
+Confirm the loosened probe actually reached the Deployment — if the hook Job
+never ran, the release silently keeps the chart's ~30 s tolerance:
+
+```bash
+kubectl get deploy <release>-shiny \
+  -o jsonpath='{.spec.template.spec.containers[0].livenessProbe}{"\n"}'
+```
+
+`failureThreshold: 60` (30 minutes) means the patch is live. `3`, or no
+`failureThreshold` at all, means it is not: re-run `helm upgrade <release> . -f
+values.yaml` from a terminal whose Kubernetes role is **admin**, and check the
+hook Job's own logs if it fails again.
+
+A 413 on upload is a different fault with the same "it broke on my file"
+description: the ingress caps request bodies (`proxy-body-size`, 50m here) and
+Shiny caps them again (`shiny.maxRequestSize`, also 50 MB). The smaller of the
+two wins, and the ingress rejects the upload before the app ever sees it.

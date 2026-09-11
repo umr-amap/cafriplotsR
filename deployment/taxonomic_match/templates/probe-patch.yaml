@@ -15,15 +15,39 @@
 # blocked, the probe times out, and Kubernetes restarts the pod (crash loop
 # under concurrency).
 #
-# We keep the SAME handler type (httpGet) and only loosen the timing so the
-# probe tolerates a busy worker for several minutes. This is deliberate: a
-# probe may have only one handler type, so switching httpGet -> tcpSocket would
-# make `helm upgrade` produce an invalid two-handler probe (helm reasserts the
-# chart's httpGet against a live tcpSocket). Patching only timing fields keeps
-# the handler unchanged, so it strategic-merges cleanly on every upgrade.
+# We keep the SAME handler type (httpGet) and only loosen the timing. This is
+# deliberate: a probe may have only one handler type, so switching httpGet ->
+# tcpSocket would make `helm upgrade` produce an invalid two-handler probe
+# (helm reasserts the chart's httpGet against a live tcpSocket). Patching only
+# timing fields keeps the handler unchanged, so it strategic-merges cleanly on
+# every upgrade.
+#
+# periodSeconds 30 x failureThreshold 60 = the worker may be unresponsive for
+# THIRTY MINUTES before the pod is restarted. That is intentional. An HTTP
+# probe cannot tell "wedged" from "busy" here, and the earlier five-minute
+# tolerance was killing pods in the middle of legitimate long runs, taking
+# every connected session down with them. A genuinely dead worker is caught by
+# the startupProbe on restart, not by this one.
+#
+# Readiness is loosened to the same figures on purpose: replicaCount is 1, so
+# marking the only pod NotReady removes the sole endpoint and breaks new
+# connections without rescuing anything.
 #
 # Because it runs as a post-install/post-upgrade hook, the loosened timing is
-# re-applied on every install and upgrade.
+# re-applied on every install and upgrade. It patches the Deployment object
+# itself, so it also survives `kubectl rollout restart`, which only stamps a
+# new restartedAt annotation onto the pod template.
+#
+# The failure mode to watch for is silent. If this Job does not run — the
+# kubectl image cannot be pulled, or the namespace refuses the
+# ServiceAccount/Role/RoleBinding because the release was installed under the
+# `view` Kubernetes role instead of `admin` — the release comes up with the
+# chart's own ~30 s probe and nothing announces it. Verify after installing:
+#
+#   kubectl get deploy <release>-shiny \
+#     -o jsonpath='{.spec.template.spec.containers[0].livenessProbe}{"\n"}'
+#
+# failureThreshold 60 means the patch is live; 3 or absent means it is not.
 #
 # ---------------------------------------------------------------------------
 # 2. PUBLIC CREDENTIAL ENVIRONMENT
@@ -114,10 +138,10 @@ spec:
               kubectl patch deployment {{ .Release.Name }}-shiny --type=json -p='[
                 {"op":"add","path":"/spec/template/spec/containers/0/livenessProbe/timeoutSeconds","value":10},
                 {"op":"add","path":"/spec/template/spec/containers/0/livenessProbe/periodSeconds","value":30},
-                {"op":"add","path":"/spec/template/spec/containers/0/livenessProbe/failureThreshold","value":10},
+                {"op":"add","path":"/spec/template/spec/containers/0/livenessProbe/failureThreshold","value":60},
                 {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/timeoutSeconds","value":10},
                 {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/periodSeconds","value":30},
-                {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/failureThreshold","value":10}
+                {"op":"add","path":"/spec/template/spec/containers/0/readinessProbe/failureThreshold","value":60}
               ]'
               kubectl patch deployment {{ .Release.Name }}-shiny --type=json -p='[
                 {"op":"add","path":"/spec/template/spec/containers/0/envFrom","value":[
