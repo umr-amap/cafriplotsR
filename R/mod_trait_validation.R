@@ -169,7 +169,10 @@ mod_trait_validation_server <- function(id, data, mapping, pool, i18n) {
             add_warning(user_col, "all_na",
               sprintf("Column '%s' (%s) is entirely NA", user_col, trait_name),
               sprintf("All %d values are missing — this %s will produce no data", n_total, role))
-          } else if (na_pct > 50) {
+          } else if (na_pct > 50 &&
+                     !(identical(m$format, "long") && role == "trait")) {
+            # Long-format uploads are spread into one column per trait, so a
+            # trait column is empty on every other trait's rows by design.
             add_warning(user_col, "high_na",
               sprintf("Column '%s' has %.0f%% missing values (%d/%d)", user_col, na_pct, n_na, n_total),
               "")

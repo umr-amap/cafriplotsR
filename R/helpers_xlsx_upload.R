@@ -97,11 +97,19 @@
     sheets <- .excel_sheet_names(f$datapath)
     if (is.null(sheets) || length(sheets) == 0) return(NULL)
 
+    # Re-render on every sheet change so the rendered HTML always carries the
+    # current choice. When the selector lives inside a renderUI() that is torn
+    # down and rebuilt (a wizard step you leave and come back to), Shiny redraws
+    # it from the last rendered HTML; with a fixed `selected = sheets[1]` that
+    # would silently switch the data back to the first sheet.
+    current <- input[[sheet_id]]
+    selected <- if (length(current) == 1 && current %in% sheets) current else sheets[1]
+
     shiny::selectInput(
       ns(sheet_id),
       tr("Sheet to read"),
       choices = sheets,
-      selected = sheets[1],
+      selected = selected,
       width = "100%"
     )
   })
