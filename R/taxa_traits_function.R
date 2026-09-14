@@ -464,125 +464,66 @@ query_traits_measures <- function(
 #' @return A tibble
 #' @export
 choose_growth_form <- function() {
-  
-  growth_form_cat <- query_trait(pattern = "growth")
 
-  condition_hierarchical <- sapply(strsplit(growth_form_cat$traitdescription, 'if '), `[`, 2)
-  condition_hierarchical <- sapply(strsplit(condition_hierarchical, '[.]'), `[`, 1)
-  
-  growth_form_cat <-
-    growth_form_cat %>%
-    mutate(condition_hierarchical = condition_hierarchical)
-  
-  all_growth_form <- vector('list', 10)
-  
-  first_level <- choice_trait_cat(id_trait =  growth_form_cat %>%
-                                    filter(trait == "growth_form_level_1") %>%
-                                    pull(id_trait))
-  
-  if (!any(is.na(first_level))) {
-    
-    all_growth_form[[1]] <- first_level
-    
-    second_level <- choice_trait_cat(id_trait = growth_form_cat %>%
-                                       filter(condition_hierarchical == first_level$value) %>%
-                                       pull(id_trait))
-    
-    if (!all(is.na(second_level))) if(!is.na(second_level$value)) all_growth_form[[2]] <- second_level
-    
-    if (!any(is.na(second_level))) {
-      
-      id_t <- growth_form_cat %>%
-        filter(condition_hierarchical == second_level$value) %>%
-        pull(id_trait)
-      
-      if (length(id_t) > 0) {
-        
-        third_level <- choice_trait_cat(id_trait = id_t)
-        
-      } else {
-        
-        third_level <- NA
-        
-      }
-      
-      
-      if (!any(is.na(third_level))) {
-        
-        all_growth_form[[3]] <- third_level
-        
-        filtered_growth_form <-
-          growth_form_cat %>%
-          filter(condition_hierarchical == third_level$value)
-        
-        if (nrow(filtered_growth_form)  > 0) {
-          
-          fourth_level <- choice_trait_cat(id_trait =  filtered_growth_form %>%
-                                             pull(id_trait))
-          
-          all_growth_form[[4]] <- fourth_level
-          
-        } else {
-          
-          fourth_level <- NA
-          
-        }
-        
-        if (!any(is.na(fourth_level))) {
-          
-          filtered_growth_form <-
-            growth_form_cat %>%
-            filter(condition_hierarchical == fourth_level$value)
-          
-          if (nrow(filtered_growth_form)  > 0) {
-            
-            fith_level <- choice_trait_cat(id_trait =  filtered_growth_form %>%
-                                             pull(id_trait))
-            
-            all_growth_form[[5]] <- fith_level
-            
-          } else {
-            
-            fith_level <- NA
-            
-          }
-        }
-      }
-    }
+  growth_form_cat <- query_trait(pattern = "growth_form_level")
+
+  all_growth_form <- list()
+  parent <- NULL
+
+  # Each level offers only the forms under the one chosen above it; see
+  # .growth_form_hierarchy(). Stop at the first level left blank or with
+  # nothing finer to offer.
+  for (level in 1:3) {
+    trait_row <- growth_form_cat[growth_form_cat$trait ==
+                                   paste0("growth_form_level_", level), ,
+                                 drop = FALSE]
+    if (nrow(trait_row) == 0) break
+
+    values <- .parse_factorlevels(trait_row$factorlevels[1])
+    if (level > 1) values <- .growth_form_children(parent, level, values)
+    if (length(values) == 0) break
+
+    chosen <- choice_trait_cat(id_trait = trait_row$id_trait[1], values = values)
+    if (all(is.na(chosen)) || nrow(chosen) == 0) break
+
+    all_growth_form[[level]] <- chosen
+    parent <- chosen$value
   }
-  
-  all_growth_form <-
-    bind_rows(all_growth_form[unlist(lapply(all_growth_form, function(x) !is.null(x)))])
-  
-  return(all_growth_form)
-  
+
+  bind_rows(all_growth_form)
 }
 
 
 
-choice_trait_cat <- function(id_trait) {
-  
+choice_trait_cat <- function(id_trait, values = NULL) {
+
   trait_selected <-
     query_trait(id_trait = id_trait)
-  
+
   print(tibble(description = unlist(stringr::str_split(trait_selected$traitdescription, pattern = "[.]"))) %>%
           kableExtra::kable(format = "html", escape = F) %>%
           kableExtra::kable_styling("striped", full_width = F) %>%
           print())
-  
-  print(trait_selected$list_factors[[1]])
-  
+
+  # Only the values that may be chosen here, e.g. the children of the
+  # growth form chosen one level up
+  factors <- trait_selected$list_factors[[1]]
+  factors$value <- trimws(factors$value)
+  if (!is.null(values)) factors <- factors[factors$value %in% values, , drop = FALSE]
+
+  print(factors)
+
   cli::cli_alert_info("Choose any {trait_selected$trait}")
   first_level_choice <-
     readline(prompt = "")
-  
+
   if (first_level_choice != "") {
-    
+
     suppressWarnings(if(is.na(as.numeric(first_level_choice)))
       stop(paste("Choose a number for selecting", trait_selected$trait)))
-    
+
     selected_value <-
-      trait_selected$list_factors[[1]] %>%
+      factors %>%
       slice(as.numeric(first_level_choice)) %>%
       mutate(trait = trait_selected$trait)
     

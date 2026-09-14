@@ -50,6 +50,40 @@ mod_growth_form_selector_server <- function(id, pool, i18n) {
 
     cli::cli_alert_warning("MODULE INIT: Growth form selector module initialized")
 
+    # traitlist row of one growth form level
+    level_trait <- function(level) {
+      growth_form_cat <- rv$growth_form_cat
+      if (is.null(growth_form_cat)) return(NULL)
+      growth_form_cat[growth_form_cat$trait == paste0("growth_form_level_", level), ,
+                      drop = FALSE]
+    }
+
+    # Values offered at a level, under the choice made one level up
+    level_choices <- function(level, parent) {
+      trait_row <- level_trait(level)
+      if (is.null(trait_row) || nrow(trait_row) == 0) return(character(0))
+      .growth_form_children(parent, level, trait_row$factorlevels_list[[1]])
+    }
+
+    # A selectInput removed from the page keeps its last value on the server,
+    # so a level 2 choice outlives a change of level 1. Only trust a value that
+    # is still a child of the choice above it.
+    selected_level_2 <- shiny::reactive({
+      value <- input$level_2
+      if (is.null(value) || !value %in% level_choices(2, input$level_1)) {
+        return(NULL)
+      }
+      value
+    })
+
+    selected_level_3 <- shiny::reactive({
+      value <- input$level_3
+      if (is.null(value) || !value %in% level_choices(3, selected_level_2())) {
+        return(NULL)
+      }
+      value
+    })
+
     # Load growth form categories from database
     shiny::observe({
       shiny::req(pool())
@@ -86,21 +120,22 @@ mod_growth_form_selector_server <- function(id, pool, i18n) {
         growth_form_cat <- growth_form_cat[grepl("growth_form", growth_form_cat$trait), , drop = FALSE]
 
         # Parse factor levels
-        growth_form_cat <- growth_form_cat %>%
-          dplyr::mutate(
-            factorlevels_list = purrr::map(factorlevels, ~{
-              if (!is.na(.x)) {
-                strsplit(.x, ", ")[[1]]
-              } else {
-                character(0)
-              }
-            })
-          )
+        growth_form_cat$factorlevels_list <- lapply(growth_form_cat$factorlevels,
+                                                    .parse_factorlevels)
 
-        # Parse hierarchical conditions from description
-        condition_hierarchical <- sapply(strsplit(growth_form_cat$traitdescription, 'if '), `[`, 2)
-        condition_hierarchical <- sapply(strsplit(condition_hierarchical, '[.]'), `[`, 1)
-        growth_form_cat$condition_hierarchical <- condition_hierarchical
+        # Which value sits under which is no longer in traitlist; it comes from
+        # .growth_form_hierarchy(). An accepted value that table cannot place is
+        # never offered, so say so rather than hide it.
+        for (level in 2:3) {
+          accepted <- unlist(growth_form_cat$factorlevels_list[
+            growth_form_cat$trait == paste0("growth_form_level_", level)])
+          unplaced <- .growth_form_unplaced(level, accepted)
+          if (length(unplaced) > 0) {
+            message("Note: growth_form_level_", level, " values with no parent ",
+                    "in .growth_form_hierarchy() are not offered: ",
+                    paste(unplaced, collapse = ", "))
+          }
+        }
 
         rv$growth_form_cat <- growth_form_cat
 
@@ -200,65 +235,42 @@ mod_growth_form_selector_server <- function(id, pool, i18n) {
     # Level 2 UI (depends on Level 1)
     output$level_2_ui <- shiny::renderUI({
       shiny::req(input$level_1)
-      if (input$level_1 == "") return(NULL)
 
-      # Find the trait for level 2 based on level 1 selection
-      level_2_trait <- rv$growth_form_cat %>%
-        dplyr::filter(condition_hierarchical == input$level_1)
-
-      if (nrow(level_2_trait) == 0) return(NULL)
-
-      level_2_trait <- level_2_trait[1, ]
+      choices <- level_choices(2, input$level_1)
+      if (length(choices) == 0) return(NULL)
 
       shiny::wellPanel(
         shiny::h6(i18n()$t("Level 2: Refine Growth Form")),
         shiny::selectInput(
           ns("level_2"),
           i18n()$t("Select specific form"),
-          choices = c(
-            "Select..." = "",
-            setNames(
-              level_2_trait$factorlevels_list[[1]],
-              level_2_trait$factorlevels_list[[1]]
-            )
-          )
+          choices = c("Select..." = "", stats::setNames(choices, choices))
         ),
         shiny::div(
           class = "text-muted small",
-          shiny::HTML(level_2_trait$traitdescription)
+          shiny::HTML(level_trait(2)$traitdescription[1])
         )
       )
     })
 
     # Level 3 UI (depends on Level 2)
     output$level_3_ui <- shiny::renderUI({
-      shiny::req(input$level_2)
-      if (input$level_2 == "") return(NULL)
+      shiny::req(selected_level_2())
 
-      # Find the trait for level 3 based on level 2 selection
-      level_3_trait <- rv$growth_form_cat %>%
-        dplyr::filter(condition_hierarchical == input$level_2)
-
-      if (nrow(level_3_trait) == 0) return(NULL)
-
-      level_3_trait <- level_3_trait[1, ]
+      # e.g. epiphyte has no finer form
+      choices <- level_choices(3, selected_level_2())
+      if (length(choices) == 0) return(NULL)
 
       shiny::wellPanel(
         shiny::h6(i18n()$t("Level 3: Final Specification")),
         shiny::selectInput(
           ns("level_3"),
           i18n()$t("Select final form"),
-          choices = c(
-            "Select..." = "",
-            setNames(
-              level_3_trait$factorlevels_list[[1]],
-              level_3_trait$factorlevels_list[[1]]
-            )
-          )
+          choices = c("Select..." = "", stats::setNames(choices, choices))
         ),
         shiny::div(
           class = "text-muted small",
-          shiny::HTML(level_3_trait$traitdescription)
+          shiny::HTML(level_trait(3)$traitdescription[1])
         )
       )
     })
@@ -271,41 +283,28 @@ mod_growth_form_selector_server <- function(id, pool, i18n) {
       current_path <- list()
 
       # Level 1 (required)
-      level_1_trait <- rv$growth_form_cat %>%
-        dplyr::filter(trait == "growth_form_level_1")
-
       current_path[[1]] <- list(
-        id_trait = level_1_trait$id_trait[1],
+        id_trait = level_trait(1)$id_trait[1],
         trait = "growth_form_level_1",
         value = input$level_1
       )
 
-      # Level 2 (if selected)
-      if (!is.null(input$level_2) && input$level_2 != "") {
-        level_2_trait <- rv$growth_form_cat %>%
-          dplyr::filter(condition_hierarchical == input$level_1)
-
-        if (nrow(level_2_trait) > 0) {
-          current_path[[2]] <- list(
-            id_trait = level_2_trait$id_trait[1],
-            trait = level_2_trait$trait[1],
-            value = input$level_2
-          )
-        }
+      # Level 2 (if selected, and still under level 1)
+      if (!is.null(selected_level_2())) {
+        current_path[[2]] <- list(
+          id_trait = level_trait(2)$id_trait[1],
+          trait = "growth_form_level_2",
+          value = selected_level_2()
+        )
       }
 
-      # Level 3 (if selected)
-      if (!is.null(input$level_3) && input$level_3 != "") {
-        level_3_trait <- rv$growth_form_cat %>%
-          dplyr::filter(condition_hierarchical == input$level_2)
-
-        if (nrow(level_3_trait) > 0) {
-          current_path[[3]] <- list(
-            id_trait = level_3_trait$id_trait[1],
-            trait = level_3_trait$trait[1],
-            value = input$level_3
-          )
-        }
+      # Level 3 (if selected, and still under level 2)
+      if (!is.null(selected_level_3())) {
+        current_path[[3]] <- list(
+          id_trait = level_trait(3)$id_trait[1],
+          trait = "growth_form_level_3",
+          value = selected_level_3()
+        )
       }
 
       # Add to all paths
