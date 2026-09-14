@@ -1409,54 +1409,19 @@ get_taxon_hierarchy <- function(idtax_n, con = NULL) {
     }
   }, add = TRUE)
 
-  parent_query <- dplyr::tbl(actual_con, "table_taxa")
-
-  if (level == "infraspecific") {
-    # Parent is species (tax_level = "species")
-    parent_query <- parent_query %>%
-      dplyr::filter(
-        .data$tax_gen == !!tax_gen,
-        .data$tax_fam == !!tax_fam,
-        .data$tax_esp == !!tax_esp,
-        .data$tax_level == "species"
-      )
-  } else if (level == "species") {
-    # Parent is genus (tax_level = "genus")
-    parent_query <- parent_query %>%
-      dplyr::filter(
-        .data$tax_gen == !!tax_gen,
-        .data$tax_fam == !!tax_fam,
-        .data$tax_level == "genus"
-      )
-  } else if (level == "genus") {
-    # Parent is family (tax_level = "family")
-    parent_query <- parent_query %>%
-      dplyr::filter(
-        .data$tax_fam == !!tax_fam,
-        .data$tax_level == "family"
-      )
-  } else if (level == "family") {
-    # Parent is order (tax_level = "order")
-    parent_query <- parent_query %>%
-      dplyr::filter(
-        .data$tax_order == !!tax_order,
-        .data$tax_level == "order"
-      )
-  } else if (level == "order") {
-    # Parent is class (tax_level IN ("class", "higher"))
-    parent_query <- parent_query %>%
-      dplyr::filter(
-        .data$tax_famclass == !!tax_famclass,
-        .data$tax_level %in% c("class", "higher")
-      )
-  } else {
-    # Class level has no parent
+  # NULL for the top rank, and for a child missing a column that names its
+  # parent (see .parent_keys())
+  keys <- .parent_keys(level, tax_famclass = tax_famclass, tax_order = tax_order,
+                       tax_fam = tax_fam, tax_gen = tax_gen, tax_esp = tax_esp)
+  if (is.null(keys)) {
     return(NULL)
   }
 
-  result <- parent_query %>%
-    dplyr::select("idtax_n") %>%
-    dplyr::collect()
+  result <- DBI::dbGetQuery(
+    actual_con,
+    .parent_lookup_sql(.parent_level(level), names(keys)),
+    params = unname(keys)
+  )
 
   if (nrow(result) > 0) {
     return(result$idtax_n[1])
@@ -1485,6 +1450,21 @@ get_taxon_hierarchy <- function(idtax_n, con = NULL) {
                                          tax_order = NULL, tax_famclass = NULL,
                                          tax_esp = NULL, level = "species") {
 
+  null_to_na <- function(x) if (is.null(x) || length(x) == 0) NA else x
+  tax_gen <- null_to_na(tax_gen)
+  tax_fam <- null_to_na(tax_fam)
+  tax_order <- null_to_na(tax_order)
+  tax_famclass <- null_to_na(tax_famclass)
+  tax_esp <- null_to_na(tax_esp)
+
+  # A child that cannot name its parent - a family recorded without its order,
+  # say - is left unlinked rather than attached to an empty-named parent
+  keys <- .parent_keys(level, tax_famclass = tax_famclass, tax_order = tax_order,
+                       tax_fam = tax_fam, tax_gen = tax_gen, tax_esp = tax_esp)
+  if (is.null(keys)) {
+    return(NULL)
+  }
+
   # First try to find existing parent
   parent_id <- .find_parent_entry(
     con, tax_gen, tax_fam, tax_order, tax_famclass, tax_esp, level
@@ -1494,40 +1474,25 @@ get_taxon_hierarchy <- function(idtax_n, con = NULL) {
     return(parent_id)
   }
 
-  # Need to create parent - first ensure parent's parent exists
-  parent_level <- switch(
-    level,
-    "infraspecific" = "species",
-    "species" = "genus",
-    "genus" = "family",
-    "family" = "order",
-    "order" = "class",
-    NULL
+  # Need to create parent - first ensure parent's parent exists, so the new
+  # entry is written already linked
+  parent_level <- .parent_level(level)
+
+  grandparent_id <- .find_or_create_parent_entry(
+    con, tax_gen, tax_fam, tax_order, tax_famclass, NULL,
+    level = parent_level
   )
-
-  if (is.null(parent_level)) {
-    return(NULL)  # Class has no parent
-  }
-
-  # Recursively ensure grandparent exists
-  grandparent_id <- NULL
-  if (parent_level != "class") {
-    grandparent_id <- .find_or_create_parent_entry(
-      con, tax_gen, tax_fam, tax_order, tax_famclass, NULL,
-      level = parent_level
-    )
-  }
 
   # Now create the parent entry
   parent_id <- .create_hierarchy_entry_for_parent(
     con,
-    tax_gen = if (parent_level %in% c("genus", "species", "infraspecific")) tax_gen else NA,
+    tax_gen = if (parent_level %in% c("genus", "species")) tax_gen else NA,
     tax_esp = if (parent_level == "species") tax_esp else NA,
-    tax_fam = if (parent_level %in% c("family", "genus", "species", "infraspecific")) tax_fam else NA,
-    tax_order = if (parent_level %in% c("order", "family", "genus", "species", "infraspecific")) tax_order else NA,
+    tax_fam = if (parent_level %in% c("family", "genus", "species")) tax_fam else NA,
+    tax_order = if (parent_level %in% c("order", "family", "genus", "species")) tax_order else NA,
     tax_famclass = tax_famclass,
     tax_level = parent_level,  # Use tax_level column
-    id_parent = grandparent_id
+    id_parent = if (is.null(grandparent_id)) NA else grandparent_id
   )
 
   return(parent_id)
@@ -1608,16 +1573,16 @@ get_taxon_hierarchy <- function(idtax_n, con = NULL) {
       data_modif_d = "date_modif_d"
     )
 
-  DBI::dbWriteTable(actual_con, "table_taxa", new_entry, append = TRUE, row.names = FALSE)
+  new_id <- .append_taxa_row(actual_con, new_entry)
 
-  # Get the new ID
-  rs <- DBI::dbSendQuery(actual_con, "SELECT MAX(idtax_n) FROM table_taxa")
-  lastval <- DBI::dbFetch(rs)
-  DBI::dbClearResult(rs)
+  entry_name <- dplyr::coalesce(
+    if (!is.na(tax_esp)) paste(tax_gen, tax_esp) else NA_character_,
+    as.character(tax_gen), as.character(tax_fam),
+    as.character(tax_order), as.character(tax_famclass)
+  )
+  cli::cli_alert_info("Created {tax_level} entry: {entry_name} (ID: {new_id})")
 
-  cli::cli_alert_info("Created {tax_level} entry: {coalesce(tax_gen, tax_fam, tax_order, tax_famclass)} (ID: {lastval$max})")
-
-  return(lastval$max)
+  return(new_id)
 }
 
 

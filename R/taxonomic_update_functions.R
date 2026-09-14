@@ -558,10 +558,15 @@ get_table_idtax_metadata <- function(con = NULL) {
 
   # Get connection
   if (is.null(con)) {
-    mydb_taxa <- call.mydb.taxa()
-  } else {
-    mydb_taxa <- con
+    con <- call.mydb.taxa()
   }
+
+  # One connection throughout: the parent lookup, the insert and reading back
+  # the new id must all happen in the same transaction
+  actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
+  on.exit({
+    if (inherits(con, "Pool")) pool::poolReturn(actual_con)
+  }, add = TRUE)
 
   # Convert NULL to NA for database insertion
   if (is.null(tax_esp)) tax_esp <- NA
@@ -606,8 +611,13 @@ get_table_idtax_metadata <- function(con = NULL) {
   if (!is.na(tax_fam) & !is.na(tax_gen) & is.na(tax_esp)) tax_rankesp <- "GEN"
   if (!is.na(tax_fam) & !is.na(tax_gen) & !is.na(tax_esp)) tax_rankesp <- "ESP"
 
+  # Rank of the new taxon in the hierarchy (table_taxa.tax_level)
+  tax_level <- .taxon_level(tax_famclass = tax_famclass, tax_order = tax_order,
+                            tax_fam = tax_fam, tax_gen = tax_gen,
+                            tax_esp = tax_esp, tax_nam01 = tax_name1)
+
   # Get id_tax_famclass
-  id_tax_fam_class <- try_open_postgres_table(table = "table_tax_famclass", con = mydb_taxa) %>%
+  id_tax_fam_class <- try_open_postgres_table(table = "table_tax_famclass", con = actual_con) %>%
     filter(tax_famclass == !!tax_famclass) %>%
     collect()
 
@@ -638,11 +648,12 @@ get_table_idtax_metadata <- function(con = NULL) {
     year_description = ifelse(!is.null(year_description) && !is.na(year_description), year_description, NA),
     idtax_good_n = NA,
     id_tax_famclass = id_tax_fam_class$id_tax_famclass[1],
-    morpho_species = morpho_species
+    morpho_species = morpho_species,
+    tax_level = tax_level
   )
 
   # Check for duplicates
-  seek_dup <- try_open_postgres_table(table = "table_taxa", con = mydb_taxa)
+  seek_dup <- try_open_postgres_table(table = "table_taxa", con = actual_con)
 
   if (!is.na(new_rec$tax_famclass)) {
     seek_dup <- seek_dup %>% filter(tax_famclass == !!new_rec$tax_famclass)
@@ -693,15 +704,28 @@ get_table_idtax_metadata <- function(con = NULL) {
       data_modif_d = "date_modif_d"
     )
 
-  # Insert into database
+  # Insert into database, linked into the tree. The hierarchy view and
+  # get_taxon_children() walk only id_parent, so a taxon written without it
+  # is invisible to them. A missing parent (a genus new to the backbone, say)
+  # is created on the way; if the insert fails, so does that creation.
   cli::cli_alert_success("Adding new entry to table_taxa")
-  DBI::dbWriteTable(mydb_taxa, "table_taxa", new_rec, append = TRUE, row.names = FALSE)
+  new_id <- NULL
+  DBI::dbWithTransaction(actual_con, {
+    id_parent <- .find_or_create_parent_entry(
+      actual_con,
+      tax_gen = tax_gen, tax_fam = tax_fam, tax_order = tax_order,
+      tax_famclass = tax_famclass, tax_esp = tax_esp, level = tax_level
+    )
+    new_rec$id_parent <- if (is.null(id_parent)) NA_integer_ else as.integer(id_parent)
+    new_id <- .append_taxa_row(actual_con, new_rec)
+  })
 
-  # Get the new ID (use dbGetQuery for pool compatibility)
-  lastval <- DBI::dbGetQuery(mydb_taxa, "SELECT MAX(idtax_n) AS max FROM table_taxa")
-
-  new_id <- lastval$max[1]
-  cli::cli_alert_success("New taxon added with idtax_n = {new_id}")
+  if (is.na(new_rec$id_parent) && !identical(tax_level, "higher")) {
+    cli::cli_alert_warning(
+      "No parent could be named for this {tax_level}: it is not linked into the hierarchy"
+    )
+  }
+  cli::cli_alert_success("New taxon added with idtax_n = {new_id} ({tax_level}, id_parent = {new_rec$id_parent})")
 
   return(new_id)
 }

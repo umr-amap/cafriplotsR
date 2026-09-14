@@ -30,6 +30,13 @@ trusting the code.
 | `add_plot_citations.R` | added `id_citation` (FK to `table_citations`) to `data_liste_plots` | `check_plot_citations_migration()` reports `id_citation` present, migration complete |
 | `plot_hierarchy.R` | added `data_liste_plots.id_parent_plot` and `parent_relation`, with four constraints | `check_plot_hierarchy_migration()` reports both columns, all four constraints, migration complete |
 
+**Not yet applied:** `taxa_hierarchy_backfill.R` (**taxa** database). Taxa added
+from `launch_taxo_backbone_app()` before 1.9.8 were written with neither
+`tax_level` nor `id_parent`, so they sit outside the hierarchy. It sets both
+with the rules the insert now uses, creating missing parents. When applied,
+`check_unlinked_taxa()` should report `no_level = 0`; record the date and move it
+into the table above.
+
 ## `plot_hierarchy.R`: the parent link
 
 Applied 2026-09-08, both phases, verified by
