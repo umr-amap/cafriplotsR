@@ -222,6 +222,34 @@ test_that(".append_taxa_row reads the id back from the column's own sequence", {
   expect_length(queries, 1)
 })
 
+test_that("a created parent's tax_source fits table_taxa.tax_source (varchar(5))", {
+  # 'AUTO_HIERARCHY' failed on the live database the first time a parent had
+  # to be created
+  expect_lte(nchar(.auto_parent_source()), 5)
+
+  written <- NULL
+  local_mocked_bindings(
+    .append_taxa_row = function(con, row) {
+      written <<- row
+      900L
+    }
+  )
+  local_mocked_bindings(
+    dbGetQuery = function(conn, statement, ...) data.frame(id_tax_famclass = 7L),
+    .package = "DBI"
+  )
+
+  .create_hierarchy_entry_for_parent(
+    mock_con(), tax_gen = "Conchograecum", tax_fam = "Orchidaceae",
+    tax_order = "Asparagales", tax_famclass = "Liliopsida",
+    tax_level = "genus", id_parent = 5L)
+
+  expect_equal(written$tax_source, .auto_parent_source())
+  expect_lte(nchar(written$tax_source), 5)
+  expect_equal(written$tax_level, "genus")
+  expect_equal(written$id_parent, 5L)
+})
+
 test_that(".append_taxa_row falls back to MAX without an owned sequence", {
   local_mocked_bindings(
     dbWriteTable = function(conn, name, value, ...) TRUE,

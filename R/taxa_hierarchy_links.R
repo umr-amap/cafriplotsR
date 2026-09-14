@@ -55,6 +55,18 @@
 }
 
 
+#' `tax_source` of a parent entry created to link a taxon
+#'
+#' `table_taxa.tax_source` is `varchar(5)`: the hierarchy migration marked its
+#' entries `"H_MIG"`, and these follow the same pattern. A longer code does not
+#' fail until the first parent actually has to be created.
+#'
+#' @return Character scalar.
+#' @keywords internal
+#' @noRd
+.auto_parent_source <- function() "H_AUT"
+
+
 #' Flat columns that name a taxon's parent
 #'
 #' A species' genus is the `genus` entry with the same family and genus, as the

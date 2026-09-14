@@ -13,7 +13,9 @@
 # `.taxon_level()` names the rank from the flat columns, and
 # `.find_or_create_parent_entry()` finds the parent, creating it when missing
 # (a genus new to the backbone, say). A parent it creates carries
-# `tax_source = 'AUTO_HIERARCHY'` and is itself linked.
+# `tax_source = 'H_AUT'` and is itself linked. (`tax_source` is varchar(5): a
+# first version wrote 'AUTO_HIERARCHY', and the rehearsal failed on the first
+# parent it had to create, rolling back as designed.)
 #
 # Taxa database (rainbio), not the main one:
 #
@@ -178,9 +180,9 @@ migrate_link_unlinked_taxa <- function(con = NULL, dry_run = TRUE,
     SELECT idtax_n, tax_level, tax_famclass, tax_order, tax_fam, tax_gen,
            tax_esp, id_parent
     FROM table_taxa
-    WHERE tax_source = 'AUTO_HIERARCHY' AND idtax_n > $1
+    WHERE tax_source = $1 AND idtax_n > $2
     ORDER BY idtax_n
-  ", params = list(max_id_before))
+  ", params = list(CafriplotsR:::.auto_parent_source(), max_id_before))
 
   cli::cli_h2("Outcome")
   print(as.data.frame(table(outcome = taxa$outcome)))
