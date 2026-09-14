@@ -10,7 +10,7 @@
 #' from the trait list, preview, and execute the import.
 #'
 #' @details
-#' The wizard consists of 5 steps:
+#' The wizard consists of 6 steps:
 #' \enumerate{
 #'   \item Upload data (xlsx or csv with idtax column; choose the sheet of a
 #'     multi-sheet workbook)
@@ -19,6 +19,9 @@
 #'     column and a numeric and/or character value column; each trait name is
 #'     mapped to a trait
 #'   \item Map metadata columns (taxon ID, flat metadata, and trait features)
+#'   \item Citation: link the import to an existing entry of
+#'     \code{table_citations}, or create one (written to the database there
+#'     and then, before the import). Optional
 #'   \item Validate (check types, ranges, NAs, duplicates; auto-fix type mismatches)
 #'   \item Preview & import (dry run or live)
 #' }
@@ -236,6 +239,7 @@ taxa_traits_import_server <- function(input, output, session, translator) {
     data = NULL,
     trait_mapping_result = NULL,
     metadata_mapping_result = NULL,
+    citation_result = NULL,
     validation_result = NULL,
     import_result = NULL,
     modules_initialized = FALSE
@@ -247,6 +251,7 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       i18n()$t("Upload Data"),
       i18n()$t("Map Trait Columns"),
       i18n()$t("Map Metadata Columns"),
+      i18n()$t("Citation"),
       i18n()$t("Validate"),
       i18n()$t("Preview & Import")
     )
@@ -281,8 +286,9 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       "1" = taxa_traits_upload_ui(session$ns, i18n()),
       "2" = mod_trait_column_mapping_ui("trait_mapping"),
       "3" = mod_trait_metadata_mapping_ui("meta_mapping"),
-      "4" = mod_trait_validation_ui("validation", i18n()),
-      "5" = mod_trait_preview_import_ui("preview")
+      "4" = mod_trait_citation_ui("citation"),
+      "5" = mod_trait_validation_ui("validation", i18n()),
+      "6" = mod_trait_preview_import_ui("preview")
     )
   })
 
@@ -293,8 +299,9 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       "1" = !is.null(rv$data),
       "2" = !is.null(rv$trait_mapping_result) && rv$trait_mapping_result$valid,
       "3" = !is.null(rv$metadata_mapping_result) && rv$metadata_mapping_result$valid,
-      "4" = !is.null(rv$validation_result) && isTRUE(rv$validation_result$valid),
-      "5" = FALSE  # Final step
+      "4" = TRUE,  # Citation is optional
+      "5" = !is.null(rv$validation_result) && isTRUE(rv$validation_result$valid),
+      "6" = FALSE  # Final step
     )
   })
 
@@ -309,7 +316,7 @@ taxa_traits_import_server <- function(input, output, session, translator) {
   })
 
   output$next_button <- shiny::renderUI({
-    if (rv$step >= 5) return(NULL)
+    if (rv$step >= 6) return(NULL)
 
     shiny::actionButton(
       "btn_next",
@@ -436,7 +443,20 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       )
     })
 
-    # Step 4: Validation module
+    # Step 4: Citation module. Its result is not part of the wizard cascade:
+    # the citation describes the source of the file, not its columns, so a
+    # mapping change does not invalidate it.
+    citation_result <- mod_trait_citation_server(
+      "citation",
+      pool = pool_main_reactive,
+      i18n = i18n
+    )
+
+    shiny::observe({
+      rv$citation_result <- citation_result()
+    })
+
+    # Step 5: Validation module
     validation_result <- mod_trait_validation_server(
       "validation",
       data = mapped_data,
@@ -451,7 +471,7 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       rv$validation_result <- res
     })
 
-    # Step 5: Preview & import module
+    # Step 6: Preview & import module
     # Pass cleaned data from validation when available
     import_data <- shiny::reactive({
       vr <- rv$validation_result
@@ -463,7 +483,8 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       data = import_data,
       mapping = combined_mapping,
       pool = pool_main_reactive,
-      i18n = i18n
+      i18n = i18n,
+      citation = shiny::reactive(rv$citation_result)
     )
 
     shiny::observe({

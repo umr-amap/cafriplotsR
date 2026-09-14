@@ -20,7 +20,7 @@ taxa-level trait measurements: upload data, map columns to traits
 from the trait list, preview, and execute the import.
 }
 \details{
-The wizard consists of 5 steps:
+The wizard consists of 6 steps:
 \enumerate{
   \item Upload data (xlsx or csv with idtax column; choose the sheet of a
     multi-sheet workbook)
@@ -29,6 +29,9 @@ The wizard consists of 5 steps:
     column and a numeric and/or character value column; each trait name is
     mapped to a trait
   \item Map metadata columns (taxon ID, flat metadata, and trait features)
+  \item Citation: link the import to an existing entry of
+    \code{table_citations}, or create one (written to the database there
+    and then, before the import). Optional
   \item Validate (check types, ranges, NAs, duplicates; auto-fix type mismatches)
   \item Preview & import (dry run or live)
 }

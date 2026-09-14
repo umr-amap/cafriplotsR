@@ -4,7 +4,14 @@
 \alias{mod_trait_preview_import_server}
 \title{Trait Preview & Import Module - Server}
 \usage{
-mod_trait_preview_import_server(id, data, mapping, pool, i18n)
+mod_trait_preview_import_server(
+  id,
+  data,
+  mapping,
+  pool,
+  i18n,
+  citation = shiny::reactive(NULL)
+)
 }
 \arguments{
 \item{id}{Module namespace ID}
@@ -16,6 +23,9 @@ mod_trait_preview_import_server(id, data, mapping, pool, i18n)
 \item{pool}{Reactive returning database connection pool}
 
 \item{i18n}{Reactive returning translator}
+
+\item{citation}{Reactive returning the citation step result
+(`id_citation`, `citation`), or NULL when no citation step is used}
 }
 \value{
 Reactive list with import_result

@@ -10572,6 +10572,34 @@
     {
       "en": "Or, in long format, one row per measurement: a column with the trait name and a column with the value",
       "fr": "Ou, en format long, une ligne par mesure : une colonne avec le nom du trait et une colonne avec la valeur"
+    },
+    {
+      "en": "Citation",
+      "fr": "Citation"
+    },
+    {
+      "en": "Search a citation...",
+      "fr": "Rechercher une citation..."
+    },
+    {
+      "en": "Optional: leave it on '-- None --' to import measurements without a citation.",
+      "fr": "Facultatif : laissez '-- None --' pour importer les mesures sans citation."
+    },
+    {
+      "en": "No citation selected: the measurements will be imported without a link to a source.",
+      "fr": "Aucune citation sélectionnée : les mesures seront importées sans lien vers une source."
+    },
+    {
+      "en": "The citation is saved to the database now, before the import, and can then be reused by other imports.",
+      "fr": "La citation est enregistrée dans la base maintenant, avant l'import, et pourra être réutilisée par d'autres imports."
+    },
+    {
+      "en": "Citation key '%s' already exists. Select it in the list or use another key.",
+      "fr": "La clé de citation '%s' existe déjà. Sélectionnez-la dans la liste ou utilisez une autre clé."
+    },
+    {
+      "en": "Citation attached to every imported measurement:",
+      "fr": "Citation associée à chaque mesure importée :"
     }
   ]
 }
