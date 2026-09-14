@@ -7,6 +7,64 @@
 # with these new versions.
 
 
+# Stop unless `con` points at the main database. table_idtax lives in
+# plots_transects; handing these functions the rainbio connection writes a
+# stray copy there and reports success.
+.assert_main_db_con <- function(con, fn) {
+  is_main <- tryCatch(
+    DBI::dbGetQuery(
+      con,
+      "SELECT to_regclass('public.data_liste_plots') IS NOT NULL AS ok;"
+    )$ok[1],
+    error = function(e) FALSE
+  )
+
+  if (!isTRUE(is_main)) {
+    db_name <- tryCatch(
+      DBI::dbGetQuery(con, "SELECT current_database() AS db;")$db[1],
+      error = function(e) "unknown"
+    )
+    cli::cli_abort(c(
+      "{.fn {fn}} needs the main database connection, got {.val {db_name}}.",
+      "i" = "Use {.code con = call.mydb()} and {.code con_taxa = call.mydb.taxa()}."
+    ))
+  }
+
+  invisible(TRUE)
+}
+
+
+# Upsert the table_idtax row of table_idtax_metadata, which is what
+# check_table_idtax_staleness() reads. Mirrors what the SQL function
+# refresh_table_idtax() writes.
+.record_table_idtax_refresh <- function(con, source_info) {
+  tryCatch({
+    DBI::dbExecute(
+      con,
+      "INSERT INTO table_idtax_metadata
+         (table_name, last_updated, updated_by, record_count, source_info)
+       SELECT 'table_idtax', CURRENT_TIMESTAMP, CURRENT_USER,
+              (SELECT COUNT(*) FROM table_idtax), $1
+       ON CONFLICT (table_name) DO UPDATE SET
+         last_updated = EXCLUDED.last_updated,
+         updated_by   = EXCLUDED.updated_by,
+         record_count = EXCLUDED.record_count,
+         source_info  = EXCLUDED.source_info;",
+      params = list(source_info)
+    )
+    TRUE
+  }, error = function(e) {
+    cli::cli_alert_warning(
+      "table_idtax was refreshed but its metadata was not updated: {e$message}"
+    )
+    cli::cli_alert_info(
+      "check_table_idtax_staleness() will keep reporting the previous date."
+    )
+    FALSE
+  })
+}
+
+
 #' Check table_idtax Staleness
 #'
 #' Checks how old the table_idtax materialized view is and whether it needs
@@ -50,6 +108,8 @@ check_table_idtax_staleness <- function(con = NULL, warn_days = 90, silent = FAL
       pool::poolReturn(actual_con)
     }
   }, add = TRUE)
+
+  .assert_main_db_con(actual_con, "check_table_idtax_staleness")
 
   result <- tryCatch({
     # Call PostgreSQL function
@@ -196,6 +256,8 @@ update_taxa_link_table <- function(con = NULL, con_taxa = NULL, force = FALSE, w
     }
   }, add = TRUE)
 
+  .assert_main_db_con(actual_con, "update_taxa_link_table")
+
   # Check if refresh is needed (unless forced)
   if (!force) {
     staleness <- check_table_idtax_staleness(con = actual_con, warn_days = warn_days, silent = TRUE)
@@ -333,6 +395,8 @@ legacy_update_taxa_link_table <- function(con = NULL, con_taxa = NULL) {
     }
   }, add = TRUE)
 
+  .assert_main_db_con(actual_con, "legacy_update_taxa_link_table")
+
   start_time <- Sys.time()
 
   cli::cli_alert_info("Fetching taxonomy data from taxa database...")
@@ -393,6 +457,15 @@ legacy_update_taxa_link_table <- function(con = NULL, con_taxa = NULL) {
       # Verify refresh worked by checking record count
       count_result <- DBI::dbGetQuery(actual_con, "SELECT COUNT(*) as n FROM table_idtax;")
 
+      .record_table_idtax_refresh(
+        actual_con,
+        if (staging_success) {
+          "Refreshed via staging table table_idtax_temp"
+        } else {
+          "Refreshed materialized view only (staging table not updated)"
+        }
+      )
+
       cli::cli_alert_success("Materialized view refreshed successfully")
       cli::cli_alert_info("Refresh completed in {round(duration, 2)} seconds")
       cli::cli_alert_info("Record count: {count_result$n[1]}")
@@ -427,28 +500,12 @@ legacy_update_taxa_link_table <- function(con = NULL, con_taxa = NULL) {
       overwrite = TRUE
     )
 
-    # Update metadata if table exists
-    tryCatch({
-      metadata <- data.frame(
-        table_name = "table_idtax",
-        last_updated = Sys.time(),
-        updated_by = Sys.info()["user"],
-        record_count = nrow(id_taxa_table),
-        source_info = "Updated via legacy dbWriteTable method",
-        notes = NA_character_,
-        stringsAsFactors = FALSE
-      )
-
-      DBI::dbWriteTable(
-        actual_con,
-        name = "table_idtax_metadata",
-        value = metadata,
-        append = FALSE,
-        overwrite = TRUE
-      )
-    }, error = function(e) {
-      # Metadata table might not exist - ignore
-    })
+    # Upsert rather than overwrite: overwriting the metadata table would drop
+    # its primary key and grants
+    .record_table_idtax_refresh(
+      actual_con,
+      "Updated via legacy dbWriteTable method"
+    )
 
     end_time <- Sys.time()
     duration <- as.numeric(difftime(end_time, start_time, units = "secs"))
