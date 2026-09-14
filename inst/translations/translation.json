@@ -10600,6 +10600,10 @@
     {
       "en": "Citation attached to every imported measurement:",
       "fr": "Citation associée à chaque mesure importée :"
+    },
+    {
+      "en": "Click to view the column descriptions",
+      "fr": "Cliquez pour voir la description des colonnes"
     }
   ]
 }

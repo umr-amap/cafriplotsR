@@ -233,7 +233,13 @@ mod_results_export_server <- function(id, results, original_data, i18n) {
         style = "margin: 10px 0 18px 0; background:#eaf3fb; padding:12px 16px; border-radius:5px; border-left:4px solid #3498db;",
         shiny::tags$summary(
           style = "cursor:pointer; font-weight:bold; color:#2c3e50;",
-          shiny::icon("info-circle"), " ", i18n()$t("Column descriptions")
+          shiny::icon("info-circle"), " ", i18n()$t("Column descriptions"),
+          # The block is closed by default and its disclosure triangle alone
+          # did not tell users it could be opened.
+          shiny::tags$span(
+            style = "font-weight:normal; font-style:italic; font-size:0.9em; color:#5d6d7e; margin-left:8px;",
+            paste0("(", i18n()$t("Click to view the column descriptions"), ")")
+          )
         ),
         shiny::tags$p(
           i18n()$t("All columns from your input file are preserved. The app adds the standardized columns described below."),
