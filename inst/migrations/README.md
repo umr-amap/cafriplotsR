@@ -29,13 +29,7 @@ trusting the code.
 | `reference_plot_mistyped_links.R` | retyped as `referenced_individual` the 443 links the previous migration mistyped | no `reference_plot` row carries an `id_n`; 74 remain, every one with a plot; `type` and `id_linktype` agree on every link |
 | `add_plot_citations.R` | added `id_citation` (FK to `table_citations`) to `data_liste_plots` | `check_plot_citations_migration()` reports `id_citation` present, migration complete |
 | `plot_hierarchy.R` | added `data_liste_plots.id_parent_plot` and `parent_relation`, with four constraints | `check_plot_hierarchy_migration()` reports both columns, all four constraints, migration complete |
-
-**Not yet applied:** `taxa_hierarchy_backfill.R` (**taxa** database). Taxa added
-from `launch_taxo_backbone_app()` before 1.9.8 were written with neither
-`tax_level` nor `id_parent`, so they sit outside the hierarchy. It sets both
-with the rules the insert now uses, creating missing parents. When applied,
-`check_unlinked_taxa()` should report `no_level = 0`; record the date and move it
-into the table above.
+| `taxa_hierarchy_backfill.R` | set `tax_level` and `id_parent` on the 25 taxa added from `launch_taxo_backbone_app()` without them; created 2 missing genera (`Kuloa` 367194, `Conchograecum` 367195, `tax_source = 'H_AUT'`) | applied 2026-09-14 (**taxa** database): all 25 `linked`, none left unlinked; `check_unlinked_taxa()` should report `no_level = 0` |
 
 ## `plot_hierarchy.R`: the parent link
 
