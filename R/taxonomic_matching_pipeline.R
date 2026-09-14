@@ -82,6 +82,19 @@
   )
 }
 
+#' Which values of a name column hold no name?
+#'
+#' One rule for the preview, the pipeline and the review list, so the three
+#' count the same names.
+#'
+#' @param x Vector of names.
+#' @return Logical vector, `TRUE` for NA, empty or whitespace-only values.
+#' @keywords internal
+.is_missing_name <- function(x) {
+  x <- trimws(as.character(x))
+  is.na(x) | x == ""
+}
+
 #' Run the taxonomic matching pipeline
 #'
 #' The batch-exact cascade followed by per-name fuzzy matching, with
@@ -154,10 +167,14 @@
   }
 
   if (rm_mode == "fresh") {
+    # Rows with no name are not a name to look up. They used to go in as one
+    # more "name" (NA became the string "NA"), which never matched, so every
+    # dataset with an empty cell reported one name requiring review that the
+    # review tab - which rightly skips empty names - never showed.
     unique_names <- user_df %>%
       dplyr::pull(!!rlang::sym(col_name)) %>%
-      unique() %>%
-      {ifelse(is.na(.), "NA", .)}
+      unique()
+    unique_names <- unique_names[!.is_missing_name(unique_names)]
 
     unique_names_to_match <- unique_names
     total_names           <- length(unique_names)

@@ -44,7 +44,9 @@
   n_rows <- length(values)
 
   trimmed <- trimws(values)
-  missing <- is.na(trimmed) | trimmed == ""
+  # Same rule the pipeline uses to skip a row, so the counts shown here are
+  # the ones the matching summary reports.
+  missing <- .is_missing_name(values)
   n_missing <- sum(missing)
 
   empty_result <- data.frame(
