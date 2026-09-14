@@ -90,6 +90,39 @@ test_that(".run_matching_pipeline() reports an empty column rather than failing"
   expect_identical(res$status, "empty")
 })
 
+test_that(".is_missing_name() flags NA, empty and whitespace-only values", {
+  expect_identical(.is_missing_name(c("Garcinia kola", NA, "", "   ", "NA")),
+                   c(FALSE, TRUE, TRUE, TRUE, FALSE))
+  expect_identical(.is_missing_name(character(0)), logical(0))
+})
+
+test_that("rows with no name are not counted as a name requiring review", {
+  # A column with empty cells used to report one unmatched name (NA was
+  # looked up as the string "NA") that the review tab never listed.
+  res <- do.call(
+    .run_matching_pipeline,
+    .pipeline_args(c("Garcinia kola", NA, "", "  ", "Garcinia punctata", NA))
+  )
+
+  expect_identical(res$status, "ok")
+  expect_identical(res$stats$total_names, 2L)
+  expect_identical(res$stats$n_unmatched, 0L)
+  # every input row is still returned, the nameless ones unmatched
+  expect_equal(nrow(res$updated_data), 6)
+  expect_identical(sum(!is.na(res$updated_data$idtax_n)), 2L)
+
+  # agrees with the preview shown before the run
+  preview <- .summarise_names_to_match(
+    c("Garcinia kola", NA, "", "  ", "Garcinia punctata", NA))
+  expect_identical(preview$n_unique, res$stats$total_names)
+  expect_identical(preview$n_missing, 4L)
+})
+
+test_that("a column holding no name at all is reported empty", {
+  res <- do.call(.run_matching_pipeline, .pipeline_args(c(NA, "", " ")))
+  expect_identical(res$status, "empty")
+})
+
 test_that(".run_matching_pipeline() rejects a column that is not in the data", {
   expect_error(
     do.call(.run_matching_pipeline, .pipeline_args("Garcinia kola",

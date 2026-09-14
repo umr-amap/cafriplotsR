@@ -854,7 +854,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         unmatched <- matched_data() %>%
           dplyr::filter(
             is.na(idtax_n),
-            !!rlang::sym(col_name) != ""
+            !.is_missing_name(!!rlang::sym(col_name))
           ) %>%
           dplyr::distinct(!!rlang::sym(col_name)) %>%
           dplyr::pull(!!rlang::sym(col_name))
