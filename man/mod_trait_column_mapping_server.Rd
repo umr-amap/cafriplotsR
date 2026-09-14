@@ -16,7 +16,10 @@ mod_trait_column_mapping_server(id, data, pool, i18n)
 \item{i18n}{Reactive: shiny.i18n translator}
 }
 \value{
-Reactive list: valid, trait_cols (user_col → trait_name), available_traits
+Reactive list: valid, trait_cols (user_col → trait_name),
+  available_traits, format ("wide" or "long") and data. `data` is NULL for
+  wide input; for long input it holds the table spread into one column per
+  trait, which the later steps must use instead of the uploaded table.
 }
 \description{
 Trait Column Mapping Module - Server

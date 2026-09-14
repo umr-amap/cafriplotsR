@@ -10,11 +10,18 @@
 #' from the trait list, preview, and execute the import.
 #'
 #' @details
-#' The wizard consists of 5 steps:
+#' The wizard consists of 6 steps:
 #' \enumerate{
-#'   \item Upload data (xlsx or csv with idtax column)
-#'   \item Map trait columns (select which columns contain trait observations)
+#'   \item Upload data (xlsx or csv with idtax column; choose the sheet of a
+#'     multi-sheet workbook)
+#'   \item Map trait columns. Wide format: one column per trait, each mapped
+#'     to a trait. Long format: one row per measurement, with a trait-name
+#'     column and a numeric and/or character value column; each trait name is
+#'     mapped to a trait
 #'   \item Map metadata columns (taxon ID, flat metadata, and trait features)
+#'   \item Citation: link the import to an existing entry of
+#'     \code{table_citations}, or create one (written to the database there
+#'     and then, before the import). Optional
 #'   \item Validate (check types, ranges, NAs, duplicates; auto-fix type mismatches)
 #'   \item Preview & import (dry run or live)
 #' }
@@ -232,6 +239,7 @@ taxa_traits_import_server <- function(input, output, session, translator) {
     data = NULL,
     trait_mapping_result = NULL,
     metadata_mapping_result = NULL,
+    citation_result = NULL,
     validation_result = NULL,
     import_result = NULL,
     modules_initialized = FALSE
@@ -243,6 +251,7 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       i18n()$t("Upload Data"),
       i18n()$t("Map Trait Columns"),
       i18n()$t("Map Metadata Columns"),
+      i18n()$t("Citation"),
       i18n()$t("Validate"),
       i18n()$t("Preview & Import")
     )
@@ -277,8 +286,9 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       "1" = taxa_traits_upload_ui(session$ns, i18n()),
       "2" = mod_trait_column_mapping_ui("trait_mapping"),
       "3" = mod_trait_metadata_mapping_ui("meta_mapping"),
-      "4" = mod_trait_validation_ui("validation", i18n()),
-      "5" = mod_trait_preview_import_ui("preview")
+      "4" = mod_trait_citation_ui("citation"),
+      "5" = mod_trait_validation_ui("validation", i18n()),
+      "6" = mod_trait_preview_import_ui("preview")
     )
   })
 
@@ -289,8 +299,9 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       "1" = !is.null(rv$data),
       "2" = !is.null(rv$trait_mapping_result) && rv$trait_mapping_result$valid,
       "3" = !is.null(rv$metadata_mapping_result) && rv$metadata_mapping_result$valid,
-      "4" = !is.null(rv$validation_result) && isTRUE(rv$validation_result$valid),
-      "5" = FALSE  # Final step
+      "4" = TRUE,  # Citation is optional
+      "5" = !is.null(rv$validation_result) && isTRUE(rv$validation_result$valid),
+      "6" = FALSE  # Final step
     )
   })
 
@@ -305,7 +316,7 @@ taxa_traits_import_server <- function(input, output, session, translator) {
   })
 
   output$next_button <- shiny::renderUI({
-    if (rv$step >= 5) return(NULL)
+    if (rv$step >= 6) return(NULL)
 
     shiny::actionButton(
       "btn_next",
@@ -326,24 +337,13 @@ taxa_traits_import_server <- function(input, output, session, translator) {
   })
 
   # -- Step 1: Upload with taxonomy warning --
-  # File upload handler
-  shiny::observeEvent(input$file_upload, {
-    shiny::req(input$file_upload)
+  # File upload handler. The sheet selector and the reader are shared with the
+  # feature wizard; read errors are reported by .xlsx_sheet_server().
+  upload_table <- .xlsx_sheet_server(input, output, session, "file_upload", i18n)
 
+  shiny::observeEvent(upload_table(), {
     tryCatch({
-      file_path <- input$file_upload$datapath
-      file_name <- input$file_upload$name
-      ext <- tolower(tools::file_ext(file_name))
-
-      df <- if (ext %in% c("xlsx", "xls")) {
-        readxl::read_excel(file_path)
-      } else if (ext == "csv") {
-        utils::read.csv(file_path, stringsAsFactors = FALSE)
-      } else {
-        stop("Unsupported file format. Use .xlsx or .csv")
-      }
-
-      df <- as.data.frame(df)
+      df <- upload_table()
 
       # Reset downstream state
       rv$trait_mapping_result <- NULL
@@ -378,20 +378,43 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       i18n = i18n
     )
 
+    # Snapshots of each step, in wizard order. Reading them is isolated: these
+    # observers write the same values back, and a dependency on them would
+    # make each write re-run its own observer.
+    wizard_state <- function() {
+      shiny::isolate(list(
+        trait_mapping = rv$trait_mapping_result,
+        metadata_mapping = rv$metadata_mapping_result,
+        validation = rv$validation_result,
+        import = rv$import_result
+      ))
+    }
+
+    apply_wizard_state <- function(st) {
+      rv$trait_mapping_result <- st$trait_mapping
+      rv$metadata_mapping_result <- st$metadata_mapping
+      rv$validation_result <- st$validation
+      rv$import_result <- st$import
+    }
+
     shiny::observe({
       res <- trait_mapping_result()
       shiny::req(res)
-      # Only snapshot when valid — prevents overwriting with degraded result
-      # when step 2 UI is destroyed on navigation
-      if (isTRUE(res$valid)) {
-        rv$trait_mapping_result <- res
-      }
+      apply_wizard_state(.wizard_state_update(
+        wizard_state(), "trait_mapping", res, showing = rv$step == 2))
+    })
+
+    # Data seen by steps 3-5: long-format uploads are spread by step 2 into
+    # one column per trait; wide uploads pass through unchanged.
+    mapped_data <- shiny::reactive({
+      tm <- rv$trait_mapping_result
+      if (!is.null(tm) && !is.null(tm$data)) tm$data else rv$data
     })
 
     # Step 3: Metadata mapping module
     metadata_mapping_result <- mod_trait_metadata_mapping_server(
       "meta_mapping",
-      data = shiny::reactive(rv$data),
+      data = mapped_data,
       trait_mapping = shiny::reactive(rv$trait_mapping_result),
       pool = pool_main_reactive,
       i18n = i18n
@@ -400,11 +423,8 @@ taxa_traits_import_server <- function(input, output, session, translator) {
     shiny::observe({
       res <- metadata_mapping_result()
       shiny::req(res)
-      # Only snapshot when valid — prevents overwriting with degraded result
-      # when step 3 UI is destroyed on navigation
-      if (isTRUE(res$valid)) {
-        rv$metadata_mapping_result <- res
-      }
+      apply_wizard_state(.wizard_state_update(
+        wizard_state(), "metadata_mapping", res, showing = rv$step == 3))
     })
 
     # Combine both mapping results into a single reactive
@@ -414,6 +434,7 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       shiny::req(tm, mm)
       list(
         valid = tm$valid && mm$valid,
+        format = tm$format,
         idtax_col = mm$idtax_col,
         trait_cols = tm$trait_cols,
         metadata_cols = mm$metadata_cols,
@@ -422,10 +443,23 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       )
     })
 
-    # Step 4: Validation module
+    # Step 4: Citation module. Its result is not part of the wizard cascade:
+    # the citation describes the source of the file, not its columns, so a
+    # mapping change does not invalidate it.
+    citation_result <- mod_trait_citation_server(
+      "citation",
+      pool = pool_main_reactive,
+      i18n = i18n
+    )
+
+    shiny::observe({
+      rv$citation_result <- citation_result()
+    })
+
+    # Step 5: Validation module
     validation_result <- mod_trait_validation_server(
       "validation",
-      data = shiny::reactive(rv$data),
+      data = mapped_data,
       mapping = combined_mapping,
       pool = pool_main_reactive,
       i18n = i18n
@@ -437,11 +471,11 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       rv$validation_result <- res
     })
 
-    # Step 5: Preview & import module
+    # Step 6: Preview & import module
     # Pass cleaned data from validation when available
     import_data <- shiny::reactive({
       vr <- rv$validation_result
-      if (!is.null(vr) && !is.null(vr$cleaned_data)) vr$cleaned_data else rv$data
+      if (!is.null(vr) && !is.null(vr$cleaned_data)) vr$cleaned_data else mapped_data()
     })
 
     import_result <- mod_trait_preview_import_server(
@@ -449,7 +483,8 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       data = import_data,
       mapping = combined_mapping,
       pool = pool_main_reactive,
-      i18n = i18n
+      i18n = i18n,
+      citation = shiny::reactive(rv$citation_result)
     )
 
     shiny::observe({
@@ -483,6 +518,53 @@ taxa_traits_import_server <- function(input, output, session, translator) {
       rownames = FALSE
     )
   })
+}
+
+
+# =============================================================================
+# Wizard state
+# =============================================================================
+
+#' Fold the result of one wizard step into the wizard state
+#'
+#' @description
+#' A step module keeps returning a result after the user has left it, and
+#' returns a degraded one while its UI is being rebuilt, so an invalid result
+#' is only believed while the user is looking at that step. When the result
+#' does change, every later snapshot is dropped: a metadata mapping, a
+#' validated table or a preview built on the previous mapping describes
+#' columns that may no longer exist. Switching step 2 between wide and long is
+#' the case that makes this visible — without it, the Next button stays
+#' enabled on the mapping of the format the user just left.
+#'
+#' @param state Named list of snapshots in wizard order, e.g.
+#'   \code{list(trait_mapping = , metadata_mapping = , validation = ,
+#'   import = )}.
+#' @param field Name of the snapshot this result belongs to.
+#' @param res Result returned by the step module.
+#' @param showing TRUE when the user is currently on that step.
+#'
+#' @return The state, unchanged when the result must be ignored or repeats the
+#'   stored one; otherwise with `field` updated and every later entry NULL.
+#' @keywords internal
+.wizard_state_update <- function(state, field, res, showing) {
+  idx <- match(field, names(state))
+  if (is.na(idx)) stop("unknown wizard field: ", field)
+
+  if (isTRUE(res$valid)) {
+    value <- res
+  } else if (isTRUE(showing)) {
+    value <- NULL
+  } else {
+    return(state)
+  }
+
+  if (identical(value, state[[field]])) return(state)
+
+  state[field] <- list(value)  # [[<- would drop the entry when value is NULL
+  later <- seq_along(state) > idx
+  if (any(later)) state[later] <- list(NULL)
+  state
 }
 
 
@@ -542,7 +624,8 @@ taxa_traits_upload_ui <- function(ns_fn, i18n) {
             i18n$t("Choose file"),
             accept = c(".xlsx", ".xls", ".csv"),
             width = "100%"
-          )
+          ),
+          .xlsx_sheet_ui(ns_fn, "file_upload")
         )
       ),
 
@@ -571,6 +654,9 @@ taxa_traits_upload_ui <- function(ns_fn, i18n) {
             ),
             shiny::tags$li(
               i18n$t("One or more columns with trait values (e.g., wood_density, max_height)")
+            ),
+            shiny::tags$li(
+              i18n$t("Or, in long format, one row per measurement: a column with the trait name and a column with the value")
             ),
             shiny::tags$li(
               i18n$t("Optional metadata: basisofrecord, latitude, longitude, reference, etc.")

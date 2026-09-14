@@ -10528,6 +10528,78 @@
     {
       "en": "Matching cancelled. Your progress was saved - start again to resume it.",
       "fr": "Appariement annulé. Votre progression a été sauvegardée - relancez pour la reprendre."
+    },
+    {
+      "en": "Wide format (one column per trait)",
+      "fr": "Format large (une colonne par trait)"
+    },
+    {
+      "en": "Long format (trait name + value columns)",
+      "fr": "Format long (colonnes nom du trait + valeur)"
+    },
+    {
+      "en": "Long format: one row per measurement, with a column holding the trait name and a column holding the value. Give a numeric and a character value column if numeric and categorical traits are stored separately. The other columns (idtax, reference, coordinates...) are kept and mapped in the next step.",
+      "fr": "Format long : une ligne par mesure, avec une colonne contenant le nom du trait et une colonne contenant la valeur. Indiquez une colonne de valeurs numériques et une colonne de valeurs texte si les traits numériques et catégoriels sont stockés séparément. Les autres colonnes (idtax, référence, coordonnées...) sont conservées et associées à l'étape suivante."
+    },
+    {
+      "en": "Wide format: one column per trait. Map each trait column to a trait below.",
+      "fr": "Format large : une colonne par trait. Associez chaque colonne de trait à un trait ci-dessous."
+    },
+    {
+      "en": "Trait name column *",
+      "fr": "Colonne du nom du trait *"
+    },
+    {
+      "en": "Select the column holding the trait names to list them here.",
+      "fr": "Sélectionnez la colonne contenant les noms des traits pour les afficher ici."
+    },
+    {
+      "en": "Select the column holding the trait names",
+      "fr": "Sélectionnez la colonne contenant les noms des traits"
+    },
+    {
+      "en": "Select at least one value column",
+      "fr": "Sélectionnez au moins une colonne de valeurs"
+    },
+    {
+      "en": "You must map at least one trait name to a trait",
+      "fr": "Vous devez associer au moins un nom de trait à un trait"
+    },
+    {
+      "en": "Columns with the same name as a mapped trait: %s. Rename them in your file.",
+      "fr": "Colonnes portant le même nom qu'un trait associé : %s. Renommez-les dans votre fichier."
+    },
+    {
+      "en": "Or, in long format, one row per measurement: a column with the trait name and a column with the value",
+      "fr": "Ou, en format long, une ligne par mesure : une colonne avec le nom du trait et une colonne avec la valeur"
+    },
+    {
+      "en": "Citation",
+      "fr": "Citation"
+    },
+    {
+      "en": "Search a citation...",
+      "fr": "Rechercher une citation..."
+    },
+    {
+      "en": "Optional: leave it on '-- None --' to import measurements without a citation.",
+      "fr": "Facultatif : laissez '-- None --' pour importer les mesures sans citation."
+    },
+    {
+      "en": "No citation selected: the measurements will be imported without a link to a source.",
+      "fr": "Aucune citation sélectionnée : les mesures seront importées sans lien vers une source."
+    },
+    {
+      "en": "The citation is saved to the database now, before the import, and can then be reused by other imports.",
+      "fr": "La citation est enregistrée dans la base maintenant, avant l'import, et pourra être réutilisée par d'autres imports."
+    },
+    {
+      "en": "Citation key '%s' already exists. Select it in the list or use another key.",
+      "fr": "La clé de citation '%s' existe déjà. Sélectionnez-la dans la liste ou utilisez une autre clé."
+    },
+    {
+      "en": "Citation attached to every imported measurement:",
+      "fr": "Citation associée à chaque mesure importée :"
     }
   ]
 }

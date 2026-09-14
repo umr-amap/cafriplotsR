@@ -14,7 +14,7 @@ mod_trait_preview_import_ui <- function(id) {
 
   shiny::tagList(
     shiny::uiOutput(ns("preview_header")),
-    shiny::uiOutput(ns("citation_selector")),
+    shiny::uiOutput(ns("citation_summary")),
     shiny::uiOutput(ns("basisofrecord_selector")),
     shiny::uiOutput(ns("measurementremarks_input")),
     shiny::hr(),
@@ -72,12 +72,15 @@ mod_trait_preview_import_ui <- function(id) {
 #' @param mapping Reactive returning mapping result from mod_trait_column_mapping_server
 #' @param pool Reactive returning database connection pool
 #' @param i18n Reactive returning translator
+#' @param citation Reactive returning the citation step result
+#'   (`id_citation`, `citation`), or NULL when no citation step is used
 #'
 #' @return Reactive list with import_result
 #'
 #' @keywords internal
 #' @export
-mod_trait_preview_import_server <- function(id, data, mapping, pool, i18n) {
+mod_trait_preview_import_server <- function(id, data, mapping, pool, i18n,
+                                            citation = shiny::reactive(NULL)) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -125,184 +128,36 @@ mod_trait_preview_import_server <- function(id, data, mapping, pool, i18n) {
       !("measurementremarks" %in% m$metadata_cols)
     })
 
-    # -------------------------------------------------------------------------
-    # -- Citation selector --
-    # -------------------------------------------------------------------------
-
-    # Refresh trigger (incremented after a new citation is created inline)
-    citation_refresh <- shiny::reactiveVal(0)
-
-    # Fetch existing citations from DB
-    citations_df <- shiny::reactive({
-      citation_refresh()
-      shiny::req(pool())
-      tryCatch({
-        actual_con <- if (inherits(pool(), "Pool")) pool::poolCheckout(pool()) else pool()
-        on.exit(if (inherits(pool(), "Pool")) pool::poolReturn(actual_con), add = TRUE)
-        DBI::dbGetQuery(actual_con,
-          "SELECT id_citation, citation_key, authors, year, dataset_name
-           FROM table_citations ORDER BY citation_key")
-      }, error = function(e) {
-        message("Could not fetch table_citations: ", e$message)
-        data.frame(id_citation = integer(), citation_key = character(),
-                   authors = character(), year = integer(),
-                   dataset_name = character(), stringsAsFactors = FALSE)
-      })
-    })
-
-    # Named vector for selectInput: label -> id_citation
-    citation_choices <- shiny::reactive({
-      df <- citations_df()
-      if (nrow(df) == 0) return(c("-- No citations in database --" = ""))
-      labels <- mapply(function(key, authors, year, ds) {
-        auth_short <- if (!is.na(authors) && nchar(authors) > 0) {
-          paste0(strsplit(authors, ",")[[1]][1], " et al.")
-        } else ""
-        yr <- if (!is.na(year)) paste0(" (", year, ")") else ""
-        ds_str <- if (!is.na(ds) && nchar(ds) > 0) paste0(" [", ds, "]") else ""
-        paste0(key, " — ", auth_short, yr, ds_str)
-      }, df$citation_key, df$authors, df$year, df$dataset_name)
-      c("-- None --" = "", setNames(as.character(df$id_citation), labels))
-    })
-
-    # UI panel
-    output$citation_selector <- shiny::renderUI({
-      shiny::div(
-        style = "padding: 12px; background: #f0fff4; border-left: 4px solid #20c997; border-radius: 4px; margin-bottom: 15px;",
-        shiny::fluidRow(
-          shiny::column(8,
-            shiny::tags$strong(
-              shiny::icon("book", style = "color: #20c997;"),
-              paste0(" ", i18n()$t("Citation (database/dataset source)"))
-            ),
-            shiny::p(
-              i18n()$t("Select the citation for the database or dataset this import comes from. This is distinct from the 'reference' field which records the original source of each measurement."),
-              style = "color: #6c757d; margin: 4px 0 8px 0; font-size: 12px;"
-            ),
-            shiny::selectInput(
-              ns("selected_citation"),
-              label = NULL,
-              choices = citation_choices(),
-              selected = "",
-              width = "100%"
-            )
-          ),
-          shiny::column(4,
-            shiny::br(),
-            shiny::actionButton(
-              ns("btn_add_citation"),
-              shiny::tagList(shiny::icon("plus"), i18n()$t("New citation")),
-              class = "btn-outline-success btn-sm",
-              style = "margin-top: 28px; width: 100%;"
-            )
-          )
-        )
-      )
-    })
-
-    # Resolved id_citation (integer or NA)
+    # -- Citation chosen in the citation step --
     selected_id_citation <- shiny::reactive({
-      val <- input$selected_citation
-      if (is.null(val) || val == "") return(NA_integer_)
-      as.integer(val)
+      cit <- citation()
+      if (is.null(cit) || is.null(cit$id_citation)) return(NA_integer_)
+      as.integer(cit$id_citation)
     })
 
-    # -- New citation modal --
-    shiny::observeEvent(input$btn_add_citation, {
-      shiny::showModal(shiny::modalDialog(
-        title = shiny::tagList(shiny::icon("plus-circle"),
-                               paste0(" ", i18n()$t("Create New Citation"))),
-        size = "l",
-        shiny::fluidRow(
-          shiny::column(6,
-            shiny::textInput(ns("new_cit_key"),
-              paste0(i18n()$t("Citation key"), " *"),
-              placeholder = "e.g. TRY_2020, Dauby2022"),
-            shiny::tags$small(
-              i18n()$t("Short unique identifier — use only letters, digits, underscores"),
-              style = "color: #6c757d; display: block; margin-top: -10px; margin-bottom: 10px;"
-            ),
-            shiny::textInput(ns("new_cit_authors"),
-              i18n()$t("Authors"),
-              placeholder = "Last F., Last2 F2., ..."),
-            shiny::numericInput(ns("new_cit_year"),
-              i18n()$t("Year"),
-              value = as.integer(format(Sys.Date(), "%Y")),
-              min = 1800, max = 2100, step = 1),
-            shiny::textInput(ns("new_cit_dataset"),
-              i18n()$t("Dataset name"),
-              placeholder = "e.g. TRY, BIEN, CoForTraits")
-          ),
-          shiny::column(6,
-            shiny::textAreaInput(ns("new_cit_title"),
-              paste0(i18n()$t("Title"), " *"),
-              placeholder = i18n()$t("Full title of the article or dataset"),
-              rows = 3),
-            shiny::textInput(ns("new_cit_journal"),
-              i18n()$t("Journal / Publisher"),
-              placeholder = "e.g. Scientific Data, CIRAD Dataverse"),
-            shiny::textInput(ns("new_cit_doi"),
-              "DOI",
-              placeholder = "10.XXXX/..."),
-            shiny::textInput(ns("new_cit_url"),
-              "URL",
-              placeholder = "https://...")
-          )
-        ),
-        footer = shiny::tagList(
-          shiny::modalButton(i18n()$t("Cancel")),
-          shiny::actionButton(ns("confirm_add_citation"),
-            shiny::tagList(shiny::icon("check"), paste0(" ", i18n()$t("Save citation"))),
-            class = "btn-success")
-        ),
-        easyClose = FALSE
-      ))
-    })
+    # Recall the choice here: this is the last screen before the write.
+    output$citation_summary <- shiny::renderUI({
+      cit <- citation()
+      row <- if (is.null(cit)) NULL else cit$citation
 
-    shiny::observeEvent(input$confirm_add_citation, {
-      key   <- trimws(input$new_cit_key %||% "")
-      title <- trimws(input$new_cit_title %||% "")
-
-      if (nchar(key) == 0 || nchar(title) == 0) {
-        shiny::showNotification(
-          i18n()$t("Citation key and title are required."),
-          type = "warning"
-        )
-        return()
+      if (is.null(row)) {
+        return(shiny::div(
+          style = "padding: 10px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; margin-bottom: 15px;",
+          shiny::icon("book", style = "color: #856404;"),
+          shiny::tags$small(
+            paste0(" ", i18n()$t("No citation selected: the measurements will be imported without a link to a source.")),
+            style = "color: #856404;")
+        ))
       }
 
-      tryCatch({
-        new_row <- data.frame(
-          citation_key = key,
-          authors      = trimws(input$new_cit_authors %||% ""),
-          year         = as.integer(input$new_cit_year),
-          title        = title,
-          journal      = trimws(input$new_cit_journal %||% ""),
-          doi          = trimws(input$new_cit_doi %||% ""),
-          url          = trimws(input$new_cit_url %||% ""),
-          dataset_name = trimws(input$new_cit_dataset %||% ""),
-          stringsAsFactors = FALSE
-        )
-        add_citation(new_row, con = pool(), interactive = FALSE)
-        shiny::removeModal()
-        shiny::showNotification(
-          sprintf(i18n()$t("Citation '%s' created"), key),
-          type = "message"
-        )
-        citation_refresh(citation_refresh() + 1)
-        # Auto-select the newly created citation
-        shiny::updateSelectInput(session, "selected_citation",
-          choices = citation_choices(),
-          selected = as.character(
-            citations_df()$id_citation[citations_df()$citation_key == key]
-          )
-        )
-      }, error = function(e) {
-        shiny::showNotification(
-          paste(i18n()$t("Error saving citation:"), e$message),
-          type = "error"
-        )
-      })
+      shiny::div(
+        style = "padding: 10px; background: #f0fff4; border-left: 4px solid #20c997; border-radius: 4px; margin-bottom: 15px;",
+        shiny::icon("book", style = "color: #20c997;"),
+        shiny::tags$small(
+          paste0(" ", i18n()$t("Citation attached to every imported measurement:"), " "),
+          style = "color: #495057;"),
+        shiny::tags$strong(.citation_labels(row), style = "color: #495057;")
+      )
     })
 
     # -- Header --
