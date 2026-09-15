@@ -11,7 +11,7 @@ merge_individuals_taxa(
   clean_columns = TRUE,
   con_taxa = NULL,
   con = NULL,
-  backbone = c("internal", "wcvp")
+  backbone = "internal"
 )
 }
 \arguments{
@@ -27,8 +27,9 @@ merge_individuals_taxa(
 
 \item{con}{connexion}
 
-\item{backbone}{character. \code{"internal"} (default) or \code{"wcvp"}.
-When \code{"wcvp"}, results are enriched with WCVP names via the link table.}
+\item{backbone}{Character. Backbone whose names are used: \code{"internal"}
+(default) for \code{table_taxa}, or the code of a backbone registered in
+the taxa database (see \code{list_backbones()}), such as \code{"wcvp"}.}
 }
 \value{
 A tibble with individuals and resolved taxonomy

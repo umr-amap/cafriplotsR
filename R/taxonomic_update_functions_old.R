@@ -26,8 +26,9 @@
 #' @param clean_columns logical, whether to remove redundant columns
 #' @param con_taxa connexion
 #' @param con connexion
-#' @param backbone character. \code{"internal"} (default) or \code{"wcvp"}.
-#'   When \code{"wcvp"}, results are enriched with WCVP names via the link table.
+#' @param backbone Character. Backbone whose names are used: \code{"internal"}
+#'   (default) for \code{table_taxa}, or the code of a backbone registered in
+#'   the taxa database (see \code{list_backbones()}), such as \code{"wcvp"}.
 #'
 #' @export
 merge_individuals_taxa <- function(id_individual = NULL,
@@ -36,9 +37,9 @@ merge_individuals_taxa <- function(id_individual = NULL,
                                     clean_columns = TRUE,
                                    con_taxa = NULL,
                                    con = NULL,
-                                   backbone = c("internal", "wcvp")) {
+                                   backbone = "internal") {
 
-  backbone <- match.arg(backbone)
+  backbone <- .validate_backbone(backbone)
 
   if (is.null(con_taxa)) con_taxa <- call.mydb.taxa()
   if (is.null(con)) con <- call.mydb()
@@ -230,7 +231,7 @@ merge_individuals_taxa <- function(id_individual = NULL,
   ) %>%
     collect()
 
-  # taxa_extract already has WCVP columns replaced when backbone = "wcvp"
+  # taxa_extract already has the backbone's names when backbone != "internal"
   # (handled inside add_taxa_table_taxa)
   res_individuals_full <- res_individuals_full %>%
     dplyr::left_join(

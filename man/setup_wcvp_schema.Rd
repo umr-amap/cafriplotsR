@@ -22,6 +22,11 @@ Creates the WCVP-related tables in the taxa database:
   \item \code{wcvp_import_metadata}: Version tracking
 }
 }
+\details{
+On a new database, apply \file{inst/migrations/multi_backbone.R} afterwards:
+the package reads WCVP links from \code{taxa_backbone_link} and names through
+\code{v_backbone_names_wcvp}, not from \code{wcvp_idtax_link}.
+}
 \examples{
 \dontrun{
 con_taxa <- call.mydb.taxa()

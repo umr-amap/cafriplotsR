@@ -1977,7 +1977,7 @@ mod_taxa_add_server <- function(id, pool, pool_main = NULL, has_write_permission
 #'
 #' Given a \code{plant_name_id} from \code{wcvp_names}, retrieves all other
 #' WCVP entries that share the same \code{accepted_plant_name_id} and are
-#' already linked to internal backbone taxa via \code{wcvp_idtax_link}.
+#' already linked to internal backbone taxa via \code{taxa_backbone_link}.
 #' These are potential synonyms of the taxon being added.
 #'
 #' @param plant_name_id Integer. WCVP plant_name_id of the matched taxon.
@@ -2006,7 +2006,7 @@ mod_taxa_add_server <- function(id, pool, pool_main = NULL, has_write_permission
     # Check required tables exist
     ok <- tryCatch({
       DBI::dbGetQuery(actual_con, "SELECT 1 FROM wcvp_names LIMIT 0;")
-      DBI::dbGetQuery(actual_con, "SELECT 1 FROM wcvp_idtax_link LIMIT 0;")
+      DBI::dbGetQuery(actual_con, "SELECT 1 FROM taxa_backbone_link LIMIT 0;")
       TRUE
     }, error = function(e) FALSE)
 
@@ -2028,7 +2028,9 @@ mod_taxa_add_server <- function(id, pool, pool_main = NULL, has_write_permission
         SELECT cs.plant_name_id, cs.taxon_name, cs.taxon_status, cs.taxon_authors,
                lnk.idtax_n, lnk.match_type
         FROM co_synonyms cs
-        JOIN wcvp_idtax_link lnk ON lnk.plant_name_id = cs.plant_name_id
+        JOIN taxa_backbone_link lnk
+          ON lnk.external_id = cs.plant_name_id::text
+         AND lnk.id_backbone = (SELECT id_backbone FROM backbone_list WHERE code = 'wcvp')
       )
       SELECT
         l.idtax_n,

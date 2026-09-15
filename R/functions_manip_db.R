@@ -247,7 +247,7 @@ query_plots <- function(plot_name = NULL,
                         census_strategy = c("last", "first", "mean"),
                         individual_features_format = c("wide", "long", "census_pairs"),
                         output_style = "auto",
-                        backbone = c("internal", "wcvp"),
+                        backbone = "internal",
                         con = NULL,
                         con.taxa = NULL,
                         verbose = NULL) {
@@ -352,11 +352,11 @@ query_plots <- function(plot_name = NULL,
                         census_strategy = c("last", "first", "mean"),
                         individual_features_format = c("wide", "long", "census_pairs"),
                         output_style = "auto",
-                        backbone = c("internal", "wcvp"),
+                        backbone = "internal",
                         con = NULL,
                         con.taxa = NULL) {
 
-  backbone <- match.arg(backbone)
+  backbone <- .validate_backbone(backbone)
 
   # Match arguments
   census_strategy <- match.arg(census_strategy)
@@ -1039,9 +1039,9 @@ process_individuals <- function(plots_data,
                                 include_liana = FALSE,
                                 census_strategy = c("last", "first", "mean"),
                                 show_multiple_census = FALSE,
-                                backbone = c("internal", "wcvp")) {
+                                backbone = "internal") {
 
-  backbone <- match.arg(backbone)
+  backbone <- .validate_backbone(backbone)
 
   census_strategy <- match.arg(census_strategy)
   cli::cli_rule(left = "Processing individuals")

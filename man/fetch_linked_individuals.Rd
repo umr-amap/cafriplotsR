@@ -8,7 +8,7 @@ fetch_linked_individuals(
   individual_ids,
   con,
   chunk_size = 30000,
-  backbone = c("internal", "wcvp")
+  backbone = "internal"
 )
 }
 \description{

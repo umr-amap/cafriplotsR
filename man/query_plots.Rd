@@ -36,7 +36,7 @@ query_plots(
   census_strategy = c("last", "first", "mean"),
   individual_features_format = c("wide", "long", "census_pairs"),
   output_style = "auto",
-  backbone = c("internal", "wcvp"),
+  backbone = "internal",
   con = NULL,
   con.taxa = NULL,
   verbose = NULL

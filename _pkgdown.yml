@@ -157,8 +157,18 @@ reference:
       - list_output_styles
       - print.plot_output_style
 
+  - title: "Taxonomic Backbones"
+    desc: "External taxonomic backbones (WCVP, APD, ...): available backbones, names, matching and links"
+    contents:
+      - list_backbones
+      - get_backbone_names
+      - match_taxa_to_backbone
+      - save_backbone_links
+      - get_backbone_status
+      - check_backbone_links
+
   - title: "WCVP Integration"
-    desc: "Functions for integrating with the World Checklist of Vascular Plants (WCVP)"
+    desc: "Importing the World Checklist of Vascular Plants (WCVP), and the WCVP functions kept from before other backbones existed"
     contents:
       - check_wcvp_update
       - get_wcvp_names

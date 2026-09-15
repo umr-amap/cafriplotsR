@@ -12,19 +12,23 @@ get_wcvp_names(idtax_n, con_taxa = NULL, resolve_synonyms = TRUE)
 \item{con_taxa}{Connection to the taxa database. If NULL, calls \code{call.mydb.taxa()}.}
 
 \item{resolve_synonyms}{Logical. If TRUE and a linked WCVP name is a synonym,
-follow \code{accepted_plant_name_id} to the accepted name. Default TRUE.}
+follow its pointer to the accepted name. Default TRUE.}
 }
 \value{
-A tibble with columns: \code{idtax_n}, \code{plant_name_id},
-  \code{wcvp_taxon_name}, \code{wcvp_family}, \code{wcvp_taxon_status},
-  \code{wcvp_taxon_authors}, \code{name_source}.
+A tibble with columns: \code{idtax_n}, \code{wcvp_plant_name_id},
+  \code{wcvp_accepted_plant_name_id}, \code{wcvp_taxon_name},
+  \code{wcvp_family}, \code{wcvp_genus}, \code{wcvp_species},
+  \code{wcvp_taxon_status}, \code{wcvp_taxon_authors}, \code{name_source}.
 }
 \description{
-Looks up WCVP names for given \code{idtax_n} values via the link table.
-Optionally resolves WCVP synonyms to their accepted names.
+Superseded by \code{get_backbone_names(idtax_n, "wcvp")}, which it calls.
+Kept with its original \code{wcvp_*} column names for existing scripts and
+the Shiny modules.
 }
 \details{
-Taxa not found in the link table get \code{name_source = "internal"}.
+Only preferred links are used. Taxa without one get
+\code{name_source = "internal"}, as do all taxa when the WCVP backbone is
+not available.
 }
 \examples{
 \dontrun{

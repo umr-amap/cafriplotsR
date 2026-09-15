@@ -24,7 +24,7 @@ Find Internal Backbone Taxa That Share the Same WCVP Accepted Name
 \details{
 Given a \code{plant_name_id} from \code{wcvp_names}, retrieves all other
 WCVP entries that share the same \code{accepted_plant_name_id} and are
-already linked to internal backbone taxa via \code{wcvp_idtax_link}.
+already linked to internal backbone taxa via \code{taxa_backbone_link}.
 These are potential synonyms of the taxon being added.
 }
 \keyword{internal}
