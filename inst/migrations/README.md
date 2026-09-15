@@ -30,6 +30,15 @@ trusting the code.
 | `add_plot_citations.R` | added `id_citation` (FK to `table_citations`) to `data_liste_plots` | `check_plot_citations_migration()` reports `id_citation` present, migration complete |
 | `plot_hierarchy.R` | added `data_liste_plots.id_parent_plot` and `parent_relation`, with four constraints | `check_plot_hierarchy_migration()` reports both columns, all four constraints, migration complete |
 | `taxa_hierarchy_backfill.R` | set `tax_level` and `id_parent` on the 25 taxa added from `launch_taxo_backbone_app()` without them; created 2 missing genera (`Kuloa` 367194, `Conchograecum` 367195, `tax_source = 'H_AUT'`) | applied 2026-09-14 (**taxa** database): all 25 `linked`, none left unlinked; `check_unlinked_taxa()` should report `no_level = 0` |
+| `multi_backbone.R` | created `backbone_list`, `backbone_import`, `taxa_backbone_link` and `v_backbone_names_wcvp`; copied the WCVP links and import history; legacy WCVP tables untouched apart from two expression indexes on `wcvp_names` | verified 2026-09-15 (**taxa** database): `check_multi_backbone_migration()` passes every check; 313,476 WCVP links copied, none missing, none dangling; foreign key to `table_taxa` on delete cascade; 1,550 taxa with several links and none preferred, left for review |
+
+## Written, not yet applied
+
+Move a row to the table above, with its evidence, once it has run.
+
+| Migration | What it will change | Plan |
+|---|---|---|
+| `apd_backbone.R` | creates the empty `apd_names` and `v_backbone_names_apd`, registers APD without offering it to users (**taxa** database) | same plan, Phase 4; needs `multi_backbone.R`; verify with `check_apd_backbone_migration()` |
 
 ## `plot_hierarchy.R`: the parent link
 
