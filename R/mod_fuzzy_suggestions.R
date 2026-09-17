@@ -32,6 +32,10 @@ mod_fuzzy_suggestions_ui <- function(id) {
 #' @param backbone Reactive returning the cached backbone tibble (or NULL).
 #'   When non-NULL, all per-level searches run R-side without DB access —
 #'   required for offline mode.
+#' @param matching_backbone Reactive returning a backbone already passed
+#'   through `.prepare_backbone_for_matching()`, or NULL. Used for the
+#'   `match_taxonomic_names()` calls so the name index is not rebuilt for every
+#'   name. Falls back to `backbone`.
 #'
 #' @return Reactive integer, idtax_n of selected suggestion (or NULL)
 #'
@@ -40,7 +44,8 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
                                          min_similarity = shiny::reactive(0.3),
                                          include_authors = shiny::reactive(FALSE),
                                          i18n,
-                                         backbone = shiny::reactive(NULL)) {
+                                         backbone = shiny::reactive(NULL),
+                                         matching_backbone = backbone) {
   shiny::moduleServer(id, function(input, output, session) {
 
     # Reactive values
@@ -66,6 +71,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       level_filter <- input$filter_level %||% "all"
 
       bb <- backbone()  # NULL when online without cache routing, tibble when offline
+      bb_match <- matching_backbone()  # indexed once; may be the cache when bb is NULL
 
       # Based on level filter, do targeted searches or use hierarchical matching
       if (level_filter == "all") {
@@ -79,12 +85,13 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
           return_scores = TRUE,
           include_authors = incl_auth,
           con = NULL,
-          backbone = bb,
+          backbone = bb_match,
           verbose = FALSE
         )
       } else if (!is.null(bb)) {
         # Offline / cached-backbone path: R-side per-level fuzzy search
-        matches <- .level_fuzzy_search_r(bb, name, level_filter, min_sim, max_results = 50L)
+        matches <- .level_fuzzy_search_r(bb_match %||% bb, name, level_filter,
+                                         min_sim, max_results = 50L)
       } else {
         # Online path: direct database fuzzy search
         mydb_taxa <- call.mydb.taxa()
@@ -159,6 +166,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
             return_scores = TRUE,
             include_authors = incl_auth,
             con = NULL,
+            backbone = bb_match,
             verbose = FALSE
           ) %>%
             dplyr::filter(tax_level == level_filter)
@@ -303,7 +311,10 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
             style = "padding: 20px; background-color: #fff3cd; border-radius: 5px;",
             shiny::p(
               shiny::icon("info-circle"),
-              paste0("No matches found at the '", input$filter_level, "' level. Try selecting 'All levels' or a different taxonomic level."),
+              sprintf(
+                i18n()$t("No matches found at the '%s' level. Try selecting 'All levels' or a different taxonomic level."),
+                input$filter_level
+              ),
               style = "color: #856404; margin: 0;"
             )
           )
@@ -425,12 +436,20 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       selected_row_idx <- input$selected_row
 
       if (selected_row_idx > 0 && selected_row_idx <= nrow(sug)) {
-        selected_id(sug$idtax_n[selected_row_idx])
+        # A click counter goes along with the id. A reactiveVal ignores a value
+        # identical to the one it holds, so picking the same taxon for two
+        # names in a row (two spellings of one species) used to fire nothing:
+        # no decision recorded, no move to the next name.
+        selected_id(list(
+          idtax_n = sug$idtax_n[selected_row_idx],
+          click   = (shiny::isolate(selected_id())$click %||% 0L) + 1L
+        ))
       }
     })
 
-    # Return selected ID
-    return(selected_id)
+    # Return selected ID. A reactive() invalidates its dependents on every
+    # change of selected_id(), even when the id itself is unchanged.
+    return(shiny::reactive(selected_id()$idtax_n))
   })
 }
 

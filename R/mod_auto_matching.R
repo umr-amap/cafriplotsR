@@ -232,9 +232,45 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
     # below keys off.
     match_job <- shiny::reactiveVal(NULL)
 
+    # Last progress published by the pipeline, shown in the status panel.
+    match_progress <- shiny::reactiveVal(NULL)
+
+    # One display for both run modes. The notification is what an in-process
+    # run relies on: it is sent to the browser immediately, whereas the status
+    # panel cannot re-render until the blocking run has returned.
+    show_matching_progress <- function(p) {
+      if (is.null(p) || is.null(p$stage)) return(invisible(NULL))
+
+      msg <- switch(
+        p$stage,
+        fuzzy = paste0(
+          i18n()$t("Fuzzy matching:"), " ", p$i, " / ", p$n,
+          if (!is.null(p$name) && !is.na(p$name)) paste0(" (", p$name, ")")
+        ),
+        fuzzy_start = paste0(
+          i18n()$t("Starting fuzzy matching for"), " ", p$n, " ",
+          i18n()$t("unmatched name(s)... This may take some time.")
+        ),
+        resume = paste0(i18n()$t("Resuming from name"), " ", p$i, " / ", p$n),
+        NULL
+      )
+      if (is.null(msg)) return(invisible(NULL))
+
+      shiny::showNotification(
+        msg,
+        duration = if (identical(p$stage, "resume")) 4 else NULL,
+        closeButton = FALSE,
+        id = "fuzzy_progress",
+        type = "message"
+      )
+      match_progress(msg)
+      invisible(NULL)
+    }
+
     # Put the module back in a state where the Start button works again.
     reset_matching_state <- function() {
       shinybusy::hide_spinner()
+      match_progress(NULL)
       matching_in_progress(FALSE)
       resume_mode(NULL)
       pending_input_hash(NULL)
@@ -376,50 +412,16 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       status <- .poll_matching_job(job)
 
       if (identical(status$state, "running")) {
-        p <- status$progress
-
-        if (!is.null(p) && identical(p$stage, "fuzzy")) {
-          shiny::showNotification(
-            paste0(
-              i18n()$t("Fuzzy matching:"), " ", p$i,
-              " / ", p$n,
-              " (", p$name, ")"
-            ),
-            duration = NULL,
-            closeButton = FALSE,
-            id = "fuzzy_progress",
-            type = "message"
-          )
-        } else if (!is.null(p) && identical(p$stage, "fuzzy_start")) {
-          shiny::showNotification(
-            paste0(
-              i18n()$t("Starting fuzzy matching for"),
-              " ", p$n, " ",
-              i18n()$t("unmatched name(s)... This may take some time.")
-            ),
-            duration = NULL,
-            closeButton = FALSE,
-            id = "fuzzy_progress",
-            type = "message"
-          )
-        } else if (!is.null(p) && identical(p$stage, "resume")) {
-          shiny::showNotification(
-            paste0(
-              i18n()$t("Resuming from name"),
-              " ", p$i, " / ", p$n
-            ),
-            duration = 4,
-            id = "fuzzy_progress",
-            type = "message"
-          )
-        }
-
+        # isolate: match_progress() is written here, and must not re-trigger
+        # this observer on top of its own timer.
+        shiny::isolate(show_matching_progress(status$progress))
         return(invisible(NULL))
       }
 
       # Finished, one way or another. Clear the handle first so that nothing
       # below can schedule another poll.
       match_job(NULL)
+      match_progress(NULL)
       shiny::removeNotification("fuzzy_progress")
 
       if (identical(status$state, "done")) {
@@ -763,6 +765,28 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         }
       }
 
+      # In-process fallback: this blocks until done (e.g. under
+      # devtools::load_all(), where no worker can be started). It used to pass
+      # progress = NULL, so a long run showed nothing but "Processing...".
+      # Notifications still reach the browser mid-run; throttled so a fast
+      # stretch of names does not flood the websocket.
+      last_sent <- Sys.time() - 10
+      inprocess_progress <- function(stage, i = NA_integer_, n = NA_integer_,
+                                     name = NA_character_) {
+        now <- Sys.time()
+        if (identical(stage, "fuzzy") && i < n &&
+            as.numeric(difftime(now, last_sent, units = "secs")) < 0.5) {
+          return(invisible(NULL))
+        }
+        last_sent <<- now
+        show_matching_progress(list(stage = stage, i = i, n = n, name = name))
+      }
+
+      on.exit({
+        shiny::removeNotification("fuzzy_progress")
+        match_progress(NULL)
+      }, add = TRUE)
+
       apply_matching_result(
         tryCatch(
           .run_matching_pipeline(
@@ -775,7 +799,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             rm_mode         = rm_mode,
             checkpoint_file = checkpoint_file,
             cancel_file     = NULL,
-            progress        = NULL
+            progress        = inprocess_progress
           ),
           error = function(e) list(status = "error", message = conditionMessage(e))
         )
@@ -791,7 +815,10 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             shiny::icon("spinner", class = "fa-spin"),
             i18n()$t("Processing..."),
             style = "color: #0c5460;"
-          )
+          ),
+          if (!is.null(match_progress())) {
+            shiny::p(match_progress(), style = "color: #0c5460; margin: 0;")
+          }
         )
       }
     })

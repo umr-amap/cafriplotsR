@@ -268,7 +268,7 @@ mod_results_export_server <- function(id, results, original_data, i18n) {
       n_rows <- nrow(data)
 
       shiny::div(
-        shiny::h4(paste0("Data Preview (", n_rows, " row", if(n_rows != 1) "s" else "", ")")),
+        shiny::h4(sprintf(i18n()$t("Data Preview (%d row(s))"), n_rows)),
         DT::renderDataTable({
           DT::datatable(
             data,  # Show ALL rows, not just head(data, 10)

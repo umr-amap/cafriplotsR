@@ -250,6 +250,26 @@
 
 ### Bug Fixes
 
+* **Taxonomic match app: automatic matching showed no progress when run in-process** (`R/mod_auto_matching.R`) — progress was only published by the background worker, which cannot start when the package is loaded with `devtools::load_all()`. The in-process fallback passed `progress = NULL`, so a long run showed nothing but "Processing..." while it silently checkpointed
+  - The in-process run now reports "Fuzzy matching: i / n (name)" through a notification, which reaches the browser mid-run, throttled to two updates per second
+  - Both run modes share one display, and the current step is also shown under "Processing..." rather than only in a corner notification
+
+* **Taxonomic match app: Skip/Next in the Review tab took several seconds per name** (`R/mod_name_review.R`, `R/mod_fuzzy_suggestions.R`) — the suggestions for each name were computed with no backbone passed, so `match_taxonomic_names()` reloaded the 365k-row cache from disk and rebuilt its name index for every name (~6.7 s online, ~4 s offline). The review module now loads and indexes the backbone once per session and hands it to the suggestions, the manual search and the species/infraspecific level filters; a name now takes well under a second. Results are unchanged: the function already preferred the cache when one existed
+
+* **Taxonomic match app: selecting a suggestion sometimes did not advance to the next name** (`R/mod_fuzzy_suggestions.R`) — the selection was returned through a `reactiveVal`, which ignores a value identical to the one it holds. Choosing the same taxon for two names in a row (two spellings of one species, the same genus) fired nothing: no decision recorded, no move. Each click now carries a counter so every selection is an event
+
+* **Taxonomic match app: "Review complete!" shown while skipped names remained** (`R/mod_name_review.R`) — moving on after Skip or a decision only walked forward one position, so reaching the last name announced completion regardless of names skipped earlier (e.g. 32 remaining out of 177)
+  - Skip and every decision now jump to the next name with no decision, wrapping past the end, via `.next_pending_review_index()`; completion is announced only when none remain, and skipping the last pending name says so
+  - Next still browses in order, and at the end of the list stays enabled while names are pending, returning to them
+
+* **Taxonomic match app: CSV upload mis-read French Excel exports, and the upload label said Excel only** (`R/mod_data_input.R`) — the field was labelled "Upload Excel file" / "Télécharger un fichier Excel" although CSV was accepted; it now reads "Upload file (Excel or CSV)"
+  - `.read_delimited_upload()` detects the delimiter (`,` `;` tab `|`), the encoding (UTF-8 with or without BOM, else Windows-1252) and uses `,` as decimal mark for `;`-separated files. A French Excel CSV previously loaded as a single column with garbled accents
+  - Extensions are matched case-insensitively (`NAMES.CSV` was rejected), and `.tsv`/`.txt` are accepted
+  - Legacy `.xls` files are read with `readxl::read_excel()`; they were accepted by the input but read with `read_xlsx()`, which fails on them
+  - The first sheet of an Excel file now loads on upload. A second file whose first sheet had the same name as the previous one left the sheet selector unchanged, so nothing was loaded
+
+* **Taxonomic match app: English text left in the French interface** (`R/mod_name_review.R`, `R/mod_fuzzy_suggestions.R`, `R/mod_data_input.R`, `R/mod_results_export.R`, `inst/translations/translation.json`) — the Review tab's manual search panel ("Search Taxonomic Backbone", its help text, labels, level choices and button), its notifications and result cards, the "no matches at this level" message, the sheet selector, the unsupported-format error and the export preview heading were hard-coded in English. All now go through `i18n`, with 21 new French entries; strings carrying a count or a name use a single `sprintf()` template so French is not assembled from English plurals
+
 * **The taxonomic match app reported one name requiring review that the Review tab never showed** (`R/taxonomic_matching_pipeline.R`, `R/mod_auto_matching.R`, `R/mod_name_preview.R`) — the matching pipeline took empty cells of the name column as one more name to look up (NA became the string `"NA"`), which could never match. Any dataset with a blank cell therefore counted one name more than the preview (745 against 744 on a 67 148-row file) and one "requiring review", while the Review tab, which skips empty names, announced that every name had been matched
   - Rows with no name (NA, empty or whitespace only) are now left out of the names to match, by one rule, `.is_missing_name()`, shared by the preview, the pipeline and the review list. They are still returned, unmatched, with the rest of the data
   - The served app runs the pipeline in a background process from the *installed* package, so the fix reaches it only after reinstalling or redeploying

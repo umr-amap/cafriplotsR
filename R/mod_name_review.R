@@ -66,6 +66,19 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
     updated_data <- shiny::reactiveVal(NULL)
     custom_search_matches <- shiny::reactiveVal(NULL)
 
+    # Backbone for match_taxonomic_names(), with its name index built once.
+    # Handing that function a NULL backbone made it reload the whole cache from
+    # disk and rebuild the index for every name shown - several seconds per
+    # Skip/Next. It already preferred the cache over the database when one
+    # exists, so loading it here changes speed, not results. `backbone()` is
+    # left as is for the per-level SQL paths, which key off it being NULL.
+    matching_backbone <- shiny::reactive({
+      bb <- backbone()
+      if (is.null(bb) && cache_exists()) bb <- load_backbone_cache()
+      if (is.null(bb)) return(NULL)
+      .prepare_backbone_for_matching(bb)
+    })
+
     # Initialize unmatched names from match results
     shiny::observe({
       req(match_results())
@@ -212,7 +225,8 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       min_similarity = shiny::reactive(min_similarity),
       include_authors = shiny::reactive(FALSE),
       i18n = i18n,
-      backbone = backbone
+      backbone = backbone,
+      matching_backbone = matching_backbone
     )
 
     # Manual input option
@@ -229,22 +243,22 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
             style = "padding: 10px; background-color: #fff3cd; border-radius: 5px; margin-bottom: 15px;",
             shiny::p(
               shiny::icon("info-circle"),
-              shiny::strong("Missing Taxonomic Name:"),
-              "This row has no taxonomic name (NA value). Use the search below to find and assign a taxonomic ID.",
+              shiny::strong(paste0(i18n()$t("Missing Taxonomic Name"), ":")),
+              i18n()$t("This row has no taxonomic name (NA value). Use the search below to find and assign a taxonomic ID."),
               style = "margin: 0; color: #856404;"
             )
           )
         },
         shiny::h5(
           shiny::icon("search"),
-          "Search Taxonomic Backbone",
+          i18n()$t("Search Taxonomic Backbone"),
           style = "color: #495057;"
         ),
         shiny::p(
           if (is_na_value) {
-            "Search for the correct taxonomic name and select it to assign to this row."
+            i18n()$t("Search for the correct taxonomic name and select it to assign to this row.")
           } else {
-            "Enter a taxonomic name to search the backbone database. Select a taxonomic level to narrow results."
+            i18n()$t("Enter a taxonomic name to search the backbone database. Select a taxonomic level to narrow results.")
           },
           class = "text-muted",
           style = "font-size: 0.9em;"
@@ -254,23 +268,21 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
             width = 5,
             shiny::textInput(
               inputId = ns("custom_name"),
-              label = "Name to search:",
-              placeholder = "e.g., Fabaceae, Brachystegia..."
+              label = i18n()$t("Name to search:"),
+              placeholder = i18n()$t("e.g., Fabaceae, Brachystegia...")
             )
           ),
           shiny::column(
             width = 3,
             shiny::selectInput(
               inputId = ns("custom_level"),
-              label = "Taxonomic level:",
-              choices = c(
-                "All levels" = "all",
-                "Species" = "species",
-                "Genus" = "genus",
-                "Family" = "family",
-                "Order" = "order",
-                "Infraspecific" = "infraspecific",
-                "Higher" = "higher"
+              label = i18n()$t("Taxonomic level:"),
+              choices = stats::setNames(
+                c("all", "species", "genus", "family", "order",
+                  "infraspecific", "higher"),
+                c(i18n()$t("All levels"), i18n()$t("Species"),
+                  i18n()$t("Genus"), i18n()$t("Family"), i18n()$t("Order"),
+                  i18n()$t("Infraspecific"), i18n()$t("Class (Higher)"))
               ),
               selected = "all"
             )
@@ -280,7 +292,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
             shiny::br(),
             shiny::actionButton(
               inputId = ns("search_custom"),
-              label = shiny::tagList(shiny::icon("search"), "Search"),
+              label = shiny::tagList(shiny::icon("search"), i18n()$t("Search")),
               class = "btn-info btn-block"
             )
           )
@@ -328,7 +340,14 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
               inputId = ns("btn_next"),
               label = shiny::tagList(i18n()$t("Next"), shiny::icon("arrow-right")),
               class = "btn-primary btn-block",
-              disabled = if (curr_idx >= length(unmatched)) "disabled" else NULL
+              # At the last name Next stays usable while names skipped earlier
+              # are still waiting: it takes the user back to them.
+              disabled = if (curr_idx >= length(unmatched) &&
+                             !any(!unmatched[-curr_idx] %in% names(review_decisions()))) {
+                "disabled"
+              } else {
+                NULL
+              }
             )
           )
         )
@@ -416,7 +435,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
 
         # Show success notification
         shiny::showNotification(
-          paste0("Matched to: ", matched_row$matched_name),
+          sprintf(i18n()$t("Matched to: %s"), matched_row$matched_name),
           type = "message",
           duration = 3
         )
@@ -489,7 +508,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
           include_synonyms = TRUE,
           return_scores = TRUE,
           con = NULL,
-          backbone = bb,
+          backbone = matching_backbone(),
           verbose = FALSE
         )
 
@@ -526,9 +545,10 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       if (nrow(matches) == 0 || all(is.na(matches$idtax_n))) {
         shiny::showNotification(
           if (level_filter != "all") {
-            paste0("No matches found for '", custom, "' at '", level_filter, "' level. Try 'All levels' or a different level.")
+            sprintf(i18n()$t("No matches found for '%s' at '%s' level. Try 'All levels' or a different level."),
+                    custom, level_filter)
           } else {
-            paste0("No matches found for '", custom, "' in the backbone database.")
+            sprintf(i18n()$t("No matches found for '%s' in the backbone database."), custom)
           },
           type = "warning",
           duration = 5
@@ -536,7 +556,14 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       } else {
         # Inform user whether exact or fuzzy matches were found
         shiny::showNotification(
-          paste0("Found ", nrow(matches), " ", match_type, " match", if(nrow(matches) > 1) "es" else "", "."),
+          sprintf(
+            if (identical(match_type, "exact")) {
+              i18n()$t("Found %d exact match(es).")
+            } else {
+              i18n()$t("Found %d fuzzy match(es).")
+            },
+            nrow(matches)
+          ),
           type = "message",
           duration = 3
         )
@@ -563,7 +590,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       shiny::div(
         style = "margin-top: 15px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;",
         shiny::h6(
-          paste0("Search Results (", nrow(matches), " found)"),
+          sprintf(i18n()$t("Search Results (%d found)"), nrow(matches)),
           style = "margin-top: 0; color: #495057;"
         ),
         shiny::div(
@@ -599,9 +626,9 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
                     shiny::tags$small(
                       class = "text-muted",
                       paste0(
-                        if (!is.na(row$tax_level)) paste("Level:", row$tax_level, " | ") else "",
-                        if (!is.na(row$tax_fam)) paste("Family:", row$tax_fam, " | ") else "",
-                        if (!is.na(row$tax_gen)) paste("Genus:", row$tax_gen) else ""
+                        if (!is.na(row$tax_level)) paste(i18n()$t("Level:"), row$tax_level, " | ") else "",
+                        if (!is.na(row$tax_fam)) paste(i18n()$t("Family:"), row$tax_fam, " | ") else "",
+                        if (!is.na(row$tax_gen)) paste(i18n()$t("Genus:"), row$tax_gen) else ""
                       )
                     ),
                     if (row$is_synonym && !is.na(row$accepted_name)) {
@@ -610,7 +637,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
                         shiny::tags$small(
                           class = "text-warning",
                           shiny::icon("info-circle"),
-                          paste("Synonym →", row$accepted_name)
+                          paste(i18n()$t("Synonym"), "→", row$accepted_name)
                         )
                       )
                     }
@@ -620,7 +647,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
                     class = "text-right",
                     shiny::actionButton(
                       inputId = ns(paste0("select_custom_", i)),
-                      label = "Select",
+                      label = i18n()$t("Select"),
                       class = "btn-sm btn-info",
                       onclick = paste0("Shiny.setInputValue('", ns("custom_selected_row"), "', ", i, ", {priority: 'event'});")
                     )
@@ -671,7 +698,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
 
         # Show success and move to next
         shiny::showNotification(
-          paste0("Matched to: ", matched_row$matched_name),
+          sprintf(i18n()$t("Matched to: %s"), matched_row$matched_name),
           type = "message",
           duration = 3
         )
@@ -713,24 +740,50 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
       .move_next()
     })
 
+    # Next browses in order, so decided names can be revisited; only past the
+    # end does it go looking for names still waiting.
     shiny::observeEvent(input$btn_next, {
-      .move_next()
-    })
-
-    # Helper function to move to next name
-    .move_next <- function() {
-      unmatched <- unmatched_names()
       curr <- current_index()
-
-      if (curr < length(unmatched)) {
+      if (curr < length(unmatched_names())) {
         current_index(curr + 1)
       } else {
+        .move_next()
+      }
+    })
+
+    # Is each name still waiting for a decision?
+    .pending_names <- function() {
+      !unmatched_names() %in% names(review_decisions())
+    }
+
+    # Move to the next name still waiting for a decision, wrapping past the
+    # end. Walking forward one position used to announce "Review complete" at
+    # the last name even with skipped names left behind it.
+    .move_next <- function() {
+      curr <- current_index()
+      nxt  <- .next_pending_review_index(.pending_names(), curr)
+
+      if (is.na(nxt)) {
         shiny::showNotification(
-          "Review complete! Go to Export tab to download results.",
+          if (isTRUE(.pending_names()[curr])) {
+            i18n()$t("This is the last name left to review.")
+          } else {
+            i18n()$t("Review complete! Go to Export tab to download results.")
+          },
           type = "message",
           duration = 5
         )
+        return(invisible(NULL))
       }
+
+      if (nxt < curr) {
+        shiny::showNotification(
+          i18n()$t("Back to the first name left to review."),
+          type = "message",
+          duration = 4
+        )
+      }
+      current_index(nxt)
     }
 
     # Helper function to update data with decision
@@ -903,4 +956,25 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
     accepted_level    = if (nrow(acc) > 0L) acc$tax_level    else NA_character_,
     accepted_name     = build_label(acc)
   )
+}
+
+
+#' Index of the next name still waiting for review
+#'
+#' Looks forward from `from`, then wraps round to the start. `from` itself is
+#' never returned: skipping a name must move away from it.
+#'
+#' @param pending Logical vector, `TRUE` for names with no decision yet.
+#' @param from Integer, the current position.
+#' @return Integer index, or `NA_integer_` when no other name is waiting.
+#' @keywords internal
+.next_pending_review_index <- function(pending, from) {
+  n <- length(pending)
+  if (n == 0L) return(NA_integer_)
+
+  after  <- seq_len(n) > from
+  search <- c(which(after), which(!after))
+  search <- search[search != from & pending[search]]
+
+  if (length(search) == 0L) NA_integer_ else search[[1]]
 }

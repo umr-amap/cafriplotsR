@@ -10604,6 +10604,90 @@
     {
       "en": "Click to view the column descriptions",
       "fr": "Cliquez pour voir la description des colonnes"
+    },
+    {
+      "en": "Select sheet:",
+      "fr": "Choisir la feuille :"
+    },
+    {
+      "en": "Unsupported file format. Please upload .xlsx, .xls, or .csv file.",
+      "fr": "Format de fichier non pris en charge. Veuillez importer un fichier .xlsx, .xls ou .csv."
+    },
+    {
+      "en": "No matches found at the '%s' level. Try selecting 'All levels' or a different taxonomic level.",
+      "fr": "Aucune correspondance trouvée au niveau '%s'. Essayez 'Tous les niveaux' ou un autre niveau taxonomique."
+    },
+    {
+      "en": "This row has no taxonomic name (NA value). Use the search below to find and assign a taxonomic ID.",
+      "fr": "Cette ligne n'a pas de nom taxonomique (valeur NA). Utilisez la recherche ci-dessous pour trouver et attribuer un identifiant taxonomique."
+    },
+    {
+      "en": "Search Taxonomic Backbone",
+      "fr": "Rechercher dans le référentiel taxonomique"
+    },
+    {
+      "en": "Search for the correct taxonomic name and select it to assign to this row.",
+      "fr": "Recherchez le nom taxonomique correct et sélectionnez-le pour l'attribuer à cette ligne."
+    },
+    {
+      "en": "Enter a taxonomic name to search the backbone database. Select a taxonomic level to narrow results.",
+      "fr": "Saisissez un nom taxonomique à rechercher dans le référentiel. Choisissez un niveau taxonomique pour affiner les résultats."
+    },
+    {
+      "en": "Name to search:",
+      "fr": "Nom à rechercher :"
+    },
+    {
+      "en": "e.g., Fabaceae, Brachystegia...",
+      "fr": "ex. : Fabaceae, Brachystegia..."
+    },
+    {
+      "en": "Taxonomic level:",
+      "fr": "Niveau taxonomique :"
+    },
+    {
+      "en": "Matched to: %s",
+      "fr": "Associé à : %s"
+    },
+    {
+      "en": "No matches found for '%s' at '%s' level. Try 'All levels' or a different level.",
+      "fr": "Aucune correspondance trouvée pour '%s' au niveau '%s'. Essayez 'Tous les niveaux' ou un autre niveau."
+    },
+    {
+      "en": "No matches found for '%s' in the backbone database.",
+      "fr": "Aucune correspondance trouvée pour '%s' dans le référentiel taxonomique."
+    },
+    {
+      "en": "Found %d exact match(es).",
+      "fr": "%d correspondance(s) exacte(s) trouvée(s)."
+    },
+    {
+      "en": "Found %d fuzzy match(es).",
+      "fr": "%d correspondance(s) approchée(s) trouvée(s)."
+    },
+    {
+      "en": "Search Results (%d found)",
+      "fr": "Résultats de la recherche (%d trouvé(s))"
+    },
+    {
+      "en": "Review complete! Go to Export tab to download results.",
+      "fr": "Révision terminée ! Allez dans l'onglet Export pour télécharger les résultats."
+    },
+    {
+      "en": "Data Preview (%d row(s))",
+      "fr": "Aperçu des données (%d ligne(s))"
+    },
+    {
+      "en": "This is the last name left to review.",
+      "fr": "C'est le dernier nom restant à réviser."
+    },
+    {
+      "en": "Back to the first name left to review.",
+      "fr": "Retour au premier nom restant à réviser."
+    },
+    {
+      "en": "Upload file (Excel or CSV)",
+      "fr": "Importer un fichier (Excel ou CSV)"
     }
   ]
 }
