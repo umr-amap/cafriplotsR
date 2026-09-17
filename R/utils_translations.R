@@ -32,8 +32,8 @@ get_translations <- function(language = "en") {
 
       # Data Input Module
       data_input_title = "Data Input",
-      data_upload_file = "Upload Excel file",
-      data_upload_help = "Select an Excel file (.xlsx) containing taxonomic names",
+      data_upload_file = "Upload file (Excel or CSV)",
+      data_upload_help = "Select an Excel (.xlsx, .xls) or CSV file containing taxonomic names",
       data_choose_file = "Choose file...",
       data_using_r_data = "Using R data from environment",
       data_rows = "rows",
@@ -160,8 +160,8 @@ get_translations <- function(language = "en") {
 
       # Data Input Module
       data_input_title = "Données d'entrée",
-      data_upload_file = "Télécharger un fichier Excel",
-      data_upload_help = "Sélectionner un fichier Excel (.xlsx) contenant les noms taxonomiques",
+      data_upload_file = "Importer un fichier (Excel ou CSV)",
+      data_upload_help = "Sélectionner un fichier Excel (.xlsx, .xls) ou CSV contenant les noms taxonomiques",
       data_choose_file = "Choisir un fichier...",
       data_using_r_data = "Utilisation des données R de l'environnement",
       data_rows = "lignes",

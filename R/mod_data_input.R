@@ -114,8 +114,8 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
         shiny::tagList(
           shiny::fileInput(
             inputId = ns("file_upload"),
-            label = i18n()$t("Upload Excel file"),
-            accept = c(".xlsx", ".xls", ".csv"),
+            label = i18n()$t("Upload file (Excel or CSV)"),
+            accept = c(".xlsx", ".xls", ".csv", ".tsv", ".txt"),
             placeholder = i18n()$t("Choose file...")
           ),
           shiny::uiOutput(ns("sheet_selector"))
@@ -154,50 +154,74 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
         style = "margin-top: -10px; margin-bottom: 10px;",
         shiny::selectInput(
           inputId = ns("excel_sheet"),
-          label = "Select sheet:",
+          label = i18n()$t("Select sheet:"),
           choices = excel_sheets(),
           selected = excel_sheets()[1]
         )
       )
     })
 
+    # Which file and sheet user_data() currently holds, so a sheet selector
+    # re-rendered for a new upload does not read the same sheet twice.
+    loaded_sheet <- shiny::reactiveVal(NULL)
+
+    # Read one sheet of the uploaded Excel file into user_data()
+    load_excel_sheet <- function(path, sheet) {
+      shinybusy::show_spinner()
+      # A plain function, so on.exit() reliably runs when it returns.
+      on.exit(shinybusy::hide_spinner(), add = TRUE)
+
+      tryCatch({
+        # read_excel, not read_xlsx: the input also accepts legacy .xls
+        data <- readxl::read_excel(path, sheet = sheet, guess_max = 30000)
+        user_data(.add_id_data(data))
+        loaded_sheet(list(path = path, sheet = sheet))
+
+        shiny::showNotification(
+          paste0(i18n()$t("File uploaded successfully"), " (", sheet, ")"),
+          type = "message",
+          duration = 3
+        )
+      }, error = function(e) {
+        shiny::showNotification(
+          paste(i18n()$t("Error:"), e$message),
+          type = "error",
+          duration = 10
+        )
+      })
+    }
+
     # Handle file upload - detect file type
     shiny::observeEvent(input$file_upload, {
       req(input$file_upload)
 
       file_path <- input$file_upload$datapath
-      file_ext <- tools::file_ext(input$file_upload$name)
+      # Lower-cased: files saved on Windows are often "NAMES.CSV"
+      file_ext <- tolower(tools::file_ext(input$file_upload$name))
 
       uploaded_file_path(file_path)
       file_name(input$file_upload$name)
+      loaded_sheet(NULL)
 
       tryCatch({
-        # Check if Excel file
         if (file_ext %in% c("xlsx", "xls")) {
-          # Get sheet names
           sheets <- readxl::excel_sheets(file_path)
           excel_sheets(sheets)
 
-          # Don't load data yet - wait for sheet selection
-          # Reset user_data to trigger sheet selector
-          user_data(NULL)
+          # Load the first sheet now rather than waiting for the selector to
+          # report one: a second file whose first sheet has the same name as
+          # the previous one leaves input$excel_sheet unchanged, so the
+          # selector never fired and nothing was loaded.
+          load_excel_sheet(file_path, sheets[1])
 
-        } else if (file_ext == "csv") {
-          # Read CSV file directly
+        } else if (file_ext %in% c("csv", "tsv", "txt")) {
           shinybusy::show_spinner()
-
-          data <- readr::read_csv(file_path, show_col_types = FALSE)
-
-          # Add id_data column if not present
-          if (!"id_data" %in% colnames(data)) {
-            data <- data %>%
-              dplyr::mutate(id_data = seq(1, nrow(.), 1))
-          }
-
-          user_data(data)
-          excel_sheets(NULL)  # No sheet selector for CSV
-
-          shinybusy::hide_spinner()
+          excel_sheets(NULL)  # No sheet selector for delimited text
+          data <- tryCatch(
+            .read_delimited_upload(file_path),
+            finally = shinybusy::hide_spinner()
+          )
+          user_data(.add_id_data(data))
 
           shiny::showNotification(
             i18n()$t("File uploaded successfully"),
@@ -206,15 +230,13 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
           )
         } else {
           shiny::showNotification(
-            "Unsupported file format. Please upload .xlsx, .xls, or .csv file.",
+            i18n()$t("Unsupported file format. Please upload .xlsx, .xls, or .csv file."),
             type = "error",
             duration = 5
           )
         }
 
       }, error = function(e) {
-        shinybusy::hide_spinner()
-
         shiny::showNotification(
           paste(i18n()$t("Error:"), e$message),
           type = "error",
@@ -228,37 +250,14 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
       req(uploaded_file_path())
       req(input$excel_sheet)
 
-      shinybusy::show_spinner()
+      current <- loaded_sheet()
+      if (!is.null(current) &&
+          identical(current$path, uploaded_file_path()) &&
+          identical(current$sheet, input$excel_sheet)) {
+        return(invisible(NULL))
+      }
 
-      tryCatch({
-        # Read selected sheet from Excel file
-        data <- readxl::read_xlsx(uploaded_file_path(), sheet = input$excel_sheet, guess_max = 30000)
-
-        # Add id_data column if not present
-        if (!"id_data" %in% colnames(data)) {
-          data <- data %>%
-            dplyr::mutate(id_data = seq(1, nrow(.), 1))
-        }
-
-        user_data(data)
-
-        shinybusy::hide_spinner()
-
-        shiny::showNotification(
-          paste0(i18n()$t("File uploaded successfully"), " (Sheet: ", input$excel_sheet, ")"),
-          type = "message",
-          duration = 3
-        )
-
-      }, error = function(e) {
-        shinybusy::hide_spinner()
-
-        shiny::showNotification(
-          paste(i18n()$t("Error:"), e$message),
-          type = "error",
-          duration = 10
-        )
-      })
+      load_excel_sheet(uploaded_file_path(), input$excel_sheet)
     })
 
     # Handle text input (paste/type names)
@@ -377,4 +376,55 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
     # Return reactive data
     return(user_data)
   })
+}
+
+
+#' Add a row identifier column when the data has none
+#'
+#' @param data data.frame.
+#' @return `data` with an `id_data` column.
+#' @keywords internal
+.add_id_data <- function(data) {
+  if (!"id_data" %in% colnames(data)) data$id_data <- seq_len(nrow(data))
+  data
+}
+
+#' Read an uploaded delimited text file (CSV, TSV, TXT)
+#'
+#' Guesses what a spreadsheet export actually contains rather than assuming
+#' `read_csv()` defaults. French-locale Excel writes "CSV" with `;` between
+#' fields, `,` as decimal mark and Windows-1252 encoding; read as a plain CSV
+#' that came out as a single garbled column.
+#'
+#' @param path Character path to the file.
+#' @return A tibble.
+#' @keywords internal
+.read_delimited_upload <- function(path) {
+  bytes <- readBin(path, "raw", n = min(file.size(path), 1e6))
+  # Strip a UTF-8 BOM before deciding, then fall back to Windows-1252 (a
+  # superset of latin1) for anything that is not valid UTF-8.
+  if (length(bytes) >= 3 && identical(bytes[1:3], as.raw(c(0xEF, 0xBB, 0xBF)))) {
+    bytes <- bytes[-(1:3)]
+  }
+  encoding <- if (validUTF8(rawToChar(bytes[bytes != as.raw(0)]))) "UTF-8" else "windows-1252"
+
+  # The delimiter is whichever candidate splits the header line most often.
+  header <- strsplit(rawToChar(bytes[bytes != as.raw(0)]), "\r?\n")[[1]][1]
+  header <- gsub('"[^"]*"', "", header %||% "")  # ignore delimiters inside quotes
+  candidates <- c(",", ";", "\t", "|")
+  counts <- vapply(candidates, function(d) lengths(regmatches(header, gregexpr(d, header, fixed = TRUE))), integer(1))
+  delim <- if (max(counts) > 0) candidates[which.max(counts)] else ","
+
+  readr::read_delim(
+    path,
+    delim = delim,
+    locale = readr::locale(
+      encoding = encoding,
+      # With ";" between fields, "," is the decimal mark (French/European Excel)
+      decimal_mark = if (delim == ";") "," else ".",
+      grouping_mark = if (delim == ";") " " else ","
+    ),
+    show_col_types = FALSE,
+    guess_max = 30000
+  )
 }

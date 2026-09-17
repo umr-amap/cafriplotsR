@@ -30,7 +30,7 @@
 #' ## Workflow
 #'
 #' 1. **Database Connection**: Login with database credentials (within the app)
-#' 2. **Data Input**: Upload Excel file or provide R data.frame
+#' 2. **Data Input**: Upload an Excel or CSV file, paste names, or provide an R data.frame
 #' 3. **Column Selection**: Choose column containing taxonomic names
 #' 4. **Auto Matching**: Automatic matching using hierarchical strategy:
 #'    - Exact match on full name
