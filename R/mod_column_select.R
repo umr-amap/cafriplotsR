@@ -119,7 +119,8 @@ mod_column_select_server <- function(id, data, initial_column = NULL, i18n) {
                   label = i18n()$t("Genus column:"),
                   choices = c(none_choice, char_cols),
                   selected = ""
-                )
+                ),
+                shiny::helpText(i18n()$t("Genus name only, e.g. Garcinia"))
               ),
               shiny::column(
                 width = 4,
@@ -128,7 +129,8 @@ mod_column_select_server <- function(id, data, initial_column = NULL, i18n) {
                   label = i18n()$t("Species epithet column:"),
                   choices = c(none_choice, char_cols),
                   selected = ""
-                )
+                ),
+                shiny::helpText(i18n()$t("Second word of the name only, e.g. kola - not Garcinia kola. If a column holds the full name (genus + epithet), use Single column mode instead."))
               ),
               shiny::column(
                 width = 4,
@@ -137,9 +139,11 @@ mod_column_select_server <- function(id, data, initial_column = NULL, i18n) {
                   label = i18n()$t("Family column:"),
                   choices = c(none_choice, char_cols),
                   selected = ""
-                )
+                ),
+                shiny::helpText(i18n()$t("Family name, e.g. Clusiaceae. Used only when genus is empty."))
               )
-            )
+            ),
+            shiny::uiOutput(ns("epithet_warning"))
           )
         ),
 
@@ -191,7 +195,7 @@ mod_column_select_server <- function(id, data, initial_column = NULL, i18n) {
 
           # Build taxonomic name according to hierarchy
           if (genus != "" && species != "") {
-            paste(genus, species)
+            paste(genus, .strip_repeated_genus(species, genus))
           } else if (genus != "") {
             genus
           } else if (family != "") {
@@ -205,6 +209,32 @@ mod_column_select_server <- function(id, data, initial_column = NULL, i18n) {
       } else {
         return(df)
       }
+    })
+
+    # Warn when the "epithet" column actually holds full names - a user picked
+    # a "Genus species" column there, which combined into "Genus Genus species".
+    output$epithet_warning <- shiny::renderUI({
+      req(data(), input$column_mode == "multiple")
+      sp_col <- input$species_column
+      req(!is.null(sp_col), sp_col != "", sp_col %in% names(data()))
+
+      gen_col <- input$genus_column
+      genus <- if (!is.null(gen_col) && gen_col %in% names(data())) data()[[gen_col]] else NULL
+
+      share <- .share_binomial_epithets(data()[[sp_col]], genus)
+      if (is.na(share) || share < 0.5) return(NULL)
+
+      shiny::div(
+        class = "alert alert-warning",
+        style = "margin: 10px 0 0 0; padding: 8px 12px;",
+        shiny::icon("exclamation-triangle"), " ",
+        sprintf(
+          i18n()$t("%d%% of the values in '%s' look like full names (genus + epithet), e.g. '%s'. This column should hold the epithet only. If it contains the full name, choose Single column mode and select it there."),
+          round(share * 100),
+          sp_col,
+          attr(share, "example")
+        )
+      )
     })
 
     # Warn once per upload when the file already carries columns the matching
@@ -261,4 +291,57 @@ mod_column_select_server <- function(id, data, initial_column = NULL, i18n) {
       })
     )
   })
+}
+
+
+#' Share of "species epithet" values that are really full names
+#'
+#' An epithet is a single lower-case word ("kola"). A value is counted as a
+#' full name when its first word repeats that row's genus, or, with no genus
+#' column, when it starts with a capitalised word followed by another word
+#' ("Garcinia kola").
+#'
+#' @param species Vector, the column chosen as species epithet.
+#' @param genus Vector of the same length, the genus column, or NULL.
+#' @return Numeric share in 0-1 (NA when no values), with attribute
+#'   `example` holding the first offending value.
+#' @keywords internal
+.share_binomial_epithets <- function(species, genus = NULL) {
+  species <- trimws(as.character(species))
+  keep <- !is.na(species) & species != ""
+  if (!any(keep)) return(NA_real_)
+
+  first_word <- sub("[[:space:]].*$", "", species)
+  n_words    <- lengths(strsplit(species, "[[:space:]]+"))
+
+  looks_full <- grepl("^[A-Z][a-z-]+$", first_word) & n_words >= 2
+  if (!is.null(genus)) {
+    genus <- trimws(as.character(genus))
+    looks_full <- looks_full |
+      (!is.na(genus) & genus != "" & tolower(first_word) == tolower(genus))
+  }
+
+  looks_full <- looks_full[keep]
+  share <- mean(looks_full)
+  attr(share, "example") <- if (any(looks_full)) species[keep][which(looks_full)[1]] else NA_character_
+  share
+}
+
+#' Drop a genus repeated at the start of an epithet
+#'
+#' `"Garcinia"` + `"Garcinia kola"` would otherwise combine into
+#' `"Garcinia Garcinia kola"`, which matches nothing.
+#'
+#' @param species,genus Character scalars.
+#' @return `species` without a leading copy of `genus`.
+#' @keywords internal
+.strip_repeated_genus <- function(species, genus) {
+  if (is.na(genus) || genus == "") return(species)
+  # Compared as text, not as a regex, so a genus is never read as a pattern
+  words <- strsplit(species, "[[:space:]]+")[[1]]
+  if (length(words) >= 2 && tolower(words[1]) == tolower(genus)) {
+    paste(words[-1], collapse = " ")
+  } else {
+    species
+  }
 }

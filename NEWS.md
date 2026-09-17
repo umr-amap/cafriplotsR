@@ -250,6 +250,11 @@
 
 ### Bug Fixes
 
+* **Taxonomic match app: a full-name column chosen as species epithet produced "Genus Genus species"** (`R/mod_column_select.R`, `inst/translations/translation.json`) — in multiple-column mode, a user selected a column holding "Garcinia kola" as the epithet; the combined name became "Garcinia Garcinia kola", which matches nothing, and the only guidance was one sentence about combining columns
+  - Each selector now carries an example: genus "Garcinia", epithet "kola - not Garcinia kola" with a pointer to single-column mode for full names, family "Clusiaceae" (used only when genus is empty)
+  - A warning appears under the selectors when at least half the epithet values look like full names — first word repeating the row's genus, or a capitalised word followed by another — naming the column, the share and an example (`.share_binomial_epithets()`). `sp. 1` and `cf. nitida` do not trigger it
+  - A genus repeated at the start of the epithet is dropped when building the name (`.strip_repeated_genus()`), so the combined column is correct even if the warning is ignored
+
 * **Taxonomic match app: automatic matching showed no progress when run in-process** (`R/mod_auto_matching.R`) — progress was only published by the background worker, which cannot start when the package is loaded with `devtools::load_all()`. The in-process fallback passed `progress = NULL`, so a long run showed nothing but "Processing..." while it silently checkpointed
   - The in-process run now reports "Fuzzy matching: i / n (name)" through a notification, which reaches the browser mid-run, throttled to two updates per second
   - Both run modes share one display, and the current step is also shown under "Processing..." rather than only in a corner notification
