@@ -10688,6 +10688,22 @@
     {
       "en": "Upload file (Excel or CSV)",
       "fr": "Importer un fichier (Excel ou CSV)"
+    },
+    {
+      "en": "Genus name only, e.g. Garcinia",
+      "fr": "Nom de genre uniquement, ex. : Garcinia"
+    },
+    {
+      "en": "Second word of the name only, e.g. kola - not Garcinia kola. If a column holds the full name (genus + epithet), use Single column mode instead.",
+      "fr": "Deuxième mot du nom uniquement, ex. : kola - et non Garcinia kola. Si une colonne contient le nom complet (genre + épithète), utilisez plutôt le mode Colonne unique."
+    },
+    {
+      "en": "Family name, e.g. Clusiaceae. Used only when genus is empty.",
+      "fr": "Nom de famille, ex. : Clusiaceae. Utilisé seulement si le genre est vide."
+    },
+    {
+      "en": "%d%% of the values in '%s' look like full names (genus + epithet), e.g. '%s'. This column should hold the epithet only. If it contains the full name, choose Single column mode and select it there.",
+      "fr": "%d%% des valeurs de '%s' ressemblent à des noms complets (genre + épithète), ex. : '%s'. Cette colonne ne doit contenir que l'épithète. Si elle contient le nom complet, choisissez le mode Colonne unique et sélectionnez-la là."
     }
   ]
 }
