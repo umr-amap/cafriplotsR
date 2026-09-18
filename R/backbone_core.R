@@ -663,38 +663,115 @@ get_backbone_status <- function(backbone, con_taxa = NULL, verbose = TRUE) {
 }
 
 
+#' The date a citation must state, written out in full
+#'
+#' Kew's formula ends "Retrieved 08 January 2026", so the day is needed too.
+#' @noRd
+.backbone_access_full_date <- function(version, import_date, language = "en") {
+  d <- suppressWarnings(as.Date(version, format = "%Y-%m-%d"))
+  if (is.na(d) && !is.null(import_date)) d <- as.Date(import_date)
+  if (length(d) != 1L || is.na(d)) return(NA_character_)
+  months <- .citation_months[[language]]
+  paste(as.integer(format(d, "%d")), months[as.integer(format(d, "%m"))],
+        format(d, "%Y"))
+}
+
+
 #' The version a citation must state
 #'
 #' `source_version` holds the publisher's own version when the importer was
-#' given one (APD's `4.0.0`); a file name is provenance, not a version.
+#' given one (APD's `4.0.0`); a file name is provenance, not a version. A
+#' version recorded as `v13` is cited as `13`, since the formulas already say
+#' "version".
 #' @noRd
 .backbone_cited_version <- function(source_version, version) {
   looks_like_file <- !is.na(source_version) &&
     grepl("\\.(txt|csv|zip|xlsx?|gz)$", source_version, ignore.case = TRUE)
-  if (!is.na(source_version) && nzchar(source_version) && !looks_like_file) {
-    return(source_version)
+  out <- if (!is.na(source_version) && nzchar(source_version) && !looks_like_file) {
+    source_version
+  } else if (!is.na(version) && nzchar(version)) {
+    version
+  } else {
+    return(NA_character_)
   }
-  if (!is.na(version) && nzchar(version)) return(version)
-  NA_character_
+  sub("^[vV](?=[0-9])", "", out, perl = TRUE)
+}
+
+
+# The words a formula needs around its date, in each language
+.citation_words <- list(
+  en = c(accessed = "accessed", from = "from", retrieved = "Retrieved"),
+  fr = c(accessed = "accès", from = "de", retrieved = "Consulté le")
+)
+
+#' Fill a citation formula held in the database
+#'
+#' The wording of a citation belongs to whoever publishes the data: Kew asks
+#' for "Published on the Internet; ... Retrieved ...", the Conservatoire et
+#' Jardin botaniques for "accessed ..., from ...". Both are stored as
+#' `backbone_list.citation_template` and filled here, so adding a backbone
+#' stays a matter of data.
+#'
+#' Placeholders: `{name}`, `{publisher}`, `{version}`, `{access}` (month and
+#' year), `{date}` (day, month and year), `{year}`, `{url}`, and the three
+#' words `{accessed}`, `{from}` and `{retrieved}`, which follow `language`.
+#' A placeholder with nothing to fill it takes its own punctuation with it, so
+#' a missing version or site leaves a sentence rather than empty brackets.
+#' @noRd
+.render_citation_template <- function(template, values, language = "en") {
+  words  <- .citation_words[[language]]
+  filled <- function(x) length(x) == 1L && !is.na(x) && nzchar(x)
+
+  # each word introduces something: it goes when that something is missing
+  values <- c(values, list(
+    accessed  = if (filled(values$access)) words[["accessed"]] else NA_character_,
+    retrieved = if (filled(values$date))   words[["retrieved"]] else NA_character_,
+    from      = if (filled(values$url))    words[["from"]] else NA_character_
+  ))
+
+  out <- template
+  for (key in names(values)) {
+    v <- values[[key]]
+    out <- gsub(paste0("{", key, "}"), if (filled(v)) v else "", out, fixed = TRUE)
+  }
+
+  out <- gsub("\\([[:space:]]*version[[:space:]]*\\)", "", out)  # no version
+  out <- gsub("<[[:space:]]*>", "", out)                         # no site
+  out <- gsub("[[:space:]]+", " ", out)
+  out <- gsub(" ([,.;])", "\\1", out)
+  out <- gsub("([,;])(?=[,.;])", "", out, perl = TRUE)
+  out <- gsub("\\.\\.+", ".", out)
+  trimws(out)
 }
 
 
 #' How to cite a taxonomic backbone
 #'
 #' @description
-#' Builds the citation from what the database records about the backbone: its
-#' name and publisher from \code{backbone_list}, the version and the date of
-#' the current import from \code{backbone_import}. The date stated is the one
-#' the names in the database were taken from, not today's, so two people
-#' citing the same query cite the same thing.
+#' Builds the citation from what the database records about the backbone: the
+#' formula its publisher asks for (\code{backbone_list.citation_template}),
+#' filled with the name, publisher and site from \code{backbone_list} and the
+#' version and date of the current import from \code{backbone_import}. The
+#' date stated is the one the names in the database were taken from, not
+#' today's, so two people citing the same query cite the same thing.
 #'
-#' For APD this yields the citation the Conservatoire et Jardin botaniques
-#' asks for:
+#' Publishers word their citations differently, so the wording is data, not
+#' code. APD:
 #'
 #' \emph{African Plant Database (version 4.0.0). Conservatoire et Jardin
 #' botaniques de la Ville de Genève and South African National Biodiversity
 #' Institute, Pretoria, accessed September 2026, from
 #' <http://africanplantdatabase.ch>.}
+#'
+#' WCVP, in Kew's own formula:
+#'
+#' \emph{Govaerts R. (ed.) (2026). WCVP: World Checklist of Vascular Plants,
+#' version 13. Facilitated by the Royal Botanic Gardens, Kew. Published on the
+#' Internet; http://sftp.kew.org/pub/data-repositories/WCVP/ Retrieved 8
+#' January 2026.}
+#'
+#' A backbone with no formula recorded gets a plain one built from its name,
+#' publisher, version, date and site.
 #'
 #' @param backbone Character. Backbone code, e.g. \code{"apd"} or
 #'   \code{"wcvp"}. \code{"internal"} has no external citation.
@@ -726,13 +803,14 @@ backbone_citation <- function(backbone, con_taxa = NULL,
     .backbone_query(
       con_taxa,
       sprintf(
-        "SELECT b.name, b.publisher, %s AS homepage,
+        "SELECT b.name, b.publisher, %s AS homepage, %s AS citation_template,
                 i.version, i.import_date, i.source_version
            FROM backbone_list b
            LEFT JOIN backbone_import i
                   ON i.id_backbone = b.id_backbone AND i.is_current
           WHERE b.code = $1",
-        if (with_homepage) "b.homepage" else "NULL::text"
+        if (with_homepage) "b.homepage" else "NULL::text",
+        if (with_homepage) "b.citation_template" else "NULL::text"
       ),
       params = list(backbone)
     )
@@ -751,8 +829,21 @@ backbone_citation <- function(backbone, con_taxa = NULL,
 
   version <- .backbone_cited_version(meta$source_version[1], meta$version[1])
   access  <- .backbone_access_date(meta$version[1], meta$import_date[1], language)
+  full    <- .backbone_access_full_date(meta$version[1], meta$import_date[1], language)
   url     <- meta$homepage[1]
   if (!is.na(url) && !nzchar(url)) url <- NA_character_
+
+  template <- meta$citation_template[1]
+  if (!is.na(template) && nzchar(template)) {
+    return(.render_citation_template(
+      template,
+      list(name = meta$name[1], publisher = meta$publisher[1],
+           version = version, access = access, date = full,
+           year = if (is.na(full)) NA_character_ else sub("^.* ", "", full),
+           url = url),
+      language
+    ))
+  }
 
   .format_backbone_citation(meta$name[1], meta$publisher[1], version, access,
                             url, language)

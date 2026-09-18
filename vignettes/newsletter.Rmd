@@ -46,6 +46,8 @@ get_backbone_status("apd", con_taxa = cons$taxa)
 >
 > The access date is the date of the version held in the database, not the day you run the query — so everyone citing the same database cites the same thing. `backbone_citation("apd", cons$taxa)` returns the sentence with the right version and date, and the package states it once per session the first time a query uses the backbone.
 
+WCVP has its own required wording, which `backbone_citation("wcvp", cons$taxa)` now returns as Kew asks for it — *Govaerts R. (ed.) (2026). WCVP: World Checklist of Vascular Plants, version 13. Facilitated by the Royal Botanic Gardens, Kew. Published on the Internet; …* — followed by the reference for rWCVP, the package our copy of WCVP was downloaded with.
+
 ### New capabilities
 
 **Taxonomic links are now reviewed before they give a name**

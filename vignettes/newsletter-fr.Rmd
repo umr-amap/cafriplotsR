@@ -46,6 +46,8 @@ get_backbone_status("apd", con_taxa = cons$taxa)
 >
 > La date d'accès est celle de la version présente dans la base, et non le jour où la requête est lancée — ainsi, deux personnes citant la même base citent la même chose. `backbone_citation("apd", cons$taxa, language = "fr")` renvoie la phrase avec la bonne version et la bonne date, et le package la rappelle une fois par session, dès la première requête utilisant le référentiel.
 
+WCVP impose sa propre formulation, que `backbone_citation("wcvp", cons$taxa)` restitue telle que Kew la demande — *Govaerts R. (ed.) (2026). WCVP: World Checklist of Vascular Plants, version 13. Facilitated by the Royal Botanic Gardens, Kew. Published on the Internet; …* — suivie de la référence de rWCVP, le package avec lequel notre copie de WCVP a été téléchargée.
+
 ### Nouvelles fonctionnalités
 
 **Les liens taxonomiques sont désormais vérifiés avant de fournir un nom**

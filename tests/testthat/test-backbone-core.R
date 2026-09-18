@@ -282,3 +282,57 @@ test_that(".backbone_citation_notice() speaks once per session and can be silenc
 
   expect_null(.backbone_citation_notice("internal"))
 })
+
+
+test_that(".render_citation_template() fills Kew's formula", {
+  template <- paste("Govaerts R. (ed.) ({year}). WCVP: World Checklist of",
+                    "Vascular Plants, version {version}. Facilitated by the",
+                    "Royal Botanic Gardens, Kew. Published on the Internet;",
+                    "{url} {retrieved} {date}.")
+  out <- .render_citation_template(
+    template,
+    list(version = "13", year = "2026", date = "8 January 2026",
+         url = "http://sftp.kew.org/pub/data-repositories/WCVP/")
+  )
+  expect_equal(
+    out,
+    paste("Govaerts R. (ed.) (2026). WCVP: World Checklist of Vascular Plants,",
+          "version 13. Facilitated by the Royal Botanic Gardens, Kew. Published",
+          "on the Internet; http://sftp.kew.org/pub/data-repositories/WCVP/",
+          "Retrieved 8 January 2026.")
+  )
+})
+
+test_that(".render_citation_template() translates its words and drops empty parts", {
+  template <- "{name} (version {version}). {publisher}, {accessed} {access}, {from} <{url}>."
+  values <- list(name = "African Plant Database", publisher = "CJB",
+                 version = "4.0.0", access = "septembre 2026",
+                 url = "http://africanplantdatabase.ch")
+  expect_equal(
+    .render_citation_template(template, values, "fr"),
+    "African Plant Database (version 4.0.0). CJB, acc\u00e8s septembre 2026, de <http://africanplantdatabase.ch>."
+  )
+  # nothing to fill: no empty brackets, no dangling words, no stray commas
+  bare <- .render_citation_template(
+    template, list(name = "A backbone", publisher = NA, version = NA,
+                   access = NA, url = NA))
+  expect_equal(bare, "A backbone.")
+
+  # a site but no version: "from" stays, "accessed" goes with its date
+  partial <- .render_citation_template(
+    template, list(name = "A backbone", publisher = "Kew", version = NA,
+                   access = NA, url = "https://example.org"))
+  expect_equal(partial, "A backbone. Kew, from <https://example.org>.")
+})
+
+test_that(".backbone_cited_version() drops the v of a version like v13", {
+  expect_equal(.backbone_cited_version(NA_character_, "v13"), "13")
+  expect_equal(.backbone_cited_version("4.0.0", "2026-09-16"), "4.0.0")
+  expect_equal(.backbone_cited_version(NA_character_, "version 13"), "version 13")
+})
+
+test_that(".backbone_access_full_date() gives the day Kew's formula needs", {
+  expect_equal(.backbone_access_full_date("2026-09-16", NULL), "16 September 2026")
+  expect_equal(.backbone_access_full_date("v13", as.POSIXct("2026-01-08", tz = "UTC"), "fr"),
+               "8 janvier 2026")
+})
