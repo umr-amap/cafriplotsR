@@ -48,18 +48,6 @@ get_backbone_status("apd", con_taxa = cons$taxa)
 
 WCVP impose sa propre formulation, que `backbone_citation("wcvp", cons$taxa)` restitue telle que Kew la demande — *Govaerts R. (ed.) (2026). WCVP: World Checklist of Vascular Plants, version 13. Facilitated by the Royal Botanic Gardens, Kew. Published on the Internet; …* — suivie de la référence de rWCVP, le package avec lequel notre copie de WCVP a été téléchargée.
 
-### Nouvelles fonctionnalités
-
-**Les liens taxonomiques sont désormais vérifiés avant de fournir un nom**
-
-Relier 350 000 taxons internes à un référentiel externe est en grande partie automatique, mais pas entièrement : deux plantes peuvent porter le même nom publié par des auteurs différents, et un nom peut différer de son orthographe dans le référentiel d'une seule lettre. Jusqu'ici, ces cas incertains étaient tranchés par la machine puis utilisés comme s'ils étaient certains.
-
-Ce n'est plus le cas. Un lien **ne fournit un nom que s'il est exact, ou si une personne l'a accepté**. Les liens incertains restent enregistrés et consultables, mais ils demeurent silencieux tant qu'ils n'ont pas été vérifiés, au moyen d'une table de révision où chaque cas s'accepte ou se rejette d'une seule touche.
-
-C'est un choix assumé : la justesse plutôt que la couverture. Cela se voit dans les résultats WCVP — environ **26 800 taxons qui affichaient un nom WCVP n'en affichent plus**, parce que ce nom venait d'une supposition non vérifiée : pour moitié une correspondance orthographique approximative, pour moitié un nom dont les auteurs divergeaient, et environ 2 000 noms mal appliqués (`auct.`) qui n'auraient jamais dû être liés. La révision est en cours et chaque cas accepté restitue son nom.
-
-> **En pratique.** Si un taxon qui affichait un nom WCVP ou APD indique désormais `name_source = "internal"`, c'est que le lien était incertain et attend d'être vérifié — le nom n'a pas été supprimé, il est suspendu. Le référentiel interne, les identifiants et vos données sont inchangés.
-
 ---
 
 ## Mai 2026

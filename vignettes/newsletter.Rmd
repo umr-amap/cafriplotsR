@@ -48,18 +48,6 @@ get_backbone_status("apd", con_taxa = cons$taxa)
 
 WCVP has its own required wording, which `backbone_citation("wcvp", cons$taxa)` now returns as Kew asks for it — *Govaerts R. (ed.) (2026). WCVP: World Checklist of Vascular Plants, version 13. Facilitated by the Royal Botanic Gardens, Kew. Published on the Internet; …* — followed by the reference for rWCVP, the package our copy of WCVP was downloaded with.
 
-### New capabilities
-
-**Taxonomic links are now reviewed before they give a name**
-
-Linking 350,000 internal taxa to an external backbone is mostly automatic, but not entirely: two plants can bear the same name published by different authors, and a name can differ from its backbone spelling by one letter. Until now, those uncertain cases were resolved by the machine and used as if they were certain.
-
-They are not any more. A link **gives a name only when it is exact, or when a person has accepted it**. Uncertain links are still stored and still visible, but they stay silent until reviewed, with a dedicated review table where each case is accepted or rejected in one keystroke.
-
-This is a deliberate trade of coverage for correctness, and it is visible in the WCVP results: about **26,800 taxa that used to display a WCVP name now display none**, because that name came from an unchecked guess — half of them a fuzzy spelling match, half a name whose authors disagreed, and about 2,000 misapplied names (`auct.`) that should never have been linked at all. Reviewing is under way and each accepted case restores its name.
-
-> **In practice.** If a taxon that used to show a WCVP or APD name now shows `name_source = "internal"`, the link was uncertain and awaits review — the name was not deleted, it was withheld. Nothing about the internal backbone, the identifiers or your data has changed.
-
 ---
 
 ## May 2026
