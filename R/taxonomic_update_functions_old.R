@@ -317,6 +317,10 @@ merge_individuals_taxa <- function(id_individual = NULL,
 #' @param morphocat integer morphocat code
 #' @param full_name string full name : genus + species + authors
 #' @param synonym_of list if the new entry should be put in synonymy with an existing taxa, add in a list at least one values to identify to which taxa it will be put in synonymy: genus, species or id
+#' @param TPS_KEY string Tropicos API key used for `search_name_tps`. Defaults
+#'   to `NULL`, which resolves the user's own key through [get_tropicos_key()]
+#'   (session cache, `TROPICOS_API_KEY`, or a prompt). No key ships with the
+#'   package: request one at <https://services.tropicos.org/help?requestkey>.
 #'
 #'
 #' @return A tibble
@@ -339,7 +343,7 @@ add_entry_taxa <- function(search_name_tps = NULL,
                            year_description = NULL,
                            synonym_of = NULL,
                            morpho_species = FALSE,
-                           TPS_KEY = "15ad0b4c-f0d3-46ab-b649-178f2c75724f",
+                           TPS_KEY = NULL,
                            tax_tax = NULL)
 {
 
@@ -355,6 +359,12 @@ add_entry_taxa <- function(search_name_tps = NULL,
   if (!is.null(search_name_tps)) {
 
     if (search_name_tps != "") {
+      TPS_KEY <- get_tropicos_key(TPS_KEY)
+
+      if (is.null(TPS_KEY))
+        stop("A Tropicos API key is needed to search Tropicos. See ?get_tropicos_key",
+             call. = FALSE)
+
       res_tps <- taxize::tp_search(sci = search_name_tps, key = TPS_KEY)
 
       if (ncol(res_tps) == 1) {

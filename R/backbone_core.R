@@ -634,6 +634,451 @@ get_backbone_status <- function(backbone, con_taxa = NULL, verbose = TRUE) {
 }
 
 
+# ---- Links of one taxon ----------------------------------------------------------
+
+#' Every backbone link of a few taxa, preferred or not
+#'
+#' @description
+#' Where [get_backbone_names()] answers "what name does this backbone give me",
+#' this answers "what is this taxon linked to, and why does a link stay
+#' silent". It returns one row per link, in every backbone, with the match
+#' details (\code{match_type}, \code{match_score}, \code{verified},
+#' \code{is_preferred}) beside the name the link points at. A link that is not
+#' preferred supplies no name until it is reviewed.
+#'
+#' Meant for inspecting a handful of taxa - the taxon panel of
+#' \code{\link{launch_taxo_backbone_app}} uses it - not for bulk work.
+#'
+#' @param idtax_n Integer vector of internal taxon identifiers.
+#' @param con_taxa Connection or pool to the taxa database. If \code{NULL},
+#'   calls \code{call.mydb.taxa()}.
+#' @param backbones Character vector of backbone codes. \code{NULL} (default)
+#'   means every registered backbone, including those not yet offered as a
+#'   source of names.
+#'
+#' @return A tibble with one row per link, ordered by taxon then backbone:
+#'   \code{idtax_n}, \code{backbone}, \code{backbone_name} (the publisher's
+#'   name for it), \code{is_name_source}, \code{external_id},
+#'   \code{is_preferred}, \code{match_type}, \code{match_score},
+#'   \code{verified}, \code{in_view} (\code{FALSE} when the linked ID is absent
+#'   from the current import), \code{taxon_name}, \code{authors},
+#'   \code{status}, \code{status_raw}, \code{accepted_external_id} and
+#'   \code{url} (built from \code{backbone_list.url_template}, \code{NA} when
+#'   the backbone has none).
+#'
+#' @examples
+#' \dontrun{
+#' get_taxon_backbone_links(41234)
+#' }
+#'
+#' @export
+get_taxon_backbone_links <- function(idtax_n, con_taxa = NULL, backbones = NULL) {
+
+  empty <- dplyr::tibble(
+    idtax_n = integer(), backbone = character(), backbone_name = character(),
+    is_name_source = logical(), external_id = character(),
+    is_preferred = logical(), match_type = character(),
+    match_score = numeric(), verified = logical(), in_view = logical(),
+    taxon_name = character(), authors = character(), status = character(),
+    status_raw = character(), accepted_external_id = character(),
+    url = character()
+  )
+
+  ids <- unique(stats::na.omit(suppressWarnings(as.integer(idtax_n))))
+  if (length(ids) == 0L) return(empty)
+
+  registered <- list_backbones(con_taxa, name_sources_only = FALSE)
+  if (nrow(registered) == 0L) return(empty)
+  if (!is.null(backbones)) {
+    registered <- registered[registered$code %in% backbones, , drop = FALSE]
+    if (nrow(registered) == 0L) return(empty)
+  }
+
+  ids_literal <- .pg_array_literal(ids)
+
+  parts <- lapply(seq_len(nrow(registered)), function(i) {
+    bb <- registered[i, ]
+    view <- .quote_backbone_view(bb$names_view)
+    sql <- paste0(
+      "SELECT l.idtax_n, l.external_id, l.is_preferred, l.match_type,
+              l.match_score, l.verified,
+              v.external_id IS NOT NULL AS in_view,
+              v.taxon_name, v.authors, v.status, v.status_raw,
+              v.accepted_external_id
+         FROM taxa_backbone_link l
+         LEFT JOIN ", view, " v ON v.external_id = l.external_id
+        WHERE l.id_backbone = $1
+          AND l.idtax_n = ANY($2::int[])
+        ORDER BY l.is_preferred DESC, l.external_id"
+    )
+    raw <- tryCatch(
+      .backbone_query(con_taxa, sql, params = list(bb$id_backbone, ids_literal)),
+      error = function(e) {
+        message("Note: could not read the links of ", bb$code, " (",
+                conditionMessage(e), ").")
+        NULL
+      }
+    )
+    if (is.null(raw) || nrow(raw) == 0L) return(NULL)
+
+    dplyr::tibble(
+      idtax_n              = as.integer(raw$idtax_n),
+      backbone             = bb$code,
+      backbone_name        = bb$name,
+      is_name_source       = isTRUE(bb$is_name_source),
+      external_id          = as.character(raw$external_id),
+      is_preferred         = as.logical(raw$is_preferred),
+      match_type           = as.character(raw$match_type),
+      match_score          = as.numeric(raw$match_score),
+      verified             = as.logical(raw$verified),
+      in_view              = as.logical(raw$in_view),
+      taxon_name           = as.character(raw$taxon_name),
+      authors              = as.character(raw$authors),
+      status               = as.character(raw$status),
+      status_raw           = as.character(raw$status_raw),
+      accepted_external_id = as.character(raw$accepted_external_id),
+      url                  = .backbone_link_url(bb$url_template, raw$external_id)
+    )
+  })
+
+  parts <- parts[!vapply(parts, is.null, logical(1))]
+  if (length(parts) == 0L) return(empty)
+
+  out <- dplyr::bind_rows(parts)
+  out[order(out$idtax_n, out$backbone, !out$is_preferred), , drop = FALSE]
+}
+
+
+#' Address of one name on its publisher's website
+#'
+#' `backbone_list.url_template` holds the address with `{id}` where the
+#' external identifier goes. Backbones without a template give `NA`.
+#'
+#' @param template Character scalar, possibly `NA`.
+#' @param external_id Character vector.
+#' @return A character vector as long as `external_id`.
+#' @noRd
+.backbone_link_url <- function(template, external_id) {
+  if (length(template) != 1L || is.na(template) || !nzchar(template)) {
+    return(rep(NA_character_, length(external_id)))
+  }
+  vapply(
+    as.character(external_id),
+    function(id) if (is.na(id)) NA_character_ else sub("{id}", id, template, fixed = TRUE),
+    character(1), USE.NAMES = FALSE
+  )
+}
+
+
+# ---- Searching a backbone by name -------------------------------------------------
+
+#' Look a scientific name up in one backbone
+#'
+#' @description
+#' A search for a person choosing a name in an interface, not the bulk matcher
+#' of [match_taxa_to_backbone()]. It tries an exact, case-insensitive match on
+#' the whole name first; for a binomial it adds the infraspecific taxa of that
+#' species, so a variety can be picked; and only if nothing was found does it
+#' fall back to the genus with a four-letter prefix of the epithet.
+#'
+#' Every row is annotated with \code{match_type}, \code{"exact"} or
+#' \code{"fuzzy"}, which says how the row was reached, not how good it is.
+#'
+#' @param name Character. Name to look up, e.g.
+#'   \code{"Gilbertiodendron dewevrei"}.
+#' @param backbone Character. Backbone code.
+#' @param con_taxa Connection or pool to the taxa database. If \code{NULL},
+#'   calls \code{call.mydb.taxa()}.
+#'
+#' @return A data frame with the backbone's canonical columns
+#'   (\code{external_id}, \code{accepted_external_id}, \code{taxon_name},
+#'   \code{family}, \code{genus}, \code{species}, \code{infra_rank},
+#'   \code{infra_epithet}, \code{authors}, \code{rank}, \code{status},
+#'   \code{status_raw}) plus \code{match_type}. Zero rows when nothing matches,
+#'   \code{NULL} when the backbone cannot be read.
+#'
+#' @examples
+#' \dontrun{
+#' search_backbone_names("Gilbertiodendron dewevrei", "apd")
+#' }
+#'
+#' @export
+search_backbone_names <- function(name, backbone, con_taxa = NULL) {
+
+  if (!is.character(name) || length(name) != 1L || is.na(name) ||
+      !nzchar(trimws(name))) {
+    return(NULL)
+  }
+
+  info <- tryCatch(.backbone_info(backbone, con_taxa), error = function(e) NULL)
+  if (is.null(info)) return(NULL)
+  view <- .quote_backbone_view(info$names_view)
+
+  cols <- paste(
+    "external_id, accepted_external_id, taxon_name, family, genus, species,",
+    "infra_rank, infra_epithet, authors, rank, status, status_raw"
+  )
+
+  name <- trimws(name)
+  parts <- strsplit(name, "[[:space:]]+")[[1]]
+  genus <- parts[1]
+
+  run <- function(sql, params) {
+    tryCatch(
+      .backbone_query(con_taxa, sql, params = params),
+      error = function(e) {
+        message("Note: could not search ", backbone, " (", conditionMessage(e), ").")
+        NULL
+      }
+    )
+  }
+
+  results <- run(
+    paste0("SELECT ", cols, ", 'exact' AS match_type FROM ", view,
+           " WHERE LOWER(taxon_name) = LOWER($1) LIMIT 30"),
+    list(name)
+  )
+  if (is.null(results)) return(NULL)
+
+  # A binomial search also offers the varieties and subspecies of that species
+  if (length(parts) == 2L) {
+    infra <- run(
+      paste0("SELECT ", cols, ", 'exact' AS match_type FROM ", view,
+             " WHERE LOWER(genus) = LOWER($1) AND LOWER(species) = LOWER($2)",
+             "   AND infra_rank IS NOT NULL AND infra_rank <> ''",
+             " ORDER BY infra_rank, infra_epithet LIMIT 50"),
+      list(genus, parts[2])
+    )
+    if (!is.null(infra) && nrow(infra) > 0) results <- rbind(results, infra)
+  }
+
+  if (nrow(results) > 0) return(results)
+
+  if (length(parts) >= 2L) {
+    run(
+      paste0("SELECT ", cols, ", 'fuzzy' AS match_type FROM ", view,
+             " WHERE LOWER(genus) = LOWER($1) AND LOWER(species) LIKE LOWER($2)",
+             " ORDER BY species, infra_rank NULLS FIRST, infra_epithet LIMIT 50"),
+      list(genus, paste0(substr(parts[2], 1, 4), "%"))
+    )
+  } else {
+    run(
+      paste0("SELECT ", cols, ", 'fuzzy' AS match_type FROM ", view,
+             " WHERE LOWER(genus) = LOWER($1)",
+             " ORDER BY species, infra_rank NULLS FIRST, infra_epithet LIMIT 50"),
+      list(genus)
+    )
+  }
+}
+
+
+#' Look a scientific name up in every backbone at once
+#'
+#' @description
+#' Runs [search_backbone_names()] against every backbone the database
+#' registers and stacks the results. A name being added to the database exists
+#' in several backbones more often than not, and its identifier is worth
+#' recording in each of them, so the search is not a choice between backbones.
+#'
+#' Backbones that are registered but not yet a source of names are searched
+#' too, and flagged by \code{is_name_source}: an identifier is worth recording
+#' before the backbone starts supplying names.
+#'
+#' @param name Character. Name to look up, e.g.
+#'   \code{"Gilbertiodendron dewevrei"}.
+#' @param con_taxa Connection or pool to the taxa database. If \code{NULL},
+#'   calls \code{call.mydb.taxa()}.
+#' @param backbones Character vector of backbone codes to restrict the search
+#'   to. \code{NULL} (the default) searches all of them.
+#'
+#' @return A tibble with one row per hit: \code{backbone} (code),
+#'   \code{backbone_name} (the backbone's full name), \code{is_name_source},
+#'   the canonical name columns returned by [search_backbone_names()], and
+#'   \code{match_type}. Rows are grouped by backbone, exact matches first.
+#'   Zero rows when nothing matches anywhere.
+#'
+#' @seealso [search_backbone_names()] for a single backbone,
+#'   [get_taxon_backbone_links()] for the links a taxon already has.
+#'
+#' @examples
+#' \dontrun{
+#' search_all_backbones("Gilbertiodendron dewevrei")
+#' }
+#'
+#' @export
+search_all_backbones <- function(name, con_taxa = NULL, backbones = NULL) {
+
+  empty <- dplyr::tibble(
+    backbone = character(), backbone_name = character(),
+    is_name_source = logical(), external_id = character(),
+    accepted_external_id = character(), taxon_name = character(),
+    family = character(), genus = character(), species = character(),
+    infra_rank = character(), infra_epithet = character(),
+    authors = character(), rank = character(), status = character(),
+    status_raw = character(), match_type = character()
+  )
+
+  if (!is.character(name) || length(name) != 1L || is.na(name) ||
+      !nzchar(trimws(name))) {
+    return(empty)
+  }
+
+  registered <- list_backbones(con_taxa, name_sources_only = FALSE)
+  if (nrow(registered) == 0L) return(empty)
+
+  if (!is.null(backbones)) {
+    registered <- registered[registered$code %in% backbones, , drop = FALSE]
+    if (nrow(registered) == 0L) return(empty)
+  }
+
+  parts <- lapply(seq_len(nrow(registered)), function(i) {
+    bb <- registered[i, ]
+    res <- tryCatch(
+      search_backbone_names(name, bb$code, con_taxa),
+      error = function(e) {
+        message("Note: could not search ", bb$code, " (", conditionMessage(e), ").")
+        NULL
+      }
+    )
+    if (is.null(res) || nrow(res) == 0L) return(NULL)
+
+    dplyr::tibble(
+      backbone = bb$code,
+      backbone_name = bb$name,
+      is_name_source = isTRUE(bb$is_name_source),
+      external_id = as.character(res$external_id),
+      accepted_external_id = as.character(res$accepted_external_id),
+      taxon_name = as.character(res$taxon_name),
+      family = as.character(res$family),
+      genus = as.character(res$genus),
+      species = as.character(res$species),
+      infra_rank = as.character(res$infra_rank),
+      infra_epithet = as.character(res$infra_epithet),
+      authors = as.character(res$authors),
+      rank = as.character(res$rank),
+      status = as.character(res$status),
+      status_raw = as.character(res$status_raw),
+      match_type = as.character(res$match_type)
+    )
+  })
+
+  parts <- parts[!vapply(parts, is.null, logical(1))]
+  if (length(parts) == 0L) return(empty)
+
+  out <- dplyr::bind_rows(parts)
+  out[order(out$backbone, out$match_type != "exact"), , drop = FALSE]
+}
+
+
+#' The unambiguous hit of each backbone, if it has one
+#'
+#' @description
+#' Picks, per backbone, the row that can be linked without a person looking at
+#' it: an exact match whose name is the one that was searched for, and the only
+#' such row in that backbone. Two rows carrying the same name (homonyms, or a
+#' name both accepted and synonymised) are ambiguous and left for the user.
+#'
+#' @param results A data frame from [search_all_backbones()].
+#' @param name Character. The name that was searched for.
+#'
+#' @return A named character vector of external identifiers, named by backbone
+#'   code. Empty when no backbone has an unambiguous hit.
+#'
+#' @keywords internal
+.auto_backbone_selection <- function(results, name) {
+
+  out <- character(0)
+
+  if (is.null(results) || !is.data.frame(results) || nrow(results) == 0L) return(out)
+  if (!is.character(name) || length(name) != 1L || is.na(name)) return(out)
+  if (!all(c("backbone", "taxon_name", "match_type", "external_id") %in% names(results))) {
+    return(out)
+  }
+
+  target <- tolower(trimws(name))
+  if (!nzchar(target)) return(out)
+
+  for (code in unique(results$backbone)) {
+    rows <- results[
+      results$backbone == code &
+        !is.na(results$match_type) & results$match_type == "exact" &
+        !is.na(results$taxon_name) &
+        tolower(trimws(results$taxon_name)) == target, , drop = FALSE]
+
+    if (nrow(rows) == 1L) out[[code]] <- as.character(rows$external_id[1L])
+  }
+
+  out
+}
+
+
+#' Internal taxa already linked to the same accepted name
+#'
+#' @description
+#' Given one name in a backbone, finds the internal taxa linked to the other
+#' names that share its accepted name. When a new taxon is added and matched to
+#' that backbone name, these are the taxa it is likely to be a synonym of.
+#'
+#' A name that is itself accepted has no \code{accepted_external_id}; its own
+#' identifier is used instead, so its synonyms are found too.
+#'
+#' @param external_id Character or integer. Identifier of the name in the
+#'   backbone.
+#' @param backbone Character. Backbone code.
+#' @param con_taxa Connection or pool to the taxa database. If \code{NULL},
+#'   calls \code{call.mydb.taxa()}.
+#'
+#' @return A data frame with \code{idtax_n}, \code{external_id},
+#'   \code{backbone_name}, \code{status}, \code{status_raw}, \code{authors},
+#'   \code{match_type}, \code{tax_gen}, \code{tax_esp}, \code{tax_fam},
+#'   \code{tax_rank01}, \code{tax_nam01} and \code{idtax_good_n}; zero rows
+#'   when there are none or when the backbone cannot be read.
+#'
+#' @keywords internal
+.backbone_synonymy_candidates <- function(external_id, backbone, con_taxa = NULL) {
+
+  empty <- data.frame()
+  if (length(external_id) != 1L || is.na(external_id)) return(empty)
+
+  info <- tryCatch(.backbone_info(backbone, con_taxa), error = function(e) NULL)
+  if (is.null(info)) return(empty)
+  view <- .quote_backbone_view(info$names_view)
+
+  sql <- paste0(
+    "WITH target AS (
+       SELECT COALESCE(accepted_external_id, external_id) AS acc_id
+         FROM ", view, " WHERE external_id = $1
+     ),
+     co_names AS (
+       SELECT v.external_id, v.taxon_name, v.status, v.status_raw, v.authors
+         FROM ", view, " v, target t
+        WHERE COALESCE(v.accepted_external_id, v.external_id) = t.acc_id
+          AND v.external_id <> $1
+     )
+     SELECT l.idtax_n, c.external_id,
+            c.taxon_name AS backbone_name, c.status, c.status_raw, c.authors,
+            l.match_type,
+            tt.tax_gen, tt.tax_esp, tt.tax_fam, tt.tax_rank01, tt.tax_nam01,
+            tt.idtax_good_n
+       FROM co_names c
+       JOIN taxa_backbone_link l
+         ON l.external_id = c.external_id AND l.id_backbone = $2
+       JOIN table_taxa tt ON tt.idtax_n = l.idtax_n
+      ORDER BY tt.tax_gen, tt.tax_esp"
+  )
+
+  tryCatch(
+    .backbone_query(con_taxa, sql,
+                    params = list(as.character(external_id), info$id_backbone)),
+    error = function(e) {
+      message("Could not check synonymy candidates in ", backbone, ": ",
+              conditionMessage(e))
+      empty
+    }
+  )
+}
+
+
 # ---- Citation --------------------------------------------------------------------
 
 # Month names written out, so the citation does not change with the locale

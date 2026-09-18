@@ -21,7 +21,7 @@ add_entry_taxa(
   year_description = NULL,
   synonym_of = NULL,
   morpho_species = FALSE,
-  TPS_KEY = "15ad0b4c-f0d3-46ab-b649-178f2c75724f",
+  TPS_KEY = NULL,
   tax_tax = NULL
 )
 }
@@ -37,6 +37,11 @@ add_entry_taxa(
 \item{tax_name1}{string tax_name1 name}
 
 \item{synonym_of}{list if the new entry should be put in synonymy with an existing taxa, add in a list at least one values to identify to which taxa it will be put in synonymy: genus, species or id}
+
+\item{TPS_KEY}{string Tropicos API key used for `search_name_tps`. Defaults
+to `NULL`, which resolves the user's own key through [get_tropicos_key()]
+(session cache, `TROPICOS_API_KEY`, or a prompt). No key ships with the
+package: request one at <https://services.tropicos.org/help?requestkey>.}
 
 \item{detvalue}{integer detvalue code}
 

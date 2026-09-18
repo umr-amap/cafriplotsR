@@ -498,6 +498,7 @@ shiny_app_taxo_backbone <- function(pool_taxa = NULL, language = "fr") {
           shiny::tags$ul(
             shiny::tags$li(shiny::icon("search"), " ", i18n()$t("Search and browse taxonomic hierarchy")),
             shiny::tags$li(shiny::icon("plus-circle"), " ", i18n()$t("Add new taxonomic entries with Tropicos integration")),
+            shiny::tags$li(shiny::icon("globe"), " ", i18n()$t("Search a taxonomic backbone (WCVP, APD, ...) and record the link it gives")),
             shiny::tags$li(shiny::icon("edit"), " ", i18n()$t("Update existing taxonomic information")),
             shiny::tags$li(shiny::icon("link"), " ", i18n()$t("Manage synonym relationships")),
             shiny::tags$li(shiny::icon("shield-alt"), " ", i18n()$t("Permission-based access control"))

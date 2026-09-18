@@ -10604,6 +10604,226 @@
     {
       "en": "Click to view the column descriptions",
       "fr": "Cliquez pour voir la description des colonnes"
+    },
+    {
+      "en": "Backbone links",
+      "fr": "Liens vers les référentiels"
+    },
+    {
+      "en": "No external taxonomic backbone in this database",
+      "fr": "Aucun référentiel taxonomique externe dans cette base"
+    },
+    {
+      "en": "not yet offered as a source of names",
+      "fr": "pas encore proposé comme source de noms"
+    },
+    {
+      "en": "Not linked",
+      "fr": "Non lié"
+    },
+    {
+      "en": "ID absent from the current import",
+      "fr": "identifiant absent de l'import actuel"
+    },
+    {
+      "en": "used for names",
+      "fr": "utilisé pour les noms"
+    },
+    {
+      "en": "not used for names",
+      "fr": "non utilisé pour les noms"
+    },
+    {
+      "en": "awaiting review",
+      "fr": "en attente de vérification"
+    },
+    {
+      "en": "verified",
+      "fr": "vérifié"
+    },
+    {
+      "en": "name not found",
+      "fr": "nom introuvable"
+    },
+    {
+      "en": "Search Tropicos and/or a taxonomic backbone to auto-fill taxonomic information, or skip to manual entry",
+      "fr": "Rechercher dans Tropicos et/ou un référentiel taxonomique pour pré-remplir les informations, ou passer à la saisie manuelle"
+    },
+    {
+      "en": "Taxonomic backbone",
+      "fr": "Référentiel taxonomique"
+    },
+    {
+      "en": "Search Tropicos & backbone",
+      "fr": "Rechercher Tropicos et référentiel"
+    },
+    {
+      "en": "Searching Tropicos & backbone...",
+      "fr": "Recherche dans Tropicos et le référentiel..."
+    },
+    {
+      "en": "No backbone results yet - enter a name and click Search",
+      "fr": "Aucun résultat de référentiel - saisissez un nom et cliquez sur Rechercher"
+    },
+    {
+      "en": "No match found in %s",
+      "fr": "Aucune correspondance trouvée dans %s"
+    },
+    {
+      "en": "Use backbone result",
+      "fr": "Utiliser le résultat du référentiel"
+    },
+    {
+      "en": "Fill form fields from this row and validate the backbone link",
+      "fr": "Remplir le formulaire à partir de cette ligne et valider le lien"
+    },
+    {
+      "en": "Validate backbone match only",
+      "fr": "Valider uniquement la correspondance"
+    },
+    {
+      "en": "Keep existing form fields but record this identifier as the backbone link",
+      "fr": "Conserver le formulaire mais enregistrer cet identifiant comme lien"
+    },
+    {
+      "en": "%s ID %s selected - will be linked after taxon creation",
+      "fr": "Identifiant %s %s sélectionné - le lien sera créé après l'ajout du taxon"
+    },
+    {
+      "en": "%s data loaded (ID: %s) - proceed to next step",
+      "fr": "Données %s chargées (ID : %s) - passez à l'étape suivante"
+    },
+    {
+      "en": "%s match validated (ID: %s) - link will be saved after taxon creation",
+      "fr": "Correspondance %s validée (ID : %s) - le lien sera enregistré après l'ajout du taxon"
+    },
+    {
+      "en": "%d existing taxon/taxa share the same accepted name in %s:",
+      "fr": "%d taxon(s) existant(s) partagent le même nom accepté dans %s :"
+    },
+    {
+      "en": "A link to %s will be created: ID = %s",
+      "fr": "Un lien vers %s sera créé : ID = %s"
+    },
+    {
+      "en": "Link to %s saved (ID: %s)",
+      "fr": "Lien vers %s enregistré (ID : %s)"
+    },
+    {
+      "en": "Warning: backbone link not saved:",
+      "fr": "Attention : lien vers le référentiel non enregistré :"
+    },
+    {
+      "en": "Synonymies suggested by %s",
+      "fr": "Synonymies suggérées par %s"
+    },
+    {
+      "en": "These backbone taxa share the same accepted name in %s as the taxon you just added. Select those you want to set as synonyms of this new entry.",
+      "fr": "Ces taxons partagent le même nom accepté dans %s que le taxon que vous venez d'ajouter. Sélectionnez ceux à définir comme synonymes de cette nouvelle entrée."
+    },
+    {
+      "en": "Setting backbone-suggested synonymies...",
+      "fr": "Application des synonymies suggérées par le référentiel..."
+    },
+    {
+      "en": "Search a taxonomic backbone (WCVP, APD, ...) and record the link it gives",
+      "fr": "Rechercher dans un référentiel taxonomique (WCVP, APD, ...) et enregistrer le lien obtenu"
+    },
+    {
+      "en": "No Tropicos API key - enter one in the Tropicos panel below",
+      "fr": "Pas de clé API Tropicos - saisissez-en une dans le panneau Tropicos ci-dessous"
+    },
+    {
+      "en": "Please enter a Tropicos API key",
+      "fr": "Veuillez saisir une clé API Tropicos"
+    },
+    {
+      "en": "Tropicos API key saved for this session",
+      "fr": "Clé API Tropicos enregistrée pour cette session"
+    },
+    {
+      "en": "Searching Tropicos requires a personal API key, free on request at",
+      "fr": "La recherche dans Tropicos nécessite une clé API personnelle, gratuite sur demande sur"
+    },
+    {
+      "en": "The key entered here is kept for this session only; store it permanently with setup_tropicos_key() in the R console.",
+      "fr": "La clé saisie ici n'est conservée que pour cette session ; enregistrez-la durablement avec setup_tropicos_key() dans la console R."
+    },
+    {
+      "en": "Tropicos API key",
+      "fr": "Clé API Tropicos"
+    },
+    {
+      "en": "Use this key",
+      "fr": "Utiliser cette clé"
+    },
+    {
+      "en": "Search in backbones",
+      "fr": "Recherche dans des référentiels"
+    },
+    {
+      "en": "Step 1: Search in taxonomic backbones (optional)",
+      "fr": "Étape 1 : Recherche dans des référentiels (optionnel)"
+    },
+    {
+      "en": "The name is looked up in every backbone this database registers, and in Tropicos when an API key is available. Each backbone that matches contributes its identifier to the new taxon.",
+      "fr": "Le nom est recherché dans tous les référentiels enregistrés dans cette base, ainsi que dans Tropicos si une clé API est disponible. Chaque référentiel qui correspond fournit son identifiant au nouveau taxon."
+    },
+    {
+      "en": "Search all backbones",
+      "fr": "Rechercher dans tous les référentiels"
+    },
+    {
+      "en": "Taxonomic backbones",
+      "fr": "Référentiels taxonomiques"
+    },
+    {
+      "en": "Searching backbones...",
+      "fr": "Recherche dans les référentiels..."
+    },
+    {
+      "en": "Exact match in %d backbone(s): %s - identifiers will be linked to the new taxon",
+      "fr": "Correspondance exacte dans %d référentiel(s) : %s - les identifiants seront liés au nouveau taxon"
+    },
+    {
+      "en": "No match found in any backbone",
+      "fr": "Aucune correspondance dans aucun référentiel"
+    },
+    {
+      "en": "No match in: %s",
+      "fr": "Aucune correspondance dans : %s"
+    },
+    {
+      "en": "No backbone identifier selected - the taxon will be created without any backbone link",
+      "fr": "Aucun identifiant de référentiel sélectionné - le taxon sera créé sans lien vers un référentiel"
+    },
+    {
+      "en": "Will be linked after taxon creation:",
+      "fr": "Seront liés après la création du taxon :"
+    },
+    {
+      "en": "Clear all backbone links",
+      "fr": "Effacer tous les liens vers les référentiels"
+    },
+    {
+      "en": "Backbone links cleared",
+      "fr": "Liens vers les référentiels effacés"
+    },
+    {
+      "en": "Backbone links that will be created:",
+      "fr": "Liens vers les référentiels qui seront créés :"
+    },
+    {
+      "en": "%d existing taxon/taxa share the same accepted name in the backbones:",
+      "fr": "%d taxon(s) existant(s) partage(nt) le même nom accepté dans les référentiels :"
+    },
+    {
+      "en": "Synonymies suggested by the backbones",
+      "fr": "Synonymies suggérées par les référentiels"
+    },
+    {
+      "en": "These taxa share the accepted name of the taxon you just added, in at least one backbone. Select those you want to set as synonyms of this new entry.",
+      "fr": "Ces taxons partagent le nom accepté du taxon que vous venez d'ajouter, dans au moins un référentiel. Sélectionnez ceux que vous souhaitez définir comme synonymes de cette nouvelle entrée."
     }
   ]
 }

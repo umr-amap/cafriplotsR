@@ -26,6 +26,9 @@ mod_growth_form_selector_ui <- function(id) {
 #'
 #' @return List with:
 #'   - growth_form_selections: Reactive list of selected growth form paths
+#'   - reset: Function clearing every selection, for the next taxon. The
+#'     selections survive their UI being destroyed on purpose, so the caller
+#'     has to say when a taxon is finished.
 #'   - basisofrecord: Reactive character
 #'   - measurementremarks: Reactive character
 #'   - is_valid: Reactive logical indicating if selections are complete
@@ -357,15 +360,29 @@ mod_growth_form_selector_server <- function(id, pool, i18n) {
       )
     })
 
-    # Handle path removal
+    # Handle path removal.
+    #
+    # One observer per position, created once. The list of positions grows as
+    # growth forms are added, so this runs again on every change - but an
+    # index that already has its observer must not get a second one: each
+    # copy would fire on the same click and remove a further growth form.
+    removers_registered <- character(0)
+
     shiny::observe({
       for (i in seq_along(rv$all_paths)) {
+        key <- paste0("remove_path_", i)
+        if (key %in% removers_registered) next
+        removers_registered <<- c(removers_registered, key)
+
         local({
           idx <- i
           shiny::observeEvent(input[[paste0("remove_path_", idx)]], {
+            # The list shrinks, and reset() empties it; a stale click must not
+            # reach past its end.
+            if (idx > length(rv$all_paths)) return()
             rv$all_paths[[idx]] <- NULL
             rv$all_paths <- rv$all_paths[!sapply(rv$all_paths, is.null)]
-          })
+          }, ignoreInit = TRUE)
         })
       }
     })
@@ -390,9 +407,38 @@ mod_growth_form_selector_server <- function(id, pool, i18n) {
       cli::cli_alert_success("Saved measurement remarks: '{rv$saved_measurementremarks}'")
     }, ignoreNULL = FALSE, ignoreInit = FALSE)
 
+    # Forget everything the user chose, for the next taxon.
+    #
+    # The saved values deliberately survive the UI being destroyed, so that
+    # walking back and forth between steps does not lose them. That is also
+    # why they outlive the taxon they were entered for unless something says
+    # otherwise: this is what the caller says it with, once a taxon is done.
+    reset <- function() {
+      rv$all_paths <- list()
+      rv$current_path <- list()
+      rv$level_1_selected <- NULL
+      rv$level_2_selected <- NULL
+      rv$level_3_selected <- NULL
+      rv$saved_basisofrecord <- ""
+      rv$saved_measurementremarks <- ""
+
+      # Blank the inputs too, or the next taxon opens on the previous
+      # selection. Writing "" here is ignored by the observer above, which
+      # only saves non-empty values, so the cleared state holds.
+      shiny::updateSelectInput(session, "level_1", selected = "")
+      shiny::updateSelectInput(session, "level_2", selected = "")
+      shiny::updateSelectInput(session, "level_3", selected = "")
+      shiny::updateSelectInput(session, "basisofrecord", selected = "")
+      shiny::updateTextInput(session, "measurementremarks", value = "")
+
+      cli::cli_alert_info("Growth form selector reset")
+      invisible(NULL)
+    }
+
     # Return reactive values (using saved values that persist across UI changes)
     return(list(
       growth_form_selections = shiny::reactive(rv$all_paths),
+      reset = reset,
       basisofrecord = shiny::reactive({
         cli::cli_alert_info("MODULE RETURN: Returning basis of record: '{rv$saved_basisofrecord}'")
         rv$saved_basisofrecord

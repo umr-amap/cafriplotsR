@@ -98,6 +98,9 @@ reference:
       - test_connection
       - setup_db_credentials
       - remove_db_credentials
+      - get_tropicos_key
+      - setup_tropicos_key
+      - remove_tropicos_key
       - create_db_config
       - func_try_fetch
       - try_open_postgres_table
@@ -162,6 +165,9 @@ reference:
     contents:
       - list_backbones
       - get_backbone_names
+      - get_taxon_backbone_links
+      - search_backbone_names
+      - search_all_backbones
       - match_taxa_to_backbone
       - review_backbone_matches
       - save_backbone_links

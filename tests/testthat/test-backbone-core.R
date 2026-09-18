@@ -336,3 +336,32 @@ test_that(".backbone_access_full_date() gives the day Kew's formula needs", {
   expect_equal(.backbone_access_full_date("v13", as.POSIXct("2026-01-08", tz = "UTC"), "fr"),
                "8 janvier 2026")
 })
+
+test_that("get_taxon_backbone_links() answers without a database when asked nothing", {
+  out <- get_taxon_backbone_links(integer(0))
+  expect_equal(nrow(out), 0L)
+  expect_true(all(c("idtax_n", "backbone", "external_id", "is_preferred",
+                    "match_type", "verified", "in_view", "url") %in% names(out)))
+  expect_equal(nrow(get_taxon_backbone_links(c(NA, NA))), 0L)
+})
+
+test_that(".backbone_link_url() fills the template, or gives NA when there is none", {
+  expect_equal(.backbone_link_url("http://apd.ch/{id}", c("12", "13")),
+               c("http://apd.ch/12", "http://apd.ch/13"))
+  expect_true(is.na(.backbone_link_url("http://apd.ch/{id}", NA_character_)))
+  expect_equal(.backbone_link_url(NA_character_, c("12", "13")),
+               c(NA_character_, NA_character_))
+  expect_equal(.backbone_link_url("", "12"), NA_character_)
+})
+
+test_that("search_backbone_names() refuses an empty name before touching the database", {
+  expect_null(search_backbone_names("", "apd"))
+  expect_null(search_backbone_names("   ", "apd"))
+  expect_null(search_backbone_names(NA_character_, "apd"))
+  expect_null(search_backbone_names(c("a", "b"), "apd"))
+})
+
+test_that(".backbone_synonymy_candidates() needs exactly one identifier", {
+  expect_equal(nrow(.backbone_synonymy_candidates(character(0), "apd")), 0L)
+  expect_equal(nrow(.backbone_synonymy_candidates(NA, "apd")), 0L)
+})
