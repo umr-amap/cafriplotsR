@@ -163,9 +163,12 @@ reference:
       - list_backbones
       - get_backbone_names
       - match_taxa_to_backbone
+      - review_backbone_matches
       - save_backbone_links
+      - replace_backbone_links
       - get_backbone_status
       - check_backbone_links
+      - import_apd_names
 
   - title: "WCVP Integration"
     desc: "Importing the World Checklist of Vascular Plants (WCVP), and the WCVP functions kept from before other backbones existed"

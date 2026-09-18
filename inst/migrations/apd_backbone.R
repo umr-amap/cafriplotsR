@@ -1,4 +1,4 @@
-# PENDING MIGRATION - written, not yet applied
+# ARCHIVED MIGRATION - applied 2026-09-15, kept for the record
 #
 # This file is not part of the package namespace. It is installed under
 # inst/migrations/ so that what is done to the database stays readable.

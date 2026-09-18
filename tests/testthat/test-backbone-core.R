@@ -40,6 +40,16 @@ test_that(".validate_backbone() accepts only backbones offered to users", {
   expect_error(.validate_backbone("apd"), "unknown or not available")
 })
 
+test_that(".validate_backbone() says when a backbone is registered but not offered", {
+  local_mocked_bindings(
+    list_backbones = function(...) {
+      dplyr::tibble(code = c("apd", "wcvp"), is_name_source = c(FALSE, TRUE))
+    }
+  )
+  expect_equal(.validate_backbone("wcvp"), "wcvp")
+  expect_error(.validate_backbone("apd"), "registered but not offered")
+})
+
 
 # ---------------------------------------------------------------------------
 # .shape_backbone_names()

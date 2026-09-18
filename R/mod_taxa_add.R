@@ -1270,6 +1270,9 @@ mod_taxa_add_server <- function(id, pool, pool_main = NULL, has_write_permission
               plant_name_id = as.integer(wcvp_id_to_link),
               match_type    = wcvp_match_type,
               match_score   = if (wcvp_match_type == "exact") 1.0 else NA_real_,
+              # chosen by the person adding the taxon, so it supplies names
+              # even when the search hit was fuzzy
+              verified      = TRUE,
               stringsAsFactors = FALSE
             )
             save_wcvp_links(match_row, con_taxa = pool(), replace = FALSE, verbose = FALSE)

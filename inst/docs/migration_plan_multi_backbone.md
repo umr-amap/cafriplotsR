@@ -1,7 +1,12 @@
 # Migration plan — any number of taxonomic backbones
 
 **Status:** Phase 1 applied and verified 2026-09-15. Phase 2 written and tested
-on a scratch database 2026-09-15, not deployed (§5.4). Later phases not started.
+on a scratch database 2026-09-15, not deployed (§5.4). Phase 4: APD migration
+applied and verified 2026-09-15, importer written (§7.3); APD imported and
+matched in production 2026-09-15, then switched off: the matcher gave wrong
+links, to WCVP as well. Matcher fixed 2026-09-17; links rebuilt in production
+for both backbones and `wcvp_idtax_link` rewritten 2026-09-18 (§5.5).
+Phases 3 and 5 not started.
 Written 2026-09-15.
 **Why:** `inst/docs/design_note_backbone_interoperability.md`.
 **First backbone added this way:** African Plant Database (APD, CJB).
@@ -370,9 +375,143 @@ checks against a scratch PostgreSQL 17 database built with the migrations
 saving, status, the follow-up script); the existing taxonomy test files still
 pass.
 
-**Before deploying:** run `sync_legacy_wcvp_links()` from
-`inst/migrations/multi_backbone_followup.R`, with `mirror_deletions = TRUE`
-only at that moment, then deploy (SSP Cloud apps included) straight after.
+**Before deploying:** rebuild the links (§5.5). `sync_legacy_wcvp_links()` is
+withdrawn: it would copy the faulty legacy links back.
+
+### 5.5 Link rebuild (2026-09-17)
+
+**What went wrong.** APD was matched and switched on in production on
+2026-09-15 (102,469 links, 98,021 preferred). Reviewing the links read-only
+showed wrong names reaching users, and APD was switched off again. The causes
+were in the matcher, and the WCVP links, matched with the same code in April,
+have them too:
+
+- **Author matching joined back by name only.** With `author_match` other than
+  `"none"`, the best backbone name was chosen per name *and author*, then given
+  to every internal taxon with that name. All 2,224 APD and all 1,550 WCVP taxa
+  with several links and none preferred hold a name another internal taxon
+  also holds (e.g. "Vigna mungo (L.) Hepper" linked to both the accepted name
+  and the `auct.` record). The same join also gave single wrong links.
+- **Names refused on authors were matched again, fuzzily, without authors.**
+  1,167 of the 1,177 APD fuzzy links scoring 1.0 had authors disagreeing
+  (e.g. *Diospyros macrophylla* Blume linked to the A.Chev. name). WCVP holds
+  10,965 fuzzy links scoring 1.0.
+- **Fuzzy links became preferred** whenever they were a taxon's only link. In a
+  sample of APD fuzzy links under 1.0, about half were another species
+  (*Bulbophyllum collinum* → *cocoinum*, *Rothmannia macrophylla* →
+  *microphylla*). WCVP had 24,045 fuzzy links, all preferred, none verified.
+- **`auct.` records** were chosen for taxa that are not misapplications: 207
+  exact and 78 fuzzy preferred APD links.
+
+None of the WCVP or APD links was verified, noted or manual, so nothing
+reviewed by a person is lost by rebuilding them.
+
+**Fixes** (`R/backbone_matching.R`, `R/backbone_review.R`):
+
+- Each distinct name *and author* is matched and joined back on both.
+- An identical name whose every candidate disagrees on authors comes back as
+  `match_type = "author_mismatch"` and is not passed to fuzzy matching.
+- `auct.` on one side only is an author conflict, including when the internal
+  taxon has no author; on both sides it is agreement.
+- A failure of the fuzzy step stops the run instead of returning exact matches
+  only, which a replace would have read as every fuzzy link lost.
+- One rule for the link that supplies names, in SQL for
+  `save_backbone_links()` and in R for `replace_backbone_links()` (checked to
+  agree): a taxon's only verified link; otherwise its only link if that link
+  is exact or manual. Fuzzy and author-mismatch links supply names only once
+  verified. The add-taxon app saves the WCVP name a person picked as verified.
+- `review_backbone_matches()`: a table of fuzzy, author-mismatch and
+  several-candidate rows with the differing words highlighted, accepted or
+  rejected from the keyboard or in bulk above a score; decisions are written
+  to a file after each change and reloaded.
+- `replace_backbone_links()`: compares the new matches with the stored links
+  per taxon (unchanged, changed, gained, lost, none), then replaces them in one
+  transaction; taxa with a verified link are left untouched.
+- `rewrite_legacy_wcvp_links()` (follow-up script) replaces `wcvp_idtax_link`
+  with the preferred links, for the deployed version that still reads it.
+
+**Production, read-only dry runs, 2026-09-17** (`author_match = "fuzzy"`,
+nothing written):
+
+| | APD | WCVP |
+|---|---|---|
+| Taxa matched against (misapplications left out) | 349,586 | 349,586 |
+| Exact, one candidate | 93,792 | 284,832 |
+| Exact, several candidates | 27 | 245 |
+| Same name, authors differ | 1,680 | 10,939 |
+| Fuzzy | 2,840 | 13,524 |
+| Unmatched | 251,247 | 40,046 |
+| Preferred name unchanged | 92,445 | 281,965 |
+| Another preferred ID | 57 (all the same name) | 1,375 (1,356 the same name) |
+| Gains a preferred name | 1,290 | 1,492 |
+| Loses it (reviews pending, or a misapplication) | 5,519 | 27,004 |
+
+Decided after looking at the first review table (2026-09-17):
+
+- **Internal misapplications are not matched.** 2,171 taxa carry `auct.` in
+  an author column (`ZZ auct.`); they get no backbone link, and a replace with
+  `taxa = "all"` removes the ones they had. Backbone records marked `auct.`
+  are left out of matching too, since no taxon can be one.
+- **Authors are compared normalised:** without basionym authors in brackets,
+  without what precedes "ex", ignoring spaces, dots and case ("(Klatt)
+  B.L.Rob." = "B.L.Rob.", "Wedd. ex Blume" = "Blume"). WCVP author mismatches
+  went from 13,924 to 10,939 taxa; none of those left is identical once
+  normalised (e.g. "Coss. & Durieu" vs "Durieu & Coss.", "Humb., Bonpl. &
+  Kunth" vs "Kunth", "Jacq." vs "L.").
+
+Three rules settle most identical-name homonyms before review:
+
+- genus and higher taxa keep their author in `author1` (8,813 in
+  `table_taxa`), which the matcher reads;
+- when several identical names remain and exactly one is accepted, only that
+  one is kept (asked for after looking at the review table: the others were
+  mostly illegitimate or invalid). WCVP several-candidate taxa: 1,501 → 659;
+- when none is accepted, exactly one is a synonym and the others are all
+  illegitimate or invalid (`status_raw` starting with "illeg" or "invalid",
+  which covers both WCVP's and APD's wording), only the synonym is kept.
+  WCVP: 659 → 214, mostly Synonym + Synonym (128), then Illegitimate +
+  Illegitimate (15) and Synonym + Unplaced (14), left for review.
+
+**Procedure**, per backbone (WCVP first, then APD, still switched off):
+
+```r
+m <- match_taxa_to_backbone("wcvp", con_taxa, author_match = "fuzzy", n_cores = 2)
+m <- review_backbone_matches(m, review_file = "wcvp_review.rds")  # as far as wanted
+replace_backbone_links(m, "wcvp", con_taxa, taxa = "all")                  # compare
+replace_backbone_links(m, "wcvp", con_taxa, taxa = "all", dry_run = FALSE) # apply
+source(system.file("migrations", "multi_backbone_followup.R", package = "CafriplotsR"))
+rewrite_legacy_wcvp_links(con_taxa)                   # compare
+rewrite_legacy_wcvp_links(con_taxa, dry_run = FALSE)  # apply
+```
+
+The review need not be finished before replacing: undecided rows are stored
+without supplying names, and a later review followed by another replace makes
+them preferred. Verified links are then protected from later rebuilds.
+
+**Applied in production, 2026-09-18.** Both backbones were rematched and
+replaced with `taxa = "all"`, then the legacy table was rewritten.
+`check_backbone_links()` afterwards:
+
+| | WCVP | APD |
+|---|---|---|
+| Links | 310,921 | 98,367 |
+| Preferred (these supply names) | 285,037 | 94,774 |
+| Several links, none preferred | 1,139 | 28 |
+| Links to an ID absent from the backbone | 0 | 0 |
+| Preferred links with an unresolved chain | 0 | 312 |
+| Fuzzy or author-mismatch, not verified | 25,353 | 3,587 |
+
+`rewrite_legacy_wcvp_links()` deleted 313,476 rows and inserted 285,037:
+282,168 taxa unchanged, 1,484 reduced from several links to the preferred one,
+1,381 changed, 4 added, 26,861 removed. The removed ones are the links the old
+matcher had guessed; they remain in `taxa_backbone_link`, unpreferred, and come
+back as each review accepts them. The APD review stood at 984 accepted, 27
+rejected, 3,591 undecided.
+
+Tested: unit tests (`test-backbone-matching.R`, `test-backbone-review.R`,
+including the review app's server); 25 integration checks on a scratch
+database reproducing the faulty state; the review app driven in a headless
+browser (selection, keys, progress).
 
 ## 6. Phase 3 — Shiny modules
 
@@ -466,17 +605,25 @@ Exports are sent by Cyrille Chatelain, the APD manager.
 
 ### 7.2 What that means for the import
 
-1. **Read as Latin-1, store as UTF-8.**
+1. **Read as Latin-1, store as UTF-8.** A file read with the wrong encoding
+   is refused, not stored garbled (`encoding = "UTF-8"` for a UTF-8 export).
 2. **Rename the three ID columns** (`ID` → `apd_id`, `idtax_good_n` →
    `apd_accepted_id`, `id_PARENT` → `apd_parent_id`), so that no column in
    `rainbio` named `idtax_good_n` holds a non-internal ID.
 3. **Derive the canonical fields at import**, keeping the raw columns:
-   - `family`: `fk_famille` in the case used by `table_taxa.tax_fam` (Phase 0);
-   - `species`: first word of `tax_esp`;
+   - `family`: `fk_famille` capitalised (`Amaranthaceae`), because
+     `table_taxa.tax_fam` is: 1 of its 367,066 values is in capitals (checked
+     2026-09-15);
+   - `species`: first word of `tax_esp` when it also holds a rank
+     (`prostrata f. pedicellata`), all of it otherwise (`sp. 1`, hybrids);
    - `infra_rank`, `infra_epithet`: split from `taxrank`, the epithet of an
      autonym being the species epithet;
-   - `authors`: `author2` for infraspecific names, `author1` otherwise;
-   - `taxon_name`: rank prefix removed above genus.
+   - `authors`: `author2` for infraspecific names, none for autonyms;
+     `author1` for species; for genus and above, which have no author
+     columns, what `nom_standard` adds to the name (`Cyathula Blume`). In the
+     2026-07-29 export `author1` equals that remainder for 99.8% of species
+     and `author2` for 99.98% of infraspecific names;
+   - `taxon_name`: rank prefix removed above genus, family names capitalised.
 4. **Version = the date the export file was created** (`YYYY-MM-DD`), since
    the file carries no version tag. Pass it explicitly: the creation time the
    file system reports is reset whenever the file is copied, so it cannot be
@@ -492,7 +639,7 @@ Exports are sent by Cyrille Chatelain, the APD manager.
 
 ### 7.3 Steps
 
-1. `inst/migrations/apd_backbone.R` (written): `migrate_apd_backbone(con_taxa,
+1. `inst/migrations/apd_backbone.R` (applied and verified 2026-09-15): `migrate_apd_backbone(con_taxa,
    dry_run = TRUE)` creates `apd_names`, its indexes, `v_backbone_names_apd`,
    and the `backbone_list` row with `is_name_source = false`;
    `check_apd_backbone_migration(con_taxa)` verifies it and reports import,
@@ -546,12 +693,16 @@ Exports are sent by Cyrille Chatelain, the APD manager.
    ```
 
 2. `import_apd_names(file, version = <file last-modified date>, con_taxa,
-   dry_run = TRUE)` in `R/`, since
-   it is re-run at each APD export: loads the dump, applies §7.2, writes
-   `backbone_import`, leaves links alone, then runs
-   `check_backbone_links("apd")`.
-3. `match_taxa_to_backbone("apd", author_match = "fuzzy")` → review →
-   `save_backbone_links()`.
+   encoding = "Latin-1", dry_run = TRUE, force = FALSE)` in
+   `R/apd_integration.R` (written 2026-09-15), since it is re-run at each APD
+   export: loads the dump, applies §7.2, replaces `apd_names` and writes
+   `backbone_import` in one transaction, leaves links alone, then runs
+   `check_backbone_links("apd")`. The dry run reads and checks the file and
+   reports counts without writing.
+3. `match_taxa_to_backbone("apd", author_match = "fuzzy")` →
+   `review_backbone_matches()` → `replace_backbone_links(taxa = "all")`
+   (§5.5). Done once on 2026-09-15 with the faulty matcher, then undone by
+   switching APD off; to redo.
 4. `UPDATE backbone_list SET is_name_source = true WHERE code = 'apd'`.
 
 **Adding any later backbone is the same four steps.** That is the test of the
@@ -618,11 +769,11 @@ To answer before writing the migrations:
    accepted names pointing elsewhere, grants. Still to query: `tax_fam`
    capitalisation.
 1b. **Until Phase 2 is deployed, links saved by the current package go only to
-   `wcvp_idtax_link`.** `check_multi_backbone_migration()` will then report
-   legacy links absent from `taxa_backbone_link`; copy them across before
-   Phase 2 goes live.
-1c. The 1,550 taxa with several links and none preferred keep their internal
-   name under Phase 2 until a preferred link is chosen.
+   `wcvp_idtax_link`.** They are not copied across any more (§5.5): the legacy
+   table holds the faulty links. Add a taxon's WCVP link again after the
+   rebuild if one was saved there in the meantime.
+1c. The 1,550 taxa with several links and none preferred came from the author
+   join bug (§5.5); the rebuild settles most of them, the rest are reviewed.
 
 For Cyrille Chatelain (APD), about the export:
 

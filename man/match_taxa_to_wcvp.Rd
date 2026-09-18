@@ -25,17 +25,16 @@ fungi.}
 
 \item{methods}{Character vector of matching methods. Default
 \code{c("exact", "fuzzy")}; fuzzy matching only runs on names without an
-exact match.}
+identical backbone name.}
 
-\item{fuzzy_threshold}{Numeric (0-1). Minimum similarity for fuzzy matches.
-Default 0.9.}
+\item{fuzzy_threshold}{Numeric (0-1). Minimum name similarity for fuzzy
+matches. Default 0.9.}
 
-\item{author_match}{Character. How author strings are used during exact
-matching: \code{"none"} (default) ignores them, \code{"exact"} requires
-identical strings, \code{"fuzzy"} keeps the best Jaro-Winkler author match
-among homonyms and drops those below \code{author_threshold}. Authors are
-taken from \code{author1}/\code{author2}/\code{author3} of
-\code{table_taxa}.}
+\item{author_match}{Character. How authors settle exact matches:
+\code{"none"} (default) ignores them, \code{"exact"} requires identical
+strings, \code{"fuzzy"} compares them by Jaro-Winkler similarity. Authors
+are taken from \code{author1}/\code{author2}/\code{author3} of
+\code{table_taxa}, for the deepest rank present.}
 
 \item{author_threshold}{Numeric (0-1). Minimum author similarity when
 \code{author_match = "fuzzy"}. Default 0.6.}
