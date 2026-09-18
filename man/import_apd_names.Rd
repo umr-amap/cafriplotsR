@@ -7,6 +7,7 @@
 import_apd_names(
   file,
   version = NULL,
+  source_version = NULL,
   con_taxa = NULL,
   encoding = c("Latin-1", "UTF-8"),
   dry_run = TRUE,
@@ -20,6 +21,12 @@ import_apd_names(
 \item{version}{Character. Export version, the date the file was created,
 as \code{"YYYY-MM-DD"}. Default: the file's last-modified date, printed
 so it can be checked; give it explicitly if the file has been edited.}
+
+\item{source_version}{Character. APD's own release version, as the
+Conservatoire et Jardin botaniques publishes it (\code{"4.0.0"}), used by
+[backbone_citation()]. The export carries no such tag, so it has to be
+read off the APD site at download time. Default: the file name, which is
+provenance rather than a version and is not cited.}
 
 \item{con_taxa}{Connection or pool to the taxa database, with write access.
 If \code{NULL}, calls \code{call.mydb.taxa()}.}

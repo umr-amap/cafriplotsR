@@ -167,6 +167,7 @@ reference:
       - save_backbone_links
       - replace_backbone_links
       - get_backbone_status
+      - backbone_citation
       - check_backbone_links
       - import_apd_names
 

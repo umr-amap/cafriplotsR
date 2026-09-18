@@ -40,7 +40,7 @@ Move a row to the table above, with its evidence, once it has run.
 
 | Migration | What it will change | Plan |
 |---|---|---|
-| _(none)_ | | |
+| `backbone_citation_metadata.R` | adds `backbone_list.homepage`; writes the publisher APD asks to be cited by, the two homepages, and `4.0.0` as the `source_version` of the current APD import (**taxa** database) | run once, before APD is offered to users: `migrate_backbone_citation_metadata(con_taxa)` then `dry_run = FALSE`. `backbone_citation()` builds the citation from these values, so an APD citation is wrong until it has run |
 
 ## `plot_hierarchy.R`: the parent link
 

@@ -323,6 +323,11 @@
 #' @param version Character. Export version, the date the file was created,
 #'   as \code{"YYYY-MM-DD"}. Default: the file's last-modified date, printed
 #'   so it can be checked; give it explicitly if the file has been edited.
+#' @param source_version Character. APD's own release version, as the
+#'   Conservatoire et Jardin botaniques publishes it (\code{"4.0.0"}), used by
+#'   [backbone_citation()]. The export carries no such tag, so it has to be
+#'   read off the APD site at download time. Default: the file name, which is
+#'   provenance rather than a version and is not cited.
 #' @param con_taxa Connection or pool to the taxa database, with write access.
 #'   If \code{NULL}, calls \code{call.mydb.taxa()}.
 #' @param encoding Character. Encoding of the export: \code{"Latin-1"}
@@ -348,6 +353,7 @@
 #' @export
 import_apd_names <- function(file,
                              version = NULL,
+                             source_version = NULL,
                              con_taxa = NULL,
                              encoding = c("Latin-1", "UTF-8"),
                              dry_run = TRUE,
@@ -359,6 +365,11 @@ import_apd_names <- function(file,
     cli::cli_abort("{.arg file} must be the path of an existing APD export.")
   }
   version <- .apd_export_version(file, version)
+  if (!is.null(source_version) &&
+      (!is.character(source_version) || length(source_version) != 1L ||
+       is.na(source_version) || !nzchar(source_version))) {
+    cli::cli_abort("{.arg source_version} must be APD's release version, such as {.val 4.0.0}.")
+  }
 
   if (verbose) cli::cli_alert_info("Reading {.file {basename(file)}} ({encoding})...")
   raw <- .read_apd_export(file, encoding)
@@ -445,7 +456,8 @@ import_apd_names <- function(file,
               (id_backbone, version, imported_by, record_count, source_version, is_current)
        VALUES ($1, $2, $3, $4, $5, true)",
       params = list(info$id_backbone, version, unname(Sys.info()["user"]),
-                    n_total, basename(file))
+                    n_total,
+                    if (is.null(source_version)) basename(file) else source_version)
     )
 
     DBI::dbExecute(actual_con, "DROP TABLE tmp_apd_names")

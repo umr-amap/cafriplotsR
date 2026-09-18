@@ -221,6 +221,7 @@ list_backbones <- function(con_taxa = NULL, name_sources_only = TRUE) {
       }
     ))
   }
+  .backbone_citation_notice(backbone, con_taxa)
   backbone
 }
 
@@ -630,6 +631,179 @@ get_backbone_status <- function(backbone, con_taxa = NULL, verbose = TRUE) {
   }
 
   invisible(status)
+}
+
+
+# ---- Citation --------------------------------------------------------------------
+
+# Month names written out, so the citation does not change with the locale
+.citation_months <- list(
+  en = c("January", "February", "March", "April", "May", "June", "July",
+         "August", "September", "October", "November", "December"),
+  fr = c("janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+         "août", "septembre", "octobre", "novembre", "décembre")
+)
+
+#' Month and year of the version a citation must state
+#'
+#' Backbones are cited with the date their data were obtained, which is the
+#' version of the import in the database, not today. APD versions are dates
+#' (`2026-09-16`); WCVP's are not, so the import date is used instead.
+#'
+#' @param version,import_date From `backbone_import`.
+#' @param language `"en"` or `"fr"`.
+#' @return A string such as `"September 2026"`, or `NA_character_`.
+#' @noRd
+.backbone_access_date <- function(version, import_date, language = "en") {
+  d <- suppressWarnings(as.Date(version, format = "%Y-%m-%d"))
+  if (is.na(d) && !is.null(import_date)) d <- as.Date(import_date)
+  if (length(d) != 1L || is.na(d)) return(NA_character_)
+  months <- .citation_months[[language]]
+  paste(months[as.integer(format(d, "%m"))], format(d, "%Y"))
+}
+
+
+#' The version a citation must state
+#'
+#' `source_version` holds the publisher's own version when the importer was
+#' given one (APD's `4.0.0`); a file name is provenance, not a version.
+#' @noRd
+.backbone_cited_version <- function(source_version, version) {
+  looks_like_file <- !is.na(source_version) &&
+    grepl("\\.(txt|csv|zip|xlsx?|gz)$", source_version, ignore.case = TRUE)
+  if (!is.na(source_version) && nzchar(source_version) && !looks_like_file) {
+    return(source_version)
+  }
+  if (!is.na(version) && nzchar(version)) return(version)
+  NA_character_
+}
+
+
+#' How to cite a taxonomic backbone
+#'
+#' @description
+#' Builds the citation from what the database records about the backbone: its
+#' name and publisher from \code{backbone_list}, the version and the date of
+#' the current import from \code{backbone_import}. The date stated is the one
+#' the names in the database were taken from, not today's, so two people
+#' citing the same query cite the same thing.
+#'
+#' For APD this yields the citation the Conservatoire et Jardin botaniques
+#' asks for:
+#'
+#' \emph{African Plant Database (version 4.0.0). Conservatoire et Jardin
+#' botaniques de la Ville de Genève and South African National Biodiversity
+#' Institute, Pretoria, accessed September 2026, from
+#' <http://africanplantdatabase.ch>.}
+#'
+#' @param backbone Character. Backbone code, e.g. \code{"apd"} or
+#'   \code{"wcvp"}. \code{"internal"} has no external citation.
+#' @param con_taxa Connection or pool to the taxa database. If \code{NULL},
+#'   calls \code{call.mydb.taxa()}.
+#' @param language \code{"en"} (default) or \code{"fr"}, for the wording of
+#'   the access date.
+#'
+#' @return A single string, or \code{NA_character_} when the backbone is
+#'   unknown or has no import.
+#'
+#' @examples
+#' \dontrun{
+#' backbone_citation("apd")
+#' backbone_citation("apd", language = "fr")
+#' }
+#'
+#' @export
+backbone_citation <- function(backbone, con_taxa = NULL,
+                              language = c("en", "fr")) {
+  language <- match.arg(language)
+  if (identical(backbone, "internal")) {
+    return(NA_character_)
+  }
+
+  # homepage is added by inst/migrations/backbone_citation_metadata.R; a
+  # database without it still cites, without the site
+  read_meta <- function(with_homepage) {
+    .backbone_query(
+      con_taxa,
+      sprintf(
+        "SELECT b.name, b.publisher, %s AS homepage,
+                i.version, i.import_date, i.source_version
+           FROM backbone_list b
+           LEFT JOIN backbone_import i
+                  ON i.id_backbone = b.id_backbone AND i.is_current
+          WHERE b.code = $1",
+        if (with_homepage) "b.homepage" else "NULL::text"
+      ),
+      params = list(backbone)
+    )
+  }
+  meta <- tryCatch(
+    read_meta(TRUE),
+    error = function(e) {
+      tryCatch(read_meta(FALSE), error = function(e2) {
+        message("Note: could not read the citation of ", backbone, " (",
+                conditionMessage(e2), ").")
+        data.frame()
+      })
+    }
+  )
+  if (nrow(meta) == 0) return(NA_character_)
+
+  version <- .backbone_cited_version(meta$source_version[1], meta$version[1])
+  access  <- .backbone_access_date(meta$version[1], meta$import_date[1], language)
+  url     <- meta$homepage[1]
+  if (!is.na(url) && !nzchar(url)) url <- NA_character_
+
+  .format_backbone_citation(meta$name[1], meta$publisher[1], version, access,
+                            url, language)
+}
+
+
+#' Assemble a citation from its parts
+#'
+#' Any part may be missing; the sentence still ends with a full stop.
+#' @noRd
+.format_backbone_citation <- function(name, publisher, version, access, url,
+                                      language = "en") {
+  filled <- function(x) length(x) == 1L && !is.na(x) && nzchar(x)
+  parts <- c(
+    if (filled(version)) sprintf("%s (version %s).", name, version) else paste0(name, "."),
+    if (filled(publisher)) paste0(publisher, ","),
+    if (filled(access)) {
+      if (identical(language, "fr")) paste0("accès ", access, ",")
+      else paste0("accessed ", access, ",")
+    },
+    if (filled(url)) {
+      if (identical(language, "fr")) paste0("de <", url, ">.")
+      else paste0("from <", url, ">.")
+    }
+  )
+  sub(",$", ".", paste(parts, collapse = " "))
+}
+
+
+# Backbones whose citation has been shown this session
+.backbone_cited <- new.env(parent = emptyenv())
+
+#' State the citation the first time a session reads a backbone's names
+#'
+#' Once per backbone and session; silenced with
+#' `options(CafriplotsR.backbone_citation = FALSE)`.
+#' @noRd
+.backbone_citation_notice <- function(backbone, con_taxa = NULL) {
+  if (identical(backbone, "internal")) return(invisible(NULL))
+  if (!isTRUE(getOption("CafriplotsR.backbone_citation", TRUE))) {
+    return(invisible(NULL))
+  }
+  if (!is.null(.backbone_cited[[backbone]])) return(invisible(NULL))
+  assign(backbone, TRUE, envir = .backbone_cited)
+
+  # a citation is a courtesy: it never warns and never stops a query
+  citation <- suppressMessages(tryCatch(backbone_citation(backbone, con_taxa),
+                                        error = function(e) NA_character_))
+  if (is.na(citation)) return(invisible(NULL))
+  cli::cli_alert_info("Names from {.val {backbone}} - please cite: {citation}")
+  invisible(citation)
 }
 
 

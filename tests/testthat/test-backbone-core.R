@@ -227,3 +227,58 @@ test_that(".apply_backbone() tolerates missing name columns and another id colum
   expect_equal(res$tax_gen, c("New", "Other"))
   expect_false("alt_taxon_name" %in% names(res))
 })
+
+
+# ---- Citation ----------------------------------------------------------------
+
+test_that(".backbone_access_date() states the month of the version, not today", {
+  expect_equal(.backbone_access_date("2026-09-16", NULL), "September 2026")
+  expect_equal(.backbone_access_date("2026-09-16", NULL, "fr"), "septembre 2026")
+  # WCVP versions are not dates: the import date answers instead
+  expect_equal(.backbone_access_date("v13", as.POSIXct("2026-01-08 10:00:00", tz = "UTC")),
+               "January 2026")
+  expect_true(is.na(.backbone_access_date(NA_character_, NULL)))
+})
+
+test_that(".backbone_cited_version() prefers the publisher's version to a file name", {
+  expect_equal(.backbone_cited_version("4.0.0", "2026-09-16"), "4.0.0")
+  expect_equal(.backbone_cited_version("APD export Gilles.txt", "2026-09-16"), "2026-09-16")
+  expect_equal(.backbone_cited_version(NA_character_, "2026-09-16"), "2026-09-16")
+  expect_true(is.na(.backbone_cited_version(NA_character_, NA_character_)))
+})
+
+test_that(".format_backbone_citation() writes the citation APD asks for", {
+  apd <- .format_backbone_citation(
+    "African Plant Database",
+    "Conservatoire et Jardin botaniques de la Ville de Gen\u00e8ve and South African National Biodiversity Institute, Pretoria",
+    "4.0.0", "September 2026", "http://africanplantdatabase.ch")
+  expect_equal(
+    apd,
+    paste0("African Plant Database (version 4.0.0). Conservatoire et Jardin ",
+           "botaniques de la Ville de Gen\u00e8ve and South African National ",
+           "Biodiversity Institute, Pretoria, accessed September 2026, from ",
+           "<http://africanplantdatabase.ch>.")
+  )
+  expect_match(
+    .format_backbone_citation("African Plant Database", "CJB", "4.0.0",
+                              "septembre 2026", "http://x.ch", language = "fr"),
+    "acc\u00e8s septembre 2026, de <http://x[.]ch>[.]$"
+  )
+})
+
+test_that(".format_backbone_citation() ends with a full stop whatever is missing", {
+  expect_equal(.format_backbone_citation("A backbone", NA, NA, NA, NA), "A backbone.")
+  expect_equal(.format_backbone_citation("A backbone", "Kew", NA, NA, NA),
+               "A backbone. Kew.")
+  expect_equal(.format_backbone_citation("A backbone", "Kew", "v13", "May 2026", NA),
+               "A backbone (version v13). Kew, accessed May 2026.")
+})
+
+test_that(".backbone_citation_notice() speaks once per session and can be silenced", {
+  rm(list = ls(envir = .backbone_cited), envir = .backbone_cited)
+  withr::local_options(CafriplotsR.backbone_citation = FALSE)
+  expect_null(.backbone_citation_notice("apd"))
+  expect_equal(length(ls(envir = .backbone_cited)), 0L)
+
+  expect_null(.backbone_citation_notice("internal"))
+})

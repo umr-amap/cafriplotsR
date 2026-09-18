@@ -40,6 +40,12 @@ list_backbones(cons$taxa)
 get_backbone_status("apd", con_taxa = cons$taxa)
 ```
 
+> **Citation required.** Any work using APD names must cite:
+>
+> African Plant Database (version 4.0.0). Conservatoire et Jardin botaniques de la Ville de Genève and South African National Biodiversity Institute, Pretoria, accessed September 2026, from <http://africanplantdatabase.ch>.
+>
+> The access date is the date of the version held in the database, not the day you run the query — so everyone citing the same database cites the same thing. `backbone_citation("apd", cons$taxa)` returns the sentence with the right version and date, and the package states it once per session the first time a query uses the backbone.
+
 ### New capabilities
 
 **Taxonomic links are now reviewed before they give a name**
