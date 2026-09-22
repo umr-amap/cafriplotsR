@@ -187,6 +187,36 @@ list_backbones <- function(con_taxa = NULL, name_sources_only = TRUE) {
 }
 
 
+#' A backbone's full name, for showing to a user
+#'
+#' Never fails and never returns an empty string: a backbone the database
+#' cannot describe is named by its own code, upper-cased, which is what its
+#' publisher usually calls it anyway (\code{wcvp}, \code{apd}).
+#'
+#' @param backbone Character scalar, a backbone code or \code{"internal"}.
+#' @param con_taxa Connection or pool to the taxa database.
+#' @return A single string.
+#' @noRd
+.backbone_display_name <- function(backbone, con_taxa = NULL) {
+  if (is.null(backbone) || length(backbone) != 1L || is.na(backbone) ||
+      !nzchar(as.character(backbone))) {
+    return("")
+  }
+  backbone <- as.character(backbone)
+  if (identical(backbone, "internal")) return(backbone)
+
+  name <- tryCatch(
+    as.character(.backbone_info(backbone, con_taxa)$name[1L]),
+    error = function(e) NA_character_
+  )
+  if (length(name) != 1L || is.na(name) || !nzchar(name)) {
+    toupper(backbone)
+  } else {
+    name
+  }
+}
+
+
 #' Validate a backbone argument
 #'
 #' \code{"internal"} is accepted without touching the database. Any other code

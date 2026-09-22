@@ -10824,6 +10824,58 @@
     {
       "en": "These taxa share the accepted name of the taxon you just added, in at least one backbone. Select those you want to set as synonyms of this new entry.",
       "fr": "Ces taxons partagent le nom accepté du taxon que vous venez d'ajouter, dans au moins un référentiel. Sélectionnez ceux que vous souhaitez définir comme synonymes de cette nouvelle entrée."
+    },
+    {
+      "en": "Fetching names from",
+      "fr": "Récupération des noms depuis"
+    },
+    {
+      "en": "names replaced with names from",
+      "fr": "noms remplacés par les noms de"
+    },
+    {
+      "en": "names not available. Internal names used.",
+      "fr": "noms non disponibles. Noms internes utilisés."
+    },
+    {
+      "en": "Names in the output",
+      "fr": "Noms dans les résultats"
+    },
+    {
+      "en": "Internal backbone",
+      "fr": "Référentiel interne"
+    },
+    {
+      "en": "By default, names are standardized against the internal taxonomic backbone. Choose another reference to have the standardized name replaced by that reference's accepted name wherever the taxon is linked to it. Taxa absent from the chosen reference keep their internal backbone name.",
+      "fr": "Par défaut, les noms sont standardisés avec le référentiel taxonomique interne. Choisissez un autre référentiel pour que le nom standardisé soit remplacé par le nom accepté de ce référentiel partout où le taxon y est lié. Les taxons absents du référentiel choisi conservent leur nom du référentiel interne."
+    },
+    {
+      "en": "Names from",
+      "fr": "Noms de"
+    },
+    {
+      "en": "Final standardized name: the accepted name when the match is a synonym (or the name from the chosen reference, when one was chosen).",
+      "fr": "Nom standardisé final : le nom accepté lorsque la correspondance est un synonyme (ou le nom du référentiel choisi, si un référentiel a été choisi)."
+    },
+    {
+      "en": "Accepted name in the reference chosen for the output.",
+      "fr": "Nom accepté dans le référentiel choisi pour les résultats."
+    },
+    {
+      "en": "Family according to the chosen reference.",
+      "fr": "Famille selon le référentiel choisi."
+    },
+    {
+      "en": "Taxonomic authorship according to the chosen reference.",
+      "fr": "Autorité taxonomique selon le référentiel choisi."
+    },
+    {
+      "en": "Status of the name in the chosen reference (e.g. Accepted).",
+      "fr": "Statut du nom dans le référentiel choisi (par ex. Accepted)."
+    },
+    {
+      "en": "Which reference the name in corrected_name comes from: the internal backbone, or the code of the chosen one.",
+      "fr": "Référentiel d'où provient le nom de corrected_name : le référentiel interne, ou le code du référentiel choisi."
     }
   ]
 }

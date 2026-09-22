@@ -38,7 +38,8 @@ mod_taxo_match_r_code_ui <- function(id) {
 #'   carries the settings actually used for the last run.
 #' @param column_info Reactive returning the column-selection list (as
 #'   returned by `mod_column_select_server()`).
-#' @param use_wcvp Reactive returning TRUE when WCVP names were requested.
+#' @param name_backbone Reactive returning the code of the backbone whose
+#'   names were requested for the output, or \code{"internal"}.
 #' @param is_offline Reactive returning TRUE when the app runs on the cached
 #'   backbone without a database connection.
 #' @param i18n Reactive returning shiny.i18n translator
@@ -46,7 +47,8 @@ mod_taxo_match_r_code_ui <- function(id) {
 #' @return NULL (invisible)
 #' @keywords internal
 mod_taxo_match_r_code_server <- function(id, match_results, column_info,
-                                          use_wcvp = NULL, is_offline = NULL,
+                                          name_backbone = NULL,
+                                          is_offline = NULL,
                                           i18n) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
@@ -87,14 +89,11 @@ mod_taxo_match_r_code_server <- function(id, match_results, column_info,
 
       prep_code <- .taxo_match_prep_code(cols)
       match_code <- .taxo_match_matching_code(params)
-      wcvp_code <- if (isTRUE(params$use_wcvp %||% (!is.null(use_wcvp) && isTRUE(use_wcvp())))) {
-        .taxo_match_wcvp_code()
-      } else {
-        NULL
-      }
+      chosen <- params$name_backbone %||% .chosen_name_backbone(name_backbone)
+      backbone_code <- .taxo_match_backbone_code(chosen)
 
       combined_code <- .taxo_match_combined_code(
-        prep_code, match_code, wcvp_code,
+        prep_code, match_code, backbone_code,
         is_offline = isTRUE(params$is_offline %||% (!is.null(is_offline) && isTRUE(is_offline())))
       )
 
@@ -124,12 +123,16 @@ mod_taxo_match_r_code_server <- function(id, match_results, column_info,
         .copy_btn(ns, "copy_match", match_code, i18n),
         shiny::br(), shiny::br(),
 
-        # WCVP enrichment (only when the option was enabled)
-        if (!is.null(wcvp_code)) {
+        # Backbone names (only when a backbone other than the internal one
+        # was chosen)
+        if (!is.null(backbone_code)) {
           shiny::tagList(
-            shiny::h6(shiny::icon("globe"), " ", i18n()$t("WCVP Names")),
-            .dark_code_block(ns, "code_wcvp", wcvp_code),
-            .copy_btn(ns, "copy_wcvp", wcvp_code, i18n),
+            shiny::h6(
+              shiny::icon("globe"), " ",
+              paste(i18n()$t("Names from"), .backbone_display_name(chosen))
+            ),
+            .dark_code_block(ns, "code_backbone", backbone_code),
+            .copy_btn(ns, "copy_backbone", backbone_code, i18n),
             shiny::br(), shiny::br()
           )
         },
@@ -268,24 +271,34 @@ mod_taxo_match_r_code_server <- function(id, match_results, column_info,
 }
 
 
-#' Build the optional WCVP enrichment code
+#' Build the optional backbone-names code
+#'
+#' `NULL` for the internal backbone, which needs no extra step.
+#'
+#' @param backbone Backbone code, or `"internal"`.
 #' @keywords internal
-.taxo_match_wcvp_code <- function() {
+.taxo_match_backbone_code <- function(backbone) {
+  backbone <- .chosen_name_backbone(backbone)
+  if (identical(backbone, "internal")) return(NULL)
+
   paste0(
-    "# Replace the standardized name by the WCVP accepted name where available\n",
-    "# (requires a database connection - WCVP links live in the taxa database).\n",
-    "wcvp <- get_wcvp_names(unique(stats::na.omit(standardized$idtax_n)))\n\n",
+    "# Replace the standardized name by the accepted name from ", backbone,
+    " where available\n",
+    "# (requires a database connection - backbone links live in the taxa database).\n",
+    "names_", backbone, " <- get_backbone_names(\n",
+    "  unique(stats::na.omit(standardized$idtax_n)), \"", backbone, "\"\n",
+    ")\n\n",
     "standardized <- standardized %>%\n",
     "  dplyr::left_join(\n",
     "    dplyr::select(\n",
-    "      wcvp, idtax_n, wcvp_taxon_name, wcvp_family,\n",
-    "      wcvp_taxon_authors, wcvp_taxon_status, name_source\n",
+    "      names_", backbone, ", idtax_n, backbone_taxon_name, backbone_family,\n",
+    "      backbone_authors, backbone_status_raw, name_source\n",
     "    ),\n",
     "    by = \"idtax_n\"\n",
     "  ) %>%\n",
     "  dplyr::mutate(\n",
     "    corrected_name = dplyr::if_else(\n",
-    "      !is.na(wcvp_taxon_name), wcvp_taxon_name, corrected_name\n",
+    "      !is.na(backbone_taxon_name), backbone_taxon_name, corrected_name\n",
     "    ),\n",
     "    name_source = dplyr::coalesce(name_source, \"internal\")\n",
     "  )"
@@ -295,7 +308,7 @@ mod_taxo_match_r_code_server <- function(id, match_results, column_info,
 
 #' Assemble the full workflow script
 #' @keywords internal
-.taxo_match_combined_code <- function(prep_code, match_code, wcvp_code,
+.taxo_match_combined_code <- function(prep_code, match_code, backbone_code,
                                        is_offline = FALSE) {
   connection_code <- c(
     "# Step 1 - Connect to the taxa database",
@@ -307,7 +320,7 @@ mod_taxo_match_r_code_server <- function(id, match_results, column_info,
     connection_code <- c(
       "# You ran the app in offline mode, on the cached backbone. The script",
       "# below works the same way and needs no database account, except for",
-      "# the optional WCVP step.",
+      "# the optional backbone-names step.",
       connection_code
     )
   }
@@ -331,8 +344,8 @@ mod_taxo_match_r_code_server <- function(id, match_results, column_info,
     match_code
   )
 
-  if (!is.null(wcvp_code)) {
-    parts <- c(parts, "\n# Step 4 - WCVP names", wcvp_code)
+  if (!is.null(backbone_code)) {
+    parts <- c(parts, "\n# Step 4 - Names from another backbone", backbone_code)
   }
 
   parts <- c(

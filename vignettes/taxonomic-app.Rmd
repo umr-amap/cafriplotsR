@@ -24,7 +24,7 @@ The `launch_taxonomic_match_app()` function provides an interactive Shiny applic
 - Understanding match quality through visual feedback
 - Manually reviewing uncertain matches
 - Enriching data with species-level traits from the database
-- Checking taxonomic name provenance via WCVP integration
+- Checking taxonomic name provenance against external references (WCVP, APD)
 
 ## Prerequisites
 
@@ -294,7 +294,7 @@ Switch to the **"Export"** tab to download your standardized dataset:
 - **Corrected names** — `corrected_name`, `matched_name`
 - **Match metadata** — `match_method`, `match_score`, `is_synonym`, `accepted_name`
 
-WCVP columns are not one of these groups: they are appended whenever the WCVP option was enabled before matching, and travel with the export either way. The internal `id_data` row identifier is always stripped.
+Backbone columns are not one of these groups: they are appended whenever a reference other than the internal backbone was chosen before matching, and travel with the export either way. The internal `id_data` row identifier is always stripped.
 
 **Column descriptions in the app.** Beside the preview, the Export tab lists every standardized column present in your results with a one-line description of what it holds — the same content as [Understanding Output Columns](#understanding-output-columns) below. Only the columns actually present are described, so the list reflects the options you chose rather than everything the app can produce. Your own input columns are preserved but not described individually, since the app knows nothing about them.
 
@@ -309,21 +309,23 @@ Your original columns are always preserved. The app appends the columns below �
 | `idtax_n` | Identifier of the matched taxon in the taxonomic backbone |
 | `idtax_good_n` | Identifier of the accepted taxon. Differs from `idtax_n` when the matched name is a synonym |
 | `matched_name` | Name found in the backbone corresponding to your input name — this may itself be a synonym |
-| `corrected_name` | Final standardized name: the accepted name when the match is a synonym, or the WCVP name when that option is enabled |
+| `corrected_name` | Final standardized name: the accepted name when the match is a synonym, or the name from the chosen reference when one was chosen |
 | `accepted_name` | Accepted name when the matched name is a synonym; empty otherwise |
 | `is_synonym` | `TRUE` when the matched name is a synonym of an accepted name |
 | `match_method` | How the name was matched — see the table below |
 | `match_score` | Similarity between your input name and the matched name, 0 to 1 (1 = exact, or a match you confirmed yourself) |
 
-When the WCVP option is enabled (see [WCVP Integration](#wcvp-integration)), four more columns are appended and `corrected_name` is **replaced** by the WCVP name wherever one exists:
+When a reference other than the internal backbone is chosen (see [Names from another reference](#names-from-another-reference)), four more columns are appended and `corrected_name` is **replaced** by that reference's name wherever one exists:
 
 | Column | Description |
 |--------|-------------|
-| `wcvp_taxon_name` | Accepted name from the World Checklist of Vascular Plants |
-| `wcvp_family` | Family according to WCVP |
-| `wcvp_taxon_authors` | Taxonomic authorship according to WCVP |
-| `wcvp_taxon_status` | Status of the name in WCVP (e.g. `Accepted`) |
-| `name_source` | Which reference supplied `corrected_name`: `internal` backbone or `WCVP` |
+| `backbone_taxon_name` | Accepted name in the chosen reference |
+| `backbone_family` | Family according to the chosen reference |
+| `backbone_authors` | Taxonomic authorship according to the chosen reference |
+| `backbone_status_raw` | Status of the name in the chosen reference (e.g. `Accepted`) |
+| `name_source` | Which reference supplied `corrected_name`: `internal`, or the code of the chosen one (`wcvp`, `apd`, ...) |
+
+Choosing WCVP additionally repeats those four columns as `wcvp_taxon_name`, `wcvp_family`, `wcvp_taxon_authors` and `wcvp_taxon_status`, the names they had before any other reference existed, so that scripts written against earlier versions still find them.
 
 ### Values of `match_method`
 
@@ -360,20 +362,20 @@ launch_taxonomic_match_app(language = "en")
 launch_taxonomic_match_app(language = "fr")
 ```
 
-### WCVP Integration
+### Names from another reference
 
-The app can optionally reconcile results against the **World Checklist of Vascular Plants (WCVP)**, an international reference maintained by the Royal Botanic Gardens, Kew. When the taxa database contains WCVP data, a **"Use WCVP names in output"** checkbox appears in the sidebar. It has no effect on matching itself — names are always matched against the internal backbone first — but it changes what the output reports.
+The app can optionally report results in the words of an external reference rather than the internal backbone — the **World Checklist of Vascular Plants (WCVP)**, maintained by the Royal Botanic Gardens, Kew, the **African Plant Database (APD)**, or any other backbone the taxa database registers as a source of names. A **"Names in the output"** menu appears in the sidebar listing the internal backbone and every reference available; it is absent when the database offers none, and in offline mode, where no link can be followed.
 
-Enabling it adds four columns:
+The choice has no effect on matching itself — names are always matched against the internal backbone first — but it changes what the output reports. Picking a reference adds four columns:
 
-- `wcvp_taxon_name` — Accepted name according to WCVP
-- `wcvp_family` — Family according to WCVP
-- `wcvp_taxon_authors` — Taxonomic authorship according to WCVP
-- `wcvp_taxon_status` — Status of the name in WCVP (e.g. `Accepted`)
+- `backbone_taxon_name` — Accepted name in that reference
+- `backbone_family` — Family according to it
+- `backbone_authors` — Taxonomic authorship according to it
+- `backbone_status_raw` — Status of the name there (e.g. `Accepted`)
 
-**It also rewrites `corrected_name`.** Wherever WCVP holds the taxon, `corrected_name` becomes the WCVP name rather than the internal backbone's; taxa absent from WCVP keep their internal name. The `name_source` column records which of the two supplied each value (`internal` or `WCVP`), so the substitution stays auditable — check it before treating `corrected_name` as coming from a single reference.
+**It also rewrites `corrected_name`.** Wherever the chosen reference holds the taxon, `corrected_name` becomes its name rather than the internal backbone's; taxa absent from it keep their internal name. The `name_source` column records which reference supplied each value (`internal`, or the code of the chosen one), so the substitution stays auditable — check it before treating `corrected_name` as coming from a single reference.
 
-Enable this when your results must line up with an international checklist, and leave it off when you need names consistent with the rest of the database. The tick box must be set **before** matching, since the enrichment happens as part of that step.
+Choose a reference when your results must line up with an international checklist, and leave the menu on the internal backbone when you need names consistent with the rest of the database. The choice must be made **before** matching, since the lookup happens as part of that step.
 
 ### Adjusting Fuzzy Matching
 
@@ -546,7 +548,7 @@ launch_taxonomic_match_app(
 #    - Authenticate (or choose offline mode)
 #    - Review automatic matches in the Auto Match tab
 #    - Use the Review tab to resolve unmatched names
-#    - Optionally enable WCVP output via the sidebar checkbox
+#    - Optionally choose another reference for the output names in the sidebar
 #    - Optionally enrich with traits in the Traits Enrichment tab
 #      (check the Data Sources panel for citations)
 #    - Export as "forest_inventory_standardized.xlsx"

@@ -194,7 +194,7 @@ app_taxonomic_match <- function(
           shiny::hr(),
 
           # Output Options
-          shiny::uiOutput("wcvp_option_ui"),
+          shiny::uiOutput("name_backbone_ui"),
 
           # Progress Tracker
           mod_progress_tracker_ui("progress")
@@ -527,48 +527,53 @@ app_taxonomic_match <- function(
 
       cli::cli_alert_info("Initializing app modules...")
 
-      # Check WCVP availability in the taxa database — skip entirely when
-      # offline (no connection means no WCVP enrichment regardless).
-      wcvp_avail <- shiny::reactive({
-        if (isTRUE(is_offline_reactive())) return(FALSE)
+      # Backbones this database offers as a source of names, code -> full
+      # name. Skipped entirely when offline: without a connection there are no
+      # backbone links to follow, whichever one was picked.
+      name_backbone_choices <- shiny::reactive({
+        if (isTRUE(is_offline_reactive())) return(character(0))
         tryCatch({
-          con_taxa <- call.mydb.taxa()
-          status <- get_wcvp_status(con_taxa)
-          !is.null(status) && !is.null(status$version) && !is.na(status$version)
+          bb <- list_backbones(call.mydb.taxa(), name_sources_only = TRUE)
+          if (is.null(bb) || nrow(bb) == 0) return(character(0))
+          stats::setNames(bb$code, bb$name)
         }, error = function(e) {
-          FALSE
+          character(0)
         })
       })
 
-      # Render WCVP output option in sidebar
-      output$wcvp_option_ui <- shiny::renderUI({
-        ns_main <- function(id) id  # top-level inputs don't need a namespace
+      # Render the output-names option in the sidebar. Absent when this
+      # database offers no backbone beyond the internal one, which leaves
+      # nothing to choose between.
+      output$name_backbone_ui <- shiny::renderUI({
+        choices <- name_backbone_choices()
+        if (length(choices) == 0) return(NULL)
 
-        if (isTRUE(wcvp_avail())) {
-          shiny::tagList(
-            shiny::h5(
-              shiny::icon("globe"),
-              i18n()$t("Output options"),
-              style = "margin-bottom: 6px;"
+        shiny::tagList(
+          shiny::h5(
+            shiny::icon("globe"),
+            i18n()$t("Output options"),
+            style = "margin-bottom: 6px;"
+          ),
+          shiny::selectInput(
+            inputId  = "name_backbone",
+            label    = i18n()$t("Names in the output"),
+            choices  = c(
+              stats::setNames("internal", i18n()$t("Internal backbone")),
+              choices
             ),
-            shiny::checkboxInput(
-              inputId = "use_wcvp_names",
-              label   = i18n()$t("Use World Checklist of Vascular Plants (WCVP) names in the output"),
-              value   = FALSE
-            ),
-            shiny::helpText(
-              i18n()$t(paste0(
-                "By default, names are standardized against the internal taxonomic backbone. ",
-                "When this box is checked, the standardized name in the output is replaced by the ",
-                "accepted name from the World Checklist of Vascular Plants (WCVP), an international ",
-                "reference maintained by the Royal Botanic Gardens, Kew, whenever the taxon is found ",
-                "there. Taxa absent from WCVP keep their internal backbone name."
-              )),
-              style = "margin-top: -6px; font-size: 0.85em;"
-            ),
-            shiny::hr()
-          )
-        }
+            selected = "internal"
+          ),
+          shiny::helpText(
+            i18n()$t(paste0(
+              "By default, names are standardized against the internal taxonomic backbone. ",
+              "Choose another reference to have the standardized name replaced by that ",
+              "reference's accepted name wherever the taxon is linked to it. Taxa absent from ",
+              "the chosen reference keep their internal backbone name."
+            )),
+            style = "margin-top: -6px; font-size: 0.85em;"
+          ),
+          shiny::hr()
+        )
       })
 
       # Data input module
@@ -597,7 +602,7 @@ app_taxonomic_match <- function(
 
       # Auto matching module
       # Use data from column_info (may be modified with combined column)
-      use_wcvp_names <- shiny::reactive(isTRUE(input$use_wcvp_names))
+      name_backbone <- shiny::reactive(input$name_backbone %||% "internal")
 
       match_results <- mod_auto_matching_server(
         "auto_match",
@@ -606,7 +611,7 @@ app_taxonomic_match <- function(
         include_authors = shiny::reactive(column_info()$include_authors),
         min_similarity = min_similarity,
         i18n = i18n,
-        use_wcvp_names = use_wcvp_names,
+        name_backbone = name_backbone,
         is_offline = is_offline_reactive
       )
 
@@ -617,7 +622,7 @@ app_taxonomic_match <- function(
         "r_code",
         match_results = match_results,
         column_info   = column_info,
-        use_wcvp      = use_wcvp_names,
+        name_backbone = name_backbone,
         is_offline    = is_offline_reactive,
         i18n          = i18n
       )
@@ -664,8 +669,8 @@ app_taxonomic_match <- function(
     })  # Close the observe block for module initialization
 
     # Offline mode: hide tabs that require live DB access (Traits enrichment).
-    # WCVP option in the sidebar is already conditional on get_wcvp_status()
-    # which silently returns FALSE without a DB, so it self-hides.
+    # The output-names option in the sidebar is already conditional on
+    # list_backbones(), which returns nothing without a DB, so it self-hides.
     shiny::observe({
       shiny::req(authenticated_reactive() == TRUE)
       if (isTRUE(is_offline_reactive())) {

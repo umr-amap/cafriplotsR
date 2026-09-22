@@ -4,7 +4,12 @@
 \alias{.taxo_match_combined_code}
 \title{Assemble the full workflow script}
 \usage{
-.taxo_match_combined_code(prep_code, match_code, wcvp_code, is_offline = FALSE)
+.taxo_match_combined_code(
+  prep_code,
+  match_code,
+  backbone_code,
+  is_offline = FALSE
+)
 }
 \description{
 Assemble the full workflow script

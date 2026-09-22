@@ -24,7 +24,7 @@ La fonction `launch_taxonomic_match_app()` fournit une application Shiny interac
 - Comprendre la qualité des correspondances grâce au retour visuel
 - Examiner manuellement les correspondances incertaines
 - Enrichir les données avec des traits au niveau de l'espèce depuis la base de données
-- Vérifier la provenance des noms taxonomiques via l'intégration WCVP
+- Vérifier la provenance des noms taxonomiques auprès de référentiels externes (WCVP, APD)
 
 ## Prérequis
 
@@ -294,7 +294,7 @@ Passez à l'onglet **"Export"** pour télécharger votre jeu de données standar
 - **Noms corrigés** — `corrected_name`, `matched_name`
 - **Métadonnées de correspondance** — `match_method`, `match_score`, `is_synonym`, `accepted_name`
 
-Les colonnes WCVP ne constituent pas l'un de ces groupes : elles sont ajoutées dès lors que l'option WCVP était activée avant la correspondance, et accompagnent l'export dans tous les cas. L'identifiant de ligne interne `id_data` est toujours retiré.
+Les colonnes de référentiel ne constituent pas l'un de ces groupes : elles sont ajoutées dès lors qu'un référentiel autre que l'interne avait été choisi avant la correspondance, et accompagnent l'export dans tous les cas. L'identifiant de ligne interne `id_data` est toujours retiré.
 
 **Descriptions des colonnes dans l'application.** À côté de l'aperçu, l'onglet Export liste chaque colonne standardisée présente dans vos résultats avec une description d'une ligne de son contenu — le même contenu que [Comprendre les Colonnes de Sortie](#comprendre-les-colonnes-de-sortie) ci-dessous. Seules les colonnes réellement présentes sont décrites : la liste reflète donc les options que vous avez choisies, et non tout ce que l'application sait produire. Vos propres colonnes d'entrée sont conservées mais pas décrites une à une, l'application n'en sachant rien.
 
@@ -309,21 +309,23 @@ Vos colonnes d'origine sont toujours conservées. L'application ajoute les colon
 | `idtax_n` | Identifiant du taxon apparié dans le référentiel taxonomique |
 | `idtax_good_n` | Identifiant du taxon accepté. Diffère de `idtax_n` lorsque le nom apparié est un synonyme |
 | `matched_name` | Nom trouvé dans le référentiel correspondant à votre nom d'entrée — il peut lui-même être un synonyme |
-| `corrected_name` | Nom standardisé final : le nom accepté lorsque la correspondance est un synonyme, ou le nom WCVP si cette option est activée |
+| `corrected_name` | Nom standardisé final : le nom accepté lorsque la correspondance est un synonyme, ou le nom du référentiel choisi si un référentiel a été choisi |
 | `accepted_name` | Nom accepté lorsque le nom apparié est un synonyme ; vide sinon |
 | `is_synonym` | `TRUE` lorsque le nom apparié est un synonyme d'un nom accepté |
 | `match_method` | Comment le nom a été apparié — voir le tableau ci-dessous |
 | `match_score` | Similarité entre votre nom d'entrée et le nom apparié, de 0 à 1 (1 = exact, ou correspondance que vous avez confirmée vous-même) |
 
-Lorsque l'option WCVP est activée (voir [Intégration WCVP](#intégration-wcvp)), quatre colonnes supplémentaires sont ajoutées et `corrected_name` est **remplacé** par le nom WCVP partout où il en existe un :
+Lorsqu'un référentiel autre que l'interne est choisi (voir [Noms issus d'un autre référentiel](#noms-issus-dun-autre-référentiel)), quatre colonnes supplémentaires sont ajoutées et `corrected_name` est **remplacé** par le nom de ce référentiel partout où il en existe un :
 
 | Colonne | Description |
 |---------|-------------|
-| `wcvp_taxon_name` | Nom accepté selon le World Checklist of Vascular Plants |
-| `wcvp_family` | Famille selon WCVP |
-| `wcvp_taxon_authors` | Autorité taxonomique selon WCVP |
-| `wcvp_taxon_status` | Statut du nom dans WCVP (ex. `Accepted`) |
-| `name_source` | Référence ayant fourni `corrected_name` : référentiel `internal` ou `WCVP` |
+| `backbone_taxon_name` | Nom accepté dans le référentiel choisi |
+| `backbone_family` | Famille selon le référentiel choisi |
+| `backbone_authors` | Autorité taxonomique selon le référentiel choisi |
+| `backbone_status_raw` | Statut du nom dans le référentiel choisi (ex. `Accepted`) |
+| `name_source` | Référence ayant fourni `corrected_name` : `internal`, ou le code du référentiel choisi (`wcvp`, `apd`, ...) |
+
+Le choix de WCVP répète en outre ces quatre colonnes sous les noms `wcvp_taxon_name`, `wcvp_family`, `wcvp_taxon_authors` et `wcvp_taxon_status`, ceux qu'elles portaient avant l'existence de tout autre référentiel, afin que les scripts écrits pour les versions antérieures les retrouvent.
 
 ### Valeurs de `match_method`
 
@@ -360,20 +362,20 @@ launch_taxonomic_match_app(language = "en")
 launch_taxonomic_match_app(language = "fr")
 ```
 
-### Intégration WCVP
+### Noms issus d'un autre référentiel
 
-L'application peut optionnellement rapprocher les résultats du **World Checklist of Vascular Plants (WCVP)**, référence internationale maintenue par les Royal Botanic Gardens de Kew. Lorsque la base de données taxa contient des données WCVP, une case à cocher **"Utiliser les noms WCVP en sortie"** apparaît dans la barre latérale. Elle ne modifie pas la correspondance elle-même — les noms sont toujours appariés d'abord au référentiel interne — mais elle change ce que rapporte la sortie.
+L'application peut optionnellement restituer les résultats dans les termes d'un référentiel externe plutôt que du référentiel interne — le **World Checklist of Vascular Plants (WCVP)**, maintenu par les Royal Botanic Gardens de Kew, l'**African Plant Database (APD)**, ou tout autre référentiel que la base de données taxa déclare comme source de noms. Un menu **"Noms dans les résultats"** apparaît dans la barre latérale, listant le référentiel interne et tous ceux qui sont disponibles ; il est absent lorsque la base n'en propose aucun, ainsi qu'en mode hors ligne, où aucun lien ne peut être suivi.
 
-L'activer ajoute quatre colonnes :
+Ce choix ne modifie pas la correspondance elle-même — les noms sont toujours appariés d'abord au référentiel interne — mais il change ce que rapporte la sortie. Choisir un référentiel ajoute quatre colonnes :
 
-- `wcvp_taxon_name` — Nom accepté selon WCVP
-- `wcvp_family` — Famille selon WCVP
-- `wcvp_taxon_authors` — Autorité taxonomique selon WCVP
-- `wcvp_taxon_status` — Statut du nom dans WCVP (ex. `Accepted`)
+- `backbone_taxon_name` — Nom accepté dans ce référentiel
+- `backbone_family` — Famille selon ce référentiel
+- `backbone_authors` — Autorité taxonomique selon ce référentiel
+- `backbone_status_raw` — Statut du nom dans ce référentiel (ex. `Accepted`)
 
-**Elle réécrit également `corrected_name`.** Partout où WCVP contient le taxon, `corrected_name` devient le nom WCVP plutôt que celui du référentiel interne ; les taxons absents de WCVP conservent leur nom interne. La colonne `name_source` enregistre laquelle des deux références a fourni chaque valeur (`internal` ou `WCVP`), ce qui rend la substitution vérifiable — consultez-la avant de considérer que `corrected_name` provient d'une référence unique.
+**Cela réécrit également `corrected_name`.** Partout où le référentiel choisi contient le taxon, `corrected_name` devient son nom plutôt que celui du référentiel interne ; les taxons qui en sont absents conservent leur nom interne. La colonne `name_source` enregistre quelle référence a fourni chaque valeur (`internal`, ou le code du référentiel choisi), ce qui rend la substitution vérifiable — consultez-la avant de considérer que `corrected_name` provient d'une référence unique.
 
-Activez cette option lorsque vos résultats doivent s'aligner sur une liste de référence internationale, et laissez-la désactivée lorsque vous avez besoin de noms cohérents avec le reste de la base. La case doit être cochée **avant** la correspondance, l'enrichissement s'effectuant au cours de cette étape.
+Choisissez un référentiel lorsque vos résultats doivent s'aligner sur une liste de référence internationale, et laissez le menu sur le référentiel interne lorsque vous avez besoin de noms cohérents avec le reste de la base. Le choix doit être fait **avant** la correspondance, la consultation s'effectuant au cours de cette étape.
 
 ### Ajuster la Correspondance Approximative
 
@@ -546,7 +548,7 @@ launch_taxonomic_match_app(
 #    - S'authentifier (ou choisir le mode hors ligne)
 #    - Revoir les correspondances automatiques dans l'onglet Auto Match
 #    - Utiliser l'onglet Review pour résoudre les noms non appariés
-#    - Activer optionnellement la sortie WCVP via la case à cocher dans la barre latérale
+#    - Choisir optionnellement un autre référentiel pour les noms en sortie
 #    - Enrichir optionnellement avec des traits dans l'onglet Traits Enrichment
 #      (consulter le panneau Sources des données pour les citations)
 #    - Exporter comme "inventaire_forestier_standardise.xlsx"
