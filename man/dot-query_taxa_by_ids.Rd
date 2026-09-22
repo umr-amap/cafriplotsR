@@ -14,7 +14,8 @@
   check_synonymy,
   extract_traits,
   include_children = FALSE,
-  verbose
+  verbose,
+  backbone = "internal"
 )
 }
 \description{

@@ -13,6 +13,43 @@ Updates on major milestones for the CafriplotsR package
 
 ---
 
+## September 2026
+
+### New data
+
+**The African Plant Database (APD) is now a taxonomic backbone**
+
+Beside the internal CafriplotsR backbone and WCVP, names can now be read through the **African Plant Database** (APD), maintained by the Conservatoire et Jardin botaniques de Genève. APD is the nomenclatural reference for the African flora — which is what this database holds — so it recognises far more of our taxa than a world checklist does, infraspecific names in particular.
+
+**104,117 APD names** were imported, and **94,774 taxa** of the database now carry an APD name.
+
+It is selected exactly like WCVP, with one argument:
+
+```r
+cons <- connect_cafri()
+query_taxa(species = "Diospyros iturensis", backbone = "apd", check_synonymy = F)
+query_plots(country = "GABON", backbone = "apd", extract_individuals = T)
+```
+
+The same two columns document the substitution: `name_source` says whether the taxon resolved to an APD name or fell back to the internal one, and `alt_taxon_name` keeps the internal name alongside. Internal identifiers are untouched.
+
+Which backbones a database offers, and the version of each:
+
+```r
+list_backbones(cons$taxa)
+get_backbone_status("apd", con_taxa = cons$taxa)
+```
+
+> **Citation required.** Any work using APD names must cite:
+>
+> African Plant Database (version 4.0.0). Conservatoire et Jardin botaniques de la Ville de Genève and South African National Biodiversity Institute, Pretoria, accessed September 2026, from <http://africanplantdatabase.ch>.
+>
+> The access date is the date of the version held in the database, not the day you run the query — so everyone citing the same database cites the same thing. `backbone_citation("apd", cons$taxa)` returns the sentence with the right version and date, and the package states it once per session the first time a query uses the backbone.
+
+WCVP has its own required wording, which `backbone_citation("wcvp", cons$taxa)` now returns as Kew asks for it — *Govaerts R. (ed.) (2026). WCVP: World Checklist of Vascular Plants, version 13. Facilitated by the Royal Botanic Gardens, Kew. Published on the Internet; …* — followed by the reference for rWCVP, the package our copy of WCVP was downloaded with.
+
+---
+
 ## May 2026
 
 ### New capabilities

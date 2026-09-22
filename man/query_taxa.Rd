@@ -20,7 +20,7 @@ query_taxa(
   extract_traits = TRUE,
   include_children = FALSE,
   min_similarity = 0.3,
-  backbone = c("internal", "wcvp")
+  backbone = "internal"
 )
 }
 \arguments{
@@ -58,9 +58,15 @@ via the `id_parent` foreign key. Default FALSE.}
 
 \item{min_similarity}{numeric (0-1) minimum similarity score for fuzzy matching (default: 0.3)}
 
-\item{backbone}{character. Which taxonomic backbone to use: \code{"internal"}
-(default) uses the internal \code{table_taxa}; \code{"wcvp"} enriches results
-with WCVP names via the link table, adding \code{wcvp_*} columns and \code{name_source}.}
+\item{backbone}{Character. Backbone whose names are used: \code{"internal"}
+(default) for \code{table_taxa}, or the code of a backbone registered in
+the taxa database (see \code{list_backbones()}), such as \code{"wcvp"}.
+With another backbone, the name columns of taxa with a preferred link are
+replaced by that backbone's accepted names; the internal name is kept in
+\code{alt_taxon_name}, and \code{backbone_name_id},
+\code{backbone_accepted_id} and \code{name_source} are added. With
+\code{"wcvp"}, \code{wcvp_plant_name_id} and
+\code{wcvp_accepted_plant_name_id} are also added, as before.}
 
 \item{tax_nam01}{string (currently not used in matching)}
 

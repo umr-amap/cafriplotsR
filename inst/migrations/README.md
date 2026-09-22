@@ -30,6 +30,17 @@ trusting the code.
 | `add_plot_citations.R` | added `id_citation` (FK to `table_citations`) to `data_liste_plots` | `check_plot_citations_migration()` reports `id_citation` present, migration complete |
 | `plot_hierarchy.R` | added `data_liste_plots.id_parent_plot` and `parent_relation`, with four constraints | `check_plot_hierarchy_migration()` reports both columns, all four constraints, migration complete |
 | `taxa_hierarchy_backfill.R` | set `tax_level` and `id_parent` on the 25 taxa added from `launch_taxo_backbone_app()` without them; created 2 missing genera (`Kuloa` 367194, `Conchograecum` 367195, `tax_source = 'H_AUT'`) | applied 2026-09-14 (**taxa** database): all 25 `linked`, none left unlinked; `check_unlinked_taxa()` should report `no_level = 0` |
+| `multi_backbone.R` | created `backbone_list`, `backbone_import`, `taxa_backbone_link` and `v_backbone_names_wcvp`; copied the WCVP links and import history; legacy WCVP tables untouched apart from two expression indexes on `wcvp_names` | verified 2026-09-15 (**taxa** database): `check_multi_backbone_migration()` passes every check; 313,476 WCVP links copied, none missing, none dangling; foreign key to `table_taxa` on delete cascade; 1,550 taxa with several links and none preferred, left for review |
+| `apd_backbone.R` | created the empty `apd_names` and `v_backbone_names_apd`; registered APD in `backbone_list` without offering it to users | verified 2026-09-15 (**taxa** database): `check_apd_backbone_migration()` passes every check; view columns and types identical to WCVP's; 0 names, no import, no links, `is_name_source = false` — the expected state before `import_apd_names()` runs |
+| `multi_backbone_followup.R` | no schema change: replaced the legacy `wcvp_idtax_link` with the preferred WCVP links of `taxa_backbone_link` (**taxa** database); keeps the read-only `report_links_without_preferred()` | applied 2026-09-18 after the link rebuild: 313,476 legacy rows deleted, 285,037 inserted — 282,168 taxa unchanged, 1,484 reduced from several links to the preferred one, 1,381 changed, 4 added, 26,861 removed (links the old matcher had guessed, now awaiting review in `taxa_backbone_link`) |
+
+## Written, not yet applied
+
+Move a row to the table above, with its evidence, once it has run.
+
+| Migration | What it will change | Plan |
+|---|---|---|
+| `backbone_citation_metadata.R` | adds `backbone_list.homepage` and `backbone_list.citation_template`; writes the citation formula each publisher asks for (APD's, and Kew's for WCVP followed by the rWCVP reference), the publishers, the sites, and `4.0.0` as the `source_version` of the current APD import (**taxa** database) | run once, before APD is offered to users: `migrate_backbone_citation_metadata(con_taxa)` then `dry_run = FALSE`. The rehearsal prints the citation each formula produces. `backbone_citation()` builds citations from these values and falls back to a plain sentence until it has run |
 
 ## `plot_hierarchy.R`: the parent link
 

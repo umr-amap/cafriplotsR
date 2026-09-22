@@ -8,7 +8,7 @@ mod_taxo_match_r_code_server(
   id,
   match_results,
   column_info,
-  use_wcvp = NULL,
+  name_backbone = NULL,
   is_offline = NULL,
   i18n
 )
@@ -23,7 +23,8 @@ carries the settings actually used for the last run.}
 \item{column_info}{Reactive returning the column-selection list (as
 returned by `mod_column_select_server()`).}
 
-\item{use_wcvp}{Reactive returning TRUE when WCVP names were requested.}
+\item{name_backbone}{Reactive returning the code of the backbone whose
+names were requested for the output, or \code{"internal"}.}
 
 \item{is_offline}{Reactive returning TRUE when the app runs on the cached
 backbone without a database connection.}

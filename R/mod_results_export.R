@@ -202,16 +202,20 @@ mod_results_export_server <- function(id, results, original_data, i18n) {
         idtax_n            = i18n()$t("Identifier of the matched taxon in the taxonomic backbone."),
         idtax_good_n       = i18n()$t("Identifier of the accepted taxon. Differs from idtax_n when the matched name is a synonym."),
         matched_name       = i18n()$t("Name found in the backbone corresponding to your input name (may be a synonym)."),
-        corrected_name     = i18n()$t("Final standardized name: the accepted name when the match is a synonym (or the WCVP name if that option was enabled)."),
+        corrected_name     = i18n()$t("Final standardized name: the accepted name when the match is a synonym (or the name from the chosen reference, when one was chosen)."),
         accepted_name      = i18n()$t("Accepted name when the matched name is a synonym; empty otherwise."),
         is_synonym         = i18n()$t("TRUE when the matched name is a synonym of an accepted name."),
         match_method       = i18n()$t("How the name was matched: exact, genus_constrained, fuzzy, manual (chosen during review), or unresolved."),
         match_score        = i18n()$t("Similarity between your input name and the matched name, from 0 to 1 (1 = exact or user-confirmed match)."),
+        backbone_taxon_name   = i18n()$t("Accepted name in the reference chosen for the output."),
+        backbone_family       = i18n()$t("Family according to the chosen reference."),
+        backbone_authors      = i18n()$t("Taxonomic authorship according to the chosen reference."),
+        backbone_status_raw   = i18n()$t("Status of the name in the chosen reference (e.g. Accepted)."),
         wcvp_taxon_name    = i18n()$t("Accepted name from the World Checklist of Vascular Plants (WCVP)."),
         wcvp_family        = i18n()$t("Family according to WCVP."),
         wcvp_taxon_authors = i18n()$t("Taxonomic authorship according to WCVP."),
         wcvp_taxon_status  = i18n()$t("Status of the name in WCVP (e.g. Accepted)."),
-        name_source        = i18n()$t("Source of the name used in corrected_name: internal backbone or WCVP.")
+        name_source        = i18n()$t("Which reference the name in corrected_name comes from: the internal backbone, or the code of the chosen one.")
       )
 
       known_cols <- intersect(names(descriptions), present)

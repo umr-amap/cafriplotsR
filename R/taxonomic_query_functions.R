@@ -42,9 +42,15 @@
 #'   taxa (e.g. species within a genus, infraspecific taxa within a species)
 #'   via the `id_parent` foreign key. Default FALSE.
 #' @param min_similarity numeric (0-1) minimum similarity score for fuzzy matching (default: 0.3)
-#' @param backbone character. Which taxonomic backbone to use: \code{"internal"}
-#'   (default) uses the internal \code{table_taxa}; \code{"wcvp"} enriches results
-#'   with WCVP names via the link table, adding \code{wcvp_*} columns and \code{name_source}.
+#' @param backbone Character. Backbone whose names are used: \code{"internal"}
+#'   (default) for \code{table_taxa}, or the code of a backbone registered in
+#'   the taxa database (see \code{list_backbones()}), such as \code{"wcvp"}.
+#'   With another backbone, the name columns of taxa with a preferred link are
+#'   replaced by that backbone's accepted names; the internal name is kept in
+#'   \code{alt_taxon_name}, and \code{backbone_name_id},
+#'   \code{backbone_accepted_id} and \code{name_source} are added. With
+#'   \code{"wcvp"}, \code{wcvp_plant_name_id} and
+#'   \code{wcvp_accepted_plant_name_id} are also added, as before.
 #'
 #'
 #' @return A tibble of taxa with taxonomic hierarchy and optionally traits
@@ -66,10 +72,10 @@ query_taxa <-
     extract_traits = TRUE,
     include_children = FALSE,
     min_similarity = 0.3,
-    backbone = c("internal", "wcvp")
+    backbone = "internal"
   ) {
 
-    backbone <- match.arg(backbone)
+    backbone <- .validate_backbone(backbone)
 
     mydb_taxa <- call.mydb.taxa()
 
@@ -85,7 +91,8 @@ query_taxa <-
         check_synonymy = check_synonymy,
         extract_traits = extract_traits,
         include_children = include_children,
-        verbose = verbose
+        verbose = verbose,
+        backbone = backbone
       ))
     }
 
@@ -252,10 +259,10 @@ query_taxa <-
     # Clean up unwanted columns
     res <- .clean_taxa_columns(res)
 
-    # Replace standard columns with WCVP values when backbone = "wcvp"
-    if (backbone == "wcvp" && nrow(res) > 0) {
-      wcvp_info <- get_wcvp_names(res$idtax_n, con_taxa = mydb_taxa)
-      res <- .apply_wcvp_backbone(res, wcvp_info, id_col = "idtax_n")
+    # Replace standard columns with the backbone's names
+    if (backbone != "internal" && nrow(res) > 0) {
+      backbone_info <- get_backbone_names(res$idtax_n, backbone, con_taxa = mydb_taxa)
+      res <- .apply_backbone(res, backbone_info, backbone, id_col = "idtax_n")
     }
 
     # Print results if verbose
@@ -274,7 +281,8 @@ query_taxa <-
 #' @keywords internal
 .query_taxa_by_ids <- function(ids, class, mydb_taxa, only_genus, only_family,
                                 only_class, check_synonymy, extract_traits,
-                                include_children = FALSE, verbose) {
+                                include_children = FALSE, verbose,
+                                backbone = "internal") {
 
   # Filter by class if specified
   if (!is.null(class)) {
@@ -327,6 +335,14 @@ query_taxa <-
   }
 
   res <- .clean_taxa_columns(res)
+
+  # Replace standard columns with the backbone's names. This path used to
+  # ignore the backbone, so match_tax() and query_taxa(ids = ) returned
+  # internal names whatever was asked
+  if (backbone != "internal" && nrow(res) > 0) {
+    backbone_info <- get_backbone_names(res$idtax_n, backbone, con_taxa = mydb_taxa)
+    res <- .apply_backbone(res, backbone_info, backbone, id_col = "idtax_n")
+  }
 
   if (verbose && nrow(res) > 0) {
     .print_taxa_results(res)
@@ -720,10 +736,9 @@ query_taxa <-
 #' @param idtax vector of idtax_n to be search
 #' @param queried_tax tibble, output of query_taxa
 #' @param verbose logical whether results should be shown in viewer
-#' @param backbone Character. Which taxonomic backbone to use for synonym resolution.
-#'   \code{"internal"} (default) uses the internal \code{table_taxa}.
-#'   \code{"wcvp"} uses WCVP via \code{wcvp_idtax_link} and \code{wcvp_names},
-#'   falling back to internal for unlinked taxa.
+#' @param backbone Character. Backbone whose names are used: \code{"internal"}
+#'   (default) for \code{table_taxa}, or the code of a backbone registered in
+#'   the taxa database (see \code{list_backbones()}), such as \code{"wcvp"}.
 #'
 #' @examples
 #' \dontrun{
@@ -732,9 +747,9 @@ query_taxa <-
 #'
 #' @export
 match_tax <- function(idtax, queried_tax = NULL, verbose = TRUE,
-                      backbone = c("internal", "wcvp")) {
+                      backbone = "internal") {
 
-  backbone <- match.arg(backbone)
+  backbone <- .validate_backbone(backbone)
 
   if (is.null(queried_tax)) {
 
@@ -1064,16 +1079,19 @@ match_tax <- function(idtax, queried_tax = NULL, verbose = TRUE,
 #'
 #' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
 #' @param ids vector of idtax_n to retrieve
-#' @param backbone character. \code{"internal"} (default) or \code{"wcvp"}.
-#'   When \code{"wcvp"}, standard taxonomy columns (\code{tax_fam}, \code{tax_gen},
-#'   \code{tax_esp}, etc.) are replaced with WCVP values where a link exists.
-#'   The original internal name is kept in \code{alt_taxon_name} and a
-#'   \code{name_source} column indicates the source per row.
+#' @param backbone Character. Backbone whose names are used: \code{"internal"}
+#'   (default) for \code{table_taxa}, or the code of a backbone registered in
+#'   the taxa database (see \code{list_backbones()}), such as \code{"wcvp"}.
+#'   With another backbone, standard taxonomy columns (\code{tax_fam},
+#'   \code{tax_gen}, \code{tax_esp}, etc.) are replaced with that backbone's
+#'   values where a preferred link exists. The original internal name is kept
+#'   in \code{alt_taxon_name} and a \code{name_source} column indicates the
+#'   source per row.
 #'
 #' @export
-add_taxa_table_taxa <- function(ids = NULL, backbone = c("internal", "wcvp")) {
+add_taxa_table_taxa <- function(ids = NULL, backbone = "internal") {
 
-  backbone <- match.arg(backbone)
+  backbone <- .validate_backbone(backbone)
   mydb_taxa <- call.mydb.taxa()
 
   table_taxa <-
@@ -1114,11 +1132,11 @@ add_taxa_table_taxa <- function(ids = NULL, backbone = c("internal", "wcvp")) {
 
   }
 
-  # Replace standard columns with WCVP values when backbone = "wcvp"
-  if (backbone == "wcvp") {
+  # Replace standard columns with the backbone's names
+  if (backbone != "internal") {
     collected <- table_taxa %>% dplyr::collect()
-    wcvp_info <- get_wcvp_names(collected$idtax_n, con_taxa = mydb_taxa)
-    table_taxa <- .apply_wcvp_backbone(collected, wcvp_info, id_col = "idtax_n")
+    backbone_info <- get_backbone_names(collected$idtax_n, backbone, con_taxa = mydb_taxa)
+    table_taxa <- .apply_backbone(collected, backbone_info, backbone, id_col = "idtax_n")
   }
 
   return(table_taxa)

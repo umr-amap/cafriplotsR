@@ -11,10 +11,11 @@ get_wcvp_status(con_taxa = NULL)
 }
 \value{
 A list with: \code{version}, \code{import_date}, \code{record_count},
-  \code{link_count}, \code{imported_by}. Returns NULL if no import found.
+  \code{link_count}, \code{imported_by}, \code{r_package_version}. Returns NULL if no import found.
 }
 \description{
 Returns information about the current WCVP import in the database.
+Superseded by \code{get_backbone_status("wcvp")}, which it calls.
 }
 \examples{
 \dontrun{

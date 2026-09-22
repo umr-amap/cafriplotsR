@@ -254,3 +254,21 @@ Les interfaces sont bilingues français / anglais, basculables à tout moment.
 Réponse attendue avant le [DATE LIMITE] : journée entière / matinée seulement /
 pas disponible cette fois, + disposez-vous d'une liste d'espèces ? + une ligne sur vos
 données + engagement à installer le package avant la séance.
+
+
+
+
+
+#### notes additionelles pour mieux structurer la formation
+
+Est ce que les utilisateurs comprennent le concept de référentiel taxonomique ?
+Si oui, lequel utilise t il ?
+Sans même bien comprendre le concept, peut etre ont ils déja été confrontées à des difficultés résultant de la confrontation de données (compilation de données) provenant de différents référentiels.
+
+Objectif:
+Leur faire tester l'appli standardisation taxonomique.
+A quoi ça sert
+--> Passer en mode programatique, et ça implique de pouvoir avoir un code R équivalent dans l'appli, ce qui n'est pas le cas pour le moment (concernerait seulement l'appariement automatique, sans révision possible, un peu dans la même logique que fait le package BIOMASS il me semble).
+
+
+

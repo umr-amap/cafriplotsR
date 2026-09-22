@@ -4,12 +4,7 @@
 \alias{match_tax}
 \title{Query and standardize taxonomy}
 \usage{
-match_tax(
-  idtax,
-  queried_tax = NULL,
-  verbose = TRUE,
-  backbone = c("internal", "wcvp")
-)
+match_tax(idtax, queried_tax = NULL, verbose = TRUE, backbone = "internal")
 }
 \arguments{
 \item{idtax}{vector of idtax_n to be search}
@@ -18,10 +13,9 @@ match_tax(
 
 \item{verbose}{logical whether results should be shown in viewer}
 
-\item{backbone}{Character. Which taxonomic backbone to use for synonym resolution.
-\code{"internal"} (default) uses the internal \code{table_taxa}.
-\code{"wcvp"} uses WCVP via \code{wcvp_idtax_link} and \code{wcvp_names},
-falling back to internal for unlinked taxa.}
+\item{backbone}{Character. Backbone whose names are used: \code{"internal"}
+(default) for \code{table_taxa}, or the code of a backbone registered in
+the taxa database (see \code{list_backbones()}), such as \code{"wcvp"}.}
 }
 \value{
 tibble

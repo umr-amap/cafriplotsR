@@ -596,14 +596,24 @@ mod_taxa_search_server <- function(id, pool, i18n,
       }
     })
 
-    # WCVP info for the selected taxon (fetched reactively)
-    wcvp_info_reactive <- shiny::reactive({
+    # Backbones registered in this database, read once per session
+    backbone_list_reactive <- shiny::reactive({
+      tryCatch({
+        list_backbones(con_taxa = pool(), name_sources_only = FALSE)
+      }, error = function(e) {
+        cli::cli_alert_warning("Could not list backbones: {e$message}")
+        NULL
+      })
+    })
+
+    # Links of the selected taxon in every registered backbone (WCVP, APD, ...)
+    backbone_links_reactive <- shiny::reactive({
       shiny::req(rv$selected_row)
       taxon <- rv$selected_row[1, ]
       tryCatch({
-        get_wcvp_names(taxon$idtax_n, con_taxa = pool())
+        get_taxon_backbone_links(taxon$idtax_n, con_taxa = pool())
       }, error = function(e) {
-        cli::cli_alert_warning("Could not fetch WCVP info: {e$message}")
+        cli::cli_alert_warning("Could not fetch backbone links: {e$message}")
         NULL
       })
     })
@@ -722,30 +732,37 @@ mod_taxa_search_server <- function(id, pool, i18n,
           )
         ),
         shiny::hr(),
-        # WCVP info section
+        # One block per external backbone (WCVP, APD, ...)
         local({
-          wcvp <- wcvp_info_reactive()
-          if (!is.null(wcvp) && nrow(wcvp) > 0 && !is.na(wcvp$wcvp_plant_name_id[1])) {
-            w <- wcvp[1, ]
-            shiny::tagList(
-              shiny::strong(i18n()$t("WCVP Link")), shiny::br(),
-              shiny::strong(i18n()$t("WCVP ID:")), " ", w$wcvp_plant_name_id, shiny::br(),
-              shiny::strong(i18n()$t("WCVP Status:")), " ", w$wcvp_taxon_status %||% "N/A", shiny::br(),
-              shiny::strong(i18n()$t("WCVP Name:")), " ", w$wcvp_taxon_name %||% "N/A", shiny::br(),
-              shiny::hr()
-            )
-          } else {
-            shiny::tagList(
+          links <- backbone_links_reactive()
+          backbones <- backbone_list_reactive()
+
+          if (is.null(backbones) || nrow(backbones) == 0) {
+            return(shiny::tagList(
               shiny::span(
-                class = "text-muted",
-                style = "font-size: 0.9em;",
-                shiny::icon("unlink"),
-                " ",
-                i18n()$t("Not linked to WCVP")
+                class = "text-muted", style = "font-size: 0.9em;",
+                shiny::icon("unlink"), " ",
+                i18n()$t("No external taxonomic backbone in this database")
               ),
               shiny::hr()
-            )
+            ))
           }
+
+          blocks <- lapply(seq_len(nrow(backbones)), function(i) {
+            bb <- backbones[i, ]
+            rows <- if (is.null(links) || nrow(links) == 0) {
+              links[0, , drop = FALSE]
+            } else {
+              links[links$backbone == bb$code, , drop = FALSE]
+            }
+            .render_backbone_link_block(bb, rows, i18n())
+          })
+
+          shiny::tagList(
+            shiny::strong(i18n()$t("Backbone links")), shiny::br(),
+            shiny::div(style = "margin-top: 4px;", blocks),
+            shiny::hr()
+          )
         }),
         shiny::p(
           class = "text-muted",
@@ -944,4 +961,92 @@ mod_taxa_search_server <- function(id, pool, i18n,
     # Return selected taxon data
     return(shiny::reactive(rv$selected_row))
   })
+}
+
+
+#' Render one backbone's links for the selected taxon
+#'
+#' One line per link, with what the link is worth: a preferred link supplies
+#' the taxon's name under that backbone, an unreviewed fuzzy or
+#' author-mismatch link supplies nothing until someone accepts it. A backbone
+#' the taxon is not linked to says so rather than being left out, so the panel
+#' shows the same backbones for every taxon.
+#'
+#' @param bb One row of [list_backbones()].
+#' @param rows The rows of [get_taxon_backbone_links()] for that backbone.
+#' @param i18n A shiny.i18n translator (already un-reactived).
+#' @return A shiny tag.
+#' @keywords internal
+.render_backbone_link_block <- function(bb, rows, i18n) {
+
+  header <- shiny::tagList(
+    shiny::strong(bb$name),
+    if (!isTRUE(bb$is_name_source)) {
+      shiny::span(
+        class = "text-muted", style = "font-size: 0.85em;",
+        " - ", i18n$t("not yet offered as a source of names")
+      )
+    }
+  )
+
+  if (is.null(rows) || nrow(rows) == 0) {
+    return(shiny::div(
+      style = "margin-bottom: 6px;",
+      header, shiny::br(),
+      shiny::span(
+        class = "text-muted", style = "font-size: 0.9em;",
+        shiny::icon("unlink"), " ", i18n$t("Not linked")
+      )
+    ))
+  }
+
+  lines <- lapply(seq_len(nrow(rows)), function(j) {
+    r <- rows[j, ]
+
+    badge <- if (!isTRUE(r$in_view)) {
+      list(i18n$t("ID absent from the current import"), "#dc3545")
+    } else if (isTRUE(r$is_preferred)) {
+      list(i18n$t("used for names"), "#28a745")
+    } else if (!isTRUE(r$verified) &&
+               r$match_type %in% c("fuzzy", "author_mismatch")) {
+      list(i18n$t("awaiting review"), "#fd7e14")
+    } else {
+      list(i18n$t("not used for names"), "#6c757d")
+    }
+
+    id_tag <- if (!is.na(r$url)) {
+      shiny::a(href = r$url, target = "_blank", r$external_id)
+    } else {
+      r$external_id
+    }
+
+    details <- paste(
+      c(r$match_type,
+        if (!is.na(r$match_score)) sprintf("%.2f", r$match_score),
+        if (isTRUE(r$verified)) i18n$t("verified")),
+      collapse = ", "
+    )
+
+    shiny::div(
+      style = "font-size: 0.9em; margin-left: 10px;",
+      id_tag, " - ",
+      if (!is.na(r$taxon_name)) r$taxon_name else i18n$t("name not found"),
+      if (!is.na(r$authors) && nzchar(r$authors)) paste0(" ", r$authors),
+      if (!is.na(r$status)) shiny::span(class = "text-muted", paste0(" [", r$status, "]")),
+      " ",
+      shiny::span(
+        style = paste0(
+          "background-color: ", badge[[2]], "; color: white; border-radius: 3px;",
+          " padding: 0 5px; font-size: 0.85em;"
+        ),
+        badge[[1]]
+      ),
+      if (nzchar(details)) {
+        shiny::span(class = "text-muted", style = "font-size: 0.85em;",
+                    paste0(" (", details, ")"))
+      }
+    )
+  })
+
+  shiny::div(style = "margin-bottom: 6px;", header, lines)
 }

@@ -110,9 +110,84 @@
   c(
     "idtax_n", "idtax_good_n", "matched_name", "match_method", "match_score",
     "is_synonym", "accepted_name", "corrected_name",
+    "backbone_taxon_name", "backbone_family", "backbone_authors",
+    "backbone_status_raw",
+    # Written only for WCVP, but reserved whatever the chosen backbone: a
+    # table uploaded with a `wcvp_taxon_name` column must not decide, by
+    # itself, which backbone the run may use.
     "wcvp_taxon_name", "wcvp_family", "wcvp_taxon_authors",
     "wcvp_taxon_status", "name_source"
   )
+}
+
+# ---------------------------------------------------------------------------
+# Names from another backbone
+# ---------------------------------------------------------------------------
+
+# Which backbone the output names should come from. Anything that is not a
+# usable code - no selector, a cleared input, a reactive that errors - means
+# the internal backbone, which is what the app does without the option.
+.chosen_name_backbone <- function(x) {
+  if (is.null(x)) return("internal")
+  code <- tryCatch(if (is.function(x)) x() else x, error = function(e) NULL)
+  if (is.null(code) || length(code) != 1L || is.na(code) ||
+      !nzchar(as.character(code))) {
+    return("internal")
+  }
+  as.character(code)
+}
+
+# Join a backbone's names onto the matching output and let them stand in for
+# `corrected_name` wherever the backbone has one. Kept apart from the module
+# so the rules can be tested without a database or a session.
+#
+# `data` is the matching output, `info` the tibble from get_backbone_names().
+.apply_backbone_names <- function(data, info, backbone) {
+  value_cols <- c("backbone_taxon_name", "backbone_family",
+                  "backbone_authors", "backbone_status_raw")
+  alias_cols <- c("wcvp_taxon_name", "wcvp_family", "wcvp_taxon_authors",
+                  "wcvp_taxon_status")
+
+  if (is.null(info) || !is.data.frame(info) || nrow(info) == 0L ||
+      !"idtax_n" %in% names(info) || !"idtax_n" %in% names(data)) {
+    return(data)
+  }
+
+  info <- info[!duplicated(info$idtax_n),
+               intersect(names(info), c("idtax_n", value_cols, "name_source")),
+               drop = FALSE]
+
+  # A second run must overwrite the first one's columns, not sit beside them
+  # as `.x` and `.y`
+  data <- dplyr::select(
+    data, -dplyr::any_of(c(value_cols, alias_cols, "name_source"))
+  )
+  data <- dplyr::left_join(data, info, by = "idtax_n")
+
+  for (col in value_cols) {
+    if (!col %in% names(data)) data[[col]] <- NA_character_
+  }
+  if (!"name_source" %in% names(data)) data$name_source <- NA_character_
+  data$name_source[is.na(data$name_source)] <- "internal"
+
+  if ("corrected_name" %in% names(data)) {
+    data$corrected_name <- ifelse(
+      !is.na(data$backbone_taxon_name),
+      data$backbone_taxon_name,
+      data$corrected_name
+    )
+  }
+
+  # WCVP keeps the column names it had before any other backbone existed, so
+  # that scripts written against the old output still find them.
+  if (identical(backbone, "wcvp")) {
+    data$wcvp_taxon_name    <- data$backbone_taxon_name
+    data$wcvp_family        <- data$backbone_family
+    data$wcvp_taxon_authors <- data$backbone_authors
+    data$wcvp_taxon_status  <- data$backbone_status_raw
+  }
+
+  data
 }
 
 # Park user columns that clash with the pipeline output under an `_input`
@@ -195,6 +270,9 @@ mod_auto_matching_ui <- function(id) {
 #' @param min_similarity Numeric (0-1), minimum similarity threshold for fallback.
 #'   Note: UI displays as percentage (0-100) but parameter uses decimal (default: 0.3 = 30\%)
 #' @param i18n Reactive returning shiny.i18n translator
+#' @param name_backbone Reactive returning the code of the backbone whose
+#'   names should appear in the output, or \code{"internal"} (the default) to
+#'   keep the internal ones. See \code{list_backbones()}.
 #'
 #' @return Reactive list containing:
 #'   \itemize{
@@ -202,13 +280,13 @@ mod_auto_matching_ui <- function(id) {
 #'     \item \code{unmatched}: Data frame of unmatched names
 #'     \item \code{stats}: List of matching statistics
 #'     \item \code{params}: Settings used by the last run (column, similarity
-#'       threshold, author matching, WCVP option, offline flag)
+#'       threshold, author matching, name backbone, offline flag)
 #'   }
 #'
 #' @keywords internal
 mod_auto_matching_server <- function(id, data, column_name, include_authors,
                                      min_similarity = 0.3, i18n,
-                                     use_wcvp_names = NULL,
+                                     name_backbone = NULL,
                                      is_offline = shiny::reactive(FALSE)) {
   shiny::moduleServer(id, function(input, output, session) {
 
@@ -279,7 +357,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
     }
 
     # Everything that happens once the pipeline returns — whether it ran here
-    # or in a worker process. The WCVP lookup lives here rather than in the
+    # or in a worker process. The backbone lookup lives here rather than in the
     # pipeline because it needs a database connection, which does not survive
     # the trip into another process.
     apply_matching_result <- function(result) {
@@ -319,57 +397,49 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       updated_data <- result$updated_data
       match_stats(result$stats)
 
-      # --- Optional WCVP enrichment ---
-      if (isTRUE(!is.null(use_wcvp_names) && use_wcvp_names())) {
+      # --- Optional names from another backbone ---
+      chosen <- .chosen_name_backbone(name_backbone)
+
+      if (!identical(chosen, "internal")) {
         matched_ids <- unique(stats::na.omit(updated_data$idtax_n))
+        label <- .backbone_display_name(chosen)
 
         if (length(matched_ids) > 0) {
           shiny::showNotification(
-            i18n()$t("Fetching WCVP names..."),
-            id       = "wcvp_fetch",
+            paste0(i18n()$t("Fetching names from"), " ", label, "..."),
+            id       = "backbone_fetch",
             duration = NULL,
             type     = "message"
           )
 
-          wcvp_info <- tryCatch(
-            get_wcvp_names(matched_ids),
+          backbone_info <- tryCatch(
+            get_backbone_names(matched_ids, chosen),
             error = function(e) {
-              message("Could not fetch WCVP names: ", e$message)
+              message("Could not fetch names from ", chosen, ": ", e$message)
               NULL
             }
           )
 
-          shiny::removeNotification("wcvp_fetch")
+          shiny::removeNotification("backbone_fetch")
 
-          if (!is.null(wcvp_info)) {
-            updated_data <- updated_data %>%
-              dplyr::left_join(
-                wcvp_info %>%
-                  dplyr::select(
-                    idtax_n, wcvp_taxon_name, wcvp_family,
-                    wcvp_taxon_authors, wcvp_taxon_status, name_source
-                  ),
-                by = "idtax_n"
-              ) %>%
-              dplyr::mutate(
-                corrected_name = dplyr::if_else(
-                  !is.na(wcvp_taxon_name), wcvp_taxon_name, corrected_name
-                ),
-                name_source = dplyr::coalesce(name_source, "internal")
-              )
+          if (!is.null(backbone_info)) {
+            updated_data <- .apply_backbone_names(updated_data, backbone_info,
+                                                  chosen)
 
-            n_wcvp <- sum(!is.na(updated_data$wcvp_taxon_name), na.rm = TRUE)
+            n_replaced <- sum(!is.na(updated_data$backbone_taxon_name),
+                              na.rm = TRUE)
             shiny::showNotification(
               paste0(
-                format(n_wcvp, big.mark = ","), " ",
-                i18n()$t("names replaced with WCVP names")
+                format(n_replaced, big.mark = ","), " ",
+                i18n()$t("names replaced with names from"), " ", label
               ),
               duration = 4,
               type     = "message"
             )
           } else {
             shiny::showNotification(
-              i18n()$t("WCVP names not available. Internal names used."),
+              paste0(label, " ",
+                     i18n()$t("names not available. Internal names used.")),
               duration = 5,
               type     = "warning"
             )
@@ -724,7 +794,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
         column          = col_name,
         include_authors = incl_authors,
         min_similarity  = min_sim,
-        use_wcvp        = isTRUE(!is.null(use_wcvp_names) && use_wcvp_names()),
+        name_backbone   = .chosen_name_backbone(name_backbone),
         is_offline      = isTRUE(is_offline())
       ))
 

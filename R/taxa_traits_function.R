@@ -120,10 +120,10 @@ traits_taxa_list <- function(id_trait = NULL, con = NULL) {
 #'   Used for trait measurements (taxa_traits_measures, traitlist).
 #' @param con_taxa Connection to taxa database (optional, defaults to call.mydb.taxa()).
 #'   Used for synonym resolution (table_taxa) and taxonomic info enrichment.
-#' @param backbone Character. Which taxonomic backbone to use for synonym resolution.
-#'   \code{"internal"} (default) uses the internal \code{table_taxa}.
-#'   \code{"wcvp"} uses WCVP via \code{wcvp_idtax_link} and \code{wcvp_names},
-#'   falling back to internal for unlinked taxa.
+#' @param backbone Character. Backbone used for synonym resolution:
+#'   \code{"internal"} (default) for \code{table_taxa}, or the code of a
+#'   backbone registered in the taxa database (see \code{list_backbones()}),
+#'   such as \code{"wcvp"}, falling back to internal for unlinked taxa.
 #'
 #' @return List with components:
 #'   - traits_raw: Raw trait measurements with resolved taxonomy
@@ -143,12 +143,12 @@ query_taxa_traits <- function(
     include_citation = FALSE,
     con = NULL,
     con_taxa = NULL,
-    backbone = c("internal", "wcvp")
+    backbone = "internal"
 ) {
 
   categorical_mode <- match.arg(categorical_mode)
   format <- match.arg(format)
-  backbone <- match.arg(backbone)
+  backbone <- .validate_backbone(backbone)
 
   # Main DB for trait measurements; taxa DB for synonym resolution
   if (is.null(con)) con <- call.mydb()

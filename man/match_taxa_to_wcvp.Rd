@@ -16,46 +16,40 @@ match_taxa_to_wcvp(
 )
 }
 \arguments{
-\item{con_taxa}{Connection to the taxa database. If NULL, calls \code{call.mydb.taxa()}.}
+\item{con_taxa}{Connection to the taxa database. If \code{NULL}, calls
+\code{call.mydb.taxa()}.}
 
-\item{tax_ids}{Optional integer vector of \code{idtax_n} to match. If NULL, matches all accepted taxa.}
+\item{tax_ids}{Optional integer vector of \code{idtax_n} to match. If
+\code{NULL}, matches all taxa except morphospecies, mosses, lichens and
+fungi.}
 
-\item{methods}{Character vector of matching methods to use. Default \code{c("exact", "fuzzy")}.}
+\item{methods}{Character vector of matching methods. Default
+\code{c("exact", "fuzzy")}; fuzzy matching only runs on names without an
+identical backbone name.}
 
-\item{fuzzy_threshold}{Numeric (0-1). Minimum similarity for fuzzy matches. Default 0.9.}
+\item{fuzzy_threshold}{Numeric (0-1). Minimum name similarity for fuzzy
+matches. Default 0.9.}
 
-\item{author_match}{Character. How to use author strings during exact name matching.
-\itemize{
-  \item \code{"none"} (default): ignore authors entirely.
-  \item \code{"exact"}: authors must match character-for-character.
-    Reduces false positives
-    but misses any formatting difference.
-  \item \code{"fuzzy"}: exact name match first, then Jaro-Winkler author
-    similarity to select among homonyms and filter below \code{author_threshold}.
-    More tolerant of abbreviation/spacing differences.
-}
-Authors are built from \code{author1} (basionym) and \code{author2} (combination)
-columns in \code{table_taxa}: \code{"(author1) author2"}.
-Not applied to fuzzy name matching (author disambiguation is not meaningful
-when the name itself is inexact).}
+\item{author_match}{Character. How authors settle exact matches:
+\code{"none"} (default) ignores them, \code{"exact"} requires identical
+strings, \code{"fuzzy"} compares them by Jaro-Winkler similarity. Authors
+are taken from \code{author1}/\code{author2}/\code{author3} of
+\code{table_taxa}, for the deepest rank present.}
 
-\item{author_threshold}{Numeric (0-1). Minimum Jaro-Winkler similarity required
-to keep a match when \code{author_match = "fuzzy"} and author info is present
-on both sides. Default 0.6.}
+\item{author_threshold}{Numeric (0-1). Minimum author similarity when
+\code{author_match = "fuzzy"}. Default 0.6.}
 
-\item{n_cores}{Integer. Number of parallel workers for fuzzy matching.
-Uses forking on Unix and a PSOCK cluster on Windows.  Default 1 (sequential).
-Set to \code{parallel::detectCores() - 1} to use all available cores.}
+\item{n_cores}{Integer. Parallel workers for fuzzy matching. Default 1.}
 
-\item{verbose}{Logical. Show progress. Default TRUE.}
+\item{verbose}{Logical. Show progress. Default \code{TRUE}.}
 }
 \value{
 A tibble with columns: \code{idtax_n}, \code{taxon_name_internal},
   \code{plant_name_id}, \code{wcvp_taxon_name}, \code{match_type}, \code{match_score}.
 }
 \description{
-Matches taxa from the internal \code{table_taxa} to WCVP names already
-uploaded in the database, using exact and optionally fuzzy matching.
+Superseded by \code{match_taxa_to_backbone("wcvp", ...)}, which it calls.
+Kept with its original column names for existing scripts.
 }
 \details{
 Returns a tibble for review. Does NOT write to the database automatically.

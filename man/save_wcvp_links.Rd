@@ -7,12 +7,14 @@
 save_wcvp_links(matches, con_taxa, replace = TRUE, verbose = TRUE)
 }
 \arguments{
-\item{matches}{Tibble of matches from \code{match_taxa_to_wcvp()}.}
+\item{matches}{Tibble of matches from \code{match_taxa_to_wcvp()}, with
+\code{idtax_n}, \code{plant_name_id}, \code{match_type} and optionally
+\code{match_score}.}
 
 \item{con_taxa}{Connection to the taxa database.}
 
-\item{replace}{Logical. If TRUE, deletes existing links for affected \code{idtax_n}
-before inserting. Default TRUE.}
+\item{replace}{Logical. If TRUE, deletes the existing WCVP links of the
+affected \code{idtax_n} before inserting. Default TRUE.}
 
 \item{verbose}{Logical. Show progress. Default TRUE.}
 }
@@ -20,8 +22,9 @@ before inserting. Default TRUE.}
 Invisible integer: number of links saved.
 }
 \description{
-Writes reviewed matches from \code{match_taxa_to_wcvp()} to the
-\code{wcvp_idtax_link} table.
+Superseded by \code{save_backbone_links(matches, "wcvp", ...)}, which it
+calls. Links are written to \code{taxa_backbone_link}; a taxon left with a
+single WCVP link gets it marked preferred.
 }
 \examples{
 \dontrun{

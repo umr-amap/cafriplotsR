@@ -28,7 +28,7 @@ The `launch_taxo_backbone_app()` function provides an interactive Shiny applicat
 
 - **Browse and search** taxonomic entries at all levels (family, genus, species, etc.)
 - **Visualize taxonomic hierarchy**
-- **Add new taxa** either manually or by retrieving information from TROPICOS database
+- **Add new taxa** either manually, or by retrieving information from the TROPICOS database or from a taxonomic backbone (WCVP, APD, ...)
 - **Modify existing taxa** with cascade updates to maintain consistency in the hierarchy
 - **Manage synonymy** including setting, reversing, and canceling synonym relationships
 - **View traits** at the taxon level
@@ -94,6 +94,7 @@ Use separate fields for genus, species, family, order for more precise queries.
 - Results show taxonomic level, scientific name, synonymy status
 - Click a row to select and view details
 - Selected taxon appears in all other tabs for editing/viewing
+- **Backbone links**: every external backbone registered in the database (WCVP, the African Plant Database, ...) is listed for the selected taxon, with the name it points at and whether that link is the one supplying the taxon's name. A link whose match was fuzzy, or whose authors disagreed, is shown as *awaiting review* and supplies no name until someone accepts it
 
 ### 2. Hierarchy View
 
@@ -123,7 +124,13 @@ Add new taxonomic entries with automatic parent linking.
    - Links via id_parent
    - Validates the hierarchy
    
-The new entry can be filled based on a match in TROPICOS. If no match is found, the new entry can be filled manually.
+The name is searched in **every backbone the database registers at once** - WCVP, the African Plant Database, and any other - and in TROPICOS when a Tropicos API key is available. A name usually exists in several backbones, and its identifier is worth keeping in each of them, so the search is not a choice between backbones. If no match is found anywhere, the new entry can be filled manually.
+
+Searching does three things beyond filling the form:
+
+- Every backbone whose match is **unambiguous** - an exact match on the name searched for, and the only one in that backbone - is selected automatically. Step 1 and step 4 list exactly which identifiers will be linked, and *Clear all backbone links* drops them.
+- **Use backbone result** fills the form from the selected row *and* records that row's backbone link; **Validate backbone match only** keeps the form as it is and records the link alone. Either overrides what was selected automatically for that same backbone, and leaves the other backbones untouched. Links are saved once the taxon is created, marked verified, since a person chose them.
+- If other taxa of the internal backbone already point at the same accepted name in any of the selected backbones, they are listed once each, with the evidence of every backbone that suggested them, and step 5 offers to set them as synonyms of the new entry.
 
 **Adding Morpho-taxa:**
 

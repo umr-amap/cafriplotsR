@@ -11,7 +11,7 @@ mod_auto_matching_server(
   include_authors,
   min_similarity = 0.3,
   i18n,
-  use_wcvp_names = NULL,
+  name_backbone = NULL,
   is_offline = shiny::reactive(FALSE)
 )
 }
@@ -28,6 +28,10 @@ mod_auto_matching_server(
 Note: UI displays as percentage (0-100) but parameter uses decimal (default: 0.3 = 30\%)}
 
 \item{i18n}{Reactive returning shiny.i18n translator}
+
+\item{name_backbone}{Reactive returning the code of the backbone whose
+names should appear in the output, or \code{"internal"} (the default) to
+keep the internal ones. See \code{list_backbones()}.}
 }
 \value{
 Reactive list containing:
@@ -36,7 +40,7 @@ Reactive list containing:
     \item \code{unmatched}: Data frame of unmatched names
     \item \code{stats}: List of matching statistics
     \item \code{params}: Settings used by the last run (column, similarity
-      threshold, author matching, WCVP option, offline flag)
+      threshold, author matching, name backbone, offline flag)
   }
 }
 \description{

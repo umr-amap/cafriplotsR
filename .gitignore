@@ -26,6 +26,13 @@ rsconnect/
 # Ignore data files
 *.xlsx
 *.csv
+*.sqlite
+
+# Backbone match review decisions (working files, e.g. apd_review.rds)
+*_review.rds
+
+# Taxonomic backbone exports too large for the package (e.g. APD)
+inst/docs/APD export*.txt
 *.gpkg
 *.gpkg-shm
 *.gpkg-wal

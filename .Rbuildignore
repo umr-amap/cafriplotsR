@@ -9,6 +9,8 @@
 ^inst/docs/.*\.pptx$
 ^inst/docs/.*\.ppt$
 ^inst/docs/PLAN_SECURITY_REMEDIATION.*$
+^inst/docs/APD export.*\.txt$
+^.*_review\.rds$
 ^inst/notes$
 ^\.claude$
 ^\.claude-backup.*$

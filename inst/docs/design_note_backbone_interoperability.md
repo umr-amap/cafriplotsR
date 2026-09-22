@@ -1,20 +1,25 @@
-# Design note — multi-backbone interoperability for taxa (ARCHIVED / NOT IMPLEMENTED)
+# Design note — multi-backbone interoperability for taxa (NOT IMPLEMENTED)
 
-**Status:** parked. Discussion held 2026-08-05, no code written.
-**Trigger to revisit:** when a third taxonomic backbone (POWO, IPNI, WFO, GBIF…)
-is about to be added. Do the refactor *before* adding it, not after.
+**Status:** reopened 2026-09-14. First discussion 2026-08-05, no code written.
+**Trigger reached:** the third backbone is the **African Plant Database (APD)**,
+maintained by the Conservatoire et Jardin botaniques de Genève (CJB). Do the
+refactor *before* importing APD, not after.
 
 **Related:** `inst/docs/taxonomic_backbones.md` (describes the current
-two-backbone system), and the parallel discussion on specimen external IDs
-(Tropicos collection ID vs sheet-level SpecimenID).
+two-backbone system).
 
 ---
 
 ## 1. Conclusion in one line
 
-The existing WCVP system is conceptually right — a *mirror + bridge*, not an
-ID store — but its plumbing is hardcoded per backbone and will not survive a
-third one. Generalise the plumbing, keep the concept.
+The way the WCVP backbone is stored is right and should be kept: a full copy
+of the backbone in `rainbio`, plus a link table that records how each internal
+taxon was matched. What doesn't scale is the code, which names WCVP's tables
+and columns directly. Adding APD would mean copying all of it and editing 11
+functions, and again for every later backbone. Rewrite that code once so it
+works for any backbone, then add APD as data.
+
+Implementation plan: `inst/docs/migration_plan_multi_backbone.md`.
 
 ## 2. Why the concept is right
 
@@ -27,34 +32,77 @@ third one. Generalise the plumbing, keep the concept.
   `verified`, `matched_by`, `matched_on`, `notes`;
 - imports are **versioned**: `wcvp_import_metadata.is_current`.
 
-Note the convergence with the specimen work: a generalised
-`wcvp_idtax_link` **is** the external-ID table for taxa. `table_taxa.id_tropicos`
-and `table_taxa.id_brlu` would become rows in it, gaining the provenance
-columns they currently lack — so no separate `taxa_external_ids` table is
-needed.
+A generalised `wcvp_idtax_link` is therefore the link table for every
+backbone.
+
+### Scope
+
+- **Taxa only.** `specimens.id_tropicos` and `specimens.id_brlu` identify
+  collections/specimens (keyed on `id_specimen`), not taxa.
+  `specimens.id_tropicos` is the Tropicos *collection* ID, one per gathering
+  event. They must never become rows in the taxa link table. External IDs for
+  specimens are a separate design.
+- **Tropicos is not a backbone.** It is only queried live, through `taxize`,
+  in step 1 of `R/mod_taxa_add.R` to pre-fill a taxon being added. No Tropicos
+  ID is stored for taxa, and none will be: a partial set of Tropicos IDs would
+  be of little use.
 
 ## 3. Why it will not scale as-is
 
-Everything is hardcoded per backbone:
+Inventory re-checked against the code on 2026-09-14.
+
+### 3.1 Backbone selector — `c("internal", "wcvp")` + `match.arg()`
+
+11 signatures in 6 files:
+
+| File | Functions |
+|---|---|
+| `R/taxonomic_query_functions.R` | `query_taxa()` (l.69), `match_tax()` (l.735), `add_taxa_table_taxa()` (l.1074) |
+| `R/functions_manip_db.R` | `query_plots()` (l.250), `.query_plots_impl()` (l.355), `process_individuals()` (l.1042) |
+| `R/individual_features_function.R` | `query_individual_features()` (l.1190), `fetch_linked_individuals()` (l.2031) |
+| `R/taxa_traits_function.R` | `query_taxa_traits()` (l.146); `enrich_with_taxa_info()` (l.378) passes it through |
+| `R/helpers_traits_common.R` | `resolve_taxon_synonyms()` (l.24) |
+| `R/taxonomic_update_functions_old.R` | `merge_individuals_taxa()` (l.39) |
+
+### 3.2 WCVP table and column names hardcoded in SQL / R
 
 | Where | What |
 |---|---|
-| `R/taxonomic_query_functions.R:69` | `backbone = c("internal", "wcvp")` + `match.arg()` in `query_taxa()` |
-| `R/taxonomic_query_functions.R:735` | same in `match_tax()` |
-| `R/taxonomic_query_functions.R:1074` | same in `add_taxa_table_taxa()` |
-| also | `taxa_traits_function.R`, `individual_features_function.R`, `helpers_traits_common.R`, `aggregate_individual_traits.R`, several Shiny modules |
-| `R/wcvp_integration.R:1229-1231` | table names as SQL literals: `FROM wcvp_idtax_link l JOIN wcvp_names w` |
-| `R/wcvp_integration.R:1321` | `.apply_wcvp_backbone()` hardcodes the WCVP→internal column mapping and emits `wcvp_*` columns into user-facing results |
+| `R/wcvp_integration.R:1174` | `get_wcvp_names()`: `FROM wcvp_idtax_link l JOIN wcvp_names w`, emits `wcvp_*` columns |
+| `R/wcvp_integration.R:1321` | `.apply_wcvp_backbone()`: WCVP→internal column mapping, keeps `wcvp_plant_name_id` / `wcvp_accepted_plant_name_id` in user-facing results |
+| `R/helpers_traits_common.R:84` | `.resolve_synonyms_wcvp()`: resolves synonymy through the backbone, then back to `idtax_n` via a second join on the link table — the generic version needs `accepted_external_id` in every mirror view |
+| `R/wcvp_integration.R` | per-backbone `setup_*`, `import_*`, `match_taxa_to_*`, `save_*_links`, `get_*_status`, `check_*_update` |
 
-284 occurrences of `backbone` across 28 files. `wcvp_integration.R` is 1503
-lines; the copy-paste route duplicates `setup_*`, `import_*`,
-`match_taxa_to_*`, `save_*_links`, `get_*_names`, `.apply_*_backbone` per
-backbone **and** edits the `match.arg` in 28 files each time.
+### 3.3 Shiny modules
+
+- `R/mod_taxa_add.R` (~60 references): searches `wcvp_names`
+  (`.search_wcvp_backbone()`), finds synonymy candidates
+  (`.check_wcvp_synonymy_candidates()`), calls `save_wcvp_links()` when a taxon
+  is created.
+- `R/mod_auto_matching.R`, `R/mod_taxa_search.R`,
+  `R/shiny_app_taxonomic_match.R` (`use_wcvp_names` checkbox),
+  `R/mod_taxo_match_r_code.R`, `R/mod_results_export.R` (column descriptions),
+  `R/utils.R` (`wcvp_*` globals).
+
+### 3.4 Size of the job
+
+`backbone` appears 384 times across 33 files, but ~175 of those
+(`taxonomic_matching.R`, `taxonomic_matching_pipeline.R`, `cache_backbone.R`)
+are the **cached internal-backbone tibble** used by name matching, not the
+selector. The real surface is §3.1–3.3.
 
 **Naming collision to fix while we're there:** in `match_taxa_names()`
-(`R/taxonomic_matching.R:224`) `backbone` is a *cached tibble of the internal
+(`R/taxonomic_matching.R`) `backbone` is a *cached tibble of the internal
 backbone*; in `query_taxa()` it is a *backbone selector string*. Survivable
 with two backbones, not with four.
+
+### 3.5 Latent bug: homonym links duplicate rows
+
+The link PK `(idtax_n, plant_name_id)` allows one internal taxon to link to
+several WCVP names, but `.apply_wcvp_backbone()` joins on `idtax_n` alone, so
+such a taxon comes back as duplicate rows. Found by reading the code; not yet
+checked whether such links exist. The generic bridge must define which link
+wins per `(idtax_n, id_backbone)` (e.g. a single `verified` / preferred link).
 
 ## 4. Proposed design
 
@@ -63,10 +111,10 @@ with two backbones, not with four.
 ```sql
 CREATE TABLE backbone_list (
   id_backbone  serial PRIMARY KEY,
-  code         text NOT NULL UNIQUE,   -- 'wcvp','powo','ipni','wfo','gbif','tropicos'
+  code         text NOT NULL UNIQUE,   -- 'wcvp', 'apd', later others
   name         text,
   version      text,
-  names_table  text,                   -- mirror table, NULL if not mirrored
+  names_table  text NOT NULL,          -- mirror table
   id_column    text,
   url_template text,                   -- resolvable links
   is_current   boolean
@@ -75,7 +123,7 @@ CREATE TABLE backbone_list (
 CREATE TABLE taxa_backbone_link (
   idtax_n      integer NOT NULL REFERENCES table_taxa(idtax_n),
   id_backbone  integer NOT NULL REFERENCES backbone_list(id_backbone),
-  external_id  text    NOT NULL,       -- plant_name_id, IPNI id, GBIF usageKey…
+  external_id  text    NOT NULL,       -- WCVP plant_name_id, APD id…
   match_type   varchar,
   match_score  numeric(4,3),
   matched_on   timestamp,
@@ -89,15 +137,18 @@ CREATE TABLE taxa_backbone_link (
 Migration from the existing state is one `INSERT ... SELECT` out of
 `wcvp_idtax_link` with `id_backbone = <wcvp>`.
 
-`external_id` is **text**, not integer — IPNI ids, GBIF keys and DOIs are not
-numeric.
+`external_id` is **text**, not integer — backbones other than WCVP and APD may
+not use numeric IDs.
+
+The plan refines these tables (preferred link, import history, a flag to
+enable a backbone after review): see the implementation plan.
 
 ### 4.2 Keep per-backbone `*_names` mirror tables
 
 Their schemas genuinely differ (WCVP has `geographic_area`,
-`lifeform_description`; IPNI has publication data). Do **not** force a common
-schema. Instead give each mirror a **normalised SQL view** exposing only the
-canonical fields the code consumes:
+`lifeform_description`; APD has publication citations and its own status
+vocabulary). Do **not** force a common schema. Instead give each mirror a
+**normalised SQL view** exposing only the canonical fields the code consumes:
 
 ```
 external_id, accepted_external_id, name, family, genus, species,
@@ -106,39 +157,48 @@ infra_rank, infra_epithet, authors, status
 
 `get_wcvp_names()` + `.apply_wcvp_backbone()` then collapse into one generic
 `get_backbone_names()` / `.apply_backbone()` reading the view. Per new
-backbone: an importer, a matcher config, a view — not 1500 lines.
+backbone: an importer, a matcher config, a view — not 1500 lines. APD is the
+first backbone to be added this way.
 
 ### 4.3 Generic output columns
 
 `wcvp_plant_name_id` / `wcvp_accepted_plant_name_id` →
 `backbone_name_id` / `backbone_accepted_id` / `backbone_status`.
-`name_source` already generalises (holds `"wcvp"` / `"internal"`).
+`name_source` already generalises (holds `"wcvp"` / `"internal"`, later
+`"apd"`).
 
 This is the one genuinely **breaking** change — keep `wcvp_*` aliases for one
-release.
+release; `get_wcvp_names()` stays as a thin wrapper.
 
 ### 4.4 One validator
 
 Replace every `match.arg(c("internal","wcvp"))` with a single
 `.validate_backbone(backbone, con_taxa)` reading `backbone_list`.
 
-## 5. Open decision to settle BEFORE implementing
+## 5. Decision (settled 2026-09-14)
 
-**Is `backbone` exclusive, or can several apply at once?**
+**`backbone` stays exclusive and user-selectable; the internal backbone wins
+by default.**
 
-Today it is exclusive: one backbone overwrites the name columns. With four
-backbones users will plausibly want *WCVP names* plus *POWO and GBIF IDs
-attached*.
+- `backbone = "internal"` remains the default everywhere.
+- The user may choose any mirrored backbone (`"wcvp"`, `"apd"`) to supply the
+  names instead; taxa without a link fall back to internal
+  (`name_source = "internal"`).
 
-Recommended: `backbone =` keeps meaning "whose names win", and a new
-`include_backbone_ids = c("powo","gbif")` means "attach these as columns".
-The single bridge table makes this trivial — but deciding it *after* the
-refactor means redoing the output contract a second time.
+Not decided: attaching *other* backbones' IDs as extra columns alongside the
+winning names (e.g. `include_backbone_ids = c("wcvp", "apd")`). The single
+bridge table keeps this cheap to add later without changing the `backbone =`
+contract.
 
 ## 6. Effort / risk
 
-- Mostly mechanical but **wide**: 28 files plus the Shiny modules.
-- Needs **write access to `rainbio`** (read-only for most users).
+- Mostly mechanical: §3.1–3.3 (11 selector signatures, ~4 core functions,
+  ~7 Shiny/support files).
+- Write access to `rainbio`: available.
 - Breaking change limited to the `wcvp_*` output column names (aliasable).
-- Next step when resumed: read every `backbone` call site and produce a
-  concrete migration + refactor plan before writing code.
+- Suggested order:
+  1. schema migration (`backbone_list`, `taxa_backbone_link`, WCVP view,
+     WCVP link backfill);
+  2. generic R core + validator, WCVP aliases, fix §3.5;
+  3. Shiny modules (backbone selector instead of the WCVP checkbox);
+  4. APD importer, mirror table + view, matcher.

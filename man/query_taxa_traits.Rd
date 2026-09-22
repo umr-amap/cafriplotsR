@@ -16,7 +16,7 @@ query_taxa_traits(
   include_citation = FALSE,
   con = NULL,
   con_taxa = NULL,
-  backbone = c("internal", "wcvp")
+  backbone = "internal"
 )
 }
 \arguments{
@@ -42,10 +42,10 @@ Used for trait measurements (taxa_traits_measures, traitlist).}
 \item{con_taxa}{Connection to taxa database (optional, defaults to call.mydb.taxa()).
 Used for synonym resolution (table_taxa) and taxonomic info enrichment.}
 
-\item{backbone}{Character. Which taxonomic backbone to use for synonym resolution.
-\code{"internal"} (default) uses the internal \code{table_taxa}.
-\code{"wcvp"} uses WCVP via \code{wcvp_idtax_link} and \code{wcvp_names},
-falling back to internal for unlinked taxa.}
+\item{backbone}{Character. Backbone used for synonym resolution:
+\code{"internal"} (default) for \code{table_taxa}, or the code of a
+backbone registered in the taxa database (see \code{list_backbones()}),
+such as \code{"wcvp"}, falling back to internal for unlinked taxa.}
 }
 \value{
 List with components:

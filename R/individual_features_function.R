@@ -1170,9 +1170,10 @@ get_mode_dt <- function(x) {
 #'   across all traits, so a trait with no measurement at the selected census is
 #'   dropped from the result and named in a warning.
 #' @param con Database connection (optional)
-#' @param backbone Character. Which taxonomic backbone to use for synonym resolution
-#'   when fetching linked individuals. \code{"internal"} (default) uses the internal
-#'   \code{table_taxa}. \code{"wcvp"} uses WCVP via \code{wcvp_idtax_link}.
+#' @param backbone Character. Backbone used for synonym resolution when fetching
+#'   linked individuals: \code{"internal"} (default) for \code{table_taxa}, or
+#'   the code of a backbone registered in the taxa database (see
+#'   \code{list_backbones()}), such as \code{"wcvp"}.
 #'
 #' @return Tibble with individual features in requested format
 #' @export
@@ -1187,13 +1188,13 @@ query_individual_features <- function(
     include_individuals = FALSE,
     census_strategy = c("last", "first", "mean"),
     con = NULL,
-    backbone = c("internal", "wcvp")
+    backbone = "internal"
 ) {
 
   format <- match.arg(format)
   census_strategy <- match.arg(census_strategy)
   issues <- match.arg(issues)
-  backbone <- match.arg(backbone)
+  backbone <- .validate_backbone(backbone)
   if (is.null(con)) con <- call.mydb()
   
   # Check incompatible parameter combination
@@ -2028,8 +2029,8 @@ get_lookup_table_info <- function(table_name) {
 #' Fetch linked individual data
 #' @keywords internal
 fetch_linked_individuals <- function(individual_ids, con, chunk_size = 30000,
-                                     backbone = c("internal", "wcvp")) {
-  backbone <- match.arg(backbone)
+                                     backbone = "internal") {
+  backbone <- .validate_backbone(backbone)
   
   if (length(individual_ids) == 0) {
     cli::cli_alert_warning("No individual IDs provided")

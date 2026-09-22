@@ -27,6 +27,11 @@ Invisible list with import results (version, record_count).
 Imports the WCVP dataset from the \code{rWCVPdata} package into the
 \code{wcvp_names} table. Requires \code{rWCVPdata} and \code{rWCVP} packages.
 }
+\details{
+Links in \code{taxa_backbone_link} are kept. Links whose WCVP ID no longer
+exists in the new version are reported by \code{check_backbone_links("wcvp")},
+run at the end. The legacy \code{wcvp_idtax_link} is emptied, as before.
+}
 \examples{
 \dontrun{
 con_taxa <- call.mydb.taxa()

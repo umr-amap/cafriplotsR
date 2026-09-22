@@ -98,6 +98,9 @@ reference:
       - test_connection
       - setup_db_credentials
       - remove_db_credentials
+      - get_tropicos_key
+      - setup_tropicos_key
+      - remove_tropicos_key
       - create_db_config
       - func_try_fetch
       - try_open_postgres_table
@@ -157,8 +160,25 @@ reference:
       - list_output_styles
       - print.plot_output_style
 
+  - title: "Taxonomic Backbones"
+    desc: "External taxonomic backbones (WCVP, APD, ...): available backbones, names, matching and links"
+    contents:
+      - list_backbones
+      - get_backbone_names
+      - get_taxon_backbone_links
+      - search_backbone_names
+      - search_all_backbones
+      - match_taxa_to_backbone
+      - review_backbone_matches
+      - save_backbone_links
+      - replace_backbone_links
+      - get_backbone_status
+      - backbone_citation
+      - check_backbone_links
+      - import_apd_names
+
   - title: "WCVP Integration"
-    desc: "Functions for integrating with the World Checklist of Vascular Plants (WCVP)"
+    desc: "Importing the World Checklist of Vascular Plants (WCVP), and the WCVP functions kept from before other backbones existed"
     contents:
       - check_wcvp_update
       - get_wcvp_names

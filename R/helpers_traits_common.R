@@ -11,23 +11,23 @@
 #' @param idtax Vector of taxon IDs (can be synonyms)
 #' @param include_synonyms If TRUE, also returns traits for all synonyms
 #' @param con_taxa Connection to taxa database
-#' @param backbone Character. Which taxonomic backbone to use for synonym resolution.
-#'   \code{"internal"} (default) uses the internal \code{table_taxa}.
-#'   \code{"wcvp"} uses WCVP via \code{wcvp_idtax_link} and \code{wcvp_names},
-#'   falling back to internal for unlinked taxa.
+#' @param backbone Character. Backbone used for synonym resolution:
+#'   \code{"internal"} (default) for \code{table_taxa}, or the code of a
+#'   backbone registered in the taxa database (see \code{list_backbones()}),
+#'   such as \code{"wcvp"}, falling back to internal for unlinked taxa.
 #' @return Tibble with columns: idtax, idtax_good
 #' @keywords internal
 #' @export
 resolve_taxon_synonyms <- function(idtax = NULL,
                                    include_synonyms = TRUE,
                                    con_taxa = NULL,
-                                   backbone = c("internal", "wcvp")) {
+                                   backbone = "internal") {
 
-  backbone <- match.arg(backbone)
   if (is.null(con_taxa)) con_taxa <- call.mydb.taxa()
+  backbone <- .validate_backbone(backbone, con_taxa)
 
-  if (backbone == "wcvp") {
-    return(.resolve_synonyms_wcvp(idtax, include_synonyms, con_taxa))
+  if (backbone != "internal") {
+    return(.resolve_synonyms_backbone(idtax, include_synonyms, con_taxa, backbone))
   }
 
   # Internal backbone (original logic)
@@ -70,110 +70,6 @@ resolve_taxon_synonyms <- function(idtax = NULL,
     dplyr::distinct()
 }
 
-
-#' Resolve synonyms using WCVP backbone
-#'
-#' Uses the WCVP link table and accepted_plant_name_id to resolve synonyms,
-#' falling back to internal backbone for unlinked taxa.
-#'
-#' @param idtax Vector of taxon IDs
-#' @param include_synonyms Logical
-#' @param con_taxa Connection to taxa database
-#' @return Tibble with columns: idtax, idtax_good
-#' @keywords internal
-.resolve_synonyms_wcvp <- function(idtax, include_synonyms, con_taxa) {
-
-  # Get WCVP-linked taxa with their accepted names
-  actual_con <- if (inherits(con_taxa, "Pool")) {
-    pool::poolCheckout(con_taxa)
-  } else {
-    con_taxa
-  }
-
-  on.exit({
-    if (inherits(con_taxa, "Pool") && !is.null(actual_con)) {
-      pool::poolReturn(actual_con)
-    }
-  }, add = TRUE)
-
-  # Fetch WCVP link + synonym resolution in one query
-  wcvp_mapping <- tryCatch(
-    DBI::dbGetQuery(actual_con,
-      "SELECT l.idtax_n,
-              w.taxon_status,
-              w.accepted_plant_name_id,
-              l2.idtax_n AS idtax_accepted
-       FROM wcvp_idtax_link l
-       JOIN wcvp_names w ON l.plant_name_id = w.plant_name_id
-       LEFT JOIN wcvp_idtax_link l2 ON w.accepted_plant_name_id = l2.plant_name_id
-       ;"
-    ),
-    error = function(e) {
-      message("WCVP tables not available, falling back to internal backbone: ", e$message)
-      return(data.frame())
-    }
-  )
-
-  if (nrow(wcvp_mapping) == 0) {
-    # Fall back to internal
-    return(resolve_taxon_synonyms(idtax, include_synonyms, con_taxa, backbone = "internal"))
-  }
-
-  # Build resolved mapping:
-  # - If WCVP status is "Accepted" -> idtax_n maps to itself
-  # - If synonym and accepted idtax_n is known -> maps to accepted idtax_n
-  # - If synonym but no accepted idtax_n in link table -> fall back to internal
-  wcvp_resolved <- wcvp_mapping %>%
-    dplyr::mutate(
-      idtax_resolved = dplyr::case_when(
-        taxon_status == "Accepted" ~ idtax_n,
-        !is.na(idtax_accepted) ~ idtax_accepted,
-        TRUE ~ NA_integer_
-      )
-    )
-
-  # Get internal resolution for taxa not in WCVP or where WCVP can't resolve
-  internal_mapping <- dplyr::tbl(con_taxa, "table_taxa") %>%
-    dplyr::select(idtax_n, idtax_good_n) %>%
-    dplyr::collect() %>%
-    dplyr::mutate(idtax_resolved = ifelse(is.na(idtax_good_n), idtax_n, idtax_good_n))
-
-  # Merge: prefer WCVP resolution, fall back to internal
-  all_ids <- internal_mapping %>%
-    dplyr::select(idtax_n) %>%
-    dplyr::left_join(
-      wcvp_resolved %>% dplyr::select(idtax_n, wcvp_resolved = idtax_resolved),
-      by = "idtax_n"
-    ) %>%
-    dplyr::mutate(
-      idtax_resolved = dplyr::coalesce(
-        wcvp_resolved,
-        internal_mapping$idtax_resolved[match(idtax_n, internal_mapping$idtax_n)]
-      )
-    ) %>%
-    dplyr::select(idtax_n, idtax_resolved)
-
-  if (is.null(idtax)) {
-    return(all_ids %>% dplyr::select(idtax = idtax_n, idtax_good = idtax_resolved))
-  }
-
-  result <- all_ids %>% dplyr::filter(idtax_n %in% !!idtax)
-
-  if (include_synonyms) {
-    resolved_ids <- unique(result$idtax_resolved)
-    all_related <- all_ids %>%
-      dplyr::filter(idtax_resolved %in% !!resolved_ids)
-
-    cli::cli_alert_info(
-      "WCVP synonyms: {nrow(result)} taxa expanded to {nrow(all_related)} taxa"
-    )
-    result <- all_related
-  }
-
-  result %>%
-    dplyr::select(idtax = idtax_n, idtax_good = idtax_resolved) %>%
-    dplyr::distinct()
-}
 
 #' Pivot numeric trait data to wide format with statistics
 #' 
