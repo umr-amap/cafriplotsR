@@ -9,7 +9,6 @@ mod_auto_matching_server(
   data,
   column_name,
   include_authors,
-  min_similarity = 0.3,
   i18n,
   name_backbone = NULL,
   is_offline = shiny::reactive(FALSE)
@@ -23,9 +22,6 @@ mod_auto_matching_server(
 \item{column_name}{Reactive character, name of column to match}
 
 \item{include_authors}{Reactive logical, whether to include author names}
-
-\item{min_similarity}{Numeric (0-1), minimum similarity threshold for fallback.
-Note: UI displays as percentage (0-100) but parameter uses decimal (default: 0.3 = 30\%)}
 
 \item{i18n}{Reactive returning shiny.i18n translator}
 

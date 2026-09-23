@@ -14,8 +14,6 @@
 #' @param language Character, initial interface language. Options:
 #'   - "fr" (French, default)
 #'   - "en" (English)
-#' @param min_similarity Numeric between 0 and 1, minimum similarity threshold
-#'   for fuzzy matching. Lower values are more permissive. Default: 0.3
 #' @param max_suggestions Integer, maximum number of fuzzy match suggestions
 #'   to show per unmatched name. Default: 10
 #' @param mode Character, review mode for unmatched names. Options:
@@ -36,6 +34,9 @@
 #'    - Exact match on full name
 #'    - Genus-constrained fuzzy match (searches species within matched genera)
 #'    - Full database fuzzy match (last resort)
+#'
+#'    The similarity threshold is set on the Auto Match tab itself, as a
+#'    percentage, and can be changed between runs.
 #' 5. **Review** (Phase 4): Manually review unmatched names with suggestions
 #' 6. **Export**: Download results in Excel, CSV, or RDS format
 #'
@@ -78,9 +79,6 @@
 #' # Launch in French
 #' launch_taxonomic_match_app(language = "fr")
 #'
-#' # More strict fuzzy matching
-#' launch_taxonomic_match_app(min_similarity = 0.7)
-#'
 #' # Show more suggestions per name
 #' launch_taxonomic_match_app(max_suggestions = 20)
 #' }
@@ -95,7 +93,6 @@ launch_taxonomic_match_app <- function(
   data = NULL,
   name_column = NULL,
   language = c("fr", "en"),
-  min_similarity = 0.7,
   max_suggestions = 10,
   mode = c("interactive", "batch"),
   launch.browser = TRUE
@@ -111,10 +108,6 @@ launch_taxonomic_match_app <- function(
 
   if (!is.null(name_column) && !is.character(name_column)) {
     stop("'name_column' must be a character string or NULL")
-  }
-
-  if (!is.numeric(min_similarity) || min_similarity < 0 || min_similarity > 1) {
-    stop("'min_similarity' must be a number between 0 and 1")
   }
 
   if (!is.numeric(max_suggestions) || max_suggestions < 1) {
@@ -134,7 +127,6 @@ launch_taxonomic_match_app <- function(
     cli::cli_alert_info("Pre-selected column: {.field {name_column}}")
   }
 
-  cli::cli_alert_info("Minimum similarity: {.val {min_similarity}}")
   cli::cli_alert_info("Max suggestions: {.val {max_suggestions}}")
   cli::cli_rule()
 
@@ -143,7 +135,6 @@ launch_taxonomic_match_app <- function(
     data = data,
     name_column = name_column,
     language = language,
-    min_similarity = min_similarity,
     max_suggestions = max_suggestions,
     mode = mode,
     pool_taxa = NULL  # Connection will be established within the app

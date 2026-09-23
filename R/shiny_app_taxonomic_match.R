@@ -11,7 +11,6 @@
 #' @param data Optional data.frame or reactive, pre-loaded data to standardize
 #' @param name_column Optional character, pre-selected column name containing taxa
 #' @param language Character, initial language ("en" or "fr"), default: "fr"
-#' @param min_similarity Numeric, minimum similarity for fuzzy matching (0-1), default: 0.3
 #' @param max_suggestions Integer, maximum suggestions per name, default: 10
 #' @param mode Character, review mode ("interactive" or "batch"), default: "interactive"
 #' @param pool_taxa Optional connection pool for taxa database (will prompt for login if NULL)
@@ -24,7 +23,6 @@ app_taxonomic_match <- function(
   data = NULL,
   name_column = NULL,
   language = "fr",
-  min_similarity = 0.6,
   max_suggestions = 10,
   mode = "interactive",
   pool_taxa = NULL
@@ -609,7 +607,6 @@ app_taxonomic_match <- function(
         data = shiny::reactive(column_info()$data),
         column_name = shiny::reactive(column_info()$column),
         include_authors = shiny::reactive(column_info()$include_authors),
-        min_similarity = min_similarity,
         i18n = i18n,
         name_backbone = name_backbone,
         is_offline = is_offline_reactive
@@ -633,7 +630,10 @@ app_taxonomic_match <- function(
         match_results = match_results,
         mode = mode,
         max_suggestions = max_suggestions,
-        min_similarity = min_similarity,
+        # Starting point for the suggestions slider only; the same default the
+        # Auto Match field starts from, so the two tabs agree until the user
+        # moves one of them.
+        min_similarity = .default_min_similarity(),
         i18n = i18n,
         backbone = app_backbone
       )
