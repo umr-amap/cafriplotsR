@@ -77,6 +77,12 @@ wcvp_names table. Requires rWCVPdata and rWCVP packages."><meta property="og:ima
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Invisible list with import results (version, record_count).</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Links in <code>taxa_backbone_link</code> are kept. Links whose WCVP ID no longer
+exists in the new version are reported by <code>check_backbone_links("wcvp")</code>,
+run at the end. The legacy <code>wcvp_idtax_link</code> is emptied, as before.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>

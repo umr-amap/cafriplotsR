@@ -68,6 +68,12 @@ Returns taxa where the flat columns don't match their parent entries.</p>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Data frame with inconsistent taxa, or NULL if all consistent</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>`id_parent` lives on the **taxa** database (`rainbio`), not the main one.
+Passing a `call.mydb()` connection is refused up front rather than part-way
+through the checks.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>

@@ -47,7 +47,7 @@
 <span>  <span class="va">match_results</span>,</span>
 <span>  mode <span class="op">=</span> <span class="st">"interactive"</span>,</span>
 <span>  max_suggestions <span class="op">=</span> <span class="fl">10</span>,</span>
-<span>  min_similarity <span class="op">=</span> <span class="fl">0.3</span>,</span>
+<span>  min_similarity <span class="op">=</span> <span class="fu"><a href="dot-default_min_similarity.html">.default_min_similarity</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  <span class="va">i18n</span>,</span>
 <span>  backbone <span class="op">=</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/reactive.html" class="external-link">reactive</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -74,7 +74,8 @@
 
 
 <dt id="arg-min-similarity">min_similarity<a class="anchor" aria-label="anchor" href="#arg-min-similarity"></a></dt>
-<dd><p>Numeric, minimum similarity threshold</p></dd>
+<dd><p>Numeric, initial value of the suggestions slider.
+The slider takes over once the user moves it.</p></dd>
 
 
 <dt id="arg-i-n">i18n<a class="anchor" aria-label="anchor" href="#arg-i-n"></a></dt>

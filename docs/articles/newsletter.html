@@ -74,6 +74,56 @@
 <p>Updates on major milestones for the CafriplotsR package</p>
 <hr>
 <div class="section level3">
+<h3 id="september-2026">September 2026<a class="anchor" aria-label="anchor" href="#september-2026"></a>
+</h3>
+<div class="section level4">
+<h4 id="new-data">New data<a class="anchor" aria-label="anchor" href="#new-data"></a>
+</h4>
+<p><strong>The African Plant Database (APD) is now a taxonomic
+backbone</strong></p>
+<p>Beside the internal CafriplotsR backbone and WCVP, names can now be
+read through the <strong>African Plant Database</strong> (APD),
+maintained by the Conservatoire et Jardin botaniques de Genève. APD is
+the nomenclatural reference for the African flora — which is what this
+database holds — so it recognises far more of our taxa than a world
+checklist does, infraspecific names in particular.</p>
+<p><strong>104,117 APD names</strong> were imported, and <strong>94,774
+taxa</strong> of the database now carry an APD name.</p>
+<p>It is selected exactly like WCVP, with one argument:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/query_taxa.html">query_taxa</a></span><span class="op">(</span>species <span class="op">=</span> <span class="st">"Diospyros iturensis"</span>, backbone <span class="op">=</span> <span class="st">"apd"</span>, check_synonymy <span class="op">=</span> <span class="cn">F</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"GABON"</span>, backbone <span class="op">=</span> <span class="st">"apd"</span>, extract_individuals <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span></code></pre></div>
+<p>The same two columns document the substitution:
+<code>name_source</code> says whether the taxon resolved to an APD name
+or fell back to the internal one, and <code>alt_taxon_name</code> keeps
+the internal name alongside. Internal identifiers are untouched.</p>
+<p>Which backbones a database offers, and the version of each:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/list_backbones.html">list_backbones</a></span><span class="op">(</span><span class="va">cons</span><span class="op">$</span><span class="va">taxa</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/get_backbone_status.html">get_backbone_status</a></span><span class="op">(</span><span class="st">"apd"</span>, con_taxa <span class="op">=</span> <span class="va">cons</span><span class="op">$</span><span class="va">taxa</span><span class="op">)</span></span></code></pre></div>
+<blockquote>
+<p><strong>Citation required.</strong> Any work using APD names must
+cite:</p>
+<p>African Plant Database (version 4.0.0). Conservatoire et Jardin
+botaniques de la Ville de Genève and South African National Biodiversity
+Institute, Pretoria, accessed September 2026, from <a href="http://africanplantdatabase.ch" class="external-link uri">http://africanplantdatabase.ch</a>.</p>
+<p>The access date is the date of the version held in the database, not
+the day you run the query — so everyone citing the same database cites
+the same thing. <code>backbone_citation("apd", cons$taxa)</code> returns
+the sentence with the right version and date, and the package states it
+once per session the first time a query uses the backbone.</p>
+</blockquote>
+<p>WCVP has its own required wording, which
+<code>backbone_citation("wcvp", cons$taxa)</code> now returns as Kew
+asks for it — <em>Govaerts R. (ed.) (2026). WCVP: World Checklist of
+Vascular Plants, version 13. Facilitated by the Royal Botanic Gardens,
+Kew. Published on the Internet; …</em> — followed by the reference for
+rWCVP, the package our copy of WCVP was downloaded with.</p>
+<hr>
+</div>
+</div>
+<div class="section level3">
 <h3 id="may-2026">May 2026<a class="anchor" aria-label="anchor" href="#may-2026"></a>
 </h3>
 <div class="section level4">
@@ -90,7 +140,7 @@ following the WCVP nomenclature.</p>
 leave the database, the user knows exactly which reference system was
 used to interpret each name, and can switch backbones.</p>
 <p>The backbone is selected at query time via a single argument:</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">main</span></span>
 <span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"GABON"</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span>, extract_individuals <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/query_taxa.html">query_taxa</a></span><span class="op">(</span>species <span class="op">=</span> <span class="st">"Dacryodes edulis"</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span>, check_synonymy <span class="op">=</span> <span class="cn">F</span><span class="op">)</span></span></code></pre></div>
@@ -108,7 +158,7 @@ alongside, so you can always trace back to the Cafriplots reference</li>
 </ul>
 <p>The current version of the WCVP can be checked using the following
 code line (this is the most recent one from early January 2026):</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">con.taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">taxa</span></span>
 <span><span class="fu"><a href="../reference/get_wcvp_status.html">get_wcvp_status</a></span><span class="op">(</span>con_taxa <span class="op">=</span> <span class="va">con.taxa</span><span class="op">)</span></span></code></pre></div>
 <p>Internal IDs (<code>idtax_n</code>, the taxon identifier,
@@ -169,7 +219,7 @@ calling <code><a href="../reference/call.mydb.html">call.mydb()</a></code> and <
 separately — a single credential prompt opens <strong>both</strong>
 databases at once and stashes the connections so any subsequent package
 function reuses them transparently:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">cons</span><span class="op">$</span><span class="va">main</span>   <span class="co"># main database</span></span>
 <span><span class="va">cons</span><span class="op">$</span><span class="va">taxa</span>   <span class="co"># taxa database</span></span></code></pre></div>
@@ -203,7 +253,7 @@ Connections Guide</a> for the full reference.</p>
 <h3 id="march-2026">March 2026<a class="anchor" aria-label="anchor" href="#march-2026"></a>
 </h3>
 <div class="section level4">
-<h4 id="new-data">New data<a class="anchor" aria-label="anchor" href="#new-data"></a>
+<h4 id="new-data-1">New data<a class="anchor" aria-label="anchor" href="#new-data-1"></a>
 </h4>
 <p><strong>Tervuren xylarium Wood Density Database (TWDD)
 integrated</strong></p>

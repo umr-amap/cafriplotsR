@@ -146,6 +146,47 @@
     `R/mod_census_information.R` and `R/updates_tables_functions.R`. No
     `data_d` reference remains outside the migration itself
 
+- **The package no longer ships a Tropicos API key**
+  (`R/tropicos_key.R`, `R/mod_taxa_add.R`,
+  `R/taxonomic_update_functions_old.R`) — one key was hard-coded twice:
+  as the default of `add_entry_taxa(TPS_KEY = )` and as the fallback of
+  `Sys.getenv("TROPICOS_API_KEY", ...)` in the Add New Taxa module. It
+  was therefore in the sources, in the git history since 2024, and
+  rendered into the published reference page of
+  [`add_entry_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/add_entry_taxa.md)
+  on the pkgdown site. A Tropicos key is personal and free on request; a
+  public repository is not a way to distribute one
+
+  - [`get_tropicos_key()`](https://umr-amap.github.io/cafriplotsR/reference/get_tropicos_key.md)
+    resolves the user’s own key in the order the database credentials
+    are resolved — explicit argument, session cache, `TROPICOS_API_KEY`,
+    then a prompt — and caches whatever it finds.
+    [`setup_tropicos_key()`](https://umr-amap.github.io/cafriplotsR/reference/setup_tropicos_key.md)
+    and
+    [`remove_tropicos_key()`](https://umr-amap.github.io/cafriplotsR/reference/remove_tropicos_key.md)
+    write and delete it in `~/.Renviron`, as
+    [`setup_db_credentials()`](https://umr-amap.github.io/cafriplotsR/reference/setup_db_credentials.md)
+    does, and reload it so it works without restarting R. The cache is
+    the same `credentials` environment, so
+    [`cleanup_connections()`](https://umr-amap.github.io/cafriplotsR/reference/cleanup_connections.md)
+    clears the key along with everything else
+  - **Tropicos search stops working until a key is supplied.** In the
+    app the Tropicos panel now asks for one and keeps it for the session
+    — a console prompt would hang the app — and points at
+    [`setup_tropicos_key()`](https://umr-amap.github.io/cafriplotsR/reference/setup_tropicos_key.md)
+    for persistence. `add_entry_taxa(search_name_tps = )` errors naming
+    [`?get_tropicos_key`](https://umr-amap.github.io/cafriplotsR/reference/get_tropicos_key.md)
+    rather than searching with someone else’s key. The backbone search
+    beside it needs no key and is unaffected, which is why it now comes
+    first in the panel
+  - The three generated files under `docs/` that carried the key were
+    scrubbed. **That does not un-publish it**: it was live on the site
+    and remains in the history, so the key must be treated as
+    compromised and replaced at Tropicos
+  - `tests/testthat/test-tropicos-key.R` pins the resolution order, the
+    treatment of blank keys, and asserts that no UUID-shaped key appears
+    anywhere in `R/`
+
 #### Code Refactoring
 
 - **[`query_subplots()`](https://umr-amap.github.io/cafriplotsR/reference/query_subplots.md)
@@ -241,6 +282,471 @@
   `data_traits_measures`.
 
 #### New Features
+
+- **The African Plant Database (APD) is available as a third backbone**
+  (`R/apd_integration.R`, `inst/migrations/apd_backbone.R`) —
+  [`query_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa.md),
+  [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md),
+  [`get_backbone_names()`](https://umr-amap.github.io/cafriplotsR/reference/get_backbone_names.md)
+  and the other backbone-aware functions now take `backbone = "apd"`
+  beside `"internal"` and `"wcvp"`. APD (Conservatoire et Jardin
+  botaniques de Genève) is the reference for African flora, which is
+  what this database holds, so it answers for far more of it than a
+  world checklist does
+
+  - `import_apd_names(file, con_taxa = , dry_run = FALSE)` reads the CJB
+    tab-separated export into `apd_names` and records the import in
+    `backbone_import`. The export is **Latin-1**, and the importer
+    refuses a file read in the wrong encoding rather than storing
+    mojibake: “Aubrév.” garbled as “AubrÃ©v.” is detected and named.
+    With no version tag in the export, the file’s modification date
+    becomes the version unless one is passed
+  - Names, authors and ranks are derived once, at import: the
+    rank-marker prefixes of `nom_standard` are stripped, infraspecific
+    epithets and their authors are read from the right column for the
+    rank (autonyms get the species epithet), and families are
+    capitalised. `v_backbone_names_apd` then exposes the same twelve
+    columns as the WCVP view, so nothing downstream knows which backbone
+    it is reading
+  - Imported in production 2026-09-18: 104,117 names, 94,774 taxa with
+    an APD name
+  - `get_backbone_status("apd", con_taxa)` reports the version and the
+    import date, as
+    [`get_wcvp_status()`](https://umr-amap.github.io/cafriplotsR/reference/get_wcvp_status.md)
+    does for WCVP;
+    [`list_backbones()`](https://umr-amap.github.io/cafriplotsR/reference/list_backbones.md)
+    lists what a database offers
+
+- **[`backbone_citation()`](https://umr-amap.github.io/cafriplotsR/reference/backbone_citation.md)
+  states how to cite the names a query used** (`R/backbone_core.R`,
+  `inst/migrations/backbone_citation_metadata.R`) — APD asks to be cited
+  with its version and the date its data were obtained, and a name read
+  from a backbone is a name borrowed from its publisher. The citation is
+  built from the database — publisher and homepage from `backbone_list`,
+  version and date from `backbone_import` — so it is the citation of
+  *that* database’s names rather than a sentence held in the package
+
+  - `backbone_citation("apd")` returns: *African Plant Database (version
+    4.0.0). Conservatoire et Jardin botaniques de la Ville de Genève and
+    South African National Biodiversity Institute, Pretoria, accessed
+    September 2026, from <http://africanplantdatabase.ch>.*
+    `language = "fr"` writes “accès septembre 2026, de”
+  - **The wording belongs to the publisher, so it is data.** Kew does
+    not ask for the same sentence as Geneva — its README asks for
+    *Govaerts R. (ed.) (2026). WCVP: World Checklist of Vascular Plants,
+    version 13. Facilitated by the Royal Botanic Gardens, Kew. Published
+    on the Internet; <http://sftp.kew.org/pub/data-repositories/WCVP/>
+    Retrieved 8 January 2026.* Each backbone’s formula is stored in
+    `backbone_list.citation_template` with placeholders (`{version}`,
+    `{access}`, `{date}`, `{year}`, `{url}`, and the words `{accessed}`,
+    `{from}`, `{retrieved}`, which follow `language`). A placeholder
+    with nothing to fill it takes its punctuation with it, so a backbone
+    with no version recorded does not get empty brackets. A backbone
+    with no formula gets a plain one built from its name, publisher,
+    version, date and site
+  - WCVP’s formula ends with the rWCVP reference (Brown et al. 2023,
+    *New Phytologist* 240: 1355-1365): our copy of WCVP was downloaded
+    through that package, and its authors ask to be cited
+  - **The access date is the version held in the database, not today.**
+    Two people citing the same database a year apart cite the same
+    thing, which is what makes a citation checkable. APD versions are
+    dates; for a backbone whose version is not a date, such as WCVP, the
+    import date is used
+  - The first query of a session that reads a backbone prints the
+    citation once, through
+    [`.validate_backbone()`](https://umr-amap.github.io/cafriplotsR/reference/dot-validate_backbone.md).
+    `options(CafriplotsR.backbone_citation = FALSE)` silences it, and a
+    citation that cannot be read never warns and never stops a query
+  - [`import_apd_names()`](https://umr-amap.github.io/cafriplotsR/reference/import_apd_names.md)
+    gained `source_version`, the publisher’s own release number
+    (`"4.0.0"`), which the export does not carry and which has to be
+    read off the APD site at download time. Without it the file name is
+    stored, as before, and is not cited
+  - `inst/migrations/backbone_citation_metadata.R` adds
+    `backbone_list.homepage` and `backbone_list.citation_template` and
+    writes both formulas, the publishers, the sites and the APD version.
+    **Until it runs,
+    [`backbone_citation()`](https://umr-amap.github.io/cafriplotsR/reference/backbone_citation.md)
+    falls back to a plain sentence and APD’s publisher is the short
+    form**
+
+- **Backbone links are matched, reviewed and replaced through three
+  functions** (`R/backbone_matching.R`, `R/backbone_review.R`) — adding
+  a backbone used to mean a one-shot matcher whose output went straight
+  into the database. The three steps are now separate, and the middle
+  one is a person
+
+  - `match_taxa_to_backbone(backbone, con_taxa)` matches `table_taxa`
+    against any backbone’s view. Each distinct **name and author** is
+    matched once and joined back on both; a name whose candidates all
+    disagree on authors comes back as `match_type = "author_mismatch"`
+    instead of being passed to fuzzy matching; authors are compared
+    normalised (basionym authors in brackets removed, everything before
+    “ex” removed, spaces, dots and case ignored), so “(Klatt) B.L.Rob.”
+    and “B.L.Rob.” agree
+  - Three rules settle identical-name homonyms without a person: taxa at
+    genus rank and above are matched with the author held in `author1`;
+    when several identical names remain and exactly one is accepted,
+    only that one is kept; when none is accepted, exactly one is a
+    synonym and the rest are illegitimate or invalid, only the synonym
+    is kept
+  - `review_backbone_matches(m, review_file = "wcvp_review.rds")` opens
+    a table of every fuzzy, author-mismatch and several-candidate row,
+    the differing words highlighted, accepted or rejected from the
+    keyboard (A / R / U) or in bulk above a score. Decisions are written
+    to the file after each change and reloaded on the next call, so a
+    review can be done over several sessions and survives re-matching
+  - `replace_backbone_links(m, backbone, con_taxa)` compares the new
+    matches with the stored links taxon by taxon — unchanged, changed,
+    gained, lost, none — and prints that table before writing anything
+    (`dry_run = TRUE` by default). Taxa carrying a verified link are
+    left untouched, so reviewed work is never overwritten by a later
+    rebuild
+  - **Only exact, manual and reviewed links supply names.** A fuzzy or
+    author-mismatch link is stored, but it is not preferred until a
+    person accepts it, and an unpreferred link contributes no name to
+    any query
+
+- **Taxa traits can be imported in long format**
+  (`R/mod_trait_column_mapping.R`, `R/mod_trait_validation.R`,
+  `R/shiny_app_taxa_traits_import.R`) —
+  [`launch_taxa_traits_import()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxa_traits_import.md)
+  mapped one column to one trait, so a file holding one row per
+  measurement, with a column naming the trait and a column holding the
+  value, could not be imported at all. It is the shape a trait database
+  exports and the shape `taxa_traits_measures` itself stores
+
+  - Step 2 gained a wide/long choice. In long format the user names the
+    trait column and a numeric and/or character value column, then maps
+    each distinct trait name found in the file rather than each column,
+    with its row count and sample values in view. Two names can point to
+    the same trait — `WD` and `wood density` — and are merged; unmapped
+    names are dropped
+  - The table is then spread into one column per trait, one value per
+    row, every other column kept. That is what
+    [`add_sp_traits_measures()`](https://umr-amap.github.io/cafriplotsR/reference/add_sp_traits_measures.md)
+    already expects, since it drops the empty cells trait by trait, so
+    steps 3 to 6 needed no change.
+    [`.long_traits_to_wide()`](https://umr-amap.github.io/cafriplotsR/reference/dot-long_traits_to_wide.md)
+    is the whole conversion and is tested on its own
+  - Numeric traits read the numeric value column and fall back on the
+    character one, other traits the reverse, and the fallback is
+    resolved within each trait’s own rows — coalescing across all rows
+    first is what turns a numeric column into text as soon as one
+    categorical trait is present
+  - The format is preselected from the column names (`trait` + `value`
+    and their usual synonyms, in English and French), and can always be
+    overridden
+  - A trait mapped to a name that a kept column already uses is refused
+    rather than overwriting it, and validation no longer reports spread
+    trait columns as mostly missing, which they are by construction
+
+- **The citation has its own step in the taxa traits import**
+  (`R/mod_trait_citation.R`, `R/mod_trait_preview_import.R`,
+  `R/shiny_app_taxa_traits_import.R`) — measurements are linked to the
+  source they come from through `table_citations`, but the picker sat at
+  the top of the preview screen, one control away from the import
+  button, where a user working through the wizard meets it only once
+  everything else is settled
+
+  - Now step 4 of 6, between the metadata mapping and the validation,
+    extracted as `mod_trait_citation_ui/server` so another wizard can
+    reuse it. It stays optional: an amber note states that the
+    measurements will be imported with no link to a source
+  - The dropdown is searchable, and the selected entry is shown in full
+    — authors, year, title, journal, dataset, DOI, URL — which is what
+    tells two similar keys apart. The preview step opens with a one-line
+    reminder of the citation that will be written onto every measurement
+  - **New citation** still writes to `table_citations` through
+    [`add_citation()`](https://umr-amap.github.io/cafriplotsR/reference/add_citation.md)
+    there and then, before the import, so the row exists and can be
+    reused by later imports
+  - The citation is deliberately outside the wizard state cascade below:
+    it describes the source of the file, not its columns, so re-mapping
+    a column must not discard it
+
+- **A sheet can be chosen when importing a multi-sheet workbook**
+  (`R/shiny_app_taxa_traits_import.R`, `R/helpers_xlsx_upload.R`) — the
+  taxa traits upload read the first sheet of an `.xlsx` and gave no way
+  to reach the others, so a workbook whose data sat on the second sheet
+  imported its cover page
+
+  - Wired to
+    [`.xlsx_sheet_server()`](https://umr-amap.github.io/cafriplotsR/reference/dot-xlsx_sheet_server.md),
+    the selector the feature wizard already uses, rather than a second
+    implementation
+  - csv columns now keep the names they are written with (`wood density`
+    stays `wood density`), as in the other upload screens
+
+- **The authorship columns can be edited from the taxonomic backbone
+  app** (`R/mod_taxa_update.R`, `R/updates_tables_functions.R`) —
+  [`launch_taxo_backbone_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxo_backbone_app.md)’s
+  update form could edit every taxonomic rank but not `author1`,
+  `author2` and `author3`, and there was no path to write them at all:
+  [`update_dico_name()`](https://umr-amap.github.io/cafriplotsR/reference/update_dico_name.md)
+  had no author parameter and its `UPDATE` statement did not list the
+  columns. A wrong or missing authority — the `"Wilczekra congolensis"`
+  case that surfaced the backbone bug below — could only be repaired
+  with hand-written SQL
+
+  - [`update_dico_name()`](https://umr-amap.github.io/cafriplotsR/reference/update_dico_name.md)
+    gained `new_author1`, `new_author2` and `new_author3`, wired into
+    both the change detection and the statement. An omitted argument
+    rewrites its column with the current value, so existing callers are
+    unaffected
+  - The form gained an **Authors** block, prefilled from the selected
+    taxon, and `author1` now appears in the taxon summary. A muted line
+    states that `author1` is the authority of the species name and
+    `author2` that of the infraspecific name, which is not guessable
+    from the labels and is the kind of thing that gets entered wrong
+    once and copied forever
+  - Clearing a field registers as a change and writes NULL, typed as
+    `NA_character_` — a bare `NA` is logical, and binding one to a text
+    column is not the same request
+  - [`.taxa_update_dico_params()`](https://umr-amap.github.io/cafriplotsR/reference/dot-taxa_update_dico_params.md)
+    replaces the block that `.perform_update()` and
+    `.perform_cascade_update()` each carried a copy of
+  - **The `UPDATE` itself is covered by reading only**, since no
+    database credentials were available when it was written. Worth
+    exercising on a single taxon before trusting it in production
+
+- **The taxonomic matching app shows the equivalent R code**
+  (`R/mod_taxo_match_r_code.R`, `R/taxonomic_matching.R`) — the app
+  standardises a name list and hands back a table, and nothing said how
+  to do the same run from a script. A user who wanted it reproducible
+  had to reverse-engineer the settings from the results
+
+  - A panel driven by the auto-matching output, so the script it shows
+    always reflects the settings the run actually used — column, method,
+    similarity threshold, author handling, WCVP
+  - [`standardize_taxonomic_batch()`](https://umr-amap.github.io/cafriplotsR/reference/standardize_taxonomic_batch.md)
+    was brought to parity with
+    [`match_taxonomic_names()`](https://umr-amap.github.io/cafriplotsR/reference/match_taxonomic_names.md)
+    so the script it prints is runnable: it gained the `backbone`
+    argument and the `corrected_name` column, and `"hierarchical"` is
+    documented as the alias of `"auto"` that it always was
+
+- **A preview step between column selection and matching**
+  (`R/mod_name_preview.R`, `R/taxonomic_matching.R`) — the run was the
+  first thing that told you whether the right column had been picked,
+  and on a few thousand names that is a slow way to find out
+
+  - Unique names, row count, a breakdown by detected rank, and a table
+    of the distinct names with their occurrences and the normalised form
+    actually searched, most frequent first. What the matcher will see,
+    before it sees it
+  - Warns about rows carrying no name, and about every entry reading as
+    a bare genus — both signatures of a column that is not the one
+    intended
+  - [`clean_taxonomic_name()`](https://umr-amap.github.io/cafriplotsR/reference/clean_taxonomic_name.md)
+    was vectorised to build it. No caller had ever passed a single name,
+    so the per-name loop was pure overhead: 1,091 names 1.05s → 0.38s,
+    5,000 names 4.78s → 1.77s, which also speeds up the batch matching
+    stages
+
+- **Author names are used when matching, as evidence rather than as a
+  requirement** (`R/taxonomic_matching.R`) —
+  [`parse_taxonomic_name()`](https://umr-amap.github.io/cafriplotsR/reference/parse_taxonomic_name.md)
+  now splits authorship out of the name, so the genus and epithet can
+  match exactly while the author varies, which is by far the common case
+  in field data
+
+  - The app’s batch exact pre-pass ignored `include_authors`, so every
+    name written `Genus species Author` skipped it and paid for the slow
+    per-name path. A batch stage keyed on the author-carrying name was
+    added, alongside stages that match on the author-stripped name
+  - Fuzzy and genus-constrained scoring no longer concatenate the author
+    into both sides of the comparison. The name is scored alone and the
+    author only breaks ties, on the R and SQL sides alike. A differently
+    abbreviated author used to sink a correct match below the 0.6
+    default — `"Gilbertodendron dewevrei (Wildeman) Leonard"` scored
+    0.466 against `"Gilbertiodendron dewevrei (De Wild.) J.Leonard"`,
+    and now scores 0.800
+  - The name alone gates the match. Authorship can raise a candidate
+    above its rivals; it can never be the reason one is accepted
+
+- **Plots can be linked to a parent plot from the data update app**
+  (`R/update_app_plot_link.R`, `R/mod_update_record.R`,
+  `R/update_app_resolver.R`, `R/shiny_app_data_update.R`) —
+  `inst/migrations/plot_hierarchy.R` added
+  `data_liste_plots.id_parent_plot` and `parent_relation`, and until now
+  the only way to set them was at import. An established plot that
+  turned out to sit inside another could not be linked without raw SQL
+
+  - [`launch_data_update_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_data_update_app.md)’s
+    plot section gained **“3b. Parent plot”**: the ancestor chain the
+    plot sits in, the plots sitting inside it, a searchable picker of
+    candidate parents, the relation, and a detach link. Hidden entirely
+    on a database where the migration has not run
+  - **The pair is written in one `UPDATE`, and could not have been
+    written any other way.** `chk_plot_parent_relation_paired` refuses a
+    row holding a parent without a relation or the reverse, while
+    `execute_direct_updates_single()` writes one column per statement —
+    so attaching a parent through the ordinary path fails on the first
+    statement, before the relation it needs exists.
+    [`.upd_apply_plot_link()`](https://umr-amap.github.io/cafriplotsR/reference/dot-upd_apply_plot_link.md)
+    moves both at once, inside the same transaction and after the same
+    `followup_updates_liste_plots` backup as any other write
+  - **This also fixes a live bug.**
+    `get_table_columns("data_liste_plots")` lists `parent_relation` once
+    the migration has run, so the app was already rendering it as a
+    free-text box, alone, with no parent field beside it — a constraint
+    violation for anyone who typed in it. Both columns are now in the
+    plot entity’s `exclude` list and are unreachable from the generic
+    form
+  - **A loop cannot be built from the app.** `chk_plot_not_own_parent`
+    stops A → A; nothing in the schema stops A → B → A, so the candidate
+    list excludes the plot and its whole subtree, and
+    [`.upd_validate_plot_link()`](https://umr-amap.github.io/cafriplotsR/reference/dot-upd_validate_plot_link.md)
+    re-checks against the stored hierarchy before writing. The one
+    exception is deliberate: a plot’s *current* parent stays selectable
+    even where a stored cycle would have excluded it, because a blank
+    select reads as “no parent” and would offer to detach a link nobody
+    touched
+  - The relation labels say what each value does to arithmetic rather
+    than repeating the stored value — `nested_subsample` overlaps the
+    parent (never sum), `block_member` tiles it (summing is correct).
+    That is the only thing that makes the choice decidable, and picking
+    wrong silently corrupts every aggregation over the pair. 23 strings
+    added to `inst/translations/translation.json`
+  - A link is stored on the child, so it is edited by loading the child.
+    Children are listed read-only, pointing at
+    [`safe_delete_plot()`](https://umr-amap.github.io/cafriplotsR/reference/safe_delete_plot.md)
+    for the delete case
+
+- **`query_plots(extract_plot_links = TRUE)` reports the plots linked to
+  the ones queried** (`R/plot_links_query.R`, `R/functions_manip_db.R`,
+  `R/output_styles_helpers.R`) — an extraction could return a plot and
+  the plot nested inside it with nothing saying the two describe the
+  same ground
+
+  - The metadata table gains `parent_plot_name`, `parent_relation` and
+    `n_child_plots`. Every built-in style but `full` lists its
+    `metadata_columns` explicitly, so these are carried through a new
+    `extra_metadata_columns` path in `.apply_output_style()` — an
+    explicit request outranks a style’s default tidying
+  - A `plot_links` table is added, one row per link touching a queried
+    plot in both directions: `plot_id`, `plot_name`, `role` (`"parent"`
+    or `"child"`), `linked_plot_id`, `linked_plot_name`,
+    `parent_relation`, and `linked_in_query`. Feed `linked_plot_id` back
+    to `id_plot` to extract the linked plots themselves. Passed through
+    the style layer like `data_sources` and `plot_sources`, so no style
+    drops it
+  - **The double-counting warning is not gated on the argument.** A
+    parent and its child in one result overlap on the ground under
+    either relation, so any total across those rows counts the same
+    stems twice and nothing in the numbers reveals it. It costs one
+    indexed query per call, is silent when there is nothing to say, and
+    returns without querying at all on an unmigrated database
+  - `parent_relation` is read off the child row in both directions of
+    the walk, because that is where it is stored and what it describes
+
+- **[`check_plot_hierarchy_consistency()`](https://umr-amap.github.io/cafriplotsR/reference/check_plot_hierarchy_consistency.md)**
+  (`R/plot_hierarchy_consistency.R`) — the plot counterpart of
+  [`check_hierarchy_consistency()`](https://umr-amap.github.io/cafriplotsR/reference/check_hierarchy_consistency.md),
+  and the check no CHECK constraint can perform.
+  `chk_plot_not_own_parent` sees one row; nothing in the schema sees a
+  chain, so A → B → A is legal
+
+  - Six checks: cycles (a recursive CTE carrying the visited path,
+    stopping expansion on the row that closes the loop), self-parent,
+    dangling parent, a relation without a parent, a parent without a
+    relation, and a relation outside the vocabulary. Reports the shape
+    of a clean hierarchy too, and warns when a chain runs deeper than
+    two levels
+  - `fix = TRUE` repairs only the three issues with one possible outcome
+    — self-parent, dangling parent, relation-without-parent — each
+    clearing **both** columns where a link dies, in one transaction,
+    then re-runs the check so the caller sees the state that actually
+    exists
+  - **A parent with no relation is reported and never repaired.**
+    Whether a child tiles its parent or overlaps it is not recoverable
+    from the data, and a guess corrupts every aggregation over the pair.
+    Cycles and unknown vocabulary are likewise reported, not guessed
+  - Returns `invisible(NULL)` on a clean hierarchy and on a database
+    where the migration has not run
+
+- **`safe_delete_plot(child_plots =)` no longer leaves a parent delete
+  to fail on a constraint** (`R/safe_delete_plot.R`) — the function
+  enumerated individuals, measurements, subplots and specimen links
+  without ever counting the plots pointing at the one being deleted.
+  `ON DELETE SET NULL` on `id_parent_plot` is a poor backstop: it nulls
+  the parent and leaves `parent_relation` behind, which
+  `chk_plot_parent_relation_paired` then rejects, so the delete aborted
+  with an opaque constraint error instead of saying a child existed
+
+  - `"stop"` (default) refuses and names the children; `"detach"` keeps
+    them with both columns cleared; `"delete"` walks the subtree and
+    widens the deletion set before the dry run and the confirmation
+    prompt, so both show what will actually go
+  - All three share one mechanism: a blanket detach of every child of a
+    batch immediately before the plots go. That satisfies the paired
+    constraint, and it removes any requirement to order children before
+    parents — fixing a latent bug where passing a parent and its child
+    in one call would have aborted
+  - Counts land in `summary$counts$child_plots` /
+    `$child_plots_outside`, detachments in
+    `summary$detached$child_plots`. The whole path is gated on
+    `delete_plot` and on the migration having run
+
+- **Plots can now carry a data-source citation, the same way taxon-level
+  trait measurements already do** (`R/citations_functions.R`,
+  `R/plot_query_builder.R`, `R/functions_manip_db.R`,
+  `R/output_styles_helpers.R`, `inst/migrations/add_plot_citations.R`) —
+  `taxa_traits_measures.id_citation` (added by `add_citations_table.R`)
+  records which dataset a trait measurement came from and
+  `query_taxa_traits(include_citation = TRUE)` /
+  [`build_data_sources_table()`](https://umr-amap.github.io/cafriplotsR/reference/build_data_sources_table.md)
+  surface it; `data_liste_plots` had no equivalent, so a plot’s
+  inventory data could not be traced to a source dataset/study
+
+  - `data_liste_plots.id_citation` is a new FK to the existing
+    `table_citations` lookup — no second table, since a citation
+    describes a compiled dataset whether it contributed trait
+    measurements or plot inventory data. Migration
+    `inst/migrations/add_plot_citations.R`, `dry_run = TRUE` by default.
+    **Applied 2026-09-04**
+  - [`export_plots_for_citation_backfill()`](https://umr-amap.github.io/cafriplotsR/reference/export_plots_for_citation_backfill.md)
+    /
+    [`apply_plot_citation_backfill()`](https://umr-amap.github.io/cafriplotsR/reference/apply_plot_citation_backfill.md)
+    mirror
+    [`export_taxa_traits_for_citation_backfill()`](https://umr-amap.github.io/cafriplotsR/reference/export_taxa_traits_for_citation_backfill.md)
+    /
+    [`apply_citation_backfill()`](https://umr-amap.github.io/cafriplotsR/reference/apply_citation_backfill.md),
+    keyed on `id_liste_plots` instead of `id_trait_measures`, for
+    linking many plots at once
+  - `get_table_columns("data_liste_plots")` now lists `id_citation`, so
+    `update_records(data.frame(id_liste_plots = ..., id_citation = ...), table_type = "plots")`
+    also works for a single plot or a handful - the same pattern
+    `taxa_traits_measures` already used for its `id_citation`. Like
+    `country`/`method`, the id is supplied directly rather than through
+    a friendly-name lookup; find it first with
+    [`query_citations()`](https://umr-amap.github.io/cafriplotsR/reference/query_citations.md)
+  - [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+    joins `citation_key`, `citation_authors`, `citation_year`,
+    `citation_title`, `citation_journal`, `citation_doi` and
+    `citation_dataset_name` onto every plot (same join idiom as the
+    existing `country`/`method` lookups, so it is silently a no-op until
+    the migration runs), and adds a `plot_sources` element built by
+    [`build_plot_data_sources_table()`](https://umr-amap.github.io/cafriplotsR/reference/build_plot_data_sources_table.md)
+    — a citations × country pivot, the plot-level counterpart of the
+    `data_sources` pivot already returned when
+    `extract_individuals = TRUE` and `extract_traits = TRUE` resolve
+    taxon-level trait citations
+  - The join is built once from the one-row-per-plot snapshot taken
+    before `extract_individuals` replaces the result with
+    individual-level rows, so `plot_sources` reflects every queried plot
+    regardless of `extract_individuals`
+  - `launch_query_plots()` surfaces `plot_sources` too: a new **“Plot
+    Data Sources”** tab appears on the Results page alongside the
+    existing trait “Data Sources” tab, listing citation counts per
+    country. Unlike the trait tab, it is populated as soon as plot
+    metadata is queried, since it does not depend on individual
+    extraction.
+    [`mod_citation_panel_server()`](https://umr-amap.github.io/cafriplotsR/reference/mod_citation_panel_server.md)
+    (`R/mod_citation_panel.R`), previously trait-specific, gained
+    `count_col` and `context` arguments so the same module backs both
+    tabs with the right wording and totals
 
 - **Specimen links can attach to a plot, not only to an individual**
   (`R/specimen_linking_functions.R`,
@@ -890,7 +1396,597 @@
     that the level is restored after an error, and the end-to-end
     wrapper behaviour with the implementation mocked
 
+- **[`launch_taxo_backbone_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxo_backbone_app.md)
+  works with every backbone, not only WCVP** (`R/backbone_core.R`,
+  `R/mod_taxa_search.R`, `R/shiny_app_taxo_backbone.R`) — the app named
+  WCVP in two places that had nothing to do with WCVP in particular: the
+  Selected Taxon panel read
+  [`get_wcvp_names()`](https://umr-amap.github.io/cafriplotsR/reference/get_wcvp_names.md),
+  and the whole external search of the Add New Taxa tab was WCVP-shaped
+  SQL. Both now go through the canonical per-backbone views, so a
+  database registering APD, or a fourth backbone tomorrow, needs no
+  further code
+
+  - `get_taxon_backbone_links(idtax_n)` returns **every** link a taxon
+    has in every backbone, with its match type, score and whether the
+    identifier is still in the current import. The panel shows all of
+    them, because that is what explains a withheld name to a curator: a
+    link is badged *used for names*, *awaiting review* (unreviewed fuzzy
+    or author mismatch), *not used for names*, or *ID absent from the
+    current import*. Identifiers become links to the publisher’s page
+    through `backbone_list.url_template`, which had been dead since the
+    table was created
+  - `search_backbone_names(name, backbone)` replaces the WCVP-only
+    search: exact on the whole name, plus the infraspecifics of a
+    binomial so a variety can be picked, falling back to the genus only
+    when nothing was found
+  - Backbones not yet offered as a source of names are listed too,
+    marked *not yet offered as a source of names* — an identifier is
+    worth recording before `is_name_source` is flipped
+
+- **Adding a taxon searches every backbone at once and links what each
+  one gives** (`R/backbone_core.R`, `R/mod_taxa_add.R`) — step 1 of the
+  Add New Taxa tab made the user pick one backbone from a selector, so a
+  new taxon could only ever leave with one identifier. A name usually
+  exists in several backbones, and its identifier is worth keeping in
+  each of them: the search is not a choice between them
+
+  - `search_all_backbones(name)` runs the per-backbone search against
+    everything the database registers and stacks the hits, adding
+    `backbone`, `backbone_name` and `is_name_source`. The selector is
+    gone; one button searches them all, and the results table gained a
+    `backbone` column with one badge per backbone saying exact or fuzzy,
+    beside a line naming those that found nothing
+  - **Unambiguous matches are pre-selected.**
+    [`.auto_backbone_selection()`](https://umr-amap.github.io/cafriplotsR/reference/dot-auto_backbone_selection.md)
+    takes, per backbone, an exact match on the name searched for when it
+    is the only one in that backbone. Homonyms, a name both accepted and
+    synonymised, and the infraspecifics that come back as exact matches
+    for a binomial are all left for a person. What will be linked is
+    listed in step 1 and again in step 4, with a one-click *Clear all
+    backbone links*
+  - *Use backbone result* and *Validate backbone match only* now act on
+    the selected row’s own backbone and leave the others alone, so one
+    can be overridden without losing the rest. On submit the link is
+    saved once per backbone, each carrying its own match type — a new
+    taxon gets its APD **and** its WCVP link in one pass
+  - Synonymy suggestions are gathered from every selected backbone and
+    merged by taxon, so a candidate proposed by two backbones is offered
+    once with both verdicts (`APD: … [Accepted] | WCVP: … [Synonym]`)
+    instead of one backbone’s view
+  - Choosing a Tropicos row no longer discards the backbone identifiers:
+    they identify the same name whichever source filled the form, and
+    step 4 lists them before anything is written
+
 #### Bug Fixes
+
+- **Login screen: a bare “TRUE” was printed below the connection panel**
+  (`R/mod_database_login.R`) — `has_saved_credentials` is a text output
+  whose only job is to feed the two `conditionalPanel` conditions that
+  switch between the saved-credentials checkbox and the manual
+  credentials form. It was marked “Hidden output for conditional panel”
+  but nothing hid it, so Shiny rendered its value at the foot of the
+  panel, under the offline-cache notice. It is now wrapped in a
+  `display: none` container; the panels are unaffected, since
+  `conditionalPanel` reads the value through the output binding and
+  `suspendWhenHidden = FALSE` keeps a hidden output evaluating
+
+- **Login screen: the public-access button was easy to miss**
+  (`R/mod_database_login.R`) — “Connect as public user” was a
+  default-size outline button (`btn-outline-secondary`) sitting under a
+  full-width solid “Connect to Database” (`btn-primary btn-lg`), so the
+  one route in for a visitor without an account read as a secondary
+  afterthought. It is now `btn-info btn-lg btn-block`: same height and
+  width as the connect button, solid rather than outlined, and a
+  different colour so the two stay distinguishable. The read-only
+  warning below it is unchanged, and the offline button stays an
+  outline, being the narrower fallback
+
+- **Taxonomic match app: a full-name column chosen as species epithet
+  produced “Genus Genus species”** (`R/mod_column_select.R`,
+  `inst/translations/translation.json`) — in multiple-column mode, a
+  user selected a column holding “Garcinia kola” as the epithet; the
+  combined name became “Garcinia Garcinia kola”, which matches nothing,
+  and the only guidance was one sentence about combining columns
+
+  - Each selector now carries an example: genus “Garcinia”, epithet
+    “kola - not Garcinia kola” with a pointer to single-column mode for
+    full names, family “Clusiaceae” (used only when genus is empty)
+  - A warning appears under the selectors when at least half the epithet
+    values look like full names — first word repeating the row’s genus,
+    or a capitalised word followed by another — naming the column, the
+    share and an example
+    ([`.share_binomial_epithets()`](https://umr-amap.github.io/cafriplotsR/reference/dot-share_binomial_epithets.md)).
+    `sp. 1` and `cf. nitida` do not trigger it
+  - A genus repeated at the start of the epithet is dropped when
+    building the name
+    ([`.strip_repeated_genus()`](https://umr-amap.github.io/cafriplotsR/reference/dot-strip_repeated_genus.md)),
+    so the combined column is correct even if the warning is ignored
+
+- **Taxonomic match app: automatic matching showed no progress when run
+  in-process** (`R/mod_auto_matching.R`) — progress was only published
+  by the background worker, which cannot start when the package is
+  loaded with
+  [`devtools::load_all()`](https://devtools.r-lib.org/reference/load_all.html).
+  The in-process fallback passed `progress = NULL`, so a long run showed
+  nothing but “Processing…” while it silently checkpointed
+
+  - The in-process run now reports “Fuzzy matching: i / n (name)”
+    through a notification, which reaches the browser mid-run, throttled
+    to two updates per second
+  - Both run modes share one display, and the current step is also shown
+    under “Processing…” rather than only in a corner notification
+
+- **Taxonomic match app: Skip/Next in the Review tab took several
+  seconds per name** (`R/mod_name_review.R`,
+  `R/mod_fuzzy_suggestions.R`) — the suggestions for each name were
+  computed with no backbone passed, so
+  [`match_taxonomic_names()`](https://umr-amap.github.io/cafriplotsR/reference/match_taxonomic_names.md)
+  reloaded the 365k-row cache from disk and rebuilt its name index for
+  every name (~6.7 s online, ~4 s offline). The review module now loads
+  and indexes the backbone once per session and hands it to the
+  suggestions, the manual search and the species/infraspecific level
+  filters; a name now takes well under a second. Results are unchanged:
+  the function already preferred the cache when one existed
+
+- **Taxonomic match app: selecting a suggestion sometimes did not
+  advance to the next name** (`R/mod_fuzzy_suggestions.R`) — the
+  selection was returned through a `reactiveVal`, which ignores a value
+  identical to the one it holds. Choosing the same taxon for two names
+  in a row (two spellings of one species, the same genus) fired nothing:
+  no decision recorded, no move. Each click now carries a counter so
+  every selection is an event
+
+- **Taxonomic match app: “Review complete!” shown while skipped names
+  remained** (`R/mod_name_review.R`) — moving on after Skip or a
+  decision only walked forward one position, so reaching the last name
+  announced completion regardless of names skipped earlier (e.g. 32
+  remaining out of 177)
+
+  - Skip and every decision now jump to the next name with no decision,
+    wrapping past the end, via
+    [`.next_pending_review_index()`](https://umr-amap.github.io/cafriplotsR/reference/dot-next_pending_review_index.md);
+    completion is announced only when none remain, and skipping the last
+    pending name says so
+  - Next still browses in order, and at the end of the list stays
+    enabled while names are pending, returning to them
+
+- **Taxonomic match app: CSV upload mis-read French Excel exports, and
+  the upload label said Excel only** (`R/mod_data_input.R`) — the field
+  was labelled “Upload Excel file” / “Télécharger un fichier Excel”
+  although CSV was accepted; it now reads “Upload file (Excel or CSV)”
+
+  - [`.read_delimited_upload()`](https://umr-amap.github.io/cafriplotsR/reference/dot-read_delimited_upload.md)
+    detects the delimiter (`,` `;` tab `|`), the encoding (UTF-8 with or
+    without BOM, else Windows-1252) and uses `,` as decimal mark for
+    `;`-separated files. A French Excel CSV previously loaded as a
+    single column with garbled accents
+  - Extensions are matched case-insensitively (`NAMES.CSV` was
+    rejected), and `.tsv`/`.txt` are accepted
+  - Legacy `.xls` files are read with
+    [`readxl::read_excel()`](https://readxl.tidyverse.org/reference/read_excel.html);
+    they were accepted by the input but read with
+    [`read_xlsx()`](https://readxl.tidyverse.org/reference/read_excel.html),
+    which fails on them
+  - The first sheet of an Excel file now loads on upload. A second file
+    whose first sheet had the same name as the previous one left the
+    sheet selector unchanged, so nothing was loaded
+
+- **Taxonomic match app: English text left in the French interface**
+  (`R/mod_name_review.R`, `R/mod_fuzzy_suggestions.R`,
+  `R/mod_data_input.R`, `R/mod_results_export.R`,
+  `inst/translations/translation.json`) — the Review tab’s manual search
+  panel (“Search Taxonomic Backbone”, its help text, labels, level
+  choices and button), its notifications and result cards, the “no
+  matches at this level” message, the sheet selector, the
+  unsupported-format error and the export preview heading were
+  hard-coded in English. All now go through `i18n`, with 21 new French
+  entries; strings carrying a count or a name use a single
+  [`sprintf()`](https://rdrr.io/r/base/sprintf.html) template so French
+  is not assembled from English plurals
+
+- **Growth form selections outlived the taxon they were entered for**
+  (`R/mod_growth_form_selector.R`, `R/mod_taxa_add.R`) — adding a taxon
+  in
+  [`launch_taxo_backbone_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxo_backbone_app.md)
+  and then another started the second one with the first one’s growth
+  forms, basis of record and remarks already loaded, and **saved them
+  against it** on submit. The selector keeps its state in its own
+  `reactiveValues` so that stepping back and forth in the wizard does
+  not lose it; nothing said when a taxon was finished, so it never let
+  go
+
+  - The module now returns a `reset()`, called by *Add another taxon*.
+    It clears the stored values as well as the inputs: the
+    basis-of-record observer ignores empty values on purpose, so that a
+    destroyed UI cannot wipe it, and blanking the input alone would have
+    left the old value in place — there is a test for exactly that
+  - *Add another taxon* also clears `growth_form_data` and the
+    order/class requirement flags, which were carried over the same way
+
+- **Removing one growth form could remove several**
+  (`R/mod_growth_form_selector.R`) — the ✕ beside a selected growth form
+  registered its handler inside an observer that depends on the list of
+  growth forms, so every change to the list added *another* handler for
+  each position already there. One click then fired all the copies, each
+  deleting a further entry. Positions are now registered once each, and
+  a click that lands past the end of the list — after a reset, say —
+  does nothing
+
+  - `tests/testthat/test-growth-form-reset.R` drives the module with no
+    database behind it: 11 assertions, 7 of which fail against the
+    previous code
+
+- **The backbone matcher gave taxa the links belonging to their
+  homonyms, and the WCVP links in production carried the consequences**
+  (`R/backbone_matching.R`, `R/wcvp_integration.R`,
+  `inst/migrations/multi_backbone_followup.R`) — matching APD in
+  production on 2026-09-15 made it visible: wrong names reached users,
+  APD was switched off the same day, and the same code had matched WCVP
+  in April. Four faults, all in the same function
+
+  - **Author matching joined back by name alone.** The best candidate
+    was chosen per name *and* author, then handed to every internal
+    taxon sharing that name. Every one of the 2,224 APD and 1,550 WCVP
+    taxa with several links held a name another taxon also holds —
+    *Vigna mungo* (L.) Hepper was linked both to the accepted name and
+    to the `auct.` record
+  - **A name refused on its authors was matched again, fuzzily, with the
+    authors dropped.** 1,167 of the 1,177 APD fuzzy links scoring 1.0
+    were names whose authors disagreed: *Diospyros macrophylla* Blume
+    linked to the A.Chev. name. WCVP held 10,965 of them
+  - **A fuzzy link became the name-giving link** whenever it was a
+    taxon’s only one. About half of a sample were a different species —
+    *Bulbophyllum collinum* → *cocoinum*, *Rothmannia macrophylla* →
+    *microphylla*. All 24,045 WCVP fuzzy links were preferred and none
+    verified
+  - **`auct.` records were linked to taxa that are not
+    misapplications.** Internal `ZZ auct.` taxa are now matched against
+    nothing, and backbone records marked `auct.` are left out of the
+    candidates
+  - A failure of the fuzzy step now aborts the run. It used to warn and
+    return the exact matches only, which the comparison step would have
+    read as every fuzzy link lost — a 29,489-taxon “loss” in one dry run
+    was this, not the data
+  - **Rebuilt in production 2026-09-18.** WCVP: 285,037 name-giving
+    links of 310,921, no dangling ID, no unresolved chain. APD: 94,774
+    of 98,367. The links that the old matcher had guessed are still
+    stored but no longer supply names — 25,353 for WCVP, 3,587 for APD —
+    and each accepted review brings one back. No link had ever been
+    verified, noted or manual, so no human decision was lost in the
+    rebuild
+  - `rewrite_legacy_wcvp_links()` (in
+    `inst/migrations/multi_backbone_followup.R`, applied the same day)
+    rewrote the legacy `wcvp_idtax_link` from the corrected links, for
+    deployed versions that still read it: 313,476 rows deleted, 285,037
+    inserted, 282,168 taxa unchanged
+  - The name a person picks in the add-taxon app (`R/mod_taxa_add.R`) is
+    now saved `verified = TRUE`: it was chosen by someone, so it
+    supplies names even when the search hit was fuzzy
+
+- **The taxonomic match app reported one name requiring review that the
+  Review tab never showed** (`R/taxonomic_matching_pipeline.R`,
+  `R/mod_auto_matching.R`, `R/mod_name_preview.R`) — the matching
+  pipeline took empty cells of the name column as one more name to look
+  up (NA became the string `"NA"`), which could never match. Any dataset
+  with a blank cell therefore counted one name more than the preview
+  (745 against 744 on a 67 148-row file) and one “requiring review”,
+  while the Review tab, which skips empty names, announced that every
+  name had been matched
+
+  - Rows with no name (NA, empty or whitespace only) are now left out of
+    the names to match, by one rule,
+    [`.is_missing_name()`](https://umr-amap.github.io/cafriplotsR/reference/dot-is_missing_name.md),
+    shared by the preview, the pipeline and the review list. They are
+    still returned, unmatched, with the rest of the data
+  - The served app runs the pipeline in a background process from the
+    *installed* package, so the fix reaches it only after reinstalling
+    or redeploying
+
+- **Growth forms could only be chosen at level 1 when adding a taxon**
+  (`R/mod_growth_form_selector.R`, `R/taxa_traits_function.R`,
+  `R/growth_form_hierarchy.R`) — collapsing the seven branch
+  `growth_form_level_*` traits into `growth_form_level_1/2/3` removed
+  the only place the database recorded which growth form sits under
+  which: each branch trait’s description ended with `"if <parent>"`. The
+  selector in step 3 of
+  [`launch_taxo_backbone_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxo_backbone_app.md)’s
+  *Add taxon* and the console
+  [`choose_growth_form()`](https://umr-amap.github.io/cafriplotsR/reference/choose_growth_form.md)
+  kept parsing that text, found no parent, and never offered level 2 or
+  3
+
+  - The nesting now lives in `.growth_form_hierarchy()`, transcribed
+    from the old branch traits (ids 42 to 47). `climber` is a level 2
+    value, so its four kinds are level 3. `traitlist.factorlevels` still
+    decides which values are accepted; an accepted value the table
+    cannot place is reported with
+    [`message()`](https://rdrr.io/r/base/message.html) rather than
+    silently hidden
+  - A removed `selectInput` keeps its last value on the server, so a
+    level 2 choice survived a change of level 1 and could be saved under
+    the wrong parent. Only a value that is still a child of the choice
+    above it is recorded now, and trait ids come from the level traits
+    instead of the description match
+  - `choice_trait_cat()` gained a `values` argument restricting what it
+    offers
+  - Tests: `test-growth-form-hierarchy.R`, and
+    `test-growth-form-selector.R`, which drives the module with
+    [`shiny::testServer()`](https://rdrr.io/pkg/shiny/man/testServer.html)
+    on a cached `traitlist`
+
+- **Taxa added from the taxonomic backbone app were left outside the
+  hierarchy** (`R/taxonomic_update_functions.R`,
+  `R/taxonomic_query_functions.R`, `R/taxa_hierarchy_links.R`) —
+  [`.add_taxa_noninteractive()`](https://umr-amap.github.io/cafriplotsR/reference/dot-add_taxa_noninteractive.md),
+  the “Add taxon” step of
+  [`launch_taxo_backbone_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxo_backbone_app.md),
+  wrote the flat columns (`tax_fam`, `tax_gen`, `tax_esp`…) and neither
+  `tax_level` nor `id_parent`. The hierarchy view,
+  [`get_taxon_ancestors()`](https://umr-amap.github.io/cafriplotsR/reference/get_taxon_ancestors.md)
+  and
+  [`get_taxon_children()`](https://umr-amap.github.io/cafriplotsR/reference/get_taxon_children.md)
+  walk `id_parent` only, so a new species showed alone and was missing
+  from its genus’s children;
+  [`check_hierarchy_consistency()`](https://umr-amap.github.io/cafriplotsR/reference/check_hierarchy_consistency.md)
+  could not report it either, every one of its checks filtering on
+  `tax_level`. Checked on the taxa database: every recent
+  `tax_source = 'NEW'` row had both columns NULL
+
+  - The insert now names the rank from the most precise flat column
+    filled (`.taxon_level()`), finds the parent entry and writes both,
+    in one transaction on one connection. A missing parent — a genus new
+    to the backbone — is created on the way, already linked to its own
+    parent, with `tax_source = 'H_AUT'` (`tax_source` is `varchar(5)`,
+    hence the hierarchy migration’s own `'H_MIG'`). The helper doing
+    this,
+    [`.find_or_create_parent_entry()`](https://umr-amap.github.io/cafriplotsR/reference/dot-find_or_create_parent_entry.md),
+    had been written for exactly this insert and was never called — so
+    its `'AUTO_HIERARCHY'`, too long for the column, had never failed
+  - Parent lookup prefers an accepted entry over a synonym, reads a
+    class under both spellings in use (`'class'`, `'higher'`) and
+    creates one as `'higher'`, the spelling the name matching code looks
+    for. A child missing a column that names its parent — a family
+    recorded without its order — is inserted unlinked, with a warning,
+    rather than attached to an empty-named parent
+  - The new `idtax_n` is read back from the column’s own sequence on the
+    inserting connection. `SELECT MAX(idtax_n)`, used before, returned
+    another user’s row when two taxa were added at once; it stays only
+    as the fallback for a column without an owned sequence
+  - **Taxa already added were backfilled:**
+    `inst/migrations/taxa_hierarchy_backfill.R`, **applied 2026-09-14**.
+    All 25 taxa added without a rank were linked; two genera missing
+    from the backbone, `Kuloa` and `Conchograecum`, were created under
+    their families. `migrate_link_unlinked_taxa(con)` rehearses by doing
+    the work in a transaction and rolling it back, so it prints exactly
+    what `dry_run = FALSE` will do; `check_unlinked_taxa(con)` counts
+    what is left
+  - Not changed: `mod_taxa_update.R`’s `.find_or_create_taxon()` still
+    creates parent entries without linking them.
+    `include_orphans = TRUE` in the backfill links those too
+  - Tests: `test-taxa-add-hierarchy.R`, with the database mocked
+
+- **A mapping from the format just left survived a format switch in the
+  taxa traits wizard** (`R/shiny_app_taxa_traits_import.R`) — each
+  wizard step snapshotted its result only while that result was valid,
+  to protect against the degraded one a module returns while its UI is
+  torn down and rebuilt. The side effect was that an invalid mapping
+  left the previous one standing: switching step 2 between wide and long
+  kept **Next** enabled on the mapping of the format the user had just
+  left, and the table cleaned by the previous validation run stayed
+  available to the import
+
+  - An invalid result is now believed while the user is looking at that
+    step, and ignored otherwise, which is the distinction the original
+    guard was reaching for
+  - When a step’s result does change, every later snapshot is dropped. A
+    metadata mapping, a validated table or a preview built on the
+    previous mapping describes columns that may no longer exist — the
+    validation result in particular survived on its own, being
+    recomputed only on its own button
+  - [`.wizard_state_update()`](https://umr-amap.github.io/cafriplotsR/reference/dot-wizard_state_update.md)
+    is that rule, used by both mapping steps and tested directly,
+    including the long → wide sequence
+  - Results are compared with
+    [`identical()`](https://rdrr.io/r/base/identical.html), so switching
+    the interface language re-renders a step without discarding the work
+    done in it
+
+- **A citation key that already existed was reported as created**
+  (`R/mod_trait_citation.R`) —
+  [`add_citation()`](https://umr-amap.github.io/cafriplotsR/reference/add_citation.md)
+  skips a row whose `citation_key` is already in the database, with a
+  warning on the console. The import app called it with
+  `interactive = FALSE` and announced success regardless, so the user
+  was told the citation had been created while nothing had been written,
+  and then imported measurements against whichever citation the dropdown
+  happened to hold. A duplicate key is now refused before the call,
+  pointing at the existing entry
+
+- **A sheet selector reverted to the first sheet when a wizard step was
+  revisited** (`R/helpers_xlsx_upload.R`) — Shiny redraws an output from
+  its last rendered HTML when the element returns to the page, and the
+  selector rendered with `selected = sheets[1]` every time. Leaving the
+  upload step and coming back therefore reset the choice and silently
+  reloaded the data from the first sheet. It now renders with the
+  current choice, which also fixes the same trap in the feature wizard’s
+  uploads
+
+- **An infraspecific-only edit was silently dropped by the taxonomic
+  backbone app** (`R/mod_taxa_update.R`, `R/updates_tables_functions.R`)
+  — editing nothing but the infraspecific rank or name came back as *“No
+  update performed because no values are different”*, and the form
+  opened blank on an infraspecific taxon in the first place
+
+  - Two halves of one naming trap.
+    [`query_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa.md)
+    returns `tax_rank01` and `tax_nam01`, while
+    [`update_dico_name()`](https://umr-amap.github.io/cafriplotsR/reference/update_dico_name.md)’s
+    arguments are `new_tax_rank1` and `new_tax_name1`. The
+    change-detection loop matched argument names against column names,
+    so those two never matched anything and the edit was reported as no
+    change; the form, meanwhile, read `taxon$tax_rank1` /
+    `taxon$tax_name1`, which
+    [`query_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa.md)
+    does not return, so the inputs started empty and clearing an epithet
+    registered nothing either
+  - The loop now uses an explicit argument → column map, which also
+    removes a `grep("tax_rank", ...)` that matched three arguments at
+    once
+
+- **Taxa with no recorded author were missing from the cached backbone**
+  (`R/cache_backbone.R`) — the download ended with
+  `filter(author1 != "ZZ auct.")`, and `NA` propagates through `!=`, so
+  [`filter()`](https://dplyr.tidyverse.org/reference/filter.html)
+  dropped every taxon whose `author1` was null. Those names were
+  unmatchable in the app while
+  [`match_taxonomic_names()`](https://umr-amap.github.io/cafriplotsR/reference/match_taxonomic_names.md)
+  matched them exactly against the live table, which applies no such
+  filter
+
+  - Reported for `"Wilczekra congolensis"`: the genus and both its
+    species were absent from the backbone entirely, with no indication
+    that anything was missing
+  - The filter keeps them now, `ZZ auct.` is still excluded, and the
+    rule was extracted into
+    [`.shape_backbone()`](https://umr-amap.github.io/cafriplotsR/reference/dot-shape_backbone.md)
+    so it is one testable thing rather than a clause at the end of a
+    download
+  - **The cache version was bumped to 1.1 and is now checked on load.**
+    An existing cache is wrong rather than merely old, and would have
+    kept the symptom alive invisibly; callers already read `NULL` as
+    “download again”, so a stale cache simply re-downloads
+
+- **A genus written with its author went to manual review instead of
+  matching** (`R/taxonomic_matching.R`) — `"Centroplacus Pierre"` was
+  detected as rank *genus*, and still arrived among the names to review
+  with the genus found at 0.59
+
+  - [`.split_name_authors()`](https://umr-amap.github.io/cafriplotsR/reference/dot-split_name_authors.md)
+    marks a trailing word as authorship only when it carries a period, a
+    bracket or a connecting word. A bare capitalised word stays in the
+    name, deliberately: `"Garcinia Kola"` is a mis-capitalised epithet
+    and must still match `"Garcinia kola"` exactly. So the author
+    travelled into genus-constrained scoring inside the searched string,
+    and that is what cost the 0.41
+  - Measuring the case showed it was worse than reported —
+    `"Diospyros Hiern"` came back as *Diospyros hirta* at 0.62, a
+    different species
+  - [`.promote_exact_genus()`](https://umr-amap.github.io/cafriplotsR/reference/dot-promote_exact_genus.md)
+    runs after the genus-constrained stage: when the best candidate is
+    *already* the genus-level row for exactly the parsed genus, the
+    genus name did match exactly and is reported as such.
+    `"Centroplacus Pierre"` → *Centroplacus* at 1.00, with *Centroplacus
+    glaucinus* 0.42 still listed below it
+  - **It cannot displace a species.** An earlier attempt looked the bare
+    genus up inside the exact stage instead, which fixed Centroplacus
+    but regressed `"Garcinia Kolla"` from *Garcinia kola* at 0.77 to the
+    genus at 1.00 — a species suggestion vanishing behind a genus, the
+    more useful answer lost to the rarer input. Promoting only what
+    already ranks first has no such failure mode
+  - `"Diospyros Hiern"` is deliberately unchanged: *D. hirta* still
+    outranks the genus row, so nothing is promoted and it goes to review
+    at 0.62, which is where a name that ambiguous belongs
+
+- **Taxa matched to a synonym showed no traits in the enrichment step**
+  (`R/mod_traits_enrichment.R`) —
+  `"Dictyandra arborescens Welw. ex Hook.f."`, corrected to *Leptactina
+  arborescens*, came back empty from `taxa_traits_wide` while
+  [`query_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa.md)
+  on either name returned plenty. Two independent causes, either of
+  which was enough on its own
+
+  - **The fetch asked for the matched id alone.** Trait measurements are
+    keyed by the taxon they were recorded on, which may be any member of
+    a synonym group — usually the accepted one.
+    [`query_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa.md)
+    widens the id set *before* fetching, through
+    [`.resolve_synonyms()`](https://umr-amap.github.io/cafriplotsR/reference/dot-resolve_synonyms.md);
+    `include_synonyms = TRUE` does not do this on its own, because
+    inside
+    [`query_taxa_traits()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa_traits.md)
+    the fetch runs first on the ids given verbatim and
+    [`resolve_taxon_synonyms()`](https://umr-amap.github.io/cafriplotsR/reference/resolve_taxon_synonyms.md)
+    runs after, which regroups what came back but can no longer widen
+    the search
+  - **The join then used the wrong key.**
+    [`query_taxa_traits()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa_traits.md)
+    rewrites `idtax` to the accepted id, so measurements always come
+    back keyed by the accepted taxon; joining them on `idtax_n` dropped
+    every synonym even when the measurement really had been recorded on
+    it
+  - [`.trait_group_idtax()`](https://umr-amap.github.io/cafriplotsR/reference/dot-trait_group_idtax.md)
+    builds the id set from `idtax_n` *and* `idtax_good_n` and expands it
+    to the full synonym group, degrading to that pair if the taxa
+    database is unreachable rather than failing.
+    [`.with_accepted_idtax()`](https://umr-amap.github.io/cafriplotsR/reference/dot-with_accepted_idtax.md)
+    adds `idtax_resolved`, the key the measurements actually carry,
+    using the same rule as
+    [`resolve_taxon_synonyms()`](https://umr-amap.github.io/cafriplotsR/reference/resolve_taxon_synonyms.md)
+    — not the `> 1` guard of
+    [`.resolve_synonyms()`](https://umr-amap.github.io/cafriplotsR/reference/dot-resolve_synonyms.md),
+    since it is the former that drives the relabelling. All four joins,
+    wide and long, key on it
+  - In the long table, where several inputs resolve to one taxon, the
+    matched names are now listed together rather than one picked
+    arbitrarily: a measurement belongs to the group, not to one of its
+    names
+  - `R/mod_taxa_traits_table.R` has the same fetch-side gap and is left
+    alone — a different app, where showing only the selected taxon’s own
+    measurements may well be what is wanted
+
+- **The Start Matching button never appeared unless all three taxonomic
+  columns were chosen** (`R/mod_column_select.R`) — with genus and
+  species picked and family left at *(none)*, the button stayed hidden.
+  `req()` treats `""` as missing, so requiring the three selectors
+  blocked the ordinary case. Only the existence of the inputs is
+  required now; the emptiness check below already covers what must
+  actually block
+
+- **[`check_hierarchy_consistency()`](https://umr-amap.github.io/cafriplotsR/reference/check_hierarchy_consistency.md)
+  accepted a connection that could not answer it**
+  (`R/hierarchy_consistency.R`) — `table_taxa.id_parent` was added to
+  the **taxa** database by `inst/migrations/taxa_hierarchy.R`. The main
+  database carries its own `table_taxa` without that column, so a
+  [`call.mydb()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.md)
+  connection reached a table of the right name and the wrong shape: the
+  function printed its heading, ran one check, and failed on
+  `column child.id_parent does not exist`
+
+  - [`.require_taxa_hierarchy()`](https://umr-amap.github.io/cafriplotsR/reference/dot-require_taxa_hierarchy.md)
+    now runs first in
+    [`check_hierarchy_consistency()`](https://umr-amap.github.io/cafriplotsR/reference/check_hierarchy_consistency.md)
+    and
+    [`update_taxon_parent()`](https://umr-amap.github.io/cafriplotsR/reference/update_taxon_parent.md).
+    One `dbListFields()`, and it separates the two cases it cannot tell
+    apart — no `table_taxa` at all means the wrong database and says to
+    use
+    [`call.mydb.taxa()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.taxa.md);
+    a `table_taxa` without `id_parent` names both the main-database copy
+    and the possibility that the migration has not been applied to this
+    one
+  - The documented default was always
+    [`call.mydb.taxa()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.taxa.md).
+    What was missing was any refusal when a caller passed something else
+
+- **The Query Plots app tore the server down when any one visitor left**
+  (`R/shiny_app_query_plots.R`) — its `onSessionEnded` handler called
+  [`cleanup_connections()`](https://umr-amap.github.io/cafriplotsR/reference/cleanup_connections.md)
+  and `stopApp()` unconditionally. That is correct for a local
+  [`launch_query_plots_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_query_plots_app.md)
+  session, where closing the tab should free the connection and return
+  the console, and fatal once hosted: shiny-server runs a single R
+  process for every visitor, so the first closed tab ended everyone
+  else’s session and dropped their pool
+
+  - Now guarded by
+    [`.is_served()`](https://umr-amap.github.io/cafriplotsR/reference/dot-is_served.md),
+    exactly as `shiny_app_taxonomic_match()` has been. Under a hosted
+    server the handler returns early and the process survives; locally
+    nothing changes
+  - Found while preparing the SSP Cloud deployment (see
+    *Infrastructure*), not in use — the app has only ever run locally,
+    where the behaviour was right
 
 - **An unmatched collector made
   [`query_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/query_specimens.md)
@@ -1474,6 +2570,31 @@
 
 #### Infrastructure
 
+- **The Query Plots app can be deployed on SSP Cloud**
+  (`deployment/query_plots/`, `inst/app/query_plots/app.R`,
+  `.github/workflows/docker-query-plots.yml`) — a second hosted app
+  alongside the taxonomic matcher, published at
+  `cafri-queryplots.lab.sspcloud.fr`. The scaffold mirrors
+  `deployment/taxonomic_match/` deliberately, so there is one deployment
+  procedure to know rather than two: a shiny-server entry point
+  returning the app object, a `rocker/shiny` Dockerfile installing only
+  hard dependencies, a Helm chart wrapping InseeFrLab’s generic `shiny`
+  chart, and a CI job pushing `ghcr.io/umr-amap/cafri-queryplots` to the
+  GitHub Container Registry
+  - Both releases share one `cafri-public-credential` Secret and one
+    namespace; the probe-patch hook is templated on the release name, so
+    nothing collides. `deployment/query_plots/README.md` records only
+    what differs from the taxonomic-match deployment
+  - The image adds the `zip` system package, which the taxonomic-match
+    image does not need — `mod_results_display` shells out to
+    [`utils::zip()`](https://rdrr.io/r/utils/zip.html) for the CSV and
+    shapefile downloads, and without the binary both buttons fail at
+    runtime rather than at build time
+  - **Read the security note in that README before making the hostname
+    public.** `*.lab.sspcloud.fr` is world-reachable, so the read-only
+    public login becomes world-usable, and this app hands out bulk
+    inventory exports where the taxonomic matcher hands out names. What
+    that exposes is whatever `CafriP_public` is granted in PostgreSQL
 - **The public account’s password is no longer shipped in the package**
   (`R/public_credential.R`, `R/mod_database_login.R`) —
   `CafriP_public`’s credential was a literal at

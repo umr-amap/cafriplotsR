@@ -1,0 +1,54 @@
+# Look a scientific name up in every backbone at once
+
+Runs \[search_backbone_names()\] against every backbone the database
+registers and stacks the results. A name being added to the database
+exists in several backbones more often than not, and its identifier is
+worth recording in each of them, so the search is not a choice between
+backbones.
+
+Backbones that are registered but not yet a source of names are searched
+too, and flagged by `is_name_source`: an identifier is worth recording
+before the backbone starts supplying names.
+
+## Usage
+
+``` r
+search_all_backbones(name, con_taxa = NULL, backbones = NULL)
+```
+
+## Arguments
+
+- name:
+
+  Character. Name to look up, e.g. `"Gilbertiodendron dewevrei"`.
+
+- con_taxa:
+
+  Connection or pool to the taxa database. If `NULL`, calls
+  [`call.mydb.taxa()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.taxa.md).
+
+- backbones:
+
+  Character vector of backbone codes to restrict the search to. `NULL`
+  (the default) searches all of them.
+
+## Value
+
+A tibble with one row per hit: `backbone` (code), `backbone_name` (the
+backbone's full name), `is_name_source`, the canonical name columns
+returned by \[search_backbone_names()\], and `match_type`. Rows are
+grouped by backbone, exact matches first. Zero rows when nothing matches
+anywhere.
+
+## See also
+
+\[search_backbone_names()\] for a single backbone,
+\[get_taxon_backbone_links()\] for the links a taxon already has.
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+search_all_backbones("Gilbertiodendron dewevrei")
+} # }
+```

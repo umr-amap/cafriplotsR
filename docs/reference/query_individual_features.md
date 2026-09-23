@@ -16,7 +16,7 @@ query_individual_features(
   include_individuals = FALSE,
   census_strategy = c("last", "first", "mean"),
   con = NULL,
-  backbone = c("internal", "wcvp")
+  backbone = "internal"
 )
 ```
 
@@ -71,9 +71,11 @@ query_individual_features(
 
 - backbone:
 
-  Character. Which taxonomic backbone to use for synonym resolution when
-  fetching linked individuals. `"internal"` (default) uses the internal
-  `table_taxa`. `"wcvp"` uses WCVP via `wcvp_idtax_link`.
+  Character. Backbone used for synonym resolution when fetching linked
+  individuals: `"internal"` (default) for `table_taxa`, or the code of a
+  backbone registered in the taxa database (see
+  [`list_backbones()`](https://umr-amap.github.io/cafriplotsR/reference/list_backbones.md)),
+  such as `"wcvp"`.
 
 ## Value
 

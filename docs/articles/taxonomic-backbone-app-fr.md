@@ -17,7 +17,8 @@ application vous permet de :
   niveaux (famille, genre, espèce, etc.)
 - **Visualiser la hiérarchie taxonomique**
 - **Ajouter de nouveaux taxons** soit manuellement, soit en récupérant
-  les informations depuis la base de données TROPICOS
+  les informations depuis la base de données TROPICOS ou depuis un
+  référentiel taxonomique (WCVP, APD, …)
 - **Modifier des taxons existants** avec mises à jour en cascade pour
   maintenir la cohérence dans la hiérarchie
 - **Gérer la synonymie** incluant la définition, l’inversion et
@@ -101,6 +102,13 @@ requêtes plus précises.
 - Cliquez sur une ligne pour sélectionner et voir les détails
 - Le taxon sélectionné apparaît dans tous les autres onglets pour
   édition/visualisation
+- **Liens vers les référentiels** : chaque référentiel externe
+  enregistré dans la base (WCVP, African Plant Database, …) est listé
+  pour le taxon sélectionné, avec le nom visé et l’indication du lien
+  qui fournit effectivement le nom du taxon. Un lien issu d’une
+  correspondance approximative, ou dont les auteurs divergent, est
+  signalé *en attente de vérification* et ne fournit aucun nom tant
+  qu’il n’a pas été accepté
 
 ### 2. Vue Hiérarchique
 
@@ -130,9 +138,34 @@ Trouve le taxon parent approprié - Le crée s’il manque (ex : crée
 l’entrée genre lors de l’ajout d’une espèce) - Lie via id_parent -
 Valide la hiérarchie
 
-La nouvelle entrée peut être remplie à partir d’une correspondance dans
-TROPICOS. Si aucune correspondance n’est trouvée, la nouvelle entrée
-peut être remplie manuellement.
+Le nom est recherché **simultanément dans tous les référentiels
+enregistrés dans la base** - WCVP, African Plant Database, et tout
+autre - ainsi que dans TROPICOS si une clé API Tropicos est disponible.
+Un nom existe le plus souvent dans plusieurs référentiels, et son
+identifiant mérite d’être conservé dans chacun d’eux : la recherche
+n’est donc pas un choix entre référentiels. Si aucune correspondance
+n’est trouvée nulle part, la nouvelle entrée peut être remplie
+manuellement.
+
+La recherche fait trois choses de plus que remplir le formulaire :
+
+- Chaque référentiel dont la correspondance est **non ambiguë** - une
+  correspondance exacte avec le nom recherché, et la seule dans ce
+  référentiel - est sélectionné automatiquement. Les étapes 1 et 4
+  listent précisément les identifiants qui seront liés, et *Effacer tous
+  les liens vers les référentiels* les supprime.
+- **Utiliser le résultat du référentiel** remplit le formulaire à partir
+  de la ligne sélectionnée *et* enregistre le lien de ce référentiel ;
+  **Valider uniquement la correspondance** laisse le formulaire inchangé
+  et n’enregistre que le lien. Les deux remplacent ce qui avait été
+  sélectionné automatiquement pour ce même référentiel, et laissent les
+  autres inchangés. Les liens sont enregistrés après la création du
+  taxon, marqués comme vérifiés, puisqu’une personne les a choisis.
+- Si d’autres taxons du référentiel interne pointent déjà vers le même
+  nom accepté dans l’un des référentiels sélectionnés, ils sont listés
+  une seule fois chacun, avec l’indication de chaque référentiel qui les
+  suggère, et l’étape 5 propose de les définir comme synonymes de la
+  nouvelle entrée.
 
 **Ajout de Morpho-taxons :**
 

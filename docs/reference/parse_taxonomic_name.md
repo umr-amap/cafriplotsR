@@ -20,8 +20,9 @@ parse_taxonomic_name(name)
 A list with components: - rank: Detected rank ("family", "order",
 "genus", "species", or "unknown") - genus: Genus name (first word, or NA
 if family/order detected) - species: Species epithet (second word if
-present) - infraspecific: Full infraspecific part (everything after
-species) - full_name_no_auth: Genus + species + infraspecific without
+present) - infraspecific: Infraspecific ranks and epithets, authorship
+excluded - authors: The authorship string, or NA when the name carries
+none - full_name_no_auth: Genus + species + infraspecific, without
 authors - input_name: Original input
 
 ## Author
@@ -44,6 +45,9 @@ parse_taxonomic_name("Gilbertiodendron dewevrei")
 #> $infraspecific
 #> [1] NA
 #> 
+#> $authors
+#> [1] NA
+#> 
 #> $full_name_no_auth
 #> [1] "Gilbertiodendron dewevrei"
 #> 
@@ -62,6 +66,9 @@ parse_taxonomic_name("Anthonotha macrophylla var. oblongifolia")
 #> 
 #> $infraspecific
 #> [1] "var. oblongifolia"
+#> 
+#> $authors
+#> [1] NA
 #> 
 #> $full_name_no_auth
 #> [1] "Anthonotha macrophylla var. oblongifolia"
@@ -82,10 +89,15 @@ parse_taxonomic_name("Brachystegia")
 #> $infraspecific
 #> [1] NA
 #> 
+#> $authors
+#> [1] NA
+#> 
 #> $full_name_no_auth
 #> [1] "Brachystegia"
 #> 
 #> $input_name
 #> [1] "Brachystegia"
 #> 
+parse_taxonomic_name("Garcinia kola Heckel")$authors
+#> [1] "Heckel"
 ```

@@ -12,7 +12,6 @@ launch_taxonomic_match_app(
   data = NULL,
   name_column = NULL,
   language = c("fr", "en"),
-  min_similarity = 0.7,
   max_suggestions = 10,
   mode = c("interactive", "batch"),
   launch.browser = TRUE
@@ -35,11 +34,6 @@ launch_taxonomic_match_app(
 
   Character, initial interface language. Options: - "fr" (French,
   default) - "en" (English)
-
-- min_similarity:
-
-  Numeric between 0 and 1, minimum similarity threshold for fuzzy
-  matching. Lower values are more permissive. Default: 0.3
 
 - max_suggestions:
 
@@ -65,14 +59,17 @@ Invisibly returns NULL. The app runs until user closes it.
 \## Workflow
 
 1\. \*\*Database Connection\*\*: Login with database credentials (within
-the app) 2. \*\*Data Input\*\*: Upload Excel file or provide R
-data.frame 3. \*\*Column Selection\*\*: Choose column containing
-taxonomic names 4. \*\*Auto Matching\*\*: Automatic matching using
-hierarchical strategy: - Exact match on full name - Genus-constrained
-fuzzy match (searches species within matched genera) - Full database
-fuzzy match (last resort) 5. \*\*Review\*\* (Phase 4): Manually review
-unmatched names with suggestions 6. \*\*Export\*\*: Download results in
-Excel, CSV, or RDS format
+the app) 2. \*\*Data Input\*\*: Upload an Excel or CSV file, paste
+names, or provide an R data.frame 3. \*\*Column Selection\*\*: Choose
+column containing taxonomic names 4. \*\*Auto Matching\*\*: Automatic
+matching using hierarchical strategy: - Exact match on full name -
+Genus-constrained fuzzy match (searches species within matched genera) -
+Full database fuzzy match (last resort)
+
+The similarity threshold is set on the Auto Match tab itself, as a
+percentage, and can be changed between runs. 5. \*\*Review\*\* (Phase
+4): Manually review unmatched names with suggestions 6. \*\*Export\*\*:
+Download results in Excel, CSV, or RDS format
 
 \## Match Quality
 
@@ -117,9 +114,6 @@ launch_taxonomic_match_app(
 
 # Launch in French
 launch_taxonomic_match_app(language = "fr")
-
-# More strict fuzzy matching
-launch_taxonomic_match_app(min_similarity = 0.7)
 
 # Show more suggestions per name
 launch_taxonomic_match_app(max_suggestions = 20)

@@ -5,7 +5,14 @@ Results Export Module - Server
 ## Usage
 
 ``` r
-mod_results_export_server(id, results, original_data, i18n)
+mod_results_export_server(
+  id,
+  results,
+  original_data,
+  i18n,
+  name_backbone = NULL,
+  language = NULL
+)
 ```
 
 ## Arguments

@@ -55,7 +55,6 @@ and export functionality.</p>
 <span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  name_column <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  language <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fr"</span>, <span class="st">"en"</span><span class="op">)</span>,</span>
-<span>  min_similarity <span class="op">=</span> <span class="fl">0.7</span>,</span>
 <span>  max_suggestions <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>  mode <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"interactive"</span>, <span class="st">"batch"</span><span class="op">)</span>,</span>
 <span>  launch.browser <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -82,11 +81,6 @@ containing taxonomic names. If NULL, user will select interactively.</p></dd>
 - "en" (English)</p></dd>
 
 
-<dt id="arg-min-similarity">min_similarity<a class="anchor" aria-label="anchor" href="#arg-min-similarity"></a></dt>
-<dd><p>Numeric between 0 and 1, minimum similarity threshold
-for fuzzy matching. Lower values are more permissive. Default: 0.3</p></dd>
-
-
 <dt id="arg-max-suggestions">max_suggestions<a class="anchor" aria-label="anchor" href="#arg-max-suggestions"></a></dt>
 <dd><p>Integer, maximum number of fuzzy match suggestions
 to show per unmatched name. Default: 10</p></dd>
@@ -111,12 +105,14 @@ Default: TRUE</p></dd>
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>## Workflow</p>
 <p>1. **Database Connection**: Login with database credentials (within the app)
-2. **Data Input**: Upload Excel file or provide R data.frame
+2. **Data Input**: Upload an Excel or CSV file, paste names, or provide an R data.frame
 3. **Column Selection**: Choose column containing taxonomic names
 4. **Auto Matching**: Automatic matching using hierarchical strategy:
    - Exact match on full name
    - Genus-constrained fuzzy match (searches species within matched genera)
-   - Full database fuzzy match (last resort)
+   - Full database fuzzy match (last resort)</p>
+<p>The similarity threshold is set on the Auto Match tab itself, as a
+   percentage, and can be changed between runs.
 5. **Review** (Phase 4): Manually review unmatched names with suggestions
 6. **Export**: Download results in Excel, CSV, or RDS format</p>
 <p>## Match Quality</p>
@@ -161,9 +157,6 @@ Default: TRUE</p></dd>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Launch in French</span></span></span>
 <span class="r-in"><span><span class="fu">launch_taxonomic_match_app</span><span class="op">(</span>language <span class="op">=</span> <span class="st">"fr"</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># More strict fuzzy matching</span></span></span>
-<span class="r-in"><span><span class="fu">launch_taxonomic_match_app</span><span class="op">(</span>min_similarity <span class="op">=</span> <span class="fl">0.7</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Show more suggestions per name</span></span></span>
 <span class="r-in"><span><span class="fu">launch_taxonomic_match_app</span><span class="op">(</span>max_suggestions <span class="op">=</span> <span class="fl">20</span><span class="op">)</span></span></span>

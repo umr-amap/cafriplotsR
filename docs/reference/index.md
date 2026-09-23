@@ -30,6 +30,12 @@ Connect to and manage PostgreSQL database connections
   : Setup credentials storage in environment variables
 - [`remove_db_credentials()`](https://umr-amap.github.io/cafriplotsR/reference/remove_db_credentials.md)
   : Remove stored credentials
+- [`get_tropicos_key()`](https://umr-amap.github.io/cafriplotsR/reference/get_tropicos_key.md)
+  : Get the Tropicos API key
+- [`setup_tropicos_key()`](https://umr-amap.github.io/cafriplotsR/reference/setup_tropicos_key.md)
+  : Store a Tropicos API key in \`.Renviron\`
+- [`remove_tropicos_key()`](https://umr-amap.github.io/cafriplotsR/reference/remove_tropicos_key.md)
+  : Remove the stored Tropicos API key
 - [`create_db_config()`](https://umr-amap.github.io/cafriplotsR/reference/create_db_config.md)
   : Create local DB config file
 - [`func_try_fetch()`](https://umr-amap.github.io/cafriplotsR/reference/func_try_fetch.md)
@@ -139,10 +145,44 @@ Configure custom output styles for query results
 - [`print(`*`<plot_output_style>`*`)`](https://umr-amap.github.io/cafriplotsR/reference/print.plot_output_style.md)
   : Print an output style configuration
 
+## Taxonomic Backbones
+
+External taxonomic backbones (WCVP, APD, …): available backbones, names,
+matching and links
+
+- [`list_backbones()`](https://umr-amap.github.io/cafriplotsR/reference/list_backbones.md)
+  : List the taxonomic backbones available in the taxa database
+- [`get_backbone_names()`](https://umr-amap.github.io/cafriplotsR/reference/get_backbone_names.md)
+  : Get a backbone's names for internal taxa
+- [`get_taxon_backbone_links()`](https://umr-amap.github.io/cafriplotsR/reference/get_taxon_backbone_links.md)
+  : Every backbone link of a few taxa, preferred or not
+- [`search_backbone_names()`](https://umr-amap.github.io/cafriplotsR/reference/search_backbone_names.md)
+  : Look a scientific name up in one backbone
+- [`search_all_backbones()`](https://umr-amap.github.io/cafriplotsR/reference/search_all_backbones.md)
+  : Look a scientific name up in every backbone at once
+- [`match_taxa_to_backbone()`](https://umr-amap.github.io/cafriplotsR/reference/match_taxa_to_backbone.md)
+  : Match internal taxa to a backbone's names
+- [`review_backbone_matches()`](https://umr-amap.github.io/cafriplotsR/reference/review_backbone_matches.md)
+  : Review uncertain backbone matches
+- [`save_backbone_links()`](https://umr-amap.github.io/cafriplotsR/reference/save_backbone_links.md)
+  : Save links between internal taxa and a backbone
+- [`replace_backbone_links()`](https://umr-amap.github.io/cafriplotsR/reference/replace_backbone_links.md)
+  : Rebuild a backbone's links from a new matching run
+- [`get_backbone_status()`](https://umr-amap.github.io/cafriplotsR/reference/get_backbone_status.md)
+  : Get a backbone's import status
+- [`backbone_citation()`](https://umr-amap.github.io/cafriplotsR/reference/backbone_citation.md)
+  : How to cite a taxonomic backbone
+- [`backbone_reference()`](https://umr-amap.github.io/cafriplotsR/reference/backbone_reference.md)
+  : What to cite for a taxonomic backbone, as a table
+- [`check_backbone_links()`](https://umr-amap.github.io/cafriplotsR/reference/check_backbone_links.md)
+  : Check the links between internal taxa and a backbone
+- [`import_apd_names()`](https://umr-amap.github.io/cafriplotsR/reference/import_apd_names.md)
+  : Import an African Plant Database export
+
 ## WCVP Integration
 
-Functions for integrating with the World Checklist of Vascular Plants
-(WCVP)
+Importing the World Checklist of Vascular Plants (WCVP), and the WCVP
+functions kept from before other backbones existed
 
 - [`check_wcvp_update()`](https://umr-amap.github.io/cafriplotsR/reference/check_wcvp_update.md)
   : Check if WCVP Update is Available
@@ -232,6 +272,8 @@ Update existing records and safely delete data with cascade handling
   : Update fields of an existing citation
 - [`apply_citation_backfill()`](https://umr-amap.github.io/cafriplotsR/reference/apply_citation_backfill.md)
   : Apply citation backfill from a manually filled data frame
+- [`apply_plot_citation_backfill()`](https://umr-amap.github.io/cafriplotsR/reference/apply_plot_citation_backfill.md)
+  : Apply plot citation backfill from a manually filled data frame
 - [`update_specimen_fields()`](https://umr-amap.github.io/cafriplotsR/reference/update_specimen_fields.md)
   : Update non-identification fields of a single specimen
 - [`safe_delete_individuals()`](https://umr-amap.github.io/cafriplotsR/reference/safe_delete_individuals.md)
@@ -350,6 +392,8 @@ Process, validate, transform, and aggregate inventory and trait data
   : Enrich individuals with all traits
 - [`build_data_sources_table()`](https://umr-amap.github.io/cafriplotsR/reference/build_data_sources_table.md)
   : Build a data sources summary table (citations × traits pivot)
+- [`build_plot_data_sources_table()`](https://umr-amap.github.io/cafriplotsR/reference/build_plot_data_sources_table.md)
+  : Build a plot data sources summary table (citations × country pivot)
 - [`export_census_split()`](https://umr-amap.github.io/cafriplotsR/reference/export_census_split.md)
   : Write a census split out for the import wizards
 - [`split_census_table()`](https://umr-amap.github.io/cafriplotsR/reference/split_census_table.md)
@@ -386,6 +430,8 @@ Process, validate, transform, and aggregate inventory and trait data
   : Check the order of subplots in a given data frame
 - [`export_taxa_traits_for_citation_backfill()`](https://umr-amap.github.io/cafriplotsR/reference/export_taxa_traits_for_citation_backfill.md)
   : Export taxa trait measurements for citation backfill
+- [`export_plots_for_citation_backfill()`](https://umr-amap.github.io/cafriplotsR/reference/export_plots_for_citation_backfill.md)
+  : Export plots for citation backfill
 - [`print(`*`<column_documentation>`*`)`](https://umr-amap.github.io/cafriplotsR/reference/print.column_documentation.md)
   : Print method for column_documentation objects
 - [`print(`*`<plot_features_result>`*`)`](https://umr-amap.github.io/cafriplotsR/reference/print.plot_features_result.md)
@@ -708,6 +754,8 @@ User management, database permissions, backup, and migration utilities
   : Check taxa database permissions
 - [`check_hierarchy_consistency()`](https://umr-amap.github.io/cafriplotsR/reference/check_hierarchy_consistency.md)
   : Check Hierarchy Consistency
+- [`check_plot_hierarchy_consistency()`](https://umr-amap.github.io/cafriplotsR/reference/check_plot_hierarchy_consistency.md)
+  : Check plot hierarchy consistency
 - [`check_table_idtax_staleness()`](https://umr-amap.github.io/cafriplotsR/reference/check_table_idtax_staleness.md)
   : Check table_idtax Staleness
 - [`get_table_idtax_metadata()`](https://umr-amap.github.io/cafriplotsR/reference/get_table_idtax_metadata.md)

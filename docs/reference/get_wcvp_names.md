@@ -1,7 +1,8 @@
 # Get WCVP Names for Internal Taxa
 
-Looks up WCVP names for given `idtax_n` values via the link table.
-Optionally resolves WCVP synonyms to their accepted names.
+Superseded by `get_backbone_names(idtax_n, "wcvp")`, which it calls.
+Kept with its original `wcvp_*` column names for existing scripts and
+the Shiny modules.
 
 ## Usage
 
@@ -22,17 +23,21 @@ get_wcvp_names(idtax_n, con_taxa = NULL, resolve_synonyms = TRUE)
 
 - resolve_synonyms:
 
-  Logical. If TRUE and a linked WCVP name is a synonym, follow
-  `accepted_plant_name_id` to the accepted name. Default TRUE.
+  Logical. If TRUE and a linked WCVP name is a synonym, follow its
+  pointer to the accepted name. Default TRUE.
 
 ## Value
 
-A tibble with columns: `idtax_n`, `plant_name_id`, `wcvp_taxon_name`,
-`wcvp_family`, `wcvp_taxon_status`, `wcvp_taxon_authors`, `name_source`.
+A tibble with columns: `idtax_n`, `wcvp_plant_name_id`,
+`wcvp_accepted_plant_name_id`, `wcvp_taxon_name`, `wcvp_family`,
+`wcvp_genus`, `wcvp_species`, `wcvp_taxon_status`, `wcvp_taxon_authors`,
+`name_source`.
 
 ## Details
 
-Taxa not found in the link table get `name_source = "internal"`.
+Only preferred links are used. Taxa without one get
+`name_source = "internal"`, as do all taxa when the WCVP backbone is not
+available.
 
 ## Examples
 

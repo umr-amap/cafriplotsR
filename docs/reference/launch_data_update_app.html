@@ -72,7 +72,8 @@ Default: <code>"fr"</code>.</p></dd>
     <p>The app has two sections:</p>
 <ul><li><p><strong>Plot metadata</strong> - pick a plot, edit the columns stored
         directly in <code>data_liste_plots</code> (including the <code>method</code> and
-        <code>country</code> lookups, offered as dropdowns), and edit its features.</p></li>
+        <code>country</code> lookups, offered as dropdowns), link it to a parent
+        plot, and edit its features.</p></li>
 <li><p><strong>Individual data</strong> - find an individual by plot and tag or by
         <code>id_n</code>, edit the columns of <code>data_individuals</code>, change its
         identification through an embedded taxonomic search, and edit its
@@ -89,6 +90,19 @@ which is why <code><a href="update_records.html">update_records()</a></code> ref
 many records back it, what the extracted table would display, and how that
 display was computed; the editable inputs are the underlying records, each
 labelled with its own id and its census or subplot context.</p>
+<p><strong>Linking a plot to another plot.</strong> A plot section carries a parent
+plot picker: the plot this one sits inside, chosen among the plots already in
+the database, together with the relation that says how
+(<code>nested_subsample</code> - the two overlap on the ground, so their
+measurements must never be added; <code>block_member</code> - this plot tiles part
+of the parent, so summing is correct). The two are written as one statement,
+because <code>chk_plot_parent_relation_paired</code> refuses a row holding either
+one alone, and they are therefore not offered among the flat columns of
+section 3. Plots already below this one are left out of the parent list, so a
+loop cannot be built from the app. The section is hidden entirely on a
+database where <code>inst/migrations/plot_hierarchy.R</code> has not been applied.</p>
+<p>A link is stored on the child, so it is changed by loading the child. The
+section lists the plots sitting inside the loaded one for reference only.</p>
 <p><strong>Why an identification is not just <code>idtax_n</code>.</strong>
 <code><a href="merge_individuals_taxa.html">merge_individuals_taxa()</a></code> resolves the individual's <code>idtax_n</code>
 through <code>table_idtax</code> synonymy into <code>idtax_f</code>, resolves the
@@ -111,6 +125,7 @@ up to their follow-up table where one exists.</p>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="update_records.html">update_records</a></code>,
+  <code><a href="check_plot_hierarchy_consistency.html">check_plot_hierarchy_consistency</a></code>,
   <code><a href="query_plot_features.html">query_plot_features</a></code>,
   <code><a href="query_individual_features.html">query_individual_features</a></code>,
   <code><a href="launch_specimen_identification_app.html">launch_specimen_identification_app</a></code>,

@@ -137,6 +137,27 @@
 
         <dt>
 
+          <code><a href="get_tropicos_key.html">get_tropicos_key()</a></code>
+
+        </dt>
+        <dd>Get the Tropicos API key</dd>
+
+        <dt>
+
+          <code><a href="setup_tropicos_key.html">setup_tropicos_key()</a></code>
+
+        </dt>
+        <dd>Store a Tropicos API key in `.Renviron`</dd>
+
+        <dt>
+
+          <code><a href="remove_tropicos_key.html">remove_tropicos_key()</a></code>
+
+        </dt>
+        <dd>Remove the stored Tropicos API key</dd>
+
+        <dt>
+
           <code><a href="create_db_config.html">create_db_config()</a></code>
 
         </dt>
@@ -484,9 +505,116 @@
         </dt>
         <dd>Print an output style configuration</dd>
       </dl></div><div class="section level2">
+      <h2 id="taxonomic-backbones">Taxonomic Backbones<a class="anchor" aria-label="anchor" href="#taxonomic-backbones"></a></h2>
+
+      <div class="section-desc"><p>External taxonomic backbones (WCVP, APD, …): available backbones, names, matching and links</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="list_backbones.html">list_backbones()</a></code>
+
+        </dt>
+        <dd>List the taxonomic backbones available in the taxa database</dd>
+
+        <dt>
+
+          <code><a href="get_backbone_names.html">get_backbone_names()</a></code>
+
+        </dt>
+        <dd>Get a backbone's names for internal taxa</dd>
+
+        <dt>
+
+          <code><a href="get_taxon_backbone_links.html">get_taxon_backbone_links()</a></code>
+
+        </dt>
+        <dd>Every backbone link of a few taxa, preferred or not</dd>
+
+        <dt>
+
+          <code><a href="search_backbone_names.html">search_backbone_names()</a></code>
+
+        </dt>
+        <dd>Look a scientific name up in one backbone</dd>
+
+        <dt>
+
+          <code><a href="search_all_backbones.html">search_all_backbones()</a></code>
+
+        </dt>
+        <dd>Look a scientific name up in every backbone at once</dd>
+
+        <dt>
+
+          <code><a href="match_taxa_to_backbone.html">match_taxa_to_backbone()</a></code>
+
+        </dt>
+        <dd>Match internal taxa to a backbone's names</dd>
+
+        <dt>
+
+          <code><a href="review_backbone_matches.html">review_backbone_matches()</a></code>
+
+        </dt>
+        <dd>Review uncertain backbone matches</dd>
+
+        <dt>
+
+          <code><a href="save_backbone_links.html">save_backbone_links()</a></code>
+
+        </dt>
+        <dd>Save links between internal taxa and a backbone</dd>
+
+        <dt>
+
+          <code><a href="replace_backbone_links.html">replace_backbone_links()</a></code>
+
+        </dt>
+        <dd>Rebuild a backbone's links from a new matching run</dd>
+
+        <dt>
+
+          <code><a href="get_backbone_status.html">get_backbone_status()</a></code>
+
+        </dt>
+        <dd>Get a backbone's import status</dd>
+
+        <dt>
+
+          <code><a href="backbone_citation.html">backbone_citation()</a></code>
+
+        </dt>
+        <dd>How to cite a taxonomic backbone</dd>
+
+        <dt>
+
+          <code><a href="backbone_reference.html">backbone_reference()</a></code>
+
+        </dt>
+        <dd>What to cite for a taxonomic backbone, as a table</dd>
+
+        <dt>
+
+          <code><a href="check_backbone_links.html">check_backbone_links()</a></code>
+
+        </dt>
+        <dd>Check the links between internal taxa and a backbone</dd>
+
+        <dt>
+
+          <code><a href="import_apd_names.html">import_apd_names()</a></code>
+
+        </dt>
+        <dd>Import an African Plant Database export</dd>
+      </dl></div><div class="section level2">
       <h2 id="wcvp-integration">WCVP Integration<a class="anchor" aria-label="anchor" href="#wcvp-integration"></a></h2>
 
-      <div class="section-desc"><p>Functions for integrating with the World Checklist of Vascular Plants (WCVP)</p></div>
+      <div class="section-desc"><p>Importing the World Checklist of Vascular Plants (WCVP), and the WCVP functions kept from before other backbones existed</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -783,6 +911,13 @@
 
         </dt>
         <dd>Apply citation backfill from a manually filled data frame</dd>
+
+        <dt>
+
+          <code><a href="apply_plot_citation_backfill.html">apply_plot_citation_backfill()</a></code>
+
+        </dt>
+        <dd>Apply plot citation backfill from a manually filled data frame</dd>
 
         <dt>
 
@@ -1182,6 +1317,13 @@
 
         <dt>
 
+          <code><a href="build_plot_data_sources_table.html">build_plot_data_sources_table()</a></code>
+
+        </dt>
+        <dd>Build a plot data sources summary table (citations × country pivot)</dd>
+
+        <dt>
+
           <code><a href="export_census_split.html">export_census_split()</a></code>
 
         </dt>
@@ -1298,6 +1440,13 @@
 
         </dt>
         <dd>Export taxa trait measurements for citation backfill</dd>
+
+        <dt>
+
+          <code><a href="export_plots_for_citation_backfill.html">export_plots_for_citation_backfill()</a></code>
+
+        </dt>
+        <dd>Export plots for citation backfill</dd>
 
         <dt>
 
@@ -2367,6 +2516,13 @@
 
         </dt>
         <dd>Check Hierarchy Consistency</dd>
+
+        <dt>
+
+          <code><a href="check_plot_hierarchy_consistency.html">check_plot_hierarchy_consistency()</a></code>
+
+        </dt>
+        <dd>Check plot hierarchy consistency</dd>
 
         <dt>
 

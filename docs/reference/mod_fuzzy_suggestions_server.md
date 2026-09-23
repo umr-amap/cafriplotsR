@@ -12,7 +12,8 @@ mod_fuzzy_suggestions_server(
   min_similarity = shiny::reactive(0.3),
   include_authors = shiny::reactive(FALSE),
   i18n,
-  backbone = shiny::reactive(NULL)
+  backbone = shiny::reactive(NULL),
+  matching_backbone = backbone
 )
 ```
 
@@ -47,6 +48,13 @@ mod_fuzzy_suggestions_server(
   Reactive returning the cached backbone tibble (or NULL). When
   non-NULL, all per-level searches run R-side without DB access —
   required for offline mode.
+
+- matching_backbone:
+
+  Reactive returning a backbone already passed through
+  \`.prepare_backbone_for_matching()\`, or NULL. Used for the
+  \`match_taxonomic_names()\` calls so the name index is not rebuilt for
+  every name. Falls back to \`backbone\`.
 
 ## Value
 

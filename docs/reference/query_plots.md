@@ -31,6 +31,7 @@ query_plots(
   wd_fam_level = FALSE,
   include_liana = FALSE,
   extract_subplot_features = TRUE,
+  extract_plot_links = FALSE,
   concatenate_stem = FALSE,
   issues = c("remove", "include", "ignore"),
   include_measurement_ids = FALSE,
@@ -38,7 +39,7 @@ query_plots(
   census_strategy = c("last", "first", "mean"),
   individual_features_format = c("wide", "long", "census_pairs"),
   output_style = "auto",
-  backbone = c("internal", "wcvp"),
+  backbone = "internal",
   con = NULL,
   con.taxa = NULL,
   verbose = NULL
@@ -154,6 +155,26 @@ query_plots(
 
   Logical. Whether to extract subplot features. Optional.
 
+- extract_plot_links:
+
+  Logical. Whether to report the plots linked to the queried ones
+  through `data_liste_plots.id_parent_plot` - the parent a plot sits in,
+  and the plots sitting in it. When `TRUE` the metadata table gains
+  `parent_plot_name`, `parent_relation` and `n_child_plots` (kept
+  whatever the `output_style`), and the result gains a `plot_links`
+  table with one row per link: `plot_id`, `plot_name`, `role`
+  (`"parent"` or `"child"`), `linked_plot_id`, `linked_plot_name`,
+  `parent_relation`, and `linked_in_query` - whether the linked plot is
+  itself in the result. Feed `linked_plot_id` back to `id_plot` to
+  extract the linked plots themselves. Ignored, with a message, on a
+  database where `inst/migrations/plot_hierarchy.R` has not been
+  applied. Default `FALSE`.
+
+  Independently of this argument, a warning is raised whenever the
+  result holds both a plot and a plot linked to it: under either
+  relation the two overlap on the ground, so a total taken across them
+  counts the same stems twice, and nothing in the numbers reveals it.
+
 - concatenate_stem:
 
   Logical. Whether to concatenate multiple stems. Optional.
@@ -267,9 +288,14 @@ query_plots(
 A list or data frame containing plot data and associated information.
 When multiple components are requested, returns a list with elements
 like \`extract\`, \`census_features\`, \`coordinates\`, and
-\`coordinates_sf\`. If only one component is available, returns that
-component directly. Returns \`NA\` if no plots are found matching the
-criteria.
+\`coordinates_sf\`. When any queried plot has \`id_citation\` set (see
+\`data_liste_plots.id_citation\` / \`table_citations\`), also includes
+\`plot_sources\`: a citations x country pivot built by
+\[build_plot_data_sources_table()\], the plot-level counterpart of the
+\`data_sources\` element added when \`extract_individuals = TRUE\` and
+\`extract_traits = TRUE\` resolve taxon-level trait citations. If only
+one component is available, returns that component directly. Returns
+\`NA\` if no plots are found matching the criteria.
 
 ## Examples
 

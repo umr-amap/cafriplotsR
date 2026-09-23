@@ -29,4 +29,6 @@ mod_column_select_server(id, data, initial_column = NULL, i18n)
 ## Value
 
 Reactive list with \$column (selected column name), \$include_authors
-(logical), and \$data (potentially modified data)
+(logical), \$data (potentially modified data), \$mode ("single" or
+"multiple") and, in multiple mode, \$genus_column / \$species_column /
+\$family_column

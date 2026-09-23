@@ -82,8 +82,9 @@ taxonomic backbone database. This application allows you to:</p>
 (family, genus, species, etc.)</li>
 <li><strong>Visualize taxonomic hierarchy</strong></li>
 <li>
-<strong>Add new taxa</strong> either manually or by retrieving
-information from TROPICOS database</li>
+<strong>Add new taxa</strong> either manually, or by retrieving
+information from the TROPICOS database or from a taxonomic backbone
+(WCVP, APD, …)</li>
 <li>
 <strong>Modify existing taxa</strong> with cascade updates to
 maintain consistency in the hierarchy</li>
@@ -161,6 +162,13 @@ precise queries.</p>
 <li>Results show taxonomic level, scientific name, synonymy status</li>
 <li>Click a row to select and view details</li>
 <li>Selected taxon appears in all other tabs for editing/viewing</li>
+<li>
+<strong>Backbone links</strong>: every external backbone registered
+in the database (WCVP, the African Plant Database, …) is listed for the
+selected taxon, with the name it points at and whether that link is the
+one supplying the taxon’s name. A link whose match was fuzzy, or whose
+authors disagreed, is shown as <em>awaiting review</em> and supplies no
+name until someone accepts it</li>
 </ul>
 </div>
 </div>
@@ -189,8 +197,32 @@ infraspecific) 3. The app <strong>automatically</strong>: - Finds the
 appropriate parent taxon - Creates it if missing (e.g., creates genus
 entry when adding a species) - Links via id_parent - Validates the
 hierarchy</p>
-<p>The new entry can be filled based on a match in TROPICOS. If no match
-is found, the new entry can be filled manually.</p>
+<p>The name is searched in <strong>every backbone the database registers
+at once</strong> - WCVP, the African Plant Database, and any other - and
+in TROPICOS when a Tropicos API key is available. A name usually exists
+in several backbones, and its identifier is worth keeping in each of
+them, so the search is not a choice between backbones. If no match is
+found anywhere, the new entry can be filled manually.</p>
+<p>Searching does three things beyond filling the form:</p>
+<ul>
+<li>Every backbone whose match is <strong>unambiguous</strong> - an
+exact match on the name searched for, and the only one in that backbone
+- is selected automatically. Step 1 and step 4 list exactly which
+identifiers will be linked, and <em>Clear all backbone links</em> drops
+them.</li>
+<li>
+<strong>Use backbone result</strong> fills the form from the
+selected row <em>and</em> records that row’s backbone link;
+<strong>Validate backbone match only</strong> keeps the form as it is
+and records the link alone. Either overrides what was selected
+automatically for that same backbone, and leaves the other backbones
+untouched. Links are saved once the taxon is created, marked verified,
+since a person chose them.</li>
+<li>If other taxa of the internal backbone already point at the same
+accepted name in any of the selected backbones, they are listed once
+each, with the evidence of every backbone that suggested them, and step
+5 offers to set them as synonyms of the new entry.</li>
+</ul>
 <p><strong>Adding Morpho-taxa:</strong></p>
 <p>It is possible to add a morpho-taxon (provisional taxonomic name).
 This may be needed in several situations:</p>

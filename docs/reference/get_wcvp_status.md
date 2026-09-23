@@ -1,6 +1,7 @@
 # Get WCVP Import Status
 
 Returns information about the current WCVP import in the database.
+Superseded by `get_backbone_status("wcvp")`, which it calls.
 
 ## Usage
 
@@ -18,7 +19,7 @@ get_wcvp_status(con_taxa = NULL)
 ## Value
 
 A list with: `version`, `import_date`, `record_count`, `link_count`,
-`imported_by`. Returns NULL if no import found.
+`imported_by`, `r_package_version`. Returns NULL if no import found.
 
 ## Examples
 

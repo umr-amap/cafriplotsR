@@ -36,7 +36,9 @@ match_taxonomic_names(
 - method:
 
   Matching method: "auto" (default), "exact", "genus_constrained",
-  "fuzzy"
+  "fuzzy". "hierarchical" is an alias of "auto" kept for readability at
+  call sites that want the cascade named explicitly - the two are
+  strictly equivalent at every dispatch point.
 
 - max_matches:
 

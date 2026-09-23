@@ -42,7 +42,13 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">mod_citation_panel_server</span><span class="op">(</span><span class="va">id</span>, <span class="va">citation_data</span>, <span class="va">i18n</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">mod_citation_panel_server</span><span class="op">(</span></span>
+<span>  <span class="va">id</span>,</span>
+<span>  <span class="va">citation_data</span>,</span>
+<span>  <span class="va">i18n</span>,</span>
+<span>  count_col <span class="op">=</span> <span class="st">"n_taxa"</span>,</span>
+<span>  context <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"traits"</span>, <span class="st">"plots"</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -54,16 +60,32 @@
 
 
 <dt id="arg-citation-data">citation_data<a class="anchor" aria-label="anchor" href="#arg-citation-data"></a></dt>
-<dd><p>Reactive returning a citations x traits pivot table from
-<code><a href="build_data_sources_table.html">build_data_sources_table()</a></code> with columns: <code>citation_key</code>,
-optionally <code>citation_authors</code>, <code>citation_year</code>,
-<code>citation_title</code>, <code>citation_dataset_name</code>, <code>n_taxa</code>, and
-one column per trait containing measurement counts. Returns NULL when no
+<dd><p>Reactive returning a citations x traits (or, for
+plots, citations x country) pivot table from
+<code><a href="build_data_sources_table.html">build_data_sources_table()</a></code> / <code><a href="build_plot_data_sources_table.html">build_plot_data_sources_table()</a></code>
+with columns: <code>citation_key</code>, optionally <code>citation_authors</code>,
+<code>citation_year</code>, <code>citation_title</code>, <code>citation_dataset_name</code>,
+a count column (<code>n_taxa</code> or <code>n_plots</code>, see <code>count_col</code>),
+and one column per trait/country containing counts. Returns NULL when no
 data is available.</p></dd>
 
 
 <dt id="arg-i-n">i18n<a class="anchor" aria-label="anchor" href="#arg-i-n"></a></dt>
 <dd><p>Reactive returning a shiny.i18n translator object</p></dd>
+
+
+<dt id="arg-count-col">count_col<a class="anchor" aria-label="anchor" href="#arg-count-col"></a></dt>
+<dd><p>Name of the summary count column to exclude, alongside the
+citation metadata columns, when computing the per-column breakdown total
+(<code>"n_taxa"</code> for trait citations, <code>"n_plots"</code> for plot
+citations). Defaults to <code>"n_taxa"</code>.</p></dd>
+
+
+<dt id="arg-context">context<a class="anchor" aria-label="anchor" href="#arg-context"></a></dt>
+<dd><p>Either <code>"traits"</code> (default) or <code>"plots"</code> - selects
+the wording used in the banner, warning message and stat labels, since
+the same module backs both the trait-measurement "Data Sources" tab and
+the plot-level "Plot Data Sources" tab.</p></dd>
 
 </dl></div>
 

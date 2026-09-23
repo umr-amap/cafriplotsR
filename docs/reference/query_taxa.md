@@ -25,7 +25,7 @@ query_taxa(
   extract_traits = TRUE,
   include_children = FALSE,
   min_similarity = 0.3,
-  backbone = c("internal", "wcvp")
+  backbone = "internal"
 )
 ```
 
@@ -99,9 +99,16 @@ query_taxa(
 
 - backbone:
 
-  character. Which taxonomic backbone to use: `"internal"` (default)
-  uses the internal `table_taxa`; `"wcvp"` enriches results with WCVP
-  names via the link table, adding `wcvp_*` columns and `name_source`.
+  Character. Backbone whose names are used: `"internal"` (default) for
+  `table_taxa`, or the code of a backbone registered in the taxa
+  database (see
+  [`list_backbones()`](https://umr-amap.github.io/cafriplotsR/reference/list_backbones.md)),
+  such as `"wcvp"`. With another backbone, the name columns of taxa with
+  a preferred link are replaced by that backbone's accepted names; the
+  internal name is kept in `alt_taxon_name`, and `backbone_name_id`,
+  `backbone_accepted_id` and `name_source` are added. With `"wcvp"`,
+  `wcvp_plant_name_id` and `wcvp_accepted_plant_name_id` are also added,
+  as before.
 
 - tax_nam01:
 

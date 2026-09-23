@@ -65,6 +65,9 @@
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>List with:
   - growth_form_selections: Reactive list of selected growth form paths
+  - reset: Function clearing every selection, for the next taxon. The
+    selections survive their UI being destroyed on purpose, so the caller
+    has to say when a taxon is finished.
   - basisofrecord: Reactive character
   - measurementremarks: Reactive character
   - is_valid: Reactive logical indicating if selections are complete</p>

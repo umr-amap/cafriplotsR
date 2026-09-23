@@ -29,7 +29,8 @@ The app has two sections:
 
 - **Plot metadata** - pick a plot, edit the columns stored directly in
   `data_liste_plots` (including the `method` and `country` lookups,
-  offered as dropdowns), and edit its features.
+  offered as dropdowns), link it to a parent plot, and edit its
+  features.
 
 - **Individual data** - find an individual by plot and tag or by `id_n`,
   edit the columns of `data_individuals`, change its identification
@@ -51,6 +52,23 @@ how many records back it, what the extracted table would display, and
 how that display was computed; the editable inputs are the underlying
 records, each labelled with its own id and its census or subplot
 context.
+
+**Linking a plot to another plot.** A plot section carries a parent plot
+picker: the plot this one sits inside, chosen among the plots already in
+the database, together with the relation that says how
+(`nested_subsample` - the two overlap on the ground, so their
+measurements must never be added; `block_member` - this plot tiles part
+of the parent, so summing is correct). The two are written as one
+statement, because `chk_plot_parent_relation_paired` refuses a row
+holding either one alone, and they are therefore not offered among the
+flat columns of section 3. Plots already below this one are left out of
+the parent list, so a loop cannot be built from the app. The section is
+hidden entirely on a database where `inst/migrations/plot_hierarchy.R`
+has not been applied.
+
+A link is stored on the child, so it is changed by loading the child.
+The section lists the plots sitting inside the loaded one for reference
+only.
 
 **Why an identification is not just `idtax_n`.**
 [`merge_individuals_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/merge_individuals_taxa.md)
@@ -78,6 +96,7 @@ backed up to their follow-up table where one exists.
 ## See also
 
 [`update_records`](https://umr-amap.github.io/cafriplotsR/reference/update_records.md),
+[`check_plot_hierarchy_consistency`](https://umr-amap.github.io/cafriplotsR/reference/check_plot_hierarchy_consistency.md),
 [`query_plot_features`](https://umr-amap.github.io/cafriplotsR/reference/query_plot_features.md),
 [`query_individual_features`](https://umr-amap.github.io/cafriplotsR/reference/query_individual_features.md),
 [`launch_specimen_identification_app`](https://umr-amap.github.io/cafriplotsR/reference/launch_specimen_identification_app.md),

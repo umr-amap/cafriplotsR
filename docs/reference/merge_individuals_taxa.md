@@ -13,7 +13,7 @@ merge_individuals_taxa(
   clean_columns = TRUE,
   con_taxa = NULL,
   con = NULL,
-  backbone = c("internal", "wcvp")
+  backbone = "internal"
 )
 ```
 
@@ -45,8 +45,11 @@ merge_individuals_taxa(
 
 - backbone:
 
-  character. `"internal"` (default) or `"wcvp"`. When `"wcvp"`, results
-  are enriched with WCVP names via the link table.
+  Character. Backbone whose names are used: `"internal"` (default) for
+  `table_taxa`, or the code of a backbone registered in the taxa
+  database (see
+  [`list_backbones()`](https://umr-amap.github.io/cafriplotsR/reference/list_backbones.md)),
+  such as `"wcvp"`.
 
 ## Value
 

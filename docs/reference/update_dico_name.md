@@ -21,6 +21,9 @@ update_dico_name(
   new_tax_famclass = NULL,
   new_introduced_status = NULL,
   new_tax_rankesp = NULL,
+  new_author1 = NULL,
+  new_author2 = NULL,
+  new_author3 = NULL,
   ask_before_update = TRUE,
   add_backup = TRUE,
   show_results = TRUE,
@@ -64,6 +67,18 @@ update_dico_name(
 - new_tax_name1:
 
   string new name of rank1
+
+- new_author1:
+
+  string new author of the species name
+
+- new_author2:
+
+  string new author of the infraspecific name
+
+- new_author3:
+
+  string new additional author
 
 - ask_before_update:
 

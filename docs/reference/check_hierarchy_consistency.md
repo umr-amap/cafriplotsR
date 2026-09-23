@@ -28,6 +28,12 @@ check_hierarchy_consistency(con = NULL, fix = FALSE, limit = 100)
 
 Data frame with inconsistent taxa, or NULL if all consistent
 
+## Details
+
+\`id_parent\` lives on the \*\*taxa\*\* database (\`rainbio\`), not the
+main one. Passing a \`call.mydb()\` connection is refused up front
+rather than part-way through the checks.
+
 ## Examples
 
 ``` r
