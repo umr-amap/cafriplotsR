@@ -227,16 +227,10 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
         i18n()$t("Infraspecific")
       )
 
-      sort_choices <- c("similarity", "alphabetical")
-      names(sort_choices) <- c(
-        i18n()$t("Similarity"),
-        i18n()$t("Alphabetical")
-      )
-
       shiny::tagList(
         shiny::fluidRow(
           shiny::column(
-            width = 3,
+            width = 4,
             shiny::numericInput(
               inputId = ns("num_suggestions"),
               label = i18n()$t("Number of suggestions:"),
@@ -247,7 +241,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
             )
           ),
           shiny::column(
-            width = 3,
+            width = 4,
             shiny::sliderInput(
               inputId = ns("min_similarity_slider"),
               label = i18n()$t("Min. similarity"),
@@ -258,22 +252,12 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
             )
           ),
           shiny::column(
-            width = 3,
+            width = 4,
             shiny::selectInput(
               inputId = ns("filter_level"),
               label = i18n()$t("Filter by level"),
               choices = level_choices,
               selected = "all"
-            )
-          ),
-          shiny::column(
-            width = 3,
-            shiny::radioButtons(
-              inputId = ns("sort_by"),
-              label = i18n()$t("Sort by:"),
-              choices = sort_choices,
-              selected = "similarity",
-              inline = TRUE
             )
           )
         )
@@ -321,12 +305,9 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
         )
       }
 
-      # Sort suggestions
-      if (!is.null(input$sort_by) && input$sort_by == "alphabetical") {
-        sug <- sug %>% dplyr::arrange(matched_name)
-      } else {
-        sug <- sug %>% dplyr::arrange(desc(match_score))
-      }
+      # Best match first. The click handler below re-sorts the same way, so
+      # the card index it receives lines up with the row shown here.
+      sug <- sug %>% dplyr::arrange(desc(match_score))
 
       # Limit number shown
       num_show <- input$num_suggestions %||% (if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions)
@@ -420,14 +401,9 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       sug <- sug %>% dplyr::filter(!is.na(idtax_n))
 
       # No need for level filtering here anymore - already done at query time
-      # Just apply the same sorting as display
 
       # Sort same way as display
-      if (!is.null(input$sort_by) && input$sort_by == "alphabetical") {
-        sug <- sug %>% dplyr::arrange(matched_name)
-      } else {
-        sug <- sug %>% dplyr::arrange(desc(match_score))
-      }
+      sug <- sug %>% dplyr::arrange(desc(match_score))
 
       # Limit to num_suggestions (same as display)
       num_show <- input$num_suggestions %||% (if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions)
