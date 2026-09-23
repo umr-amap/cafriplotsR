@@ -9,7 +9,7 @@ mod_name_review_server(
   match_results,
   mode = "interactive",
   max_suggestions = 10,
-  min_similarity = 0.3,
+  min_similarity = .default_min_similarity(),
   i18n,
   backbone = shiny::reactive(NULL)
 )
@@ -23,7 +23,8 @@ mod_name_review_server(
 
 \item{max_suggestions}{Integer, maximum suggestions per name}
 
-\item{min_similarity}{Numeric, minimum similarity threshold}
+\item{min_similarity}{Numeric, initial value of the suggestions slider.
+The slider takes over once the user moves it.}
 
 \item{i18n}{Reactive returning shiny.i18n translator}
 

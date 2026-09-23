@@ -44,7 +44,8 @@ mod_name_review_ui <- function(id) {
 #' @param match_results Reactive list from auto matching module
 #' @param mode Character, review mode ("interactive" or "batch")
 #' @param max_suggestions Integer, maximum suggestions per name
-#' @param min_similarity Numeric, minimum similarity threshold
+#' @param min_similarity Numeric, initial value of the suggestions slider.
+#'   The slider takes over once the user moves it.
 #' @param i18n Reactive returning shiny.i18n translator
 #' @param backbone Reactive returning the cached backbone tibble (or NULL).
 #'   When non-NULL, custom searches and selection lookups go through the
@@ -54,7 +55,8 @@ mod_name_review_ui <- function(id) {
 #'
 #' @keywords internal
 mod_name_review_server <- function(id, match_results, mode = "interactive",
-                                   max_suggestions = 10, min_similarity = 0.3,
+                                   max_suggestions = 10,
+                                   min_similarity = .default_min_similarity(),
                                    i18n,
                                    backbone = shiny::reactive(NULL)) {
   shiny::moduleServer(id, function(input, output, session) {

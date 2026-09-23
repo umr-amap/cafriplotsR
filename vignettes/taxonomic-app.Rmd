@@ -28,6 +28,15 @@ The `launch_taxonomic_match_app()` function provides an interactive Shiny applic
 
 ## Prerequisites
 
+### Where the app runs
+
+The same application exists in two places, and this vignette refers to both.
+
+- **Locally**, in your own R session, via `launch_taxonomic_match_app()`. This is what the code examples below assume.
+- **Hosted**, at <https://cafri-taxomatch.lab.sspcloud.fr> — the same app served from SSP Cloud, which you open in a browser with nothing to install and no R required. Wherever this vignette says *the hosted app*, it means that address.
+
+The hosted copy queries the same database, so a standardized list exported from it carries the same `idtax_n` values as one produced locally. Use it to try the app out, or to point a colleague at the workflow without asking them to install the package. For repeated work on your own lists, launching locally is usually the faster choice — see [Slow Matching Performance](#slow-matching-performance).
+
 ### With database credentials (full access)
 
 To access all features including traits enrichment, you need database credentials configured (see `setup_db_credentials()`). Once launched, the app presents a login screen where you enter your credentials.
@@ -66,17 +75,23 @@ launch_taxonomic_match_app(data = my_data, name_column = "species_name")
 # Launch in English (default is French)
 launch_taxonomic_match_app(language = "en")
 
-# Adjust fuzzy matching sensitivity (default is 0.7)
-launch_taxonomic_match_app(min_similarity = 0.5)  # More permissive matching
+# Show more suggestions per name during review
+launch_taxonomic_match_app(max_suggestions = 20)
 ```
+
+The matching threshold is **not** a launch argument: it is set on the Auto Match tab, as a percentage, and can be changed between runs. See [Adjusting Fuzzy Matching](#adjusting-fuzzy-matching).
 
 ## Step-by-Step Walkthrough
 
 ### Phase 1: Initial View
 
-When you first launch the app, you see a login screen. After authenticating (or choosing offline mode), the main interface appears with a sidebar for configuration and tabs for different workflow phases:
+When you first launch the app, you see a login screen. It offers the three routes described under [Prerequisites](#prerequisites): your own database credentials, the public read-only account, or the offline cached backbone.
 
-![Application initial view](images/app-initial-view.png)
+![The login screen and the three ways past it](images/app-stand-login.gif)
+
+After authenticating (or choosing offline mode), the main interface appears with a sidebar for configuration and tabs for different workflow phases:
+
+![Application initial view](images/app-initial-view.gif)
 
 The app uses a **tabbed workflow** that guides you through each phase sequentially:
 
@@ -95,7 +110,7 @@ The first step is to provide your data. The app offers two input methods:
 - **Upload a CSV file**
 - **Use pre-loaded R data** (if you passed the `data` parameter)
 
-![Data upload interface](images/app-upload-data.png)
+![Data upload interface](images/app-upload-data.gif)
 
 The app displays a preview of your uploaded data so you can verify it was read correctly. Excel files are read with `guess_max = 30000` to improve column type detection for large files.
 
@@ -125,7 +140,7 @@ Once data is loaded, you have two options for selecting taxonomic names:
 
 Select one column containing the full taxonomic name:
 
-![Column selection - single mode](images/app-column-select.png)
+![Column selection - single mode](images/app-column-select.gif)
 
 The dropdown menu shows all available columns from your dataset. Choose the one containing species names (typically formatted as "Genus species" or "Genus species Author").
 
@@ -133,7 +148,7 @@ The dropdown menu shows all available columns from your dataset. Choose the one 
 
 If your data has separate columns for genus, species, and family, enable **"Use multiple columns"**:
 
-![Column selection - multiple columns](images/app-column-select-multi.png)
+![Column selection - multiple columns](images/app-column-select-multi.gif)
 
 The app combines these columns hierarchically:
 - Genus + species available → "Genus species"
@@ -172,27 +187,28 @@ The progress bar shows real-time status and correctly accounts for manually revi
 
 ### Phase 5: Review Match Results
 
-After matching completes, the Auto Match tab shows a summary table with all names and their match status:
+When matching completes, the Auto Match tab shows a **Matching Summary**: counts, not rows. It tells you how the run went, not what happened to any individual name.
 
 ![Matching results summary](images/app-matching-results.png)
 
-The results table includes:
+- **Total unique names** submitted
+- **Exact matches**, with their share of the total
+- **Genus-level matches**
+- **Fuzzy matches**
+- **Requiring review** — shown in orange when above zero, with a reminder to go to the Review tab
 
-- **Original name**: Your input name
-- **matched_name**: Name found in backbone
-- **match_method**: How it was matched — `exact`, `genus_constrained`, `fuzzy`, `manual`, `unresolved` or `no_match`. See [Values of `match_method`](#values-of-match_method) for what each one means, and why there is no `exact_species` or `exact_genus`
-- **match_score**: Similarity score (0–1, higher is better)
-- **idtax_n**: Taxon ID in database
-- **is_synonym**: Whether matched name is a synonym
-- **accepted_name**: Current accepted name (if synonym)
+The per-name results are not on this tab. To see them you go to one of two places:
 
-**Match quality indicators.** The app colours each score so the table can be scanned rather than read: **green from 90 %** and **blue from 70 %**, with lower scores left uncoloured. As a rule of thumb:
+- The **Review tab**, which walks you through the names the matcher could not settle, one at a time.
+- The **Export tab**, whose preview table lists every row with all its columns — `matched_name`, `match_method`, `match_score`, `idtax_n`, `is_synonym`, `accepted_name` and the rest. See [Understanding Output Columns](#understanding-output-columns) for what each one holds.
 
-- **Exact match (1.0)**: Perfect match, no review needed
-- **High similarity (≥ 0.9, green)**: Very likely correct, quick review recommended
-- **Medium similarity (0.7–0.9, blue)**: Possible match, review suggested
-- **Low similarity (< 0.7)**: Uncertain, manual review required
-- **No match**: Requires manual selection
+**Where the colours are.** Scores are colour-coded as badges on the cards in the **Review tab** — beside each fuzzy suggestion and each manual-search result — and nowhere else. The Export preview is a plain table with no conditional colouring, and the Matching Summary above has no per-name scores to colour at all. Read the badges as:
+
+- **Exact match (100 %)**: perfect match, no review needed
+- **High similarity (≥ 90 %, green)**: very likely correct, a glance is enough
+- **Medium similarity (70–89 %, blue)**: possible match, worth reading
+- **Low similarity (< 70 %)**: uncertain, decide by hand. Fuzzy suggestion cards shade 50–69 % yellow and anything below that grey; manual-search cards go straight to grey under 70 %
+- **No match**: requires manual selection
 
 A name matched by `genus_constrained` deserves more confidence than a plain `fuzzy` match at the same score, because the candidates it was compared against were restricted to species in a genus the app had already recognised.
 
@@ -200,7 +216,7 @@ A name matched by `genus_constrained` deserves more confidence than a plain `fuz
 
 For unmatched or uncertain names, switch to the **"Review"** tab to manually review and select matches:
 
-![Manual review interface](images/app-review-interface.png)
+![Manual review interface](images/app-review-interface.gif)
 
 The review interface provides two ways to find matches:
 
@@ -208,18 +224,19 @@ The review interface provides two ways to find matches:
 
 Shows automatic suggestions ranked by similarity with advanced filtering options:
 
-![Fuzzy suggestions with filters](images/app-review-suggestions.png)
+![Fuzzy suggestions with filters](images/app-review-suggestions.gif)
 
 **Filtering options:**
 
 - **Number of suggestions**: Slider to show 5–30 suggestions
 - **Minimum similarity**: Adjust threshold (0.3–1.0)
 - **Taxonomic level filter**: Filter by All, Species, Genus, Family, Order, Class, or Infraspecific
-- **Sort by**: Similarity score or alphabetical order
+
+Suggestions are always listed best match first, by similarity score.
 
 Each suggestion card displays:
 
-- Name with color-coded similarity badge (green = high, blue = medium, yellow = low)
+- Name with color-coded similarity badge (green ≥ 90 %, blue ≥ 70 %, yellow ≥ 50 %, grey below)
 - Taxonomic level and family
 - Synonym information if applicable
 - **Select** button for one-click acceptance
@@ -228,7 +245,7 @@ Each suggestion card displays:
 
 For names without good suggestions, use the manual search:
 
-![Manual search interface](images/app-review-manual-search.png)
+![Manual search interface](images/app-review-manual-search.gif)
 
 - Type any search term to query the taxonomic backbone
 - Filter results by taxonomic level
@@ -241,7 +258,33 @@ For names without good suggestions, use the manual search:
 - Progress counter shows reviewed vs. remaining names
 - The app remembers your selections and automatically updates the results
 
-### Phase 7: Enrich Data with Traits
+### Phase 7: Export Results
+
+Switch to the **"Export"** tab to download your standardized dataset:
+
+![Export options](images/app-export-options.gif)
+
+**Available formats:**
+
+- **Excel (.xlsx)**: Best for sharing with collaborators
+- **CSV (.csv)**: Universal tabular format
+- **RDS (.rds)**: R-native format preserving data types
+
+**Selectable columns.** Your original columns are always included; the three groups below can each be switched off:
+
+- **Matched IDs** — `idtax_n`, `idtax_good_n`
+- **Corrected names** — `corrected_name`, `matched_name`
+- **Match metadata** — `match_method`, `match_score`, `is_synonym`, `accepted_name`
+
+Backbone columns are not one of these groups: they are appended whenever a reference other than the internal backbone was chosen before matching, and travel with the export either way. The internal `id_data` row identifier is always stripped.
+
+**Column descriptions in the app.** Beside the preview, the Export tab lists every standardized column present in your results with a one-line description of what it holds — the same content as [Understanding Output Columns](#understanding-output-columns) below. Only the columns actually present are described, so the list reflects the options you chose rather than everything the app can produce. Your own input columns are preserved but not described individually, since the app knows nothing about them.
+
+A preview table shows the data before export with pagination controls.
+
+This tab exports the **standardized names**. If you also want traits attached, carry on to the next phase, which has download buttons of its own.
+
+### Phase 8: Enrich Data with Traits
 
 Switch to the **"Traits Enrichment"** tab to add species-level traits to your matched data (requires a database connection; this tab is hidden in offline mode):
 
@@ -268,7 +311,7 @@ Available traits include growth form, wood density, leaf traits, and ecological 
 
 The enriched data combines your matched taxa with selected traits. A **wide format** (one row per taxon, traits as columns) and a **long format** (one row per taxon × trait combination) are both available as separate sub-tabs:
 
-![Enriched data results](images/app-enrich-data-results.png)
+![Enriched data results](images/app-enrich-data-results.gif)
 
 **Note**: The enriched export creates one row per unique taxon, not per input row. Input names are concatenated with pipe separators.
 
@@ -276,29 +319,16 @@ The enriched data combines your matched taxa with selected traits. A **wide form
 
 A **Data Sources** sub-tab lists all trait citations used, with measurement counts per source. This helps you track data provenance for your analysis and cite sources correctly.
 
-### Phase 8: Export Results
+#### Downloading the enriched data
 
-Switch to the **"Export"** tab to download your standardized dataset:
+You do not go back to the Export tab for this. Each results sub-tab carries its own green download button:
 
-![Export options](images/app-export-options.png)
+- **Download Wide Format** — one row per taxon, traits as columns
+- **Download Long Format** — one row per taxon × trait, shown only when long-format data exists
 
-**Available formats:**
+Both produce an **Excel file** named `taxa_traits_wide_YYYYMMDD.xlsx` or `taxa_traits_long_YYYYMMDD.xlsx`, dated the day you download it. Each file holds a `traits` sheet and, whenever citations were collected, a second `citations` sheet with the provenance from the Data Sources panel — so the sources travel with the data instead of being left behind in the app.
 
-- **Excel (.xlsx)**: Best for sharing with collaborators
-- **CSV (.csv)**: Universal tabular format
-- **RDS (.rds)**: R-native format preserving data types
-
-**Selectable columns.** Your original columns are always included; the three groups below can each be switched off:
-
-- **Matched IDs** — `idtax_n`, `idtax_good_n`
-- **Corrected names** — `corrected_name`, `matched_name`
-- **Match metadata** — `match_method`, `match_score`, `is_synonym`, `accepted_name`
-
-Backbone columns are not one of these groups: they are appended whenever a reference other than the internal backbone was chosen before matching, and travel with the export either way. The internal `id_data` row identifier is always stripped.
-
-**Column descriptions in the app.** Beside the preview, the Export tab lists every standardized column present in your results with a one-line description of what it holds — the same content as [Understanding Output Columns](#understanding-output-columns) below. Only the columns actually present are described, so the list reflects the options you chose rather than everything the app can produce. Your own input columns are preserved but not described individually, since the app knows nothing about them.
-
-A preview table shows the data before export with pagination controls.
+The Export tab and these buttons answer different questions: Export gives you your rows with standardized names attached, while these give you the traits table built from them, one row per taxon.
 
 ## Understanding Output Columns
 
@@ -379,20 +409,13 @@ Choose a reference when your results must line up with an international checklis
 
 ### Adjusting Fuzzy Matching
 
-Control matching sensitivity with the `min_similarity` parameter:
+Matching sensitivity is controlled by the **Minimum similarity (%)** field at the top of the Auto Match tab, next to the Start Matching button. It starts at **60 %**.
 
-```{r}
-# Very strict - only high-quality matches
-launch_taxonomic_match_app(min_similarity = 0.8)
+Lower values cast a wider net but may include false positives; higher values are more conservative but leave more names for manual review. Because the field sits beside the button, the sensible way to use it is to run, read the statistics in the sidebar, adjust and run again on the same list — a decision made against the names in front of you rather than fixed in advance.
 
-# Default setting
-launch_taxonomic_match_app(min_similarity = 0.7)
+The threshold each run actually used is recorded with that run: it appears in the generated script under **Show Equivalent R Code**, so a run remains reproducible without you having to note the value down.
 
-# More permissive - allows lower-quality matches
-launch_taxonomic_match_app(min_similarity = 0.5)
-```
-
-Lower values cast a wider net but may include false positives. Higher values are more conservative but may miss valid matches. The default was raised from 0.3 to **0.7** to reduce spurious suggestions.
+The same threshold seeds the **Min. similarity** slider on the Review tab, which filters the suggestions offered there. Moving one does not move the other — the review slider is for widening or narrowing what you are shown while reviewing a single name.
 
 ### Increasing Suggestions
 
@@ -422,7 +445,6 @@ launch_taxonomic_match_app(
   data           = NULL,         # Optional: pre-load a data.frame
   name_column    = NULL,         # Optional: pre-select a column name
   language       = c("fr", "en"),# Interface language (default: "fr")
-  min_similarity = 0.7,          # Fuzzy match threshold (0-1)
   max_suggestions = 10,          # Max suggestions per unmatched name
   mode           = "interactive",# Review mode ("interactive" or "batch")
   launch.browser = TRUE          # Whether to open app in the browser
@@ -452,12 +474,12 @@ Alternatively, use **offline mode** (click "Use offline (cached backbone)" on th
 **Problem**: No suggestions appear for unmatched names
 
 **Possible causes**:
-- `min_similarity` threshold too high
+- The **Minimum similarity (%)** field on the Auto Match tab is set too high
 - Taxonomic names contain typos or non-standard formatting
 - Names not present in the taxonomic backbone (e.g., non-African taxa)
 
 **Solutions**:
-- Lower `min_similarity`: `launch_taxonomic_match_app(min_similarity = 0.5)`
+- Lower **Minimum similarity (%)** on the Auto Match tab and run again, or widen the **Min. similarity** slider on the Review tab
 - Use the taxonomic level filter to search at genus or family level
 - Clean input names (remove extra spaces, fix obvious typos)
 - Verify names are African taxa
@@ -467,6 +489,7 @@ Alternatively, use **offline mode** (click "Use offline (cached backbone)" on th
 **Problem**: Matching takes very long for large datasets
 
 **Solutions**:
+- **Launch the app locally rather than using the hosted copy.** The hosted app at <https://cafri-taxomatch.lab.sspcloud.fr> is often noticeably slower than the same app on your own laptop, and not because the server is small. It is a shared one. Every matching run there competes for the same CPU quota as every other user's run, and that quota is burst capacity rather than reserved, so on a busy SSP Cloud node you may get less of it than the ceiling suggests. On top of that, your file has to be uploaded before anything starts, and every click makes a round trip. Locally you have the machine to yourself. The hosted copy exists for convenience and for people who do not use R — for a long list you are working through yourself, launch it from R.
 - Enable **offline mode**: matching runs locally via `stringdist` without database round-trips
 - Use batch processing instead: `match_taxonomic_names()` for programmatic workflows
 - Process data in chunks (split large datasets)
@@ -524,7 +547,7 @@ write.csv(result, "standardized_inventory.csv", row.names = FALSE)
 4. **Filter by taxonomic level**: Use the level filter in the Review tab to find genus or family matches
 5. **Review match scores**: Don't blindly accept low-similarity matches (<0.6)
 6. **Use checkpoint/resume**: The app saves your progress automatically — if you close the browser tab, you can pick up where you left off
-7. **Document parameters**: Note which `min_similarity` value you used for reproducibility
+7. **Keep the run reproducible**: the threshold a run used is written into the script under **Show Equivalent R Code** — copy that rather than noting the value by hand
 8. **Cite data sources**: Check the Data Sources panel in the Traits tab for citations to include in your methods
 
 ## Example Workflow
@@ -540,8 +563,7 @@ trees <- read.csv("forest_inventory.csv")
 launch_taxonomic_match_app(
   data = trees,
   name_column = "species_name",
-  language = "en",
-  min_similarity = 0.7
+  language = "en"
 )
 
 # 3. In the app:

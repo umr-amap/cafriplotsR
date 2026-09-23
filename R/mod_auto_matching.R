@@ -3,6 +3,29 @@
 # Automatically matches taxonomic names against the backbone database
 
 # ---------------------------------------------------------------------------
+# Matching threshold
+# ---------------------------------------------------------------------------
+
+#' Default minimum similarity for the taxonomic matching app
+#'
+#' @description
+#' The threshold the app starts from, shared by the automatic matching field
+#' on the Auto Match tab and the suggestions slider on the Review tab so the
+#' two cannot drift apart.
+#'
+#' It lives here, and not in an argument to `launch_taxonomic_match_app()`,
+#' because the threshold is a per-run decision made against the list in front
+#' of you: the user raises or lowers the field, sees how many names fall to
+#' manual review, and runs again. An argument fixed at launch was answering
+#' the question too early - and, because the field always won, was silently
+#' ignored.
+#'
+#' @return Numeric scalar between 0 and 1.
+#'
+#' @keywords internal
+.default_min_similarity <- function() 0.6
+
+# ---------------------------------------------------------------------------
 # Checkpoint helpers
 # ---------------------------------------------------------------------------
 
@@ -239,7 +262,7 @@ mod_auto_matching_ui <- function(id) {
         shiny::numericInput(
           inputId = ns("min_similarity"),
           label = shiny::textOutput(ns("min_sim_label")),
-          value = 60,
+          value = .default_min_similarity() * 100,
           min = 0,
           max = 100,
           step = 5
@@ -267,8 +290,6 @@ mod_auto_matching_ui <- function(id) {
 #' @param data Reactive data.frame from data input module
 #' @param column_name Reactive character, name of column to match
 #' @param include_authors Reactive logical, whether to include author names
-#' @param min_similarity Numeric (0-1), minimum similarity threshold for fallback.
-#'   Note: UI displays as percentage (0-100) but parameter uses decimal (default: 0.3 = 30\%)
 #' @param i18n Reactive returning shiny.i18n translator
 #' @param name_backbone Reactive returning the code of the backbone whose
 #'   names should appear in the output, or \code{"internal"} (the default) to
@@ -285,7 +306,7 @@ mod_auto_matching_ui <- function(id) {
 #'
 #' @keywords internal
 mod_auto_matching_server <- function(id, data, column_name, include_authors,
-                                     min_similarity = 0.3, i18n,
+                                     i18n,
                                      name_backbone = NULL,
                                      is_offline = shiny::reactive(FALSE)) {
   shiny::moduleServer(id, function(input, output, session) {
@@ -784,10 +805,12 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       user_df      <- data()
       col_name     <- column_name()
       incl_authors <- include_authors() %||% FALSE
+      # The field on the tab is the threshold, full stop. It is only ever NULL
+      # before the UI has rendered, which a run cannot reach.
       min_sim <- if (!is.null(input$min_similarity)) {
         input$min_similarity / 100
       } else {
-        min_similarity
+        .default_min_similarity()
       }
 
       run_params(list(
