@@ -227,6 +227,7 @@ reference:
       - update_taxon_parent
       - update_citation
       - apply_citation_backfill
+      - apply_plot_citation_backfill
       - update_specimen_fields
       - safe_delete_individuals
       - safe_delete_plot
@@ -289,6 +290,7 @@ reference:
       - enrich_traits_with_measurement_features
       - enrich_with_traits
       - build_data_sources_table
+      - build_plot_data_sources_table
       - export_census_split
       - split_census_table
       - collect_taxon_revisions
@@ -306,6 +308,7 @@ reference:
       - choose_prompt
       - test.order.subplot
       - export_taxa_traits_for_citation_backfill
+      - export_plots_for_citation_backfill
       - print.column_documentation
       - print.plot_features_result
       - print.plot_query_list
