@@ -570,7 +570,57 @@ app_taxonomic_match <- function(
             )),
             style = "margin-top: -6px; font-size: 0.85em;"
           ),
+          shiny::uiOutput("name_backbone_citation"),
           shiny::hr()
+        )
+      })
+
+      # What to cite once a reference other than the internal backbone is
+      # chosen. The package states this on the console the first time a
+      # backbone is read, which in a hosted app reaches the server log and
+      # nobody else, so the app has to say it where the choice is made. Its own
+      # output rather than part of the block above, so switching reference does
+      # not rebuild - and reset - the menu.
+      output$name_backbone_citation <- shiny::renderUI({
+        chosen <- input$name_backbone %||% "internal"
+        if (identical(chosen, "internal")) return(NULL)
+
+        lang <- if (identical(input$selected_language %||% language, "fr")) {
+          "fr"
+        } else {
+          "en"
+        }
+        ref <- tryCatch(
+          backbone_reference(chosen, call.mydb.taxa(), language = lang),
+          error = function(e) NULL
+        )
+        # a citation is a courtesy: it never blocks the choice it describes
+        if (is.null(ref) || nrow(ref) == 0 || is.na(ref$citation[1])) {
+          return(NULL)
+        }
+
+        shiny::div(
+          class = "alert alert-info",
+          style = "padding: 8px 10px; margin-top: 8px; font-size: 0.85em;",
+          shiny::tags$strong(
+            shiny::icon("quote-left"), " ",
+            i18n()$t("Please cite this reference")
+          ),
+          shiny::tags$p(
+            style = "margin: 6px 0 0 0;",
+            ref$citation[1]
+          ),
+          if (!is.na(ref$homepage[1]) && nzchar(ref$homepage[1])) {
+            shiny::tags$p(
+              style = "margin: 6px 0 0 0;",
+              shiny::tags$a(
+                href = ref$homepage[1],
+                target = "_blank",
+                rel = "noopener noreferrer",
+                ref$homepage[1]
+              )
+            )
+          }
         )
       })
 
@@ -652,7 +702,10 @@ app_taxonomic_match <- function(
         # Post-selection data: carries the `_input` renames applied to columns
         # that clash with the matching output, so the drop below matches.
         original_data = shiny::reactive(column_info()$data),
-        i18n = i18n
+        i18n = i18n,
+        # So the export can say what the names have to be cited as
+        name_backbone = name_backbone,
+        language = shiny::reactive(input$selected_language %||% language)
       )
 
       # Traits enrichment module

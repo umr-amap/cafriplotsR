@@ -1272,36 +1272,61 @@ backbone_citation <- function(backbone, con_taxa = NULL,
     return(NA_character_)
   }
 
-  # homepage is added by inst/migrations/backbone_citation_metadata.R; a
-  # database without it still cites, without the site
+  meta <- .backbone_citation_meta(backbone, con_taxa)
+  if (nrow(meta) == 0) return(NA_character_)
+
+  .render_backbone_citation(meta[1, , drop = FALSE], language)
+}
+
+
+#' Read the rows a citation is built from
+#'
+#' One row per backbone, or an empty data frame when the registry cannot be
+#' read. `homepage` and `citation_template` are added by
+#' inst/migrations/backbone_citation_metadata.R; a database without them still
+#' cites, without the site and in the plain wording.
+#'
+#' @param backbone Character scalar, or `NULL` for every registered backbone.
+#' @noRd
+.backbone_citation_meta <- function(backbone = NULL, con_taxa = NULL) {
   read_meta <- function(with_homepage) {
     .backbone_query(
       con_taxa,
       sprintf(
-        "SELECT b.name, b.publisher, %s AS homepage, %s AS citation_template,
+        "SELECT b.code, b.name, b.publisher, %s AS homepage,
+                %s AS citation_template,
                 i.version, i.import_date, i.source_version
            FROM backbone_list b
            LEFT JOIN backbone_import i
                   ON i.id_backbone = b.id_backbone AND i.is_current
-          WHERE b.code = $1",
+          %s
+          ORDER BY b.code",
         if (with_homepage) "b.homepage" else "NULL::text",
-        if (with_homepage) "b.citation_template" else "NULL::text"
+        if (with_homepage) "b.citation_template" else "NULL::text",
+        if (is.null(backbone)) "" else "WHERE b.code = $1"
       ),
-      params = list(backbone)
+      params = if (is.null(backbone)) NULL else list(backbone)
     )
   }
-  meta <- tryCatch(
+  tryCatch(
     read_meta(TRUE),
     error = function(e) {
       tryCatch(read_meta(FALSE), error = function(e2) {
-        message("Note: could not read the citation of ", backbone, " (",
-                conditionMessage(e2), ").")
+        message("Note: could not read the citation of ",
+                if (is.null(backbone)) "the backbones" else backbone,
+                " (", conditionMessage(e2), ").")
         data.frame()
       })
     }
   )
-  if (nrow(meta) == 0) return(NA_character_)
+}
 
+
+#' Turn one metadata row into the sentence to cite
+#'
+#' @param meta One row of [.backbone_citation_meta()].
+#' @noRd
+.render_backbone_citation <- function(meta, language = "en") {
   version <- .backbone_cited_version(meta$source_version[1], meta$version[1])
   access  <- .backbone_access_date(meta$version[1], meta$import_date[1], language)
   full    <- .backbone_access_full_date(meta$version[1], meta$import_date[1], language)
@@ -1322,6 +1347,90 @@ backbone_citation <- function(backbone, con_taxa = NULL,
 
   .format_backbone_citation(meta$name[1], meta$publisher[1], version, access,
                             url, language)
+}
+
+
+#' What to cite for a taxonomic backbone, as a table
+#'
+#' @description
+#' The same citation [backbone_citation()] returns, with the parts it was
+#' built from alongside it: publisher, site, version and access date. Meant
+#' for anything that needs more than the sentence - a table to show, a sheet
+#' to write next to exported names, a row to list among other citations.
+#'
+#' The version and date are those of the import currently in the database, so
+#' the reference describes the names actually served, not the publisher's
+#' latest release.
+#'
+#' @param backbone Character. One or more backbone codes. \code{NULL} (the
+#'   default) returns every backbone registered in \code{backbone_list}.
+#'   \code{"internal"} has no external reference and is dropped.
+#' @param con_taxa Connection or pool to the taxa database. If \code{NULL},
+#'   calls \code{call.mydb.taxa()}.
+#' @param language \code{"en"} (default) or \code{"fr"}, for the wording of
+#'   the access date.
+#'
+#' @return A tibble with one row per backbone and columns \code{code},
+#'   \code{name}, \code{publisher}, \code{homepage}, \code{version},
+#'   \code{access_date} and \code{citation}. Zero rows when the registry
+#'   cannot be read or nothing matches; never an error.
+#'
+#' @seealso [backbone_citation()] for the sentence alone,
+#'   [query_citations()] to list these beside the trait citations.
+#'
+#' @examples
+#' \dontrun{
+#' backbone_reference()
+#' backbone_reference("wcvp")
+#' backbone_reference("apd", language = "fr")
+#' }
+#'
+#' @export
+backbone_reference <- function(backbone = NULL, con_taxa = NULL,
+                               language = c("en", "fr")) {
+  language <- match.arg(language)
+
+  empty <- dplyr::tibble(
+    code = character(), name = character(), publisher = character(),
+    homepage = character(), version = character(),
+    access_date = as.Date(character()), citation = character()
+  )
+
+  wanted <- setdiff(as.character(backbone), "internal")
+  # asking only for the internal backbone is not an error, it just has nothing
+  # to cite
+  if (!is.null(backbone) && length(wanted) == 0) return(empty)
+
+  meta <- .backbone_citation_meta(NULL, con_taxa)
+  if (nrow(meta) == 0) return(empty)
+  if (length(wanted) > 0) meta <- meta[meta$code %in% wanted, , drop = FALSE]
+  if (nrow(meta) == 0) return(empty)
+
+  # both helpers read one row at a time, so the table is built row by row
+  rows <- seq_len(nrow(meta))
+  citation <- vapply(
+    rows,
+    function(i) .render_backbone_citation(meta[i, , drop = FALSE], language),
+    character(1)
+  )
+  version <- vapply(
+    rows,
+    function(i) {
+      as.character(.backbone_cited_version(meta$source_version[i],
+                                           meta$version[i]))
+    },
+    character(1)
+  )
+
+  dplyr::tibble(
+    code        = as.character(meta$code),
+    name        = as.character(meta$name),
+    publisher   = as.character(meta$publisher),
+    homepage    = as.character(meta$homepage),
+    version     = version,
+    access_date = as.Date(meta$import_date),
+    citation    = citation
+  )
 }
 
 
@@ -1351,6 +1460,35 @@ backbone_citation <- function(backbone, con_taxa = NULL,
 # Backbones whose citation has been shown this session
 .backbone_cited <- new.env(parent = emptyenv())
 
+#' Who the "once per session" applies to
+#'
+#' This environment lives for as long as the R process, which in the console is
+#' the user's session. Under a hosted Shiny app it is not: every visitor shares
+#' one process, so a key on the backbone alone would let the first visitor's
+#' notice silence it for everybody else until the process restarts. Inside a
+#' Shiny session the key therefore carries that session's token, and the keys
+#' are dropped when the session ends so the environment does not grow with
+#' traffic.
+#' @noRd
+.backbone_notice_key <- function(backbone) {
+  domain <- tryCatch(shiny::getDefaultReactiveDomain(), error = function(e) NULL)
+  token <- tryCatch(domain$token, error = function(e) NULL)
+  if (is.null(token) || !nzchar(token)) return(backbone)
+
+  if (is.null(.backbone_cited[[paste0(token, "|.cleanup")]])) {
+    assign(paste0(token, "|.cleanup"), TRUE, envir = .backbone_cited)
+    tryCatch(
+      domain$onSessionEnded(function() {
+        keys <- ls(.backbone_cited, all.names = TRUE)
+        rm(list = keys[startsWith(keys, paste0(token, "|"))],
+           envir = .backbone_cited)
+      }),
+      error = function(e) NULL
+    )
+  }
+  paste0(token, "|", backbone)
+}
+
 #' State the citation the first time a session reads a backbone's names
 #'
 #' Once per backbone and session; silenced with
@@ -1361,8 +1499,9 @@ backbone_citation <- function(backbone, con_taxa = NULL,
   if (!isTRUE(getOption("CafriplotsR.backbone_citation", TRUE))) {
     return(invisible(NULL))
   }
-  if (!is.null(.backbone_cited[[backbone]])) return(invisible(NULL))
-  assign(backbone, TRUE, envir = .backbone_cited)
+  backbone_key <- .backbone_notice_key(backbone)
+  if (!is.null(.backbone_cited[[backbone_key]])) return(invisible(NULL))
+  assign(backbone_key, TRUE, envir = .backbone_cited)
 
   # a citation is a courtesy: it never warns and never stops a query
   citation <- suppressMessages(tryCatch(backbone_citation(backbone, con_taxa),

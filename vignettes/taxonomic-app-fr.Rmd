@@ -278,6 +278,8 @@ Passez à l'onglet **"Export"** pour télécharger votre jeu de données standar
 
 Les colonnes de référentiel ne constituent pas l'un de ces groupes : elles sont ajoutées dès lors qu'un référentiel autre que l'interne avait été choisi avant la correspondance, et accompagnent l'export dans tous les cas. L'identifiant de ligne interne `id_data` est toujours retiré.
 
+**Ce que contient le fichier.** L'export Excel place les noms sur une feuille nommée `taxonomy`. Lorsque les noms proviennent d'un référentiel autre que l'interne, une seconde feuille nommée `citations` indique ce qu'il faut citer pour eux — voir [Citer le référentiel choisi](#citer-le-referentiel).
+
 **Descriptions des colonnes dans l'application.** À côté de l'aperçu, l'onglet Export liste chaque colonne standardisée présente dans vos résultats avec une description d'une ligne de son contenu — le même contenu que [Comprendre les Colonnes de Sortie](#comprendre-les-colonnes-de-sortie) ci-dessous. Seules les colonnes réellement présentes sont décrites : la liste reflète donc les options que vous avez choisies, et non tout ce que l'application sait produire. Vos propres colonnes d'entrée sont conservées mais pas décrites une à une, l'application n'en sachant rien.
 
 Un tableau de prévisualisation montre les données avant l'export avec des contrôles de pagination.
@@ -406,6 +408,32 @@ Ce choix ne modifie pas la correspondance elle-même — les noms sont toujours 
 **Cela réécrit également `corrected_name`.** Partout où le référentiel choisi contient le taxon, `corrected_name` devient son nom plutôt que celui du référentiel interne ; les taxons qui en sont absents conservent leur nom interne. La colonne `name_source` enregistre quelle référence a fourni chaque valeur (`internal`, ou le code du référentiel choisi), ce qui rend la substitution vérifiable — consultez-la avant de considérer que `corrected_name` provient d'une référence unique.
 
 Choisissez un référentiel lorsque vos résultats doivent s'aligner sur une liste de référence internationale, et laissez le menu sur le référentiel interne lorsque vous avez besoin de noms cohérents avec le reste de la base. Le choix doit être fait **avant** la correspondance, la consultation s'effectuant au cours de cette étape.
+
+#### Citer le référentiel choisi {#citer-le-referentiel}
+
+WCVP et APD sont des ouvrages publiés : utiliser leurs noms, c'est les citer. Dès que vous en choisissez un, l'application affiche la citation demandée par son éditeur, juste sous le menu, accompagnée d'un lien vers la source :
+
+- **APD** — African Plant Database, Conservatoire et Jardin botaniques de la Ville de Genève et South African National Biodiversity Institute, Pretoria — <http://africanplantdatabase.ch>
+- **WCVP** — World Checklist of Vascular Plants, Royal Botanic Gardens de Kew — <http://sftp.kew.org/pub/data-repositories/WCVP/>. La formulation de Kew crédite également **rWCVP**, le package R avec lequel notre copie a été téléchargée
+
+La version et la date d'accès figurant dans la phrase sont celles de la copie **présente dans la base**, et non du jour où vous lancez la requête. Deux personnes citant la même exécution citent donc la même chose, et une exécution de l'an dernier continue de citer ce qu'elle a réellement utilisé.
+
+L'export Excel emporte la citation avec les données, sur une seconde feuille nommée `citations` — référence, éditeur, version, date d'accès, lien et la phrase elle-même. Un CSV ne contient qu'une seule table et ne peut pas la transporter ; copiez la phrase depuis l'application si vous exportez dans ce format.
+
+Depuis la console, le même texte s'obtient avec `query_citations()`, aux côtés des citations de traits, ou avec `backbone_reference()` si vous voulez la version et la date dans des colonnes distinctes :
+
+```r
+cons <- list(main = call.mydb(), taxa = call.mydb.taxa())
+
+# tout ce qu'il y a à citer, traits et sources de noms réunis
+query_citations(cons$main)
+
+# seulement les sources de noms, avec le détail
+backbone_reference(con_taxa = cons$taxa)
+backbone_reference("wcvp", cons$taxa)$citation
+```
+
+Dans `query_citations()`, les lignes de référentiel portent `source = "backbone"` et aucun `id_citation` — elles vivent dans la base taxa, pas dans `table_citations`, et aucune clé étrangère ne pointe vers elles. La phrase à coller se trouve dans `notes`.
 
 ### Ajuster la Correspondance Approximative
 
@@ -548,7 +576,7 @@ write.csv(result, "inventaire_standardise.csv", row.names = FALSE)
 5. **Examinez les scores de correspondance** : N'acceptez pas aveuglément les correspondances à faible similarité (<0.6)
 6. **Utilisez le point de reprise** : L'application sauvegarde automatiquement votre progression — si vous fermez l'onglet, vous pouvez reprendre là où vous vous étiez arrêté
 7. **Gardez l'exécution reproductible** : le seuil utilisé par une exécution est inscrit dans le script sous **Afficher le code R équivalent** — copiez-le plutôt que de noter la valeur à la main
-8. **Citez les sources des données** : Consultez le panneau Sources des données dans l'onglet Traits pour les citations à inclure dans vos méthodes
+8. **Citez les sources des données** : Consultez le panneau Sources des données dans l'onglet Traits pour les citations à inclure dans vos méthodes et, si vous avez choisi un référentiel autre que l'interne, citez-le également — voir [Citer le référentiel choisi](#citer-le-referentiel)
 
 ## Exemple de Flux de Travail
 

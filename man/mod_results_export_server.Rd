@@ -4,7 +4,14 @@
 \alias{mod_results_export_server}
 \title{Results Export Module - Server}
 \usage{
-mod_results_export_server(id, results, original_data, i18n)
+mod_results_export_server(
+  id,
+  results,
+  original_data,
+  i18n,
+  name_backbone = NULL,
+  language = NULL
+)
 }
 \arguments{
 \item{id}{Character, module ID}

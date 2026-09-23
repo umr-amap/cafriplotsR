@@ -14,15 +14,44 @@
 #' dataset name, or a free-text pattern matched against `citation_key`, `authors`,
 #' `title`, and `dataset_name`.
 #'
+#' @section Taxonomic backbones:
+#' The taxonomic backbones - APD, WCVP, any other the taxa database registers -
+#' are not rows of `table_citations`. They are described in the taxa database,
+#' where their version and access date are updated by each import, and they are
+#' listed here so that one call answers "what do I have to cite?" whether the
+#' answer is a trait dataset or a name source.
+#'
+#' Their rows carry `source = "backbone"` and no `id_citation`: nothing points
+#' at them with a foreign key, and they must not be used as one. The sentence
+#' to paste into a methods section is in `notes`. [backbone_reference()]
+#' returns the same thing with the version and access date in columns of their
+#' own.
+#'
+#' Backbones are included only when a taxa connection is already open or is
+#' passed as `con_taxa`. Reading the main database never prompts for a second
+#' password on its own.
+#'
 #' @param con Database connection to `plots_transects`. If NULL, calls
 #'   `call.mydb()`.
-#' @param ids Integer vector of `id_citation` values to retrieve.
-#' @param keys Character vector of `citation_key` values to retrieve.
+#' @param ids Integer vector of `id_citation` values to retrieve. Backbones
+#'   have no `id_citation`, so supplying this drops them.
+#' @param keys Character vector of `citation_key` values to retrieve. A
+#'   backbone's key is its code in capitals, e.g. `"WCVP"`.
 #' @param dataset_names Character vector of `dataset_name` values to filter on.
 #' @param pattern Character string. Case-insensitive substring matched against
 #'   `citation_key`, `authors`, `title`, and `dataset_name`.
+#' @param backbones Logical. Include the taxonomic backbones. Default TRUE.
+#' @param con_taxa Connection or pool to the taxa database. If NULL, one that
+#'   is already open is used, and otherwise the backbones are skipped.
+#' @param language `"en"` (default) or `"fr"`, for the wording of a backbone's
+#'   access date.
 #'
-#' @return A data frame of matching rows, or all rows when no filter is supplied.
+#' @return A data frame of matching rows, or all rows when no filter is
+#'   supplied, with a `source` column saying where each row came from
+#'   (`"table_citations"` or `"backbone"`).
+#'
+#' @seealso [backbone_reference()] for the backbones alone, with their version
+#'   and access date.
 #'
 #' @examples
 #' \dontrun{
@@ -36,6 +65,9 @@
 #'
 #' # Free-text search
 #' query_citations(con, pattern = "TRY")
+#'
+#' # What to cite for the names themselves
+#' query_citations(con, pattern = "WCVP")$notes
 #' }
 #'
 #' @export
@@ -43,8 +75,12 @@ query_citations <- function(con = NULL,
                             ids           = NULL,
                             keys          = NULL,
                             dataset_names = NULL,
-                            pattern       = NULL) {
+                            pattern       = NULL,
+                            backbones     = TRUE,
+                            con_taxa      = NULL,
+                            language      = c("en", "fr")) {
 
+  language <- match.arg(language)
   if (is.null(con)) con <- call.mydb()
 
   actual_con <- if (inherits(con, "Pool")) pool::poolCheckout(con) else con
@@ -87,9 +123,88 @@ query_citations <- function(con = NULL,
   }
 
   result <- func_try_fetch(con = actual_con, sql = sql)
+  result$source <- rep("table_citations", nrow(result))
+
+  if (isTRUE(backbones) && is.null(ids)) {
+    result <- .append_backbone_citations(
+      result,
+      con_taxa      = con_taxa,
+      keys          = keys,
+      dataset_names = dataset_names,
+      pattern       = pattern,
+      language      = language
+    )
+  }
 
   cli::cli_alert_info("{nrow(result)} citation(s) found")
   result
+}
+
+
+#' Add the taxonomic backbones to a table_citations result
+#'
+#' Shaped like the rows they join, with the citation sentence in `notes` and
+#' no `id_citation`: a backbone is described in the taxa database, not in
+#' `table_citations`, and nothing may point at it with a foreign key.
+#'
+#' The taxa database is optional here. A user who connected only to the main
+#' database gets the trait citations and a note saying the backbones were
+#' skipped, rather than a prompt for a second password.
+#'
+#' @param result The rows read from `table_citations`, with `source` set.
+#' @noRd
+.append_backbone_citations <- function(result, con_taxa = NULL, keys = NULL,
+                                       dataset_names = NULL, pattern = NULL,
+                                       language = "en") {
+  if (is.null(con_taxa)) con_taxa <- .taxa_connection_if_open()
+  if (is.null(con_taxa)) {
+    message("Note: no taxa connection open, so the taxonomic backbones are ",
+            "not listed. Pass con_taxa to include them.")
+    return(result)
+  }
+
+  refs <- tryCatch(
+    backbone_reference(con_taxa = con_taxa, language = language),
+    error = function(e) NULL
+  )
+  if (is.null(refs) || nrow(refs) == 0) return(result)
+
+  rows <- data.frame(
+    id_citation  = rep(NA_integer_, nrow(refs)),
+    citation_key = toupper(refs$code),
+    authors      = refs$publisher,
+    year         = as.integer(format(refs$access_date, "%Y")),
+    title        = refs$name,
+    url          = refs$homepage,
+    dataset_name = refs$name,
+    notes        = refs$citation,
+    source       = "backbone",
+    stringsAsFactors = FALSE
+  )
+
+  # the same filters the SQL applied, so both halves of the result answer the
+  # same question
+  if (!is.null(keys)) {
+    rows <- rows[rows$citation_key %in% keys, , drop = FALSE]
+  }
+  if (!is.null(dataset_names)) {
+    rows <- rows[rows$dataset_name %in% dataset_names, , drop = FALSE]
+  }
+  if (!is.null(pattern)) {
+    # ILIKE '%pattern%' is a literal, case-insensitive substring, which is what
+    # lower-casing both sides and matching fixed gives; a regex here would
+    # answer a different question for a pattern like "Kew (2026)"
+    hay <- paste(rows$citation_key, rows$authors, rows$title, rows$dataset_name)
+    rows <- rows[grepl(tolower(pattern), tolower(hay), fixed = TRUE), ,
+                 drop = FALSE]
+  }
+  if (nrow(rows) == 0) return(result)
+
+  # columns table_citations has and a backbone does not stay empty
+  for (col in setdiff(names(result), names(rows))) rows[[col]] <- NA
+  for (col in setdiff(names(rows), names(result))) result[[col]] <- NA
+
+  rbind(result, rows[names(result)])
 }
 
 #' Add one or more citations to table_citations

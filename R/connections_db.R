@@ -597,6 +597,27 @@ call.mydb.taxa <- function(pass = NULL, user = NULL, reset = FALSE, retry = TRUE
 }
 
 
+#' The taxa connection already open, if there is one
+#'
+#' Unlike [call.mydb.taxa()], this never opens one and so never prompts for
+#' credentials. It is for work that is better with the taxa database but must
+#' not demand it: a function reading the main database should not stop to ask
+#' for a second password to add something optional to its result.
+#'
+#' @return A connection or pool, or `NULL` when none is open.
+#' @noRd
+.taxa_connection_if_open <- function() {
+  if (!is.null(.db_env$pool_taxa)) return(.db_env$pool_taxa)
+
+  con <- .db_env$mydb_taxa
+  if (is.null(con)) return(NULL)
+  if (isTRUE(tryCatch(test_connection(con), error = function(e) FALSE))) {
+    return(con)
+  }
+  NULL
+}
+
+
 
 #' Check taxa database permissions
 #' @export

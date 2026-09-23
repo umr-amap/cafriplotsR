@@ -278,6 +278,8 @@ Switch to the **"Export"** tab to download your standardized dataset:
 
 Backbone columns are not one of these groups: they are appended whenever a reference other than the internal backbone was chosen before matching, and travel with the export either way. The internal `id_data` row identifier is always stripped.
 
+**What the file is called inside.** The Excel export puts the names on a sheet named `taxonomy`. When the names came from a reference other than the internal backbone, a second sheet named `citations` records what to cite for them — see [Citing the reference you chose](#citing-the-reference).
+
 **Column descriptions in the app.** Beside the preview, the Export tab lists every standardized column present in your results with a one-line description of what it holds — the same content as [Understanding Output Columns](#understanding-output-columns) below. Only the columns actually present are described, so the list reflects the options you chose rather than everything the app can produce. Your own input columns are preserved but not described individually, since the app knows nothing about them.
 
 A preview table shows the data before export with pagination controls.
@@ -406,6 +408,32 @@ The choice has no effect on matching itself — names are always matched against
 **It also rewrites `corrected_name`.** Wherever the chosen reference holds the taxon, `corrected_name` becomes its name rather than the internal backbone's; taxa absent from it keep their internal name. The `name_source` column records which reference supplied each value (`internal`, or the code of the chosen one), so the substitution stays auditable — check it before treating `corrected_name` as coming from a single reference.
 
 Choose a reference when your results must line up with an international checklist, and leave the menu on the internal backbone when you need names consistent with the rest of the database. The choice must be made **before** matching, since the lookup happens as part of that step.
+
+#### Citing the reference you chose {#citing-the-reference}
+
+WCVP and APD are published works, and using their names means citing them. As soon as you pick one, the app shows the citation its publisher asks for, right under the menu, together with a link to the source:
+
+- **APD** — African Plant Database, Conservatoire et Jardin botaniques de la Ville de Genève and South African National Biodiversity Institute, Pretoria — <http://africanplantdatabase.ch>
+- **WCVP** — World Checklist of Vascular Plants, Royal Botanic Gardens, Kew — <http://sftp.kew.org/pub/data-repositories/WCVP/>. Kew's wording also credits **rWCVP**, the R package our copy was downloaded with
+
+The version and access date in the sentence are those of the copy **held in the database**, not the day you ran the query. Two people citing the same run therefore cite the same thing, and a run from last year keeps citing what it actually used.
+
+The Excel export carries the citation with the data, on a second sheet named `citations` — reference, publisher, version, access date, link and the sentence itself. CSV holds a single table and cannot carry it; copy the sentence from the app if you export that way.
+
+From the console, the same text comes from `query_citations()`, alongside the trait citations, or from `backbone_reference()` when you want the version and date in columns of their own:
+
+```r
+cons <- list(main = call.mydb(), taxa = call.mydb.taxa())
+
+# everything there is to cite, traits and name sources together
+query_citations(cons$main)
+
+# just the name sources, with the parts spelled out
+backbone_reference(con_taxa = cons$taxa)
+backbone_reference("wcvp", cons$taxa)$citation
+```
+
+Backbone rows in `query_citations()` are marked `source = "backbone"` and carry no `id_citation` — they live in the taxa database, not in `table_citations`, and nothing points at them with a foreign key. The sentence to paste is in `notes`.
 
 ### Adjusting Fuzzy Matching
 
@@ -548,7 +576,7 @@ write.csv(result, "standardized_inventory.csv", row.names = FALSE)
 5. **Review match scores**: Don't blindly accept low-similarity matches (<0.6)
 6. **Use checkpoint/resume**: The app saves your progress automatically — if you close the browser tab, you can pick up where you left off
 7. **Keep the run reproducible**: the threshold a run used is written into the script under **Show Equivalent R Code** — copy that rather than noting the value by hand
-8. **Cite data sources**: Check the Data Sources panel in the Traits tab for citations to include in your methods
+8. **Cite data sources**: Check the Data Sources panel in the Traits tab for citations to include in your methods, and, if you chose a reference other than the internal backbone, cite it too — see [Citing the reference you chose](#citing-the-reference)
 
 ## Example Workflow
 
