@@ -91,8 +91,15 @@ mod_database_login_ui <- function(id, allow_public = FALSE, allow_offline = FALS
           )
         },
 
-        # Hidden output for conditional panel
-        shiny::textOutput(ns("has_saved_credentials"))
+        # Carrier for the conditionalPanel conditions above — the value is
+        # read by JavaScript, never by the user, so the element itself is
+        # hidden. Without the wrapper it printed a bare "TRUE" at the foot of
+        # the login panel. `suspendWhenHidden = FALSE` on the server side
+        # keeps it evaluated even though it is not visible.
+        shiny::div(
+          style = "display: none;",
+          shiny::textOutput(ns("has_saved_credentials"))
+        )
       )
     )
   )
@@ -338,13 +345,16 @@ mod_database_login_server <- function(id, allow_public = FALSE,
             t("or")
           )
         ),
+        # Given the same weight as "Connect to Database": for a visitor with
+        # no account, this is the way in, and an outline button read as a
+        # secondary afterthought
         shiny::actionButton(
           ns("connect_public"),
           shiny::tagList(
             shiny::icon("globe"),
             paste0(" ", t("Connect as public user"))
           ),
-          class = "btn-outline-secondary btn-block",
+          class = "btn-info btn-lg btn-block",
           style = "margin-bottom: 8px;"
         )
       )
