@@ -6,7 +6,7 @@ infraspecific, with authors)
 ## Usage
 
 ``` r
-add_taxa_table_taxa(ids = NULL, backbone = c("internal", "wcvp"))
+add_taxa_table_taxa(ids = NULL, backbone = "internal")
 ```
 
 ## Arguments
@@ -17,11 +17,15 @@ add_taxa_table_taxa(ids = NULL, backbone = c("internal", "wcvp"))
 
 - backbone:
 
-  character. `"internal"` (default) or `"wcvp"`. When `"wcvp"`, standard
-  taxonomy columns (`tax_fam`, `tax_gen`, `tax_esp`, etc.) are replaced
-  with WCVP values where a link exists. The original internal name is
-  kept in `alt_taxon_name` and a `name_source` column indicates the
-  source per row.
+  Character. Backbone whose names are used: `"internal"` (default) for
+  `table_taxa`, or the code of a backbone registered in the taxa
+  database (see
+  [`list_backbones()`](https://umr-amap.github.io/cafriplotsR/reference/list_backbones.md)),
+  such as `"wcvp"`. With another backbone, standard taxonomy columns
+  (`tax_fam`, `tax_gen`, `tax_esp`, etc.) are replaced with that
+  backbone's values where a preferred link exists. The original internal
+  name is kept in `alt_taxon_name` and a `name_source` column indicates
+  the source per row.
 
 ## Value
 

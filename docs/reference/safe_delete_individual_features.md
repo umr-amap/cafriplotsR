@@ -72,7 +72,12 @@ safe_delete_individual_features(
 
 ## Value
 
-List with deletion summary (invisible)
+List with deletion summary (invisible). Includes \`measures_info\`, a
+data frame with one row per measurement to be deleted
+(\`id_trait_measures\`, \`id_data_individuals\`, \`trait\`,
+\`traitvalue\`, \`traitvalue_char\`) — useful for inspecting which
+traits are affected when there are more records than the console preview
+shows.
 
 ## Examples
 

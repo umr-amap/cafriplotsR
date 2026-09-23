@@ -55,6 +55,14 @@ add_entry_taxa(
   add in a list at least one values to identify to which taxa it will be
   put in synonymy: genus, species or id
 
+- TPS_KEY:
+
+  string Tropicos API key used for \`search_name_tps\`. Defaults to
+  \`NULL\`, which resolves the user's own key through
+  \[get_tropicos_key()\] (session cache, \`TROPICOS_API_KEY\`, or a
+  prompt). No key ships with the package: request one at
+  \<https://services.tropicos.org/help?requestkey\>.
+
 - detvalue:
 
   integer detvalue code

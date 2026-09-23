@@ -69,9 +69,16 @@ from the trait list, preview, and execute the import.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The wizard consists of 5 steps:</p><ol><li><p>Upload data (xlsx or csv with idtax column)</p></li>
-<li><p>Map trait columns (select which columns contain trait observations)</p></li>
+    <p>The wizard consists of 6 steps:</p><ol><li><p>Upload data (xlsx or csv with idtax column; choose the sheet of a
+    multi-sheet workbook)</p></li>
+<li><p>Map trait columns. Wide format: one column per trait, each mapped
+    to a trait. Long format: one row per measurement, with a trait-name
+    column and a numeric and/or character value column; each trait name is
+    mapped to a trait</p></li>
 <li><p>Map metadata columns (taxon ID, flat metadata, and trait features)</p></li>
+<li><p>Citation: link the import to an existing entry of
+    <code>table_citations</code>, or create one (written to the database there
+    and then, before the import). Optional</p></li>
 <li><p>Validate (check types, ranges, NAs, duplicates; auto-fix type mismatches)</p></li>
 <li><p>Preview &amp; import (dry run or live)</p></li>
 </ol><p>Prerequisites:</p><ul><li><p>Data must contain an <code>idtax</code> column with valid taxon IDs</p></li>

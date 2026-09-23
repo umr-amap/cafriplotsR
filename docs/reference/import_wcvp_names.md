@@ -38,6 +38,13 @@ import_wcvp_names(
 
 Invisible list with import results (version, record_count).
 
+## Details
+
+Links in `taxa_backbone_link` are kept. Links whose WCVP ID no longer
+exists in the new version are reported by
+`check_backbone_links("wcvp")`, run at the end. The legacy
+`wcvp_idtax_link` is emptied, as before.
+
 ## Examples
 
 ``` r

@@ -25,6 +25,8 @@ mod_growth_form_selector_server(id, pool, i18n)
 ## Value
 
 List with: - growth_form_selections: Reactive list of selected growth
-form paths - basisofrecord: Reactive character - measurementremarks:
-Reactive character - is_valid: Reactive logical indicating if selections
-are complete
+form paths - reset: Function clearing every selection, for the next
+taxon. The selections survive their UI being destroyed on purpose, so
+the caller has to say when a taxon is finished. - basisofrecord:
+Reactive character - measurementremarks: Reactive character - is_valid:
+Reactive logical indicating if selections are complete

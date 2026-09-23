@@ -59,7 +59,7 @@
 <span>  year_description <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  synonym_of <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  morpho_species <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  TPS_KEY <span class="op">=</span> <span class="st">NULL</span>,</span>
+<span>  TPS_KEY <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  tax_tax <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -90,6 +90,13 @@
 
 <dt id="arg-synonym-of">synonym_of<a class="anchor" aria-label="anchor" href="#arg-synonym-of"></a></dt>
 <dd><p>list if the new entry should be put in synonymy with an existing taxa, add in a list at least one values to identify to which taxa it will be put in synonymy: genus, species or id</p></dd>
+
+
+<dt id="arg-tps-key">TPS_KEY<a class="anchor" aria-label="anchor" href="#arg-tps-key"></a></dt>
+<dd><p>string Tropicos API key used for `search_name_tps`. Defaults
+to `NULL`, which resolves the user's own key through [get_tropicos_key()]
+(session cache, `TROPICOS_API_KEY`, or a prompt). No key ships with the
+package: request one at &lt;https://services.tropicos.org/help?requestkey&gt;.</p></dd>
 
 
 <dt id="arg-detvalue">detvalue<a class="anchor" aria-label="anchor" href="#arg-detvalue"></a></dt>

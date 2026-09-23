@@ -74,6 +74,62 @@
 <p>Actualités sur les grandes étapes du package CafriplotsR</p>
 <hr>
 <div class="section level3">
+<h3 id="septembre-2026">Septembre 2026<a class="anchor" aria-label="anchor" href="#septembre-2026"></a>
+</h3>
+<div class="section level4">
+<h4 id="nouvelles-données">Nouvelles données<a class="anchor" aria-label="anchor" href="#nouvelles-donn%C3%A9es"></a>
+</h4>
+<p><strong>La Base de Données des Plantes d’Afrique (APD) est désormais
+un référentiel taxonomique</strong></p>
+<p>À côté du référentiel interne à CafriplotsR et de WCVP, les noms
+peuvent maintenant être lus selon la <strong>Base de Données des Plantes
+d’Afrique</strong> (APD), maintenue par les Conservatoire et Jardin
+botaniques de Genève. APD est le référentiel nomenclatural de la flore
+africaine — c’est-à-dire de ce que contient cette base — et reconnaît
+donc bien plus de nos taxons qu’une checklist mondiale, en particulier
+les noms infraspécifiques.</p>
+<p><strong>104 117 noms APD</strong> ont été importés, et <strong>94 774
+taxons</strong> de la base disposent désormais d’un nom APD.</p>
+<p>Le choix se fait exactement comme pour WCVP, avec un seul argument
+:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/query_taxa.html">query_taxa</a></span><span class="op">(</span>species <span class="op">=</span> <span class="st">"Diospyros iturensis"</span>, backbone <span class="op">=</span> <span class="st">"apd"</span>, check_synonymy <span class="op">=</span> <span class="cn">F</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"GABON"</span>, backbone <span class="op">=</span> <span class="st">"apd"</span>, extract_individuals <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span></code></pre></div>
+<p>Les deux mêmes colonnes documentent la substitution :
+<code>name_source</code> indique si le taxon a été résolu vers un nom
+APD ou s’il a fallu revenir au nom interne, et
+<code>alt_taxon_name</code> conserve le nom interne en parallèle. Les
+identifiants internes restent inchangés.</p>
+<p>Pour savoir quels référentiels une base propose, et dans quelle
+version :</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/list_backbones.html">list_backbones</a></span><span class="op">(</span><span class="va">cons</span><span class="op">$</span><span class="va">taxa</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/get_backbone_status.html">get_backbone_status</a></span><span class="op">(</span><span class="st">"apd"</span>, con_taxa <span class="op">=</span> <span class="va">cons</span><span class="op">$</span><span class="va">taxa</span><span class="op">)</span></span></code></pre></div>
+<blockquote>
+<p><strong>Citation obligatoire.</strong> Tout travail utilisant les
+noms APD doit citer :</p>
+<p>African Plant Database (version 4.0.0). Conservatoire et Jardin
+botaniques de la Ville de Genève and South African National Biodiversity
+Institute, Pretoria, accès septembre 2026, de <a href="http://africanplantdatabase.ch" class="external-link uri">http://africanplantdatabase.ch</a>.</p>
+<p>La date d’accès est celle de la version présente dans la base, et non
+le jour où la requête est lancée — ainsi, deux personnes citant la même
+base citent la même chose.
+<code>backbone_citation("apd", cons$taxa, language = "fr")</code>
+renvoie la phrase avec la bonne version et la bonne date, et le package
+la rappelle une fois par session, dès la première requête utilisant le
+référentiel.</p>
+</blockquote>
+<p>WCVP impose sa propre formulation, que
+<code>backbone_citation("wcvp", cons$taxa)</code> restitue telle que Kew
+la demande — <em>Govaerts R. (ed.) (2026). WCVP: World Checklist of
+Vascular Plants, version 13. Facilitated by the Royal Botanic Gardens,
+Kew. Published on the Internet; …</em> — suivie de la référence de
+rWCVP, le package avec lequel notre copie de WCVP a été téléchargée.</p>
+<hr>
+</div>
+</div>
+<div class="section level3">
 <h3 id="mai-2026">Mai 2026<a class="anchor" aria-label="anchor" href="#mai-2026"></a>
 </h3>
 <div class="section level4">
@@ -93,7 +149,7 @@ référentiel a été utilisé pour interpréter chaque nom, et peut basculer
 entre référentiels.</p>
 <p>Le référentiel se choisit au moment de la requête, via un seul
 argument :</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">con</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">main</span></span>
 <span><span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"GABON"</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span>, extract_individuals <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/query_taxa.html">query_taxa</a></span><span class="op">(</span>species <span class="op">=</span> <span class="st">"Dacryodes edulis"</span>, backbone <span class="op">=</span> <span class="st">"wcvp"</span>, check_synonymy <span class="op">=</span> <span class="cn">F</span><span class="op">)</span></span></code></pre></div>
@@ -112,7 +168,7 @@ parallèle, pour pouvoir toujours remonter au référentiel Cafriplots</li>
 </ul>
 <p>La version actuelle du WCVP peut être vérifiée avec le code suivant
 (il s’agit de la plus récente, de début janvier 2026) :</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">con.taxa</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span><span class="op">$</span><span class="va">taxa</span></span>
 <span><span class="fu"><a href="../reference/get_wcvp_status.html">get_wcvp_status</a></span><span class="op">(</span>con_taxa <span class="op">=</span> <span class="va">con.taxa</span><span class="op">)</span></span></code></pre></div>
 <p>Les identifiants internes (<code>idtax_n</code>, l’identifiant du
@@ -178,7 +234,7 @@ et <code><a href="../reference/call.mydb.taxa.html">call.mydb.taxa()</a></code> 
 les <strong>deux</strong> bases simultanément et stocke les connexions
 afin que toute fonction du package les réutilise de manière transparente
 :</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cons</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/connect_cafri.html">connect_cafri</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">cons</span><span class="op">$</span><span class="va">main</span>   <span class="co"># base principale</span></span>
 <span><span class="va">cons</span><span class="op">$</span><span class="va">taxa</span>   <span class="co"># base taxonomique</span></span></code></pre></div>
@@ -213,7 +269,7 @@ Connexions à la Base de Données</a> pour la référence complète.</p>
 <h3 id="mars-2026">Mars 2026<a class="anchor" aria-label="anchor" href="#mars-2026"></a>
 </h3>
 <div class="section level4">
-<h4 id="nouvelles-données">Nouvelles données<a class="anchor" aria-label="anchor" href="#nouvelles-donn%C3%A9es"></a>
+<h4 id="nouvelles-données-1">Nouvelles données<a class="anchor" aria-label="anchor" href="#nouvelles-donn%C3%A9es-1"></a>
 </h4>
 <p><strong>Intégration de la base de données de densité du bois de
 Tervuren (TWDD)</strong></p>

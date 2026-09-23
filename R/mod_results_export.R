@@ -2,6 +2,30 @@
 #
 # Handles exporting standardized results in various formats
 
+
+#' The citations sheet written beside exported names
+#'
+#' One row per reference the names come from. Column names are left in English
+#' whatever the interface language, so that a file opened by a collaborator, or
+#' read back by a script, has the same headers everywhere.
+#'
+#' @param ref A tibble from [backbone_reference()], at least one row.
+#' @return A data frame with one row per reference.
+#' @noRd
+.export_citation_sheet <- function(ref) {
+  data.frame(
+    reference = ref$name,
+    code      = ref$code,
+    publisher = ref$publisher,
+    version   = ref$version,
+    accessed  = as.character(ref$access_date),
+    url       = ref$homepage,
+    citation  = ref$citation,
+    stringsAsFactors = FALSE
+  )
+}
+
+
 #' Results Export Module - UI
 #'
 #' @param id Character, module ID
@@ -45,8 +69,29 @@ mod_results_export_ui <- function(id) {
 #' @return NULL (handles download only)
 #'
 #' @keywords internal
-mod_results_export_server <- function(id, results, original_data, i18n) {
+mod_results_export_server <- function(id, results, original_data, i18n,
+                                      name_backbone = NULL, language = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
+
+    # What the names in the export have to be cited as. Empty for the internal
+    # backbone, which is the database's own and is cited with the package.
+    backbone_ref <- shiny::reactive({
+      chosen <- .chosen_name_backbone(name_backbone)
+      if (identical(chosen, "internal")) return(NULL)
+
+      lang <- tryCatch(
+        if (is.function(language)) language() else language,
+        error = function(e) NULL
+      )
+      lang <- if (identical(lang, "fr")) "fr" else "en"
+
+      ref <- tryCatch(
+        backbone_reference(chosen, call.mydb.taxa(), language = lang),
+        error = function(e) NULL
+      )
+      if (is.null(ref) || nrow(ref) == 0 || is.na(ref$citation[1])) return(NULL)
+      ref
+    })
 
     # Module title
     output$title <- shiny::renderText({
@@ -179,12 +224,22 @@ mod_results_export_server <- function(id, results, original_data, i18n) {
         export_data <- export_data %>%
           dplyr::select(-dplyr::any_of("id_data"))
 
+        # Names taken from another reference have to be cited as that
+        # publisher asks. The sentence travels with the data rather than
+        # staying in the app, as the traits export already does.
+        ref <- backbone_ref()
+
         # Export based on format
         if (input$export_format == "xlsx") {
-          writexl::write_xlsx(export_data, path = file)
+          sheets <- list(taxonomy = export_data)
+          if (!is.null(ref)) sheets$citations <- .export_citation_sheet(ref)
+          writexl::write_xlsx(sheets, path = file)
         } else if (input$export_format == "csv") {
+          # A CSV holds one table, so the citation cannot ride along; the app
+          # states it beside the reference menu and the xlsx export carries it
           readr::write_csv(export_data, file = file)
         } else if (input$export_format == "rds") {
+          if (!is.null(ref)) attr(export_data, "citation") <- ref$citation[1]
           saveRDS(export_data, file = file)
         }
       }

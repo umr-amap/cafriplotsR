@@ -83,7 +83,10 @@ SIMILARITY function, making it much faster especially with slow connections.</p>
 
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
-<dd><p>Matching method: "auto" (default), "exact", "genus_constrained", "fuzzy"</p></dd>
+<dd><p>Matching method: "auto" (default), "exact", "genus_constrained",
+"fuzzy". "hierarchical" is an alias of "auto" kept for readability at call
+sites that want the cascade named explicitly - the two are strictly
+equivalent at every dispatch point.</p></dd>
 
 
 <dt id="arg-max-matches">max_matches<a class="anchor" aria-label="anchor" href="#arg-max-matches"></a></dt>

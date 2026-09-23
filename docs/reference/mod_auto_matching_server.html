@@ -47,9 +47,8 @@
 <span>  <span class="va">data</span>,</span>
 <span>  <span class="va">column_name</span>,</span>
 <span>  <span class="va">include_authors</span>,</span>
-<span>  min_similarity <span class="op">=</span> <span class="fl">0.3</span>,</span>
 <span>  <span class="va">i18n</span>,</span>
-<span>  use_wcvp_names <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  name_backbone <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  is_offline <span class="op">=</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/reactive.html" class="external-link">reactive</a></span><span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -74,13 +73,14 @@
 <dd><p>Reactive logical, whether to include author names</p></dd>
 
 
-<dt id="arg-min-similarity">min_similarity<a class="anchor" aria-label="anchor" href="#arg-min-similarity"></a></dt>
-<dd><p>Numeric (0-1), minimum similarity threshold for fallback.
-Note: UI displays as percentage (0-100) but parameter uses decimal (default: 0.3 = 30%)</p></dd>
-
-
 <dt id="arg-i-n">i18n<a class="anchor" aria-label="anchor" href="#arg-i-n"></a></dt>
 <dd><p>Reactive returning shiny.i18n translator</p></dd>
+
+
+<dt id="arg-name-backbone">name_backbone<a class="anchor" aria-label="anchor" href="#arg-name-backbone"></a></dt>
+<dd><p>Reactive returning the code of the backbone whose
+names should appear in the output, or <code>"internal"</code> (the default) to
+keep the internal ones. See <code><a href="list_backbones.html">list_backbones()</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -88,6 +88,8 @@ Note: UI displays as percentage (0-100) but parameter uses decimal (default: 0.3
     <p>Reactive list containing:</p><ul><li><p><code>data</code>: Updated data frame with match results</p></li>
 <li><p><code>unmatched</code>: Data frame of unmatched names</p></li>
 <li><p><code>stats</code>: List of matching statistics</p></li>
+<li><p><code>params</code>: Settings used by the last run (column, similarity
+      threshold, author matching, name backbone, offline flag)</p></li>
 </ul></div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

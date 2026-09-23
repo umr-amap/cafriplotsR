@@ -6,12 +6,7 @@ at species and genus levels
 ## Usage
 
 ``` r
-match_tax(
-  idtax,
-  queried_tax = NULL,
-  verbose = TRUE,
-  backbone = c("internal", "wcvp")
-)
+match_tax(idtax, queried_tax = NULL, verbose = TRUE, backbone = "internal")
 ```
 
 ## Arguments
@@ -30,10 +25,11 @@ match_tax(
 
 - backbone:
 
-  Character. Which taxonomic backbone to use for synonym resolution.
-  `"internal"` (default) uses the internal `table_taxa`. `"wcvp"` uses
-  WCVP via `wcvp_idtax_link` and `wcvp_names`, falling back to internal
-  for unlinked taxa.
+  Character. Backbone whose names are used: `"internal"` (default) for
+  `table_taxa`, or the code of a backbone registered in the taxa
+  database (see
+  [`list_backbones()`](https://umr-amap.github.io/cafriplotsR/reference/list_backbones.md)),
+  such as `"wcvp"`.
 
 ## Value
 

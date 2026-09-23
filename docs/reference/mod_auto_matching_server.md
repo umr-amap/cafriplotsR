@@ -10,9 +10,8 @@ mod_auto_matching_server(
   data,
   column_name,
   include_authors,
-  min_similarity = 0.3,
   i18n,
-  use_wcvp_names = NULL,
+  name_backbone = NULL,
   is_offline = shiny::reactive(FALSE)
 )
 ```
@@ -35,15 +34,16 @@ mod_auto_matching_server(
 
   Reactive logical, whether to include author names
 
-- min_similarity:
-
-  Numeric (0-1), minimum similarity threshold for fallback. Note: UI
-  displays as percentage (0-100) but parameter uses decimal (default:
-  0.3 = 30%)
-
 - i18n:
 
   Reactive returning shiny.i18n translator
+
+- name_backbone:
+
+  Reactive returning the code of the backbone whose names should appear
+  in the output, or `"internal"` (the default) to keep the internal
+  ones. See
+  [`list_backbones()`](https://umr-amap.github.io/cafriplotsR/reference/list_backbones.md).
 
 ## Value
 
@@ -54,3 +54,6 @@ Reactive list containing:
 - `unmatched`: Data frame of unmatched names
 
 - `stats`: List of matching statistics
+
+- `params`: Settings used by the last run (column, similarity threshold,
+  author matching, name backbone, offline flag)

@@ -53,7 +53,10 @@ dataset name, or a free-text pattern matched against `citation_key`, `authors`,
 <span>  ids <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  keys <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dataset_names <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  pattern <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  pattern <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  backbones <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  con_taxa <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  language <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"en"</span>, <span class="st">"fr"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -67,11 +70,13 @@ dataset name, or a free-text pattern matched against `citation_key`, `authors`,
 
 
 <dt id="arg-ids">ids<a class="anchor" aria-label="anchor" href="#arg-ids"></a></dt>
-<dd><p>Integer vector of `id_citation` values to retrieve.</p></dd>
+<dd><p>Integer vector of `id_citation` values to retrieve. Backbones
+have no `id_citation`, so supplying this drops them.</p></dd>
 
 
 <dt id="arg-keys">keys<a class="anchor" aria-label="anchor" href="#arg-keys"></a></dt>
-<dd><p>Character vector of `citation_key` values to retrieve.</p></dd>
+<dd><p>Character vector of `citation_key` values to retrieve. A
+backbone's key is its code in capitals, e.g. `"WCVP"`.</p></dd>
 
 
 <dt id="arg-dataset-names">dataset_names<a class="anchor" aria-label="anchor" href="#arg-dataset-names"></a></dt>
@@ -82,10 +87,49 @@ dataset name, or a free-text pattern matched against `citation_key`, `authors`,
 <dd><p>Character string. Case-insensitive substring matched against
 `citation_key`, `authors`, `title`, and `dataset_name`.</p></dd>
 
+
+<dt id="arg-backbones">backbones<a class="anchor" aria-label="anchor" href="#arg-backbones"></a></dt>
+<dd><p>Logical. Include the taxonomic backbones. Default TRUE.</p></dd>
+
+
+<dt id="arg-con-taxa">con_taxa<a class="anchor" aria-label="anchor" href="#arg-con-taxa"></a></dt>
+<dd><p>Connection or pool to the taxa database. If NULL, one that
+is already open is used, and otherwise the backbones are skipped.</p></dd>
+
+
+<dt id="arg-language">language<a class="anchor" aria-label="anchor" href="#arg-language"></a></dt>
+<dd><p>`"en"` (default) or `"fr"`, for the wording of a backbone's
+access date.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame of matching rows, or all rows when no filter is supplied.</p>
+    <p>A data frame of matching rows, or all rows when no filter is
+  supplied, with a `source` column saying where each row came from
+  (`"table_citations"` or `"backbone"`).</p>
+    </div>
+    <div class="section level2">
+    <h2 id="taxonomic-backbones">Taxonomic backbones<a class="anchor" aria-label="anchor" href="#taxonomic-backbones"></a></h2>
+
+
+<p>The taxonomic backbones - APD, WCVP, any other the taxa database registers -
+are not rows of `table_citations`. They are described in the taxa database,
+where their version and access date are updated by each import, and they are
+listed here so that one call answers "what do I have to cite?" whether the
+answer is a trait dataset or a name source.</p>
+<p>Their rows carry `source = "backbone"` and no `id_citation`: nothing points
+at them with a foreign key, and they must not be used as one. The sentence
+to paste into a methods section is in `notes`. [backbone_reference()]
+returns the same thing with the version and access date in columns of their
+own.</p>
+<p>Backbones are included only when a taxa connection is already open or is
+passed as `con_taxa`. Reading the main database never prompts for a second
+password on its own.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p>[backbone_reference()] for the backbones alone, with their version
+  and access date.</p></div>
     </div>
 
     <div class="section level2">
@@ -101,6 +145,9 @@ dataset name, or a free-text pattern matched against `citation_key`, `authors`,
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Free-text search</span></span></span>
 <span class="r-in"><span><span class="fu">query_citations</span><span class="op">(</span><span class="va">con</span>, pattern <span class="op">=</span> <span class="st">"TRY"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># What to cite for the names themselves</span></span></span>
+<span class="r-in"><span><span class="fu">query_citations</span><span class="op">(</span><span class="va">con</span>, pattern <span class="op">=</span> <span class="st">"WCVP"</span><span class="op">)</span><span class="op">$</span><span class="va">notes</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

@@ -1,0 +1,38 @@
+# Parent and child links touching a set of plots
+
+One row per edge with at least one end among \`plot_ids\`, in both
+directions: the parent a queried plot sits in, and every plot sitting in
+a queried one.
+
+## Usage
+
+``` r
+.plot_link_edges(plot_ids, con)
+```
+
+## Arguments
+
+- plot_ids:
+
+  Integer vector of \`data_liste_plots.id_liste_plots\`.
+
+- con:
+
+  A DBI connection or pool to the main database.
+
+## Value
+
+A tibble with \`plot_id\`, \`plot_name\`, \`role\` (\`"parent"\` when
+the linked plot is the parent of the queried one, \`"child"\` when it
+sits inside it), \`linked_plot_id\`, \`linked_plot_name\`,
+\`parent_relation\`, and \`linked_in_query\` - whether the linked plot
+is itself among \`plot_ids\`.
+
+## Details
+
+\`parent_relation\` is always read off the child row, because that is
+where it is stored and what it describes - how the child sits inside the
+parent - in both directions of the walk.
+
+Returns an empty frame, without querying, on a database where
+\`inst/migrations/plot_hierarchy.R\` has not been applied.

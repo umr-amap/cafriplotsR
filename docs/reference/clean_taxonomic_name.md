@@ -16,11 +16,12 @@ clean_taxonomic_name(name)
 
 - name:
 
-  Character string of taxonomic name
+  Character vector of taxonomic names (a single name works too)
 
 ## Value
 
-Cleaned taxonomic name (character string)
+Cleaned taxonomic names, same length as \`name\`. \`NA\` and empty
+strings pass through untouched.
 
 ## Author
 

@@ -64,7 +64,7 @@ plot_data <- query_plots(
 #>   "include"` to keep them
 #> ℹ Taxonomic traits are genus-level aggregates, not values of the taxon itself:
 #>   `traits_to_genera = TRUE`, provenance in the source_* columns
-#> ℹ Tables: metadata, individuals, height_diameter, and data_sources
+#> ℹ Tables: metadata, individuals, height_diameter, data_sources, and plot_sources
 ```
 
 ``` r
@@ -72,7 +72,8 @@ plot_data <- query_plots(
 
 # Vérifier la structure
 names(plot_data)
-#> [1] "metadata"        "individuals"     "height_diameter" "data_sources"
+#> [1] "metadata"        "individuals"     "height_diameter" "data_sources"   
+#> [5] "plot_sources"
 # $metadata - Informations au niveau de la parcelle
 # $individuals - Données d'arbres individuels avec traits
 # $height_diameter - Paires hauteur-diamètre (prêtes pour la modélisation)
@@ -120,9 +121,9 @@ str(plot_data$individuals)
 #>  $ source_taxa_sd_wood_density       : chr [1:888] "species" "species" "species" "species" ...
 #>  $ taxa_sd_wood_density_plot_level   : num [1:888] 0.0762 0.0762 0.0762 0.0762 0.0762 ...
 #>  $ pom                               : num [1:888] 1.3 1.3 1.3 1.3 1.3 1.3 1.3 1.8 3.3 1.3 ...
-#>  $ taxa_mean_stem_diameter_p95       : num [1:888] 35 76.3 50 40 23.5 ...
+#>  $ taxa_mean_stem_diameter_p95       : num [1:888] 35 76.4 50 40 23.5 ...
 #>  $ taxa_n_stem_diameter_p95          : num [1:888] 1 1 1 1 1 1 1 1 1 1 ...
-#>  $ taxa_sd_stem_diameter_p95         : num [1:888] 13.9 NA 10.32 13.02 6.36 ...
+#>  $ taxa_sd_stem_diameter_p95         : num [1:888] 13.89 NA 9.61 13.02 6.19 ...
 #>  $ source_taxa_mean_stem_diameter_p95: chr [1:888] "species" "species" "species" "species" ...
 #>  $ source_taxa_n_stem_diameter_p95   : chr [1:888] "species" "species" "species" "species" ...
 #>  $ source_taxa_sd_stem_diameter_p95  : chr [1:888] "genus" NA "genus" "genus" ...
@@ -179,12 +180,12 @@ head(plot_data$height_diameter)
 #> # A tibble: 6 × 8
 #>     id_n plot_name    tag     D     H   POM census_name census_date
 #>    <int> <chr>      <dbl> <dbl> <dbl> <dbl> <chr>       <date>     
-#> 1 248314 bouamir001     1  17.7  12.8  1.3  census_1    2018-12-02 
-#> 2 248738 bouamir001   107  14.7  13.5  1.3  census_1    2018-12-02 
-#> 3 248742 bouamir001   108  56.5  36.8  1.3  census_1    2018-12-02 
-#> 4 248754 bouamir001   111  18.1  18.6  1.3  census_1    2018-12-02 
-#> 5 248890 bouamir001   145  71    28.6  3.5  census_1    2018-12-02 
-#> 6 248938 bouamir001   157  49.1  28.3  2.62 census_1    2018-12-02
+#> 1 248314 bouamir001     1  17.7  12.8   1.3 census_1    2018-12-02 
+#> 2 248334 bouamir001     6  22.2  15.7   1.3 census_1    2018-12-02 
+#> 3 248342 bouamir001     8  38.4  28.4   1.8 census_1    2018-12-02 
+#> 4 248346 bouamir001     9 123.   40.4   3.3 census_1    2018-12-02 
+#> 5 248370 bouamir001    15  48.7  25.8   1.3 census_1    2018-12-02 
+#> 6 248410 bouamir001    25  11.2  10.5   1.3 census_1    2018-12-02
 
 # Cette table inclut :
 # - id_n : ID de l'individu

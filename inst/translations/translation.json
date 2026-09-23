@@ -10964,6 +10964,10 @@
     {
       "en": "Which reference the name in corrected_name comes from: the internal backbone, or the code of the chosen one.",
       "fr": "Référentiel d'où provient le nom de corrected_name : le référentiel interne, ou le code du référentiel choisi."
+    },
+    {
+      "en": "Please cite this reference",
+      "fr": "Merci de citer cette référence"
     }
   ]
 }

@@ -1,7 +1,7 @@
 # Match Internal Taxa to WCVP Names
 
-Matches taxa from the internal `table_taxa` to WCVP names already
-uploaded in the database, using exact and optionally fuzzy matching.
+Superseded by `match_taxa_to_backbone("wcvp", ...)`, which it calls.
+Kept with its original column names for existing scripts.
 
 ## Usage
 
@@ -22,57 +22,43 @@ match_taxa_to_wcvp(
 
 - con_taxa:
 
-  Connection to the taxa database. If NULL, calls
+  Connection to the taxa database. If `NULL`, calls
   [`call.mydb.taxa()`](https://umr-amap.github.io/cafriplotsR/reference/call.mydb.taxa.md).
 
 - tax_ids:
 
-  Optional integer vector of `idtax_n` to match. If NULL, matches all
-  accepted taxa.
+  Optional integer vector of `idtax_n` to match. If `NULL`, matches all
+  taxa except morphospecies, mosses, lichens and fungi.
 
 - methods:
 
-  Character vector of matching methods to use. Default
-  `c("exact", "fuzzy")`.
+  Character vector of matching methods. Default `c("exact", "fuzzy")`;
+  fuzzy matching only runs on names without an identical backbone name.
 
 - fuzzy_threshold:
 
-  Numeric (0-1). Minimum similarity for fuzzy matches. Default 0.9.
+  Numeric (0-1). Minimum name similarity for fuzzy matches. Default 0.9.
 
 - author_match:
 
-  Character. How to use author strings during exact name matching.
-
-  - `"none"` (default): ignore authors entirely.
-
-  - `"exact"`: authors must match character-for-character. Reduces false
-    positives but misses any formatting difference.
-
-  - `"fuzzy"`: exact name match first, then Jaro-Winkler author
-    similarity to select among homonyms and filter below
-    `author_threshold`. More tolerant of abbreviation/spacing
-    differences.
-
-  Authors are built from `author1` (basionym) and `author2`
-  (combination) columns in `table_taxa`: `"(author1) author2"`. Not
-  applied to fuzzy name matching (author disambiguation is not
-  meaningful when the name itself is inexact).
+  Character. How authors settle exact matches: `"none"` (default)
+  ignores them, `"exact"` requires identical strings, `"fuzzy"` compares
+  them by Jaro-Winkler similarity. Authors are taken from
+  `author1`/`author2`/`author3` of `table_taxa`, for the deepest rank
+  present.
 
 - author_threshold:
 
-  Numeric (0-1). Minimum Jaro-Winkler similarity required to keep a
-  match when `author_match = "fuzzy"` and author info is present on both
-  sides. Default 0.6.
+  Numeric (0-1). Minimum author similarity when
+  `author_match = "fuzzy"`. Default 0.6.
 
 - n_cores:
 
-  Integer. Number of parallel workers for fuzzy matching. Uses forking
-  on Unix and a PSOCK cluster on Windows. Default 1 (sequential). Set to
-  `parallel::detectCores() - 1` to use all available cores.
+  Integer. Parallel workers for fuzzy matching. Default 1.
 
 - verbose:
 
-  Logical. Show progress. Default TRUE.
+  Logical. Show progress. Default `TRUE`.
 
 ## Value
 

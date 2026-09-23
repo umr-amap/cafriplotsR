@@ -10,7 +10,7 @@ resolve_taxon_synonyms(
   idtax = NULL,
   include_synonyms = TRUE,
   con_taxa = NULL,
-  backbone = c("internal", "wcvp")
+  backbone = "internal"
 )
 ```
 
@@ -30,10 +30,11 @@ resolve_taxon_synonyms(
 
 - backbone:
 
-  Character. Which taxonomic backbone to use for synonym resolution.
-  `"internal"` (default) uses the internal `table_taxa`. `"wcvp"` uses
-  WCVP via `wcvp_idtax_link` and `wcvp_names`, falling back to internal
-  for unlinked taxa.
+  Character. Backbone used for synonym resolution: `"internal"`
+  (default) for `table_taxa`, or the code of a backbone registered in
+  the taxa database (see
+  [`list_backbones()`](https://umr-amap.github.io/cafriplotsR/reference/list_backbones.md)),
+  such as `"wcvp"`, falling back to internal for unlinked taxa.
 
 ## Value
 

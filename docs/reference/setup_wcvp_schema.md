@@ -30,6 +30,12 @@ setup_wcvp_schema(con_taxa = NULL, dry_run = FALSE)
 
 Invisible list with success status and steps completed.
 
+## Details
+
+On a new database, apply `inst/migrations/multi_backbone.R` afterwards:
+the package reads WCVP links from `taxa_backbone_link` and names through
+`v_backbone_names_wcvp`, not from `wcvp_idtax_link`.
+
 ## Examples
 
 ``` r

@@ -5,7 +5,14 @@ Trait Preview & Import Module - Server
 ## Usage
 
 ``` r
-mod_trait_preview_import_server(id, data, mapping, pool, i18n)
+mod_trait_preview_import_server(
+  id,
+  data,
+  mapping,
+  pool,
+  i18n,
+  citation = shiny::reactive(NULL)
+)
 ```
 
 ## Arguments
@@ -29,6 +36,11 @@ mod_trait_preview_import_server(id, data, mapping, pool, i18n)
 - i18n:
 
   Reactive returning translator
+
+- citation:
+
+  Reactive returning the citation step result (\`id_citation\`,
+  \`citation\`), or NULL when no citation step is used
 
 ## Value
 

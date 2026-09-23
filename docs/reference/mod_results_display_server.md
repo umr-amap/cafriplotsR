@@ -11,7 +11,8 @@ mod_results_display_server(
   individual_features_results = NULL,
   i18n,
   con = NULL,
-  citation_data = NULL
+  citation_data = NULL,
+  plot_citation_data = NULL
 )
 ```
 
@@ -41,3 +42,11 @@ mod_results_display_server(
 
   Reactive returning a citation summary data.frame (optional, see
   mod_citation_panel_server)
+
+- plot_citation_data:
+
+  Reactive returning a plot-level citation summary data.frame from
+  [`build_plot_data_sources_table()`](https://umr-amap.github.io/cafriplotsR/reference/build_plot_data_sources_table.md)
+  (optional, see mod_citation_panel_server). Unlike `citation_data`
+  (which reflects the extracted individuals/traits), this is available
+  as soon as plot metadata is loaded.

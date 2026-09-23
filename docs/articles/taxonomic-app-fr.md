@@ -13,9 +13,31 @@ plantes d’Afrique centrale. Cette interface visuelle est idéale pour :
 - Examiner manuellement les correspondances incertaines
 - Enrichir les données avec des traits au niveau de l’espèce depuis la
   base de données
-- Vérifier la provenance des noms taxonomiques via l’intégration WCVP
+- Vérifier la provenance des noms taxonomiques auprès de référentiels
+  externes (WCVP, APD)
 
 ## Prérequis
+
+### Où s’exécute l’application
+
+La même application existe à deux endroits, et cette vignette fait
+référence aux deux.
+
+- **En local**, dans votre propre session R, via
+  [`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md).
+  C’est ce que supposent les exemples de code ci-dessous.
+- **Hébergée**, à l’adresse <https://cafri-taxomatch.lab.sspcloud.fr> —
+  la même application servie depuis SSP Cloud, que vous ouvrez dans un
+  navigateur, sans rien installer et sans R. Partout où cette vignette
+  parle de *l’application hébergée*, il s’agit de cette adresse.
+
+La copie hébergée interroge la même base de données : une liste
+standardisée qui en est exportée porte les mêmes valeurs d’`idtax_n`
+qu’une liste produite en local. Utilisez-la pour essayer l’application,
+ou pour montrer le flux de travail à un collègue sans lui demander
+d’installer le paquet. Pour un travail répété sur vos propres listes, le
+lancement en local est généralement plus rapide — voir [Performance de
+Correspondance Lente](#performance-de-correspondance-lente).
 
 ### Avec identifiants de base de données (accès complet)
 
@@ -77,20 +99,35 @@ launch_taxonomic_match_app(data = my_data, name_column = "nom_espece")
 # Lancer en anglais (le français est la langue par défaut)
 launch_taxonomic_match_app(language = "en")
 
-# Ajuster la sensibilité de la correspondance approximative (par défaut 0.7)
-launch_taxonomic_match_app(min_similarity = 0.5)  # Correspondance plus permissive
+# Afficher davantage de suggestions par nom lors de la révision
+launch_taxonomic_match_app(max_suggestions = 20)
 ```
+
+Le seuil de correspondance n’est **pas** un argument de lancement : il
+se règle dans l’onglet Auto Match, en pourcentage, et peut être modifié
+d’une exécution à l’autre. Voir [Ajuster la correspondance
+approximative](#ajuster-la-correspondance-approximative).
 
 ## Guide Étape par Étape
 
 ### Phase 1 : Vue Initiale
 
-Au premier lancement, vous verrez l’écran de connexion. Après vous être
-authentifié (ou avoir choisi le mode hors ligne), l’interface principale
-apparaît avec une barre latérale pour la configuration et des onglets
-pour les différentes phases du flux de travail :
+Au premier lancement, vous verrez l’écran de connexion. Il propose les
+trois voies décrites dans les [Prérequis](#pr%C3%A9requis) : vos propres
+identifiants de base de données, le compte public en lecture seule, ou
+la référence taxonomique en cache (hors ligne).
 
-![Vue initiale de l’application](images/app-initial-view.png)
+![L’écran de connexion et les trois voies pour le
+franchir](images/app-stand-login.gif)
+
+L’écran de connexion et les trois voies pour le franchir
+
+Après vous être authentifié (ou avoir choisi le mode hors ligne),
+l’interface principale apparaît avec une barre latérale pour la
+configuration et des onglets pour les différentes phases du flux de
+travail :
+
+![Vue initiale de l’application](images/app-initial-view.gif)
 
 Vue initiale de l’application
 
@@ -117,7 +154,7 @@ méthodes d’import :
 - **Utiliser des données R pré-chargées** (si vous avez passé le
   paramètre `data`)
 
-![Interface de chargement des données](images/app-upload-data.png)
+![Interface de chargement des données](images/app-upload-data.gif)
 
 Interface de chargement des données
 
@@ -159,7 +196,7 @@ les noms taxonomiques :
 
 Sélectionnez une colonne contenant le nom taxonomique complet :
 
-![Sélection de colonne - mode unique](images/app-column-select.png)
+![Sélection de colonne - mode unique](images/app-column-select.gif)
 
 Sélection de colonne - mode unique
 
@@ -173,7 +210,7 @@ Si vos données ont des colonnes séparées pour le genre, l’espèce et la
 famille, activez **“Utiliser plusieurs colonnes”** :
 
 ![Sélection de colonnes - mode
-multiple](images/app-column-select-multi.png)
+multiple](images/app-column-select-multi.gif)
 
 Sélection de colonnes - mode multiple
 
@@ -246,41 +283,52 @@ proposera de reprendre là où vous vous étiez arrêté.
 
 ### Phase 5 : Examiner les Résultats de Correspondance
 
-Après la fin de la correspondance, l’onglet Auto Match affiche un
-tableau résumé avec tous les noms et leur statut de correspondance :
+À la fin de la correspondance, l’onglet Auto Match affiche un **Résumé
+de l’appariement** : des effectifs, pas des lignes. Il indique comment
+s’est déroulée l’exécution, non ce qu’il est advenu de tel ou tel nom.
 
 ![Résumé des résultats de
 correspondance](images/app-matching-results.png)
 
 Résumé des résultats de correspondance
 
-Le tableau des résultats inclut :
+- **Total de noms uniques** soumis
+- **Correspondances exactes**, avec leur part du total
+- **Correspondances au niveau du genre**
+- **Correspondances approximatives**
+- **Nécessitant une révision** — affiché en orange dès que le chiffre
+  dépasse zéro, avec un renvoi vers l’onglet Révision
 
-- **Nom original** : Votre nom en entrée
-- **matched_name** : Nom trouvé dans la référence
-- **match_method** : Comment il a été apparié — `exact`,
-  `genus_constrained`, `fuzzy`, `manual`, `unresolved` ou `no_match`.
-  Voir [Valeurs de `match_method`](#valeurs-de-match_method) pour la
-  signification de chacune, et pourquoi il n’existe ni `exact_species`
-  ni `exact_genus`
-- **match_score** : Score de similarité (0–1, plus élevé est meilleur)
-- **idtax_n** : ID du taxon dans la base de données
-- **is_synonym** : Si le nom apparié est un synonyme
-- **accepted_name** : Nom accepté actuel (si synonyme)
+Les résultats nom par nom ne sont pas dans cet onglet. Pour les
+consulter, deux endroits :
 
-**Indicateurs de qualité de correspondance.** L’application colore
-chaque score pour que le tableau se parcoure d’un coup d’œil au lieu de
-se lire : **vert à partir de 90 %** et **bleu à partir de 70 %**, les
-scores inférieurs restant sans couleur. En règle générale :
+- L’onglet **Révision**, qui vous fait parcourir un à un les noms que
+  l’appariement n’a pas su trancher.
+- L’onglet **Export**, dont le tableau d’aperçu liste chaque ligne avec
+  toutes ses colonnes — `matched_name`, `match_method`, `match_score`,
+  `idtax_n`, `is_synonym`, `accepted_name` et les autres. Voir
+  [Comprendre les Colonnes de
+  Sortie](#comprendre-les-colonnes-de-sortie) pour le contenu de
+  chacune.
 
-- **Correspondance exacte (1.0)** : Correspondance parfaite, pas de
+**Où sont les couleurs.** Les scores sont colorés sous forme de badges
+sur les cartes de l’onglet **Révision** — à côté de chaque suggestion
+approximative et de chaque résultat de recherche manuelle — et nulle
+part ailleurs. L’aperçu de l’onglet Export est un tableau ordinaire,
+sans coloration conditionnelle, et le Résumé de l’appariement ci-dessus
+ne contient aucun score individuel à colorer. Lisez les badges ainsi :
+
+- **Correspondance exacte (100 %)** : correspondance parfaite, pas de
   révision nécessaire
-- **Haute similarité (≥ 0.9, vert)** : Très probablement correct,
-  révision rapide recommandée
-- **Similarité moyenne (0.7–0.9, bleu)** : Correspondance possible,
-  révision suggérée
-- **Basse similarité (\< 0.7)** : Incertain, révision manuelle requise
-- **Pas de correspondance** : Nécessite une sélection manuelle
+- **Haute similarité (≥ 90 %, vert)** : très probablement correct, un
+  coup d’œil suffit
+- **Similarité moyenne (70–89 %, bleu)** : correspondance possible, à
+  lire
+- **Basse similarité (\< 70 %)** : incertain, à trancher à la main. Les
+  cartes de suggestions approximatives colorent 50–69 % en jaune et le
+  reste en gris ; les cartes de recherche manuelle passent directement
+  au gris sous 70 %
+- **Pas de correspondance** : nécessite une sélection manuelle
 
 Un nom apparié par `genus_constrained` mérite plus de confiance qu’un
 `fuzzy` de score équivalent : les candidats auxquels il a été comparé
@@ -292,7 +340,7 @@ reconnu.
 Pour les noms non appariés ou incertains, passez à l’onglet **“Review”**
 pour réviser manuellement et sélectionner les correspondances :
 
-![Interface de révision manuelle](images/app-review-interface.png)
+![Interface de révision manuelle](images/app-review-interface.gif)
 
 Interface de révision manuelle
 
@@ -305,7 +353,7 @@ Affiche des suggestions automatiques classées par similarité avec des
 options de filtrage avancées :
 
 ![Suggestions approximatives avec
-filtres](images/app-review-suggestions.png)
+filtres](images/app-review-suggestions.gif)
 
 Suggestions approximatives avec filtres
 
@@ -315,12 +363,14 @@ Suggestions approximatives avec filtres
 - **Similarité minimale** : Ajuster le seuil (0.3–1.0)
 - **Filtre de niveau taxonomique** : Filtrer par Tous, Espèce, Genre,
   Famille, Ordre, Classe ou Infraspécifique
-- **Trier par** : Score de similarité ou ordre alphabétique
+
+Les suggestions sont toujours classées par score de similarité
+décroissant, la meilleure en premier.
 
 Chaque carte de suggestion affiche :
 
-- Nom avec badge de similarité coloré (vert = élevé, bleu = moyen, jaune
-  = bas)
+- Nom avec badge de similarité coloré (vert ≥ 90 %, bleu ≥ 70 %, jaune ≥
+  50 %, gris en dessous)
 - Niveau taxonomique et famille
 - Information de synonymie si applicable
 - Bouton **Sélectionner** pour acceptation en un clic
@@ -329,7 +379,7 @@ Chaque carte de suggestion affiche :
 
 Pour les noms sans bonnes suggestions, utilisez la recherche manuelle :
 
-![Interface de recherche manuelle](images/app-review-manual-search.png)
+![Interface de recherche manuelle](images/app-review-manual-search.gif)
 
 Interface de recherche manuelle
 
@@ -347,7 +397,58 @@ Interface de recherche manuelle
 - L’application mémorise vos sélections et met à jour automatiquement
   les résultats
 
-### Phase 7 : Enrichir les Données avec des Traits
+### Phase 7 : Exporter les Résultats
+
+Passez à l’onglet **“Export”** pour télécharger votre jeu de données
+standardisé :
+
+![Options d’export](images/app-export-options.gif)
+
+Options d’export
+
+**Formats disponibles :**
+
+- **Excel (.xlsx)** : Idéal pour partager avec des collaborateurs
+- **CSV (.csv)** : Format tabulaire universel
+- **RDS (.rds)** : Format natif R préservant les types de données
+
+**Colonnes sélectionnables.** Vos colonnes d’origine sont toujours
+incluses ; les trois groupes ci-dessous peuvent chacun être désactivés :
+
+- **IDs appariés** — `idtax_n`, `idtax_good_n`
+- **Noms corrigés** — `corrected_name`, `matched_name`
+- **Métadonnées de correspondance** — `match_method`, `match_score`,
+  `is_synonym`, `accepted_name`
+
+Les colonnes de référentiel ne constituent pas l’un de ces groupes :
+elles sont ajoutées dès lors qu’un référentiel autre que l’interne avait
+été choisi avant la correspondance, et accompagnent l’export dans tous
+les cas. L’identifiant de ligne interne `id_data` est toujours retiré.
+
+**Ce que contient le fichier.** L’export Excel place les noms sur une
+feuille nommée `taxonomy`. Lorsque les noms proviennent d’un référentiel
+autre que l’interne, une seconde feuille nommée `citations` indique ce
+qu’il faut citer pour eux — voir [Citer le référentiel
+choisi](#citer-le-referentiel).
+
+**Descriptions des colonnes dans l’application.** À côté de l’aperçu,
+l’onglet Export liste chaque colonne standardisée présente dans vos
+résultats avec une description d’une ligne de son contenu — le même
+contenu que [Comprendre les Colonnes de
+Sortie](#comprendre-les-colonnes-de-sortie) ci-dessous. Seules les
+colonnes réellement présentes sont décrites : la liste reflète donc les
+options que vous avez choisies, et non tout ce que l’application sait
+produire. Vos propres colonnes d’entrée sont conservées mais pas
+décrites une à une, l’application n’en sachant rien.
+
+Un tableau de prévisualisation montre les données avant l’export avec
+des contrôles de pagination.
+
+Cet onglet exporte les **noms standardisés**. Si vous voulez aussi y
+attacher des traits, poursuivez avec la phase suivante, qui dispose de
+ses propres boutons de téléchargement.
+
+### Phase 8 : Enrichir les Données avec des Traits
 
 Passez à l’onglet **“Traits Enrichment”** pour ajouter des traits au
 niveau de l’espèce à vos données appariées (nécessite une connexion à la
@@ -400,7 +501,7 @@ sélectionnés. Deux vues sont disponibles sous forme de sous-onglets : un
 **format large** (une ligne par taxon, traits en colonnes) et un
 **format long** (une ligne par combinaison taxon × trait) :
 
-![Résultats des données enrichies](images/app-enrich-data-results.png)
+![Résultats des données enrichies](images/app-enrich-data-results.gif)
 
 Résultats des données enrichies
 
@@ -415,46 +516,27 @@ traits utilisées, avec le nombre de mesures par source. Cela vous aide à
 suivre la provenance des données pour votre analyse et à citer les
 sources correctement.
 
-### Phase 8 : Exporter les Résultats
+#### Télécharger les données enrichies
 
-Passez à l’onglet **“Export”** pour télécharger votre jeu de données
-standardisé :
+Inutile de revenir à l’onglet Export : chaque sous-onglet de résultats
+porte son propre bouton de téléchargement vert.
 
-![Options d’export](images/app-export-options.png)
+- **Télécharger format large** — une ligne par taxon, traits en colonnes
+- **Télécharger format long** — une ligne par taxon × trait, affiché
+  uniquement lorsque des données au format long existent
 
-Options d’export
+Les deux produisent un **fichier Excel** nommé
+`taxa_traits_wide_AAAAMMJJ.xlsx` ou `taxa_traits_long_AAAAMMJJ.xlsx`,
+daté du jour du téléchargement. Chaque fichier contient une feuille
+`traits` et, dès lors que des citations ont été collectées, une seconde
+feuille `citations` reprenant la provenance du panneau Sources des
+données — les sources voyagent ainsi avec les données au lieu de rester
+dans l’application.
 
-**Formats disponibles :**
-
-- **Excel (.xlsx)** : Idéal pour partager avec des collaborateurs
-- **CSV (.csv)** : Format tabulaire universel
-- **RDS (.rds)** : Format natif R préservant les types de données
-
-**Colonnes sélectionnables.** Vos colonnes d’origine sont toujours
-incluses ; les trois groupes ci-dessous peuvent chacun être désactivés :
-
-- **IDs appariés** — `idtax_n`, `idtax_good_n`
-- **Noms corrigés** — `corrected_name`, `matched_name`
-- **Métadonnées de correspondance** — `match_method`, `match_score`,
-  `is_synonym`, `accepted_name`
-
-Les colonnes WCVP ne constituent pas l’un de ces groupes : elles sont
-ajoutées dès lors que l’option WCVP était activée avant la
-correspondance, et accompagnent l’export dans tous les cas.
-L’identifiant de ligne interne `id_data` est toujours retiré.
-
-**Descriptions des colonnes dans l’application.** À côté de l’aperçu,
-l’onglet Export liste chaque colonne standardisée présente dans vos
-résultats avec une description d’une ligne de son contenu — le même
-contenu que [Comprendre les Colonnes de
-Sortie](#comprendre-les-colonnes-de-sortie) ci-dessous. Seules les
-colonnes réellement présentes sont décrites : la liste reflète donc les
-options que vous avez choisies, et non tout ce que l’application sait
-produire. Vos propres colonnes d’entrée sont conservées mais pas
-décrites une à une, l’application n’en sachant rien.
-
-Un tableau de prévisualisation montre les données avant l’export avec
-des contrôles de pagination.
+L’onglet Export et ces boutons répondent à deux questions différentes :
+l’Export vous rend vos lignes avec les noms standardisés, tandis que
+ceux-ci vous donnent le tableau de traits construit à partir d’eux, une
+ligne par taxon.
 
 ## Comprendre les Colonnes de Sortie
 
@@ -468,24 +550,30 @@ vous n’avez donc pas à revenir ici pour les lire.
 | `idtax_n` | Identifiant du taxon apparié dans le référentiel taxonomique |
 | `idtax_good_n` | Identifiant du taxon accepté. Diffère de `idtax_n` lorsque le nom apparié est un synonyme |
 | `matched_name` | Nom trouvé dans le référentiel correspondant à votre nom d’entrée — il peut lui-même être un synonyme |
-| `corrected_name` | Nom standardisé final : le nom accepté lorsque la correspondance est un synonyme, ou le nom WCVP si cette option est activée |
+| `corrected_name` | Nom standardisé final : le nom accepté lorsque la correspondance est un synonyme, ou le nom du référentiel choisi si un référentiel a été choisi |
 | `accepted_name` | Nom accepté lorsque le nom apparié est un synonyme ; vide sinon |
 | `is_synonym` | `TRUE` lorsque le nom apparié est un synonyme d’un nom accepté |
 | `match_method` | Comment le nom a été apparié — voir le tableau ci-dessous |
 | `match_score` | Similarité entre votre nom d’entrée et le nom apparié, de 0 à 1 (1 = exact, ou correspondance que vous avez confirmée vous-même) |
 
-Lorsque l’option WCVP est activée (voir [Intégration
-WCVP](#int%C3%A9gration-wcvp)), quatre colonnes supplémentaires sont
-ajoutées et `corrected_name` est **remplacé** par le nom WCVP partout où
-il en existe un :
+Lorsqu’un référentiel autre que l’interne est choisi (voir [Noms issus
+d’un autre référentiel](#noms-issus-dun-autre-r%C3%A9f%C3%A9rentiel)),
+quatre colonnes supplémentaires sont ajoutées et `corrected_name` est
+**remplacé** par le nom de ce référentiel partout où il en existe un :
 
 | Colonne | Description |
 |----|----|
-| `wcvp_taxon_name` | Nom accepté selon le World Checklist of Vascular Plants |
-| `wcvp_family` | Famille selon WCVP |
-| `wcvp_taxon_authors` | Autorité taxonomique selon WCVP |
-| `wcvp_taxon_status` | Statut du nom dans WCVP (ex. `Accepted`) |
-| `name_source` | Référence ayant fourni `corrected_name` : référentiel `internal` ou `WCVP` |
+| `backbone_taxon_name` | Nom accepté dans le référentiel choisi |
+| `backbone_family` | Famille selon le référentiel choisi |
+| `backbone_authors` | Autorité taxonomique selon le référentiel choisi |
+| `backbone_status_raw` | Statut du nom dans le référentiel choisi (ex. `Accepted`) |
+| `name_source` | Référence ayant fourni `corrected_name` : `internal`, ou le code du référentiel choisi (`wcvp`, `apd`, …) |
+
+Le choix de WCVP répète en outre ces quatre colonnes sous les noms
+`wcvp_taxon_name`, `wcvp_family`, `wcvp_taxon_authors` et
+`wcvp_taxon_status`, ceux qu’elles portaient avant l’existence de tout
+autre référentiel, afin que les scripts écrits pour les versions
+antérieures les retrouvent.
 
 ### Valeurs de `match_method`
 
@@ -534,59 +622,117 @@ launch_taxonomic_match_app(language = "en")
 launch_taxonomic_match_app(language = "fr")
 ```
 
-### Intégration WCVP
+### Noms issus d’un autre référentiel
 
-L’application peut optionnellement rapprocher les résultats du **World
-Checklist of Vascular Plants (WCVP)**, référence internationale
-maintenue par les Royal Botanic Gardens de Kew. Lorsque la base de
-données taxa contient des données WCVP, une case à cocher **“Utiliser
-les noms WCVP en sortie”** apparaît dans la barre latérale. Elle ne
-modifie pas la correspondance elle-même — les noms sont toujours
-appariés d’abord au référentiel interne — mais elle change ce que
-rapporte la sortie.
+L’application peut optionnellement restituer les résultats dans les
+termes d’un référentiel externe plutôt que du référentiel interne — le
+**World Checklist of Vascular Plants (WCVP)**, maintenu par les Royal
+Botanic Gardens de Kew, l’**African Plant Database (APD)**, ou tout
+autre référentiel que la base de données taxa déclare comme source de
+noms. Un menu **“Noms dans les résultats”** apparaît dans la barre
+latérale, listant le référentiel interne et tous ceux qui sont
+disponibles ; il est absent lorsque la base n’en propose aucun, ainsi
+qu’en mode hors ligne, où aucun lien ne peut être suivi.
 
-L’activer ajoute quatre colonnes :
+Ce choix ne modifie pas la correspondance elle-même — les noms sont
+toujours appariés d’abord au référentiel interne — mais il change ce que
+rapporte la sortie. Choisir un référentiel ajoute quatre colonnes :
 
-- `wcvp_taxon_name` — Nom accepté selon WCVP
-- `wcvp_family` — Famille selon WCVP
-- `wcvp_taxon_authors` — Autorité taxonomique selon WCVP
-- `wcvp_taxon_status` — Statut du nom dans WCVP (ex. `Accepted`)
+- `backbone_taxon_name` — Nom accepté dans ce référentiel
+- `backbone_family` — Famille selon ce référentiel
+- `backbone_authors` — Autorité taxonomique selon ce référentiel
+- `backbone_status_raw` — Statut du nom dans ce référentiel (ex.
+  `Accepted`)
 
-**Elle réécrit également `corrected_name`.** Partout où WCVP contient le
-taxon, `corrected_name` devient le nom WCVP plutôt que celui du
-référentiel interne ; les taxons absents de WCVP conservent leur nom
-interne. La colonne `name_source` enregistre laquelle des deux
-références a fourni chaque valeur (`internal` ou `WCVP`), ce qui rend la
-substitution vérifiable — consultez-la avant de considérer que
-`corrected_name` provient d’une référence unique.
+**Cela réécrit également `corrected_name`.** Partout où le référentiel
+choisi contient le taxon, `corrected_name` devient son nom plutôt que
+celui du référentiel interne ; les taxons qui en sont absents conservent
+leur nom interne. La colonne `name_source` enregistre quelle référence a
+fourni chaque valeur (`internal`, ou le code du référentiel choisi), ce
+qui rend la substitution vérifiable — consultez-la avant de considérer
+que `corrected_name` provient d’une référence unique.
 
-Activez cette option lorsque vos résultats doivent s’aligner sur une
-liste de référence internationale, et laissez-la désactivée lorsque vous
-avez besoin de noms cohérents avec le reste de la base. La case doit
-être cochée **avant** la correspondance, l’enrichissement s’effectuant
-au cours de cette étape.
+Choisissez un référentiel lorsque vos résultats doivent s’aligner sur
+une liste de référence internationale, et laissez le menu sur le
+référentiel interne lorsque vous avez besoin de noms cohérents avec le
+reste de la base. Le choix doit être fait **avant** la correspondance,
+la consultation s’effectuant au cours de cette étape.
 
-### Ajuster la Correspondance Approximative
+#### Citer le référentiel choisi
 
-Contrôlez la sensibilité de la correspondance avec le paramètre
-`min_similarity` :
+WCVP et APD sont des ouvrages publiés : utiliser leurs noms, c’est les
+citer. Dès que vous en choisissez un, l’application affiche la citation
+demandée par son éditeur, juste sous le menu, accompagnée d’un lien vers
+la source :
+
+- **APD** — African Plant Database, Conservatoire et Jardin botaniques
+  de la Ville de Genève et South African National Biodiversity
+  Institute, Pretoria — <http://africanplantdatabase.ch>
+- **WCVP** — World Checklist of Vascular Plants, Royal Botanic Gardens
+  de Kew — <http://sftp.kew.org/pub/data-repositories/WCVP/>. La
+  formulation de Kew crédite également **rWCVP**, le package R avec
+  lequel notre copie a été téléchargée
+
+La version et la date d’accès figurant dans la phrase sont celles de la
+copie **présente dans la base**, et non du jour où vous lancez la
+requête. Deux personnes citant la même exécution citent donc la même
+chose, et une exécution de l’an dernier continue de citer ce qu’elle a
+réellement utilisé.
+
+L’export Excel emporte la citation avec les données, sur une seconde
+feuille nommée `citations` — référence, éditeur, version, date d’accès,
+lien et la phrase elle-même. Un CSV ne contient qu’une seule table et ne
+peut pas la transporter ; copiez la phrase depuis l’application si vous
+exportez dans ce format.
+
+Depuis la console, le même texte s’obtient avec
+[`query_citations()`](https://umr-amap.github.io/cafriplotsR/reference/query_citations.md),
+aux côtés des citations de traits, ou avec
+[`backbone_reference()`](https://umr-amap.github.io/cafriplotsR/reference/backbone_reference.md)
+si vous voulez la version et la date dans des colonnes distinctes :
 
 ``` r
 
-# Très strict - uniquement des correspondances de haute qualité
-launch_taxonomic_match_app(min_similarity = 0.8)
+cons <- list(main = call.mydb(), taxa = call.mydb.taxa())
 
-# Paramètre par défaut
-launch_taxonomic_match_app(min_similarity = 0.7)
+# tout ce qu'il y a à citer, traits et sources de noms réunis
+query_citations(cons$main)
 
-# Plus permissif - permet des correspondances de moindre qualité
-launch_taxonomic_match_app(min_similarity = 0.5)
+# seulement les sources de noms, avec le détail
+backbone_reference(con_taxa = cons$taxa)
+backbone_reference("wcvp", cons$taxa)$citation
 ```
 
+Dans
+[`query_citations()`](https://umr-amap.github.io/cafriplotsR/reference/query_citations.md),
+les lignes de référentiel portent `source = "backbone"` et aucun
+`id_citation` — elles vivent dans la base taxa, pas dans
+`table_citations`, et aucune clé étrangère ne pointe vers elles. La
+phrase à coller se trouve dans `notes`.
+
+### Ajuster la Correspondance Approximative
+
+La sensibilité de la correspondance se règle avec le champ **Similarité
+minimale (%)**, en haut de l’onglet Auto Match, à côté du bouton
+Démarrer la correspondance. Sa valeur initiale est de **60 %**.
+
 Des valeurs plus basses ratissent plus large mais peuvent inclure des
-faux positifs. Des valeurs plus élevées sont plus conservatrices mais
-peuvent manquer des correspondances valides. La valeur par défaut a été
-relevée de 0.3 à **0.7** pour réduire les suggestions non pertinentes.
+faux positifs ; des valeurs plus élevées sont plus conservatrices mais
+laissent davantage de noms à réviser à la main. Le champ étant placé
+juste à côté du bouton, la bonne façon de s’en servir est d’exécuter, de
+lire les statistiques dans la barre latérale, d’ajuster puis de relancer
+sur la même liste — une décision prise au vu des noms que vous avez sous
+les yeux, plutôt que fixée à l’avance.
+
+Le seuil réellement utilisé par chaque exécution est conservé avec elle
+: il figure dans le script généré sous **Afficher le code R
+équivalent**, de sorte qu’une exécution reste reproductible sans que
+vous ayez à noter la valeur.
+
+Ce même seuil sert de valeur initiale au curseur **Similarité min.** de
+l’onglet Révision, qui filtre les suggestions proposées. Déplacer l’un
+ne déplace pas l’autre : le curseur de révision sert à élargir ou
+restreindre ce qui vous est montré pour un nom donné.
 
 ### Augmenter les Suggestions
 
@@ -625,7 +771,6 @@ launch_taxonomic_match_app(
   data            = NULL,          # Optionnel : pré-charger un data.frame
   name_column     = NULL,          # Optionnel : pré-sélectionner une colonne
   language        = c("fr", "en"), # Langue de l'interface (par défaut : "fr")
-  min_similarity  = 0.7,           # Seuil de correspondance approximative (0-1)
   max_suggestions = 10,            # Max suggestions par nom non apparié
   mode            = "interactive", # Mode de révision ("interactive" ou "batch")
   launch.browser  = TRUE           # Ouvrir l'application dans le navigateur
@@ -658,24 +803,38 @@ travailler sans connexion active à la base de données.
 
 **Problème** : Aucune suggestion n’apparaît pour les noms non appariés
 
-**Causes possibles** : - Seuil `min_similarity` trop élevé - Les noms
-taxonomiques contiennent des fautes de frappe ou un formatage non
-standard - Les noms ne sont pas présents dans la référence taxonomique
-(ex. taxons non africains)
+**Causes possibles** : - Le champ **Similarité minimale (%)** de
+l’onglet Auto Match est réglé trop haut - Les noms taxonomiques
+contiennent des fautes de frappe ou un formatage non standard - Les noms
+ne sont pas présents dans la référence taxonomique (ex. taxons non
+africains)
 
-**Solutions** : - Diminuer `min_similarity` :
-`launch_taxonomic_match_app(min_similarity = 0.5)` - Utiliser le filtre
-de niveau taxonomique pour chercher au niveau du genre ou de la
-famille - Nettoyer les noms en entrée (supprimer les espaces
-supplémentaires, corriger les fautes évidentes) - Vérifier que les noms
-sont des taxons africains
+**Solutions** : - Diminuer **Similarité minimale (%)** dans l’onglet
+Auto Match et relancer, ou élargir le curseur **Similarité min.** de
+l’onglet Révision - Utiliser le filtre de niveau taxonomique pour
+chercher au niveau du genre ou de la famille - Nettoyer les noms en
+entrée (supprimer les espaces supplémentaires, corriger les fautes
+évidentes) - Vérifier que les noms sont des taxons africains
 
 ### Performance de Correspondance Lente
 
 **Problème** : La correspondance prend très longtemps pour les grands
 jeux de données
 
-**Solutions** : - Activer le **mode hors ligne** : la correspondance
+**Solutions** : - **Lancer l’application en local plutôt que d’utiliser
+la copie hébergée.** L’application hébergée à l’adresse
+<https://cafri-taxomatch.lab.sspcloud.fr> est souvent nettement plus
+lente que la même application sur votre propre ordinateur portable, et
+non parce que le serveur serait petit. Il est partagé. Chaque
+correspondance lancée là-bas se dispute le même quota de CPU que celles
+de tous les autres utilisateurs, et ce quota relève de la capacité de
+pointe plutôt que d’une réservation : sur un nœud SSP Cloud chargé, vous
+pouvez en obtenir moins que ce que le plafond laisse espérer. À cela
+s’ajoutent le téléversement de votre fichier avant tout traitement et un
+aller-retour réseau à chaque clic. En local, la machine est à vous seul.
+La copie hébergée existe pour la commodité et pour les personnes qui
+n’utilisent pas R — pour une longue liste que vous traitez vous-même,
+lancez-la depuis R. - Activer le **mode hors ligne** : la correspondance
 s’exécute localement via `stringdist`, sans allers-retours vers la base
 de données - Utiliser le traitement par lots à la place :
 [`match_taxonomic_names()`](https://umr-amap.github.io/cafriplotsR/reference/match_taxonomic_names.md)
@@ -751,11 +910,14 @@ write.csv(result, "inventaire_standardise.csv", row.names = FALSE)
 6.  **Utilisez le point de reprise** : L’application sauvegarde
     automatiquement votre progression — si vous fermez l’onglet, vous
     pouvez reprendre là où vous vous étiez arrêté
-7.  **Documentez les paramètres** : Notez quelle valeur de
-    `min_similarity` vous avez utilisée pour la reproductibilité
+7.  **Gardez l’exécution reproductible** : le seuil utilisé par une
+    exécution est inscrit dans le script sous **Afficher le code R
+    équivalent** — copiez-le plutôt que de noter la valeur à la main
 8.  **Citez les sources des données** : Consultez le panneau Sources des
     données dans l’onglet Traits pour les citations à inclure dans vos
-    méthodes
+    méthodes et, si vous avez choisi un référentiel autre que l’interne,
+    citez-le également — voir [Citer le référentiel
+    choisi](#citer-le-referentiel)
 
 ## Exemple de Flux de Travail
 
@@ -771,15 +933,14 @@ trees <- read.csv("inventaire_forestier.csv")
 launch_taxonomic_match_app(
   data = trees,
   name_column = "species_name",
-  language = "fr",
-  min_similarity = 0.7
+  language = "fr"
 )
 
 # 3. Dans l'application :
 #    - S'authentifier (ou choisir le mode hors ligne)
 #    - Revoir les correspondances automatiques dans l'onglet Auto Match
 #    - Utiliser l'onglet Review pour résoudre les noms non appariés
-#    - Activer optionnellement la sortie WCVP via la case à cocher dans la barre latérale
+#    - Choisir optionnellement un autre référentiel pour les noms en sortie
 #    - Enrichir optionnellement avec des traits dans l'onglet Traits Enrichment
 #      (consulter le panneau Sources des données pour les citations)
 #    - Exporter comme "inventaire_forestier_standardise.xlsx"

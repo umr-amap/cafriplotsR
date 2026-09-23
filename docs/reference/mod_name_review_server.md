@@ -10,7 +10,7 @@ mod_name_review_server(
   match_results,
   mode = "interactive",
   max_suggestions = 10,
-  min_similarity = 0.3,
+  min_similarity = .default_min_similarity(),
   i18n,
   backbone = shiny::reactive(NULL)
 )
@@ -36,7 +36,8 @@ mod_name_review_server(
 
 - min_similarity:
 
-  Numeric, minimum similarity threshold
+  Numeric, initial value of the suggestions slider. The slider takes
+  over once the user moves it.
 
 - i18n:
 

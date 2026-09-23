@@ -1,8 +1,8 @@
 # Save WCVP Links to Database
 
-Writes reviewed matches from
-[`match_taxa_to_wcvp()`](https://umr-amap.github.io/cafriplotsR/reference/match_taxa_to_wcvp.md)
-to the `wcvp_idtax_link` table.
+Superseded by `save_backbone_links(matches, "wcvp", ...)`, which it
+calls. Links are written to `taxa_backbone_link`; a taxon left with a
+single WCVP link gets it marked preferred.
 
 ## Usage
 
@@ -15,7 +15,9 @@ save_wcvp_links(matches, con_taxa, replace = TRUE, verbose = TRUE)
 - matches:
 
   Tibble of matches from
-  [`match_taxa_to_wcvp()`](https://umr-amap.github.io/cafriplotsR/reference/match_taxa_to_wcvp.md).
+  [`match_taxa_to_wcvp()`](https://umr-amap.github.io/cafriplotsR/reference/match_taxa_to_wcvp.md),
+  with `idtax_n`, `plant_name_id`, `match_type` and optionally
+  `match_score`.
 
 - con_taxa:
 
@@ -23,8 +25,8 @@ save_wcvp_links(matches, con_taxa, replace = TRUE, verbose = TRUE)
 
 - replace:
 
-  Logical. If TRUE, deletes existing links for affected `idtax_n` before
-  inserting. Default TRUE.
+  Logical. If TRUE, deletes the existing WCVP links of the affected
+  `idtax_n` before inserting. Default TRUE.
 
 - verbose:
 

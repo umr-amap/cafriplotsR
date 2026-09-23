@@ -16,7 +16,8 @@ correct order to respect foreign key constraints:
 - Processes plots one-by-one (or in small batches) to avoid memory crashes
   with large datasets
 - Uses per-batch transactions (rolls back each batch on error)
-- Detailed logging of each step"><meta property="og:description" content="**DANGER: This permanently deletes data from the database!**
+- Detailed logging of each step
+- Refuses to orphan a child plot (see child_plots)"><meta property="og:description" content="**DANGER: This permanently deletes data from the database!**
 This function safely deletes one or more plots and all related data in the
 correct order to respect foreign key constraints:
 1. Individual measurement features
@@ -33,7 +34,8 @@ correct order to respect foreign key constraints:
 - Processes plots one-by-one (or in small batches) to avoid memory crashes
   with large datasets
 - Uses per-batch transactions (rolls back each batch on error)
-- Detailed logging of each step"><meta property="og:image" content="https://umr-amap.github.io/cafriplotsR/logo.png"></head><body>
+- Detailed logging of each step
+- Refuses to orphan a child plot (see child_plots)"><meta property="og:image" content="https://umr-amap.github.io/cafriplotsR/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -88,7 +90,8 @@ correct order to respect foreign key constraints:
 - Processes plots one-by-one (or in small batches) to avoid memory crashes
   with large datasets
 - Uses per-batch transactions (rolls back each batch on error)
-- Detailed logging of each step</p>
+- Detailed logging of each step
+- Refuses to orphan a child plot (see <code>child_plots</code>)</p>
     </div>
 
     <div class="section level2">
@@ -101,6 +104,7 @@ correct order to respect foreign key constraints:
 <span>  delete_individuals <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  delete_subplots <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  delete_plot <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  child_plots <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"stop"</span>, <span class="st">"detach"</span>, <span class="st">"delete"</span><span class="op">)</span>,</span>
 <span>  plot_batch_size <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  row_batch_size <span class="op">=</span> <span class="fl">2000L</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -144,6 +148,14 @@ and their features while preserving all plot metadata (same as
 <code><a href="safe_delete_individuals.html">safe_delete_individuals</a></code>).</p></dd>
 
 
+<dt id="arg-child-plots">child_plots<a class="anchor" aria-label="anchor" href="#arg-child-plots"></a></dt>
+<dd><p>Character. What to do about plots whose parent is being
+deleted: <code>"stop"</code> (default, refuse), <code>"detach"</code> (keep them,
+clear the link) or <code>"delete"</code> (delete the whole subtree). See the
+Child plots section. Ignored when <code>delete_plot = FALSE</code>, and on a
+database without the plot hierarchy columns.</p></dd>
+
+
 <dt id="arg-plot-batch-size">plot_batch_size<a class="anchor" aria-label="anchor" href="#arg-plot-batch-size"></a></dt>
 <dd><p>Integer. Number of plots processed per iteration.
 Reduce to 1 (default) for very large plots to avoid memory/query size issues.</p></dd>
@@ -161,6 +173,44 @@ each plot batch. Default 2000.</p></dd>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>List with deletion summary (invisible)</p>
+    </div>
+    <div class="section level2">
+    <h2 id="child-plots">Child plots<a class="anchor" aria-label="anchor" href="#child-plots"></a></h2>
+
+
+<p>A plot can be the parent of another plot - a nested regeneration inventory
+inside its 1 ha host, or the block a set of plots tiles. See
+<code>inst/migrations/plot_hierarchy.R</code>.</p>
+<p>The foreign key is <code>ON DELETE SET NULL</code>, so deleting a parent clears
+the child's <code>id_parent_plot</code> and leaves its <code>parent_relation</code>
+behind - which <code>chk_plot_parent_relation_paired</code> then rejects. Without
+the handling below, deleting a parent aborts on a constraint nobody has
+heard of instead of saying "this plot has a child". <code>child_plots</code>
+decides what happens instead:</p>
+<dl><dt><code>"stop"</code></dt>
+<dd><p>(default) Refuse while any child exists outside the
+    deletion set, and name the children.</p></dd>
+
+  <dt><code>"detach"</code></dt>
+<dd><p>Keep the children, clearing both
+    <code>id_parent_plot</code> and <code>parent_relation</code>. The link is lost; the
+    plots and their data are not.</p></dd>
+
+  <dt><code>"delete"</code></dt>
+<dd><p>Add every descendant to the deletion set and delete
+    the whole subtree. Shown in the dry-run and in the confirmation prompt
+    before anything happens.</p></dd>
+
+
+</dl><p>Children that are already in <code>plot_ids</code> are never a problem: their
+parent link is cleared before the plots are removed, in every mode.</p>
+<p>This section is a no-op on a database where the hierarchy migration has not
+been applied.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p>[check_plot_hierarchy_consistency()] for the state of the parent
+  links themselves.</p></div>
     </div>
 
     <div class="section level2">
@@ -185,6 +235,13 @@ each plot batch. Default 2000.</p></dd>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Delete ONLY individuals and their features, keep plot metadata</span></span></span>
 <span class="r-in"><span><span class="fu">safe_delete_plot</span><span class="op">(</span>plot_ids <span class="op">=</span> <span class="fl">123</span>, delete_plot <span class="op">=</span> <span class="cn">FALSE</span>, delete_subplots <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># A plot with a nested regeneration inventory attached: keep the child,</span></span></span>
+<span class="r-in"><span><span class="co"># drop the link</span></span></span>
+<span class="r-in"><span><span class="fu">safe_delete_plot</span><span class="op">(</span>plot_ids <span class="op">=</span> <span class="fl">123</span>, child_plots <span class="op">=</span> <span class="st">"detach"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># ... or take the whole subtree with it</span></span></span>
+<span class="r-in"><span><span class="fu">safe_delete_plot</span><span class="op">(</span>plot_ids <span class="op">=</span> <span class="fl">123</span>, child_plots <span class="op">=</span> <span class="st">"delete"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

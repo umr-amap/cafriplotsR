@@ -15,6 +15,7 @@ Query taxa by IDs (internal helper)
   check_synonymy,
   extract_traits,
   include_children = FALSE,
-  verbose
+  verbose,
+  backbone = "internal"
 )
 ```

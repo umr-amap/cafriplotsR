@@ -15,7 +15,7 @@ process_individuals(
   include_liana = FALSE,
   census_strategy = c("last", "first", "mean"),
   show_multiple_census = FALSE,
-  backbone = c("internal", "wcvp")
+  backbone = "internal"
 )
 ```
 
