@@ -557,21 +557,27 @@ query_taxa <-
       cli::cli_alert_info("{nrow(id_synonyms)} synonym(s) found for selected taxa")
     }
 
-    # Recursively fetch synonyms (without checking synonymy again)
-    synonyms <- query_taxa(
-      ids = id_synonyms$idtax_n,
-      check_synonymy = FALSE,
-      verbose = FALSE,
-      class = NULL,
-      extract_traits = FALSE
-    )
+    # Only the synonyms not already selected. Fetching one a second time used to
+    # mean a recursive query_taxa() call, which formats names and drops legacy
+    # columns on its way out: the second copy carried tax_infra_level and no
+    # a_habit, the first the reverse, bind_rows() padded both with NA and
+    # distinct() kept them both - one row per synonym, twice.
+    new_synonyms <- setdiff(id_synonyms$idtax_n, res$idtax_n)
 
-    if (!is.null(synonyms)) {
+    if (length(new_synonyms) > 0) {
+      # Raw rows, same columns as res. Formatting happens once, on the whole
+      # frame, after this helper returns
+      synonyms <- tbl(mydb_taxa, "table_taxa") %>%
+        filter(idtax_n %in% !!new_synonyms) %>%
+        collect()
+
       res <- bind_rows(res, synonyms)
     }
   }
 
-  return(res %>% distinct())
+  # idtax_n is the primary key of table_taxa, so one row per id whatever the
+  # column sets bound above
+  return(res %>% dplyr::distinct(idtax_n, .keep_all = TRUE))
 }
 
 
