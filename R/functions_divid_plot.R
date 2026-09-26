@@ -11,7 +11,6 @@
 #' @param coordinates tibble output of query_plots, element coordinates
 #'
 #' @importFrom data.table data.table setnames rbindlist
-#' @importFrom sf st_multipoint
 #' 
 #' @return list
 #' @export
@@ -96,9 +95,9 @@ extract_corners = function(coordinates, map_res = FALSE) {
     cornerCoord <- cornerCoord[c(1, 2, 4, 3), ]
     cornerCoord <- as.matrix(cornerCoord) %*% res$rotation
     cornerCoord <- sweep(cornerCoord, 2, res$translation, FUN = "+")
-    p <- st_multipoint(rbind(cornerCoord, cornerCoord[1, ]))
-    ps <- st_polygon(list(p), 1)
-    sps <- st_sfc(list(ps))
+    p <- sf::st_multipoint(rbind(cornerCoord, cornerCoord[1, ]))
+    ps <- sf::st_polygon(list(p), 1)
+    sps <- sf::st_sfc(list(ps))
     if (length(outliers) != 0 & !rmOutliers) {
       warning("Be carefull, you may have GNSS measurement outliers. \n",
               "Removing them may improve the georeferencing of your plot (see  the rmOutliers argument).")
@@ -227,12 +226,12 @@ extract_corners = function(coordinates, map_res = FALSE) {
     
     # Convertir en objet sf en UTM
     corners_utm <- 
-      st_as_sf(cornerCoord %>% 
+      sf::st_as_sf(cornerCoord %>% 
                  mutate(plot_name = all_plot$plot_name[i]), 
                coords = c("XAbs", "YAbs"), crs = codeUTM)
     
     # Convertir en objet sf latlong
-    corners_latlong <- st_transform(corners_utm, crs = 4326)
+    corners_latlong <- sf::st_transform(corners_utm, crs = 4326)
     
     all_res[[i]] <-
       list(corners_utm = corners_utm,
@@ -312,7 +311,7 @@ divid_plot <- function (corners) {
     
     for (j in 1:25) {
       
-      tmp  <-   st_polygon(
+      tmp  <-   sf::st_polygon(
         list(
           rbind(
             c(X = subplot$X1[j],Y = subplot$Y1[j]),
@@ -333,10 +332,10 @@ divid_plot <- function (corners) {
     
     nrows <- 25
     
-    sub_plot <- st_sf(crs= 4326,
+    sub_plot <- sf::st_sf(crs= 4326,
                       quadrat = 1:nrows,
-                      geometry = st_sfc(lapply(1:nrows,
-                                               function(x) st_geometrycollection())
+                      geometry = sf::st_sfc(lapply(1:nrows,
+                                               function(x) sf::st_geometrycollection())
                       )
     )
     
@@ -571,16 +570,16 @@ proj_rel_xy <-
         coord_sf %>% filter(plot_name == unique(coord_rel$plot_name)[i])
       
       utm_plot <- 
-        latlong2UTM(coord = st_coordinates(square_geo)[, c("X", "Y")])
+        latlong2UTM(coord = sf::st_coordinates(square_geo)[, c("X", "Y")])
       
       utm_plot_list[[i]] <- 
         tibble(plot_name = unique(coord_rel$plot_name)[i], 
                utm = utm_plot$codeUTM[1])
       
       square_proj <- 
-        st_transform(square_geo, utm_plot$codeUTM[1])
+        sf::st_transform(square_geo, utm_plot$codeUTM[1])
       
-      square_matrix <- st_coordinates(square_proj)[1:4, ]  # Get the 4 corners
+      square_matrix <- sf::st_coordinates(square_proj)[1:4, ]  # Get the 4 corners
       origin <- 
         square_matrix[1, 1:2]  # First point (assumed to be origin)
       v1 <- square_matrix[2, 1:2] - origin  # Local x direction (from pt 1 to 2)
@@ -750,8 +749,8 @@ approximate_isolated_xy <- function(dataset,
 #'                  tag = c(1:250, 1:50, 76:100, 51:75, 101:250))
 #'
 #' # Define the 2 plots geometry
-#' square1 <- st_polygon(list(rbind(c(0,0), c(0,1), c(1,1), c(1,0), c(0,0))))
-#' square2 <- st_polygon(list(rbind(c(2,2), c(2,3), c(3,3), c(3,2), c(2,2))))
+#' square1 <- sf::st_polygon(list(rbind(c(0,0), c(0,1), c(1,1), c(1,0), c(0,0))))
+#' square2 <- sf::st_polygon(list(rbind(c(2,2), c(2,3), c(3,3), c(3,2), c(2,2))))
 #'
 #' # Define the size of the subplot sides
 #' n <- 5
@@ -764,7 +763,7 @@ approximate_isolated_xy <- function(dataset,
 #'
 #'     for (i in 1:n){
 #'
-#'       tmp  <-   st_polygon(
+#'       tmp  <-   sf::st_polygon(
 #'         list(
 #'           rbind(
 #'             c(j+(i-1)*side_length,j+(x-1)*side_length),
@@ -813,10 +812,10 @@ approximate_isolated_xy <- function(dataset,
 #'            "80_80")
 #'
 #' # Assign names to geometries
-#' sub_plot <- st_sf(
+#' sub_plot <- sf::st_sf(
 #'   plot_name = rep(c("plot1","plot2"),each = 25),
 #'   sous_plot_name = rep(order,2),
-#'   geometry = st_sfc(lapply(1:25,function(x) st_geometrycollection()))
+#'   geometry = sf::st_sfc(lapply(1:25,function(x) sf::st_geometrycollection()))
 #' )
 #'
 #' for (j in 1:25) {sub_plot$geometry[j] <- mget(ls(pattern = "smaller_square1"))[[j]]}
@@ -851,7 +850,6 @@ approximate_isolated_xy <- function(dataset,
 #'
 #' @import ggplot2
 #' @import dplyr
-#' @import sf
 #'
 #' @export
 #'
@@ -910,7 +908,7 @@ test.order.subplot <- function(ind.extract, sub_plot){
       }
       
       
-      tmp <- st_as_sf(tmp) %>%
+      tmp <- sf::st_as_sf(tmp) %>%
         mutate(check = case_when(
           quadrat == tmp_order ~ 'IT SEEMS GOOD',
           T ~ 'IT SEEMS BAD'
@@ -930,7 +928,7 @@ test.order.subplot <- function(ind.extract, sub_plot){
         print(paste(unique(ind.extract$plot_name)[i], '  : ORDER SUBPLOTS PROBLEM'))
         
         
-        tmp <- st_as_sf(tmp) %>%
+        tmp <- sf::st_as_sf(tmp) %>%
           mutate(check = case_when(
             quadrat == order ~ 'IT SEEMS GOOD',
             T ~ 'IT SEEMS BAD'
