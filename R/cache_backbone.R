@@ -12,6 +12,48 @@
 #   every taxon with no recorded author are missing those taxa entirely.
 .backbone_cache_version <- "1.1"
 
+# One expanded backbone per R process.
+#
+# The cache file is 365k records that come back as about 80 MB of tibble, and
+# `load_backbone_cache()` has five callers -- the login module, the name review
+# module, the matching module, the app itself and `match_taxa()` -- several of
+# which run in a single session. Each call used to allocate its own copy, and
+# on Windows, where freed pages are not readily returned to the OS, repeated
+# attempts walked the process past the system commit limit: first a worker
+# unable to map a DLL ("LoadLibrary failure: The paging file is too small"),
+# then allocations failing in the parent at a few Mb.
+#
+# The backbone is immutable reference data, so one copy serves everyone. The
+# key is the cache file's identity on disk (see below), which means a file
+# refreshed by any route -- this process, another session, a hand-edit --
+# invalidates the memo without anyone having to remember to say so.
+.backbone_memo <- new.env(parent = emptyenv())
+
+# Identity of the cache file as it is on disk right now, or NULL if absent.
+# The path is part of it: `get_backbone_cache_path()` is not a constant --- the
+# tests point it elsewhere, and so could a changed R_user_dir --- and two
+# different files can share a size and an mtime.
+.backbone_memo_key <- function(cache_file) {
+  info <- file.info(cache_file)
+  if (is.na(info$size)) return(NULL)
+  paste0(cache_file, "|", info$size, "|", as.numeric(info$mtime))
+}
+
+#' Forget the in-memory backbone
+#'
+#' Drops the process-wide copy held by [load_backbone_cache()]. The memo
+#' invalidates itself when the cache file changes, so this is only needed to
+#' hand the memory back --- after a long matching session, say.
+#'
+#' @return Invisibly TRUE if a copy was held, FALSE otherwise.
+#' @keywords internal
+#' @export
+release_backbone_memory <- function() {
+  held <- exists("data", envir = .backbone_memo, inherits = FALSE)
+  rm(list = ls(.backbone_memo, all.names = TRUE), envir = .backbone_memo)
+  invisible(held)
+}
+
 #' Get backbone cache directory path
 #'
 #' @description
@@ -150,6 +192,11 @@ save_backbone_cache <- function(backbone_data) {
 
     saveRDS(metadata, metadata_file, compress = FALSE)
 
+    # The object is already expanded in front of us, so seed the memo rather
+    # than let the next `load_backbone_cache()` read back what we just wrote.
+    .backbone_memo$key  <- .backbone_memo_key(cache_file)
+    .backbone_memo$data <- dplyr::as_tibble(backbone_data)
+
     return(TRUE)
   }, error = function(e) {
     cli::cli_alert_danger("Failed to save cache: {e$message}")
@@ -191,6 +238,15 @@ load_backbone_cache <- function() {
       return(NULL)
     }
 
+    # Hand back the copy this process already expanded, unless the file has
+    # been rewritten since. Re-reading is what used to exhaust memory.
+    key <- .backbone_memo_key(cache_file)
+    if (!is.null(key) &&
+        identical(.backbone_memo$key, key) &&
+        !is.null(.backbone_memo$data)) {
+      return(.backbone_memo$data)
+    }
+
     backbone <- readRDS(cache_file)
 
     # Validate structure
@@ -203,7 +259,12 @@ load_backbone_cache <- function() {
       return(NULL)
     }
 
-    return(dplyr::as_tibble(backbone))
+    backbone <- dplyr::as_tibble(backbone)
+
+    .backbone_memo$key  <- key
+    .backbone_memo$data <- backbone
+
+    return(backbone)
   }, error = function(e) {
     cli::cli_alert_warning("Failed to load cache: {e$message}")
     return(NULL)
@@ -243,6 +304,9 @@ delete_backbone_cache <- function() {
     unlink(metadata_file)
     deleted <- TRUE
   }
+
+  # The file is gone, so the copy in memory has nothing left to agree with.
+  release_backbone_memory()
 
   if (deleted) {
     cli::cli_alert_success("Cache cleared successfully")

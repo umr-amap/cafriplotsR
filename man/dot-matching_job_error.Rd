@@ -13,7 +13,14 @@
 A character scalar.
 }
 \description{
-stderr first — a crashed R session says why there. An exit status alone is
-what a killed process leaves behind, so it is the fallback, not the headline.
+The logs first --- a crashed R session says why there. An exit status alone
+is what a killed process leaves behind, so it is the fallback, not the
+headline. Both streams are read: a worker that dies mapping a DLL writes to
+stderr, but an allocation failure R catches on the way down can land on
+either.
+}
+\details{
+A recognised memory failure is explained rather than quoted, with the raw
+tail kept underneath so nothing is lost for whoever is debugging it.
 }
 \keyword{internal}

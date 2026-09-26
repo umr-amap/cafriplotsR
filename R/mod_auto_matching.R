@@ -334,6 +334,14 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
     # Last progress published by the pipeline, shown in the status panel.
     match_progress <- shiny::reactiveVal(NULL)
 
+    # A finished run leaves the serialised inputs, the worker's result and the
+    # pipeline's intermediates behind as garbage. R would collect them in its
+    # own time; on Windows that was too late, because what one failed run had
+    # not yet released was still counted against the next one's commit charge.
+    release_run_memory <- function() {
+      invisible(gc(verbose = FALSE))
+    }
+
     # One display for both run modes. The notification is what an in-process
     # run relies on: it is sent to the browser immediately, whereas the status
     # panel cannot re-render until the blocking run has returned.
@@ -406,10 +414,25 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       }
 
       if (identical(result$status, "error")) {
+        # A failure worth explaining runs to several lines, and a toast both
+        # collapses whitespace and takes itself away after ten seconds -- which
+        # is how a user ends up reporting only the tail of the message. Honour
+        # the newlines and let them dismiss it themselves.
         shiny::showNotification(
-          paste(i18n()$t("Error:"), result$message),
+          shiny::div(
+            shiny::strong(i18n()$t("Error:")),
+            shiny::tags$pre(
+              style = paste(
+                "white-space: pre-wrap; word-break: break-word;",
+                "margin: 0.5em 0 0; font-size: 90%; background: transparent;",
+                "border: none; padding: 0;"
+              ),
+              result$message
+            )
+          ),
           type = "error",
-          duration = 10
+          duration = NULL,
+          closeButton = TRUE
         )
         reset_matching_state()
         return(invisible(NULL))
@@ -522,6 +545,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       }
 
       .cleanup_matching_job(job)
+      release_run_memory()
     })
 
     # Cancel button (background runs only — see output$start_button)
@@ -533,6 +557,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       match_job(NULL)
       shiny::removeNotification("fuzzy_progress")
       .cleanup_matching_job(job)
+      release_run_memory()
 
       shiny::showNotification(
         i18n()$t("Matching cancelled. Your progress was saved - start again to resume it."),
@@ -722,10 +747,12 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
           type = "message"
         )
 
+        # Cheap after the first call in this process: load_backbone_cache()
+        # hands back the copy it already expanded rather than re-reading 80 MB.
         backbone <- load_backbone_cache()
+        shiny::removeNotification("loading_cache")
 
         if (is.null(backbone)) {
-          shiny::removeNotification("loading_cache")
           if (isTRUE(is_offline())) {
             # Offline mode: cannot fall back to download — abort with a clear msg
             shiny::showNotification(
@@ -748,7 +775,6 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
           )
           choice <- "download"
         } else {
-          shiny::removeNotification("loading_cache")
           shiny::showNotification(
             i18n()$t("Loaded backbone from cache successfully!"),
             duration = 3,
@@ -878,6 +904,7 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
       on.exit({
         shiny::removeNotification("fuzzy_progress")
         match_progress(NULL)
+        release_run_memory()
       }, add = TRUE)
 
       apply_matching_result(
@@ -894,7 +921,14 @@ mod_auto_matching_server <- function(id, data, column_name, include_authors,
             cancel_file     = NULL,
             progress        = inprocess_progress
           ),
-          error = function(e) list(status = "error", message = conditionMessage(e))
+          error = function(e) {
+            msg <- conditionMessage(e)
+            # An in-process run hits the same wall as a worker does, and R's
+            # own wording ("cannot allocate vector of size 2.6 Mb") reads like
+            # a data problem rather than an exhausted machine.
+            list(status  = "error",
+                 message = .diagnose_matching_memory(msg) %||% msg)
+          }
         )
       )
     })

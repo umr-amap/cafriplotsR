@@ -131,3 +131,114 @@ test_that('load_backbone_cache discards a cache written by an older version', {
   expect_equal(nrow(load_backbone_cache()), 2)
 })
 
+
+test_that('load_backbone_cache reuses one expanded copy per process', {
+  cache_dir <- file.path(tempdir(), paste0('cafriplots-memo-', Sys.getpid(), '-', as.integer(stats::runif(1, 1, 1e6))))
+  dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+  on.exit({
+    unlink(cache_dir, recursive = TRUE, force = TRUE)
+    release_backbone_memory()
+  }, add = TRUE)
+
+  testthat::local_mocked_bindings(
+    .package = 'tools',
+    R_user_dir = function(package, which) cache_dir
+  )
+
+  release_backbone_memory()
+  expect_true(save_backbone_cache(make_backbone_fixture()))
+
+  # Pin the mtime to a whole second before the first load: Sys.setFileTime()
+  # cannot restore the sub-millisecond part on Windows, so a stamp written at
+  # full precision could not be put back and the memo would rightly miss.
+  cache_file <- file.path(cache_dir, 'backbone_cache.rds')
+  stamp <- as.POSIXct('2020-01-01 00:00:00', tz = 'UTC')
+  Sys.setFileTime(cache_file, stamp)
+
+  first <- load_backbone_cache()
+  expect_s3_class(first, 'tbl_df')
+
+  # Make the file unreadable while leaving its size and mtime alone, which is
+  # all the memo keys on. A second call that still succeeds can only have come
+  # from memory; deleting the file instead would prove nothing, because
+  # cache_exists() refuses before the memo is ever consulted.
+  size <- file.info(cache_file)$size
+  writeBin(as.raw(rep(0L, size)), cache_file)
+  Sys.setFileTime(cache_file, stamp)
+  expect_equal(file.info(cache_file)$size, size)
+
+  second <- load_backbone_cache()
+  expect_identical(second, first)
+
+  # ...and with the copy dropped, that same file is unreadable, which is what
+  # makes the assertion above mean something.
+  release_backbone_memory()
+  expect_null(load_backbone_cache())
+})
+
+test_that('release_backbone_memory drops the held copy', {
+  cache_dir <- file.path(tempdir(), paste0('cafriplots-memo-', Sys.getpid(), '-', as.integer(stats::runif(1, 1, 1e6))))
+  dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+  on.exit({
+    unlink(cache_dir, recursive = TRUE, force = TRUE)
+    release_backbone_memory()
+  }, add = TRUE)
+
+  testthat::local_mocked_bindings(
+    .package = 'tools',
+    R_user_dir = function(package, which) cache_dir
+  )
+
+  release_backbone_memory()
+  save_backbone_cache(make_backbone_fixture())
+  load_backbone_cache()
+
+  expect_true(release_backbone_memory())
+  expect_false(release_backbone_memory())
+})
+
+test_that('a rewritten cache file invalidates the held copy', {
+  cache_dir <- file.path(tempdir(), paste0('cafriplots-memo-', Sys.getpid(), '-', as.integer(stats::runif(1, 1, 1e6))))
+  dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+  on.exit({
+    unlink(cache_dir, recursive = TRUE, force = TRUE)
+    release_backbone_memory()
+  }, add = TRUE)
+
+  testthat::local_mocked_bindings(
+    .package = 'tools',
+    R_user_dir = function(package, which) cache_dir
+  )
+
+  release_backbone_memory()
+  save_backbone_cache(make_backbone_fixture())
+  expect_equal(nrow(load_backbone_cache()), 2L)
+
+  bigger <- dplyr::bind_rows(make_backbone_fixture(), make_backbone_fixture())
+  save_backbone_cache(bigger)
+
+  expect_equal(nrow(load_backbone_cache()), 4L)
+})
+
+test_that('delete_backbone_cache also forgets the held copy', {
+  cache_dir <- file.path(tempdir(), paste0('cafriplots-memo-', Sys.getpid(), '-', as.integer(stats::runif(1, 1, 1e6))))
+  dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
+  on.exit({
+    unlink(cache_dir, recursive = TRUE, force = TRUE)
+    release_backbone_memory()
+  }, add = TRUE)
+
+  testthat::local_mocked_bindings(
+    .package = 'tools',
+    R_user_dir = function(package, which) cache_dir
+  )
+
+  release_backbone_memory()
+  save_backbone_cache(make_backbone_fixture())
+  load_backbone_cache()
+
+  delete_backbone_cache()
+
+  expect_false(release_backbone_memory())
+  expect_null(load_backbone_cache())
+})
