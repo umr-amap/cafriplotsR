@@ -1743,9 +1743,9 @@ reorganize_individual_columns <- function(individuals) {
 
     # Wrap CRS operations in tryCatch to handle PROJ database issues
     poly_plot <- tryCatch({
-      st_as_sf(cor_coord$polygon) %>%
-        st_set_crs(cor_coord$codeUTM) %>%
-        st_transform(4326) %>%
+      sf::st_as_sf(cor_coord$polygon) %>%
+        sf::st_set_crs(cor_coord$codeUTM) %>%
+        sf::st_transform(4326) %>%
         mutate(id_liste_plots = id_plot)
     }, error = function(e) {
       if (grepl("proj\\.db|Cannot find proj", e$message, ignore.case = TRUE)) {

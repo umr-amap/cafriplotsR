@@ -34,8 +34,8 @@ df <- data.frame(plot_name = c(rep("plot1", each = 250),rep("plot2", each = 250)
                  tag = c(1:250, 1:50, 76:100, 51:75, 101:250))
 
 # Define the 2 plots geometry
-square1 <- st_polygon(list(rbind(c(0,0), c(0,1), c(1,1), c(1,0), c(0,0))))
-square2 <- st_polygon(list(rbind(c(2,2), c(2,3), c(3,3), c(3,2), c(2,2))))
+square1 <- sf::st_polygon(list(rbind(c(0,0), c(0,1), c(1,1), c(1,0), c(0,0))))
+square2 <- sf::st_polygon(list(rbind(c(2,2), c(2,3), c(3,3), c(3,2), c(2,2))))
 
 # Define the size of the subplot sides
 n <- 5
@@ -48,7 +48,7 @@ for (j in c(0,2)){
 
     for (i in 1:n){
 
-      tmp  <-   st_polygon(
+      tmp  <-   sf::st_polygon(
         list(
           rbind(
             c(j+(i-1)*side_length,j+(x-1)*side_length),
@@ -97,10 +97,10 @@ order <- c("0_0",
            "80_80")
 
 # Assign names to geometries
-sub_plot <- st_sf(
+sub_plot <- sf::st_sf(
   plot_name = rep(c("plot1","plot2"),each = 25),
   sous_plot_name = rep(order,2),
-  geometry = st_sfc(lapply(1:25,function(x) st_geometrycollection()))
+  geometry = sf::st_sfc(lapply(1:25,function(x) sf::st_geometrycollection()))
 )
 
 for (j in 1:25) {sub_plot$geometry[j] <- mget(ls(pattern = "smaller_square1"))[[j]]}
