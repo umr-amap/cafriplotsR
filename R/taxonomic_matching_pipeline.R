@@ -633,7 +633,14 @@
         .write_matching_progress(args$progress_file, stage, i, n, name)
       }
     ),
-    error = function(e) list(status = "error", message = conditionMessage(e))
+    error = function(e) {
+      # An allocation failure the worker survives long enough to catch never
+      # reaches the log-reading path in .matching_job_error(), so it needs the
+      # same explanation applied here.
+      msg <- conditionMessage(e)
+      list(status  = "error",
+           message = .diagnose_matching_memory(msg) %||% msg)
+    }
   )
 
   saveRDS(result, result_file)
@@ -737,35 +744,115 @@
   list(state = "failed", message = .matching_job_error(job))
 }
 
+#' Recognise a failure that was really the machine running out of memory
+#'
+#' One condition wears three different faces, and none of them says "out of
+#' memory" in words a user would recognise:
+#'
+#' * Windows refuses to map a DLL once the commit limit (RAM plus pagefile) is
+#'   reached, and reports `LoadLibrary failure: The paging file is too small`.
+#'   The DLL it names is whichever one the loader reached first and is not the
+#'   cause.
+#' * R reports a failed allocation. **The size in that message is not
+#'   informative**: at the wall it names whatever small object came next, which
+#'   is why users see "cannot allocate vector of size 2.6 Mb" and reasonably
+#'   conclude their file is not the problem.
+#' * A container's OOM killer leaves exit status 137 and no message at all.
+#'
+#' Left raw, the first two read as unrelated bugs. All three get the same
+#' explanation, and above all the instruction to restart R: once a session has
+#' hit this, every retry inside it fails the same way, including the
+#' `cafri.async_matching = FALSE` fallback.
+#'
+#' @param logs Character scalar. Whatever output the failure produced --- a
+#'   worker's combined logs, or `conditionMessage()` from an in-process run.
+#' @param status Integer exit status of the worker, or NA when there was none.
+#' @return A character scalar to show the user, or NULL when this was not a
+#'   memory failure and the caller should report what it has.
+#' @keywords internal
+.diagnose_matching_memory <- function(logs = "", status = NA_integer_) {
+  oom_killed <- !is.na(status) && identical(as.integer(status), 137L)
+
+  signatures <- c(
+    "paging file is too small",
+    "LoadLibrary failure",
+    "cannot allocate vector",
+    "cannot allocate memory",
+    "std::bad_alloc"
+  )
+
+  hit <- length(logs) == 1L && !is.na(logs) && nzchar(logs) &&
+    grepl(paste(signatures, collapse = "|"), logs, ignore.case = TRUE)
+
+  if (!hit && !oom_killed) return(NULL)
+
+  if (oom_killed) {
+    return(paste0(
+      "The matching process was killed (exit 137): the machine ran out of ",
+      "memory.\n\n",
+      "Restart R before trying again, then use a smaller file or raise the ",
+      "container memory limit."
+    ))
+  }
+
+  paste0(
+    "The matching ran out of memory.\n\n",
+    "This is the machine's limit, not the size of your file. Once memory is ",
+    "exhausted R reports whichever allocation happened to fail next, so a ",
+    "small size in the message below is normal and does not point at the ",
+    "cause.\n\n",
+    "Restart R before trying again -- retrying in the same session will fail ",
+    "the same way.\n\n",
+    "If it keeps happening on Windows:\n",
+    "  - check you are on 64-bit R: R.version$arch should be \"x86_64\"\n",
+    "  - raise the pagefile under System Properties > Advanced > Performance ",
+    "> Advanced > Virtual memory\n",
+    "  - or run options(cafri.async_matching = FALSE) before launching the ",
+    "app, which does the matching in the app's own session instead of ",
+    "starting a second R process."
+  )
+}
+
 #' Explain why a worker died without producing a result
 #'
-#' stderr first — a crashed R session says why there. An exit status alone is
-#' what a killed process leaves behind, so it is the fallback, not the headline.
+#' The logs first --- a crashed R session says why there. An exit status alone
+#' is what a killed process leaves behind, so it is the fallback, not the
+#' headline. Both streams are read: a worker that dies mapping a DLL writes to
+#' stderr, but an allocation failure R catches on the way down can land on
+#' either.
+#'
+#' A recognised memory failure is explained rather than quoted, with the raw
+#' tail kept underneath so nothing is lost for whoever is debugging it.
 #'
 #' @param job A job list from `.start_matching_job()`.
 #' @return A character scalar.
 #' @keywords internal
 .matching_job_error <- function(job) {
-  err <- tryCatch({
-    f <- file.path(job$dir, "stderr.log")
-    if (file.exists(f)) {
-      paste(utils::tail(readLines(f, warn = FALSE), 20), collapse = "\n")
-    } else {
-      ""
-    }
-  }, error = function(e) "")
+  # 40 rather than 20: the useful line is often above a stack of loader noise.
+  read_tail <- function(name, n = 40L) {
+    tryCatch({
+      f <- file.path(job$dir, name)
+      if (!file.exists(f)) return("")
+      paste(utils::tail(readLines(f, warn = FALSE), n), collapse = "\n")
+    }, error = function(e) "")
+  }
 
-  if (nzchar(err)) return(err)
+  streams <- c(read_tail("stderr.log"), read_tail("stdout.log"))
+  logs    <- paste(streams[nzchar(streams)], collapse = "\n")
 
   status <- tryCatch(job$proc$get_exit_status(), error = function(e) NA_integer_)
-  if (!is.na(status) && status != 0) {
-    # 137 = SIGKILL, which inside a container is nearly always the OOM killer.
-    if (identical(as.integer(status), 137L)) {
-      return(paste(
-        "The matching process was killed (exit 137), which usually means it ran",
-        "out of memory. Try a smaller file, or raise the container memory limit."
-      ))
+
+  diagnosis <- .diagnose_matching_memory(logs, status)
+  if (!is.null(diagnosis)) {
+    if (nzchar(logs)) {
+      return(paste0(diagnosis, "\n\n--- worker output ---\n", logs))
     }
+    return(diagnosis)
+  }
+
+  if (nzchar(logs)) return(logs)
+
+  if (!is.na(status) && status != 0) {
     return(paste0("The matching process exited with status ", status, "."))
   }
 
