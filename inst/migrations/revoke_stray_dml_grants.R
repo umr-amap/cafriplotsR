@@ -110,7 +110,7 @@ migrate_revoke_stray_dml <- function(con,
 
   # Ownership is what makes the revoke possible without an admin role.
   not_owned <- DBI::dbGetQuery(con, "
-    SELECT count(*) AS n
+    SELECT count(*)::int AS n
       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
      WHERE n.nspname = 'public' AND c.relkind = 'r'
        AND pg_get_userbyid(c.relowner) <> current_user")$n

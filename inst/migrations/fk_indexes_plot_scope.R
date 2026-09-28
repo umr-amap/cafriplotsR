@@ -315,7 +315,17 @@ check_fk_indexes_plot_scope <- function(con, n_plots = c(100L, 2000L)) {
      ORDER BY 1, 2")
   print(state[, c("table_name", "index_name", "valid")], row.names = FALSE)
 
-  n_total <- DBI::dbGetQuery(con, "SELECT count(*) AS n FROM data_liste_plots")$n
+  # count(*) is bigint, which RPostgres returns as integer64 - a double vector
+  # with a class attribute. A group generic like min() cannot dispatch on mixed
+  # classes, falls through to the internal default, and reinterprets the bit
+  # pattern: min(100L, <integer64 2194>) returns 1.08e-320. Hence the ::int cast
+  # here, and the assertion, so a reintroduction fails loudly rather than
+  # silently producing an empty array.
+  n_total <- DBI::dbGetQuery(con, "SELECT count(*)::int AS n FROM data_liste_plots")$n
+  stopifnot(
+    "plot count came back as something other than a plain integer" =
+      is.integer(n_total) && length(n_total) == 1L && n_total > 0L
+  )
 
   # Timing only, to summarise. The plans themselves are printed below.
   timing <- function(sql) {
@@ -335,6 +345,9 @@ check_fk_indexes_plot_scope <- function(con, n_plots = c(100L, 2000L)) {
     ids <- DBI::dbGetQuery(con, glue::glue_sql(
       "SELECT id_liste_plots FROM data_liste_plots ORDER BY random() LIMIT {n}",
       .con = con))$id_liste_plots
+    if (length(ids) == 0L) {
+      cli::cli_abort("No plot ids came back for a {n}-plot sample - nothing to measure")
+    }
     arr <- paste(ids, collapse = ",")
 
     # Two measurements per table, because they answer different questions and
@@ -345,13 +358,13 @@ check_fk_indexes_plot_scope <- function(con, n_plots = c(100L, 2000L)) {
     # the output, so neither figure includes transfer to R.
     direct <- timing(sprintf(
       "SELECT count(*) FROM data_individuals
-        WHERE id_table_liste_plots_n = ANY (ARRAY[%s])", arr))
+        WHERE id_table_liste_plots_n = ANY (ARRAY[%s]::integer[])", arr))
     cat("\n-- data_individuals: predicate only (index-only scan) --\n")
     cat(paste(direct$plan, collapse = "\n"), "\n")
 
     direct_rows <- timing(sprintf(
       "SELECT * FROM data_individuals
-        WHERE id_table_liste_plots_n = ANY (ARRAY[%s])", arr))
+        WHERE id_table_liste_plots_n = ANY (ARRAY[%s]::integer[])", arr))
     cat("\n-- data_individuals: fetching the rows --\n")
     cat(paste(direct_rows$plan, collapse = "\n"), "\n")
 
@@ -359,7 +372,7 @@ check_fk_indexes_plot_scope <- function(con, n_plots = c(100L, 2000L)) {
       "SELECT count(*) FROM data_traits_measures m
         WHERE EXISTS (SELECT 1 FROM data_individuals i
                        WHERE i.id_n = m.id_data_individuals
-                         AND i.id_table_liste_plots_n = ANY (ARRAY[%s]))", arr))
+                         AND i.id_table_liste_plots_n = ANY (ARRAY[%s]::integer[]))", arr))
     cat("\n-- data_traits_measures via the individual: predicate only --\n")
     cat(paste(two_hop$plan, collapse = "\n"), "\n")
 
@@ -367,7 +380,7 @@ check_fk_indexes_plot_scope <- function(con, n_plots = c(100L, 2000L)) {
       "SELECT m.* FROM data_traits_measures m
         WHERE EXISTS (SELECT 1 FROM data_individuals i
                        WHERE i.id_n = m.id_data_individuals
-                         AND i.id_table_liste_plots_n = ANY (ARRAY[%s]))", arr))
+                         AND i.id_table_liste_plots_n = ANY (ARRAY[%s]::integer[]))", arr))
     cat("\n-- data_traits_measures via the individual: fetching the rows --\n")
     cat(paste(two_hop_rows$plan, collapse = "\n"), "\n")
 

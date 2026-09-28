@@ -58,9 +58,9 @@ report_plot_scope_orphans <- function(con) {
   out$subplots <- DBI::dbGetQuery(con, "
     SELECT sp.*,
            spt.type AS feature_type,
-           (SELECT count(*) FROM data_traits_measures m
+           (SELECT count(*)::int FROM data_traits_measures m
              WHERE m.id_sub_plots = sp.id_sub_plots) AS n_measures,
-           (SELECT count(*) FROM data_subplot_feat f
+           (SELECT count(*)::int FROM data_subplot_feat f
              WHERE f.id_sub_plots = sp.id_sub_plots) AS n_subplot_feat
       FROM data_liste_sub_plots sp
       LEFT JOIN subplotype_list spt ON spt.id_subplotype = sp.id_type_sub_plot
@@ -77,8 +77,8 @@ report_plot_scope_orphans <- function(con) {
 
   out$inferred <- DBI::dbGetQuery(con, "
     SELECT sp.id_sub_plots,
-           count(*)                                   AS n_measures,
-           count(DISTINCT i.id_table_liste_plots_n)    AS n_distinct_plots,
+           count(*)::int                              AS n_measures,
+           count(DISTINCT i.id_table_liste_plots_n)::int AS n_distinct_plots,
            min(i.id_table_liste_plots_n)               AS inferred_plot,
            max(i.id_table_liste_plots_n)               AS other_plot
       FROM data_liste_sub_plots sp
@@ -112,7 +112,7 @@ report_plot_scope_orphans <- function(con) {
            m.country, m.decimallatitude, m.decimallongitude,
            m.original_plot_name, m.basisofrecord,
            m.date_modif_y, m.date_modif_m, m.date_modif_d,
-           (SELECT count(*) FROM data_ind_measures_feat f
+           (SELECT count(*)::int FROM data_ind_measures_feat f
              WHERE f.id_trait_measures = m.id_trait_measures) AS n_feat
       FROM data_traits_measures m
       LEFT JOIN traitlist tl ON tl.id_trait = m.traitid
@@ -132,10 +132,10 @@ report_plot_scope_orphans <- function(con) {
   cli::cli_h2("Could data_ind_measures_feat be keyed in one hop?")
 
   out$feat_keys <- DBI::dbGetQuery(con, "
-    SELECT count(*)                  AS n_rows,
-           count(id_trait_measures)  AS has_measure,
-           count(id_sub_plots)       AS has_subplot,
-           count(*) - count(id_sub_plots) AS subplot_null
+    SELECT count(*)::int                 AS n_rows,
+           count(id_trait_measures)::int AS has_measure,
+           count(id_sub_plots)::int      AS has_subplot,
+           (count(*) - count(id_sub_plots))::int AS subplot_null
       FROM data_ind_measures_feat")
   show(out$feat_keys)
 
@@ -156,13 +156,13 @@ report_plot_scope_orphans <- function(con) {
   cli::cli_h2("Do the unconstrained plot columns point at real plots?")
 
   out$dangling <- DBI::dbGetQuery(con, "
-    SELECT 'data_liste_sub_plots' AS table_name, count(*) AS dangling_rows
+    SELECT 'data_liste_sub_plots' AS table_name, count(*)::int AS dangling_rows
       FROM data_liste_sub_plots sp
      WHERE sp.id_table_liste_plots IS NOT NULL
        AND NOT EXISTS (SELECT 1 FROM data_liste_plots p
                         WHERE p.id_liste_plots = sp.id_table_liste_plots)
     UNION ALL
-    SELECT 'data_traits_measures', count(*)
+    SELECT 'data_traits_measures', count(*)::int
       FROM data_traits_measures m
      WHERE m.id_table_liste_plots IS NOT NULL
        AND NOT EXISTS (SELECT 1 FROM data_liste_plots p
@@ -237,7 +237,7 @@ migrate_plot_scope_orphans <- function(con, dry_run = TRUE) {
   resolvable <- DBI::dbGetQuery(con, "
     SELECT sp.id_sub_plots,
            min(i.id_table_liste_plots_n) AS inferred_plot,
-           count(*)                      AS n_measures
+           count(*)::int                 AS n_measures
       FROM data_liste_sub_plots sp
       JOIN data_traits_measures m ON m.id_sub_plots = sp.id_sub_plots
       JOIN data_individuals i     ON i.id_n = m.id_data_individuals
@@ -258,14 +258,14 @@ migrate_plot_scope_orphans <- function(con, dry_run = TRUE) {
 
   leftover <- DBI::dbGetQuery(con, "
     SELECT sp.id_sub_plots,
-           (SELECT count(DISTINCT i.id_table_liste_plots_n)
+           (SELECT count(DISTINCT i.id_table_liste_plots_n)::int
               FROM data_traits_measures m
               JOIN data_individuals i ON i.id_n = m.id_data_individuals
              WHERE m.id_sub_plots = sp.id_sub_plots)      AS n_distinct_plots,
-           (SELECT count(*) FROM data_traits_measures m
-             WHERE m.id_sub_plots = sp.id_sub_plots)      AS n_measures,
-           (SELECT count(*) FROM data_subplot_feat f
-             WHERE f.id_sub_plots = sp.id_sub_plots)      AS n_subplot_feat
+           (SELECT count(*)::int FROM data_traits_measures m
+             WHERE m.id_sub_plots = sp.id_sub_plots) AS n_measures,
+           (SELECT count(*)::int FROM data_subplot_feat f
+             WHERE f.id_sub_plots = sp.id_sub_plots) AS n_subplot_feat
       FROM data_liste_sub_plots sp
      WHERE sp.id_table_liste_plots IS NULL
        AND sp.id_sub_plots NOT IN (
@@ -289,8 +289,8 @@ migrate_plot_scope_orphans <- function(con, dry_run = TRUE) {
   }
 
   orphan_measures <- DBI::dbGetQuery(con, "
-    SELECT count(*) AS n,
-           count(*) FILTER (WHERE id_specimen IS NOT NULL) AS with_specimen
+    SELECT count(*)::int AS n,
+           (count(*) FILTER (WHERE id_specimen IS NOT NULL))::int AS with_specimen
       FROM data_traits_measures WHERE id_data_individuals IS NULL")
   if (orphan_measures$n > 0) {
     cli::cli_alert_warning(
@@ -349,7 +349,7 @@ migrate_plot_scope_orphans <- function(con, dry_run = TRUE) {
   cli::cli_h2("Step 4: Verifying")
 
   still <- DBI::dbGetQuery(con, "
-    SELECT count(*) AS n FROM data_liste_sub_plots
+    SELECT count(*)::int AS n FROM data_liste_sub_plots
      WHERE id_table_liste_plots IS NULL")$n
 
   cli::cli_alert_info("{still} subplot{?s} still without a plot \\
