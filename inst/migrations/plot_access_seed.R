@@ -386,8 +386,11 @@ report_plot_access_seed <- function(con) {
 #'
 #' @param con A connection to plots_transects, as the owner.
 #' @param include_creator Logical. Include grants derived from `created_by`.
-#'   Default `TRUE`. Setting it `FALSE` seeds only the explicit policies, which
-#'   would leave importers without access to their own plots.
+#'   Default `TRUE`. `FALSE` seeds only the explicit policies, which would leave
+#'   importers without access to the plots they imported - and the gate will
+#'   then fail and roll back, because `get_user_accessible_plots()` counts
+#'   creator access too. It is here to make the two sources separable while
+#'   reading the code, not because `FALSE` is a usable setting.
 #' @param skip_unparseable Logical. Proceed even though some policy could not
 #'   be read. Default `FALSE`, i.e. refuse. Only set this after looking at
 #'   `report_plot_access_seed()` and concluding those policies are not plot
