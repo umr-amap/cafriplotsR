@@ -337,19 +337,39 @@ check_fk_indexes_plot_scope <- function(con, n_plots = c(100L, 2000L)) {
       .con = con))$id_liste_plots
     arr <- paste(ids, collapse = ",")
 
+    # Two measurements per table, because they answer different questions and
+    # conflating them flatters the result. count(*) on the indexed column is
+    # served entirely from the index and never touches the table, so it isolates
+    # the cost of the *policy predicate*. SELECT * has to fetch the rows, which
+    # is what extraction actually costs. EXPLAIN ANALYZE executes and discards
+    # the output, so neither figure includes transfer to R.
     direct <- timing(sprintf(
       "SELECT count(*) FROM data_individuals
         WHERE id_table_liste_plots_n = ANY (ARRAY[%s])", arr))
-    cat("\n-- data_individuals, direct plot key --\n")
+    cat("\n-- data_individuals: predicate only (index-only scan) --\n")
     cat(paste(direct$plan, collapse = "\n"), "\n")
+
+    direct_rows <- timing(sprintf(
+      "SELECT * FROM data_individuals
+        WHERE id_table_liste_plots_n = ANY (ARRAY[%s])", arr))
+    cat("\n-- data_individuals: fetching the rows --\n")
+    cat(paste(direct_rows$plan, collapse = "\n"), "\n")
 
     two_hop <- timing(sprintf(
       "SELECT count(*) FROM data_traits_measures m
         WHERE EXISTS (SELECT 1 FROM data_individuals i
                        WHERE i.id_n = m.id_data_individuals
                          AND i.id_table_liste_plots_n = ANY (ARRAY[%s]))", arr))
-    cat("\n-- data_traits_measures via the individual (the real policy shape) --\n")
+    cat("\n-- data_traits_measures via the individual: predicate only --\n")
     cat(paste(two_hop$plan, collapse = "\n"), "\n")
+
+    two_hop_rows <- timing(sprintf(
+      "SELECT m.* FROM data_traits_measures m
+        WHERE EXISTS (SELECT 1 FROM data_individuals i
+                       WHERE i.id_n = m.id_data_individuals
+                         AND i.id_table_liste_plots_n = ANY (ARRAY[%s]))", arr))
+    cat("\n-- data_traits_measures via the individual: fetching the rows --\n")
+    cat(paste(two_hop_rows$plan, collapse = "\n"), "\n")
 
     # A non-zero Heap Fetches on an index-only scan means the visibility map is
     # stale, which ANALYZE does not fix.
@@ -360,12 +380,16 @@ check_fk_indexes_plot_scope <- function(con, n_plots = c(100L, 2000L)) {
          to set the visibility map, then measure again")
     }
 
-    plans[[paste0("plots_", n)]] <- list(direct = direct$plan, two_hop = two_hop$plan)
+    plans[[paste0("plots_", n)]] <- list(
+      direct = direct$plan, direct_rows = direct_rows$plan,
+      two_hop = two_hop$plan, two_hop_rows = two_hop_rows$plan)
     summary_rows[[length(summary_rows) + 1]] <- data.frame(
-      grant_plots = n,
-      pct_of_network = round(100 * n / n_total, 1),
-      individuals_ms = direct$ms,
-      measures_ms = two_hop$ms
+      grant_plots        = n,
+      pct_of_network     = round(100 * n / n_total, 1),
+      ind_predicate_ms   = direct$ms,
+      ind_fetch_ms       = direct_rows$ms,
+      meas_predicate_ms  = two_hop$ms,
+      meas_fetch_ms      = two_hop_rows$ms
     )
   }
 
@@ -373,8 +397,16 @@ check_fk_indexes_plot_scope <- function(con, n_plots = c(100L, 2000L)) {
   summary_df <- do.call(rbind, summary_rows)
   print(summary_df, row.names = FALSE)
   cli::cli_alert_info(
+    "{.field *_predicate_ms} is the cost RLS adds - count(*) off the index, \\
+     never touching the table. {.field *_fetch_ms} is what extraction costs, \\
+     and most of it would be paid with or without a policy.")
+  cli::cli_alert_info(
     "Pre-index baseline for comparison: 75 ms filtering data_traits_measures \\
      on 100 plots by the denormalised column, as a seq scan.")
+  cli::cli_alert_info(
+    "Cache state moves these figures more than plan shape does - a table read \\
+     from disk rather than from cache can cost several times as much. Run twice \\
+     and prefer the second.")
 
   invisible(list(indexes = state, plans = plans, summary = summary_df))
 }
