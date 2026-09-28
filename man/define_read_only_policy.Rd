@@ -30,6 +30,15 @@ These are plots created by OTHER users that this user should also access.}
 \description{
 Convenience wrapper for \code{\link{define_user_policy}} that grants SELECT-only access.
 }
+\details{
+Before 2026-09-26 the name overpromised: the underlying
+\code{\link{define_user_policy}} created a SELECT policy but granted
+`SELECT, INSERT, UPDATE, DELETE` at the table level regardless, so an
+account set up this way carried write privileges it was never meant to have.
+The grant now follows `operations`, and this wrapper leaves the account with
+`SELECT` and nothing else. Accounts created before that date may still hold
+the old grant - re-running this function on them removes it.
+}
 \examples{
 \dontrun{
 con <- call.mydb()

@@ -899,10 +899,16 @@ db_diagnostic <- function() {
 #'   - "replace" (default): Replace existing access with new IDs
 #'   - "add": Add new IDs to existing access
 #'   - "remove": Remove specified IDs from existing access
-#' @param grant_table_privileges Logical. Whether to automatically grant table-level
-#'   SELECT, INSERT, UPDATE, DELETE privileges to the user. Default TRUE. These are
-#'   required for the RLS policies to work - RLS controls which rows, table privileges
-#'   control which operations. Without these privileges, RLS policies have no effect.
+#' @param grant_table_privileges Logical. Whether to also set the table-level
+#'   privileges the policies need. Default TRUE. RLS controls which rows, table
+#'   privileges control which operations, and a policy without the matching
+#'   privilege has no effect.
+#'
+#'   The privileges granted are derived from `operations`, and anything not
+#'   asked for is **revoked**, so narrowing a user's `operations` narrows their
+#'   real access rather than leaving the earlier grant behind. `UPDATE` and
+#'   `DELETE` additionally imply `SELECT`, which they need to evaluate their own
+#'   `WHERE` clause.
 #'
 #' @returns Invisibly returns TRUE on success, FALSE on failure.
 #'
@@ -994,14 +1000,44 @@ define_user_policy <- function(con, user, ids,
     sql_enable_rls <- glue::glue("ALTER TABLE {DBI::dbQuoteIdentifier(con, table)} ENABLE ROW LEVEL SECURITY;")
     DBI::dbExecute(con, sql_enable_rls)
 
-    # Grant table-level privileges if requested
+    # Grant table-level privileges if requested.
+    #
+    # These are derived from `operations`, and whatever is not asked for is
+    # revoked. Until 2026-09-26 this granted SELECT, INSERT, UPDATE, DELETE
+    # unconditionally, so define_read_only_policy() -- whose whole purpose is
+    # SELECT-only access -- handed out full DML. RLS contained it only as long
+    # as no write policy happened to match, which for the published
+    # CafriP_public account it did: see
+    # inst/migrations/revoke_stray_dml_grants.R for the cleanup.
     if (grant_table_privileges) {
-      sql_grant <- glue::glue("GRANT SELECT, INSERT, UPDATE, DELETE ON {DBI::dbQuoteIdentifier(con, table)} TO {DBI::dbQuoteIdentifier(con, user)};")
+      requested <- if (identical(operations, "ALL")) {
+        c("SELECT", "INSERT", "UPDATE", "DELETE")
+      } else {
+        # UPDATE and DELETE need SELECT to evaluate their own WHERE clause, so
+        # a write grant without it is not usable.
+        ops <- unique(operations)
+        if (any(c("UPDATE", "DELETE") %in% ops)) ops <- union(ops, "SELECT")
+        ops
+      }
+      to_revoke <- setdiff(c("SELECT", "INSERT", "UPDATE", "DELETE"), requested)
+
+      quoted_table <- DBI::dbQuoteIdentifier(con, table)
+      quoted_user  <- DBI::dbQuoteIdentifier(con, user)
+
       tryCatch({
-        DBI::dbExecute(con, sql_grant)
-        cli::cli_alert_success("Granted SELECT, INSERT, UPDATE, DELETE privileges on '{table}' to user '{user}'")
+        DBI::dbExecute(con, glue::glue(
+          "GRANT {paste(requested, collapse = ', ')} ON {quoted_table} TO {quoted_user};"))
+        cli::cli_alert_success(
+          "Granted {paste(requested, collapse = ', ')} on '{table}' to user '{user}'")
+
+        if (length(to_revoke) > 0) {
+          DBI::dbExecute(con, glue::glue(
+            "REVOKE {paste(to_revoke, collapse = ', ')} ON {quoted_table} FROM {quoted_user};"))
+          cli::cli_alert_info(
+            "Revoked {paste(to_revoke, collapse = ', ')} on '{table}' from user '{user}'")
+        }
       }, error = function(e) {
-        cli::cli_alert_warning("Could not grant table privileges to '{user}': {e$message}")
+        cli::cli_alert_warning("Could not set table privileges for '{user}': {e$message}")
         cli::cli_alert_info("User may need to request these privileges from database admin")
       })
     }
@@ -1258,6 +1294,15 @@ get_user_accessible_plots <- function(con, user, table = "data_liste_plots") {
 #'
 #' @description
 #' Convenience wrapper for \code{\link{define_user_policy}} that grants SELECT-only access.
+#'
+#' @details
+#' Before 2026-09-26 the name overpromised: the underlying
+#' \code{\link{define_user_policy}} created a SELECT policy but granted
+#' `SELECT, INSERT, UPDATE, DELETE` at the table level regardless, so an
+#' account set up this way carried write privileges it was never meant to have.
+#' The grant now follows `operations`, and this wrapper leaves the account with
+#' `SELECT` and nothing else. Accounts created before that date may still hold
+#' the old grant - re-running this function on them removes it.
 #'
 #' @inheritParams define_user_policy
 #'

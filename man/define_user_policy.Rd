@@ -39,10 +39,16 @@ Default TRUE. Ignored when mode is "add" or "remove".}
 - "add": Add new IDs to existing access
 - "remove": Remove specified IDs from existing access}
 
-\item{grant_table_privileges}{Logical. Whether to automatically grant table-level
-SELECT, INSERT, UPDATE, DELETE privileges to the user. Default TRUE. These are
-required for the RLS policies to work - RLS controls which rows, table privileges
-control which operations. Without these privileges, RLS policies have no effect.}
+\item{grant_table_privileges}{Logical. Whether to also set the table-level
+  privileges the policies need. Default TRUE. RLS controls which rows, table
+  privileges control which operations, and a policy without the matching
+  privilege has no effect.
+
+  The privileges granted are derived from `operations`, and anything not
+  asked for is **revoked**, so narrowing a user's `operations` narrows their
+  real access rather than leaving the earlier grant behind. `UPDATE` and
+  `DELETE` additionally imply `SELECT`, which they need to evaluate their own
+  `WHERE` clause.}
 }
 \value{
 Invisibly returns TRUE on success, FALSE on failure.
