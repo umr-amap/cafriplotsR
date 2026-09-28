@@ -52,7 +52,7 @@
 #' place, so a single careless `define_user_policy()` call would make the
 #' account writable again without anyone re-creating a policy.
 #'
-#' 28 other named accounts also hold direct `INSERT, UPDATE, DELETE` on
+#' 32 other named accounts also hold direct `INSERT, UPDATE, DELETE` on
 #' `data_liste_plots` from the same defect. They are **reported and not
 #' touched**: unlike the published credential and the test logins, some of them
 #' are real collaborators who may be writing legitimately, and deciding that
