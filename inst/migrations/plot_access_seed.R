@@ -170,11 +170,12 @@
   ok  <- g[g$is_a_role, c("db_user", "id_liste_plots"), drop = FALSE]
   if (nrow(ok) > 0) {
     ok$can_write  <- TRUE
-    # FALSE, like everyone else. "Remove DELETE from all users and let me give
-    # it back when needed" applies to importers too, so a mis-imported plot is
-    # deleted by the owner or after grant_delete_right(). To change that:
-    #   UPDATE plot_access SET can_delete = TRUE WHERE origin = 'creator';
-    ok$can_delete <- FALSE
+    # TRUE for creators, and only for creators. Deleting a plot you imported
+    # yourself - a bad import, most often - is the one legitimate delete that
+    # should not need asking. The database already agrees: creator_access_delete
+    # (add_created_by.R) is a global policy reading created_by = current_user, so
+    # this records what PostgreSQL enforces rather than adding a right.
+    ok$can_delete <- TRUE
     ok$can_grant  <- TRUE
     rownames(ok) <- NULL
   } else {
@@ -318,10 +319,14 @@ report_plot_access_seed <- function(con) {
       db_user        = g$db_user[1],
       id_liste_plots = as.integer(g$id_liste_plots[1]),
       can_write      = any(g$can_write),
-      # The one capability the seed does not carry over by default. The old
-      # DELETE policies stay in pg_policies untouched through step 4, so this is
+      # A creator keeps DELETE on the plot it imported, always - that is what
+      # creator_access_delete already enforces, and preserve_delete has no say
+      # over it. What preserve_delete governs is the *admin* grants: the old
+      # per-account DELETE policies, which are not carried over by default. Those
+      # policies stay in pg_policies untouched through step 4, so the default is
       # a decision recorded in data, not information destroyed.
-      can_delete     = if (preserve_delete) any(g$can_delete) else FALSE,
+      can_delete     = any(g$can_delete[g$origin == "creator"]) ||
+                       (preserve_delete && any(g$can_delete)),
       can_grant      = any(g$can_grant),
       # Creator is the stronger statement: it is why can_grant is set.
       origin         = if (any(g$origin == "creator")) "creator" else "admin",

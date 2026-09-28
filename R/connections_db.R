@@ -1009,9 +1009,17 @@ define_user_policy <- function(con, user, ids,
     # as no write policy happened to match, which for the published
     # CafriP_public account it did: see
     # inst/migrations/revoke_stray_dml_grants.R for the cleanup.
+    #
+    # "ALL" deliberately stops short of DELETE (2026-09-28). It used to mean all
+    # four, and since define_full_access_policy() is the usual way a colleague
+    # gets access, that is how 13,913 of 14,018 plot grants came to carry DELETE
+    # -- nine accounts on more than 1,100 plots each. DELETE is now asked for by
+    # name, or granted per plot with grant_delete_right(). Without this, the next
+    # define_full_access_policy() call reopens what
+    # inst/migrations/revoke_delete_rights.R closes.
     if (grant_table_privileges) {
       requested <- if (identical(operations, "ALL")) {
-        c("SELECT", "INSERT", "UPDATE", "DELETE")
+        c("SELECT", "INSERT", "UPDATE")
       } else {
         # UPDATE and DELETE need SELECT to evaluate their own WHERE clause, so
         # a write grant without it is not usable.
@@ -1054,8 +1062,16 @@ define_user_policy <- function(con, user, ids,
     }
 
     if (length(operations) == 1 && operations == "ALL") {
-      # Create SELECT/UPDATE/DELETE policies restricted to plot IDs
-      # Note: INSERT is handled by global 'insert_open' policy (from migration)
+      # Create SELECT/UPDATE policies restricted to plot IDs.
+      #
+      # NOT DELETE, since 2026-09-28. "ALL" used to create a _delete policy too,
+      # which is how nearly every grant ever made carried the right to delete
+      # somebody else's plots. Deletion of a plot you created is already covered
+      # by the global creator_access_delete policy; deletion of anyone else's is
+      # granted per plot with grant_delete_right(), or by naming
+      # operations = "DELETE" explicitly.
+      #
+      # Note: INSERT is handled by the global insert policy (from migration)
       # Note: Creator access is handled by global 'creator_access_*' policies
 
       # Policy for SELECT: Restricted to specific plot IDs (adds to creator access)
@@ -1077,17 +1093,12 @@ define_user_policy <- function(con, user, ids,
       ")
       DBI::dbExecute(con, sql_create_update)
 
-      sql_create_delete <- glue::glue("
-        CREATE POLICY {DBI::dbQuoteIdentifier(con, paste0(policy_name, '_delete'))}
-        ON {DBI::dbQuoteIdentifier(con, table)}
-        FOR DELETE
-        TO {DBI::dbQuoteIdentifier(con, user)}
-        USING (id_liste_plots IN ({id_list}));
-      ")
-      DBI::dbExecute(con, sql_create_delete)
-
-      cli::cli_alert_success("Policy '{policy_name}_select/update/delete' created for SELECT/UPDATE/DELETE operations")
+      cli::cli_alert_success("Policy '{policy_name}_select/update' created for SELECT/UPDATE operations")
       cli::cli_alert_info("User can access plot IDs: {paste(ids, collapse = ', ')} (plus any plots they created)")
+      cli::cli_alert_info(
+        "DELETE not granted. A user can already delete plots they created; for
+         anyone else's use {.fn grant_delete_right} or pass
+         {.code operations = \"DELETE\"} explicitly.")
 
     } else {
       # Handle specific operations
@@ -1096,7 +1107,15 @@ define_user_policy <- function(con, user, ids,
       ops_to_create <- setdiff(operations, "INSERT")
 
       if ("INSERT" %in% operations) {
-        cli::cli_alert_info("INSERT skipped - handled by global 'insert_open' policy")
+        cli::cli_alert_info("INSERT skipped - handled by the global insert policy")
+      }
+
+      if ("DELETE" %in% ops_to_create) {
+        cli::cli_alert_warning(c(
+          "Creating a DELETE policy for {.val {user}} over {length(ids)} plot{?s}.
+           DELETE is off by default for every account - a user can already delete
+           plots they created. Prefer {.fn grant_delete_right}, which records it
+           in plot_access where it can be audited and taken back."))
       }
 
       for (i in seq_along(ops_to_create)) {

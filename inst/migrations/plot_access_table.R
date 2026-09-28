@@ -185,9 +185,11 @@ migrate_plot_access_table <- function(con, grant_to = NULL, dry_run = TRUE) {
         Presence of a row IS read access - there is no can_read column, because
         every capability implies read.';",
     "COMMENT ON COLUMN public.plot_access.can_delete IS
-       'DELETE. Kept separate from can_write and FALSE by default: it is the
-        destructive one, it cascades through six child tables, and
-        safe_delete_plot() is not atomic. Hand it out with grant_delete_right().';",
+       'DELETE. Kept separate from can_write because it is the destructive one,
+        it cascades through six child tables, and safe_delete_plot() is not
+        atomic. TRUE on creator rows - deleting a plot you imported needs no
+        permission - and FALSE on admin rows, where it is handed out per plot
+        with grant_delete_right().';",
     "COMMENT ON COLUMN public.plot_access.db_user IS
        'A database role name. Not a foreign key: PostgreSQL cannot reference
         pg_roles. A dropped role leaves a harmless stale row.';",
@@ -257,9 +259,10 @@ migrate_plot_access_table <- function(con, grant_to = NULL, dry_run = TRUE) {
 
        IF NEW.created_by IS NOT NULL AND NEW.created_by <> owner_name THEN
          INSERT INTO public.plot_access
-           (db_user, id_liste_plots, can_write, can_grant, origin, granted_by, note)
+           (db_user, id_liste_plots, can_write, can_delete, can_grant,
+            origin, granted_by, note)
          VALUES
-           (NEW.created_by, NEW.id_liste_plots, TRUE, TRUE, 'creator',
+           (NEW.created_by, NEW.id_liste_plots, TRUE, TRUE, TRUE, 'creator',
             NEW.created_by, 'imported the plot')
          ON CONFLICT (db_user, id_liste_plots) DO NOTHING;
        END IF;
