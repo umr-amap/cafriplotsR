@@ -17,11 +17,20 @@
 # has to land before inst/migrations/plot_access_table.R, not after.
 #
 # WHAT CHANGES
-#   - `insert_open  WITH CHECK (true)` is replaced by
-#     `insert_own   WITH CHECK (created_by = current_user)`
+#   - **every** permissive INSERT policy whose check is only `true` is dropped,
+#     and replaced by one `insert_own WITH CHECK (created_by = current_user)`.
+#     On this database that is `insert_open` plus a per-account
+#     `policy_<user>_insert` for thirteen accounts, left over from a version of
+#     define_user_policy() that created them. Dropping only insert_open would
+#     achieve nothing for those thirteen: permissive policies are ORed, so their
+#     own unconditional check would still pass.
 #   - the column default is re-asserted (idempotent; it is already there)
 #   - optionally `created_by` is set NOT NULL, which add_created_by.R's
 #     backfill already made true for every row
+#
+# WHAT THOSE THIRTEEN ACCOUNTS LOSE
+#   Nothing they should have. insert_own is TO PUBLIC, so they can still insert
+#   plots; they can no longer attribute one to a different account.
 #
 # WHAT DOES NOT CHANGE
 #   Every write path in the package. `created_by` is written in exactly one
@@ -34,6 +43,9 @@
 #   DROP POLICY insert_own ON data_liste_plots;
 #   CREATE POLICY insert_open ON data_liste_plots FOR INSERT TO PUBLIC
 #     WITH CHECK (true);
+#   -- the per-account INSERT policies do not need recreating: insert_open TO
+#   -- PUBLIC already admitted everything they admitted. They are listed by
+#   -- report_created_by_state() before the drop if you want the exact set.
 #   -- and, if set_not_null was used:
 #   ALTER TABLE data_liste_plots ALTER COLUMN created_by DROP NOT NULL;
 #
@@ -96,6 +108,41 @@ report_created_by_state <- function(con) {
   if (nrow(pol) == 0) cli::cli_alert_warning("None - nobody but the owner can insert a plot")
   else print(pol, row.names = FALSE)
 
+  # Permissive policies are ORed. Adding insert_own alongside any other
+  # permissive INSERT policy that checks `true` changes nothing for the accounts
+  # that policy names - their unconditional check still passes. So every one of
+  # them has to go, not just insert_open.
+  #
+  # On this database that is insert_open plus a per-account policy_<user>_insert
+  # for each of thirteen accounts, left over from a version of
+  # define_user_policy() that created them. It no longer does: it skips INSERT
+  # and relies on the global policy. Nothing in R/ depends on them by name.
+  # After they are dropped those accounts can still insert plots - insert_own is
+  # TO PUBLIC - they just cannot attribute one to somebody else.
+  open_insert <- pol[pol$cmd == "INSERT" &
+                     pol$permissive == "PERMISSIVE" &
+                     !is.na(pol$with_check) &
+                     trimws(pol$with_check) == "true", , drop = FALSE]
+
+  open_all <- pol[pol$cmd == "ALL" & pol$permissive == "PERMISSIVE", , drop = FALSE]
+
+  if (nrow(open_insert) > 0) {
+    cli::cli_alert_danger(
+      "{nrow(open_insert)} permissive INSERT polic{?y/ies} check{?s/} only
+       {.code true} - all of them must go, or insert_own is ORed away:")
+    print(open_insert[, c("policyname", "roles")], row.names = FALSE)
+  } else {
+    cli::cli_alert_success("No permissive INSERT policy checks only `true`")
+  }
+
+  if (nrow(open_all) > 0) {
+    cli::cli_alert_warning(c(
+      "{nrow(open_all)} permissive {.code FOR ALL} polic{?y/ies} also admit an
+       INSERT. This migration will NOT touch {?it/them}: dropping a FOR ALL
+       policy would remove SELECT, UPDATE and DELETE access too. Review by hand:"))
+    print(open_all[, c("policyname", "roles", "with_check")], row.names = FALSE)
+  }
+
   # --- do the values name real roles? --------------------------------------
   vals <- DBI::dbGetQuery(con, "
     SELECT COALESCE(p.created_by, '(NULL)') AS created_by,
@@ -136,7 +183,8 @@ report_created_by_state <- function(con) {
   }
 
   invisible(list(owner = owner, column = col, policies = pol, values = vals,
-                 n_null = n_null, not_a_role = bad))
+                 n_null = n_null, not_a_role = bad,
+                 open_insert = open_insert, open_all = open_all))
 }
 
 
@@ -166,6 +214,18 @@ migrate_created_by_server_asserted <- function(con, set_not_null = TRUE,
       i = "Leaving them NULL means those plots grant nobody creator access."))
   }
 
+  # A permissive FOR ALL policy admits INSERT too, and this migration will not
+  # drop one - that would take SELECT, UPDATE and DELETE with it. Refuse rather
+  # than apply a check that something else ORs away; leaving that hole silently
+  # is the exact failure this migration exists to close.
+  if (nrow(state$open_all) > 0) {
+    cli::cli_abort(c(
+      "{nrow(state$open_all)} permissive {.code FOR ALL} polic{?y/ies} on
+       data_liste_plots also admit an INSERT.",
+      x = "insert_own would be ORed away for the role{?s} {?it/they} name.",
+      i = "Split {?it/them} into per-command policies by hand first, then re-run."))
+  }
+
   if (nrow(state$not_a_role) > 0) {
     cli::cli_alert_warning(c(
       "Proceeding, but note: created_by holds {nrow(state$not_a_role)} value{?s} ",
@@ -175,9 +235,20 @@ migrate_created_by_server_asserted <- function(con, set_not_null = TRUE,
 
   statements <- c(
     "ALTER TABLE public.data_liste_plots
-       ALTER COLUMN created_by SET DEFAULT current_user;",
-    "DROP POLICY IF EXISTS insert_open ON public.data_liste_plots;",
-    "DROP POLICY IF EXISTS insert_own  ON public.data_liste_plots;",
+       ALTER COLUMN created_by SET DEFAULT current_user;")
+
+  # Every permissive INSERT policy that checks only `true`, not just
+  # insert_open. One survivor would OR insert_own away for the accounts it
+  # names - which are exactly the accounts that can insert.
+  for (p in state$open_insert$policyname) {
+    statements <- c(statements, paste0(
+      "DROP POLICY IF EXISTS ", DBI::dbQuoteIdentifier(con, p),
+      " ON public.data_liste_plots;"))
+  }
+
+  statements <- c(
+    statements,
+    "DROP POLICY IF EXISTS insert_own ON public.data_liste_plots;",
     "CREATE POLICY insert_own ON public.data_liste_plots
        FOR INSERT TO PUBLIC
        WITH CHECK (created_by = current_user);",
@@ -229,17 +300,27 @@ check_created_by_server_asserted <- function(con) {
   pass <- TRUE
 
   pol <- DBI::dbGetQuery(con, "
-    SELECT policyname, with_check
+    SELECT policyname, permissive, roles::text AS roles, with_check
       FROM pg_policies
      WHERE schemaname = 'public' AND tablename = 'data_liste_plots'
        AND cmd = 'INSERT' ORDER BY policyname")
   print(pol, row.names = FALSE)
 
-  if ("insert_open" %in% pol$policyname) {
-    cli::cli_alert_danger("insert_open is still present")
+  # The test that matters is not "insert_open is gone" but "nothing permissive
+  # checks only true any more". A single survivor ORs insert_own away for the
+  # accounts it names.
+  still_open <- pol[pol$permissive == "PERMISSIVE" &
+                    !is.na(pol$with_check) &
+                    trimws(pol$with_check) == "true", , drop = FALSE]
+
+  if (nrow(still_open) > 0) {
+    cli::cli_alert_danger(
+      "{nrow(still_open)} permissive INSERT polic{?y/ies} still check{?s/} only
+       {.code true}, so insert_own is ORed away for {?its/their} role{?s}:")
+    print(still_open[, c("policyname", "roles")], row.names = FALSE)
     pass <- FALSE
   } else {
-    cli::cli_alert_success("insert_open is gone")
+    cli::cli_alert_success("No permissive INSERT policy checks only `true`")
   }
 
   own <- pol[pol$policyname == "insert_own", , drop = FALSE]
