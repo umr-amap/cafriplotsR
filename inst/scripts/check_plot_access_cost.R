@@ -51,6 +51,73 @@ BASELINE <- data.frame(
   stringsAsFactors = FALSE
 )
 
+# =============================================================================
+# MEASURED 2026-09-28, array shape, all seven tables (28/28)
+#
+# Recorded here so the semi-join run reads as a delta, and so the numbers are not
+# left in a terminal scrollback. Grant sizes are the real accounts: lucette (1),
+# thibauld (32), fortunel (277), alexmass (2,036 of 2,194).
+#
+#   table                   hops     1      32     277    2036   (predicate ms)
+#   data_liste_plots           0  0.038   0.052   0.471   0.649
+#   data_individuals           1  0.054   0.636   4.972  61.525
+#   data_liste_sub_plots       1  0.058   0.199   0.758   6.381
+#   data_subplot_feat          2  0.092   0.717   5.316  25.121
+#   data_traits_measures       2  0.451  20.941  56.219 334.351
+#   data_ind_measures_feat     3  3.002 141.154 249.986 438.212
+#   data_link_specimens        1  0.332  45.922  49.752 110.798
+#
+# fetch ms at 2,036 plots: 0.599 / 96.609 / 7.067 / 23.296 / 980.597 / 551.740 /
+# 213.655.
+#
+# PRECISION. These are single measurements, not medians. Between two runs of the
+# same script data_individuals at 2,036 plots gave 52.008 and 61.525 ms
+# (+18%), and data_traits_measures 315.872 and 334.351 (+6%). Treat anything
+# under about 20% as noise; the conclusions below all rest on factors of ten.
+#
+# WHAT IT SAYS
+#
+# 1. For five tables the predicate is close to free. data_traits_measures at
+#    2,036 plots costs 334 ms against a 306 ms pre-policy baseline for the same
+#    query - about 9% - and the fetch is unchanged. The expensive part of these
+#    queries was always reading the rows, not deciding which rows.
+#
+# 2. data_ind_measures_feat, at three hops, does not behave like the others. It
+#    costs 141 ms at 32 plots - 1.5% of the network - and only 438 ms at 2,036.
+#    Sublinear like that, with three sequential scans in the plan, is the
+#    signature of a fixed cost: the plan scans data_traits_measures and
+#    data_individuals to build hash tables no matter how few plots are asked for.
+#    At 2,036 plots the predicate is 79% of the fetch time, where on every other
+#    table it is under 35%. data_link_specimens shows the same shape more mildly
+#    (46 ms at 32 plots, 111 at 2,036).
+#
+#    Its only other route is dead: id_sub_plots is NULL on all 476,701 rows.
+#
+# 3. Seventeen measurements plan a sequential scan, and four of those are at 32
+#    plots. On data_liste_plots that is correct - 2,194 rows are cheaper to scan.
+#    Elsewhere it means a literal ARRAY of plot ids is not giving the planner
+#    enough to choose an index path. That is the strongest argument yet for the
+#    semi-join shape, which hands the planner a table with statistics instead of
+#    a list - but it is a hypothesis until measured.
+#
+# THE TWO-KEY QUESTION, ANSWERED
+#
+#   table                   rows      via_individual  via_plot_only  via_neither
+#   data_traits_measures    2,053,478      2,053,478             0            0
+#   data_link_specimens       161,180        160,903           277            0
+#   data_ind_measures_feat    476,701        476,701             0            0
+#
+# So the three-branch CASE proposed for data_traits_measures is unnecessary: a
+# single key on id_data_individuals reaches every one of its 2,053,478 rows.
+# Note 2,053,478 against the 2,053,481 in the P4.4 audit - exactly the 3 rows
+# with a NULL individual that delete_orphan_plot_rows.R removed. That cleanup is
+# why no CASE is needed here.
+#
+# data_link_specimens is the one table that needs two branches, for 277 rows
+# reachable only by id_liste_plots. Without that branch they go invisible to
+# everyone but the owner.
+# =============================================================================
+
 # How each table reaches a plot. `join` is the FROM/WHERE fragment that gets it
 # there; `key` is the expression a grant is compared against.
 #
