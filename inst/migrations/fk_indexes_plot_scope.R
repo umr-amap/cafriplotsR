@@ -274,12 +274,30 @@ migrate_fk_indexes_plot_scope <- function(con, dry_run = TRUE, analyze = TRUE) {
 #' Read-only companion to [migrate_fk_indexes_plot_scope()]. Also re-measures
 #' the predicate the RLS policies would use, so the cost can be compared
 #' against the pre-index baseline recorded in that function's documentation
-#' (75 ms direct, 116 ms two-hop).
+#' (75 ms for the direct filter, 116 ms two-hop).
+#'
+#' @details
+#' `n_plots` sets the size of the simulated grant, and it is the variable that
+#' matters. A policy's cost scales with how many rows the account can *see*, not
+#' with the size of the table, so the slowest account is the one granted the
+#' most. Measuring a 100-plot grant says nothing about a 2,000-plot one; run
+#' both ends before concluding anything about extraction time.
+#'
+#' Measured 2026-09-28 at `n_plots = 100`, after the indexes were built: 20 ms
+#' on `data_individuals`, 33 ms on `data_traits_measures` through the individual.
+#'
+#' An index-only scan reporting non-zero `Heap Fetches` means the visibility map
+#' is stale — `ANALYZE` does not set it, only `VACUUM` does. Run
+#' `VACUUM (ANALYZE) data_traits_measures` before treating a measurement as
+#' final.
 #'
 #' @param con Database connection to `plots_transects`.
-#' @return Invisibly, a list with the index state and the two plans.
+#' @param n_plots Integer vector. Grant sizes to measure, in plots. Defaults to
+#'   a small grant and one covering most of the network, so both ends of the
+#'   range are visible.
+#' @return Invisibly, a list with the index state and the plans per grant size.
 #' @keywords internal
-check_fk_indexes_plot_scope <- function(con) {
+check_fk_indexes_plot_scope <- function(con, n_plots = c(100L, 2000L)) {
 
   cli::cli_h2("Plot-scoping indexes")
 
@@ -297,26 +315,66 @@ check_fk_indexes_plot_scope <- function(con) {
      ORDER BY 1, 2")
   print(state[, c("table_name", "index_name", "valid")], row.names = FALSE)
 
-  cli::cli_h2("Cost of the candidate RLS predicate")
+  n_total <- DBI::dbGetQuery(con, "SELECT count(*) AS n FROM data_liste_plots")$n
 
-  ids <- DBI::dbGetQuery(con,
-    "SELECT id_liste_plots FROM data_liste_plots ORDER BY random() LIMIT 100")$id_liste_plots
-  arr <- paste(ids, collapse = ",")
+  # Timing only, to summarise. The plans themselves are printed below.
+  timing <- function(sql) {
+    plan <- DBI::dbGetQuery(con, paste("EXPLAIN (ANALYZE, BUFFERS)", sql))[[1]]
+    line <- grep("^Execution Time:", plan, value = TRUE)
+    list(plan = plan,
+         ms = if (length(line)) as.numeric(sub(".*: ([0-9.]+) ms.*", "\\1", line[1])) else NA_real_)
+  }
 
   plans <- list()
-  plans$direct <- DBI::dbGetQuery(con, sprintf(
-    "EXPLAIN (ANALYZE, BUFFERS) SELECT count(*) FROM data_individuals
-      WHERE id_table_liste_plots_n = ANY (ARRAY[%s])", arr))
-  cat("\n-- data_individuals, direct plot key --\n")
-  cat(paste(plans$direct[[1]], collapse = "\n"), "\n")
+  summary_rows <- list()
 
-  plans$two_hop <- DBI::dbGetQuery(con, sprintf(
-    "EXPLAIN (ANALYZE, BUFFERS) SELECT count(*) FROM data_traits_measures m
-      WHERE EXISTS (SELECT 1 FROM data_individuals i
-                     WHERE i.id_n = m.id_data_individuals
-                       AND i.id_table_liste_plots_n = ANY (ARRAY[%s]))", arr))
-  cat("\n-- data_traits_measures via the individual (the real policy shape) --\n")
-  cat(paste(plans$two_hop[[1]], collapse = "\n"), "\n")
+  for (n in as.integer(n_plots)) {
+    n <- min(n, n_total)
+    cli::cli_h2("Cost of the candidate RLS predicate: a {n}-plot grant of {n_total}")
 
-  invisible(list(indexes = state, plans = plans))
+    ids <- DBI::dbGetQuery(con, glue::glue_sql(
+      "SELECT id_liste_plots FROM data_liste_plots ORDER BY random() LIMIT {n}",
+      .con = con))$id_liste_plots
+    arr <- paste(ids, collapse = ",")
+
+    direct <- timing(sprintf(
+      "SELECT count(*) FROM data_individuals
+        WHERE id_table_liste_plots_n = ANY (ARRAY[%s])", arr))
+    cat("\n-- data_individuals, direct plot key --\n")
+    cat(paste(direct$plan, collapse = "\n"), "\n")
+
+    two_hop <- timing(sprintf(
+      "SELECT count(*) FROM data_traits_measures m
+        WHERE EXISTS (SELECT 1 FROM data_individuals i
+                       WHERE i.id_n = m.id_data_individuals
+                         AND i.id_table_liste_plots_n = ANY (ARRAY[%s]))", arr))
+    cat("\n-- data_traits_measures via the individual (the real policy shape) --\n")
+    cat(paste(two_hop$plan, collapse = "\n"), "\n")
+
+    # A non-zero Heap Fetches on an index-only scan means the visibility map is
+    # stale, which ANALYZE does not fix.
+    fetches <- grep("Heap Fetches:", two_hop$plan, value = TRUE)
+    if (length(fetches) > 0 && !grepl("Heap Fetches: 0$", trimws(fetches[1]))) {
+      cli::cli_alert_warning(
+        "{trimws(fetches[1])} - run {.code VACUUM (ANALYZE) data_traits_measures} \\
+         to set the visibility map, then measure again")
+    }
+
+    plans[[paste0("plots_", n)]] <- list(direct = direct$plan, two_hop = two_hop$plan)
+    summary_rows[[length(summary_rows) + 1]] <- data.frame(
+      grant_plots = n,
+      pct_of_network = round(100 * n / n_total, 1),
+      individuals_ms = direct$ms,
+      measures_ms = two_hop$ms
+    )
+  }
+
+  cli::cli_h2("Summary")
+  summary_df <- do.call(rbind, summary_rows)
+  print(summary_df, row.names = FALSE)
+  cli::cli_alert_info(
+    "Pre-index baseline for comparison: 75 ms filtering data_traits_measures \\
+     on 100 plots by the denormalised column, as a seq scan.")
+
+  invisible(list(indexes = state, plans = plans, summary = summary_df))
 }
