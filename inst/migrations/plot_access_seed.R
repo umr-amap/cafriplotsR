@@ -88,6 +88,74 @@
 }
 
 
+#' The plots that actually exist
+#' @keywords internal
+#' @noRd
+.seed_existing_plots <- function(con) {
+  DBI::dbGetQuery(con,
+    "SELECT id_liste_plots FROM data_liste_plots ORDER BY 1")$id_liste_plots
+}
+
+
+#' Split a grant set into the plots that exist and the ones that do not
+#'
+#' `define_user_policy()` writes a literal list of plot ids into the USING
+#' clause, and nothing removes an id from that list when the plot is deleted -
+#' `safe_delete_plot()` does not touch policies. So the policies name plots that
+#' are gone.
+#'
+#' Those are not grants being lost. A USING clause naming a deleted plot matches
+#' no row, so the account already sees nothing for it; the entry has been void
+#' since the plot went. What it *is* is evidence of drift, so it is reported per
+#' account rather than quietly filtered.
+#'
+#' This class of drift cannot recur in `plot_access`: the foreign key is
+#' `ON DELETE CASCADE`, so deleting a plot takes its grants with it. That is one
+#' of the things rows buy over literal lists.
+#'
+#' @param combined The rows the seed would write.
+#' @param existing Integer vector from `.seed_existing_plots()`.
+#' @return A list with `kept` and `dropped`.
+#' @keywords internal
+#' @noRd
+.seed_split_missing <- function(combined, existing) {
+  if (nrow(combined) == 0) return(list(kept = combined, dropped = combined))
+  ok <- combined$id_liste_plots %in% existing
+  list(kept = combined[ok, , drop = FALSE],
+       dropped = combined[!ok, , drop = FALSE])
+}
+
+
+#' Report grants naming plots that no longer exist
+#' @keywords internal
+#' @noRd
+.seed_report_missing <- function(dropped) {
+  if (nrow(dropped) == 0) {
+    cli::cli_alert_success("Every granted plot still exists")
+    return(invisible(NULL))
+  }
+  per_user <- as.data.frame(table(db_user = dropped$db_user))
+  names(per_user)[2] <- "n_missing_plots"
+  per_user <- per_user[per_user$n_missing_plots > 0, , drop = FALSE]
+  per_user <- per_user[order(-per_user$n_missing_plots), ]
+
+  cli::cli_alert_warning(
+    "{nrow(dropped)} grant{?s} name{?s/} a plot that is not in data_liste_plots,
+     across {nrow(per_user)} account{?s}. {.strong These are already void} - a
+     USING clause naming a deleted plot matches no row - so they are not carried
+     over.")
+  print(per_user, row.names = FALSE)
+  ids <- sort(unique(dropped$id_liste_plots))
+  cli::cli_alert_info(
+    "{length(ids)} distinct missing plot id{?s}: {.val {utils::head(ids, 25)}}{if (length(ids) > 25) ' ...' else ''}")
+  cli::cli_alert_info(
+    "Cause: define_user_policy() writes a literal id list and safe_delete_plot()
+     does not touch policies. plot_access cannot drift this way - its foreign key
+     is ON DELETE CASCADE.")
+  invisible(per_user)
+}
+
+
 #' Grants implied by the per-account policies on data_liste_plots
 #'
 #' @param con A connection to plots_transects, as the owner.
@@ -308,7 +376,14 @@ report_plot_access_seed <- function(con) {
   }
 
   # --- combined ------------------------------------------------------------
-  combined <- .seed_combine(pol$grants, cre$grants)
+  # Dropping the dead entries here rather than letting the foreign key find
+  # them: the first live apply hit plot 2755 mid-INSERT and rolled back, which is
+  # exactly what a read-only report exists to prevent.
+  cli::cli_h2("Grants naming plots that no longer exist")
+  split <- .seed_split_missing(.seed_combine(pol$grants, cre$grants),
+                               .seed_existing_plots(con))
+  .seed_report_missing(split$dropped)
+  combined <- split$kept
 
   cli::cli_h2("Rows that would be written: {nrow(combined)}")
   if (nrow(combined) > 0) {
@@ -394,6 +469,12 @@ report_plot_access_seed <- function(con) {
     SELECT pg_get_userbyid(relowner) AS n
       FROM pg_class WHERE oid = 'public.data_liste_plots'::regclass")$n
 
+  # The reader parses the same policies, so it reports plots that no longer
+  # exist. Those are not grants: a USING clause naming a deleted plot matches no
+  # row, so the account already sees nothing for it. Comparing against the raw
+  # reader output would fail the gate on grants that are void either way.
+  existing <- .seed_existing_plots(con)
+
   users <- sort(unique(setdiff(combined$db_user, owner)))
   if (length(users) == 0) {
     return(data.frame(db_user = character(0), n_seed = integer(0),
@@ -410,7 +491,7 @@ report_plot_access_seed <- function(con) {
       res <- suppressMessages(
         CafriplotsR:::get_user_accessible_plots(con, u, "data_liste_plots"))
       if (is.null(res) || nrow(res) == 0) integer(0)
-      else sort(unique(as.integer(unlist(res$plot_ids))))
+      else intersect(sort(unique(as.integer(unlist(res$plot_ids)))), existing)
     }, error = function(e) {
       cli::cli_alert_warning("get_user_accessible_plots('{u}') failed: {e$message}")
       NA_integer_
@@ -523,10 +604,13 @@ migrate_plot_access_seed <- function(con, include_creator = TRUE,
            happen once P4.3 is applied."))
   }
 
-  combined <- .seed_combine(
-    pol$grants,
-    if (include_creator) cre$grants else cre$grants[0, ],
-    preserve_delete = preserve_delete)
+  split <- .seed_split_missing(
+    .seed_combine(pol$grants,
+                  if (include_creator) cre$grants else cre$grants[0, ],
+                  preserve_delete = preserve_delete),
+    .seed_existing_plots(con))
+  .seed_report_missing(split$dropped)
+  combined <- split$kept
 
   n_del_policy <- sum(.seed_combine(pol$grants, cre$grants,
                                     preserve_delete = TRUE)$can_delete)
