@@ -122,7 +122,12 @@ migrate_plot_access_table <- function(con, grant_to = NULL, dry_run = TRUE) {
     SELECT to_regclass('public.plot_access') IS NOT NULL AS table_exists")$table_exists
   if (isTRUE(already)) {
     cli::cli_alert_warning("plot_access already exists.")
-    cli::cli_alert_info("Nothing to do. Run {.code check_plot_access_table(con)}.")
+    cli::cli_alert_info("Check it with {.code check_plot_access_table(con)}.")
+    cli::cli_alert_info(
+      "If that reports a grantee holding more than SELECT, repair it with
+       {.code migrate_plot_access_privileges(con)} - the first version of this
+       migration did not strip the privileges OVH's default privileges give a new
+       table.")
     return(invisible(FALSE))
   }
 
@@ -281,12 +286,10 @@ migrate_plot_access_table <- function(con, grant_to = NULL, dry_run = TRUE) {
        FOR EACH ROW EXECUTE FUNCTION public.plot_access_creator();"
   )
 
-  for (role in grant_to) {
-    statements <- c(statements,
-      paste0("GRANT SELECT ON public.plot_access TO ", q(role), ";"),
-      paste0("GRANT EXECUTE ON FUNCTION public.accessible_plots(text) TO ",
-             q(role), ";"))
-  }
+  # A table created here does not start with no grants on it, and REVOKE ... FROM
+  # PUBLIC does not reach the ones it gets - the lesson P0.2 learned on
+  # data_liste_plots, relearned here. See .plot_access_privilege_statements().
+  statements <- c(statements, .plot_access_privilege_statements(con, grant_to))
 
   cli::cli_h2("{length(statements)} statement{?s}")
   for (s in statements) {
@@ -422,9 +425,32 @@ check_plot_access_table <- function(con) {
     SELECT pg_get_userbyid(relowner) AS n
       FROM pg_class WHERE oid = 'public.plot_access'::regclass")$n
   others <- privs[privs$grantee != owner_name & !privs$is_public, , drop = FALSE]
-  say(!any(grepl("INSERT|UPDATE|DELETE", others$privs)),
-      "No account but the owner can write a grant")
+
+  # TRUNCATE first, because it is the one row-level security does not contain.
+  # INSERT/UPDATE/DELETE on this table match no rows - RLS is on and there is no
+  # such policy - but TRUNCATE bypasses RLS by design, so a surviving grant lets
+  # its holder wipe every grant in one statement.
+  truncators <- others[grepl("TRUNCATE", others$privs), , drop = FALSE]
+  say(nrow(truncators) == 0,
+      "Nobody but the owner can TRUNCATE plot_access (TRUNCATE bypasses RLS)")
+  if (nrow(truncators) > 0) print(truncators, row.names = FALSE)
+
+  writers <- others[grepl("INSERT|UPDATE|DELETE", others$privs), , drop = FALSE]
+  say(nrow(writers) == 0, "No account but the owner can write a grant")
+  if (nrow(writers) > 0) {
+    cli::cli_alert_info(
+      "Row-level security currently contains {?this/these}: enabled with no
+       INSERT, UPDATE or DELETE policy, so such a statement matches no rows. It is
+       still the thin margin P4.5 warned about.")
+  }
+
   say(!any(privs$is_public), "Nothing granted to PUBLIC")
+
+  if (nrow(truncators) > 0 || nrow(writers) > 0) {
+    cli::cli_alert_info(
+      "These come from OVH's default privileges, which apply the moment a table
+       is created. Repair with {.code migrate_plot_access_privileges(con)}.")
+  }
 
   # --- functions -----------------------------------------------------------
   fns <- DBI::dbGetQuery(con, "
@@ -482,4 +508,199 @@ check_plot_access_table <- function(con) {
   else      cli::cli_alert_danger("Verification failed - see above")
 
   invisible(pass)
+}
+
+
+#' Strip plot_access back to SELECT, then grant SELECT to the intended roles
+#'
+#' A table created on this database does not start with no grants on it. OVH's
+#' default privileges hand `plots_transects-rw` INSERT, UPDATE, DELETE and
+#' REFERENCES, `plots_transects-overquota` DELETE, and `plots_transects-admin`
+#' TRIGGER and TRUNCATE, the moment the table exists. `REVOKE ALL ... FROM
+#' PUBLIC` does not touch any of them: they are direct grants to roles, which is
+#' exactly what P0.2 discovered on `data_liste_plots` and what this migration
+#' failed to anticipate on its own table.
+#'
+#' Two of the three are contained by row-level security - it is enabled with no
+#' INSERT, UPDATE or DELETE policy, so such a statement matches no rows. The
+#' third is not: **TRUNCATE bypasses row-level security by design.** A surviving
+#' TRUNCATE grant means whoever holds it can wipe every grant in one statement,
+#' and once step 5 keys the child tables on this table, that is every account
+#' losing access to everything.
+#'
+#' So every privilege is revoked from every non-owner grantee, including on the
+#' sequence behind `id_plot_access`, and only SELECT is granted back.
+#'
+#' @param con A connection to plots_transects, as the owner.
+#' @param grant_to Character vector of roles that should hold SELECT.
+#' @return Character vector of statements.
+#' @keywords internal
+#' @noRd
+.plot_access_privilege_statements <- function(con, grant_to) {
+
+  q <- function(x) DBI::dbQuoteIdentifier(con, x)
+
+  # Whoever holds anything on the table right now, owner excluded.
+  held <- DBI::dbGetQuery(con, "
+    SELECT DISTINCT pg_get_userbyid(a.grantee) AS grantee
+      FROM pg_class c
+           CROSS JOIN LATERAL
+             aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) a
+     WHERE c.oid = 'public.plot_access'::regclass
+       AND a.grantee <> 0
+       AND a.grantee <> c.relowner
+     ORDER BY 1")$grantee
+
+  # Roles that will be granted SELECT must also be stripped first, so a role
+  # arriving with INSERT from the default privileges does not keep it.
+  strip <- sort(unique(c(held, grant_to)))
+
+  out <- character(0)
+  for (role in strip) {
+    out <- c(out, paste0("REVOKE ALL ON public.plot_access FROM ", q(role), ";"))
+  }
+
+  # The sequence too. Nobody but the owner inserts, so nobody needs it.
+  seq_name <- DBI::dbGetQuery(con, "
+    SELECT pg_get_serial_sequence('public.plot_access', 'id_plot_access') AS s")$s
+  if (!is.na(seq_name)) {
+    out <- c(out, paste0("REVOKE ALL ON SEQUENCE ", seq_name, " FROM PUBLIC;"))
+    for (role in strip) {
+      out <- c(out, paste0("REVOKE ALL ON SEQUENCE ", seq_name, " FROM ",
+                           q(role), ";"))
+    }
+  }
+
+  for (role in grant_to) {
+    out <- c(out,
+      paste0("GRANT SELECT ON public.plot_access TO ", q(role), ";"),
+      paste0("GRANT EXECUTE ON FUNCTION public.accessible_plots(text) TO ",
+             q(role), ";"))
+  }
+
+  out
+}
+
+
+#' Repair the privileges on an existing plot_access
+#'
+#' `migrate_plot_access_table()` creates the table and sets its privileges in one
+#' transaction, but the first live run of it predated
+#' `.plot_access_privilege_statements()` and left the default-privilege grants in
+#' place. This applies only the privilege half, so an already-created table can
+#' be brought to the intended state without recreating it.
+#'
+#' Safe to run repeatedly.
+#'
+#' @param con A connection to plots_transects, as the owner of `plot_access`.
+#' @param grant_to Character vector of roles to hold SELECT. `NULL` derives it
+#'   from whoever holds SELECT on `data_liste_plots`.
+#' @param dry_run Logical. `TRUE` (the default) prints and changes nothing.
+#' @return Invisibly `TRUE` when applied.
+migrate_plot_access_privileges <- function(con, grant_to = NULL, dry_run = TRUE) {
+
+  stopifnot("Invalid connection" = DBI::dbIsValid(con))
+
+  if (!isTRUE(DBI::dbGetQuery(con, "
+        SELECT to_regclass('public.plot_access') IS NOT NULL AS ok")$ok)) {
+    cli::cli_abort(c(
+      "plot_access does not exist.",
+      i = "Run {.code migrate_plot_access_table(con, dry_run = FALSE)} instead -
+           it sets the privileges as part of creating the table."))
+  }
+
+  owner <- DBI::dbGetQuery(con, "
+    SELECT pg_get_userbyid(relowner) AS owner_name,
+           pg_get_userbyid(relowner) = current_user AS i_am_owner
+      FROM pg_class WHERE oid = 'public.plot_access'::regclass")
+  if (!isTRUE(owner$i_am_owner)) {
+    cli::cli_abort(c(
+      "Only the owner of plot_access can change its privileges.",
+      i = "Connect as {.val {owner$owner_name}}."))
+  }
+
+  cli::cli_h1("Repairing privileges on plot_access")
+
+  before <- DBI::dbGetQuery(con, "
+    SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC'
+                ELSE pg_get_userbyid(a.grantee) END AS grantee,
+           string_agg(a.privilege_type, ', ' ORDER BY a.privilege_type) AS privs
+      FROM pg_class c
+           CROSS JOIN LATERAL
+             aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) a
+     WHERE c.oid = 'public.plot_access'::regclass
+       AND a.grantee <> c.relowner
+     GROUP BY 1 ORDER BY 1")
+
+  unwanted <- before[before$privs != "SELECT", , drop = FALSE]
+  cli::cli_h2("Grantees holding more than SELECT")
+  if (nrow(unwanted) == 0) {
+    cli::cli_alert_success("None - nothing to repair")
+    return(invisible(FALSE))
+  }
+  print(unwanted, row.names = FALSE)
+
+  truncators <- unwanted[grepl("TRUNCATE", unwanted$privs), , drop = FALSE]
+  if (nrow(truncators) > 0) {
+    cli::cli_alert_danger(
+      "{nrow(truncators)} grantee{?s} hold{?s/} TRUNCATE, which bypasses
+       row-level security: {.val {truncators$grantee}} could wipe every grant in
+       one statement.")
+  }
+
+  if (is.null(grant_to)) grant_to <- .plot_access_grantees(con)
+  grant_to <- setdiff(unique(grant_to), c("", NA, owner$owner_name))
+
+  statements <- .plot_access_privilege_statements(con, grant_to)
+
+  cli::cli_h2("{length(statements)} statement{?s}")
+  for (s in statements) cli::cli_verbatim(paste0("  ", s))
+
+  if (dry_run) {
+    cli::cli_alert_info("Dry run - nothing was changed.")
+    cli::cli_alert_info("Re-run with {.code dry_run = FALSE} to apply.")
+    return(invisible(FALSE))
+  }
+
+  DBI::dbBegin(con)
+  ok <- FALSE
+  on.exit({
+    if (!ok) {
+      try(DBI::dbRollback(con), silent = TRUE)
+      cli::cli_alert_danger("Rolled back - nothing was changed.")
+    }
+  }, add = TRUE)
+
+  for (s in statements) DBI::dbExecute(con, s)
+  DBI::dbCommit(con)
+  ok <- TRUE
+
+  # A REVOKE only removes grants the current role made. If these came from some
+  # other grantor, the statements succeed and change nothing - which is the worst
+  # possible outcome, so it is checked rather than assumed.
+  after <- DBI::dbGetQuery(con, "
+    SELECT CASE WHEN a.grantee = 0 THEN 'PUBLIC'
+                ELSE pg_get_userbyid(a.grantee) END AS grantee,
+           string_agg(a.privilege_type, ', ' ORDER BY a.privilege_type) AS privs
+      FROM pg_class c
+           CROSS JOIN LATERAL
+             aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) a
+     WHERE c.oid = 'public.plot_access'::regclass
+       AND a.grantee <> c.relowner
+     GROUP BY 1 ORDER BY 1")
+
+  still <- after[after$privs != "SELECT", , drop = FALSE]
+  if (nrow(still) > 0) {
+    cli::cli_alert_danger(c(
+      "{nrow(still)} grantee{?s} still hold{?s/} more than SELECT. A REVOKE only
+       removes grants made by the current role, so these were granted by somebody
+       else and cannot be revoked from here:"))
+    print(still, row.names = FALSE)
+    cli::cli_alert_info(
+      "That needs the OVH control panel, or the role that granted them.")
+  } else {
+    cli::cli_alert_success("Every non-owner grantee now holds SELECT and nothing else")
+  }
+
+  invisible(nrow(still) == 0)
 }
