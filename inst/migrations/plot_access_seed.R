@@ -45,6 +45,49 @@
 # =============================================================================
 
 
+#' Refuse to run on a stale source or a stale package
+#'
+#' Both halves of this migration can go out of date inside one R session, and the
+#' failure modes are not equally kind.
+#'
+#' A stale package gives "object '.policy_cmd_grants_write' not found" partway
+#' through - which is what happened on the first live attempt, from a `source()`
+#' taken before that function was renamed. Annoying, but loud.
+#'
+#' A stale copy of *this file* is worse: an older `.seed_combine()` had no
+#' `can_delete` column, so it would build rows that do not match the INSERT and
+#' either fail confusingly or, in the wrong combination, write the wrong
+#' capabilities. Neither is acceptable for a function that decides who can see
+#' what, so both are checked before anything is read.
+#'
+#' @param con A connection, only to keep the signature uniform.
+#' @keywords internal
+#' @noRd
+.assert_seed_current <- function(con) {
+
+  for (fn in c(".parse_policy_plot_ids", ".policy_cmd_capability")) {
+    ok <- tryCatch(is.function(get(fn, envir = asNamespace("CafriplotsR"))),
+                   error = function(e) FALSE)
+    if (!ok) {
+      cli::cli_abort(c(
+        "{.fn {fn}} is not in the loaded CafriplotsR.",
+        i = "The package in this session predates it.",
+        i = "Run {.code devtools::load_all('.')} from the package root, then
+             source this file again."))
+    }
+  }
+
+  if (!"preserve_delete" %in% names(formals(.seed_combine))) {
+    cli::cli_abort(c(
+      "This file was sourced before {.code can_delete} was added.",
+      x = "An older {.fn .seed_combine} builds rows the INSERT does not match.",
+      i = "Run {.code source(\"inst/migrations/plot_access_seed.R\")} again."))
+  }
+
+  invisible(TRUE)
+}
+
+
 #' Grants implied by the per-account policies on data_liste_plots
 #'
 #' @param con A connection to plots_transects, as the owner.
@@ -199,6 +242,7 @@
 report_plot_access_seed <- function(con) {
 
   stopifnot("Invalid connection" = DBI::dbIsValid(con))
+  .assert_seed_current(con)
 
   cli::cli_h1("What the plot_access seed would write")
 
@@ -447,6 +491,7 @@ migrate_plot_access_seed <- function(con, include_creator = TRUE,
                                      skip_unparseable = FALSE, dry_run = TRUE) {
 
   stopifnot("Invalid connection" = DBI::dbIsValid(con))
+  .assert_seed_current(con)
 
   if (!isTRUE(DBI::dbGetQuery(con, "
         SELECT to_regclass('public.plot_access') IS NOT NULL AS ok")$ok)) {
