@@ -40,7 +40,81 @@ Move a row to the table above, with its evidence, once it has run.
 
 | Migration | What it will change | Plan |
 |---|---|---|
+| `fk_indexes_plot_scope.R` | builds six missing indexes, one per table, on the column that reaches a plot: `data_individuals.id_table_liste_plots_n`, `data_liste_sub_plots.id_table_liste_plots`, `data_link_specimens.id_n`, `data_subplot_feat.id_sub_plots`, `data_traits_measures.id_data_individuals`, `data_ind_measures_feat.id_trait_measures`. Four are declared foreign keys — PostgreSQL indexes the referenced side, never the referencing side, so every "rows belonging to these plots" lookup is a seq scan today (measured 2026-09-26: 75 ms and 24,219 buffer reads on `data_traits_measures`, 116 ms two-hop) | `migrate_fk_indexes_plot_scope(con)` to rehearse, `dry_run = FALSE` to apply. `CONCURRENTLY`, so no lock and no transaction — each index commits on its own and the migration is re-runnable. Aborts if an earlier failed build left an invalid index. Touches no policy, privilege or row: safe to apply and live with whatever is decided about RLS. Evidence: `check_fk_indexes_plot_scope(con)` lists all six valid and re-measures the predicate |
+| `plot_scope_orphans.R` | gives a plot to the `data_liste_sub_plots` rows that have none, where the measurements attached to the subplot all agree on one plot. An RLS policy follows a key, so a NULL key matches no policy and the row goes invisible to everyone but the table owner — 23 subplots and 3 measurements are in that state | `report_plot_scope_orphans(con)` first — read-only, and also answers whether `data_ind_measures_feat.id_sub_plots` is usable as a one-hop key, and whether the two unconstrained plot columns could take a foreign key. Then `migrate_plot_scope_orphans(con)` to rehearse, `dry_run = FALSE` to apply. Repairs only the unambiguous cases; subplots spanning several plots, subplots with no measurements, and the 3 measurements with no individual are reported and left for a decision. Evidence: step 4 reports exactly the un-inferable rows remaining |
+| `revoke_stray_dml_grants.R` | revokes the direct `INSERT, UPDATE, DELETE` grants held by `CafriP_public`, `user_test3` and `user_test4`, and drops the matching write policies, keeping `SELECT` and the SELECT policies so the public apps are unaffected. The published account can currently modify or delete the 83 plots its `policy_CafriP_public_update`/`_delete` cover — P0.2 revoked `FROM PUBLIC`, which never touched these separate direct grants | `migrate_revoke_stray_dml(con)` to rehearse, `dry_run = FALSE` to apply. Needs no admin role: `dauby` owns the tables and issued the grants. Refuses to run if a policy names more than one role. The 28 other accounts holding the same grant are reported and left alone — decide on them with `inst/scripts/who_actually_writes.R`. Evidence: step 7 reports `has_table_privilege` false for INSERT/UPDATE/DELETE on every table, and no write policy naming the three roles |
+| `duplicate_family_taxa.R` | merges family-level rows that repeat the same `tax_fam` (**taxa** database): repoints `table_taxa.idtax_good_n` and every foreign key `pg_constraint` reports against `table_taxa` — today `table_taxa.id_parent`, `taxa_backbone_link.idtax_n` and `table_traits_measures.idtax` — plus the main database's `idtax*` columns, onto the surviving accepted row; then deletes the duplicates and refreshes `table_idtax`. Fabaceae is the known case: 5769 accepted, 11458/14046/16016/16051 duplicates | `report_duplicate_family_taxa(con_taxa, con_main)` first, then `merge_duplicate_family_taxa(con_taxa, con_main, family = "Fabaceae")` as a rehearsal and `dry_run = FALSE` to apply, one family at a time. Groups with several accepted rows are skipped unless `tie_break` is given (`"most_referenced"` or `"lowest_id"`); the rehearsal prints which row would survive and why. On the main database the sweep repoints `specimens`, `data_individuals`, `rainbio_records` and `followup_updates_rainbio_records`, and never writes to a key column, to `table_taxa`/`table_idtax`, or to a `*_backup`/`*_temp` table, and is skipped entirely when both connections turn out to be the same database; what it leaves alone is printed. Evidence: `check_duplicate_family_taxa()` reports the family gone and no dangling `id_parent` or `idtax_good_n` |
 | `backbone_citation_metadata.R` | adds `backbone_list.homepage` and `backbone_list.citation_template`; writes the citation formula each publisher asks for (APD's, and Kew's for WCVP followed by the rWCVP reference), the publishers, the sites, and `4.0.0` as the `source_version` of the current APD import (**taxa** database) | run once, before APD is offered to users: `migrate_backbone_citation_metadata(con_taxa)` then `dry_run = FALSE`. The rehearsal prints the citation each formula produces. `backbone_citation()` builds citations from these values and falls back to a plain sentence until it has run |
+
+## Applied from another project: the RAINBIO transfer
+
+Not ours, but it changed `plots_transects`, so it belongs in this record.
+
+A local RAINBIO database (`rainbio_n`) was transferred into
+`plots_transects.public` by the **georefapp** project, in five phases, during
+August 2026. Everything it created carries a `rainbio_` prefix. Roughly
+1.06 M rows.
+
+**The scripts are not in this repository, and not in that one either.** They
+live on the maintainer's machine at
+`georeferencing_app/inst/migrations/` (`phase0_inspect_target.R` through
+`phase5_gazetteer.R`, plus `_helpers.R` and `migration_sql.R`), with the plan
+in `inst/docs/PLAN_RAINBIO_MIGRATION.md` and the deferred items in
+`inst/docs/OUTSTANDING_DECISIONS.md`. That project gitignores both directories,
+so this section may be the only versioned trace of the work.
+
+### What it put in `plots_transects`
+
+| Object | Note |
+|---|---|
+| `rainbio_records` | the occurrence records; carries `idtax_n` |
+| `followup_updates_rainbio_records` | 132,038 rows, from `followup_updates_table_records`; carries `idtax_n` |
+| `rainbio_loc_notes`, `rainbio_colnam`, `rainbio_maj_areas`, `rainbio_country_map` | supporting tables |
+| `rainbio_gazetteer_localities`, `rainbio_gazetteer_occurrences` | the gazetteer georefapp consumes |
+| `table_countries` | extended from the ForestPlots template, plus an `iso3` column. Additive: existing ids unchanged |
+
+Rollback, should it ever be needed, is in that project's `inst/migrations/README.md`:
+every object carries the prefix, so dropping them is enough. `rainbio_n` stayed
+authoritative throughout — nothing was dropped from the source.
+
+### Status
+
+Phases 1–3 recorded as applied on 2026-08-26. Phases 4 and 5 are not confirmed
+from here. Evidence seen from this side on 2026-09-24: `rainbio_records` and
+`followup_updates_rainbio_records` exist and hold data (1,415 and 308 rows
+respectively pointing at the duplicate Fabaceae entries).
+
+### Why this matters to CafriplotsR
+
+Both tables carry `idtax_n` and no package code names them, so a search of `R/`
+suggests they are dead. They are not. Anything that merges, renumbers or
+deletes taxa must maintain them — `duplicate_family_taxa.R` does.
+
+### The stale copies it did *not* create
+
+Phase 0 found these already sitting in `plots_transects.public`, beside the
+live mirror `table_idtax` (367,171 rows):
+
+| Table | rows | reading |
+|---|---:|---|
+| `table_taxa` | 351,561 | the 2020 snapshot, identical to local RAINBIO |
+| `table_traits_measures` | 84,911 | near-identical |
+| `table_tax_famclass` | 15 | identical |
+| `table_traits` | 10 | identical |
+
+**Anything joining `plots_transects.public.table_taxa` is reading 2020 taxonomy
+while `table_idtax` next to it carries 2026.** The live taxonomy is `table_taxa`
+in the **rainbio** database. `table_idtax` is not a copy of it: it is the
+synonymy link table, two columns (`idtax_n`, `idtax_good_n`) over ~367,000 rows,
+rebuilt from rainbio by `update_taxa_link_table()`. That function is the way to
+refresh it — depending on the installation it goes through the
+`refresh_table_idtax()` SQL function or, when the staging table
+`table_idtax_temp` holds rows, through the legacy path that also refreshes the
+staging table. Calling the SQL function by hand reports success and can leave
+the staging table on the old taxonomy.
+
+These four are excluded from anything this repository's migrations write, and
+cleaning them up is its own piece of work, not yet done.
 
 ## `plot_hierarchy.R`: the parent link
 

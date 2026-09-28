@@ -642,8 +642,7 @@ compute_stem_vital_status <- function(
       date_modif_y      = today_y,
       stringsAsFactors  = FALSE
     )
-    DBI::dbWriteTable(actual_con, "data_ind_measures_feat", feat_records,
-                      append = TRUE, row.names = FALSE)
+    .db_append_table(actual_con, "data_ind_measures_feat", feat_records)
   }
 
   # ── DELETE stale records ──

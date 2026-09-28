@@ -356,7 +356,7 @@ add_plots <- function(new_data,
   
   
   if(add) {
-    DBI::dbWriteTable(mydb, "data_liste_plots", new_data_renamed, append = TRUE, row.names = FALSE)
+    .db_append_table(mydb, "data_liste_plots", new_data_renamed)
     cli::cli_alert_success("{nrow(new_data_renamed)} plot imported in data_liste_plots")
     
     ids_list_plot <-
@@ -845,8 +845,7 @@ add_subplot_features <- function(new_data,
       cat("\n")
 
       tryCatch({
-        DBI::dbWriteTable(mydb, "data_liste_sub_plots",
-                          data_to_add, append = TRUE, row.names = FALSE)
+        .db_append_table(mydb, "data_liste_sub_plots", data_to_add)
 
         cli::cli_alert_success("{nrow(data_to_add)} line imported in data_liste_sub_plots")
       }, error = function(e) {
@@ -1151,10 +1150,7 @@ add_subplot_observations_feat <- function(new_data,
 
       if(add_data & response) {
         
-        DBI::dbWriteTable(mydb, "data_subplot_feat",
-                          data_to_add,
-                          append = TRUE,
-                          row.names = FALSE)
+        .db_append_table(mydb, "data_subplot_feat", data_to_add)
         
         cli::cli_alert_success("Adding data : {nrow(data_to_add)} values added")
       }
@@ -1603,7 +1599,7 @@ add_individuals <- function(new_data ,
     
     if(confirmed) {
       
-      DBI::dbWriteTable(mydb, "data_individuals", new_data_renamed, append = TRUE, row.names = FALSE)
+      .db_append_table(mydb, "data_individuals", new_data_renamed)
       cli::cli_alert_success("Added individuals : {nrow(new_data_renamed)} rows to individuals table")
     }
   }
@@ -1938,10 +1934,7 @@ add_traits_measures_features <- function(new_data,
 
       if (response) {
 
-        DBI::dbWriteTable(con, "data_ind_measures_feat",
-                          data_to_add,
-                          append = TRUE,
-                          row.names = FALSE)
+        .db_append_table(con, "data_ind_measures_feat", data_to_add)
 
         if (interactive) {
           cli::cli_alert_success("Adding data: {nrow(data_to_add)} values added for feature {feat}")

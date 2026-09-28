@@ -537,7 +537,7 @@ mod_census_information_server <- function(id, imported_plots, con, i18n) {
               all_feat_records <- do.call(rbind, feat_records)
 
               # Insert into data_subplot_feat
-              DBI::dbAppendTable(con(), "data_subplot_feat", all_feat_records)
+              .db_append_table(con(), "data_subplot_feat", all_feat_records)
 
               cli::cli_alert_success("Added {nrow(all_feat_records)} people feature record(s) to data_subplot_feat")
             }

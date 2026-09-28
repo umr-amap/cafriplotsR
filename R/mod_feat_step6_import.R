@@ -618,7 +618,7 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
                 stringsAsFactors = FALSE
               )
 
-              DBI::dbAppendTable(con, "data_liste_sub_plots", feat_record)
+              .db_append_table(con, "data_liste_sub_plots", feat_record)
               total_added <- total_added + 1
             }
           }
@@ -725,7 +725,7 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
             stringsAsFactors = FALSE
           )
 
-          DBI::dbAppendTable(con, "data_subplot_feat", feat_record)
+          .db_append_table(con, "data_subplot_feat", feat_record)
           records_added <- records_added + 1
         }
       }
@@ -936,7 +936,7 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
           stringsAsFactors  = FALSE
         )
 
-        DBI::dbAppendTable(actual_con, "data_ind_measures_feat", feat_records)
+        .db_append_table(actual_con, "data_ind_measures_feat", feat_records)
         n_feat_inserted <- n_feat_inserted + nrow(feat_records)
         cli::cli_alert_success("Inserted {nrow(feat_records)} feature record(s) for '{feat_col}'")
       }
