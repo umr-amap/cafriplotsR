@@ -94,21 +94,28 @@ test_that(".parse_policy_plot_ids() takes one qual at a time", {
                "one qual at a time")
 })
 
-test_that(".policy_cmd_grants_write() maps every command PostgreSQL reports", {
-  expect_false(.policy_cmd_grants_write("SELECT"))
-  expect_true(.policy_cmd_grants_write("UPDATE"))
-  expect_true(.policy_cmd_grants_write("DELETE"))
-  expect_true(.policy_cmd_grants_write("ALL"))
-  expect_true(is.na(.policy_cmd_grants_write("INSERT")))
+test_that(".policy_cmd_capability() maps every command PostgreSQL reports", {
+  expect_equal(.policy_cmd_capability("SELECT"), "read")
+  expect_equal(.policy_cmd_capability("UPDATE"), "write")
+  expect_equal(.policy_cmd_capability("ALL"), "all")
+  expect_true(is.na(.policy_cmd_capability("INSERT")))
 })
 
-test_that(".policy_cmd_grants_write() is case- and whitespace-tolerant", {
-  expect_true(.policy_cmd_grants_write(" all "))
-  expect_false(.policy_cmd_grants_write("select"))
+test_that(".policy_cmd_capability() keeps DELETE separate from UPDATE", {
+  # Folding the two into one can_write flag is what made 13,913 grants carry
+  # DELETE. They are different rights and have to stay distinguishable.
+  expect_equal(.policy_cmd_capability("DELETE"), "delete")
+  expect_false(identical(.policy_cmd_capability("DELETE"),
+                         .policy_cmd_capability("UPDATE")))
 })
 
-test_that(".policy_cmd_grants_write() errors rather than guessing", {
-  expect_error(.policy_cmd_grants_write("TRUNCATE"), "Unknown policy command")
-  expect_error(.policy_cmd_grants_write(NA_character_), "one command at a time")
-  expect_error(.policy_cmd_grants_write(c("SELECT", "ALL")), "one command at a time")
+test_that(".policy_cmd_capability() is case- and whitespace-tolerant", {
+  expect_equal(.policy_cmd_capability(" all "), "all")
+  expect_equal(.policy_cmd_capability("select"), "read")
+})
+
+test_that(".policy_cmd_capability() errors rather than guessing", {
+  expect_error(.policy_cmd_capability("TRUNCATE"), "Unknown policy command")
+  expect_error(.policy_cmd_capability(NA_character_), "one command at a time")
+  expect_error(.policy_cmd_capability(c("SELECT", "ALL")), "one command at a time")
 })

@@ -66,7 +66,7 @@
 
   pol$kind <- NA_character_
   pol$n_ids <- 0L
-  pol$grants_write <- NA
+  pol$capability <- NA_character_
   pol$used <- FALSE
   pol$reason <- NA_character_
 
@@ -89,10 +89,10 @@
       next
     }
 
-    write_flag <- CafriplotsR:::.policy_cmd_grants_write(pol$cmd[i])
-    pol$grants_write[i] <- write_flag
+    capability <- CafriplotsR:::.policy_cmd_capability(pol$cmd[i])
+    pol$capability[i] <- capability
 
-    if (is.na(write_flag)) {
+    if (is.na(capability)) {
       pol$reason[i] <- "INSERT - governed globally, carries no plot list"
       next
     }
@@ -119,21 +119,24 @@
     rows[[length(rows) + 1L]] <- data.frame(
       db_user        = pol$role_name[i],
       id_liste_plots = parsed$ids,
-      can_write      = write_flag,
+      can_write      = capability %in% c("write", "all"),
+      can_delete     = capability %in% c("delete", "all"),
       stringsAsFactors = FALSE
     )
   }
 
   grants <- if (length(rows) > 0) do.call(rbind, rows) else
     data.frame(db_user = character(0), id_liste_plots = integer(0),
-               can_write = logical(0), stringsAsFactors = FALSE)
+               can_write = logical(0), can_delete = logical(0),
+               stringsAsFactors = FALSE)
 
-  # One row per (account, plot); write wins over read.
+  # One row per (account, plot); the strongest capability wins.
   if (nrow(grants) > 0) {
     key <- paste(grants$db_user, grants$id_liste_plots, sep = "\r")
     grants <- do.call(rbind, lapply(split(grants, key), function(g) {
       data.frame(db_user = g$db_user[1], id_liste_plots = g$id_liste_plots[1],
-                 can_write = any(g$can_write), stringsAsFactors = FALSE)
+                 can_write = any(g$can_write), can_delete = any(g$can_delete),
+                 stringsAsFactors = FALSE)
     }))
     grants <- grants[order(grants$db_user, grants$id_liste_plots), ]
     rownames(grants) <- NULL
@@ -166,13 +169,18 @@
   bad <- g[!g$is_a_role, , drop = FALSE]
   ok  <- g[g$is_a_role, c("db_user", "id_liste_plots"), drop = FALSE]
   if (nrow(ok) > 0) {
-    ok$can_write <- TRUE
-    ok$can_grant <- TRUE
+    ok$can_write  <- TRUE
+    # FALSE, like everyone else. "Remove DELETE from all users and let me give
+    # it back when needed" applies to importers too, so a mis-imported plot is
+    # deleted by the owner or after grant_delete_right(). To change that:
+    #   UPDATE plot_access SET can_delete = TRUE WHERE origin = 'creator';
+    ok$can_delete <- FALSE
+    ok$can_grant  <- TRUE
     rownames(ok) <- NULL
   } else {
     ok <- data.frame(db_user = character(0), id_liste_plots = integer(0),
-                     can_write = logical(0), can_grant = logical(0),
-                     stringsAsFactors = FALSE)
+                     can_write = logical(0), can_delete = logical(0),
+                     can_grant = logical(0), stringsAsFactors = FALSE)
   }
 
   list(grants = ok, not_a_role = bad)
@@ -233,6 +241,27 @@ report_plot_access_seed <- function(con) {
     "{nrow(cre$grants)} creator grant{?s} across
      {length(unique(cre$grants$db_user))} account{?s}")
 
+  # --- what the DELETE policies say, before the default overrides them -----
+  cli::cli_h2("DELETE, which is not carried over by default")
+  faithful <- .seed_combine(pol$grants, cre$grants, preserve_delete = TRUE)
+  del <- faithful[faithful$can_delete, , drop = FALSE]
+  if (nrow(del) == 0) {
+    cli::cli_alert_success("No policy grants DELETE")
+  } else {
+    per_del <- as.data.frame(table(db_user = del$db_user))
+    per_del <- per_del[per_del$Freq > 0, ]
+    per_del <- per_del[order(-per_del$Freq), ]
+    names(per_del)[2] <- "n_delete_in_policies"
+    print(utils::head(per_del, 40), row.names = FALSE)
+    cli::cli_alert_warning(
+      "{nrow(del)} DELETE grant{?s} across {nrow(per_del)} account{?s} will be
+       recorded as {.code can_delete = FALSE}.")
+    cli::cli_alert_info(
+      "Nothing is lost: the DELETE policies stay in pg_policies untouched
+       through step 4, and {.code migrate_plot_access_seed(preserve_delete = TRUE)}
+       carries them over instead.")
+  }
+
   # --- combined ------------------------------------------------------------
   combined <- .seed_combine(pol$grants, cre$grants)
 
@@ -240,7 +269,8 @@ report_plot_access_seed <- function(con) {
   if (nrow(combined) > 0) {
     per_user <- do.call(rbind, lapply(split(combined, combined$db_user), function(u) {
       data.frame(db_user = u$db_user[1], n_plots = nrow(u),
-                 n_write = sum(u$can_write), n_grant = sum(u$can_grant),
+                 n_write = sum(u$can_write), n_delete = sum(u$can_delete),
+                 n_grant = sum(u$can_grant),
                  origin_creator = sum(u$origin == "creator"),
                  stringsAsFactors = FALSE)
     }))
@@ -263,10 +293,11 @@ report_plot_access_seed <- function(con) {
 #' @param policy_grants From `.seed_policy_grants()`.
 #' @param creator_grants From `.seed_creator_grants()`.
 #' @return A data.frame ready to insert.
-.seed_combine <- function(policy_grants, creator_grants) {
+.seed_combine <- function(policy_grants, creator_grants, preserve_delete = FALSE) {
 
   empty <- data.frame(db_user = character(0), id_liste_plots = integer(0),
-                      can_write = logical(0), can_grant = logical(0),
+                      can_write = logical(0), can_delete = logical(0),
+                      can_grant = logical(0),
                       origin = character(0), stringsAsFactors = FALSE)
 
   a <- if (nrow(policy_grants) > 0) {
@@ -287,6 +318,10 @@ report_plot_access_seed <- function(con) {
       db_user        = g$db_user[1],
       id_liste_plots = as.integer(g$id_liste_plots[1]),
       can_write      = any(g$can_write),
+      # The one capability the seed does not carry over by default. The old
+      # DELETE policies stay in pg_policies untouched through step 4, so this is
+      # a decision recorded in data, not information destroyed.
+      can_delete     = if (preserve_delete) any(g$can_delete) else FALSE,
       can_grant      = any(g$can_grant),
       # Creator is the stronger statement: it is why can_grant is set.
       origin         = if (any(g$origin == "creator")) "creator" else "admin",
@@ -391,6 +426,11 @@ report_plot_access_seed <- function(con) {
 #'   then fail and roll back, because `get_user_accessible_plots()` counts
 #'   creator access too. It is here to make the two sources separable while
 #'   reading the code, not because `FALSE` is a usable setting.
+#' @param preserve_delete Logical. Carry the existing DELETE policies over as
+#'   `can_delete = TRUE`. Default `FALSE`: DELETE is off for every account and
+#'   handed out per plot with `grant_delete_right()`. Nothing is destroyed by the
+#'   default - the DELETE policies stay in `pg_policies` untouched through step
+#'   4, so `TRUE` recovers the original state at any time.
 #' @param skip_unparseable Logical. Proceed even though some policy could not
 #'   be read. Default `FALSE`, i.e. refuse. Only set this after looking at
 #'   `report_plot_access_seed()` and concluding those policies are not plot
@@ -398,6 +438,7 @@ report_plot_access_seed <- function(con) {
 #' @param dry_run Logical. `TRUE` (the default) reports and changes nothing.
 #' @return Invisibly the number of rows written.
 migrate_plot_access_seed <- function(con, include_creator = TRUE,
+                                     preserve_delete = FALSE,
                                      skip_unparseable = FALSE, dry_run = TRUE) {
 
   stopifnot("Invalid connection" = DBI::dbIsValid(con))
@@ -432,8 +473,18 @@ migrate_plot_access_seed <- function(con, include_creator = TRUE,
            happen once P4.3 is applied."))
   }
 
-  combined <- .seed_combine(pol$grants,
-                            if (include_creator) cre$grants else cre$grants[0, ])
+  combined <- .seed_combine(
+    pol$grants,
+    if (include_creator) cre$grants else cre$grants[0, ],
+    preserve_delete = preserve_delete)
+
+  n_del_policy <- sum(.seed_combine(pol$grants, cre$grants,
+                                    preserve_delete = TRUE)$can_delete)
+  if (!preserve_delete && n_del_policy > 0) {
+    cli::cli_alert_warning(
+      "{n_del_policy} DELETE grant{?s} in the policies {?is/are} being recorded as
+       {.code can_delete = FALSE}. The policies themselves are untouched.")
+  }
 
   if (nrow(combined) == 0) {
     cli::cli_alert_warning("Nothing to seed.")
@@ -474,6 +525,7 @@ migrate_plot_access_seed <- function(con, include_creator = TRUE,
       "(", DBI::dbQuoteString(con, ch$db_user), ", ",
       as.integer(ch$id_liste_plots), ", ",
       ifelse(ch$can_write, "TRUE", "FALSE"), ", ",
+      ifelse(ch$can_delete, "TRUE", "FALSE"), ", ",
       ifelse(ch$can_grant, "TRUE", "FALSE"), ", ",
       DBI::dbQuoteString(con, ch$origin), ", ",
       # A creator row is attributed to the creator, exactly as
@@ -489,20 +541,25 @@ migrate_plot_access_seed <- function(con, include_creator = TRUE,
 
     sql <- paste0(
       "INSERT INTO public.plot_access
-         (db_user, id_liste_plots, can_write, can_grant, origin, granted_by, note)
+         (db_user, id_liste_plots, can_write, can_delete, can_grant,
+          origin, granted_by, note)
        VALUES ", values, "
        ON CONFLICT (db_user, id_liste_plots) DO UPDATE
          SET can_write = public.plot_access.can_write OR EXCLUDED.can_write,
              can_grant = public.plot_access.can_grant OR EXCLUDED.can_grant,
              origin    = CASE WHEN EXCLUDED.origin = 'creator' THEN 'creator'
                               ELSE public.plot_access.origin END")
+    # can_delete is deliberately absent from DO UPDATE. Re-running the seed must
+    # never hand DELETE back to an account the owner has since taken it from -
+    # the OR semantics that make the other flags safely idempotent would do
+    # exactly that.
 
     written <- written + DBI::dbExecute(con, sql)
   }
 
   # --- the gate, before committing -----------------------------------------
   held <- DBI::dbGetQuery(con, "
-    SELECT db_user, id_liste_plots, can_write, can_grant, origin
+    SELECT db_user, id_liste_plots, can_write, can_delete, can_grant, origin
       FROM public.plot_access ORDER BY 1, 2")
   gate <- .seed_gate(con, held)
   .seed_print_gate(gate)
@@ -534,7 +591,7 @@ check_plot_access_seed <- function(con) {
   cli::cli_h1("Verifying the plot_access seed")
 
   held <- DBI::dbGetQuery(con, "
-    SELECT db_user, id_liste_plots, can_write, can_grant, origin
+    SELECT db_user, id_liste_plots, can_write, can_delete, can_grant, origin
       FROM public.plot_access ORDER BY 1, 2")
 
   cli::cli_alert_info("{nrow(held)} row{?s} across
@@ -542,6 +599,14 @@ check_plot_access_seed <- function(con) {
 
   by_origin <- as.data.frame(table(origin = held$origin))
   print(by_origin, row.names = FALSE)
+
+  cli::cli_alert_info(
+    "{sum(held$can_write)} row{?s} with can_write, {sum(held$can_delete)} with
+     can_delete, {sum(held$can_grant)} with can_grant")
+  if (sum(held$can_delete) > 0) {
+    print(as.data.frame(table(db_user = held$db_user[held$can_delete])),
+          row.names = FALSE)
+  }
 
   gate <- .seed_gate(con, held)
   .seed_print_gate(gate)

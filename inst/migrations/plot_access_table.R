@@ -166,6 +166,7 @@ migrate_plot_access_table <- function(con, grant_to = NULL, dry_run = TRUE) {
                       REFERENCES public.data_liste_plots(id_liste_plots)
                       ON DELETE CASCADE,
        can_write      boolean NOT NULL DEFAULT FALSE,
+       can_delete     boolean NOT NULL DEFAULT FALSE,
        can_grant      boolean NOT NULL DEFAULT FALSE,
        origin         text    NOT NULL DEFAULT 'admin'
                       CONSTRAINT plot_access_origin_check
@@ -180,8 +181,13 @@ migrate_plot_access_table <- function(con, grant_to = NULL, dry_run = TRUE) {
 
     "COMMENT ON TABLE public.plot_access IS
        'One row per (account, plot) that the account may read. can_write adds
-        write, can_grant would add onward sharing. Presence of a row IS read
-        access - there is no can_read column, because write implies read.';",
+        UPDATE, can_delete adds DELETE, can_grant would add onward sharing.
+        Presence of a row IS read access - there is no can_read column, because
+        every capability implies read.';",
+    "COMMENT ON COLUMN public.plot_access.can_delete IS
+       'DELETE. Kept separate from can_write and FALSE by default: it is the
+        destructive one, it cascades through six child tables, and
+        safe_delete_plot() is not atomic. Hand it out with grant_delete_right().';",
     "COMMENT ON COLUMN public.plot_access.db_user IS
        'A database role name. Not a foreign key: PostgreSQL cannot reference
         pg_roles. A dropped role leaves a harmless stale row.';",
@@ -345,6 +351,17 @@ check_plot_access_table <- function(con) {
   print(cols, row.names = FALSE)
   say(!("can_read" %in% cols$column_name),
       "No can_read column - a row is read access")
+  say("can_delete" %in% cols$column_name,
+      "can_delete is separate from can_write")
+
+  defaults <- DBI::dbGetQuery(con, "
+    SELECT a.attname, pg_get_expr(d.adbin, d.adrelid) AS col_default
+      FROM pg_attribute a
+      LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+     WHERE a.attrelid = 'public.plot_access'::regclass
+       AND a.attname IN ('can_write', 'can_delete', 'can_grant')")
+  say(all(grepl("false", defaults$col_default, ignore.case = TRUE)),
+      "can_write, can_delete and can_grant all default to FALSE")
 
   # --- constraints ---------------------------------------------------------
   cons <- DBI::dbGetQuery(con, "
