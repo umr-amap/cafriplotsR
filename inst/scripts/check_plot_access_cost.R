@@ -588,6 +588,27 @@ report_plot_access_cost <- function(con, sizes = NULL,
   # Resolve the fetch columns against the catalog, then plan every route before
   # measuring any of it.
   routes <- PLOT_ROUTES[intersect(tables, names(PLOT_ROUTES))]
+
+  # A table that has gained its own plot column is no longer as many hops from a
+  # plot as PLOT_ROUTES says, and measuring the old route would keep reporting a
+  # cost nobody pays any more. Switch to the direct key wherever one exists.
+  for (tb in names(routes)) {
+    if (routes[[tb]]$hops == 0L) next
+    direct <- DBI::dbGetQuery(con, glue::glue_sql(
+      "SELECT count(*)::int AS n FROM pg_attribute
+        WHERE attrelid = {paste0('public.', tb)}::regclass
+          AND attname = 'id_table_liste_plots'
+          AND attnotnull AND NOT attisdropped", .con = con))$n
+    if (direct > 0) {
+      cli::cli_alert_info(
+        "{tb} now has its own NOT NULL {.code id_table_liste_plots} - measuring it
+         at 0 hops instead of {routes[[tb]]$hops}")
+      routes[[tb]]$from <- paste0(tb, " t")
+      routes[[tb]]$key  <- "t.id_table_liste_plots"
+      routes[[tb]]$hops <- 0L
+    }
+  }
+
   for (tb in names(routes)) {
     routes[[tb]]$cols <- .fetch_columns(con, tb, routes[[tb]]$prefer)
   }
