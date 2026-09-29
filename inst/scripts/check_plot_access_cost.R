@@ -136,8 +136,50 @@ BASELINE <- data.frame(
 #   2 hops (data_traits_measures)  : 56-520 ms
 #   3 hops (data_ind_measures_feat): 395-1931 ms
 #
-# Which points the fix at the schema rather than the policy - see RECOMMENDATION
-# in the header of inst/migrations/plot_access_child_rls.R when it is written.
+# Which pointed the fix at the schema rather than the policy.
+#
+# =============================================================================
+# AFTER denormalise_ind_measures_plot.R, measured 2026-09-29
+#
+# data_ind_measures_feat at 0 hops through its own id_table_liste_plots:
+#
+#            1       39      280     2036   (predicate ms)
+#   array    0.035   0.095   8.505  73.469
+#   subquery 16.114  0.716  38.472  71.422
+#
+# against 3 hops before:
+#
+#   array    2.196 209.247 250.078 410.572
+#   subquery 82.969 46.167 870.599 1931.073
+#
+# So 1931 -> 71 ms at the largest real grant, 27x, and 46 -> 0.72 ms at 39 plots.
+#
+# CORRECTION: this was predicted as "under 3 ms at any grant size". It is 71 ms at
+# 2,036 plots. That 3 ms came from data_liste_plots, which has 2,194 rows;
+# data_ind_measures_feat has 476,701, and a 0-hop predicate still has to probe
+# them. Hops govern the *improvement*, not the absolute cost - the absolute cost
+# scales with the table.
+#
+# WHERE THE CEILING IS NOW, subquery shape, per table, 39 plots -> 2,036 plots:
+#
+#   data_liste_plots         0.09 ->   2.3 ms
+#   data_liste_sub_plots     0.56 ->   6.2
+#   data_ind_measures_feat   0.72 ->  71.4     (was 46 -> 1931)
+#   data_individuals         2.85 ->  52.3
+#   data_subplot_feat        0.28 ->  71.0
+#   data_link_specimens     43.2  -> 259.7
+#   data_traits_measures    32.5  -> 520.3     <- the ceiling
+#
+# SHAPE RECOMMENDATION. Summing the whole set as an upper bound - no single query
+# touches all seven tables - the subquery shape costs about 983 ms at 2,036 plots
+# against the array's 633, and 80 ms against 64 at 39 plots. So 25-55% more, for 7
+# policies instead of 245 rewritten on every grant change. Take the subquery shape.
+#
+# The array keeps one real advantage: at a single plot it is 0.035 ms against 16,
+# because the planner knows the list length. But 16 ms is not a problem, and it was
+# 83 ms before this migration. The estimation penalty is now bounded rather than
+# catastrophic, which is what made the shape choice affordable.
+# =============================================================================
 #
 # WHAT IT SAYS
 #
