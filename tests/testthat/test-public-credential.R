@@ -70,6 +70,67 @@ test_that("a NULL descriptor is unavailable with no message", {
   expect_identical(result$message, "")
 })
 
+test_that("the result says which kind of unavailable it is", {
+  # The login screen shows different things for the two, so they must not be
+  # distinguishable only by the absence of a message.
+  expect_identical(
+    CafriplotsR:::.public_credential_from(NULL)$reason, "unreachable"
+  )
+  expect_identical(
+    CafriplotsR:::.public_credential_from(
+      list(enabled = FALSE, message = "Back on Monday.")
+    )$reason,
+    "withdrawn"
+  )
+  # A descriptor that was read but is unusable is still a descriptor that was
+  # read: nothing here is a local network fault.
+  expect_identical(
+    CafriplotsR:::.public_credential_from(
+      list(enabled = TRUE, user = "u", password = "")
+    )$reason,
+    "withdrawn"
+  )
+  expect_identical(
+    CafriplotsR:::.public_credential_from(
+      list(enabled = TRUE, user = "u", password = "p")
+    )$reason,
+    "ok"
+  )
+})
+
+test_that("a failed fetch is cached briefly, a resolution for the full TTL", {
+  # Five minutes is right for a withdrawal and wrong for a failure: it strands
+  # someone who has just fixed their proxy and relaunched.
+  expect_lt(
+    CafriplotsR:::.public_credential_ttl_unreachable,
+    CafriplotsR:::.public_credential_ttl
+  )
+
+  withr::local_envvar(c(CAFRI_PUBLIC_USER = "", CAFRI_PUBLIC_PASS = ""))
+  CafriplotsR:::.public_credential_forget()
+  withr::defer(CafriplotsR:::.public_credential_forget())
+
+  suppressMessages(CafriplotsR:::.public_credential(
+    url = "http://127.0.0.1:1/never", timeout = 1, force = TRUE
+  ))
+
+  # Backdate the cached failure past its own TTL but well inside the long one,
+  # and it must be re-asked rather than returned.
+  cache <- CafriplotsR:::.public_credential_cache
+  expect_identical(cache$value$result$reason, "unreachable")
+  cache$value$at <-
+    Sys.time() - (CafriplotsR:::.public_credential_ttl_unreachable + 5)
+
+  path <- withr::local_tempfile(fileext = ".json")
+  writeLines(
+    '{"enabled": true, "user": "u", "password": "p", "message": ""}', path
+  )
+  result <- CafriplotsR:::.public_credential(
+    url = paste0("file://", normalizePath(path, winslash = "/"))
+  )
+  expect_true(result$available)
+})
+
 test_that("no public credential is embedded in the package source", {
   # The point of the whole change. Runs against the source tree when there is
   # one (devtools::test()), so a future edit cannot quietly restore a literal.
@@ -129,7 +190,7 @@ test_that("the public button renders when a credential resolved", {
   })
 })
 
-test_that("no button and no dangling separator when nothing resolved", {
+test_that("an unreachable descriptor removes the button but says so", {
   local_offline_descriptor()
   withr::local_envvar(c(CAFRI_PUBLIC_USER = "", CAFRI_PUBLIC_PASS = ""))
 
@@ -140,11 +201,46 @@ test_that("no button and no dangling separator when nothing resolved", {
       # that asked for public login is not left with a rule across an empty
       # space where a button used to be.
       expect_null(output$public_connect_button)
-      # Nothing to say: an unreachable descriptor carries no message, and a
-      # network failure is not the user's problem to read about.
-      expect_null(output$public_access_notice)
+      # But the space must not be silent. The button vanishing with no
+      # explanation is indistinguishable from the app being broken, and it
+      # sent at least one user asking why their access had been taken away.
+      notice <- as.character(output$public_access_notice$html)
+      expect_match(notice, "could not be checked")
+      expect_match(notice, "network, proxy or firewall")
     })
   )
+})
+
+test_that("a withdrawal shows the upstream message, not the network one", {
+  # The kill switch has its own voice and must keep it.
+  path <- withr::local_tempfile(fileext = ".json")
+  writeLines('{"enabled": false, "message": "Public access is paused."}', path)
+  withr::local_options(list(
+    CafriplotsR.public_access_url =
+      paste0("file://", normalizePath(path, winslash = "/"))
+  ))
+  withr::local_envvar(c(CAFRI_PUBLIC_USER = "", CAFRI_PUBLIC_PASS = ""))
+  CafriplotsR:::.public_credential_forget()
+  withr::defer(CafriplotsR:::.public_credential_forget())
+
+  shiny::testServer(mod_database_login_server, args = list(allow_public = TRUE), {
+    session$setInputs(language = "en")
+    expect_null(output$public_connect_button)
+    notice <- as.character(output$public_access_notice$html)
+    expect_match(notice, "Public access is paused.")
+    expect_false(grepl("network, proxy or firewall", notice))
+  })
+})
+
+test_that("an app that never offers public login shows no notice", {
+  local_offline_descriptor()
+  withr::local_envvar(c(CAFRI_PUBLIC_USER = "", CAFRI_PUBLIC_PASS = ""))
+
+  shiny::testServer(mod_database_login_server, {
+    session$setInputs(language = "en")
+    expect_null(output$public_connect_button)
+    expect_null(output$public_access_notice)
+  })
 })
 
 test_that("a descriptor served without an HTTP status line is accepted", {

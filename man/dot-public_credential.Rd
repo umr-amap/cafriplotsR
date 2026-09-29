@@ -26,6 +26,11 @@ A list with:
   - `available`: logical, whether public login can be offered
   - `user`, `password`: the credential, empty strings when unavailable
   - `message`: text to show in place of the button, possibly empty
+  - `reason`: `"ok"`, `"withdrawn"` when the descriptor was read and says
+    no, or `"unreachable"` when it could not be read at all. The login
+    screen needs the distinction: a withdrawal is a decision and carries
+    its own `message`, whereas an unreachable descriptor is a local fault
+    the user can go and fix
 }
 \description{
 Reports whether the "Connect as public user" button can be offered, and

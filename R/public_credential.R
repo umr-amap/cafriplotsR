@@ -25,6 +25,14 @@
 # restarted.
 .public_credential_ttl <- 300
 
+# A descriptor that could not be read is cached for much less. The long TTL is
+# there so a *withdrawal* propagates and so repeated asks do not hammer the
+# host; a failed fetch is a different thing, and caching it for five minutes
+# means someone who fixes their proxy and relaunches the app still gets
+# nothing, with no way to tell that they had already fixed it. The cache lives
+# in the package namespace, so it outlives the Shiny session that filled it.
+.public_credential_ttl_unreachable <- 30
+
 .public_credential_cache <- new.env(parent = emptyenv())
 
 #' Resolve the public login credential
@@ -52,6 +60,11 @@
 #'   - `available`: logical, whether public login can be offered
 #'   - `user`, `password`: the credential, empty strings when unavailable
 #'   - `message`: text to show in place of the button, possibly empty
+#'   - `reason`: `"ok"`, `"withdrawn"` when the descriptor was read and says
+#'     no, or `"unreachable"` when it could not be read at all. The login
+#'     screen needs the distinction: a withdrawal is a decision and carries
+#'     its own `message`, whereas an unreachable descriptor is a local fault
+#'     the user can go and fix
 #'
 #' @keywords internal
 .public_credential <- function(url = getOption("CafriplotsR.public_access_url",
@@ -66,9 +79,15 @@
   }
 
   cached <- .public_credential_cache$value
-  if (!isTRUE(force) && !is.null(cached) &&
-      difftime(Sys.time(), cached$at, units = "secs") < .public_credential_ttl) {
-    return(cached$result)
+  if (!isTRUE(force) && !is.null(cached)) {
+    ttl <- if (identical(cached$result$reason, "unreachable")) {
+      .public_credential_ttl_unreachable
+    } else {
+      .public_credential_ttl
+    }
+    if (difftime(Sys.time(), cached$at, units = "secs") < ttl) {
+      return(cached$result)
+    }
   }
 
   result <- .public_credential_from(.fetch_public_descriptor(url, timeout))
@@ -86,23 +105,33 @@
 }
 
 #' Shape a resolution result
+#'
+#' `reason` defaults to the ordinary case — a credential resolved, or a
+#' descriptor that was read and said no. Only the caller that failed to read
+#' one at all passes `"unreachable"`.
+#'
 #' @keywords internal
 #' @noRd
 .public_credential_result <- function(available, user = "", password = "",
-                                      message = "") {
+                                      message = "",
+                                      reason = if (isTRUE(available)) "ok" else "withdrawn") {
   list(available = isTRUE(available), user = user, password = password,
-       message = message)
+       message = message, reason = reason)
 }
 
 #' Turn a parsed descriptor into a resolution result
 #'
 #' A disabled or unusable descriptor still carries its `message`, which is
-#' what the login screen shows in place of the button.
+#' what the login screen shows in place of the button. No descriptor at all is
+#' the other case, and the two are not interchangeable: one is a decision
+#' taken upstream, the other is a fetch that failed here.
 #'
 #' @keywords internal
 #' @noRd
 .public_credential_from <- function(descriptor) {
-  if (is.null(descriptor)) return(.public_credential_result(FALSE))
+  if (is.null(descriptor)) {
+    return(.public_credential_result(FALSE, reason = "unreachable"))
+  }
 
   chr <- function(field) {
     value <- as.character(descriptor[[field]] %||% "")[1]

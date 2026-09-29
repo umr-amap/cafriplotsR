@@ -364,10 +364,26 @@ mod_database_login_server <- function(id, allow_public = FALSE,
       input$language
       if (!isTRUE(allow_public)) return(NULL)
 
-      # Public access was asked for but cannot be offered. Explain only when
-      # the descriptor says why — a network failure is noise to the user, who
-      # still has their own account and, in some apps, the offline cache.
+      # Public access was asked for but cannot be offered, for one of two
+      # reasons that must not look alike. A descriptor that was read and says
+      # no is a decision taken upstream and carries its own explanation. One
+      # that could not be read is a local fault — a proxy, a blocked host, no
+      # network — and used to render nothing at all, so the button simply
+      # vanished from the login screen with no way to tell the two apart. That
+      # is what someone behind a firewall sees, and it reads as a bug in the
+      # app rather than as something they can go and fix.
       if (!public_enabled) {
+        if (identical(public_access$reason, "unreachable")) {
+          return(shiny::div(
+            class = "alert alert-secondary",
+            style = "font-size: 0.85em; margin-top: 20px; margin-bottom: 0; padding: 8px 12px;",
+            shiny::icon("exclamation-triangle"),
+            " ",
+            shiny::strong(t("Public access could not be checked.")),
+            " ",
+            t("The app could not reach the server that publishes the public login, so the \"Connect as public user\" button is not shown. This is usually a network, proxy or firewall problem rather than a change to your access. Check your connection and relaunch the app. Your own account is unaffected.")
+          ))
+        }
         if (!nzchar(public_access$message)) return(NULL)
         return(shiny::div(
           class = "alert alert-secondary",
