@@ -116,7 +116,7 @@ launch_taxo_backbone_app <- function(pool_taxa = NULL, language = c("fr", "en"),
   language <- match.arg(language)
 
   # Check required packages
-  required_pkgs <- c("shiny", "DT", "bslib", "shinyjs", "shiny.i18n", "dplyr", "pool")
+  required_pkgs <- c("shiny", "DT", "shinyjs", "shiny.i18n", "dplyr", "pool")
   missing_pkgs <- required_pkgs[!sapply(required_pkgs, requireNamespace, quietly = TRUE)]
 
   if (length(missing_pkgs) > 0) {
