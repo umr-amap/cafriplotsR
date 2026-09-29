@@ -30,6 +30,51 @@
 # This script counts the disagreements and characterises them. It writes nothing
 # and runs in a READ ONLY transaction.
 #
+# =============================================================================
+# MEASURED 2026-09-29, and it corrects the claim above
+#
+#   rows                                    2,053,478
+#   with the denormalised column            1,797,299   (256,179 NULL)
+#   with a subplot                            831,809
+#   with an individual                      2,053,478   (every row)
+#
+#   denormalised vs individual disagree         8,575
+#   denormalised vs subplot disagree                0
+#   subplot vs individual disagree                  0
+#
+# THE COUNT WAS RIGHT AND THE DIAGNOSIS WAS WRONG. It is not a live bug.
+#
+# Every one of the 8,575 has no subplot, so filter_to_census() never groups them -
+# they are dropped by census filtering whether the key is right or not. That is
+# also why denorm-vs-subplot is 0: those rows are not in that comparison.
+#
+# And query_individual_features() selects rows through
+# data_individuals.id_table_liste_plots_n (R/individual_features_function.R:50),
+# the correct key, so the wrong values never decide which rows come back. The
+# column is carried alongside them; whether it reaches the final frame after
+# pivoting was not traced.
+#
+# So what is actually true:
+#
+#   - the individual's plot is authoritative, with no contradiction anywhere in
+#     2 million rows, and every row has one. There is no ambiguity to resolve.
+#   - the copy is wrong on 8,575 rows and right on the other 1,788,724.
+#   - nothing today makes a wrong decision because of it. It would the moment
+#     row-level security keyed on it, which is the P4.4 option this rules out.
+#
+# SHAPE OF THE ERROR: 80 wrong plots, 70 true plots, 3,416 individuals, all
+# 2023-2025, no original_plot_name. The pairs are adjacent ids - 1452 -> 1441,
+# 1442, 1443, 1453; 1953 -> 1930; 1458 -> 1442 - which reads like row
+# misalignment in a bulk insert rather than a lookup that resolved wrongly. Worth
+# knowing because it says the cause can recur.
+#
+# WHAT THIS CHANGES: the coalesce reversal in enrich_census_info() is still right
+# - the argument order contradicts the function's own comment - but it is
+# defensive, not a fix for anything currently broken. And the case for
+# backfilling the column rests on step 5 performance and on tidiness, not on
+# repairing query output.
+# =============================================================================
+#
 # Run from the package root as the owner, after devtools::load_all(".").
 # =============================================================================
 
