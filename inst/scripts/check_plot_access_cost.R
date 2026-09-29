@@ -75,33 +75,40 @@ BASELINE <- data.frame(
 # (+18%), and data_traits_measures 315.872 and 334.351 (+6%). Treat anything
 # under about 20% as noise; the conclusions below all rest on factors of ten.
 #
-# SEMI-JOIN, measured 2026-09-29, minutes after the seed and BEFORE any ANALYZE
-# of plot_access. Read with that caveat; see below.
+# SEMI-JOIN, measured 2026-09-29 AFTER `ANALYZE plot_access`. The run before it
+# was worthless - plot_access was minutes old and had no statistics, so a 68 ms
+# floor appeared on a 14,001-row table and the semi-join looked 50-100x worse
+# everywhere. That was a planner guessing, not a shape. With statistics the plans
+# use an index-only scan on plot_access with zero heap fetches.
 #
 #   table                   hops     1      39     280    2036   (predicate ms)
-#   data_liste_plots           0  0.549   1.184   1.508   1.293
-#   data_individuals           1  0.883   4.566  31.893  62.231
-#   data_liste_sub_plots       1  0.540   0.212   4.365  14.741
-#   data_subplot_feat          2 15.224  16.094  18.873  40.591
-#   data_traits_measures       2 68.437  60.229 146.255 343.190
-#   data_ind_measures_feat     3 131.151 111.726 435.981 955.387
-#   data_link_specimens        1 56.185  61.054 128.521 226.443
+#   data_liste_plots           0  0.048   0.114   0.747   3.868
+#   data_individuals           1  0.844   1.912  16.495  57.311
+#   data_liste_sub_plots       1  0.134   0.117   4.435  10.369
+#   data_subplot_feat          2  0.161   0.259  13.287  17.809
+#   data_traits_measures       2 39.961  67.842 161.228 424.249
+#   data_ind_measures_feat     3 152.381 109.116 428.942 494.961
+#   data_link_specimens        1  6.080  64.395  99.866 116.777
 #
-# The array wins almost everywhere, and by 50-100x at one plot. The semi-join
-# carries a fixed floor of 15-130 ms that does not scale down, and produced 45
-# sequential scans against the array's 17 - the opposite of the hypothesis that
-# giving the planner a table with statistics would help it find an index path.
+# Neither shape dominates. The semi-join is better on the two subplot tables
+# (data_subplot_feat at 39 plots: 0.26 vs 1.73 ms, 6.7x) and at the largest grant
+# on data_liste_sub_plots (10.4 vs 16.3). The array is better on the two largest
+# tables, overwhelmingly so for a small grant - data_traits_measures at one plot
+# is 0.48 vs 39.96 ms, and data_ind_measures_feat 2.2 vs 152.4. At 2,036 plots the
+# gap narrows to 1.2-1.6x.
 #
-# EXCEPT plot_access had no statistics when this ran. A 68 ms floor on a
-# 14,001-row table is not a shape, it is a planner working from fixed guesses.
-# The comparison has to be repeated after ANALYZE before the array is declared the
-# winner. report_plot_access_cost() now checks pg_stat_user_tables and says so.
+# BUT THE ARRAY IS NOT FREE, and this was under-weighted when it was recommended
+# against. A policy is a fixed SQL expression, so a literal plot list means one
+# policy per account per table: 35 x 7 = 245 policies, rewritten on every grant
+# change. That is the mechanism this whole exercise exists to retire. The
+# semi-join needs 7.
 #
-# At the largest grant the two are indistinguishable anyway: 329 vs 343 ms on
-# data_traits_measures is 4%, inside the run-to-run noise recorded below. Whatever
-# the shape decision turns out to be, it is decided by the small and middle grants
-# - and 11 of 35 accounts hold fewer than 39 plots, 12 more fall between 39 and
-# 280, so those columns are the common case, not the edge.
+# Hence the third shape, `subquery`: `key = ANY (ARRAY(SELECT id_liste_plots FROM
+# plot_access WHERE db_user = current_user))`. Uncorrelated, so PostgreSQL should
+# evaluate it once as an InitPlan and then use the result exactly like the literal
+# array - one policy per table with array performance. The init_plan column
+# records whether that actually happened rather than assuming it. Not yet
+# measured.
 #
 # WHAT IT SAYS
 #
@@ -295,6 +302,9 @@ PLOT_ROUTES <- list(
                                  grep("Execution Time", txt, value = TRUE)[1])),
     seq_scans   = length(grep("Seq Scan", txt)),
     index_only  = length(grep("Index Only Scan", txt)),
+    # TRUE means the grant list was gathered once for the whole query rather than
+    # re-derived per row. It is the whole question for the subquery shape.
+    init_plan   = length(grep("InitPlan", txt)) > 0,
     # NA here means no index-only scan in the plan, not a clean visibility map.
     heap_fetches = grab("Heap Fetches:"),
     plan        = txt
@@ -324,14 +334,37 @@ PLOT_ROUTES <- list(
 #' @noRd
 .measure_one <- function(con, table_name, route, ids, shape, role) {
 
-  pred <- if (shape == "array") {
-    paste0(route$key, " = ANY (ARRAY[", paste(ids, collapse = ", "),
-           "]::integer[])")
-  } else {
-    paste0("EXISTS (SELECT 1 FROM plot_access a",
-           "  WHERE a.db_user = ", DBI::dbQuoteString(con, role),
-           "    AND a.id_liste_plots = ", route$key, ")")
-  }
+  pred <- switch(
+    shape,
+
+    # What the 125 policies do today. Fast, but a policy is a fixed SQL
+    # expression, so a literal list means one policy per account per table -
+    # 35 x 7 = 245 of them, rewritten on every grant change.
+    array = paste0(route$key, " = ANY (ARRAY[", paste(ids, collapse = ", "),
+                   "]::integer[])"),
+
+    # One policy per table, data-driven. The planner sees a real table with
+    # statistics, but it decides per query how to join it, and on the two largest
+    # tables it chooses badly for a small grant.
+    semijoin = paste0("EXISTS (SELECT 1 FROM plot_access a",
+                      "  WHERE a.db_user = ", DBI::dbQuoteString(con, role),
+                      "    AND a.id_liste_plots = ", route$key, ")"),
+
+    # The shape that should get both: one policy per table, and an array
+    # predicate the planner can drive an index from. ARRAY(SELECT ...) is
+    # uncorrelated, so PostgreSQL should evaluate it once as an InitPlan and then
+    # treat the result exactly like the literal array above.
+    #
+    # In a real policy this reads `WHERE a.db_user = current_user`, which is
+    # equally uncorrelated - hence accessible_plots() in the migration. The
+    # init_plan column below is what tests the "evaluated once" claim rather than
+    # assuming it.
+    subquery = paste0(route$key, " = ANY (ARRAY(",
+                      "SELECT a.id_liste_plots FROM plot_access a",
+                      " WHERE a.db_user = ", DBI::dbQuoteString(con, role), "))"),
+
+    stop("Unknown shape: ", shape, call. = FALSE)
+  )
 
   # Two numbers, because one is not enough. count(*) on an indexed column can be
   # served by an index-only scan without touching the table, which understates
@@ -346,6 +379,7 @@ PLOT_ROUTES <- list(
     fetch_ms     = if (is.null(fetch)) NA_real_ else round(fetch$ms, 3),
     seq_scans    = if (is.null(fetch)) NA_integer_ else fetch$seq_scans,
     index_only   = if (is.null(fetch)) NA_integer_ else fetch$index_only,
+    init_plan    = if (is.null(predicate)) NA else predicate$init_plan,
     heap_fetches = if (is.null(fetch)) NA_real_ else fetch$heap_fetches,
     note         = note,
     stringsAsFactors = FALSE
@@ -415,7 +449,7 @@ PLOT_ROUTES <- list(
 #' @return Invisibly a list of data frames.
 report_plot_access_cost <- function(con, sizes = NULL,
                                     tables = names(PLOT_ROUTES),
-                                    shapes = c("array", "semijoin")) {
+                                    shapes = c("array", "semijoin", "subquery")) {
 
   stopifnot("Invalid connection" = DBI::dbIsValid(con))
 
@@ -539,9 +573,10 @@ report_plot_access_cost <- function(con, sizes = NULL,
     for (shape in shapes) {
       for (n in sizes) {
         role <- role_for(n)
-        # For the semi-join, the sample must be that account's actual grant, or
-        # the predicate matches nothing and the timing is meaningless.
-        ids <- if (shape == "semijoin") {
+        # For the two shapes that read plot_access, the sample must be that
+        # account's actual grant, or the predicate matches nothing and the timing
+        # is meaningless. `ids` is then only used for the row's n_plots.
+        ids <- if (shape %in% c("semijoin", "subquery")) {
           DBI::dbGetQuery(con, glue::glue_sql(
             "SELECT id_liste_plots FROM plot_access WHERE db_user = {role}
               ORDER BY 1", .con = con))$id_liste_plots
@@ -577,6 +612,24 @@ report_plot_access_cost <- function(con, sizes = NULL,
        scan. On data_liste_plots that is correct - 2,194 rows are cheaper to scan
        than to index. Elsewhere it means the predicate is not reaching an index.")
   }
+  if ("subquery" %in% res$shape) {
+    sq <- res[res$shape == "subquery", , drop = FALSE]
+    cli::cli_h2("Was the grant list gathered once, or per row?")
+    if (all(sq$init_plan, na.rm = TRUE)) {
+      cli::cli_alert_success(
+        "InitPlan in all {nrow(sq)} subquery plans - the grant list is gathered
+         once per query, then used like a literal array. That is the shape that
+         gives one policy per table without the per-row cost.")
+    } else {
+      n_bad <- sum(!sq$init_plan, na.rm = TRUE)
+      cli::cli_alert_danger(
+        "{n_bad} of {nrow(sq)} subquery plans have no InitPlan - the grant list is
+         being re-derived, so this shape is not the free lunch it looks like:")
+      print(sq[!sq$init_plan, c("table_name", "n_plots", "predicate_ms")],
+            row.names = FALSE)
+    }
+  }
+
   if (all(is.na(res$heap_fetches))) {
     cli::cli_alert_info(
       "No index-only scan in any plan, so Heap Fetches is not applicable - these
