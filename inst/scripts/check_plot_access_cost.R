@@ -75,6 +75,34 @@ BASELINE <- data.frame(
 # (+18%), and data_traits_measures 315.872 and 334.351 (+6%). Treat anything
 # under about 20% as noise; the conclusions below all rest on factors of ten.
 #
+# SEMI-JOIN, measured 2026-09-29, minutes after the seed and BEFORE any ANALYZE
+# of plot_access. Read with that caveat; see below.
+#
+#   table                   hops     1      39     280    2036   (predicate ms)
+#   data_liste_plots           0  0.549   1.184   1.508   1.293
+#   data_individuals           1  0.883   4.566  31.893  62.231
+#   data_liste_sub_plots       1  0.540   0.212   4.365  14.741
+#   data_subplot_feat          2 15.224  16.094  18.873  40.591
+#   data_traits_measures       2 68.437  60.229 146.255 343.190
+#   data_ind_measures_feat     3 131.151 111.726 435.981 955.387
+#   data_link_specimens        1 56.185  61.054 128.521 226.443
+#
+# The array wins almost everywhere, and by 50-100x at one plot. The semi-join
+# carries a fixed floor of 15-130 ms that does not scale down, and produced 45
+# sequential scans against the array's 17 - the opposite of the hypothesis that
+# giving the planner a table with statistics would help it find an index path.
+#
+# EXCEPT plot_access had no statistics when this ran. A 68 ms floor on a
+# 14,001-row table is not a shape, it is a planner working from fixed guesses.
+# The comparison has to be repeated after ANALYZE before the array is declared the
+# winner. report_plot_access_cost() now checks pg_stat_user_tables and says so.
+#
+# At the largest grant the two are indistinguishable anyway: 329 vs 343 ms on
+# data_traits_measures is 4%, inside the run-to-run noise recorded below. Whatever
+# the shape decision turns out to be, it is decided by the small and middle grants
+# - and 11 of 35 accounts hold fewer than 39 plots, 12 more fall between 39 and
+# 280, so those columns are the common case, not the edge.
+#
 # WHAT IT SAYS
 #
 # 1. For five tables the predicate is close to free. data_traits_measures at
@@ -404,6 +432,41 @@ report_plot_access_cost <- function(con, sizes = NULL,
        measured. Apply {.file inst/migrations/plot_access_table.R} and seed it,
        then re-run to compare the two."))
     shapes <- setdiff(shapes, "semijoin")
+  }
+
+  # The semi-join asks the planner to reason about plot_access. On a table with no
+  # statistics it cannot: it falls back to fixed guesses, and the plan it picks
+  # says nothing about the shape. The first comparison was run minutes after the
+  # seed, before autovacuum had been anywhere near it, and the semi-join looked
+  # 50-100x worse at small grants with a 15-130 ms floor that no 14,001-row table
+  # should produce. That is a missing-statistics signature, not a shape.
+  analyzed <- NULL
+  if (have_pa && "semijoin" %in% shapes) {
+    analyzed <- DBI::dbGetQuery(con, "
+      SELECT s.last_analyze, s.last_autoanalyze, s.n_live_tup,
+             c.reltuples::bigint AS reltuples
+        FROM pg_stat_user_tables s
+        JOIN pg_class c ON c.oid = s.relid
+       WHERE s.schemaname = 'public' AND s.relname = 'plot_access'")
+
+    never <- nrow(analyzed) == 0 ||
+      (is.na(analyzed$last_analyze[1]) && is.na(analyzed$last_autoanalyze[1]))
+
+    cli::cli_h2("Statistics on plot_access")
+    if (nrow(analyzed) > 0) print(analyzed, row.names = FALSE)
+
+    if (never) {
+      cli::cli_alert_danger(c(
+        "plot_access has never been analyzed, so {.strong the semi-join numbers
+         below are not a fair test of the shape} - the planner is working from
+         fixed guesses about a table it knows nothing about."))
+      cli::cli_alert_info(
+        "Run {.code ANALYZE plot_access;} and measure again before concluding
+         anything. A reltuples of -1 or 0 next to a non-zero n_live_tup above is
+         the tell.")
+    } else {
+      cli::cli_alert_success("plot_access has statistics - the comparison is fair")
+    }
   }
 
   # Everything below happens read-only at the database's insistence, not mine.
