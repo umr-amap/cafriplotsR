@@ -161,11 +161,13 @@
 #   - the table privilege, swept by inst/migrations/revoke_delete_rights.R
 #   - plot_access.can_delete, which defaults to FALSE
 #
-# Both have to be on for an account to delete a plot once step 5 enforces
-# row-level security on the child tables. Until then only the table privilege
-# matters, because only data_liste_plots has any policy at all - which is why
-# grant_delete_right() says so out loud rather than implying a plot-scoped
-# grant it cannot yet deliver.
+# Both have to be on for an account to delete a plot. Since step 5
+# (plot_access_child_rls.R, applied 2026-09-29) the child tables enforce plot
+# scope too - but their DELETE policies key on can_write, not can_delete,
+# because deleting a measurement row is ordinary curation that
+# safe_delete_individual_features() performs on every re-import. So can_delete
+# gates data_liste_plots alone, and the table privilege is still what stops an
+# account deleting child rows in plots it can write.
 # =============================================================================
 
 #' The seven tables a plot deletion reaches
@@ -184,11 +186,11 @@
 #' `can_delete` on that account's `plot_access` rows for the named plots.
 #'
 #' Both layers are needed, and they are not equally precise. `can_delete` is
-#' per plot. The table privilege is not - PostgreSQL has no per-row GRANT - so
-#' until row-level security reaches the child tables, the table privilege is the
-#' only gate on individuals, measurements and specimens, and it is account-wide.
-#' This function says so on every call rather than leaving the caller to infer a
-#' plot-scoped delete that does not yet exist.
+#' per plot, and gates `data_liste_plots` only. The child tables are plot-scoped
+#' since step 5, but on `can_write` - so an account that may write a plot may
+#' delete rows beneath it, and the account-wide table privilege is the only gate
+#' on that. This function says so on every call rather than leaving the caller to
+#' infer a per-plot delete on individuals and measurements that does not exist.
 #'
 #' @param con A connection to plots_transects, as the owner of the tables.
 #' @param user Character. The database role to grant to.
@@ -441,16 +443,16 @@ plot_access_delete_rights <- function(con, tables = .plot_scope_tables()) {
 # =============================================================================
 # Keeping plot_access and the policies in step
 #
-# Between step 4 and step 5 there are two records of who may see what, and only
-# one of them enforces anything:
+# There are two records of who may see what, and since step 5 both enforce:
 #
 #   - the ~125 policies on data_liste_plots, which PostgreSQL applies
-#   - plot_access, seeded from them, which nothing reads yet
+#   - plot_access, which the 24 plot_scope_* policies on the six child tables
+#     read on every row
 #
 # A grant made through define_user_policy() would update the first and not the
-# second, and the divergence would be silent until step 5 enforced the stale
-# copy. So define_user_policy() mirrors into plot_access on every call, and
-# plot_access_drift() reports any disagreement at any time.
+# second, which now means an account with access to a plot that sees none of its
+# individuals or measurements. So define_user_policy() mirrors into plot_access
+# on every call, and plot_access_drift() reports any disagreement at any time.
 #
 # The mirror is deliberately one-directional. Policies stay the source of truth
 # until the child tables are keyed on plot_access; writing plot_access and
@@ -691,9 +693,10 @@ plot_access_drift <- function(con) {
     cli::cli_alert_danger("{nrow(bad)} account{?s} disagree{?s/}:")
     print(bad, row.names = FALSE)
     cli::cli_alert_info(
-      "{.code only_policies} means an account can see plots plot_access does not
-       record - it would lose them at step 5. {.code only_stored} means the
-       reverse, and would gain them.")
+      "{.code only_policies} means an account can see the plot but none of its
+       individuals or measurements, because the child tables read plot_access.
+       {.code only_stored} means the reverse: the child rows are visible and the
+       plot itself is not.")
   }
 
   invisible(out)

@@ -33,11 +33,11 @@ Grants DELETE on the seven tables a plot deletion reaches, and sets
 `can_delete` on that account's `plot_access` rows for the named plots.
 
 Both layers are needed, and they are not equally precise. `can_delete` is
-per plot. The table privilege is not - PostgreSQL has no per-row GRANT - so
-until row-level security reaches the child tables, the table privilege is the
-only gate on individuals, measurements and specimens, and it is account-wide.
-This function says so on every call rather than leaving the caller to infer a
-plot-scoped delete that does not yet exist.
+per plot, and gates `data_liste_plots` only. The child tables are plot-scoped
+since step 5, but on `can_write` - so an account that may write a plot may
+delete rows beneath it, and the account-wide table privilege is the only gate
+on that. This function says so on every call rather than leaving the caller to
+infer a per-plot delete on individuals and measurements that does not exist.
 }
 \examples{
 \dontrun{
