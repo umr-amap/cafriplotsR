@@ -1441,11 +1441,18 @@ enrich_census_info <- function(data, con) {
         ),
       by = "id_sub_plots"
     ) %>%
-    # Pre-existing rows in data_traits_measures may have id_table_liste_plots = NULL
-    # (inserted before the column was systematically populated). Fill from the
-    # subplot table, which always carries the correct plot foreign key.
+    # The subplot table carries the plot as a foreign key, so it is right by
+    # construction. data_traits_measures.id_table_liste_plots is a denormalised
+    # copy: NULL on 256,179 rows and, on 8,575, pointing at a different plot than
+    # the measurement's own individual does (inst/scripts/check_traits_plot_key.R).
+    #
+    # So the normalised route goes first. The argument order used to be the other
+    # way round, which let a wrong copy win over a correct foreign key - against
+    # what the comment here already asserted. Those 8,575 rows all lack a subplot,
+    # so no census selection changes today; this keeps it that way if one ever
+    # gains one.
     dplyr::mutate(
-      id_table_liste_plots = dplyr::coalesce(id_table_liste_plots, .subplot_plot_id)
+      id_table_liste_plots = dplyr::coalesce(.subplot_plot_id, id_table_liste_plots)
     ) %>%
     dplyr::select(-.subplot_plot_id)
 }

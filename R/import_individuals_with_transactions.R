@@ -261,13 +261,7 @@ import_individual_data <- function(individuals_data,
 
         if (!is.null(features_prepared) && nrow(features_prepared) > 0) {
           # Insert features
-          DBI::dbWriteTable(
-            con,
-            "data_traits_measures",
-            features_prepared,
-            append = TRUE,
-            row.names = FALSE
-          )
+          .db_append_table(con, "data_traits_measures", features_prepared)
 
           if (progress) {
             cli::cli_alert_success("{nrow(features_prepared)} feature records inserted")

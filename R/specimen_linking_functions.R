@@ -554,8 +554,7 @@ get_linktypes <- function(con = NULL, scope = NULL) {
 
   if (launch_adding_data) {
     tryCatch({
-      DBI::dbWriteTable(actual_con, "data_link_specimens",
-                        data_to_add, append = TRUE, row.names = FALSE)
+      .db_append_table(actual_con, "data_link_specimens", data_to_add)
       cli::cli_alert_success("Added {nrow(data_to_add)} links to data_link_specimens table")
     }, error = function(e) {
       cli::cli_alert_danger("Failed to add links: {e$message}")

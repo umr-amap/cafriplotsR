@@ -539,6 +539,10 @@ deactivate_user <- function(con_main, con_taxa = NULL, username,
     } else {
       cli::cli_alert_info("No RLS policies found for '{username}'")
     }
+    # The grant table has to follow, or the account keeps its rows in
+    # plot_access and regains everything the moment step 5 reads it. Creator
+    # rows go too: the account is being retired, so it should hold nothing.
+    .clear_plot_access(con_main, username)
   }, error = function(e) {
     cli::cli_alert_warning("Could not drop RLS policies: {e$message}")
     success <<- FALSE

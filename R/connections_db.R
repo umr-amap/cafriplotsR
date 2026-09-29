@@ -899,10 +899,16 @@ db_diagnostic <- function() {
 #'   - "replace" (default): Replace existing access with new IDs
 #'   - "add": Add new IDs to existing access
 #'   - "remove": Remove specified IDs from existing access
-#' @param grant_table_privileges Logical. Whether to automatically grant table-level
-#'   SELECT, INSERT, UPDATE, DELETE privileges to the user. Default TRUE. These are
-#'   required for the RLS policies to work - RLS controls which rows, table privileges
-#'   control which operations. Without these privileges, RLS policies have no effect.
+#' @param grant_table_privileges Logical. Whether to also set the table-level
+#'   privileges the policies need. Default TRUE. RLS controls which rows, table
+#'   privileges control which operations, and a policy without the matching
+#'   privilege has no effect.
+#'
+#'   The privileges granted are derived from `operations`, and anything not
+#'   asked for is **revoked**, so narrowing a user's `operations` narrows their
+#'   real access rather than leaving the earlier grant behind. `UPDATE` and
+#'   `DELETE` additionally imply `SELECT`, which they need to evaluate their own
+#'   `WHERE` clause.
 #'
 #' @returns Invisibly returns TRUE on success, FALSE on failure.
 #'
@@ -994,14 +1000,52 @@ define_user_policy <- function(con, user, ids,
     sql_enable_rls <- glue::glue("ALTER TABLE {DBI::dbQuoteIdentifier(con, table)} ENABLE ROW LEVEL SECURITY;")
     DBI::dbExecute(con, sql_enable_rls)
 
-    # Grant table-level privileges if requested
+    # Grant table-level privileges if requested.
+    #
+    # These are derived from `operations`, and whatever is not asked for is
+    # revoked. Until 2026-09-26 this granted SELECT, INSERT, UPDATE, DELETE
+    # unconditionally, so define_read_only_policy() -- whose whole purpose is
+    # SELECT-only access -- handed out full DML. RLS contained it only as long
+    # as no write policy happened to match, which for the published
+    # CafriP_public account it did: see
+    # inst/migrations/revoke_stray_dml_grants.R for the cleanup.
+    #
+    # "ALL" deliberately stops short of DELETE (2026-09-28). It used to mean all
+    # four, and since define_full_access_policy() is the usual way a colleague
+    # gets access, that is how 13,913 of 14,018 plot grants came to carry DELETE
+    # -- nine accounts on more than 1,100 plots each. DELETE is now asked for by
+    # name, or granted per plot with grant_delete_right(). Without this, the next
+    # define_full_access_policy() call reopens what
+    # inst/migrations/revoke_delete_rights.R closes.
     if (grant_table_privileges) {
-      sql_grant <- glue::glue("GRANT SELECT, INSERT, UPDATE, DELETE ON {DBI::dbQuoteIdentifier(con, table)} TO {DBI::dbQuoteIdentifier(con, user)};")
+      requested <- if (identical(operations, "ALL")) {
+        c("SELECT", "INSERT", "UPDATE")
+      } else {
+        # UPDATE and DELETE need SELECT to evaluate their own WHERE clause, so
+        # a write grant without it is not usable.
+        ops <- unique(operations)
+        if (any(c("UPDATE", "DELETE") %in% ops)) ops <- union(ops, "SELECT")
+        ops
+      }
+      to_revoke <- setdiff(c("SELECT", "INSERT", "UPDATE", "DELETE"), requested)
+
+      quoted_table <- DBI::dbQuoteIdentifier(con, table)
+      quoted_user  <- DBI::dbQuoteIdentifier(con, user)
+
       tryCatch({
-        DBI::dbExecute(con, sql_grant)
-        cli::cli_alert_success("Granted SELECT, INSERT, UPDATE, DELETE privileges on '{table}' to user '{user}'")
+        DBI::dbExecute(con, glue::glue(
+          "GRANT {paste(requested, collapse = ', ')} ON {quoted_table} TO {quoted_user};"))
+        cli::cli_alert_success(
+          "Granted {paste(requested, collapse = ', ')} on '{table}' to user '{user}'")
+
+        if (length(to_revoke) > 0) {
+          DBI::dbExecute(con, glue::glue(
+            "REVOKE {paste(to_revoke, collapse = ', ')} ON {quoted_table} FROM {quoted_user};"))
+          cli::cli_alert_info(
+            "Revoked {paste(to_revoke, collapse = ', ')} on '{table}' from user '{user}'")
+        }
       }, error = function(e) {
-        cli::cli_alert_warning("Could not grant table privileges to '{user}': {e$message}")
+        cli::cli_alert_warning("Could not set table privileges for '{user}': {e$message}")
         cli::cli_alert_info("User may need to request these privileges from database admin")
       })
     }
@@ -1018,8 +1062,16 @@ define_user_policy <- function(con, user, ids,
     }
 
     if (length(operations) == 1 && operations == "ALL") {
-      # Create SELECT/UPDATE/DELETE policies restricted to plot IDs
-      # Note: INSERT is handled by global 'insert_open' policy (from migration)
+      # Create SELECT/UPDATE policies restricted to plot IDs.
+      #
+      # NOT DELETE, since 2026-09-28. "ALL" used to create a _delete policy too,
+      # which is how nearly every grant ever made carried the right to delete
+      # somebody else's plots. Deletion of a plot you created is already covered
+      # by the global creator_access_delete policy; deletion of anyone else's is
+      # granted per plot with grant_delete_right(), or by naming
+      # operations = "DELETE" explicitly.
+      #
+      # Note: INSERT is handled by the global insert policy (from migration)
       # Note: Creator access is handled by global 'creator_access_*' policies
 
       # Policy for SELECT: Restricted to specific plot IDs (adds to creator access)
@@ -1041,17 +1093,12 @@ define_user_policy <- function(con, user, ids,
       ")
       DBI::dbExecute(con, sql_create_update)
 
-      sql_create_delete <- glue::glue("
-        CREATE POLICY {DBI::dbQuoteIdentifier(con, paste0(policy_name, '_delete'))}
-        ON {DBI::dbQuoteIdentifier(con, table)}
-        FOR DELETE
-        TO {DBI::dbQuoteIdentifier(con, user)}
-        USING (id_liste_plots IN ({id_list}));
-      ")
-      DBI::dbExecute(con, sql_create_delete)
-
-      cli::cli_alert_success("Policy '{policy_name}_select/update/delete' created for SELECT/UPDATE/DELETE operations")
+      cli::cli_alert_success("Policy '{policy_name}_select/update' created for SELECT/UPDATE operations")
       cli::cli_alert_info("User can access plot IDs: {paste(ids, collapse = ', ')} (plus any plots they created)")
+      cli::cli_alert_info(
+        "DELETE not granted. A user can already delete plots they created; for
+         anyone else's use {.fn grant_delete_right} or pass
+         {.code operations = \"DELETE\"} explicitly.")
 
     } else {
       # Handle specific operations
@@ -1060,7 +1107,15 @@ define_user_policy <- function(con, user, ids,
       ops_to_create <- setdiff(operations, "INSERT")
 
       if ("INSERT" %in% operations) {
-        cli::cli_alert_info("INSERT skipped - handled by global 'insert_open' policy")
+        cli::cli_alert_info("INSERT skipped - handled by the global insert policy")
+      }
+
+      if ("DELETE" %in% ops_to_create) {
+        cli::cli_alert_warning(c(
+          "Creating a DELETE policy for {.val {user}} over {length(ids)} plot{?s}.
+           DELETE is off by default for every account - a user can already delete
+           plots they created. Prefer {.fn grant_delete_right}, which records it
+           in plot_access where it can be audited and taken back."))
       }
 
       for (i in seq_along(ops_to_create)) {
@@ -1085,7 +1140,18 @@ define_user_policy <- function(con, user, ids,
     }
     
     cli::cli_alert_info("User '{user}' granted {paste(operations, collapse = ', ')} access to plot IDs: {paste(ids, collapse = ', ')}")
-    
+
+    # Mirror into plot_access, so the two records of who may see what cannot
+    # diverge while both exist. A no-op on a database where the plot_access
+    # migration has not run.
+    #
+    # `ids` is the absolute set by this point: add and remove modes resolve it
+    # against the existing grants above and force drop_existing, so the policies
+    # now grant exactly this. Only when drop_existing is FALSE are the old
+    # policies still in place alongside the new ones, and the mirror has to be
+    # additive to match.
+    .mirror_plot_access(con, user, ids, operations, additive = !drop_existing)
+
     return(invisible(TRUE))
     
   }, error = function(e) {
@@ -1258,6 +1324,15 @@ get_user_accessible_plots <- function(con, user, table = "data_liste_plots") {
 #'
 #' @description
 #' Convenience wrapper for \code{\link{define_user_policy}} that grants SELECT-only access.
+#'
+#' @details
+#' Before 2026-09-26 the name overpromised: the underlying
+#' \code{\link{define_user_policy}} created a SELECT policy but granted
+#' `SELECT, INSERT, UPDATE, DELETE` at the table level regardless, so an
+#' account set up this way carried write privileges it was never meant to have.
+#' The grant now follows `operations`, and this wrapper leaves the account with
+#' `SELECT` and nothing else. Accounts created before that date may still hold
+#' the old grant - re-running this function on them removes it.
 #'
 #' @inheritParams define_user_policy
 #'
