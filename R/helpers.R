@@ -463,3 +463,47 @@ replace_NA <- function(df, inv = FALSE) {
 
 
 
+
+#' Write a zip archive, preferring the zip package over an external binary
+#'
+#' `utils::zip()` shells out to a `zip` executable, which is absent on most
+#' Windows installations. The zip package ships its own implementation, so use
+#' it when available and fall back to the external tool otherwise. Neither is a
+#' hard requirement of CafriplotsR: this is only reached when a user asks for a
+#' zipped download.
+#'
+#' @param zipfile Character. Path of the archive to create.
+#' @param files Character vector. Paths of the files to archive. Only the file
+#'   names are stored, so the archive has no directory structure.
+#' @param root Character. Directory the files live in. Defaults to the directory
+#'   of the first file.
+#' @return `zipfile`, invisibly.
+#' @noRd
+.write_zip <- function(zipfile, files, root = dirname(files[1])) {
+  if (length(files) == 0) {
+    stop("No files to archive", call. = FALSE)
+  }
+
+  zipfile <- normalizePath(zipfile, winslash = "/", mustWork = FALSE)
+  entries <- basename(files)
+
+  if (requireNamespace("zip", quietly = TRUE)) {
+    zip::zipr(zipfile = zipfile, files = entries, root = root)
+    return(invisible(zipfile))
+  }
+
+  old_wd <- setwd(root)
+  on.exit(setwd(old_wd), add = TRUE)
+  status <- utils::zip(zipfile = zipfile, files = entries)
+
+  if (!identical(as.integer(status), 0L)) {
+    stop(
+      "Could not create the zip archive: no 'zip' program was found on this ",
+      "system. Install the zip package to enable zipped downloads:\n",
+      "  install.packages(\"zip\")",
+      call. = FALSE
+    )
+  }
+
+  invisible(zipfile)
+}

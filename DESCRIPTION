@@ -62,7 +62,8 @@ Suggests:
     shinytest2,
     withr,
     chromote,
-    RSQLite
+    RSQLite,
+    zip
 Encoding: UTF-8
 LazyData: true
 VignetteBuilder: knitr
