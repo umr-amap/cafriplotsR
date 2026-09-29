@@ -551,6 +551,45 @@ rehearse_child_rls_as_role <- function(con, role = NULL) {
 }
 
 
+# Role names on this database contain a hyphen, which has to be quoted or the
+# parser reads it as subtraction.
+.rq <- function(x) paste0('"', gsub('"', '""', x), '"')
+
+
+#' Sequences the insert chain needs and the caller cannot use
+#'
+#' A serial key needs `USAGE` on its sequence as well as `INSERT` on the table,
+#' and the two are granted separately - so an account given table privileges by
+#' hand can hold every `INSERT` it needs and still not insert a row.
+#'
+#' Discovered from the catalog rather than named: `pg_get_serial_sequence()`
+#' resolves the dependency, so a column that stops being serial, or one added
+#' later, is handled without editing a list.
+#' @noRd
+.rehearsal_missing_sequences <- function(con) {
+
+  tables <- CafriplotsR:::.plot_scope_tables()
+
+  out <- DBI::dbGetQuery(con, glue::glue_sql("
+    SELECT DISTINCT s.seq_name
+      FROM (
+        SELECT pg_get_serial_sequence('public.' || c.relname, a.attname)
+                 AS seq_name
+          FROM pg_attribute a
+          JOIN pg_class     c ON c.oid = a.attrelid
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public'
+           AND c.relname IN ({tables*})
+           AND a.attnum > 0 AND NOT a.attisdropped
+      ) s
+     WHERE s.seq_name IS NOT NULL
+       AND NOT has_sequence_privilege(current_user, s.seq_name, 'USAGE')
+     ORDER BY 1", .con = con))
+
+  out$seq_name
+}
+
+
 #' The account's writable plot with the most underneath it
 #'
 #' So the clones have something to copy. Returns NULL, having said why, when
@@ -807,6 +846,23 @@ rehearse_child_rls <- function(con) {
            {.code GRANT SELECT ON public.plot_access TO PUBLIC;} settles it and
            leaks nothing - plot_access_self restricts each reader to its own
            rows."))
+  }
+
+  # INSERT on a table with a serial key also needs USAGE on its sequence, and
+  # the two are granted separately. plots_transects-rw has both, so this never
+  # shows up for a real account - but it is the first thing to fail for an
+  # account set up by granting table privileges alone, and the raw error
+  # (permission denied for sequence ...) does not say what to do about it.
+  missing_seq <- .rehearsal_missing_sequences(actual)
+  if (length(missing_seq)) {
+    cli::cli_abort(c(
+      "{.val {who}} cannot use {length(missing_seq)} of the sequences the insert
+       chain needs, so every step would fail on the serial key rather than on a
+       policy.",
+      i = "Run as the owner:",
+      " " = paste0("GRANT USAGE ON SEQUENCE ",
+                   paste(missing_seq, collapse = ", "),
+                   " TO ", .rq(who), ";")))
   }
 
   plot_id <- .rehearsal_plot(actual, who)
