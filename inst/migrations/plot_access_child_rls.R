@@ -482,11 +482,22 @@ report_child_rls_state <- function(con) {
 #' Safe to run before the migration: it then shows the chain passing with no
 #' policies in the way, which is the baseline the run after should match.
 #'
+#' @section Which of the two to use:
+#' [rehearse_child_rls()] is the one to reach for. It runs the same steps over a
+#' connection already opened as an ordinary account, which needs no privilege at
+#' all and is a closer match to what a colleague's session actually does.
+#'
+#' This function needs `SET ROLE`, which needs membership, which on a managed
+#' OVH instance the owner does not have and cannot grant itself - `dauby` is
+#' neither superuser nor `CREATEROLE`. It is kept for a database where that is
+#' not true.
+#'
 #' @param con A connection to the main database.
 #' @param role Character. The account to impersonate. Must hold a writable plot
 #'   in `plot_access`, and the current role must be able to `SET ROLE` to it.
 #'   Call with `role = NULL` to list the accounts worth using.
 #' @return Invisibly, a data frame with one row per step.
+#' @seealso [rehearse_child_rls()], which needs no privileges.
 #' @export
 rehearse_child_rls_as_role <- function(con, role = NULL) {
 
@@ -496,37 +507,17 @@ rehearse_child_rls_as_role <- function(con, role = NULL) {
   if (is.null(role) || !nzchar(role) || grepl("^<", role)) {
     cli::cli_h2("Accounts worth rehearsing as")
     cli::cli_alert_info(
-      "Ordered by how much of the six tables each would exercise. Pass one of
-       these names - the rehearsal writes nothing and always rolls back.")
+      "Ordered by how much of the six tables each would exercise. But prefer
+       {.code rehearse_child_rls(con_test)} over this function - it needs no
+       privileges, and on a managed OVH instance SET ROLE is not available.")
     print(.rehearsal_candidates(actual), row.names = FALSE)
     return(invisible(NULL))
   }
 
-  cli::cli_h1("Import rehearsal as {.val {role}}")
+  cli::cli_h1("Import rehearsal as {.val {role}} (via SET ROLE)")
 
-  # The account's writable plot with the most underneath it, so the clones have
-  # something to copy.
-  plot_id <- DBI::dbGetQuery(actual, glue::glue_sql("
-    SELECT a.id_liste_plots
-      FROM public.plot_access a
-     WHERE a.db_user = {role} AND a.can_write
-     ORDER BY (SELECT count(*) FROM public.data_individuals i
-                WHERE i.id_table_liste_plots_n = a.id_liste_plots) DESC
-     LIMIT 1", .con = actual))
-
-  if (nrow(plot_id) == 0) {
-    cli::cli_alert_danger(
-      "{.val {role}} holds no writable plot in plot_access - nothing to rehearse")
-    cli::cli_alert_info(
-      "For a read-only account that is the correct answer: it cannot import, and
-       under plot scope it still cannot. Try one of these instead:")
-    print(.rehearsal_candidates(actual), row.names = FALSE)
-    return(invisible(NULL))
-  }
-  plot_id <- plot_id$id_liste_plots[1]
-  cli::cli_alert_info("Cloning from plot {.val {plot_id}}")
-
-  result <- list()
+  plot_id <- .rehearsal_plot(actual, role)
+  if (is.null(plot_id)) return(invisible(NULL))
 
   DBI::dbBegin(actual)
 
@@ -538,7 +529,11 @@ rehearse_child_rls_as_role <- function(con, role = NULL) {
   }, error = function(e) {
     cli::cli_alert_danger("Cannot SET ROLE to {.val {role}}: {e$message}")
     cli::cli_alert_info(
-      "Grant it to yourself first: {.code GRANT \"{role}\" TO current_user;}")
+      "SET ROLE needs membership, and membership cannot be granted without
+       CREATEROLE - which the owner does not have on a managed OVH instance.
+       Use {.code rehearse_child_rls(con_test)} instead: open a second
+       connection as an ordinary account and pass it. That needs no privilege
+       and is a closer match to what a colleague's session does.")
     FALSE
   })
 
@@ -546,6 +541,53 @@ rehearse_child_rls_as_role <- function(con, role = NULL) {
     DBI::dbRollback(actual)
     return(invisible(NULL))
   }
+
+  r <- .rehearsal_steps(actual, plot_id)
+
+  DBI::dbRollback(actual)
+  cli::cli_alert_info("Transaction rolled back - nothing was written")
+
+  invisible(.rehearsal_report(r, role))
+}
+
+
+#' The account's writable plot with the most underneath it
+#'
+#' So the clones have something to copy. Returns NULL, having said why, when
+#' there is nothing to rehearse with.
+#' @noRd
+.rehearsal_plot <- function(actual, who) {
+
+  out <- DBI::dbGetQuery(actual, glue::glue_sql("
+    SELECT a.id_liste_plots
+      FROM public.plot_access a
+     WHERE a.db_user = {who} AND a.can_write
+     ORDER BY (SELECT count(*) FROM public.data_individuals i
+                WHERE i.id_table_liste_plots_n = a.id_liste_plots) DESC
+     LIMIT 1", .con = actual))
+
+  if (nrow(out) == 0) {
+    cli::cli_alert_danger(
+      "{.val {who}} holds no writable plot in plot_access - nothing to rehearse")
+    cli::cli_alert_info(
+      "For a read-only account that is the right answer: it cannot import today
+       and under plot scope it still cannot.")
+    return(NULL)
+  }
+
+  cli::cli_alert_info("Cloning from plot {.val {out$id_liste_plots[1]}}")
+  out$id_liste_plots[1]
+}
+
+
+#' Run the seven inserts and the six counts
+#'
+#' Assumes a transaction is already open and does not end it - the caller rolls
+#' back, so both entry points share this without either deciding for the other.
+#' @noRd
+.rehearsal_steps <- function(actual, plot_id) {
+
+  result <- list()
 
   step <- function(label, sql, sp) {
 
@@ -657,40 +699,125 @@ rehearse_child_rls_as_role <- function(con, role = NULL) {
         stringsAsFactors = FALSE)))
   })
 
+  list(result = result, vis = vis)
+}
+
+
+#' Print the outcome and return it as a data frame
+#' @noRd
+.rehearsal_report <- function(r, who) {
+
+  if (!inherits(r$vis, "child_rls_failure")) {
+    cli::cli_h2("Rows {.val {who}} could read during the rehearsal")
+    print(r$vis, row.names = FALSE)
+  }
+
+  out <- do.call(rbind, lapply(names(r$result), function(k) data.frame(
+    step = k, ok = r$result[[k]]$ok, id = r$result[[k]]$id,
+    message = r$result[[k]]$message, stringsAsFactors = FALSE)))
+
+  if (is.null(out)) return(out)
+
+  n_fail <- sum(!is.na(out$ok) & !out$ok)
+  n_skip <- sum(is.na(out$ok))
+
+  if (n_fail == 0 && n_skip == 0) {
+    cli::cli_alert_success(
+      "All {nrow(out)} insert{?s} passed as {.val {who}} - every child table
+       accepted a write, so the wizard chain works unattended")
+  } else if (n_fail == 0) {
+    cli::cli_alert_warning(
+      "{sum(out$ok, na.rm = TRUE)} passed, {n_skip} skipped for want of a source
+       row. A skipped step proves nothing either way - rehearse with an account
+       that has data in every table.")
+  } else {
+    cli::cli_alert_danger(
+      "{n_fail} step{?s} failed as {.val {who}} - the wizard would not complete
+       for this account")
+    print(out[!is.na(out$ok) & !out$ok, c("step", "message")], row.names = FALSE)
+  }
+
+  out
+}
+
+
+#' @title Prove the import chain still works, over an ordinary account's own connection
+#' @description
+#' The verification to use. Runs an insert into each of the six child tables -
+#' plus the plot above them - inside a transaction that always rolls back, on a
+#' connection that is *already* logged in as an ordinary account.
+#'
+#' This needs no privilege of any kind, which is why it is the one that works
+#' here. [rehearse_child_rls_as_role()] needs `SET ROLE`, which needs membership,
+#' which needs `CREATEROLE` to grant - and on a managed OVH instance the owner
+#' has neither superuser nor `CREATEROLE` and cannot obtain them. It is also the
+#' more faithful test: a real connection is exactly what a colleague's session
+#' is, including the `COPY FROM` behaviour that differs for non-owners.
+#'
+#' Refuses to run as the owner of the tables, because the result would mean
+#' nothing: ownership bypasses row-level security, so every step would pass
+#' whether the policies were right or not.
+#'
+#' Each insert clones an existing row of one of the account's own plots and
+#' overrides only the parent key, so every foreign key holds by construction, and
+#' the column list comes from the catalog rather than from memory. A step with
+#' nothing visible to clone is reported as skipped, not passed.
+#'
+#' Run it before the migration as well as after: the before-run is the baseline
+#' the after-run has to match.
+#'
+#' @param con A connection opened as an ordinary (non-owner) account, e.g.
+#'   `call.mydb(user = "user_test2", password = "...")`.
+#' @return Invisibly, a data frame with one row per step.
+#' @seealso [rehearse_child_rls_as_role()], for a database where `SET ROLE` is
+#'   available.
+#' @export
+rehearse_child_rls <- function(con) {
+
+  actual <- .child_con(con)
+  on.exit(.child_release(con, actual), add = TRUE)
+
+  who <- DBI::dbGetQuery(actual, "SELECT current_user AS u")$u
+
+  cli::cli_h1("Import rehearsal as {.val {who}}")
+
+  # Ownership, not the role name, is what bypasses row-level security - so this
+  # asks the catalog rather than comparing against a hardcoded owner.
+  owned <- DBI::dbGetQuery(actual, "
+    SELECT count(*) AS n
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public'
+       AND c.relname = 'data_liste_plots'
+       AND pg_get_userbyid(c.relowner) = current_user")$n
+
+  if (owned > 0) {
+    cli::cli_abort(c(
+      "{.val {who}} owns data_liste_plots, so it bypasses row-level security.",
+      x = "Every step would pass whether the policies were right or wrong.",
+      i = "Open a connection as an ordinary account and pass that instead:
+           {.code call.mydb(user = \"user_test2\", password = \"...\")}."))
+  }
+
+  if (!CafriplotsR:::.plot_access_present(actual)) {
+    cli::cli_abort(c(
+      "{.val {who}} cannot see plot_access.",
+      i = "Every policy reads it, so this account would get
+           {.emph permission denied} rather than its rows.
+           {.code GRANT SELECT ON public.plot_access TO PUBLIC;} settles it and
+           leaks nothing - plot_access_self restricts each reader to its own
+           rows."))
+  }
+
+  plot_id <- .rehearsal_plot(actual, who)
+  if (is.null(plot_id)) return(invisible(NULL))
+
+  DBI::dbBegin(actual)
+  r <- .rehearsal_steps(actual, plot_id)
   DBI::dbRollback(actual)
   cli::cli_alert_info("Transaction rolled back - nothing was written")
 
-  if (!inherits(vis, "child_rls_failure")) {
-    cli::cli_h2("Rows {.val {role}} could read during the rehearsal")
-    print(vis, row.names = FALSE)
-  }
-
-  out <- do.call(rbind, lapply(names(result), function(k) data.frame(
-    step = k, ok = result[[k]]$ok, id = result[[k]]$id,
-    message = result[[k]]$message, stringsAsFactors = FALSE)))
-
-  if (!is.null(out)) {
-
-    n_fail <- sum(!is.na(out$ok) & !out$ok)
-    n_skip <- sum(is.na(out$ok))
-
-    if (n_fail == 0 && n_skip == 0) {
-      cli::cli_alert_success(
-        "All {nrow(out)} insert{?s} passed as {.val {role}} - every child table
-         accepted a write, so the wizard chain works unattended")
-    } else if (n_fail == 0) {
-      cli::cli_alert_warning(
-        "{sum(out$ok, na.rm = TRUE)} passed, {n_skip} skipped for want of a
-         source row. A skipped step proves nothing either way - rehearse with an
-         account that has data in every table.")
-    } else {
-      cli::cli_alert_danger(
-        "{n_fail} step{?s} failed as {.val {role}} - the wizard would not
-         complete for this account")
-    }
-  }
-
-  invisible(out)
+  invisible(.rehearsal_report(r, who))
 }
 
 
