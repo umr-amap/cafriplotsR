@@ -1140,7 +1140,18 @@ define_user_policy <- function(con, user, ids,
     }
     
     cli::cli_alert_info("User '{user}' granted {paste(operations, collapse = ', ')} access to plot IDs: {paste(ids, collapse = ', ')}")
-    
+
+    # Mirror into plot_access, so the two records of who may see what cannot
+    # diverge while both exist. A no-op on a database where the plot_access
+    # migration has not run.
+    #
+    # `ids` is the absolute set by this point: add and remove modes resolve it
+    # against the existing grants above and force drop_existing, so the policies
+    # now grant exactly this. Only when drop_existing is FALSE are the old
+    # policies still in place alongside the new ones, and the mirror has to be
+    # additive to match.
+    .mirror_plot_access(con, user, ids, operations, additive = !drop_existing)
+
     return(invisible(TRUE))
     
   }, error = function(e) {

@@ -119,3 +119,44 @@ test_that(".policy_cmd_capability() errors rather than guessing", {
   expect_error(.policy_cmd_capability(NA_character_), "one command at a time")
   expect_error(.policy_cmd_capability(c("SELECT", "ALL")), "one command at a time")
 })
+
+# The mapping that decides what a policy grant records in plot_access. Getting
+# "ALL" wrong here is how 13,913 grants came to carry DELETE.
+
+test_that(".operations_to_capabilities() keeps DELETE out of ALL", {
+  caps <- .operations_to_capabilities("ALL")
+  expect_true(caps$can_write)
+  expect_false(caps$can_delete)
+})
+
+test_that(".operations_to_capabilities() reads an explicit operation list", {
+  expect_equal(.operations_to_capabilities("SELECT"),
+               list(can_write = FALSE, can_delete = FALSE))
+  expect_equal(.operations_to_capabilities(c("SELECT", "UPDATE")),
+               list(can_write = TRUE, can_delete = FALSE))
+  expect_equal(.operations_to_capabilities(c("SELECT", "DELETE")),
+               list(can_write = FALSE, can_delete = TRUE))
+  expect_equal(.operations_to_capabilities(c("SELECT", "UPDATE", "DELETE")),
+               list(can_write = TRUE, can_delete = TRUE))
+})
+
+test_that(".operations_to_capabilities() ignores INSERT, which carries no plot list", {
+  expect_equal(.operations_to_capabilities(c("SELECT", "INSERT")),
+               list(can_write = FALSE, can_delete = FALSE))
+})
+
+test_that(".operations_to_capabilities() is case- and whitespace-tolerant", {
+  expect_true(.operations_to_capabilities(" all ")$can_write)
+  expect_true(.operations_to_capabilities(c("select", "delete"))$can_delete)
+})
+
+test_that(".operations_to_capabilities() lets ALL win over a longer list", {
+  # define_user_policy() collapses operations to "ALL" when it appears, so the
+  # mapping has to agree rather than reading the other entries.
+  expect_false(.operations_to_capabilities(c("ALL", "DELETE"))$can_delete)
+})
+
+test_that(".operations_to_capabilities() needs an operation", {
+  expect_error(.operations_to_capabilities(character(0)),
+               "at least one operation")
+})

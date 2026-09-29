@@ -436,3 +436,265 @@ plot_access_delete_rights <- function(con, tables = .plot_scope_tables()) {
   ok <- TRUE
   n
 }
+
+
+# =============================================================================
+# Keeping plot_access and the policies in step
+#
+# Between step 4 and step 5 there are two records of who may see what, and only
+# one of them enforces anything:
+#
+#   - the ~125 policies on data_liste_plots, which PostgreSQL applies
+#   - plot_access, seeded from them, which nothing reads yet
+#
+# A grant made through define_user_policy() would update the first and not the
+# second, and the divergence would be silent until step 5 enforced the stale
+# copy. So define_user_policy() mirrors into plot_access on every call, and
+# plot_access_drift() reports any disagreement at any time.
+#
+# The mirror is deliberately one-directional. Policies stay the source of truth
+# until the child tables are keyed on plot_access; writing plot_access and
+# expecting the policies to follow would be the same bug the other way round.
+# =============================================================================
+
+#' Is plot_access installed?
+#'
+#' A soft check, unlike `.assert_plot_access()`: the mirror has to be a no-op on
+#' a database where the migration has not run, so that `define_user_policy()`
+#' keeps working unchanged there.
+#' @keywords internal
+#' @noRd
+.plot_access_present <- function(con) {
+  isTRUE(tryCatch(
+    DBI::dbGetQuery(con,
+      "SELECT to_regclass('public.plot_access') IS NOT NULL AS ok")$ok,
+    error = function(e) FALSE))
+}
+
+
+#' @title What capabilities does an `operations` argument confer?
+#' @description
+#' Maps the `operations` argument of [define_user_policy()] onto the `can_write`
+#' and `can_delete` flags of `plot_access`.
+#'
+#' `"ALL"` means SELECT, INSERT and UPDATE - not DELETE. It used to mean all
+#' four, and since `define_full_access_policy()` is the usual way a colleague
+#' gets access, that is how 13,913 of 14,018 plot grants came to carry the right
+#' to delete other people's plots. DELETE is now named explicitly or handed out
+#' per plot with [grant_delete_right()].
+#'
+#' @param operations Character vector, as passed to [define_user_policy()].
+#'
+#' @return A list with `can_write` and `can_delete`, both logical.
+#'
+#' @examples
+#' .operations_to_capabilities("SELECT")
+#' .operations_to_capabilities("ALL")
+#' .operations_to_capabilities(c("SELECT", "DELETE"))
+#'
+#' @keywords internal
+#' @export
+.operations_to_capabilities <- function(operations) {
+
+  if (length(operations) == 0) {
+    stop(".operations_to_capabilities() needs at least one operation",
+         call. = FALSE)
+  }
+  ops <- toupper(trimws(operations))
+
+  if ("ALL" %in% ops) {
+    return(list(can_write = TRUE, can_delete = FALSE))
+  }
+
+  list(can_write  = "UPDATE" %in% ops,
+       can_delete = "DELETE" %in% ops)
+}
+
+
+#' Mirror a policy grant into plot_access
+#'
+#' Called by [define_user_policy()] after it has written the policies, so the two
+#' records cannot diverge while both exist.
+#'
+#' Rows whose `origin` is not `'admin'` are never touched. A creator holds access
+#' because they imported the plot, not because a policy says so, and an admin
+#' grant being replaced or removed must not take that away - which is why the
+#' `DO UPDATE` carries `WHERE plot_access.origin = 'admin'` and simply skips
+#' them.
+#'
+#' Plots that no longer exist are dropped for free: the INSERT selects from
+#' `data_liste_plots`, so an id the policies still name but the table does not
+#' have contributes nothing. That is the same dead-grant class the seed found.
+#'
+#' @param con A connection to plots_transects.
+#' @param user Character. The role the policies were written for.
+#' @param ids Integer vector. The plots the policies now grant - the absolute
+#'   set, which is what `define_user_policy()` holds by the time it writes them.
+#' @param operations Character vector, as passed to `define_user_policy()`.
+#' @param additive Logical. `TRUE` leaves grants outside `ids` alone, for the
+#'   case where existing policies were not dropped.
+#' @return Invisibly `TRUE` if the mirror ran.
+#' @keywords internal
+#' @noRd
+.mirror_plot_access <- function(con, user, ids, operations, additive = FALSE) {
+
+  if (!.plot_access_present(con)) return(invisible(FALSE))
+
+  caps <- .operations_to_capabilities(operations)
+  ids  <- unique(as.integer(ids[is.finite(ids)]))
+  if (length(ids) == 0) return(invisible(FALSE))
+
+  tryCatch({
+    if (!additive) {
+      n_gone <- DBI::dbExecute(con, glue::glue_sql(
+        "DELETE FROM plot_access
+          WHERE db_user = {user}
+            AND origin = 'admin'
+            AND NOT (id_liste_plots = ANY({ids}::integer[]))", .con = con))
+      if (n_gone > 0) {
+        cli::cli_alert_info(
+          "plot_access: removed {n_gone} grant{?s} no longer covered by a policy")
+      }
+    }
+
+    n_set <- DBI::dbExecute(con, glue::glue_sql(
+      "INSERT INTO plot_access
+         (db_user, id_liste_plots, can_write, can_delete, origin, granted_by, note)
+       SELECT {user}, p.id_liste_plots, {caps$can_write}, {caps$can_delete},
+              'admin', current_user, 'mirrored from define_user_policy()'
+         FROM data_liste_plots p
+        WHERE p.id_liste_plots = ANY({ids}::integer[])
+       ON CONFLICT (db_user, id_liste_plots) DO UPDATE
+          SET can_write  = EXCLUDED.can_write,
+              can_delete = EXCLUDED.can_delete
+        WHERE plot_access.origin = 'admin'", .con = con))
+
+    cli::cli_alert_success(
+      "plot_access: {n_set} row{?s} written for '{user}'
+       (can_write = {caps$can_write}, can_delete = {caps$can_delete})")
+    invisible(TRUE)
+
+  }, error = function(e) {
+    # A failed mirror must not fail the grant: the policies are what enforce
+    # access, and they have already been written. But it must be loud, because a
+    # silent failure is exactly the drift this function exists to prevent.
+    cli::cli_alert_danger(
+      "plot_access was NOT updated for '{user}': {e$message}")
+    cli::cli_alert_warning(
+      "The policies were written, so access is correct, but plot_access is now
+       stale. Run {.code plot_access_drift(con)} to see what diverged.")
+    invisible(FALSE)
+  })
+}
+
+
+#' Remove every plot_access grant for an account
+#'
+#' For [deactivate_user()], which drops an account's policies. Creator rows go
+#' too: the account is being retired, so it should hold nothing.
+#'
+#' @param con A connection to plots_transects.
+#' @param user Character. The role being retired.
+#' @return Invisibly the number of rows removed.
+#' @keywords internal
+#' @noRd
+.clear_plot_access <- function(con, user) {
+  if (!.plot_access_present(con)) return(invisible(0L))
+  tryCatch({
+    n <- DBI::dbExecute(con, glue::glue_sql(
+      "DELETE FROM plot_access WHERE db_user = {user}", .con = con))
+    if (n > 0) cli::cli_alert_success("plot_access: removed {n} grant{?s} for '{user}'")
+    invisible(n)
+  }, error = function(e) {
+    cli::cli_alert_danger("Could not clear plot_access for '{user}': {e$message}")
+    invisible(0L)
+  })
+}
+
+
+#' @title Where plot_access and the row-level security policies disagree
+#' @description
+#' Until the child tables are keyed on `plot_access`, the policies on
+#' `data_liste_plots` are what enforce access and `plot_access` is a record of
+#' them. This compares the two, per account, and names the difference.
+#'
+#' A grant naming a plot that no longer exists is not counted as a difference:
+#' a `USING` clause naming a deleted plot matches no row, so the account has seen
+#' nothing for it since the plot went.
+#'
+#' @param con A connection to plots_transects, as the owner (the comparison reads
+#'   every account's grants, which only the owner can see).
+#'
+#' @return Invisibly a data frame with one row per account, and `TRUE` in
+#'   `agrees` where the two records match.
+#'
+#' @examples
+#' \dontrun{
+#' con <- call.mydb()
+#' plot_access_drift(con)
+#' }
+#' @export
+plot_access_drift <- function(con) {
+
+  .assert_plot_access(con)
+
+  existing <- DBI::dbGetQuery(con,
+    "SELECT id_liste_plots FROM data_liste_plots")$id_liste_plots
+
+  users <- sort(unique(c(
+    DBI::dbGetQuery(con, "SELECT DISTINCT db_user FROM plot_access")$db_user,
+    DBI::dbGetQuery(con, "
+      SELECT DISTINCT u.role_name AS db_user
+        FROM pg_policies p, LATERAL unnest(p.roles) AS u(role_name)
+       WHERE p.schemaname = 'public' AND p.tablename = 'data_liste_plots'
+         AND lower(u.role_name) <> 'public'")$db_user)))
+
+  owner <- DBI::dbGetQuery(con, "
+    SELECT pg_get_userbyid(relowner) AS n
+      FROM pg_class WHERE oid = 'public.data_liste_plots'::regclass")$n
+  users <- setdiff(users, owner)
+
+  if (length(users) == 0) {
+    cli::cli_alert_info("No accounts to compare")
+    return(invisible(data.frame()))
+  }
+
+  rows <- lapply(users, function(u) {
+    stored <- DBI::dbGetQuery(con, glue::glue_sql(
+      "SELECT id_liste_plots FROM plot_access WHERE db_user = {u}",
+      .con = con))$id_liste_plots
+
+    from_policies <- tryCatch({
+      res <- suppressMessages(get_user_accessible_plots(con, u, "data_liste_plots"))
+      if (is.null(res) || nrow(res) == 0) integer(0)
+      else intersect(sort(unique(as.integer(unlist(res$plot_ids)))), existing)
+    }, error = function(e) integer(0))
+
+    data.frame(
+      db_user       = u,
+      in_plot_access = length(stored),
+      in_policies    = length(from_policies),
+      only_policies  = length(setdiff(from_policies, stored)),
+      only_stored    = length(setdiff(stored, from_policies)),
+      agrees = setequal(stored, from_policies),
+      stringsAsFactors = FALSE)
+  })
+
+  out <- do.call(rbind, rows)
+  rownames(out) <- NULL
+
+  bad <- out[!out$agrees, , drop = FALSE]
+  if (nrow(bad) == 0) {
+    cli::cli_alert_success(
+      "plot_access and the policies agree for all {nrow(out)} account{?s}")
+  } else {
+    cli::cli_alert_danger("{nrow(bad)} account{?s} disagree{?s/}:")
+    print(bad, row.names = FALSE)
+    cli::cli_alert_info(
+      "{.code only_policies} means an account can see plots plot_access does not
+       record - it would lose them at step 5. {.code only_stored} means the
+       reverse, and would gain them.")
+  }
+
+  invisible(out)
+}
