@@ -87,7 +87,8 @@
 #   con <- CafriplotsR::call.mydb()
 #
 #   report_child_rls_state(con)                        # read-only
-#   rehearse_child_rls_as_role(con, "some_account")    # read-only: rolls back
+#   rehearse_child_rls_as_role(con)                    # lists accounts to use
+#   rehearse_child_rls_as_role(con, "alexmass")        # read-only: rolls back
 #   migrate_plot_access_child_rls(con)                 # rehearsal, prints SQL
 #   migrate_plot_access_child_rls(con, dry_run = FALSE)
 #   check_plot_access_child_rls(con)
@@ -389,39 +390,122 @@ report_child_rls_state <- function(con) {
 
 # --- the SET ROLE rehearsal --------------------------------------------------
 
+# Which columns to carry across when cloning a row.
+#
+# Read from the catalog, never listed by hand: the first version of this file
+# named plot_name, method, country and tag from memory, which is the same guess
+# that cost inst/scripts/check_plot_access_cost.R a whole transaction.
+#
+# Left out on purpose: the serial primary key, and created_by / user_creation /
+# user_modif. Cloning created_by would copy the original creator and insert_own
+# would then refuse the row - the whole point is that the default supplies
+# current_user.
+.clone_columns <- function(con, table) {
+
+  DBI::dbGetQuery(con, glue::glue_sql("
+    SELECT a.attname AS column_name
+      FROM pg_attribute a
+      JOIN pg_class     c ON c.oid = a.attrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = 'public' AND c.relname = {table}
+       AND a.attnum > 0 AND NOT a.attisdropped
+       AND a.attidentity = ''
+       AND pg_get_serial_sequence('public.' || c.relname, a.attname) IS NULL
+       AND a.attname NOT IN ('created_by', 'user_creation', 'user_modif')
+     ORDER BY a.attnum", .con = con))$column_name
+}
+
+
+# INSERT ... SELECT from an existing row, overriding the columns that must
+# change. Every foreign key is then satisfied by construction - the same trick
+# plot_access_seed.R uses to make its inserts FK-safe without resolving the
+# references by hand.
+.clone_insert_sql <- function(con, table, overrides, join, where, returning) {
+
+  cols <- .clone_columns(con, table)
+  if (length(cols) == 0) return(NULL)
+
+  exprs <- vapply(cols, function(cl) {
+    if (cl %in% names(overrides)) overrides[[cl]] else paste0("src.", cl)
+  }, character(1))
+
+  paste0("INSERT INTO public.", table,
+         " (", paste(cols, collapse = ", "), ")",
+         " SELECT ", paste(exprs, collapse = ", "),
+         " FROM public.", table, " src", join,
+         " WHERE ", where,
+         " LIMIT 1 RETURNING ", returning)
+}
+
+
+#' Accounts worth rehearsing as
+#'
+#' Ordered by how much of the six tables they would actually exercise, so a
+#' rehearsal does not pass by skipping every step.
+#' @noRd
+.rehearsal_candidates <- function(con, n = 5L) {
+
+  out <- DBI::dbGetQuery(con, "
+    SELECT a.db_user,
+           count(*) AS writable_plots,
+           (SELECT count(*) FROM public.data_individuals i
+             WHERE i.id_table_liste_plots_n IN (
+               SELECT b.id_liste_plots FROM public.plot_access b
+                WHERE b.db_user = a.db_user AND b.can_write)) AS individuals
+      FROM public.plot_access a
+     WHERE a.can_write
+     GROUP BY a.db_user
+     ORDER BY individuals DESC, writable_plots DESC")
+
+  utils::head(out, n)
+}
+
+
 #' @title Prove the import chain still works, as somebody else
 #' @description
-#' Runs the five inserts the import wizard makes - plot, subplot, individual,
-#' measurement, individual feature - inside a transaction that always rolls
-#' back, with `SET LOCAL ROLE` so the policies actually apply.
+#' Runs an insert into each of the six child tables - plus the plot above them -
+#' inside a transaction that always rolls back, with `SET LOCAL ROLE` so the
+#' policies actually apply.
 #'
 #' This is the only verification that answers the question. The owner bypasses
 #' row-level security, so a catalog check and a run as `dauby` both pass whether
-#' the policies are right or not.
+#' the policies are right or not. `COPY FROM` is likewise refused only when
+#' row-level security applies to the caller.
 #'
 #' Each insert clones an existing row of one of the account's own plots and
-#' changes only what it must, so every foreign key is satisfied by construction
-#' - the same trick `plot_access_seed.R` uses to make its inserts FK-safe. A
-#' step with nothing to clone is skipped and said to be skipped, not failed.
+#' overrides only the parent key, so every foreign key holds by construction.
+#' The column list comes from the catalog. A step with nothing visible to clone
+#' is reported as skipped, not passed: an `INSERT ... SELECT` whose source row
+#' the account cannot see inserts nothing and raises nothing, which would
+#' otherwise look like a pass while testing the policy not at all.
 #'
 #' Safe to run before the migration: it then shows the chain passing with no
 #' policies in the way, which is the baseline the run after should match.
 #'
 #' @param con A connection to the main database.
-#' @param role Character. The account to impersonate. Must appear in
-#'   `plot_access` and the current role must be able to `SET ROLE` to it.
+#' @param role Character. The account to impersonate. Must hold a writable plot
+#'   in `plot_access`, and the current role must be able to `SET ROLE` to it.
+#'   Call with `role = NULL` to list the accounts worth using.
 #' @return Invisibly, a data frame with one row per step.
 #' @export
-rehearse_child_rls_as_role <- function(con, role) {
-
-  stopifnot(is.character(role), length(role) == 1L)
+rehearse_child_rls_as_role <- function(con, role = NULL) {
 
   actual <- .child_con(con)
   on.exit(.child_release(con, actual), add = TRUE)
 
+  if (is.null(role) || !nzchar(role) || grepl("^<", role)) {
+    cli::cli_h2("Accounts worth rehearsing as")
+    cli::cli_alert_info(
+      "Ordered by how much of the six tables each would exercise. Pass one of
+       these names - the rehearsal writes nothing and always rolls back.")
+    print(.rehearsal_candidates(actual), row.names = FALSE)
+    return(invisible(NULL))
+  }
+
   cli::cli_h1("Import rehearsal as {.val {role}}")
 
-  # A plot the role can write, with enough underneath it to clone from.
+  # The account's writable plot with the most underneath it, so the clones have
+  # something to copy.
   plot_id <- DBI::dbGetQuery(actual, glue::glue_sql("
     SELECT a.id_liste_plots
       FROM public.plot_access a
@@ -432,26 +516,29 @@ rehearse_child_rls_as_role <- function(con, role) {
 
   if (nrow(plot_id) == 0) {
     cli::cli_alert_danger(
-      "{.val {role}} has no writable plot in plot_access - nothing to rehearse")
+      "{.val {role}} holds no writable plot in plot_access - nothing to rehearse")
+    cli::cli_alert_info(
+      "For a read-only account that is the correct answer: it cannot import, and
+       under plot scope it still cannot. Try one of these instead:")
+    print(.rehearsal_candidates(actual), row.names = FALSE)
     return(invisible(NULL))
   }
   plot_id <- plot_id$id_liste_plots[1]
   cli::cli_alert_info("Cloning from plot {.val {plot_id}}")
 
-  steps <- character(0)
   result <- list()
 
   DBI::dbBegin(actual)
 
   # SET LOCAL reverts when the transaction ends, however it ends.
   ok <- tryCatch({
-    DBI::dbExecute(actual, glue::glue_sql(
-      "SET LOCAL ROLE {`role`}", .con = actual))
+    DBI::dbExecute(actual, glue::glue_sql("SET LOCAL ROLE {`role`}",
+                                          .con = actual))
     TRUE
   }, error = function(e) {
     cli::cli_alert_danger("Cannot SET ROLE to {.val {role}}: {e$message}")
     cli::cli_alert_info(
-      "Grant it to yourself first: {.code GRANT {role} TO current_user;}")
+      "Grant it to yourself first: {.code GRANT \"{role}\" TO current_user;}")
     FALSE
   })
 
@@ -460,16 +547,19 @@ rehearse_child_rls_as_role <- function(con, role) {
     return(invisible(NULL))
   }
 
-  # An INSERT ... SELECT whose source row the role cannot see inserts nothing
-  # and raises nothing. That is not a pass: it means the policy under test was
-  # never exercised, so it is reported as a skip.
   step <- function(label, sql, sp) {
+
+    if (is.null(sql)) {
+      result[[label]] <<- list(ok = NA, id = NA, message = "no parent id")
+      cli::cli_alert_warning("{label}: skipped, the step above it did not run")
+      return(NA_integer_)
+    }
 
     out <- .child_savepoint(actual, sp, DBI::dbGetQuery(actual, sql))
 
     if (inherits(out, "child_rls_failure")) {
       cli::cli_alert_danger("{label}: {out$message}")
-      result[[label]] <<- list(ok = FALSE, message = out$message, id = NA)
+      result[[label]] <<- list(ok = FALSE, id = NA, message = out$message)
       return(NA_integer_)
     }
 
@@ -484,58 +574,80 @@ rehearse_child_rls_as_role <- function(con, role) {
 
     id <- as.integer(out[[1]][1])
     cli::cli_alert_success("{label}: inserted, id {id}")
-    result[[label]] <<- list(ok = TRUE, message = "", id = id)
+    result[[label]] <<- list(ok = TRUE, id = id, message = "")
     id
   }
 
-  # 1. a plot, cloned from one of theirs. created_by is left to its default so
-  #    insert_own sees current_user; the RETURNING is what creator_access_select
-  #    has to carry, since the creator trigger has not fired yet.
-  new_plot <- step("plot", glue::glue_sql("
-    INSERT INTO public.data_liste_plots (plot_name, method, country)
-    SELECT 'RLS_REHEARSAL_' || {as.character(Sys.getpid())}, method, country
-      FROM public.data_liste_plots WHERE id_liste_plots = {plot_id}
-    RETURNING id_liste_plots", .con = actual), "sp_plot")
+  lit <- function(x) if (is.na(x)) "NULL" else as.character(as.integer(x))
 
-  # 2. a subplot under the new plot.
-  new_sub <- if (!is.na(new_plot)) step("subplot", glue::glue_sql("
-    INSERT INTO public.data_liste_sub_plots
-           (id_table_liste_plots, id_type_sub_plot, typevalue)
-    SELECT {new_plot}, id_type_sub_plot, typevalue
-      FROM public.data_liste_sub_plots
-     WHERE id_table_liste_plots = {plot_id} LIMIT 1
-    RETURNING id_sub_plots", .con = actual), "sp_sub") else NA_integer_
+  # 1. A plot. Not one of the six under test, but the head of the chain: the
+  #    RETURNING here is what creator_access_select has to carry, because the
+  #    AFTER INSERT creator trigger has not fired when the row is checked.
+  new_plot <- step("data_liste_plots",
+    .clone_insert_sql(actual, "data_liste_plots",
+      overrides = list(plot_name = DBI::dbQuoteString(
+        actual, paste0("RLS_REHEARSAL_", Sys.getpid()))),
+      join = "", where = glue::glue("src.id_liste_plots = {plot_id}"),
+      returning = "id_liste_plots"),
+    "sp_plot")
 
-  # 3. an individual on the new plot.
-  new_ind <- if (!is.na(new_plot)) step("individual", glue::glue_sql("
-    INSERT INTO public.data_individuals (id_table_liste_plots_n, tag)
-    SELECT {new_plot}, tag
-      FROM public.data_individuals
-     WHERE id_table_liste_plots_n = {plot_id} LIMIT 1
-    RETURNING id_n", .con = actual), "sp_ind") else NA_integer_
+  # 2. A subplot under the new plot.
+  new_sub <- step("data_liste_sub_plots",
+    if (!is.na(new_plot)) .clone_insert_sql(actual, "data_liste_sub_plots",
+      overrides = list(id_table_liste_plots = lit(new_plot)),
+      join = "", where = glue::glue("src.id_table_liste_plots = {plot_id}"),
+      returning = "id_sub_plots"),
+    "sp_sub")
 
-  # 4. a measurement on the new individual. Routes through the individual, so
-  #    this is the two-hop policy under test.
-  new_meas <- if (!is.na(new_ind)) step("measurement", glue::glue_sql("
-    INSERT INTO public.data_traits_measures
-           (id_data_individuals, id_trait, traitvalue)
-    SELECT {new_ind}, m.id_trait, m.traitvalue
-      FROM public.data_traits_measures m
-      JOIN public.data_individuals i ON i.id_n = m.id_data_individuals
-     WHERE i.id_table_liste_plots_n = {plot_id} LIMIT 1
-    RETURNING id_trait_measures", .con = actual), "sp_meas") else NA_integer_
+  # 3. A subplot feature on it. Two hops, so this exercises the EXISTS branch.
+  step("data_subplot_feat",
+    if (!is.na(new_sub)) .clone_insert_sql(actual, "data_subplot_feat",
+      overrides = list(id_sub_plots = lit(new_sub)),
+      join = " JOIN public.data_liste_sub_plots s
+                 ON s.id_sub_plots = src.id_sub_plots",
+      where = glue::glue("s.id_table_liste_plots = {plot_id}"),
+      returning = "id_sub_plots"),
+    "sp_subfeat")
 
-  # 5. an individual feature. id_table_liste_plots is not supplied - the BEFORE
-  #    trigger derives it, and WITH CHECK is evaluated after that trigger runs.
-  #    If the ordering were the other way this would fail on NOT NULL.
-  if (!is.na(new_meas)) step("individual feature", glue::glue_sql("
-    INSERT INTO public.data_ind_measures_feat
-           (id_trait_measures, id_trait, typevalue)
-    SELECT {new_meas}, f.id_trait, f.typevalue
-      FROM public.data_ind_measures_feat f LIMIT 1
-    RETURNING id_trait_measures", .con = actual), "sp_feat")
+  # 4. An individual on the new plot.
+  new_ind <- step("data_individuals",
+    if (!is.na(new_plot)) .clone_insert_sql(actual, "data_individuals",
+      overrides = list(id_table_liste_plots_n = lit(new_plot)),
+      join = "", where = glue::glue("src.id_table_liste_plots_n = {plot_id}"),
+      returning = "id_n"),
+    "sp_ind")
 
-  # 6. and what it can read, which is the other half of the question.
+  # 5. A measurement on that individual - the other two-hop policy.
+  new_meas <- step("data_traits_measures",
+    if (!is.na(new_ind)) .clone_insert_sql(actual, "data_traits_measures",
+      overrides = list(id_data_individuals = lit(new_ind)),
+      join = " JOIN public.data_individuals i
+                 ON i.id_n = src.id_data_individuals",
+      where = glue::glue("i.id_table_liste_plots_n = {plot_id}"),
+      returning = "id_trait_measures"),
+    "sp_meas")
+
+  # 6. An individual feature. id_table_liste_plots is forced to NULL so the
+  #    BEFORE trigger has to supply it - which is the thing worth testing, since
+  #    the column is NOT NULL and the wizard never sends it. If WITH CHECK ran
+  #    before the trigger, or the trigger were missing, this fails here.
+  step("data_ind_measures_feat",
+    if (!is.na(new_meas)) .clone_insert_sql(actual, "data_ind_measures_feat",
+      overrides = list(id_trait_measures = lit(new_meas),
+                       id_table_liste_plots = "NULL"),
+      join = "", where = "TRUE", returning = "id_table_liste_plots"),
+    "sp_feat")
+
+  # 7. A specimen link on the new individual - the two-branch policy.
+  step("data_link_specimens",
+    if (!is.na(new_ind)) .clone_insert_sql(actual, "data_link_specimens",
+      overrides = list(id_n = lit(new_ind)),
+      join = " JOIN public.data_individuals i ON i.id_n = src.id_n",
+      where = glue::glue("i.id_table_liste_plots_n = {plot_id}"),
+      returning = "id_n"),
+    "sp_link")
+
+  # 8. And what it can read, which is the other half of the question.
   vis <- .child_savepoint(actual, "sp_read", {
     do.call(rbind, lapply(CafriplotsR:::.plot_scope_child_tables(),
       function(tb) data.frame(
@@ -558,18 +670,19 @@ rehearse_child_rls_as_role <- function(con, role) {
     message = result[[k]]$message, stringsAsFactors = FALSE)))
 
   if (!is.null(out)) {
+
     n_fail <- sum(!is.na(out$ok) & !out$ok)
     n_skip <- sum(is.na(out$ok))
 
     if (n_fail == 0 && n_skip == 0) {
       cli::cli_alert_success(
-        "All {nrow(out)} insert{?s} passed as {.val {role}} - the wizard chain
-         works unattended")
+        "All {nrow(out)} insert{?s} passed as {.val {role}} - every child table
+         accepted a write, so the wizard chain works unattended")
     } else if (n_fail == 0) {
       cli::cli_alert_warning(
         "{sum(out$ok, na.rm = TRUE)} passed, {n_skip} skipped for want of a
-         source row. The skipped steps prove nothing either way - rehearse with
-         an account that has data in every table.")
+         source row. A skipped step proves nothing either way - rehearse with an
+         account that has data in every table.")
     } else {
       cli::cli_alert_danger(
         "{n_fail} step{?s} failed as {.val {role}} - the wizard would not
@@ -686,9 +799,10 @@ migrate_plot_access_child_rls <- function(con, dry_run = TRUE,
     cli::cli_alert_info(
       "Rehearsal only. Run with {.code dry_run = FALSE} to apply.")
     cli::cli_alert_warning(
-      "Before applying: rehearse_child_rls_as_role(con, \"<an account>\") -
-       nothing you can run as the owner will show you whether this works, since
-       the owner bypasses row-level security.")
+      "Before applying, rehearse as a real account - nothing you can run as
+       the owner will show you whether this works, since the owner bypasses
+       row-level security. {.code rehearse_child_rls_as_role(con)} with no
+       name lists the accounts worth using.")
     return(invisible(statements))
   }
 
@@ -706,8 +820,8 @@ migrate_plot_access_child_rls <- function(con, dry_run = TRUE,
 
   cli::cli_alert_success("{length(statements)} statement{?s} applied")
   cli::cli_alert_warning(
-    "Now run rehearse_child_rls_as_role(con, \"<an account>\"). If it fails,
-     restore with {.file {restore_file}}.")
+    "Now rehearse as a real account: {.code rehearse_child_rls_as_role(con)}
+     lists them. If it fails, restore with {.file {restore_file}}.")
 
   invisible(statements)
 }
@@ -799,7 +913,8 @@ check_plot_access_child_rls <- function(con) {
   cli::cli_alert_info(
     "Whether a non-owner can still import. You own these tables and bypass
      row-level security, so this whole check passes either way. Run
-     {.code rehearse_child_rls_as_role(con, \"<an account>\")}.")
+     {.code rehearse_child_rls_as_role(con)}, which lists the accounts worth
+     using, then pass one of them.")
 
   if (ok) cli::cli_alert_success("All catalog checks passed")
   invisible(ok)
