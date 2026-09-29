@@ -103,12 +103,41 @@ BASELINE <- data.frame(
 # change. That is the mechanism this whole exercise exists to retire. The
 # semi-join needs 7.
 #
-# Hence the third shape, `subquery`: `key = ANY (ARRAY(SELECT id_liste_plots FROM
-# plot_access WHERE db_user = current_user))`. Uncorrelated, so PostgreSQL should
-# evaluate it once as an InitPlan and then use the result exactly like the literal
-# array - one policy per table with array performance. The init_plan column
-# records whether that actually happened rather than assuming it. Not yet
-# measured.
+# SUBQUERY, measured 2026-09-29: `key = ANY (ARRAY(SELECT id_liste_plots FROM
+# plot_access WHERE db_user = current_user))`, one policy per table.
+#
+#   table                   hops     1      39     280     2036  (predicate ms)
+#   data_liste_plots           0  0.076   0.088   0.603    2.323
+#   data_individuals           1  0.556   2.848  15.163   52.252
+#   data_liste_sub_plots       1  0.102   0.561   4.904    6.174
+#   data_subplot_feat          2  0.159   0.284  34.751   70.959
+#   data_traits_measures       2 17.904  32.534 186.887  520.348
+#   data_ind_measures_feat     3 82.969  46.167 870.599 1931.073
+#   data_link_specimens        1 30.874  43.193 130.365  259.695
+#
+# InitPlan fired in all 28 plans, so the grant list IS gathered once. The shape
+# still loses 2-5x to the literal array on the big tables, and the reason is the
+# conclusion of this whole exercise:
+#
+#   **InitPlan solves evaluation, not estimation.** With ARRAY[2036 literals] the
+#   planner knows the size and costs the alternatives properly. With
+#   ARRAY(SELECT ...) the length is unknown at plan time, so it guesses - and the
+#   seq_scans column is the tell. The subquery shape uses ZERO sequential scans on
+#   the big tables where the array uses 1-3. At 2,036 plots a scan is cheaper than
+#   2,036 index lookups, and only the literal lets the planner see that. That is
+#   the whole 395 -> 1931 ms on data_ind_measures_feat.
+#
+# So no predicate shape is uniformly good, and it is structural rather than a
+# matter of finding a cleverer expression. What all three shapes share is hops: the
+# cost tracks the number of joins between the row and its plot, not the predicate.
+#
+#   0 hops (data_liste_plots)      : under 3 ms at every size, every shape
+#   1 hop  (data_liste_sub_plots)  : under 17 ms
+#   2 hops (data_traits_measures)  : 56-520 ms
+#   3 hops (data_ind_measures_feat): 395-1931 ms
+#
+# Which points the fix at the schema rather than the policy - see RECOMMENDATION
+# in the header of inst/migrations/plot_access_child_rls.R when it is written.
 #
 # WHAT IT SAYS
 #
