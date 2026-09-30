@@ -399,15 +399,18 @@ replace_NA <- function(df, inv = FALSE) {
 
 
 
-#' Compare two row-tibbles and generate HTML with differences
-#'
-#' @param vec_1 A tibble with one row
-#' @param vec_2 A tibble with one row
-#' 
-#' @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
-#' 
-#' @return A list: (1) tibble of differing columns, (2) HTML table highlighting differences
-#' @export
+# Compare two row-tibbles and generate HTML with differences
+#
+# @param vec_1 A tibble with one row
+# @param vec_2 A tibble with one row
+#
+# @author Gilles Dauby, \email{gilles.dauby@@ird.fr}
+#
+# @return A list: (1) tibble of differing columns, (2) HTML table highlighting differences
+#
+# Commented out with the function it documents. Left as roxygen it had no
+# object to attach to, so `@export` fell through to the next block and
+# exported every word of that block's title into NAMESPACE.
 # .comp_print_vec <- function(vec_1, vec_2) {
 #   
 #   stopifnot(nrow(vec_1) == 1, nrow(vec_2) == 1)
