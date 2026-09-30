@@ -61,11 +61,16 @@ mod_feat_step3_census_import_ui <- function(id, i18n) {
 #' @param id Module namespace ID
 #' @param selected_plots Reactive containing data.frame of selected plots
 #' @param con Reactive containing database connection pool
+#' @param con_taxa Reactive containing the taxa database pool. Used only to
+#'   resolve synonyms when comparing identifications; without it a stem renamed
+#'   between two synonyms is reported as an identification change.
 #' @param i18n Reactive returning translator object
 #' @return Reactive containing list(data, config)
 #' @keywords internal
 #' @export
-mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
+mod_feat_step3_census_import_server <- function(id, selected_plots, con,
+                                                con_taxa = shiny::reactive(NULL),
+                                                i18n) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -418,10 +423,13 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
           actual_con <- if (inherits(con(), "Pool")) pool::poolCheckout(con()) else con()
           on.exit(if (inherits(con(), "Pool")) pool::poolReturn(actual_con), add = TRUE)
 
+          # The taxa pool is passed as-is: split_census_table() only reads
+          # through it, and the helper handles the checkout itself
           split <- split_census_table(
             data       = df,
             plot_names = plots$plot_name,
-            con        = actual_con
+            con        = actual_con,
+            con_taxa   = con_taxa()
           )
           split_result(split)
 
@@ -568,10 +576,26 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
         blocks <- c(blocks, list(shiny::div(
           class = "alert alert-warning",
           shiny::icon("dna"), " ",
-          sprintf(i18n()$t("%d remeasured stem(s) carry a different taxon than the database. The database value is kept."),
+          sprintf(i18n()$t("%d remeasured stem(s) carry a different taxon than the database. The database value is kept unless a revision is accepted below."),
                   nrow(split$taxon_drift)),
           DT::renderDT(DT::datatable(
             split$taxon_drift, rownames = FALSE,
+            options = list(pageLength = 5, scrollX = TRUE, dom = "tp")
+          ))
+        )))
+      }
+
+      # Ids that differ only by nomenclature are not revisions and are not
+      # offered for review. Reported all the same, because a file written
+      # against a different nomenclature is worth knowing about.
+      if (!is.null(split$taxon_synonyms) && nrow(split$taxon_synonyms) > 0) {
+        blocks <- c(blocks, list(shiny::div(
+          class = "alert alert-info",
+          shiny::icon("tags"), " ",
+          sprintf(i18n()$t("%d remeasured stem(s) carry a different taxon id that resolves to the same accepted name. These are synonyms, not new identifications, and nothing is changed for them."),
+                  nrow(split$taxon_synonyms)),
+          DT::renderDT(DT::datatable(
+            split$taxon_synonyms, rownames = FALSE,
             options = list(pageLength = 5, scrollX = TRUE, dom = "tp")
           ))
         )))
@@ -581,7 +605,7 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con, i18n) {
         blocks <- c(blocks, list(shiny::div(
           class = "alert alert-info",
           shiny::icon("magnifying-glass"), " ",
-          sprintf(i18n()$t("%d stem(s) recorded in these plots have no row in this file. Run Compute Stem Status after the import to mark them."),
+          sprintf(i18n()$t("%d stem(s) recorded in these plots have no row in this file. Run Compute Stem Status after the import: a stem absent from one census is recorded as 'presumed_dead', and one absent from two consecutive censuses as 'dead'. Either is corrected back to 'alive' automatically if the stem is measured again at a later census."),
                   nrow(split$missing_stems)),
           DT::renderDT(DT::datatable(
             split$missing_stems, rownames = FALSE,

@@ -765,11 +765,12 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
         # multi-stem grouping.
         if (mode == "import_census") {
           census_check <- tryCatch(
-            .validate_census_import(data, config, con()),
+            .validate_census_import(data, config, con(), i18n = i18n()),
             error = function(e) {
               cli::cli_alert_warning("Census validation failed: {e$message}")
               list(
-                errors = list(sprintf("Could not validate the census: %s", e$message)),
+                errors = list(sprintf(
+                  i18n()$t("Could not validate the census: %s"), e$message)),
                 warnings = list()
               )
             }

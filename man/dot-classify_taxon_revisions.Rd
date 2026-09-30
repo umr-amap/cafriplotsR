@@ -20,7 +20,9 @@ herbarium number recorded against a revised stem in this census.}
 
 \item{evidence}{Output of [.fetch_specimen_evidence()], or `NULL`.}
 
-\item{taxa}{Output of [.fetch_taxon_names()], or `NULL`.}
+\item{taxa}{Output of [.fetch_taxon_names()], or `NULL`. Its
+`idtax_accepted` column, when present, is what tells a synonym apart
+from a redetermination.}
 
 \item{unidentified_idtax}{Taxon id standing for "not identified".}
 }
@@ -63,6 +65,12 @@ revisions:
     It defaults to keeping the database value even with no evidence at all,
     and is reported as `precision_lost`.
 }
+
+A third case is dropped outright rather than defaulted: when the two ids
+resolve to the same accepted taxon they name the same plant, one of them
+through a synonym. Nothing was redetermined, so there is nothing to ask
+about. This needs `taxa` to carry `idtax_accepted`, which
+[.fetch_taxon_names()] supplies.
 }
 \seealso{
 [split_census_table()], which produces the drift this consumes.

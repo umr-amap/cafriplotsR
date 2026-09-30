@@ -234,32 +234,38 @@
 #' @param data Long measurement rows from the step 3 module.
 #' @param config Configuration list from the step 3 module.
 #' @param con Database connection or pool.
+#' @param i18n Translator object from shiny.i18n, or `NULL` to leave the
+#'   messages in English. The step renders what this returns straight into the
+#'   validation table, so a message left untranslated here reaches a French
+#'   user in English.
 #' @return List with `errors` and `warnings`, both lists of strings.
 #' @keywords internal
 #' @export
-.validate_census_import <- function(data, config, con) {
+.validate_census_import <- function(data, config, con, i18n = NULL) {
+
+  t <- function(x) if (!is.null(i18n)) i18n$t(x) else x
 
   errors <- list()
   warnings <- list()
 
   if (is.null(config)) {
-    return(list(errors = list("No census configuration — go back to step 3."),
+    return(list(errors = list(t("No census configuration — go back to step 3.")),
                 warnings = list()))
   }
 
   # ---- measurements -----------------------------------------------------
   if (is.null(data) || nrow(data) == 0) {
-    errors <- c(errors, list("No measurement rows prepared."))
+    errors <- c(errors, list(t("No measurement rows prepared.")))
   } else {
     if (!"traitid" %in% names(data) || any(is.na(data$traitid))) {
       errors <- c(errors, list(
-        "Some measurement rows have no trait id — check the column-to-trait mapping."
+        t("Some measurement rows have no trait id — check the column-to-trait mapping.")
       ))
     }
     has_num  <- "traitvalue" %in% names(data) && any(!is.na(data$traitvalue))
     has_char <- "traitvalue_char" %in% names(data) && any(!is.na(data$traitvalue_char))
     if (!has_num && !has_char) {
-      errors <- c(errors, list("No measurement values found."))
+      errors <- c(errors, list(t("No measurement values found.")))
     }
   }
 
@@ -269,10 +275,10 @@
   if (identical(config$census_mode, "create")) {
     if (is.null(config$census_number) || is.na(config$census_number) ||
         config$census_number < 1) {
-      errors <- c(errors, list("A census number is required."))
+      errors <- c(errors, list(t("A census number is required.")))
     }
     if (is.null(config$census_year) || is.na(config$census_year)) {
-      errors <- c(errors, list("A census year is required."))
+      errors <- c(errors, list(t("A census year is required.")))
     }
     clash <- tryCatch({
       existing <- .fetch_census_subplots(plot_ids, con)
@@ -282,18 +288,18 @@
     }, error = function(e) NULL)
     if (!is.null(clash) && nrow(clash) > 0) {
       errors <- c(errors, list(sprintf(
-        "Census %s already exists for %d of the selected plot(s). Select it instead of creating it again.",
+        t("Census %s already exists for %d of the selected plot(s). Select it instead of creating it again."),
         config$census_number, nrow(clash)
       )))
     }
   } else {
     if (is.null(config$census_map) || nrow(config$census_map) == 0) {
-      errors <- c(errors, list("Select the census these measurements belong to."))
+      errors <- c(errors, list(t("Select the census these measurements belong to.")))
     } else {
       uncovered <- setdiff(plot_ids, as.integer(config$census_map$id_table_liste_plots))
       if (length(uncovered) > 0) {
         errors <- c(errors, list(sprintf(
-          "%d plot(s) in the file have no census selected — measurements would not be linked to any census.",
+          t("%d plot(s) in the file have no census selected — measurements would not be linked to any census."),
           length(uncovered)
         )))
       }
@@ -306,29 +312,30 @@
 
     if (any(is.na(recruits$tag))) {
       errors <- c(errors, list(sprintf(
-        "%d recruit(s) have no tag.", sum(is.na(recruits$tag))
+        t("%d recruit(s) have no tag."), sum(is.na(recruits$tag))
       )))
     }
     dup <- duplicated(paste(recruits$plot_name, recruits$tag))
     if (any(dup)) {
       errors <- c(errors, list(sprintf(
-        "%d recruit(s) repeat a plot + tag already in this import.", sum(dup)
+        t("%d recruit(s) repeat a plot + tag already in this import."), sum(dup)
       )))
     }
     n_unidentified <- .null_default(config$n_unidentified_recruits, 0L)
     if (n_unidentified > 0) {
       warnings <- c(warnings, list(sprintf(
-        "%d of %d recruit(s) have no idtax_n and will be recorded as unidentified (Magnoliopsida, 351190). Run launch_taxonomic_match_app() on your file first to identify them.",
+        t("%d of %d recruit(s) have no idtax_n and will be recorded as unidentified (Magnoliopsida, 351190). Run launch_taxonomic_match_app() on your file first to identify them."),
         n_unidentified, nrow(recruits)
       )))
     }
 
     if ("multi_tiges_id" %in% names(recruits)) {
       stem_check <- tryCatch(
-        .validate_multi_stem_grouping(recruits, con),
+        .validate_multi_stem_grouping(recruits, con, i18n = i18n),
         error = function(e) list(
           errors = list(),
-          warnings = list(paste("Could not check multi-stem grouping:", e$message))
+          warnings = list(sprintf(t("Could not check multi-stem grouping: %s"),
+                                  e$message))
         )
       )
       errors   <- c(errors, stem_check$errors)
@@ -341,7 +348,7 @@
   if (!is.null(split)) {
     if (nrow(split$duplicates) > 0) {
       errors <- c(errors, list(sprintf(
-        "%d plot + tag combination(s) appear more than once in the file — each stem must have one row.",
+        t("%d plot + tag combination(s) appear more than once in the file — each stem must have one row."),
         nrow(split$duplicates)
       )))
     }
@@ -349,19 +356,19 @@
     n_typo_review <- nrow(split$review) - n_ambiguous
     if (n_typo_review > 0 && identical(config$n_review_included, 0L)) {
       warnings <- c(warnings, list(sprintf(
-        "%d row(s) held for review are excluded from this import. Correct their tags and re-upload, or confirm them in step 3.",
+        t("%d row(s) held for review are excluded from this import. Correct their tags and re-upload, or confirm them in step 3."),
         n_typo_review
       )))
     }
     if (n_ambiguous > 0) {
       warnings <- c(warnings, list(sprintf(
-        "%d row(s) match more than one recorded stem and are excluded — this plot numbered tags per quadrat, so the tag alone does not identify a tree.",
+        t("%d row(s) match more than one recorded stem and are excluded — this plot numbered tags per quadrat, so the tag alone does not identify a tree."),
         n_ambiguous
       )))
     }
     if (nrow(split$invalid) > 0) {
       warnings <- c(warnings, list(sprintf(
-        "%d row(s) without a usable plot name or tag are excluded.", nrow(split$invalid)
+        t("%d row(s) without a usable plot name or tag are excluded."), nrow(split$invalid)
       )))
     }
     n_drift <- nrow(split$taxon_drift)
@@ -369,28 +376,36 @@
                   else nrow(config$taxon_revisions)
     if (n_drift > 0 && n_accepted == 0) {
       warnings <- c(warnings, list(sprintf(
-        "%d remeasured stem(s) carry a different identification than the database, none accepted. The database value is kept for all of them.",
+        t("%d remeasured stem(s) carry a different identification than the database, none accepted. The database value is kept for all of them."),
         n_drift
       )))
     }
     if (n_accepted > 0) {
       n_voucher <- sum(config$taxon_revisions$evidence == "voucher")
       msg <- sprintf(
-        "%d identification(s) will be overwritten in data_individuals.",
+        t("%d identification(s) will be overwritten in data_individuals."),
         n_accepted
       )
       if (n_voucher > 0) {
         msg <- paste(msg, sprintf(
-          "%d of them has a specimen collected from that very tree — the specimen's own determination is not updated by this import.",
+          t("%d of them carry a specimen collected from that very tree — the specimen's own determination is not updated by this import."),
           n_voucher
         ))
       }
       warnings <- c(warnings, list(msg))
     }
 
+    n_synonym <- if (is.null(split$taxon_synonyms)) 0L else nrow(split$taxon_synonyms)
+    if (n_synonym > 0) {
+      warnings <- c(warnings, list(sprintf(
+        t("%d remeasured stem(s) carry a taxon id that resolves to the same accepted name as the database — synonyms, not new identifications. Nothing is changed for them."),
+        n_synonym
+      )))
+    }
+
     if (nrow(split$missing_stems) > 0) {
       warnings <- c(warnings, list(sprintf(
-        "%d stem(s) recorded in these plots have no row in the file. Run Compute Stem Status after the import.",
+        t("%d stem(s) recorded in these plots have no row in the file. Run Compute Stem Status after the import: a stem absent from one census is recorded as 'presumed_dead', and one absent from two consecutive censuses as 'dead'."),
         nrow(split$missing_stems)
       )))
     }

@@ -62,6 +62,43 @@ test_that(".taxon_precision returns NA for an unknown level", {
 })
 
 # =============================================================================
+# .resolve_idtax()
+# =============================================================================
+
+ctr_map <- function() {
+  data.frame(
+    idtax_n        = c(351190L, 500L, 600L, 700L, 999L),
+    idtax_accepted = c(351190L, 500L, 600L, 700L, 500L),  # 999 is a synonym of 500
+    stringsAsFactors = FALSE
+  )
+}
+
+test_that(".resolve_idtax sends a synonym to its accepted taxon", {
+  expect_equal(.resolve_idtax(c(999L, 500L, 600L), ctr_map()),
+               c(500L, 500L, 600L))
+})
+
+test_that(".resolve_idtax accepts ids given as character", {
+  expect_equal(.resolve_idtax(c("999", "600"), ctr_map()), c(500L, 600L))
+})
+
+test_that(".resolve_idtax keeps an id the map does not know", {
+  # Dropping it to NA would make two unrelated unknown taxa compare equal
+  expect_equal(.resolve_idtax(c(4242L, 999L), ctr_map()), c(4242L, 500L))
+})
+
+test_that(".resolve_idtax with no usable map returns the ids unchanged", {
+  expect_equal(.resolve_idtax(c(999L, 500L), NULL), c(999L, 500L))
+  expect_equal(.resolve_idtax(c(999L, 500L), ctr_map()[0, ]), c(999L, 500L))
+  expect_equal(.resolve_idtax(c(999L, 500L), data.frame(x = 1)), c(999L, 500L))
+})
+
+test_that(".resolve_idtax passes NA through", {
+  expect_true(is.na(.resolve_idtax(NA, ctr_map())))
+  expect_true(is.na(.resolve_idtax("not a number", ctr_map())))
+})
+
+# =============================================================================
 # .assemble_taxon_name()
 # =============================================================================
 
@@ -176,6 +213,73 @@ test_that("gaining beats losing when the database value was unidentified", {
 test_that("an ordinary revision between two species is just a revision", {
   res <- .classify_taxon_revisions(ctr_drift(), ctr_data(), NULL, ctr_taxa())
   expect_equal(res$category, "revision")
+})
+
+# =============================================================================
+# .classify_taxon_revisions() — synonyms are not revisions
+# =============================================================================
+
+# Same fixture with the accepted-taxon pointer .fetch_taxon_names() now returns.
+# 999 is a synonym of 500: two ids, one plant.
+ctr_taxa_accepted <- function() {
+  data.frame(
+    idtax_n        = c(351190L, 500L, 600L, 700L, 999L),
+    taxon_name     = c("unidentified", "Baphia sp1", "Memecylon sp1",
+                       "Fabaceae", "Bracteolaria sp1"),
+    tax_level      = c("higher", NA, NA, "family", NA),
+    precision      = c(1L, 6L, 6L, 4L, 6L),
+    idtax_accepted = c(351190L, 500L, 600L, 700L, 500L),
+    stringsAsFactors = FALSE
+  )
+}
+
+test_that("a synonym of the recorded taxon is dropped, not offered for review", {
+  res <- .classify_taxon_revisions(
+    ctr_drift(idtax_db = "500", idtax_file = "999"),
+    ctr_data(), NULL, ctr_taxa_accepted()
+  )
+
+  expect_equal(nrow(res), 0)
+  # still the full shape, so the caller can bind or count without checking
+  expect_true(all(c("row_id", "evidence", "category", "decision") %in% names(res)))
+})
+
+test_that("a synonym is dropped even with a voucher behind the old name", {
+  evidence <- data.frame(id_n = 11L, n_voucher = 1L, n_reference = 0L)
+  res <- .classify_taxon_revisions(
+    ctr_drift(idtax_db = "500", idtax_file = "999"),
+    ctr_data(), evidence, ctr_taxa_accepted()
+  )
+  expect_equal(nrow(res), 0)
+})
+
+test_that("only the synonym rows are dropped from a mixed drift", {
+  drift <- data.frame(
+    row_id     = 1:3,
+    plot_name  = rep("P1", 3),
+    tag        = c("1", "2", "3"),
+    idtax_db   = c("500", "500", "500"),
+    idtax_file = c("999", "600", "700"),   # renamed, redetermined, coarser
+    stringsAsFactors = FALSE
+  )
+  data <- data.frame(row_id = 1:3, id_n = c(11L, 12L, 13L),
+                     herbarium_nbe_char = NA_character_)
+
+  res <- .classify_taxon_revisions(drift, data, NULL, ctr_taxa_accepted())
+
+  expect_equal(res$tag, c("2", "3"))
+  expect_equal(res$category, c("revision", "precision_lost"))
+  expect_equal(rownames(res), c("1", "2"))
+})
+
+test_that("taxa without the accepted column leaves the comparison on raw ids", {
+  # .fetch_taxon_names() supplies idtax_accepted; a caller passing its own
+  # frame without it gets the old behaviour rather than a silent failure
+  res <- .classify_taxon_revisions(
+    ctr_drift(idtax_db = "500", idtax_file = "600"),
+    ctr_data(), NULL, ctr_taxa()
+  )
+  expect_equal(nrow(res), 1)
 })
 
 # =============================================================================

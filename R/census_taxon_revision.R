@@ -36,6 +36,88 @@
 }
 
 
+#' Resolve taxon ids to the accepted taxon they name
+#'
+#' `table_taxa` keeps a synonym as a row of its own, pointing at the accepted
+#' name through `idtax_good_n`. Two ids that resolve to the same accepted taxon
+#' name the same plant, so comparing the raw ids reports a revision where
+#' nothing was revised — which is how a census that renamed nothing turns into
+#' hundreds of identifications to review.
+#'
+#' One hop, which is the convention everywhere else in the package
+#' (`ifelse(is.na(idtax_good_n), idtax_n, idtax_good_n)`): an accepted name
+#' points at itself or at nothing.
+#'
+#' @param idtax Vector of taxon ids, character or numeric.
+#' @param map Frame with `idtax_n` and `idtax_accepted`, from
+#'   [.fetch_accepted_idtax()], or `NULL`.
+#' @return Integer vector: the accepted id where the map knows one, the id
+#'   itself otherwise. An absent or incomplete map therefore degrades to the
+#'   raw comparison rather than silently merging unrelated taxa.
+#' @keywords internal
+#' @export
+.resolve_idtax <- function(idtax, map = NULL) {
+  out <- suppressWarnings(as.integer(idtax))
+  if (is.null(map) || !is.data.frame(map) || nrow(map) == 0) return(out)
+  if (!all(c("idtax_n", "idtax_accepted") %in% names(map))) return(out)
+
+  accepted <- suppressWarnings(
+    as.integer(map$idtax_accepted[match(out, map$idtax_n)])
+  )
+  ifelse(is.na(accepted), out, accepted)
+}
+
+
+#' Fetch the accepted taxon behind a set of taxon ids
+#'
+#' Reads the **taxa** database, where the live taxonomy is — the copy of
+#' `table_taxa` on the main database is stale and must not be used for this.
+#' Kept separate from [.fetch_taxon_names()] so a caller that only needs to
+#' tell two determinations apart — [split_census_table()] does — pays for one
+#' narrow query rather than for assembled names it will never show.
+#'
+#' @param idtax Vector of taxon ids.
+#' @param con_taxa Connection or pool for the taxa database.
+#' @return Data frame with `idtax_n` and `idtax_accepted`. Empty when nothing
+#'   can be fetched — the caller then compares the raw ids, which is the
+#'   behaviour it had before.
+#' @keywords internal
+#' @export
+.fetch_accepted_idtax <- function(idtax, con_taxa) {
+
+  empty <- data.frame(idtax_n = integer(0), idtax_accepted = integer(0),
+                      stringsAsFactors = FALSE)
+
+  idtax <- unique(suppressWarnings(as.integer(idtax)))
+  idtax <- idtax[!is.na(idtax)]
+  if (length(idtax) == 0 || is.null(con_taxa)) return(empty)
+
+  tryCatch({
+    is_pool <- inherits(con_taxa, "Pool")
+    actual <- if (is_pool) pool::poolCheckout(con_taxa) else con_taxa
+    on.exit(if (is_pool) pool::poolReturn(actual), add = TRUE)
+
+    res <- DBI::dbGetQuery(actual, glue::glue_sql(
+      "SELECT idtax_n, COALESCE(idtax_good_n, idtax_n) AS idtax_accepted
+         FROM table_taxa
+        WHERE idtax_n IN ({idtax*})",
+      idtax = idtax, .con = actual
+    ))
+    if (nrow(res) == 0) return(empty)
+
+    data.frame(
+      idtax_n        = as.integer(res$idtax_n),
+      idtax_accepted = as.integer(res$idtax_accepted),
+      stringsAsFactors = FALSE
+    )
+  }, error = function(e) {
+    message("Note: could not resolve taxon synonyms (", conditionMessage(e),
+            "). Identifications will be compared on the raw ids.")
+    empty
+  })
+}
+
+
 #' Fetch names and precision for a set of taxon ids
 #'
 #' Reads the **taxa** database, which is a separate connection from the one
@@ -44,7 +126,9 @@
 #'
 #' @param idtax Integer vector of `idtax_n` values.
 #' @param con_taxa Connection or pool for the taxa database.
-#' @return Data frame with `idtax_n`, `taxon_name`, `tax_level`, `precision`.
+#' @return Data frame with `idtax_n`, `taxon_name`, `tax_level`, `precision`
+#'   and `idtax_accepted` — the id of the accepted taxon, so the caller can
+#'   tell a renaming from a redetermination without a second query.
 #'   An empty frame if nothing can be fetched — the caller degrades to ids.
 #' @keywords internal
 #' @export
@@ -53,6 +137,7 @@
   empty <- data.frame(
     idtax_n = integer(0), taxon_name = character(0),
     tax_level = character(0), precision = integer(0),
+    idtax_accepted = integer(0),
     stringsAsFactors = FALSE
   )
 
@@ -67,7 +152,8 @@
 
     res <- DBI::dbGetQuery(actual, glue::glue_sql(
       "SELECT idtax_n, tax_fam, tax_gen, tax_esp, tax_rank01, tax_nam01,
-              tax_level, morpho_species
+              tax_level, morpho_species,
+              COALESCE(idtax_good_n, idtax_n) AS idtax_accepted
          FROM table_taxa
         WHERE idtax_n IN ({idtax*})",
       idtax = idtax, .con = actual
@@ -79,6 +165,7 @@
       taxon_name = .assemble_taxon_name(res),
       tax_level  = as.character(res$tax_level),
       precision  = .taxon_precision(res$tax_level, res$morpho_species),
+      idtax_accepted = as.integer(res$idtax_accepted),
       stringsAsFactors = FALSE
     )
   }, error = function(e) {
@@ -204,11 +291,19 @@
 #'     and is reported as `precision_lost`.
 #' }
 #'
+#' A third case is dropped outright rather than defaulted: when the two ids
+#' resolve to the same accepted taxon they name the same plant, one of them
+#' through a synonym. Nothing was redetermined, so there is nothing to ask
+#' about. This needs `taxa` to carry `idtax_accepted`, which
+#' [.fetch_taxon_names()] supplies.
+#'
 #' @param drift The `taxon_drift` frame from a `census_split`.
 #' @param data The classified census table (`split$data`), used to find a
 #'   herbarium number recorded against a revised stem in this census.
 #' @param evidence Output of [.fetch_specimen_evidence()], or `NULL`.
-#' @param taxa Output of [.fetch_taxon_names()], or `NULL`.
+#' @param taxa Output of [.fetch_taxon_names()], or `NULL`. Its
+#'   `idtax_accepted` column, when present, is what tells a synonym apart
+#'   from a redetermination.
 #' @param unidentified_idtax Taxon id standing for "not identified".
 #' @return Data frame, one row per revision, with `row_id`, `id_n`,
 #'   `plot_name`, `tag`, `idtax_db`, `idtax_file`, the resolved names and
@@ -243,6 +338,20 @@
     idtax_file = suppressWarnings(as.integer(drift$idtax_file)),
     stringsAsFactors = FALSE
   )
+
+  # ---- nomenclature is not redetermination --------------------------------
+  # Two ids can name the same plant, one of them a synonym of the other. The
+  # tree was never redetermined, so there is nothing to decide and the row is
+  # dropped rather than shown with a default. `split_census_table()` filters
+  # these out already when it can reach the taxa database; this covers the
+  # case where the drift was computed without one.
+  if (!is.null(taxa) && "idtax_accepted" %in% names(taxa) && nrow(taxa) > 0) {
+    map <- taxa[, c("idtax_n", "idtax_accepted"), drop = FALSE]
+    same <- .resolve_idtax(out$idtax_db, map) == .resolve_idtax(out$idtax_file, map)
+    out <- out[is.na(same) | !same, , drop = FALSE]
+    rownames(out) <- NULL
+    if (nrow(out) == 0) return(empty)
+  }
 
   # id_n and any herbarium number come from the classified table, matched on
   # row_id — the one key that survives every reshaping of the census table
