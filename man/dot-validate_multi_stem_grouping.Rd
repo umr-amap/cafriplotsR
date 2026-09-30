@@ -4,12 +4,16 @@
 \alias{.validate_multi_stem_grouping}
 \title{Validate Multi-Stem Grouping (Internal)}
 \usage{
-.validate_multi_stem_grouping(data, con)
+.validate_multi_stem_grouping(data, con, i18n = NULL)
 }
 \arguments{
 \item{data}{Individuals data frame with plot_name, tag and multi_tiges_id}
 
 \item{con}{Database connection}
+
+\item{i18n}{Translator object from shiny.i18n, or \code{NULL} to leave the
+messages in English. Both callers render them straight into a validation
+table, so an untranslated one reaches the user as it is written here.}
 }
 \value{
 List with \code{errors} and \code{warnings}

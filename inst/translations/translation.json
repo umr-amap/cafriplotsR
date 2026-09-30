@@ -10988,6 +10988,162 @@
     {
       "en": "%d stem(s) recorded in these plots have no row in this file. Run Compute Stem Status after the import: a stem absent from one census is recorded as 'presumed_dead', and one absent from two consecutive censuses as 'dead'. Either is corrected back to 'alive' automatically if the stem is measured again at a later census.",
       "fr": "%d tige(s) enregistrée(s) dans ces parcelles n'ont aucune ligne dans ce fichier. Lancez Calculer le statut des tiges après l'import : une tige absente d'un recensement est enregistrée comme 'presumed_dead', et une tige absente de deux recensements consécutifs comme 'dead'. Dans les deux cas le statut repasse automatiquement à 'alive' si la tige est remesurée lors d'un recensement ultérieur."
+    },
+    {
+      "en": "No census configuration — go back to step 3.",
+      "fr": "Aucune configuration de recensement — revenez à l'étape 3."
+    },
+    {
+      "en": "No measurement rows prepared.",
+      "fr": "Aucune ligne de mesure préparée."
+    },
+    {
+      "en": "Some measurement rows have no trait id — check the column-to-trait mapping.",
+      "fr": "Certaines lignes de mesure n'ont pas d'identifiant de trait — vérifiez la correspondance entre colonnes et traits."
+    },
+    {
+      "en": "No measurement values found.",
+      "fr": "Aucune valeur de mesure trouvée."
+    },
+    {
+      "en": "A census number is required.",
+      "fr": "Un numéro de recensement est requis."
+    },
+    {
+      "en": "A census year is required.",
+      "fr": "Une année de recensement est requise."
+    },
+    {
+      "en": "Census %s already exists for %d of the selected plot(s). Select it instead of creating it again.",
+      "fr": "Le recensement %s existe déjà pour %d des placettes sélectionnées. Sélectionnez-le au lieu de le créer à nouveau."
+    },
+    {
+      "en": "Select the census these measurements belong to.",
+      "fr": "Sélectionnez le recensement auquel ces mesures appartiennent."
+    },
+    {
+      "en": "%d plot(s) in the file have no census selected — measurements would not be linked to any census.",
+      "fr": "%d placette(s) du fichier n'ont aucun recensement sélectionné — les mesures ne seraient rattachées à aucun recensement."
+    },
+    {
+      "en": "%d recruit(s) have no tag.",
+      "fr": "%d recrue(s) n'ont pas de numéro."
+    },
+    {
+      "en": "%d recruit(s) repeat a plot + tag already in this import.",
+      "fr": "%d recrue(s) répètent une combinaison placette + numéro déjà présente dans cet import."
+    },
+    {
+      "en": "%d of %d recruit(s) have no idtax_n and will be recorded as unidentified (Magnoliopsida, 351190). Run launch_taxonomic_match_app() on your file first to identify them.",
+      "fr": "%d recrue(s) sur %d n'ont pas d'idtax_n et seront enregistrées comme non identifiées (Magnoliopsida, 351190). Lancez launch_taxonomic_match_app() sur votre fichier au préalable pour les identifier."
+    },
+    {
+      "en": "Could not check multi-stem grouping: %s",
+      "fr": "Impossible de vérifier le regroupement des tiges multiples : %s"
+    },
+    {
+      "en": "%d plot + tag combination(s) appear more than once in the file — each stem must have one row.",
+      "fr": "%d combinaison(s) placette + numéro apparaissent plusieurs fois dans le fichier — chaque tige doit avoir une seule ligne."
+    },
+    {
+      "en": "%d row(s) held for review are excluded from this import. Correct their tags and re-upload, or confirm them in step 3.",
+      "fr": "%d ligne(s) mises en attente de vérification sont exclues de cet import. Corrigez leurs numéros et rechargez le fichier, ou confirmez-les à l'étape 3."
+    },
+    {
+      "en": "%d row(s) match more than one recorded stem and are excluded — this plot numbered tags per quadrat, so the tag alone does not identify a tree.",
+      "fr": "%d ligne(s) correspondent à plusieurs tiges enregistrées et sont exclues — cette placette numérote les tiges par quadrat, le numéro seul n'identifie donc pas un arbre."
+    },
+    {
+      "en": "%d row(s) without a usable plot name or tag are excluded.",
+      "fr": "%d ligne(s) sans nom de placette ni numéro exploitable sont exclues."
+    },
+    {
+      "en": "%d remeasured stem(s) carry a different identification than the database, none accepted. The database value is kept for all of them.",
+      "fr": "%d tige(s) remesurée(s) portent une identification différente de celle de la base, aucune n'a été acceptée. La valeur de la base est conservée pour toutes."
+    },
+    {
+      "en": "%d identification(s) will be overwritten in data_individuals.",
+      "fr": "%d identification(s) seront écrasées dans data_individuals."
+    },
+    {
+      "en": "%d of them carry a specimen collected from that very tree — the specimen's own determination is not updated by this import.",
+      "fr": "%d d'entre elles portent un spécimen récolté sur cet arbre même — la détermination du spécimen lui-même n'est pas mise à jour par cet import."
+    },
+    {
+      "en": "%d remeasured stem(s) carry a taxon id that resolves to the same accepted name as the database — synonyms, not new identifications. Nothing is changed for them.",
+      "fr": "%d tige(s) remesurée(s) portent un identifiant de taxon qui renvoie au même nom accepté que la base — des synonymes, et non de nouvelles identifications. Rien n'est modifié pour ces tiges."
+    },
+    {
+      "en": "%d stem(s) recorded in these plots have no row in the file. Run Compute Stem Status after the import: a stem absent from one census is recorded as 'presumed_dead', and one absent from two consecutive censuses as 'dead'.",
+      "fr": "%d tige(s) enregistrée(s) dans ces placettes n'ont aucune ligne dans le fichier. Lancez Calculer le statut des tiges après l'import : une tige absente d'un recensement est enregistrée comme 'presumed_dead', et une tige absente de deux recensements consécutifs comme 'dead'."
+    },
+    {
+      "en": "Could not validate the census: %s",
+      "fr": "Impossible de valider le recensement : %s"
+    },
+    {
+      "en": "multi_tiges_id is not a tag number in %d row(s) (e.g. %s). It must hold the tag of the main stem, not a name or an id.",
+      "fr": "multi_tiges_id n'est pas un numéro de tige dans %d ligne(s) (par ex. %s). Il doit contenir le numéro de la tige principale, et non un nom ou un identifiant."
+    },
+    {
+      "en": "%d stem(s) have multi_tiges_id equal to their own tag (rows: %s). Leave it empty on the main stem.",
+      "fr": "%d tige(s) ont un multi_tiges_id égal à leur propre numéro (lignes : %s). Laissez-le vide sur la tige principale."
+    },
+    {
+      "en": "Could not check multi_tiges_id parents against the database: %s",
+      "fr": "Impossible de vérifier les tiges principales de multi_tiges_id dans la base : %s"
+    },
+    {
+      "en": "%d stem(s) point at a multi_tiges_id tag that exists neither in this import nor in the plot: %s. stem_grouping cannot be resolved for %s.",
+      "fr": "%d tige(s) renvoient à un numéro multi_tiges_id qui n'existe ni dans cet import ni dans la placette : %s. stem_grouping ne peut pas être résolu pour %s."
+    },
+    {
+      "en": "these rows",
+      "fr": "ces lignes"
+    },
+    {
+      "en": "them",
+      "fr": "celles-ci"
+    },
+    {
+      "en": "%d stem(s) point at a tag that is itself a secondary stem (rows: %s). multi_tiges_id must name the main stem of the group, not another stem.",
+      "fr": "%d tige(s) renvoient à un numéro qui est lui-même une tige secondaire (lignes : %s). multi_tiges_id doit désigner la tige principale du groupe, et non une autre tige."
+    },
+    {
+      "en": "%d stem(s) have a different idtax_n from the main stem of their group (rows: %s). Check the grouping or the identification.",
+      "fr": "%d tige(s) ont un idtax_n différent de celui de la tige principale de leur groupe (lignes : %s). Vérifiez le regroupement ou l'identification."
+    },
+    {
+      "en": "%d parent tag(s) already have a stem_grouping in the database.",
+      "fr": "%d numéro(s) de tige principale ont déjà un stem_grouping dans la base."
+    },
+    {
+      "en": "multi_tiges_id defines %d secondary stem(s) in %d group(s); stem_grouping will be set from it after the insert.",
+      "fr": "multi_tiges_id définit %d tige(s) secondaire(s) dans %d groupe(s) ; stem_grouping en sera déduit après l'insertion."
+    },
+    {
+      "en": "Dry run: %d census record(s), %d recruit(s) and %d measurement(s) would be written.",
+      "fr": "Simulation : %d enregistrement(s) de recensement, %d recrue(s) et %d mesure(s) seraient écrits."
+    },
+    {
+      "en": "Imported %d recruit(s) and %d measurement(s).",
+      "fr": "%d recrue(s) et %d mesure(s) importées."
+    },
+    {
+      "en": " Census %s created for %d plot(s).",
+      "fr": " Recensement %s créé pour %d placette(s)."
+    },
+    {
+      "en": " %d stem(s) grouped as multi-stems.",
+      "fr": " %d tige(s) regroupées en tiges multiples."
+    },
+    {
+      "en": " %d row(s) skipped (no matching individual).",
+      "fr": " %d ligne(s) ignorées (aucun individu correspondant)."
+    },
+    {
+      "en": "Import failed and was rolled back: %s",
+      "fr": "L'import a échoué et a été annulé : %s"
     }
   ]
 }

@@ -1002,9 +1002,14 @@ validate_individual_data <- function(individuals_data,
 #'
 #' @param data Individuals data frame with plot_name, tag and multi_tiges_id
 #' @param con Database connection
+#' @param i18n Translator object from shiny.i18n, or \code{NULL} to leave the
+#'   messages in English. Both callers render them straight into a validation
+#'   table, so an untranslated one reaches the user as it is written here.
 #' @return List with \code{errors} and \code{warnings}
 #' @keywords internal
-.validate_multi_stem_grouping <- function(data, con) {
+.validate_multi_stem_grouping <- function(data, con, i18n = NULL) {
+  t <- function(x) if (!is.null(i18n)) i18n$t(x) else x
+
   errors <- list()
   warnings <- list()
 
@@ -1027,7 +1032,7 @@ validate_individual_data <- function(individuals_data,
   unparsed <- which(has_value & is.na(parent))
   if (length(unparsed) > 0) {
     errors <- c(errors, list(sprintf(
-      "multi_tiges_id is not a tag number in %d row(s) (e.g. %s). It must hold the tag of the main stem, not a name or an id.",
+      t("multi_tiges_id is not a tag number in %d row(s) (e.g. %s). It must hold the tag of the main stem, not a name or an id."),
       length(unparsed),
       paste(utils::head(unique(raw[unparsed]), 5), collapse = ", ")
     )))
@@ -1043,7 +1048,7 @@ validate_individual_data <- function(individuals_data,
   self_ref <- secondary[is_self]
   if (length(self_ref) > 0) {
     errors <- c(errors, list(sprintf(
-      "%d stem(s) have multi_tiges_id equal to their own tag (rows: %s). Leave it empty on the main stem.",
+      t("%d stem(s) have multi_tiges_id equal to their own tag (rows: %s). Leave it empty on the main stem."),
       length(self_ref),
       paste(utils::head(self_ref, 10), collapse = ", ")
     )))
@@ -1068,8 +1073,9 @@ validate_individual_data <- function(individuals_data,
       plots_sql
     ))
   }, error = function(e) {
-    warnings <<- c(warnings, list(paste(
-      "Could not check multi_tiges_id parents against the database:", e$message
+    warnings <<- c(warnings, list(sprintf(
+      t("Could not check multi_tiges_id parents against the database: %s"),
+      e$message
     )))
     NULL
   })
@@ -1084,11 +1090,11 @@ validate_individual_data <- function(individuals_data,
   if (any(!known_parent)) {
     unknown <- secondary[!known_parent]
     errors <- c(errors, list(sprintf(
-      "%d stem(s) point at a multi_tiges_id tag that exists neither in this import nor in the plot: %s. stem_grouping cannot be resolved for %s.",
+      t("%d stem(s) point at a multi_tiges_id tag that exists neither in this import nor in the plot: %s. stem_grouping cannot be resolved for %s."),
       length(unknown),
       paste(utils::head(unique(paste0("tag ", parent[unknown], " in '",
                                       plot[unknown], "'")), 10), collapse = "; "),
-      if (length(unknown) > 10) "these rows" else "them"
+      if (length(unknown) > 10) t("these rows") else t("them")
     )))
   }
 
@@ -1104,7 +1110,7 @@ validate_individual_data <- function(individuals_data,
   if (any(parent_is_secondary)) {
     chained <- secondary[parent_is_secondary]
     errors <- c(errors, list(sprintf(
-      "%d stem(s) point at a tag that is itself a secondary stem (rows: %s). multi_tiges_id must name the main stem of the group, not another stem.",
+      t("%d stem(s) point at a tag that is itself a secondary stem (rows: %s). multi_tiges_id must name the main stem of the group, not another stem."),
       length(chained),
       paste(utils::head(chained, 10), collapse = ", ")
     )))
@@ -1118,7 +1124,7 @@ validate_individual_data <- function(individuals_data,
                         parent_idtax != child_idtax)
     if (length(mismatch) > 0) {
       warnings <- c(warnings, list(sprintf(
-        "%d stem(s) have a different idtax_n from the main stem of their group (rows: %s). Check the grouping or the identification.",
+        t("%d stem(s) have a different idtax_n from the main stem of their group (rows: %s). Check the grouping or the identification."),
         length(mismatch),
         paste(utils::head(secondary[mismatch], 10), collapse = ", ")
       )))
@@ -1129,14 +1135,14 @@ validate_individual_data <- function(individuals_data,
   reparented <- sum(parent_keys %in% db_grouped_keys)
   if (reparented > 0) {
     warnings <- c(warnings, list(sprintf(
-      "%d parent tag(s) already have a stem_grouping in the database.",
+      t("%d parent tag(s) already have a stem_grouping in the database."),
       reparented
     )))
   }
 
   n_groups <- length(unique(parent_keys))
   warnings <- c(warnings, list(sprintf(
-    "multi_tiges_id defines %d secondary stem(s) in %d group(s); stem_grouping will be set from it after the insert.",
+    t("multi_tiges_id defines %d secondary stem(s) in %d group(s); stem_grouping will be set from it after the insert."),
     length(secondary), n_groups
   )))
 
