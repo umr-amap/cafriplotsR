@@ -69,6 +69,13 @@
 
 ### New Features
 
+* **`query_plot_authors()`: the co-author list of a set of plots** (`R/plot_authors_function.R`) - who to invite on a paper drawn from a set of plots was a question the package could not answer, so it was answered by hand each time: two ad-hoc extractions, one per storage route, joined back to `table_colnam` and stacked. The function does that, and says what it found
+  - People reach a plot by two routes and both are followed. **Plot-level features** are rows of `data_liste_sub_plots` whose subplot type has `valuetype = 'table_colnam'` - `principal_investigator`, `data_manager`, `team_leader`, `additional_people`. **Subplot-observation features** are rows of `data_subplot_feat` carrying the same types, attached to a subplot of the plot; in practice the people of a census, so the census number and year come back with them
+  - Returns `authors_core` (the three roles that normally carry an authorship claim, `additional_people` left out), `authors_all`, and `by_plot` - the detail behind both, one row per person x plot x role x source, which is what to save alongside a dataset as authorship metadata. `core_roles` moves the line between the first two
+  - Also returns `roles_found`, so it is visible which roles actually carry data, and `plots_without_people`, which names the queried plots that returned nobody - normally a gap in the metadata rather than an empty plot. A person id absent from `table_colnam` is dropped with a warning naming the id, not silently
+  - People with no `contact` are kept and flagged `has_contact = FALSE` rather than dropped, since a missing address is a thing to go and find; `require_contact = TRUE` drops them. `subplot_type = "census"` ignores people hanging off any other kind of subplot
+  - The person id is read from `typevalue` on both routes. `typevalue_char` and `id_colnam` are never read: for `table_colnam` features the first is empty and the second is populated only on rows filled in error
+
 * **`plot_access`: one row per (account, plot), and the thing the policies read** (`R/plot_access.R`, `inst/migrations/plot_access_table.R`, `inst/migrations/plot_access_seed.R`) - access used to live in ~125 hand-maintained PostgreSQL policies, one per account, each carrying a literal list of plot IDs. It could not be queried, joined, or reasoned about, and nothing could tell you what an account could see without parsing policy expressions
   - The table carries `can_write`, `can_delete`, `can_grant` and `origin`, and was seeded from the two things that granted access before it: the per-account policies and the creator links. 14,001 grants, and the two layers agreed plot-for-plot
   - `plot_access_self` restricts every reader to its own rows, so an account cannot enumerate who else has access to what
@@ -327,6 +334,10 @@
   - Choosing a Tropicos row no longer discards the backbone identifiers: they identify the same name whichever source filled the form, and step 4 lists them before anything is written
 
 ### Bug Fixes
+
+* **An orphaned `@export` in `R/helpers.R` wrote ~50 bogus exports into `NAMESPACE` on every `devtools::document()`** - the roxygen block documenting `.comp_print_vec()` was left as roxygen when the function beneath it was commented out. With no object to attach to, roxygen carried the block's tags forward to the next documented object and took that block's title as the value of `@export`, exporting each of its words: `export(The)`, `export(Windows)`, `export(`utils::zip()`)`, `export(and)`, `export(a)`, and so on down the paragraph
+  - The result was an unloadable namespace - `devtools::load_all()` reported `Objects listed as exports, but not present in namespace` for every one of them - and it reappeared on each `document()` run, so it could not be fixed by editing `NAMESPACE`
+  - The block is now plain comments, like the code it describes. `NAMESPACE` regenerates clean
 
 * **`launch_query_plots_app()` refused to start over a `zip` package it never used** (`R/launch_query_plots_app.R`) — its startup check listed `zip` among the required packages, so a fresh install without that package stopped at `The following packages are required but not installed: zip`. Nothing in `CafriplotsR` ever called it: the two zipped downloads in `mod_results_display_server()` use `utils::zip()`, which is base R. The check blocked the app on a dependency that did not exist
   - `bslib` was in the same list, and in `launch_taxo_backbone_app()`'s, and is equally unused — nothing in `R/` references it. It passed only because `shiny` happens to install it, so the two entries would have started refusing launches the day that stopped being true. Both are gone from both launchers, which now check only hard `Imports`
