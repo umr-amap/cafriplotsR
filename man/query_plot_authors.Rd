@@ -15,6 +15,7 @@ query_plot_authors(
   exact_match = TRUE,
   interactive = TRUE,
   core_roles = c("principal_investigator", "data_manager", "team_leader"),
+  core_sources = c("plot", "census"),
   include_plot_features = TRUE,
   include_subplot_features = TRUE,
   subplot_type = NULL,
@@ -53,6 +54,19 @@ output. Defaults to `principal_investigator`, `data_manager` and
 `team_leader` - the roles that normally carry an authorship claim,
 leaving out `additional_people`.}
 
+\item{core_sources}{Character vector of the `source` values that make up
+  `authors_core`, or `NULL` for no restriction. Defaults to `"plot"` and
+  `"census"` - the plot itself and the events that produced its data.
+  People recorded against an ancillary observation, a soil sample say,
+  stay in `authors_all` and in `by_plot` but do not reach the short list.
+
+  This is a default rather than something read from the database because
+  there is nothing in the database to read. `subplotype_list` says what a
+  subplot type *is* (`type`, `valuetype`, `category`), not whether running
+  one earns a place on a paper, and that judgement differs by study. It
+  sits in the signature, next to `core_roles`, so changing it is an
+  argument rather than an edit.}
+
 \item{include_plot_features}{Logical. Follow the plot-level route.
 Default `TRUE`.}
 
@@ -76,8 +90,8 @@ flags them with `has_contact = FALSE`.}
 \value{
 A list of five elements:
 \describe{
-  \item{`authors_core`}{One row per person, restricted to `core_roles`.
-    This is the short invitation list.}
+  \item{`authors_core`}{One row per person, restricted to `core_roles` and
+    `core_sources`. This is the short invitation list.}
   \item{`authors_all`}{One row per person, all roles. Same columns.}
   \item{`by_plot`}{The detail behind both: one row per record, with
     `plot_name`, `role`, `source`, `id_sub_plots`, `census_number` and

@@ -47,6 +47,18 @@
 #' @param interactive Logical. Resolve `country` and `method` through fuzzy
 #'   matching prompts when they do not match a lookup value. Default `TRUE`,
 #'   as in [query_plots()].
+#' @param core_sources Character vector of the `source` values that make up
+#'   `authors_core`, or `NULL` for no restriction. Defaults to `"plot"` and
+#'   `"census"` - the plot itself and the events that produced its data.
+#'   People recorded against an ancillary observation, a soil sample say,
+#'   stay in `authors_all` and in `by_plot` but do not reach the short list.
+#'
+#'   This is a default rather than something read from the database because
+#'   there is nothing in the database to read. `subplotype_list` says what a
+#'   subplot type *is* (`type`, `valuetype`, `category`), not whether running
+#'   one earns a place on a paper, and that judgement differs by study. It
+#'   sits in the signature, next to `core_roles`, so changing it is an
+#'   argument rather than an edit.
 #' @param core_roles Character vector of the roles that make up the `core`
 #'   output. Defaults to `principal_investigator`, `data_manager` and
 #'   `team_leader` - the roles that normally carry an authorship claim,
@@ -68,8 +80,8 @@
 #'
 #' @return A list of five elements:
 #' \describe{
-#'   \item{`authors_core`}{One row per person, restricted to `core_roles`.
-#'     This is the short invitation list.}
+#'   \item{`authors_core`}{One row per person, restricted to `core_roles` and
+#'     `core_sources`. This is the short invitation list.}
 #'   \item{`authors_all`}{One row per person, all roles. Same columns.}
 #'   \item{`by_plot`}{The detail behind both: one row per record, with
 #'     `plot_name`, `role`, `source`, `id_sub_plots`, `census_number` and
@@ -150,6 +162,7 @@ query_plot_authors <- function(plot_name = NULL,
                                core_roles = c("principal_investigator",
                                               "data_manager",
                                               "team_leader"),
+                               core_sources = c("plot", "census"),
                                include_plot_features = TRUE,
                                include_subplot_features = TRUE,
                                subplot_type = NULL,
@@ -253,8 +266,13 @@ query_plot_authors <- function(plot_name = NULL,
     ) %>%
     arrange(family_name, surname, plot_name, role)
 
-  authors_all  <- .summarise_authors(by_plot)
-  authors_core <- .summarise_authors(by_plot %>% filter(role %in% core_roles))
+  authors_all <- .summarise_authors(by_plot)
+
+  core_rows <- by_plot %>% filter(role %in% core_roles)
+  if (!is.null(core_sources)) {
+    core_rows <- core_rows %>% filter(source %in% core_sources)
+  }
+  authors_core <- .summarise_authors(core_rows)
 
   roles_found <- by_plot %>%
     group_by(role, source) %>%
@@ -277,6 +295,23 @@ query_plot_authors <- function(plot_name = NULL,
     cli::cli_alert_info(
       "{nrow(authors_core)} of them in the core roles: {.val {intersect(core_roles, people_types$type)}}"
     )
+
+    # An author excluded only by where they were recorded is worth naming:
+    # nothing in authors_core says a person was dropped for the route they
+    # arrived on rather than for the role they hold
+    if (!is.null(core_sources)) {
+      dropped <- setdiff(
+        by_plot$colnam[by_plot$role %in% core_roles],
+        core_rows$colnam
+      )
+      other_sources <- setdiff(unique(by_plot$source), core_sources)
+      if (length(dropped) > 0) {
+        cli::cli_alert_info(
+          "{length(dropped)} more hold{?s/} a core role only through {.val {other_sources}}, excluded by {.arg core_sources}: {.val {dropped}}"
+        )
+      }
+    }
+
     if (nrow(plots_without_people) > 0) {
       cli::cli_alert_warning(
         "{nrow(plots_without_people)} queried plot{?s} with nobody recorded: {.val {plots_without_people$plot_name}}"

@@ -292,10 +292,73 @@ test_that("the core list drops additional_people and keeps the three roles", {
   # D Four is only ever additional_people
   expect_true("D Four" %in% out$authors_all$colnam)
   expect_false("D Four" %in% out$authors_core$colnam)
+  # E Five holds a core role but only off a soil sample: see core_sources
   expect_setequal(
     out$authors_core$colnam,
-    c("A One", "B Two", "C Three", "E Five")
+    c("A One", "B Two", "C Three")
   )
+})
+
+test_that("a core role held only through an ancillary subplot is not core", {
+  con <- mock_authors_con()
+
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
+
+  # E Five is a team_leader, but only of a soil sample - a core role reached
+  # by a route that does not confer authorship
+  e_five <- out$by_plot[out$by_plot$colnam == "E Five", ]
+  expect_equal(e_five$role, "team_leader")
+  expect_equal(e_five$source, "soil_sample")
+
+  expect_true("E Five" %in% out$authors_all$colnam)
+  expect_false("E Five" %in% out$authors_core$colnam)
+})
+
+test_that("core_sources widened to NULL puts them back", {
+  con <- mock_authors_con()
+
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con, core_sources = NULL)
+
+  expect_true("E Five" %in% out$authors_core$colnam)
+})
+
+test_that("core_sources narrowed to one route drops the other", {
+  con <- mock_authors_con()
+
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con, core_sources = "census")
+
+  # A One is principal_investigator, but only at plot level
+  expect_false("A One" %in% out$authors_core$colnam)
+  expect_true("B Two" %in% out$authors_core$colnam)   # team_leader of censuses
+})
+
+test_that("someone excluded only by their route is named, not silently dropped", {
+  con <- mock_authors_con()
+
+  expect_message(
+    query_plot_authors(id_plot = c(10L, 11L, 12L), con = con, verbose = TRUE),
+    "E Five"
+  )
+})
+
+test_that("core_sources does not touch authors_all or by_plot", {
+  con <- mock_authors_con()
+
+  narrow <- authors(id_plot = c(10L, 11L, 12L), con = con, core_sources = "plot")
+  wide   <- authors(id_plot = c(10L, 11L, 12L), con = con, core_sources = NULL)
+
+  expect_equal(narrow$authors_all, wide$authors_all)
+  expect_equal(narrow$by_plot, wide$by_plot)
+})
+
+test_that("a person in a core role by two routes survives losing one", {
+  con <- mock_authors_con()
+
+  # B Two is team_leader through censuses only; C Three data_manager likewise.
+  # A One is PI at plot level. Keeping both routes keeps all three.
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
+
+  expect_setequal(out$authors_core$colnam, c("A One", "B Two", "C Three"))
 })
 
 test_that("core_roles is honoured when it is narrowed", {
