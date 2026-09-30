@@ -21,11 +21,13 @@ plots_raw <- function() {
   )
 }
 
-# Plot-level people. The last row repeats the first: the same person recorded
-# twice on the same plot in the same role must collapse to one.
+# Plot-level people. Each is its own row of data_liste_sub_plots, so each has
+# its own id_sub_plots. The last row repeats the first person, plot and role
+# under a different id: a duplicated entry, which must stay visible.
 plot_people_raw <- function() {
   data.frame(
     id_liste_plots  = c(10L, 10L, 11L, 10L),
+    id_sub_plots    = c(101L, 102L, 103L, 104L),
     id_table_colnam = c(1L, 4L, 1L, 1L),
     role = c("principal_investigator", "additional_people",
              "principal_investigator", "principal_investigator"),
@@ -33,11 +35,13 @@ plot_people_raw <- function() {
   )
 }
 
-# People attached to a subplot observation. Row 4 hangs off a soil sample, not
-# a census, which is what `subplot_type` is there to exclude.
+# People attached to a subplot observation. id_sub_plots is the parent subplot
+# - the census, or in row 4 a soil sample, which is what `subplot_type`
+# is there to exclude.
 subplot_people_raw <- function() {
   data.frame(
     id_liste_plots  = c(10L, 10L, 11L, 11L),
+    id_sub_plots    = c(201L, 202L, 203L, 204L),
     id_table_colnam = c(2L, 3L, 2L, 5L),
     role   = c("team_leader", "data_manager", "team_leader", "team_leader"),
     source = c("census", "census", "census", "soil_sample"),
@@ -230,14 +234,31 @@ test_that("people are collected from plot features and from censuses alike", {
   )
 })
 
-test_that("the same person on the same plot in the same role gives one row", {
+test_that("a duplicated entry stays visible in by_plot, not in the author list", {
   con <- mock_authors_con()
 
   out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
+  # Two records for A One as PI of p010, under two ids: both are shown, so
+  # the duplicate can be seen and fixed rather than being collapsed away
   pi_rows <- out$by_plot[out$by_plot$colnam == "A One" &
                            out$by_plot$id_liste_plots == 10L, ]
-  expect_equal(nrow(pi_rows), 1L)
+  expect_equal(nrow(pi_rows), 2L)
+  expect_setequal(pi_rows$id_sub_plots, c(101L, 104L))
+
+  # The author tables are one row per person either way
+  expect_equal(sum(out$authors_all$colnam == "A One"), 1L)
+  expect_equal(out$authors_all$n_plots[out$authors_all$colnam == "A One"], 2L)
+})
+
+test_that("an identical row returned twice is still collapsed", {
+  # distinct() still does its job for rows that really are identical
+  doubled <- rbind(plot_people_raw(), plot_people_raw()[1, ])
+  con <- mock_authors_con(plot_people = doubled)
+
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
+
+  expect_equal(sum(out$by_plot$id_sub_plots == 101L), 1L)
 })
 
 test_that("a person's roles, sources and plots are gathered onto one row", {
@@ -417,8 +438,9 @@ test_that("a queried plot with nobody recorded is named, not silently missing", 
 test_that("a person id absent from table_colnam is dropped with a warning", {
   broken <- rbind(
     plot_people_raw(),
-    data.frame(id_liste_plots = 11L, id_table_colnam = 99L,
-               role = "data_manager", stringsAsFactors = FALSE)
+    data.frame(id_liste_plots = 11L, id_sub_plots = 105L,
+               id_table_colnam = 99L, role = "data_manager",
+               stringsAsFactors = FALSE)
   )
   con <- mock_authors_con(plot_people = broken)
 
@@ -463,12 +485,55 @@ test_that("by_plot names who, on which plot, in which role and from where", {
   out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   expect_true(all(c("colnam", "role", "source", "plot_name", "id_liste_plots",
-                    "census_number", "census_year") %in% names(out$by_plot)))
+                    "id_sub_plots", "census_number", "census_year")
+                  %in% names(out$by_plot)))
 
   a_on_10 <- out$by_plot[out$by_plot$colnam == "A One" &
                            out$by_plot$plot_name == "p010", ]
-  expect_equal(a_on_10$role, "principal_investigator")
-  expect_equal(a_on_10$source, "plot")
+  expect_setequal(a_on_10$role, "principal_investigator")
+  expect_setequal(a_on_10$source, "plot")
+})
+
+
+# ── id_sub_plots, for chaining back to query_subplots() ──────────────────────
+
+test_that("census people carry the id of the census subplot", {
+  con <- mock_authors_con()
+
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
+  census <- out$by_plot[out$by_plot$source == "census", ]
+
+  expect_setequal(census$id_sub_plots, c(201L, 202L, 203L))
+  expect_true(all(!is.na(census$id_sub_plots)))
+})
+
+test_that("plot-level people carry the id of their own feature row", {
+  con <- mock_authors_con()
+
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
+  plot_level <- out$by_plot[out$by_plot$source == "plot", ]
+
+  expect_setequal(plot_level$id_sub_plots, c(101L, 102L, 103L, 104L))
+})
+
+test_that("no row is left without a subplot id to chain on", {
+  con <- mock_authors_con()
+
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
+
+  expect_false(any(is.na(out$by_plot$id_sub_plots)))
+  expect_type(out$by_plot$id_sub_plots, "integer")
+})
+
+test_that("the id survives the census-only filter, which is how it is chained", {
+  con <- mock_authors_con()
+
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con, subplot_type = "census")
+  ids <- unique(out$by_plot$id_sub_plots[out$by_plot$source == "census"])
+
+  expect_setequal(ids, c(201L, 202L, 203L))
+  # 204 is the soil sample, excluded by subplot_type
+  expect_false(204L %in% out$by_plot$id_sub_plots)
 })
 
 test_that("roles_found counts people and plots per role and route", {

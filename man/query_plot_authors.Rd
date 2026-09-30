@@ -12,7 +12,7 @@ query_plot_authors(
   feature_filters = NULL,
   id_plot = NULL,
   plots = NULL,
-  exact_match = FALSE,
+  exact_match = TRUE,
   interactive = TRUE,
   core_roles = c("principal_investigator", "data_manager", "team_leader"),
   include_plot_features = TRUE,
@@ -25,10 +25,9 @@ query_plot_authors(
 }
 \arguments{
 \item{plot_name, country, locality_name, method, feature_filters}{Plot filters,
-with the meaning and the matching they have in [query_plots()] - they are
-handed to the same query builder. A single `plot_name` matches as a
-substring, several match exactly, and `exact_match = TRUE` forces exact
-matching throughout.}
+with the meaning they have in [query_plots()] - they are handed to the
+same query builder. Matching is exact by default here, unlike
+[query_plots()]; see `exact_match`.}
 
 \item{id_plot}{Integer vector of `data_liste_plots.id_liste_plots`, when the
 plots are already resolved.}
@@ -38,7 +37,12 @@ shapes: the styled list (its `metadata` table, whose id column is
 `plot_id`), the `"full"` list (its `extract` table), or a bare data frame.}
 
 \item{exact_match}{Logical. Match filter values exactly rather than as
-substrings. Default `FALSE`, as in [query_plots()].}
+substrings. **Default `TRUE`, unlike [query_plots()]**, where it is
+`FALSE`. An author list is a claim about a named set of plots, so a
+`plot_name` that quietly pulls in the neighbouring plots adds people who
+do not belong on it. Pass `exact_match = FALSE` for the substring
+matching [query_plots()] does by default - `plot_name = "mbalmayo01"`
+then takes every plot whose name contains it.}
 
 \item{interactive}{Logical. Resolve `country` and `method` through fuzzy
 matching prompts when they do not match a lookup value. Default `TRUE`,
@@ -75,10 +79,24 @@ A list of five elements:
   \item{`authors_core`}{One row per person, restricted to `core_roles`.
     This is the short invitation list.}
   \item{`authors_all`}{One row per person, all roles. Same columns.}
-  \item{`by_plot`}{The detail behind both: one row per person x plot x role
-    x source, with `plot_name`, `role`, `source`, `census_number` and
+  \item{`by_plot`}{The detail behind both: one row per record, with
+    `plot_name`, `role`, `source`, `id_sub_plots`, `census_number` and
     `census_year`. This is what to save alongside a dataset as authorship
-    metadata.}
+    metadata.
+
+    `id_sub_plots` is the `data_liste_sub_plots` row the person hangs off,
+    so it feeds straight back into [query_subplots()] for the raw record.
+    What it points at depends on `source`: **the census** when
+    `source == "census"` (or any other subplot observation), and **the
+    people feature row itself** when `source == "plot"`, since a plot-level
+    feature is its own row of that table. Filter on `source` before
+    chaining if only one of the two is wanted.
+
+    One row per record, not per person x plot x role: the same person
+    recorded twice against one plot in one role is two rows of
+    `data_liste_sub_plots` with two ids, and both are shown rather than
+    collapsed, so a duplicated entry is visible. The author tables are
+    unaffected - they are one row per person either way.}
   \item{`roles_found`}{Count of people and plots per role, so it is visible
     which roles actually carry data.}
   \item{`plots_without_people`}{Ids and names of queried plots that
@@ -116,14 +134,24 @@ or wrong.
 }
 \examples{
 \dontrun{
-  # Filter the plots here, as in query_plots()
-  authors <- query_plot_authors(plot_name = "mbalmayo01")
+  # Filter the plots here, as in query_plots(). Matching is exact by
+  # default, so this is the one plot named mbalmayo010:
+  authors <- query_plot_authors(plot_name = "mbalmayo010")
   authors <- query_plot_authors(method = "1ha-IRD")
   authors <- query_plot_authors(country = "Cameroon", method = "1ha-IRD")
+
+  # ... and this is every plot whose name contains "mbalmayo01"
+  query_plot_authors(plot_name = "mbalmayo01", exact_match = FALSE)
 
   authors$authors_core   # PI / data manager / team leader only
   authors$authors_all    # everyone, additional_people included
   authors$by_plot        # who, on which plot, in which role
+
+  # Back to the raw subplot records behind the census people
+  census_ids <- unique(
+    authors$by_plot$id_sub_plots[authors$by_plot$source == "census"]
+  )
+  query_subplots(ids_subplots = census_ids)
 
   # Or reuse a query_plots() result you already have, in any of its shapes
   extract <- query_plots(method = "1ha-IRD")
