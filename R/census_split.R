@@ -313,6 +313,13 @@
 #' expected, and letting it break the match would turn every correction into a
 #' spurious recruit. Revisions are reported in `taxon_drift` instead.
 #'
+#' Comparing the two ids straight would also call a *renaming* a revision: a
+#' synonym is a row of its own in `table_taxa`, so a file and a database
+#' following different nomenclatures disagree on the id of every tree they
+#' agree about. Given `con_taxa` (or `synonyms`), both sides are resolved
+#' through `idtax_good_n` first, and the pairs that meet there are reported
+#' separately in `taxon_synonyms` rather than as revisions.
+#'
 #' @section Tags that are not unique:
 #' Some plots number tags per quadrat rather than per plot, so one plot + tag
 #' pair can name several recorded stems. Taking the first of them — which is
@@ -339,9 +346,16 @@
 #'   Rows of `data` for other plots are returned in `out_of_scope`. Defaults to
 #'   every plot present in `data`.
 #' @param con Database connection or pool. Required unless `existing` is given.
+#' @param con_taxa Connection or pool for the **taxa** database, used to tell
+#'   a redetermination from a mere renaming. Without it — and without
+#'   `synonyms` — taxa are compared on the raw `idtax_n`, and every stem whose
+#'   identification moved between two synonyms is reported as revised.
 #' @param existing Data frame of individuals already recorded, with at least
 #'   `plot_name` and `tag`; `id_n`, `idtax_n` and `last_status` are used when
 #'   present. Fetched from `con` when `NULL`.
+#' @param synonyms Data frame with `idtax_n` and `idtax_accepted`, as
+#'   [.fetch_accepted_idtax()] returns it. Supplied directly it replaces the
+#'   `con_taxa` lookup, which is how this is tested without a connection.
 #' @param plot_col,tag_col,idtax_col Column names in `data`.
 #' @param typo_max_dist Maximum edit distance at which an unknown tag is
 #'   treated as a possible typo rather than a recruit. `0` disables the check.
@@ -372,6 +386,9 @@
 #'       stems, with the candidate `id_n`s.}
 #'     \item{`taxon_drift`}{remeasures whose taxon differs from the database —
 #'       a report, not a reclassification.}
+#'     \item{`taxon_synonyms`}{remeasures whose taxon id differs but resolves
+#'       to the same accepted taxon, with that `idtax_accepted`. The tree was
+#'       renamed, not redetermined, so it is kept out of `taxon_drift`.}
 #'     \item{`missing_stems`}{recorded stems with no row in `data`.}
 #'     \item{`duplicates`}{plot + tag appearing more than once in `data`.}
 #'     \item{`existing_duplicates`}{the rows of `existing` whose plot + tag
@@ -409,7 +426,9 @@
 split_census_table <- function(data,
                                plot_names     = NULL,
                                con            = NULL,
+                               con_taxa       = NULL,
                                existing       = NULL,
+                               synonyms       = NULL,
                                plot_col       = "plot_name",
                                tag_col        = "tag",
                                idtax_col      = "idtax_n",
@@ -660,6 +679,12 @@ split_census_table <- function(data,
     idtax_file = character(0), idtax_db = character(0),
     stringsAsFactors = FALSE
   )
+  taxon_synonyms <- data.frame(
+    row_id = integer(0), plot_name = character(0), tag = character(0),
+    idtax_file = character(0), idtax_db = character(0),
+    idtax_accepted = integer(0),
+    stringsAsFactors = FALSE
+  )
 
   if (idtax_col %in% names(data) && any(!is.na(existing$idtax_n))) {
     rows <- which(data$row_role == "remeasure")
@@ -667,13 +692,43 @@ split_census_table <- function(data,
       in_file <- trimws(as.character(data[[idtax_col]][rows]))
       in_db   <- trimws(as.character(existing$idtax_n[hit[rows]]))
       differs <- !is.na(in_file) & nzchar(in_file) & !is.na(in_db) & in_file != in_db
-      if (any(differs)) {
+
+      # A different id is not a different plant. `table_taxa` keeps a synonym
+      # as a row of its own pointing at the accepted name, so a file written
+      # against one nomenclature and a database written against another
+      # disagree on every id while naming the same trees throughout. Comparing
+      # the raw ids turns that into a census-wide list of identifications to
+      # review, which is worse than useless: the real redeterminations are
+      # buried in it.
+      if (is.null(synonyms) && !is.null(con_taxa) && any(differs)) {
+        synonyms <- .fetch_accepted_idtax(
+          c(in_file[differs], in_db[differs]), con_taxa
+        )
+      }
+      accepted_file <- .resolve_idtax(in_file, synonyms)
+      accepted_db   <- .resolve_idtax(in_db,   synonyms)
+      same_taxon <- differs & !is.na(accepted_file) & !is.na(accepted_db) &
+        accepted_file == accepted_db
+
+      revised <- differs & !same_taxon
+      if (any(revised)) {
         drift <- data.frame(
-          row_id     = data$row_id[rows[differs]],
-          plot_name  = file_plot[rows[differs]],
-          tag        = file_tag[rows[differs]],
-          idtax_file = in_file[differs],
-          idtax_db   = in_db[differs],
+          row_id     = data$row_id[rows[revised]],
+          plot_name  = file_plot[rows[revised]],
+          tag        = file_tag[rows[revised]],
+          idtax_file = in_file[revised],
+          idtax_db   = in_db[revised],
+          stringsAsFactors = FALSE
+        )
+      }
+      if (any(same_taxon)) {
+        taxon_synonyms <- data.frame(
+          row_id     = data$row_id[rows[same_taxon]],
+          plot_name  = file_plot[rows[same_taxon]],
+          tag        = file_tag[rows[same_taxon]],
+          idtax_file = in_file[same_taxon],
+          idtax_db   = in_db[same_taxon],
+          idtax_accepted = accepted_file[same_taxon],
           stringsAsFactors = FALSE
         )
       }
@@ -732,6 +787,7 @@ split_census_table <- function(data,
       possible_typos = typos,
       ambiguous      = ambiguous,
       taxon_drift    = drift,
+      taxon_synonyms = taxon_synonyms,
       missing_stems  = missing_stems,
       duplicates     = duplicates,
       existing_duplicates = existing_duplicates,
@@ -790,6 +846,14 @@ print.census_split <- function(x, ...) {
   if (nrow(x$taxon_drift) > 0) {
     cli::cli_alert_warning("{nrow(x$taxon_drift)} remeasured stem{?s} carr{?ies/y} a different taxon than the database.")
   }
+  if (!is.null(x$taxon_synonyms) && nrow(x$taxon_synonyms) > 0) {
+    n_syn <- nrow(x$taxon_synonyms)
+    cli::cli_alert_info(paste(
+      "{n_syn} further remeasured stem{?s} carr{?ies/y} a different taxon id",
+      "that resolves to the same accepted name - renamed, not redetermined.",
+      "See `$taxon_synonyms`."
+    ))
+  }
   if (nrow(x$missing_stems) > 0) {
     cli::cli_alert_info("{nrow(x$missing_stems)} recorded stem{?s} ha{?s/ve} no row in this table.")
   }
@@ -839,7 +903,8 @@ export_census_split <- function(x, dir = ".", prefix = NULL, overwrite = FALSE) 
     "04_missing_stems" = x$missing_stems,
     "05_report"        = x$summary,
     "06_ambiguous"     = x$ambiguous,
-    "07_existing_duplicates" = x$existing_duplicates
+    "07_existing_duplicates" = x$existing_duplicates,
+    "08_taxon_synonyms"      = x$taxon_synonyms
   )
 
   written <- character(0)

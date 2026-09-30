@@ -454,6 +454,82 @@ test_that("split_census_table reports a remeasure carrying a new taxon", {
   expect_equal(res$taxon_drift$idtax_db, "500")
 })
 
+test_that("a taxon id that resolves to the same accepted name is not drift", {
+  # 999 is a synonym of 500: the tree was renamed, not redetermined
+  census <- data.frame(
+    plot_name = c("P1", "P1"),
+    tag       = c("101", "102"),
+    idtax_n   = c(500L, 999L),
+    stringsAsFactors = FALSE
+  )
+  syn <- data.frame(
+    idtax_n        = c(500L, 999L, 600L, 700L),
+    idtax_accepted = c(500L, 500L, 600L, 700L),
+    stringsAsFactors = FALSE
+  )
+  res <- split_census_table(census, existing = make_existing(), synonyms = syn)
+
+  expect_equal(nrow(res$taxon_drift), 0)
+  expect_equal(nrow(res$taxon_synonyms), 1)
+  expect_equal(res$taxon_synonyms$tag, "102")
+  expect_equal(res$taxon_synonyms$idtax_file, "999")
+  expect_equal(res$taxon_synonyms$idtax_db, "500")
+  expect_equal(res$taxon_synonyms$idtax_accepted, 500L)
+})
+
+test_that("a real redetermination survives synonym resolution", {
+  census <- data.frame(
+    plot_name = c("P1", "P1"),
+    tag       = c("101", "103"),
+    idtax_n   = c(500L, 700L),   # 103 is 600 in the database, 700 is its own taxon
+    stringsAsFactors = FALSE
+  )
+  syn <- data.frame(
+    idtax_n        = c(500L, 600L, 700L),
+    idtax_accepted = c(500L, 600L, 700L),
+    stringsAsFactors = FALSE
+  )
+  res <- split_census_table(census, existing = make_existing(), synonyms = syn)
+
+  expect_equal(nrow(res$taxon_drift), 1)
+  expect_equal(res$taxon_drift$tag, "103")
+  expect_equal(nrow(res$taxon_synonyms), 0)
+})
+
+test_that("without a synonym map the raw ids are compared, as before", {
+  census <- data.frame(
+    plot_name = c("P1", "P1"), tag = c("101", "102"),
+    idtax_n = c(500L, 999L), stringsAsFactors = FALSE
+  )
+  res <- split_census_table(census, existing = make_existing())
+
+  expect_equal(nrow(res$taxon_drift), 1)
+  expect_equal(nrow(res$taxon_synonyms), 0)
+})
+
+test_that("an incomplete synonym map leaves the unknown ids compared raw", {
+  # 999 is absent from the map — resolving it to nothing would be worse than
+  # not resolving it at all, so it stays a revision
+  census <- data.frame(
+    plot_name = c("P1", "P1"), tag = c("101", "102"),
+    idtax_n = c(500L, 999L), stringsAsFactors = FALSE
+  )
+  syn <- data.frame(idtax_n = 500L, idtax_accepted = 500L,
+                    stringsAsFactors = FALSE)
+  res <- split_census_table(census, existing = make_existing(), synonyms = syn)
+
+  expect_equal(nrow(res$taxon_drift), 1)
+  expect_equal(nrow(res$taxon_synonyms), 0)
+})
+
+test_that("taxon_synonyms is an empty frame when nothing was renamed", {
+  res <- split_census_table(make_census(), existing = make_existing())
+  expect_s3_class(res$taxon_synonyms, "data.frame")
+  expect_equal(nrow(res$taxon_synonyms), 0)
+  expect_true(all(c("row_id", "plot_name", "tag", "idtax_file", "idtax_db",
+                    "idtax_accepted") %in% names(res$taxon_synonyms)))
+})
+
 test_that("taxon drift ignores rows with no taxon in the file", {
   census <- data.frame(
     plot_name = c("P1", "P1"), tag = c("101", "102"),

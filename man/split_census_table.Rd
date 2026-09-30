@@ -9,7 +9,9 @@ split_census_table(
   data,
   plot_names = NULL,
   con = NULL,
+  con_taxa = NULL,
   existing = NULL,
+  synonyms = NULL,
   plot_col = "plot_name",
   tag_col = "tag",
   idtax_col = "idtax_n",
@@ -29,9 +31,18 @@ every plot present in `data`.}
 
 \item{con}{Database connection or pool. Required unless `existing` is given.}
 
+\item{con_taxa}{Connection or pool for the **taxa** database, used to tell
+a redetermination from a mere renaming. Without it — and without
+`synonyms` — taxa are compared on the raw `idtax_n`, and every stem whose
+identification moved between two synonyms is reported as revised.}
+
 \item{existing}{Data frame of individuals already recorded, with at least
 `plot_name` and `tag`; `id_n`, `idtax_n` and `last_status` are used when
 present. Fetched from `con` when `NULL`.}
+
+\item{synonyms}{Data frame with `idtax_n` and `idtax_accepted`, as
+[.fetch_accepted_idtax()] returns it. Supplied directly it replaces the
+`con_taxa` lookup, which is how this is tested without a connection.}
 
 \item{plot_col, tag_col, idtax_col}{Column names in `data`.}
 
@@ -71,6 +82,9 @@ An object of class `census_split`, a list with:
       stems, with the candidate `id_n`s.}
     \item{`taxon_drift`}{remeasures whose taxon differs from the database —
       a report, not a reclassification.}
+    \item{`taxon_synonyms`}{remeasures whose taxon id differs but resolves
+      to the same accepted taxon, with that `idtax_accepted`. The tree was
+      renamed, not redetermined, so it is kept out of `taxon_drift`.}
     \item{`missing_stems`}{recorded stems with no row in `data`.}
     \item{`duplicates`}{plot + tag appearing more than once in `data`.}
     \item{`existing_duplicates`}{the rows of `existing` whose plot + tag
@@ -112,6 +126,13 @@ Only plot and tag decide whether a row is a remeasure. `idtax_n` is never
 part of that test — an identification revised between two censuses is
 expected, and letting it break the match would turn every correction into a
 spurious recruit. Revisions are reported in `taxon_drift` instead.
+
+Comparing the two ids straight would also call a *renaming* a revision: a
+synonym is a row of its own in `table_taxa`, so a file and a database
+following different nomenclatures disagree on the id of every tree they
+agree about. Given `con_taxa` (or `synonyms`), both sides are resolved
+through `idtax_good_n` first, and the pairs that meet there are reported
+separately in `taxon_synonyms` rather than as revisions.
 }
 \section{Tags that are not unique}{
 

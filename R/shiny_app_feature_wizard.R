@@ -550,6 +550,7 @@ feature_wizard_server <- function(input, output, session, translator) {
       "fw_step3_census",
       selected_plots = shiny::reactive(rv$selected_plots),
       con = pool_main_reactive,
+      con_taxa = pool_taxa_reactive,
       i18n = i18n
     )
 

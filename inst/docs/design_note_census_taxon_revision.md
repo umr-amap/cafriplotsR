@@ -164,3 +164,45 @@ distinct decision surface rather than another alert.
 Both database reads degrade to a message and an empty frame on failure: missing
 evidence shows the revision without it, a failed taxa lookup shows `idtax` ids.
 Neither blocks the step.
+
+## 8. Follow-up — synonymy (2026-09-30)
+
+The first version compared `idtax_n` as written: `split_census_table()` called a
+remeasure drifted whenever the file's id differed from the database's. Two ids
+can name the same plant. `table_taxa` keeps a synonym as a row of its own
+pointing at the accepted name through `idtax_good_n`, so a file written against
+one nomenclature and a database written against another disagree on the id of
+every tree they agree about.
+
+The effect on a real import: 440 stems reported as revised, 435 of them the same
+taxon under two names. The five actual redeterminations were unfindable in the
+list, which is worse than not offering the step at all — a reviewer who accepts
+in bulk to clear it accepts the noise along with the signal.
+
+Both sides are now resolved through `idtax_good_n` before being compared, one
+hop, the convention used everywhere else in the package:
+
+| Piece | Where |
+|---|---|
+| the map, read from the taxa DB | `.fetch_accepted_idtax()` |
+| the pure resolution | `.resolve_idtax()` |
+| the accepted id alongside the names | `.fetch_taxon_names()`, new `idtax_accepted` column |
+
+`split_census_table()` gained `con_taxa` (and `synonyms`, for callers working
+without a connection) and now reports the renamed stems in `taxon_synonyms`,
+separately from `taxon_drift`. `.classify_taxon_revisions()` drops them again on
+its own, from `taxa$idtax_accepted`, so `collect_taxon_revisions()` is correct
+whether or not the split had a taxa connection.
+
+Three deliberate choices:
+
+- **Dropped, not defaulted.** A renamed stem is not a decision with an obvious
+  answer; it is not a decision. Showing it with `keep_db` preselected would put
+  it back in the list the reviewer has to read.
+- **Reported anyway.** `taxon_synonyms` is shown in step 3 and exported as
+  `08_taxon_synonyms.xlsx`. A file following a different nomenclature is worth
+  knowing about even though nothing needs deciding.
+- **An unknown id stays unresolved.** `.resolve_idtax()` returns the id itself
+  when the map has no row for it, never `NA` — resolving to `NA` would make two
+  unrelated unknown taxa compare equal. A failed or absent lookup therefore
+  degrades to the old raw comparison rather than to silence.

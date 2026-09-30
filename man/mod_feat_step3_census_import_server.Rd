@@ -4,7 +4,13 @@
 \alias{mod_feat_step3_census_import_server}
 \title{Feature Wizard Step 3: Full Census Import - Server}
 \usage{
-mod_feat_step3_census_import_server(id, selected_plots, con, i18n)
+mod_feat_step3_census_import_server(
+  id,
+  selected_plots,
+  con,
+  con_taxa = shiny::reactive(NULL),
+  i18n
+)
 }
 \arguments{
 \item{id}{Module namespace ID}
@@ -12,6 +18,10 @@ mod_feat_step3_census_import_server(id, selected_plots, con, i18n)
 \item{selected_plots}{Reactive containing data.frame of selected plots}
 
 \item{con}{Reactive containing database connection pool}
+
+\item{con_taxa}{Reactive containing the taxa database pool. Used only to
+resolve synonyms when comparing identifications; without it a stem renamed
+between two synonyms is reported as an identification change.}
 
 \item{i18n}{Reactive returning translator object}
 }

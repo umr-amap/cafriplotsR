@@ -12,7 +12,9 @@
 \item{con_taxa}{Connection or pool for the taxa database.}
 }
 \value{
-Data frame with `idtax_n`, `taxon_name`, `tax_level`, `precision`.
+Data frame with `idtax_n`, `taxon_name`, `tax_level`, `precision`
+  and `idtax_accepted` — the id of the accepted taxon, so the caller can
+  tell a renaming from a redetermination without a second query.
   An empty frame if nothing can be fetched — the caller degrades to ids.
 }
 \description{
