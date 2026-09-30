@@ -7223,7 +7223,7 @@
     },
     {
       "en": "Retroactively corrects 'presumed_dead' to 'alive' when a stem is remeasured at a later census",
-      "fr": "Corrige rétroactivement 'présumé mort' en 'vivant' lorsqu'une tige est remesurée lors d'un recensement ultérieur"
+      "fr": "Corrige rétroactivement 'presumed_dead' en 'alive' lorsqu'une tige est remesurée lors d'un recensement ultérieur"
     },
     {
       "en": "Shows the full status table for your review before any database write",
@@ -7299,7 +7299,7 @@
     },
     {
       "en": "stems previously classified as 'presumed_dead' were corrected to 'alive' because they were remeasured at a later census.",
-      "fr": "des tiges précédemment classées comme 'présumé mort' ont été corrigées en 'vivant' car elles ont été remesurées lors d'un recensement ultérieur."
+      "fr": "des tiges précédemment classées comme 'presumed_dead' ont été corrigées en 'alive' car elles ont été remesurées lors d'un recensement ultérieur."
     },
     {
       "en": "Review Status Table",
