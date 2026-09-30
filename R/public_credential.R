@@ -10,15 +10,30 @@
 # credential is the only control there is over a published login exhausting
 # `max_connections`.
 #
-# So the package ships a URL rather than a value. Rotating means editing one
-# file on the gh-pages branch; withdrawing means setting `enabled` to false
-# there. Every installation, however old, follows on its next launch.
+# So the package ships a URL rather than a value. Rotating means editing the
+# published descriptor; withdrawing means setting `enabled` to false in it
+# (inst/public-access/README.md). Every installation, however old, follows on
+# its next launch.
 
-# Where the published descriptor lives. The pkgdown site is deployed from
-# docs/ to gh-pages with `clean: false` (.github/workflows/pkgdown.yaml), so a
-# file committed directly to that branch survives later site rebuilds.
-.public_credential_url <-
-  "https://umr-amap.github.io/cafriplotsR/public-access.json"
+# Where the published descriptor lives. GitHub Pages serves this repository
+# from master:/docs, so the served file is docs/public-access.json - and
+# raw.githubusercontent.com hands out that very file, from the same commit,
+# under a different hostname.
+#
+# The second entry is therefore not a second descriptor, and nothing has to be
+# kept in step: it is the same bytes by another route. It is here because one
+# site's network resets the TLS handshake to *.github.io while leaving
+# raw.githubusercontent.com alone, which made the public button vanish there
+# while the descriptor itself was perfectly healthy. Rotation and the kill
+# switch still take one commit and reach both routes at once.
+#
+# Order matters: the first location that yields a *parsed* descriptor settles
+# the question, including when that descriptor says no. See
+# .fetch_public_descriptor().
+.public_credential_urls <- c(
+  "https://umr-amap.github.io/cafriplotsR/public-access.json",
+  "https://raw.githubusercontent.com/umr-amap/cafriplotsR/master/docs/public-access.json"
+)
 
 # Resolution is cached for this long. Both the login UI and the login server
 # ask, and a long-lived process should still notice a withdrawal without being
@@ -29,17 +44,22 @@
 # there so a *withdrawal* propagates and so repeated asks do not hammer the
 # host; a failed fetch is a different thing, and caching it for five minutes
 # means someone who fixes their proxy and relaunches the app still gets
-# nothing, with no way to tell that they had already fixed it. The cache lives
-# in the package namespace, so it outlives the Shiny session that filled it.
+# nothing, with no way to tell that they had already fixed it.
 .public_credential_ttl_unreachable <- 30
 
+# Cached per descriptor location. Keying on the location is what makes
+# `CafriplotsR.public_access_url` usable as the escape hatch it is meant to
+# be: a site that points it at its own mirror after a failed lookup then gets
+# an answer from the mirror, rather than the previous location's failure for
+# the rest of its TTL. The cache lives in the package namespace, so it
+# outlives the Shiny session that filled it.
 .public_credential_cache <- new.env(parent = emptyenv())
 
 #' Resolve the public login credential
 #'
 #' Reports whether the "Connect as public user" button can be offered, and
-#' with which credential. Anything unexpected — no network, a blocked host, a
-#' malformed descriptor, or public access switched off upstream — comes back
+#' with which credential. Anything unexpected - no network, a blocked host, a
+#' malformed descriptor, or public access switched off upstream - comes back
 #' as unavailable. There is deliberately no built-in fallback value; a
 #' credential with a default in the source is a credential that gets published
 #' the first time the file moves.
@@ -48,12 +68,14 @@
 #' deployment injects them (see `deployment/taxonomic_match/`) and must not
 #' depend on a third-party host being reachable to let anyone in.
 #'
-#' @param url Descriptor to read. Defaults to the published one, or to
-#'   `getOption("CafriplotsR.public_access_url")` when set — which is how a
-#'   test, or a site mirroring the descriptor behind its own firewall, points
-#'   this elsewhere.
-#' @param timeout Seconds to wait for it. Kept short: this runs while the user
-#'   is looking at the login screen.
+#' @param url Descriptor locations, tried in order until one is read. Defaults
+#'   to the published ones - the same file under two hostnames, so a network
+#'   that filters one of them still resolves - or to
+#'   `getOption("CafriplotsR.public_access_url")` when set, which replaces the
+#'   list outright. That is how a test, or a site mirroring the descriptor
+#'   behind its own firewall, points this elsewhere.
+#' @param timeout Seconds to wait for each. Kept short: this runs while the
+#'   user is looking at the login screen.
 #' @param force Skip the cache and ask again.
 #'
 #' @return A list with:
@@ -61,14 +83,14 @@
 #'   - `user`, `password`: the credential, empty strings when unavailable
 #'   - `message`: text to show in place of the button, possibly empty
 #'   - `reason`: `"ok"`, `"withdrawn"` when the descriptor was read and says
-#'     no, or `"unreachable"` when it could not be read at all. The login
+#'     no, or `"unreachable"` when no location could be read at all. The login
 #'     screen needs the distinction: a withdrawal is a decision and carries
 #'     its own `message`, whereas an unreachable descriptor is a local fault
 #'     the user can go and fix
 #'
 #' @keywords internal
 .public_credential <- function(url = getOption("CafriplotsR.public_access_url",
-                                               .public_credential_url),
+                                               .public_credential_urls),
                                timeout = 5,
                                force = FALSE) {
 
@@ -78,7 +100,8 @@
     return(.public_credential_result(TRUE, env_user, env_pass))
   }
 
-  cached <- .public_credential_cache$value
+  key <- paste(url, collapse = "|")
+  cached <- .public_credential_cache[[key]]
   if (!isTRUE(force) && !is.null(cached)) {
     ttl <- if (identical(cached$result$reason, "unreachable")) {
       .public_credential_ttl_unreachable
@@ -91,22 +114,25 @@
   }
 
   result <- .public_credential_from(.fetch_public_descriptor(url, timeout))
-  .public_credential_cache$value <- list(result = result, at = Sys.time())
+  .public_credential_cache[[key]] <- list(result = result, at = Sys.time())
   result
 }
 
-#' Forget a cached resolution
+#' Forget cached resolutions
+#'
+#' Every location, not only the one last asked for.
 #'
 #' @keywords internal
 #' @noRd
 .public_credential_forget <- function() {
-  .public_credential_cache$value <- NULL
+  rm(list = ls(.public_credential_cache, all.names = TRUE),
+     envir = .public_credential_cache)
   invisible(NULL)
 }
 
 #' Shape a resolution result
 #'
-#' `reason` defaults to the ordinary case — a credential resolved, or a
+#' `reason` defaults to the ordinary case - a credential resolved, or a
 #' descriptor that was read and said no. Only the caller that failed to read
 #' one at all passes `"unreachable"`.
 #'
@@ -152,10 +178,29 @@
 
 #' Read the published public-access descriptor
 #'
-#' @return The parsed descriptor, or `NULL` if it could not be read.
+#' Each location is tried in turn and the first one that parses wins, whatever
+#' it says. Falling through to the next location on a descriptor that was read
+#' and says `enabled: false` would turn the kill switch into a suggestion, so
+#' the fallthrough happens only when a location could not be read at all: no
+#' route to the host, a non-200, content that will not parse.
+#'
+#' @return The parsed descriptor, or `NULL` if no location could be read.
 #' @keywords internal
 #' @noRd
 .fetch_public_descriptor <- function(url, timeout = 5) {
+  for (location in url) {
+    descriptor <- .fetch_one_descriptor(location, timeout)
+    if (!is.null(descriptor)) return(descriptor)
+  }
+  NULL
+}
+
+#' Read one descriptor location
+#'
+#' @return The parsed descriptor, or `NULL` if it could not be read.
+#' @keywords internal
+#' @noRd
+.fetch_one_descriptor <- function(url, timeout = 5) {
   tryCatch({
     # GitHub Pages sits behind a CDN that caches for minutes. A withdrawal
     # that takes ten minutes to reach anyone is not a kill switch, so the
@@ -164,14 +209,21 @@
                    "t=", as.integer(Sys.time()))
     handle <- curl::new_handle(timeout = timeout, connecttimeout = timeout)
     response <- curl::curl_fetch_memory(bust, handle = handle)
-    # 0 is what a scheme with no status line reports — `file://`, which is how
+    # 0 is what a scheme with no status line reports - `file://`, which is how
     # a site behind a firewall points `CafriplotsR.public_access_url` at a
     # local mirror of the descriptor.
     status <- as.integer(response$status_code)
-    if (!status %in% c(200L, 0L)) return(NULL)
+    if (!status %in% c(200L, 0L)) {
+      message("Public access descriptor unavailable at ", url,
+              " (HTTP ", status, ").")
+      return(NULL)
+    }
     jsonlite::fromJSON(rawToChar(response$content), simplifyVector = TRUE)
   }, error = function(e) {
-    message("Public access descriptor unavailable (", conditionMessage(e), ").")
+    # Named, because with more than one location the interesting part of this
+    # message is which route failed, and how.
+    message("Public access descriptor unavailable at ", url, " (",
+            conditionMessage(e), ").")
     NULL
   })
 }
