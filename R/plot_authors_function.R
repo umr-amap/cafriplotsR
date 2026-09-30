@@ -28,11 +28,21 @@
 #' and `id_colnam` are never read: for `table_colnam` features they are empty
 #' or wrong.
 #'
-#' @param plot_ids Integer vector of `data_liste_plots.id_liste_plots`. Either
-#'   this or `plots` is required.
-#' @param plots Alternative to `plot_ids`: the result of [query_plots()] (the
-#'   whole list, or its `extract` element). Requires `remove_ids = FALSE` in
-#'   the [query_plots()] call, since the plot ids are what is needed here.
+#' @param plot_name,country,locality_name,method,feature_filters Plot filters,
+#'   with the meaning and the matching they have in [query_plots()] - they are
+#'   handed to the same query builder. A single `plot_name` matches as a
+#'   substring, several match exactly, and `exact_match = TRUE` forces exact
+#'   matching throughout.
+#' @param id_plot Integer vector of `data_liste_plots.id_liste_plots`, when the
+#'   plots are already resolved.
+#' @param plots A [query_plots()] result to take the plots from, in any of its
+#'   shapes: the styled list (its `metadata` table, whose id column is
+#'   `plot_id`), the `"full"` list (its `extract` table), or a bare data frame.
+#' @param exact_match Logical. Match filter values exactly rather than as
+#'   substrings. Default `FALSE`, as in [query_plots()].
+#' @param interactive Logical. Resolve `country` and `method` through fuzzy
+#'   matching prompts when they do not match a lookup value. Default `TRUE`,
+#'   as in [query_plots()].
 #' @param core_roles Character vector of the roles that make up the `core`
 #'   output. Defaults to `principal_investigator`, `data_manager` and
 #'   `team_leader` - the roles that normally carry an authorship claim,
@@ -77,17 +87,22 @@
 #'
 #' @examples
 #' \dontrun{
-#'   # All plots of one method, then their co-authors
-#'   extract <- query_plots(method = "1ha-IRD", remove_ids = FALSE)
-#'   authors <- query_plot_authors(plots = extract)
+#'   # Filter the plots here, as in query_plots()
+#'   authors <- query_plot_authors(plot_name = "mbalmayo01")
+#'   authors <- query_plot_authors(method = "1ha-IRD")
+#'   authors <- query_plot_authors(country = "Cameroon", method = "1ha-IRD")
 #'
 #'   authors$authors_core   # PI / data manager / team leader only
 #'   authors$authors_all    # everyone, additional_people included
 #'   authors$by_plot        # who, on which plot, in which role
 #'
+#'   # Or reuse a query_plots() result you already have, in any of its shapes
+#'   extract <- query_plots(method = "1ha-IRD")
+#'   query_plot_authors(plots = extract)
+#'
 #'   # Only the people of the censuses, and only those reachable by e-mail
 #'   query_plot_authors(
-#'     plot_ids = extract$extract$id_liste_plots,
+#'     method = "1ha-IRD",
 #'     include_plot_features = FALSE,
 #'     subplot_type = "census",
 #'     require_contact = TRUE
@@ -95,8 +110,15 @@
 #' }
 #'
 #' @export
-query_plot_authors <- function(plot_ids = NULL,
+query_plot_authors <- function(plot_name = NULL,
+                               country = NULL,
+                               locality_name = NULL,
+                               method = NULL,
+                               feature_filters = NULL,
+                               id_plot = NULL,
                                plots = NULL,
+                               exact_match = FALSE,
+                               interactive = TRUE,
                                core_roles = c("principal_investigator",
                                               "data_manager",
                                               "team_leader"),
@@ -107,7 +129,7 @@ query_plot_authors <- function(plot_ids = NULL,
                                con = NULL,
                                verbose = TRUE) {
 
-  plot_ids <- .resolve_author_plot_ids(plot_ids = plot_ids, plots = plots)
+  if (is.null(con)) con <- call.mydb()
 
   if (!include_plot_features && !include_subplot_features) {
     cli::cli_abort(
@@ -115,7 +137,19 @@ query_plot_authors <- function(plot_ids = NULL,
     )
   }
 
-  if (is.null(con)) con <- call.mydb()
+  plot_ids <- .resolve_author_plot_ids(
+    id_plot       = id_plot,
+    plots         = plots,
+    plot_name     = plot_name,
+    country       = country,
+    locality_name = locality_name,
+    method        = method,
+    feature_filters = feature_filters,
+    exact_match   = exact_match,
+    interactive   = interactive,
+    con           = con,
+    verbose       = verbose
+  )
 
   if (verbose) cli::cli_h2("Collecting people attached to {length(plot_ids)} plot{?s}")
 
@@ -240,57 +274,142 @@ query_plot_authors <- function(plot_ids = NULL,
 # -----------------------------------------------------------------------------
 
 #' Resolve the plot ids of query_plot_authors()
+#'
+#' Three ways in, in this order of precedence: ids given outright, a
+#' [query_plots()] result to read them off, or filters to run the same query
+#' [query_plots()] would have run.
+#'
 #' @keywords internal
 #' @noRd
-.resolve_author_plot_ids <- function(plot_ids, plots) {
+.resolve_author_plot_ids <- function(id_plot = NULL,
+                                     plots = NULL,
+                                     plot_name = NULL,
+                                     country = NULL,
+                                     locality_name = NULL,
+                                     method = NULL,
+                                     feature_filters = NULL,
+                                     exact_match = FALSE,
+                                     interactive = TRUE,
+                                     con = NULL,
+                                     verbose = TRUE) {
 
-  if (!is.null(plot_ids) && !is.null(plots)) {
-    cli::cli_alert_info("Both {.arg plot_ids} and {.arg plots} given; {.arg plot_ids} is used")
-    plots <- NULL
-  }
+  has_filters <- !is.null(plot_name) || !is.null(country) ||
+    !is.null(locality_name) || !is.null(method) || !is.null(feature_filters)
 
-  if (!is.null(plots)) {
+  given <- c(id_plot = !is.null(id_plot), plots = !is.null(plots),
+             filters = has_filters)
 
-    # query_plots() returns either the list or, when a single component is
-    # available, that component directly
-    extract <- if (is.data.frame(plots)) {
-      plots
-    } else if (is.list(plots) && is.data.frame(plots$extract)) {
-      plots$extract
-    } else {
-      cli::cli_abort(c(
-        "{.arg plots} is neither a data frame nor a {.fn query_plots} result.",
-        i = "Pass the result of {.fn query_plots}, or give {.arg plot_ids} instead."
-      ))
-    }
-
-    id_col <- intersect(c("id_liste_plots", "id_table_liste_plots"), names(extract))
-
-    if (length(id_col) == 0) {
-      cli::cli_abort(c(
-        "{.arg plots} carries no plot id column.",
-        i = "Call {.fn query_plots} with {.code remove_ids = FALSE} so the ids survive."
-      ))
-    }
-
-    plot_ids <- extract[[id_col[1]]]
-  }
-
-  if (is.null(plot_ids)) {
+  if (sum(given) == 0) {
     cli::cli_abort(c(
-      "{.arg plot_ids} or {.arg plots} is required.",
-      i = 'Resolve the plots first, e.g. {.code query_plots(method = "1ha-IRD", remove_ids = FALSE)}.'
+      "No plots named.",
+      i = 'Filter them here, e.g. {.code query_plot_authors(plot_name = "mbalmayo01")} or {.code query_plot_authors(method = "1ha-IRD")}.',
+      i = "Or pass {.arg id_plot}, or a {.fn query_plots} result as {.arg plots}."
     ))
   }
 
-  plot_ids <- as.integer(plot_ids)
+  if (sum(given) > 1 && verbose) {
+    cli::cli_alert_info(
+      "{.arg {names(given)[given]}} all given; {.arg {names(given)[given][1]}} is used"
+    )
+  }
+
+  plot_ids <- if (!is.null(id_plot)) {
+    id_plot
+  } else if (!is.null(plots)) {
+    .plot_ids_from_query_result(plots)
+  } else {
+    .plot_ids_from_filters(
+      plot_name = plot_name, country = country,
+      locality_name = locality_name, method = method,
+      feature_filters = feature_filters, exact_match = exact_match,
+      interactive = interactive, con = con
+    )
+  }
+
+  plot_ids <- suppressWarnings(as.integer(plot_ids))
   plot_ids <- unique(plot_ids[!is.na(plot_ids)])
 
   if (length(plot_ids) == 0) {
-    cli::cli_abort("{.arg plot_ids} resolved to no plot.")
+    cli::cli_abort("No plot matched.")
   }
 
   plot_ids
+}
+
+#' Read plot ids off any shape of a query_plots() result
+#'
+#' `query_plots()` returns a styled list whose plot table is `metadata` and
+#' whose id column has been renamed `plot_id`; the `"full"` style keeps the
+#' internal names, `extract` and `id_liste_plots`; and a result with a single
+#' component is returned as that component. All three arrive here.
+#'
+#' @keywords internal
+#' @noRd
+.plot_ids_from_query_result <- function(plots) {
+
+  id_cols <- c("plot_id", "id_liste_plots", "id_table_liste_plots")
+
+  # A data frame is either the plot table itself or a single-component result
+  frames <- if (is.data.frame(plots)) {
+    list(plots)
+  } else if (is.list(plots)) {
+    # Named tables first, in the order they are likely to hold plots, then
+    # anything else the list carries - a style not seen here still resolves.
+    # Built as two subscripts rather than one: mixing names and positions in a
+    # single `[` coerces the positions to strings, which match nothing.
+    named <- intersect(c("metadata", "extract", "meta_data"), names(plots))
+    rest  <- setdiff(seq_along(plots), match(named, names(plots)))
+    c(plots[named], plots[rest])
+  } else {
+    cli::cli_abort(c(
+      "{.arg plots} is neither a data frame nor a {.fn query_plots} result.",
+      i = "Pass what {.fn query_plots} returned, or give {.arg id_plot} instead."
+    ))
+  }
+
+  for (frame in frames) {
+    if (!is.data.frame(frame)) next
+    hit <- intersect(id_cols, names(frame))
+    if (length(hit) > 0) return(frame[[hit[1]]])
+  }
+
+  cli::cli_abort(c(
+    "{.arg plots} carries no plot id column.",
+    i = "Looked for {.field {id_cols}} in {.field metadata}, {.field extract}, and every other table it holds.",
+    i = "Filter the plots here instead, e.g. {.code query_plot_authors(plot_name = ...)}."
+  ))
+}
+
+#' Run the query_plots() filters to get plot ids
+#'
+#' Goes through the same query builder as [query_plots()], so `plot_name` and
+#' the rest match exactly as they do there, without paying for the individuals,
+#' the traits, the taxa connection or the output styling.
+#'
+#' @keywords internal
+#' @noRd
+.plot_ids_from_filters <- function(plot_name, country, locality_name, method,
+                                   feature_filters, exact_match, interactive,
+                                   con) {
+
+  sql <- .plot_filter_query(
+    con             = con,
+    country         = country,
+    plot_name       = plot_name,
+    method          = method,
+    locality_name   = locality_name,
+    feature_filters = feature_filters,
+    interactive     = interactive,
+    exact_match     = exact_match
+  )
+
+  res <- DBI::dbGetQuery(con, sql)
+
+  if (!"id_liste_plots" %in% names(res)) {
+    cli::cli_abort("{.field data_liste_plots} returned no {.field id_liste_plots} column.")
+  }
+
+  res$id_liste_plots
 }
 
 #' Feature types whose value is a person

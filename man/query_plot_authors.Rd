@@ -5,8 +5,15 @@
 \title{People attached to a set of plots, as a co-author list}
 \usage{
 query_plot_authors(
-  plot_ids = NULL,
+  plot_name = NULL,
+  country = NULL,
+  locality_name = NULL,
+  method = NULL,
+  feature_filters = NULL,
+  id_plot = NULL,
   plots = NULL,
+  exact_match = FALSE,
+  interactive = TRUE,
   core_roles = c("principal_investigator", "data_manager", "team_leader"),
   include_plot_features = TRUE,
   include_subplot_features = TRUE,
@@ -17,12 +24,25 @@ query_plot_authors(
 )
 }
 \arguments{
-\item{plot_ids}{Integer vector of `data_liste_plots.id_liste_plots`. Either
-this or `plots` is required.}
+\item{plot_name, country, locality_name, method, feature_filters}{Plot filters,
+with the meaning and the matching they have in [query_plots()] - they are
+handed to the same query builder. A single `plot_name` matches as a
+substring, several match exactly, and `exact_match = TRUE` forces exact
+matching throughout.}
 
-\item{plots}{Alternative to `plot_ids`: the result of [query_plots()] (the
-whole list, or its `extract` element). Requires `remove_ids = FALSE` in
-the [query_plots()] call, since the plot ids are what is needed here.}
+\item{id_plot}{Integer vector of `data_liste_plots.id_liste_plots`, when the
+plots are already resolved.}
+
+\item{plots}{A [query_plots()] result to take the plots from, in any of its
+shapes: the styled list (its `metadata` table, whose id column is
+`plot_id`), the `"full"` list (its `extract` table), or a bare data frame.}
+
+\item{exact_match}{Logical. Match filter values exactly rather than as
+substrings. Default `FALSE`, as in [query_plots()].}
+
+\item{interactive}{Logical. Resolve `country` and `method` through fuzzy
+matching prompts when they do not match a lookup value. Default `TRUE`,
+as in [query_plots()].}
 
 \item{core_roles}{Character vector of the roles that make up the `core`
 output. Defaults to `principal_investigator`, `data_manager` and
@@ -96,17 +116,22 @@ or wrong.
 }
 \examples{
 \dontrun{
-  # All plots of one method, then their co-authors
-  extract <- query_plots(method = "1ha-IRD", remove_ids = FALSE)
-  authors <- query_plot_authors(plots = extract)
+  # Filter the plots here, as in query_plots()
+  authors <- query_plot_authors(plot_name = "mbalmayo01")
+  authors <- query_plot_authors(method = "1ha-IRD")
+  authors <- query_plot_authors(country = "Cameroon", method = "1ha-IRD")
 
   authors$authors_core   # PI / data manager / team leader only
   authors$authors_all    # everyone, additional_people included
   authors$by_plot        # who, on which plot, in which role
 
+  # Or reuse a query_plots() result you already have, in any of its shapes
+  extract <- query_plots(method = "1ha-IRD")
+  query_plot_authors(plots = extract)
+
   # Only the people of the censuses, and only those reachable by e-mail
   query_plot_authors(
-    plot_ids = extract$extract$id_liste_plots,
+    method = "1ha-IRD",
     include_plot_features = FALSE,
     subplot_type = "census",
     require_contact = TRUE

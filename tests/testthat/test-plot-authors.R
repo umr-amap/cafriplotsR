@@ -65,63 +65,152 @@ mock_authors_con <- function(people_types   = people_types_raw(),
                              subplot_people = subplot_people_raw(),
                              colnam         = colnam_raw(),
                              plots          = plots_raw(),
+                             filtered       = NULL,
+                             record         = NULL,
                              env = parent.frame()) {
   testthat::local_mocked_bindings(
     .package = "DBI",
     dbGetQuery = function(conn, statement, ...) {
+      if (!is.null(record)) record$sql <- c(record$sql, as.character(statement))
       # Order matters: the two people queries also name subplotype_list and
       # the string 'table_colnam', so they have to be matched first.
       if (grepl("FROM data_subplot_feat", statement))    return(subplot_people)
       if (grepl("FROM data_liste_sub_plots", statement)) return(plot_people)
       if (grepl("FROM subplotype_list", statement))      return(people_types)
       if (grepl("FROM table_colnam", statement))         return(colnam)
+      # The filter query is SELECT *; the plot-name lookup names its columns
+      if (grepl("SELECT \\* FROM data_liste_plots", statement)) {
+        return(if (is.null(filtered)) plots else filtered)
+      }
       if (grepl("FROM data_liste_plots", statement))     return(plots)
       stop("unexpected query: ", statement)
     },
     .env = env
   )
-  structure(list(), class = "mock_connection")
+  # A real DBIConnection, so the query builder's glue_sql() quoting works;
+  # dbGetQuery is mocked above, so nothing is ever executed against it.
+  DBI::ANSI()
 }
 
 authors <- function(...) {
   suppressMessages(query_plot_authors(..., verbose = FALSE))
 }
 
+resolve <- function(...) {
+  suppressMessages(CafriplotsR:::.resolve_author_plot_ids(..., verbose = FALSE))
+}
+
 
 # ── Resolving which plots to work on ─────────────────────────────────────────
 
-test_that("plot ids are taken from a query_plots() result", {
-  expect_equal(
-    CafriplotsR:::.resolve_author_plot_ids(
-      NULL, list(extract = data.frame(id_liste_plots = c(7, 8)))
-    ),
-    c(7L, 8L)
+test_that("ids are read off a styled query_plots() result", {
+  # What query_plots() actually returns: the plot table is `metadata` and the
+  # id column has been renamed `plot_id`.
+  styled <- structure(
+    list(metadata = data.frame(plot_id = c(7, 8), plot_name = c("a", "b")),
+         plot_sources = data.frame(citation = "x")),
+    class = c("plot_query_list", "list")
+  )
+
+  expect_equal(resolve(plots = styled), c(7L, 8L))
+})
+
+test_that("ids are read off a full-style query_plots() result", {
+  full <- list(extract = data.frame(id_liste_plots = c(7, 8)),
+               census_features = data.frame(id_sub_plots = 1))
+
+  expect_equal(resolve(plots = full), c(7L, 8L))
+})
+
+test_that("a result whose id table is not the first one still resolves", {
+  odd <- list(plot_sources = data.frame(citation = "x"),
+              some_table   = data.frame(id_liste_plots = c(4, 4, 9)))
+
+  expect_equal(resolve(plots = odd), c(4L, 9L))
+})
+
+test_that("a bare data frame of plots is accepted, under any id name", {
+  expect_equal(resolve(plots = data.frame(plot_id = 7)), 7L)
+  expect_equal(resolve(plots = data.frame(id_liste_plots = 7)), 7L)
+  expect_equal(resolve(plots = data.frame(id_table_liste_plots = c(2, 2, 5))),
+               c(2L, 5L))
+})
+
+test_that("a result with no id column anywhere names what was looked for", {
+  expect_error(
+    resolve(plots = data.frame(plot_name = "p010")),
+    "plot_id"
   )
 })
 
-test_that("a bare data frame of plots is accepted, under either id name", {
+test_that("naming no plots at all points at the filter arguments", {
+  expect_error(resolve(), "plot_name")
+})
+
+test_that("filters matching nothing is an error, not an empty answer", {
+  con <- mock_authors_con(filtered = plots_raw()[0, ])
+
+  expect_error(resolve(plot_name = "nosuchplot", con = con), "No plot matched")
+})
+
+test_that("ids given outright win over a result and over filters", {
+  con <- mock_authors_con()
+
   expect_equal(
-    CafriplotsR:::.resolve_author_plot_ids(NULL, data.frame(id_liste_plots = 7)),
+    resolve(id_plot = 42L, plots = data.frame(plot_id = 7),
+            plot_name = "p010", con = con),
+    42L
+  )
+})
+
+test_that("a result wins over filters", {
+  con <- mock_authors_con()
+
+  expect_equal(
+    resolve(plots = data.frame(plot_id = 7), plot_name = "p010", con = con),
     7L
   )
-  expect_equal(
+})
+
+test_that("being given more than one way in is reported", {
+  con <- mock_authors_con()
+
+  expect_message(
     CafriplotsR:::.resolve_author_plot_ids(
-      NULL, data.frame(id_table_liste_plots = c(2, 2, 5))
+      id_plot = 42L, plot_name = "p010", con = con, verbose = TRUE
     ),
-    c(2L, 5L)
+    "id_plot"
   )
 })
 
-test_that("plots stripped of their ids are refused with the remedy named", {
-  expect_error(
-    CafriplotsR:::.resolve_author_plot_ids(NULL, data.frame(plot_name = "p010")),
-    "remove_ids"
-  )
+
+# ── Filtering the plots here, as query_plots() does ──────────────────────────
+
+test_that("plot_name selects the plots and their people in one call", {
+  # Both the filter query and the plot-name lookup see the same two plots,
+  # as they would against a real database where both are keyed on the ids.
+  two <- plots_raw()[1:2, ]
+  con <- mock_authors_con(filtered = two, plots = two)
+
+  out <- authors(plot_name = "p01", con = con)
+
+  expect_setequal(out$by_plot$plot_name, c("p010", "p011"))
+  expect_equal(nrow(out$plots_without_people), 0L)
 })
 
-test_that("naming no plots at all is an error", {
-  expect_error(CafriplotsR:::.resolve_author_plot_ids(NULL, NULL), "required")
-  expect_error(CafriplotsR:::.resolve_author_plot_ids(integer(0), NULL), "no plot")
+test_that("plot_name is handed to the same builder query_plots() uses", {
+  # Not re-testing the matching itself - .plot_condition_plot_name() owns that
+  # and is covered with query_plots(). What matters here is that the argument
+  # reaches it, and that its condition reaches the query.
+  rec <- new.env()
+  con <- mock_authors_con(record = rec)
+
+  authors(plot_name = "mbalmayo01", con = con)
+
+  filter_sql <- grep("SELECT \\* FROM data_liste_plots", rec$sql, value = TRUE)
+  expect_length(filter_sql, 1L)
+  expect_match(filter_sql, "WHERE")
+  expect_match(filter_sql, "mbalmayo01")
 })
 
 
@@ -130,7 +219,7 @@ test_that("naming no plots at all is an error", {
 test_that("people are collected from plot features and from censuses alike", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   expect_setequal(out$by_plot$source, c("plot", "census", "soil_sample"))
   # Five distinct people across the two routes.
@@ -144,7 +233,7 @@ test_that("people are collected from plot features and from censuses alike", {
 test_that("the same person on the same plot in the same role gives one row", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   pi_rows <- out$by_plot[out$by_plot$colnam == "A One" &
                            out$by_plot$id_liste_plots == 10L, ]
@@ -154,7 +243,7 @@ test_that("the same person on the same plot in the same role gives one row", {
 test_that("a person's roles, sources and plots are gathered onto one row", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
   b <- out$authors_all[out$authors_all$colnam == "B Two", ]
 
   expect_equal(b$n_plots, 2L)
@@ -166,7 +255,7 @@ test_that("a person's roles, sources and plots are gathered onto one row", {
 test_that("the author table is ordered by how many plots each person carries", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   expect_true(!is.unsorted(rev(out$authors_all$n_plots)))
 })
@@ -177,7 +266,7 @@ test_that("the author table is ordered by how many plots each person carries", {
 test_that("the core list drops additional_people and keeps the three roles", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   # D Four is only ever additional_people
   expect_true("D Four" %in% out$authors_all$colnam)
@@ -191,7 +280,7 @@ test_that("the core list drops additional_people and keeps the three roles", {
 test_that("core_roles is honoured when it is narrowed", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con,
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con,
                  core_roles = "principal_investigator")
 
   expect_equal(out$authors_core$colnam, "A One")
@@ -201,7 +290,7 @@ test_that("a core_roles value that is not a feature type is reported", {
   con <- mock_authors_con()
 
   expect_message(
-    query_plot_authors(plot_ids = 10L, con = con, verbose = FALSE,
+    query_plot_authors(id_plot = 10L, con = con, verbose = FALSE,
                        core_roles = c("principal_investigator", "nonesuch")),
     "nonesuch"
   )
@@ -210,7 +299,7 @@ test_that("a core_roles value that is not a feature type is reported", {
 test_that("both author tables share one set of columns", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   expect_identical(names(out$authors_core), names(out$authors_all))
   expect_true(all(c("id_table_colnam", "colnam", "contact", "institute",
@@ -223,7 +312,7 @@ test_that("both author tables share one set of columns", {
 test_that("the plot-level route can be switched off", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con,
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con,
                  include_plot_features = FALSE)
 
   expect_false("plot" %in% out$by_plot$source)
@@ -233,7 +322,7 @@ test_that("the plot-level route can be switched off", {
 test_that("the census route can be switched off", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con,
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con,
                  include_subplot_features = FALSE)
 
   expect_equal(unique(out$by_plot$source), "plot")
@@ -244,7 +333,7 @@ test_that("switching off both routes is an error, not an empty answer", {
   con <- mock_authors_con()
 
   expect_error(
-    query_plot_authors(plot_ids = 10L, con = con,
+    query_plot_authors(id_plot = 10L, con = con,
                        include_plot_features = FALSE,
                        include_subplot_features = FALSE),
     "both"
@@ -254,7 +343,7 @@ test_that("switching off both routes is an error, not an empty answer", {
 test_that("subplot_type keeps only people hanging off that kind of subplot", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con, subplot_type = "census")
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con, subplot_type = "census")
 
   expect_false("soil_sample" %in% out$by_plot$source)
   # E Five was only ever on a soil sample
@@ -264,7 +353,7 @@ test_that("subplot_type keeps only people hanging off that kind of subplot", {
 test_that("census number and year are carried, and only for censuses", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   census <- out$by_plot[out$by_plot$source == "census", ]
   expect_true(all(!is.na(census$census_number)))
@@ -285,7 +374,7 @@ test_that("census number and year are carried, and only for censuses", {
 test_that("people with no contact are kept but flagged", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
   b <- out$authors_all[out$authors_all$colnam == "B Two", ]
 
   expect_false(b$has_contact)
@@ -295,7 +384,7 @@ test_that("people with no contact are kept but flagged", {
 test_that("require_contact drops the people who cannot be invited", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con, require_contact = TRUE)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con, require_contact = TRUE)
 
   expect_false("B Two" %in% out$authors_all$colnam)
   expect_true(all(out$authors_all$has_contact))
@@ -306,7 +395,7 @@ test_that("a blank contact counts as no contact", {
     colnam = transform(colnam_raw(), contact = c("a@x.org", "   ", "", NA, "e@x.org"))
   )
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   expect_setequal(
     out$authors_all$colnam[!out$authors_all$has_contact],
@@ -320,7 +409,7 @@ test_that("a blank contact counts as no contact", {
 test_that("a queried plot with nobody recorded is named, not silently missing", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   expect_equal(out$plots_without_people$plot_name, "p012")
 })
@@ -334,7 +423,7 @@ test_that("a person id absent from table_colnam is dropped with a warning", {
   con <- mock_authors_con(plot_people = broken)
 
   expect_message(
-    out <- query_plot_authors(plot_ids = c(10L, 11L, 12L), con = con,
+    out <- query_plot_authors(id_plot = c(10L, 11L, 12L), con = con,
                               verbose = FALSE),
     "99"
   )
@@ -347,7 +436,7 @@ test_that("no people at all returns the full shape rather than nothing", {
   empty_sub  <- subplot_people_raw()[0, ]
   con <- mock_authors_con(plot_people = empty_plot, subplot_people = empty_sub)
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   expect_equal(nrow(out$authors_all), 0L)
   expect_equal(nrow(out$authors_core), 0L)
@@ -360,7 +449,7 @@ test_that("a database with no table_colnam feature type is an error", {
   con <- mock_authors_con(people_types = people_types_raw()[0, ])
 
   expect_error(
-    query_plot_authors(plot_ids = 10L, con = con, verbose = FALSE),
+    query_plot_authors(id_plot = 10L, con = con, verbose = FALSE),
     "table_colnam"
   )
 })
@@ -371,7 +460,7 @@ test_that("a database with no table_colnam feature type is an error", {
 test_that("by_plot names who, on which plot, in which role and from where", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   expect_true(all(c("colnam", "role", "source", "plot_name", "id_liste_plots",
                     "census_number", "census_year") %in% names(out$by_plot)))
@@ -385,7 +474,7 @@ test_that("by_plot names who, on which plot, in which role and from where", {
 test_that("roles_found counts people and plots per role and route", {
   con <- mock_authors_con()
 
-  out <- authors(plot_ids = c(10L, 11L, 12L), con = con)
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   tl <- out$roles_found[out$roles_found$role == "team_leader" &
                           out$roles_found$source == "census", ]
