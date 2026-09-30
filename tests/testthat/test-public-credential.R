@@ -110,25 +110,122 @@ test_that("a failed fetch is cached briefly, a resolution for the full TTL", {
   CafriplotsR:::.public_credential_forget()
   withr::defer(CafriplotsR:::.public_credential_forget())
 
-  suppressMessages(CafriplotsR:::.public_credential(
-    url = "http://127.0.0.1:1/never", timeout = 1, force = TRUE
-  ))
+  # One location throughout, so what is measured is the TTL and not the cache
+  # key: it starts unreadable and becomes readable, as a blocked host does
+  # when the block is lifted.
+  path <- withr::local_tempfile(fileext = ".json")
+  url <- paste0("file://", normalizePath(path, winslash = "/", mustWork = FALSE))
 
-  # Backdate the cached failure past its own TTL but well inside the long one,
-  # and it must be re-asked rather than returned.
+  expect_identical(
+    suppressMessages(
+      CafriplotsR:::.public_credential(url = url, timeout = 1)
+    )$reason,
+    "unreachable"
+  )
+
+  writeLines(
+    '{"enabled": true, "user": "u", "password": "p", "message": ""}', path
+  )
+
+  # Still cached, so a relaunching app is not asking on every keystroke.
+  expect_false(CafriplotsR:::.public_credential(url = url, timeout = 1)$available)
+
+  # Backdated past the short TTL but far inside the long one: a failure has to
+  # be re-asked here, where a withdrawal would still be held.
+  # Bound first: `:::` cannot head a replacement chain.
   cache <- CafriplotsR:::.public_credential_cache
-  expect_identical(cache$value$result$reason, "unreachable")
-  cache$value$at <-
-    Sys.time() - (CafriplotsR:::.public_credential_ttl_unreachable + 5)
+  cached <- cache[[url]]
+  cached$at <- Sys.time() - (CafriplotsR:::.public_credential_ttl_unreachable + 5)
+  cache[[url]] <- cached
+
+  expect_true(CafriplotsR:::.public_credential(url = url, timeout = 1)$available)
+})
+
+test_that("a resolution is cached per location, not globally", {
+  # `CafriplotsR.public_access_url` is the documented escape hatch for a site
+  # whose network cannot reach the published descriptor. A cache that ignored
+  # the location would answer the redirected lookup with the failure from the
+  # location just abandoned, for five minutes - which is precisely when
+  # someone is trying one thing after another.
+  withr::local_envvar(c(CAFRI_PUBLIC_USER = "", CAFRI_PUBLIC_PASS = ""))
+  CafriplotsR:::.public_credential_forget()
+  withr::defer(CafriplotsR:::.public_credential_forget())
+
+  blocked <- suppressMessages(CafriplotsR:::.public_credential(
+    url = "http://127.0.0.1:1/never", timeout = 1
+  ))
+  expect_identical(blocked$reason, "unreachable")
 
   path <- withr::local_tempfile(fileext = ".json")
   writeLines(
     '{"enabled": true, "user": "u", "password": "p", "message": ""}', path
   )
-  result <- CafriplotsR:::.public_credential(
+
+  # No force, no forget: only a different location.
+  mirrored <- CafriplotsR:::.public_credential(
     url = paste0("file://", normalizePath(path, winslash = "/"))
   )
+  expect_true(mirrored$available)
+})
+
+test_that("an unreachable location falls through to the next", {
+  # The descriptor is served under two hostnames precisely so that a network
+  # filtering one of them still resolves. One site's network resets the TLS
+  # handshake to *.github.io and leaves raw.githubusercontent.com alone.
+  withr::local_envvar(c(CAFRI_PUBLIC_USER = "", CAFRI_PUBLIC_PASS = ""))
+  CafriplotsR:::.public_credential_forget()
+  withr::defer(CafriplotsR:::.public_credential_forget())
+
+  path <- withr::local_tempfile(fileext = ".json")
+  writeLines(
+    '{"enabled": true, "user": "u", "password": "p", "message": ""}', path
+  )
+
+  result <- suppressMessages(CafriplotsR:::.public_credential(
+    url = c("http://127.0.0.1:1/never",
+            paste0("file://", normalizePath(path, winslash = "/"))),
+    timeout = 1
+  ))
   expect_true(result$available)
+  expect_identical(result$user, "u")
+})
+
+test_that("a withdrawal at the first location is not overridden by the second", {
+  # The kill switch is the only control over the public login on a host where
+  # no per-role connection limit can be set. Falling through on
+  # `enabled: false` would demote it to a suggestion: whoever could not reach
+  # the first location would carry on getting in.
+  withr::local_envvar(c(CAFRI_PUBLIC_USER = "", CAFRI_PUBLIC_PASS = ""))
+  CafriplotsR:::.public_credential_forget()
+  withr::defer(CafriplotsR:::.public_credential_forget())
+
+  withdrawn <- withr::local_tempfile(fileext = ".json")
+  writeLines(
+    '{"enabled": false, "message": "Public access is paused."}', withdrawn
+  )
+  live <- withr::local_tempfile(fileext = ".json")
+  writeLines(
+    '{"enabled": true, "user": "u", "password": "p", "message": ""}', live
+  )
+
+  result <- CafriplotsR:::.public_credential(url = c(
+    paste0("file://", normalizePath(withdrawn, winslash = "/")),
+    paste0("file://", normalizePath(live, winslash = "/"))
+  ))
+  expect_false(result$available)
+  expect_identical(result$reason, "withdrawn")
+  expect_identical(result$message, "Public access is paused.")
+})
+
+test_that("the published locations are the same file by two routes", {
+  # Two locations, one file, so a rotation or a withdrawal still takes one
+  # commit and nothing has to be kept in step. If a location is ever added
+  # that is a *separate* file, inst/public-access/README.md needs a procedure
+  # for writing both of them, and this test is the reminder.
+  urls <- CafriplotsR:::.public_credential_urls
+  expect_length(urls, 2)
+  expect_true(all(grepl("umr-amap", urls, fixed = TRUE)))
+  expect_true(all(endsWith(urls, "public-access.json")))
 })
 
 test_that("no public credential is embedded in the package source", {
