@@ -10968,6 +10968,14 @@
     {
       "en": "Please cite this reference",
       "fr": "Merci de citer cette référence"
+    },
+    {
+      "en": "Public access could not be checked.",
+      "fr": "L'accès public n'a pas pu être vérifié."
+    },
+    {
+      "en": "The app could not reach the server that publishes the public login, so the \"Connect as public user\" button is not shown. This is usually a network, proxy or firewall problem rather than a change to your access. Check your connection and relaunch the app. Your own account is unaffected.",
+      "fr": "L'application n'a pas pu joindre le serveur qui publie l'identifiant public : le bouton « Se connecter en tant qu'utilisateur public » n'est donc pas affiché. Il s'agit généralement d'un problème de réseau, de proxy ou de pare-feu, et non d'une modification de vos droits. Vérifiez votre connexion puis relancez l'application. Votre propre compte n'est pas concerné."
     }
   ]
 }
