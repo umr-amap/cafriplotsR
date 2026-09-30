@@ -10984,6 +10984,10 @@
     {
       "en": "%d remeasured stem(s) carry a different taxon id that resolves to the same accepted name. These are synonyms, not new identifications, and nothing is changed for them.",
       "fr": "%d tige(s) remesurée(s) portent un identifiant de taxon différent qui renvoie au même nom accepté. Il s'agit de synonymes, et non de nouvelles identifications : rien n'est modifié pour ces tiges."
+    },
+    {
+      "en": "%d stem(s) recorded in these plots have no row in this file. Run Compute Stem Status after the import: a stem absent from one census is recorded as 'presumed_dead', and one absent from two consecutive censuses as 'dead'. Either is corrected back to 'alive' automatically if the stem is measured again at a later census.",
+      "fr": "%d tige(s) enregistrée(s) dans ces parcelles n'ont aucune ligne dans ce fichier. Lancez Calculer le statut des tiges après l'import : une tige absente d'un recensement est enregistrée comme 'presumed_dead', et une tige absente de deux recensements consécutifs comme 'dead'. Dans les deux cas le statut repasse automatiquement à 'alive' si la tige est remesurée lors d'un recensement ultérieur."
     }
   ]
 }

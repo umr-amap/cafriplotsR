@@ -605,7 +605,7 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con,
         blocks <- c(blocks, list(shiny::div(
           class = "alert alert-info",
           shiny::icon("magnifying-glass"), " ",
-          sprintf(i18n()$t("%d stem(s) recorded in these plots have no row in this file. Run Compute Stem Status after the import to mark them."),
+          sprintf(i18n()$t("%d stem(s) recorded in these plots have no row in this file. Run Compute Stem Status after the import: a stem absent from one census is recorded as 'presumed_dead', and one absent from two consecutive censuses as 'dead'. Either is corrected back to 'alive' automatically if the stem is measured again at a later census."),
                   nrow(split$missing_stems)),
           DT::renderDT(DT::datatable(
             split$missing_stems, rownames = FALSE,
