@@ -58,7 +58,7 @@ leaving out `additional_people`.}
   `authors_core`, or `NULL` for no restriction. Defaults to `"plot"` and
   `"census"` - the plot itself and the events that produced its data.
   People recorded against an ancillary observation, a soil sample say,
-  stay in `authors_all` and in `by_plot` but do not reach the short list.
+  go to `authors_other` instead, and stay in `by_plot`.
 
   This is a default rather than something read from the database because
   there is nothing in the database to read. `subplotype_list` says what a
@@ -92,7 +92,13 @@ A list of five elements:
 \describe{
   \item{`authors_core`}{One row per person, restricted to `core_roles` and
     `core_sources`. This is the short invitation list.}
-  \item{`authors_all`}{One row per person, all roles. Same columns.}
+  \item{`authors_other`}{One row per person **not** in `authors_core`:
+    everyone else recorded on the plots - `additional_people`, and anyone
+    holding a core role only through a source outside `core_sources`.
+    Same columns. The two tables partition the people, so a person is in
+    exactly one of them; someone in `authors_core` does not reappear here
+    for the non-core roles they also hold. Bind the two for the complete
+    list.}
   \item{`by_plot`}{The detail behind both: one row per record, with
     `plot_name`, `role`, `source`, `id_sub_plots`, `census_number` and
     `census_year`. This is what to save alongside a dataset as authorship
@@ -139,8 +145,8 @@ followed:
 }
 
 A person recorded twice (say principal investigator of the plot and team
-leader of its second census) appears once per plot/role/source combination
-in `by_plot`, and once overall in `authors_all`.
+leader of its second census) appears once per record in `by_plot`, and once
+overall in either `authors_core` or `authors_other` - never both.
 
 The person id is read from `typevalue` for both routes. `typevalue_char`
 and `id_colnam` are never read: for `table_colnam` features they are empty
@@ -158,7 +164,8 @@ or wrong.
   query_plot_authors(plot_name = "mbalmayo01", exact_match = FALSE)
 
   authors$authors_core   # PI / data manager / team leader only
-  authors$authors_all    # everyone, additional_people included
+  authors$authors_other  # everyone not in authors_core
+  dplyr::bind_rows(authors$authors_core, authors$authors_other)  # everyone
   authors$by_plot        # who, on which plot, in which role
 
   # Back to the raw subplot records behind the census people

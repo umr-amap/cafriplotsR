@@ -100,6 +100,9 @@ authors <- function(...) {
   suppressMessages(query_plot_authors(..., verbose = FALSE))
 }
 
+# The two author tables partition the people; this is the complete list
+everyone <- function(out) dplyr::bind_rows(out$authors_core, out$authors_other)
+
 resolve <- function(...) {
   suppressMessages(CafriplotsR:::.resolve_author_plot_ids(..., verbose = FALSE))
 }
@@ -226,12 +229,62 @@ test_that("people are collected from plot features and from censuses alike", {
   out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   expect_setequal(out$by_plot$source, c("plot", "census", "soil_sample"))
-  # Five distinct people across the two routes.
-  expect_equal(nrow(out$authors_all), 5L)
+  # Five distinct people across the two routes, between the two tables
+  expect_equal(nrow(everyone(out)), 5L)
   expect_setequal(
-    out$authors_all$colnam,
+    everyone(out)$colnam,
     c("A One", "B Two", "C Three", "D Four", "E Five")
   )
+})
+
+
+# ── authors_core and authors_other partition the people ────────────────────────
+
+test_that("authors_other holds exactly the people not in authors_core", {
+  con <- mock_authors_con()
+
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
+
+  expect_setequal(out$authors_core$colnam, c("A One", "B Two", "C Three"))
+  # D Four: additional_people only. E Five: team_leader, but of a soil sample.
+  expect_setequal(out$authors_other$colnam, c("D Four", "E Five"))
+})
+
+test_that("nobody appears in both author tables", {
+  con <- mock_authors_con()
+
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
+
+  expect_length(
+    intersect(out$authors_core$id_table_colnam, out$authors_other$id_table_colnam),
+    0L
+  )
+})
+
+test_that("a core author with a non-core role too stays out of authors_other", {
+  # A One is PI of p010 and also additional_people on p011: core wins, and
+  # the person is not listed a second time for the lesser role
+  extra <- rbind(
+    plot_people_raw(),
+    data.frame(id_liste_plots = 11L, id_sub_plots = 106L, id_table_colnam = 1L,
+               role = "additional_people", stringsAsFactors = FALSE)
+  )
+  con <- mock_authors_con(plot_people = extra)
+
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con)
+
+  expect_true("A One" %in% out$authors_core$colnam)
+  expect_false("A One" %in% out$authors_other$colnam)
+})
+
+test_that("widening core_sources moves people from authors_other to authors_core", {
+  con <- mock_authors_con()
+
+  out <- authors(id_plot = c(10L, 11L, 12L), con = con, core_sources = NULL)
+
+  expect_true("E Five" %in% out$authors_core$colnam)
+  expect_false("E Five" %in% out$authors_other$colnam)
+  expect_equal(out$authors_other$colnam, "D Four")
 })
 
 test_that("a duplicated entry stays visible in by_plot, not in the author list", {
@@ -247,8 +300,8 @@ test_that("a duplicated entry stays visible in by_plot, not in the author list",
   expect_setequal(pi_rows$id_sub_plots, c(101L, 104L))
 
   # The author tables are one row per person either way
-  expect_equal(sum(out$authors_all$colnam == "A One"), 1L)
-  expect_equal(out$authors_all$n_plots[out$authors_all$colnam == "A One"], 2L)
+  expect_equal(sum(everyone(out)$colnam == "A One"), 1L)
+  expect_equal(everyone(out)$n_plots[everyone(out)$colnam == "A One"], 2L)
 })
 
 test_that("an identical row returned twice is still collapsed", {
@@ -265,7 +318,7 @@ test_that("a person's roles, sources and plots are gathered onto one row", {
   con <- mock_authors_con()
 
   out <- authors(id_plot = c(10L, 11L, 12L), con = con)
-  b <- out$authors_all[out$authors_all$colnam == "B Two", ]
+  b <- everyone(out)[everyone(out)$colnam == "B Two", ]
 
   expect_equal(b$n_plots, 2L)
   expect_equal(b$roles, "team_leader")
@@ -278,7 +331,7 @@ test_that("the author table is ordered by how many plots each person carries", {
 
   out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
-  expect_true(!is.unsorted(rev(out$authors_all$n_plots)))
+  expect_true(!is.unsorted(rev(out$authors_other$n_plots)))
 })
 
 
@@ -290,7 +343,7 @@ test_that("the core list drops additional_people and keeps the three roles", {
   out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
   # D Four is only ever additional_people
-  expect_true("D Four" %in% out$authors_all$colnam)
+  expect_true("D Four" %in% out$authors_other$colnam)
   expect_false("D Four" %in% out$authors_core$colnam)
   # E Five holds a core role but only off a soil sample: see core_sources
   expect_setequal(
@@ -310,7 +363,7 @@ test_that("a core role held only through an ancillary subplot is not core", {
   expect_equal(e_five$role, "team_leader")
   expect_equal(e_five$source, "soil_sample")
 
-  expect_true("E Five" %in% out$authors_all$colnam)
+  expect_true("E Five" %in% out$authors_other$colnam)
   expect_false("E Five" %in% out$authors_core$colnam)
 })
 
@@ -341,13 +394,13 @@ test_that("someone excluded only by their route is named, not silently dropped",
   )
 })
 
-test_that("core_sources does not touch authors_all or by_plot", {
+test_that("core_sources only moves people between the tables, losing nobody", {
   con <- mock_authors_con()
 
   narrow <- authors(id_plot = c(10L, 11L, 12L), con = con, core_sources = "plot")
   wide   <- authors(id_plot = c(10L, 11L, 12L), con = con, core_sources = NULL)
 
-  expect_equal(narrow$authors_all, wide$authors_all)
+  expect_setequal(everyone(narrow)$colnam, everyone(wide)$colnam)
   expect_equal(narrow$by_plot, wide$by_plot)
 })
 
@@ -385,9 +438,9 @@ test_that("both author tables share one set of columns", {
 
   out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
-  expect_identical(names(out$authors_core), names(out$authors_all))
+  expect_identical(names(out$authors_core), names(out$authors_other))
   expect_true(all(c("id_table_colnam", "colnam", "contact", "institute",
-                    "roles", "n_plots", "has_contact") %in% names(out$authors_all)))
+                    "roles", "n_plots", "has_contact") %in% names(out$authors_other)))
 })
 
 
@@ -400,7 +453,7 @@ test_that("the plot-level route can be switched off", {
                  include_plot_features = FALSE)
 
   expect_false("plot" %in% out$by_plot$source)
-  expect_false("D Four" %in% out$authors_all$colnam)
+  expect_false("D Four" %in% out$authors_other$colnam)
 })
 
 test_that("the census route can be switched off", {
@@ -410,7 +463,7 @@ test_that("the census route can be switched off", {
                  include_subplot_features = FALSE)
 
   expect_equal(unique(out$by_plot$source), "plot")
-  expect_setequal(out$authors_all$colnam, c("A One", "D Four"))
+  expect_setequal(everyone(out)$colnam, c("A One", "D Four"))
 })
 
 test_that("switching off both routes is an error, not an empty answer", {
@@ -431,7 +484,7 @@ test_that("subplot_type keeps only people hanging off that kind of subplot", {
 
   expect_false("soil_sample" %in% out$by_plot$source)
   # E Five was only ever on a soil sample
-  expect_false("E Five" %in% out$authors_all$colnam)
+  expect_false("E Five" %in% out$authors_other$colnam)
 })
 
 test_that("census number and year are carried, and only for censuses", {
@@ -459,10 +512,11 @@ test_that("people with no contact are kept but flagged", {
   con <- mock_authors_con()
 
   out <- authors(id_plot = c(10L, 11L, 12L), con = con)
-  b <- out$authors_all[out$authors_all$colnam == "B Two", ]
+  all_people <- everyone(out)
+  b <- all_people[all_people$colnam == "B Two", ]
 
   expect_false(b$has_contact)
-  expect_true(all(out$authors_all$has_contact[out$authors_all$colnam != "B Two"]))
+  expect_true(all(all_people$has_contact[all_people$colnam != "B Two"]))
 })
 
 test_that("require_contact drops the people who cannot be invited", {
@@ -470,8 +524,8 @@ test_that("require_contact drops the people who cannot be invited", {
 
   out <- authors(id_plot = c(10L, 11L, 12L), con = con, require_contact = TRUE)
 
-  expect_false("B Two" %in% out$authors_all$colnam)
-  expect_true(all(out$authors_all$has_contact))
+  expect_false("B Two" %in% everyone(out)$colnam)
+  expect_true(all(everyone(out)$has_contact))
 })
 
 test_that("a blank contact counts as no contact", {
@@ -481,8 +535,9 @@ test_that("a blank contact counts as no contact", {
 
   out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
+  all_people <- everyone(out)
   expect_setequal(
-    out$authors_all$colnam[!out$authors_all$has_contact],
+    all_people$colnam[!all_people$has_contact],
     c("B Two", "C Three", "D Four")
   )
 })
@@ -512,8 +567,8 @@ test_that("a person id absent from table_colnam is dropped with a warning", {
                               verbose = FALSE),
     "99"
   )
-  expect_false(99L %in% out$authors_all$id_table_colnam)
-  expect_false(any(is.na(out$authors_all$colnam)))
+  expect_false(99L %in% out$authors_other$id_table_colnam)
+  expect_false(any(is.na(out$authors_other$colnam)))
 })
 
 test_that("no people at all returns the full shape rather than nothing", {
@@ -523,11 +578,11 @@ test_that("no people at all returns the full shape rather than nothing", {
 
   out <- authors(id_plot = c(10L, 11L, 12L), con = con)
 
-  expect_equal(nrow(out$authors_all), 0L)
+  expect_equal(nrow(out$authors_other), 0L)
   expect_equal(nrow(out$authors_core), 0L)
   expect_equal(nrow(out$by_plot), 0L)
   expect_equal(nrow(out$plots_without_people), 3L)
-  expect_true(all(c("roles", "n_plots", "has_contact") %in% names(out$authors_all)))
+  expect_true(all(c("roles", "n_plots", "has_contact") %in% names(out$authors_other)))
 })
 
 test_that("a database with no table_colnam feature type is an error", {
