@@ -900,11 +900,14 @@
 #'   `parent_relation` to write as the plot's parent link.
 #' @param obs Plots only: `NULL`, or the staged observation feature changes
 #'   (see [.upd_apply_obs_features()]).
-#' @return A list with `n_direct`, `n_feature`, `n_link`, `n_obs_added` and
-#'   `n_obs_removed`: how many values or rows were written.
+#' @param measures Individuals only: `NULL`, or the staged new measurements
+#'   (see [.upd_apply_ind_measures()]).
+#' @return A list with `n_direct`, `n_feature`, `n_link`, `n_obs_added`,
+#'   `n_obs_removed` and `n_measures_added`: how many values or rows were
+#'   written.
 #' @keywords internal
 .upd_apply_all <- function(entity, id, values, features, con, link = NULL,
-                           obs = NULL) {
+                           obs = NULL, measures = NULL) {
   DBI::dbBegin(con)
   result <- tryCatch({
     direct_applied  <- .upd_apply_direct(entity, id, values, con)
@@ -919,13 +922,19 @@
     } else {
       list(n_added = 0L, n_removed = 0L)
     }
+    measures_applied <- if (entity == "individual") {
+      .upd_apply_ind_measures(measures, con)
+    } else {
+      0L
+    }
     DBI::dbCommit(con)
     list(
       n_direct      = if (is.null(direct_applied)) 0L else nrow(direct_applied),
       n_feature     = if (is.null(feature_applied)) 0L else nrow(feature_applied),
       n_link        = link_applied,
       n_obs_added   = obs_applied$n_added,
-      n_obs_removed = obs_applied$n_removed
+      n_obs_removed = obs_applied$n_removed,
+      n_measures_added = measures_applied
     )
   }, error = function(e) {
     tryCatch(DBI::dbRollback(con), error = function(e2) {

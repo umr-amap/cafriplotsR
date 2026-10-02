@@ -14,8 +14,10 @@
 #      aggregate of several such records - so the app never edits the
 #      aggregate. It shows it read-only, with a badge saying how many records
 #      it came from, and edits those records individually.
-#   4b. Plots only: stage additions and removals of the observation features
+#   4b. Plots: stage additions and removals of the observation features
 #      (data_subplot_feat) of a feature record, such as the people of a census.
+#      Individuals: stage new measurements (data_traits_measures), such as a
+#      diameter missed at one census.
 #   5. Preview a diff and apply.
 
 #' Record update module - UI
@@ -185,6 +187,62 @@ mod_update_record_ui <- function(id, entity = c("plot", "individual"), i18n) {
     NULL
   }
 
+  # A measurement the individual does not have yet - a diameter missed at one
+  # census, say. Section 4 can only edit what is stored, so a missing value is
+  # added here, one at a time, staged and written by section 5.
+  measure_panel <- if (entity == "individual") {
+    shiny::wellPanel(
+      shiny::h4(shiny::icon("plus-circle"), " ",
+                i18n$t("4b. Add a missing measurement")),
+      shiny::tags$p(
+        class = "text-muted",
+        shiny::tags$small(
+          i18n$t("For a value this individual does not have yet, such as a diameter missed at one census. Values are marked 'to add' and, like every other change, written only when you apply them in section 5. To correct a value that is already stored, edit it in section 4. To add values for many individuals, use the feature wizard (launch_feature_wizard()).")
+        )
+      ),
+      shiny::fluidRow(
+        shiny::column(4, shiny::selectInput(ns("msr_trait"), i18n$t("Feature"),
+                                            choices = NULL)),
+        shiny::column(4, shiny::selectInput(ns("msr_census"), i18n$t("Census"),
+                                            choices = NULL)),
+        shiny::column(4, shiny::uiOutput(ns("msr_value_ui")))
+      ),
+      shiny::fluidRow(
+        shiny::column(2, shiny::numericInput(ns("msr_year"), i18n$t("Year"),
+                                             value = NA)),
+        shiny::column(2, shiny::numericInput(ns("msr_month"), i18n$t("Month"),
+                                             value = NA, min = 1, max = 12)),
+        shiny::column(2, shiny::numericInput(ns("msr_day"), i18n$t("Day"),
+                                             value = NA, min = 1, max = 31)),
+        shiny::column(3, shiny::textInput(ns("msr_issue"), i18n$t("Issue"))),
+        shiny::column(
+          3, style = "padding-top: 25px;",
+          shiny::actionButton(
+            ns("msr_add"),
+            shiny::tagList(shiny::icon("plus"), " ", i18n$t("Add")),
+            class = "btn-success btn-sm"
+          )
+        )
+      ),
+      shiny::tags$p(
+        class = "text-muted",
+        shiny::tags$small(
+          i18n$t("Leave the date blank when the value was measured during the census: the census carries the date.")
+        )
+      ),
+      shiny::uiOutput(ns("msr_info")),
+      DT::DTOutput(ns("msr_tbl")),
+      shiny::actionButton(
+        ns("msr_undo"),
+        shiny::tagList(shiny::icon("undo"), " ",
+                       i18n$t("Take back the selected rows")),
+        class = "btn-default btn-sm", style = "margin-top: 8px;"
+      )
+    )
+  } else {
+    NULL
+  }
+
   shiny::tagList(
     search_panel,
 
@@ -263,6 +321,7 @@ mod_update_record_ui <- function(id, entity = c("plot", "individual"), i18n) {
       ),
 
       obs_panel,
+      measure_panel,
 
       # --- 5. Preview & apply ---
       shiny::wellPanel(
@@ -1470,6 +1529,277 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     }
 
     # =========================================================================
+    # 4b. NEW MEASUREMENTS OF AN INDIVIDUAL (individuals only)
+    # =========================================================================
+
+    # Staged rows of data_traits_measures, written by section 5. Defined for
+    # both entities so build_diff() and apply can read it unconditionally.
+    msr_staged <- shiny::reactiveVal(NULL)
+
+    if (entity == "individual") {
+      msr_traits      <- shiny::reactiveVal(NULL)  # traitlist, grouped
+      msr_censuses    <- shiny::reactiveVal(NULL)  # censuses of the plot
+      msr_stored      <- shiny::reactiveVal(NULL)  # stored measurement ids
+      msr_value_reset <- shiny::reactiveVal(0)
+
+      # "census 2 (2019-3-12)": the number is what users know a census by.
+      census_label <- function(cs) {
+        date <- vapply(seq_len(nrow(cs)), function(i) {
+          if (is.na(cs$year[i])) return("")
+          sprintf(" (%s)", paste(stats::na.omit(c(cs$year[i], cs$month[i], cs$day[i])),
+                                 collapse = "-"))
+        }, character(1))
+        paste0(i18n()$t("census"), " ", cs$census, date)
+      }
+
+      shiny::observeEvent(load_count(), {
+        r <- record()
+        shiny::req(r)
+        msr_staged(NULL)
+        loaded <- tryCatch(
+          with_main(function(con) {
+            list(
+              traits   = get_traitlist(con),
+              censuses = .upd_plot_censuses(as.integer(r$id_table_liste_plots_n), con),
+              stored   = .upd_ind_stored_measures(as.integer(r$id_n), con)
+            )
+          }),
+          error = function(e) {
+            shiny::showNotification(
+              paste(i18n()$t("Could not load the features and censuses:"), e$message),
+              type = "error", duration = NULL
+            )
+            NULL
+          }
+        )
+        shiny::req(loaded)
+
+        fr <- feat_records()
+        measured <- if (is.null(fr) || nrow(fr) == 0) character(0) else unique(fr$feature)
+        traits <- .upd_ind_trait_choices(loaded$traits, measured)
+        msr_traits(traits)
+        msr_censuses(loaded$censuses)
+        msr_stored(loaded$stored)
+
+        labels <- c(measured = i18n()$t("Already measured on this individual"),
+                    other    = i18n()$t("Other features"))
+        groups <- split(traits, factor(traits$group, levels = names(labels)))
+        groups <- groups[vapply(groups, nrow, integer(1)) > 0]
+        choices <- lapply(groups, function(g) {
+          stats::setNames(as.character(g$id_trait), g$trait)
+        })
+        names(choices) <- labels[names(choices)]
+        keep <- if (isTRUE(input$msr_trait %in% as.character(traits$id_trait))) {
+          input$msr_trait
+        } else {
+          NULL
+        }
+        shiny::updateSelectInput(session, "msr_trait", choices = choices,
+                                 selected = keep)
+
+        cs <- loaded$censuses
+        census_choices <- c(stats::setNames("", i18n()$t("No census")),
+                            if (nrow(cs) > 0) {
+                              stats::setNames(as.character(cs$id_sub_plots),
+                                              census_label(cs))
+                            })
+        # The latest census is the usual home of a missing value.
+        shiny::updateSelectInput(
+          session, "msr_census", choices = census_choices,
+          selected = if (nrow(cs) > 0) as.character(cs$id_sub_plots[nrow(cs)]) else ""
+        )
+      })
+
+      msr_trait_row <- shiny::reactive({
+        traits <- msr_traits()
+        shiny::req(traits, input$msr_trait)
+        traits[as.character(traits$id_trait) == input$msr_trait, , drop = FALSE]
+      })
+
+      # Where a stem sits is a property of the tree, not of a campaign: such
+      # features are never attached to a census, so the census select is
+      # switched off for them rather than silently ignored.
+      msr_policy <- shiny::reactive({
+        tr <- msr_trait_row()
+        shiny::req(nrow(tr) == 1)
+        unname(with_main(function(con) .feature_census_link(tr$trait, con))[1])
+      })
+
+      shiny::observe({
+        shinyjs::toggleState("msr_census", condition = !identical(msr_policy(), "never"))
+      })
+
+      msr_people <- shiny::reactive({
+        shiny::req(record())
+        with_main(function(con) {
+          .upd_lookup_choices("table_colnam", "id_table_colnam", "colnam", con)
+        })
+      })
+
+      output$msr_value_ui <- shiny::renderUI({
+        msr_value_reset()
+        tr <- msr_trait_row()
+        shiny::req(nrow(tr) == 1)
+        vt <- tr$valuetype
+        unit <- if ("expectedunit" %in% names(tr) && !is.na(tr$expectedunit) &&
+                    nzchar(tr$expectedunit)) {
+          paste0(" (", tr$expectedunit, ")")
+        } else {
+          ""
+        }
+        num_bound <- function(col) {
+          if (!col %in% names(tr)) return(NA)
+          suppressWarnings(as.numeric(tr[[col]]))
+        }
+
+        if (!is.na(vt) && grepl("^table_colnam", vt)) {
+          shiny::selectizeInput(
+            ns("msr_value"), i18n()$t("Value"),
+            choices = c(stats::setNames("", ""), msr_people()),
+            options = list(placeholder = i18n()$t("Type a name..."))
+          )
+        } else if (!is.na(vt) && vt %in% c("numeric", "integer")) {
+          shiny::numericInput(
+            ns("msr_value"), paste0(i18n()$t("Value"), unit), value = NA,
+            min = num_bound("minallowedvalue"), max = num_bound("maxallowedvalue")
+          )
+        } else {
+          shiny::textInput(ns("msr_value"), paste0(i18n()$t("Value"), unit))
+        }
+      })
+
+      output$msr_info <- shiny::renderUI({
+        n_pending <- NROW(msr_staged())
+        policy <- tryCatch(msr_policy(), error = function(e) NULL)
+        shiny::tagList(
+          if (identical(policy, "never")) {
+            shiny::div(
+              class = "alert alert-info", shiny::icon("info-circle"), " ",
+              i18n()$t("This feature describes the tree itself, not one census, so it is recorded without a census.")
+            )
+          },
+          if (n_pending > 0) {
+            shiny::div(
+              class = "alert alert-warning",
+              shiny::icon("exclamation-triangle"), " ",
+              sprintf(i18n()$t("%d measurement(s) to add for this individual. Nothing is written until you apply them in section 5."),
+                      n_pending)
+            )
+          }
+        )
+      })
+
+      output$msr_tbl <- DT::renderDT({
+        st <- msr_staged()
+        shiny::req(st, nrow(st) > 0)
+        tb <- data.frame(
+          st$.trait,
+          ifelse(is.na(st$.census), "-", st$.census),
+          st$.label,
+          ifelse(is.na(st$issue), "", st$issue),
+          i18n()$t("to add"),
+          stringsAsFactors = FALSE
+        )
+        names(tb) <- c(i18n()$t("Feature"), i18n()$t("Census"), i18n()$t("Value"),
+                       i18n()$t("Issue"), i18n()$t("Status"))
+        DT::formatStyle(
+          DT::datatable(tb, selection = "multiple", rownames = FALSE,
+                        options = list(dom = "t", paging = FALSE)),
+          i18n()$t("Status"), target = "row", backgroundColor = "#d4edda"
+        )
+      })
+
+      shiny::observeEvent(input$msr_undo, {
+        st <- msr_staged()
+        rows <- input$msr_tbl_rows_selected
+        if (length(rows) == 0 || is.null(st) || nrow(st) == 0) {
+          shiny::showNotification(i18n()$t("Select the rows to take back first."),
+                                  type = "warning")
+          return()
+        }
+        st <- st[-rows, , drop = FALSE]
+        msr_staged(if (nrow(st) == 0) NULL else st)
+        diff_tbl(NULL)
+      })
+
+      shiny::observeEvent(input$msr_add, {
+        r <- record()
+        tr <- msr_trait_row()
+        shiny::req(r, nrow(tr) == 1)
+
+        census <- input$msr_census
+        census <- if (is.null(census) || !nzchar(census)) NA_integer_ else as.integer(census)
+        plot_name <- tryCatch(
+          with_main(function(con) {
+            DBI::dbGetQuery(con, glue::glue_sql(
+              "SELECT plot_name FROM data_liste_plots WHERE id_liste_plots = {r$id_table_liste_plots_n}",
+              .con = con
+            ))$plot_name[1]
+          }),
+          error = function(e) NA_character_
+        )
+
+        row <- tryCatch(
+          .upd_ind_measure_row(
+            r, tr, input$msr_value, id_sub_plots = census,
+            year = input$msr_year, month = input$msr_month, day = input$msr_day,
+            issue = input$msr_issue, plot_name = plot_name
+          ),
+          error = function(e) {
+            shiny::showNotification(conditionMessage(e), type = "error")
+            NULL
+          }
+        )
+        shiny::req(row)
+
+        staged <- msr_staged()
+        check <- .upd_ind_measure_check(row, tr, policy = msr_policy(),
+                                        stored = msr_stored(), staged = staged,
+                                        censuses = msr_censuses())
+        if (length(check$errors) > 0) {
+          lo <- if ("minallowedvalue" %in% names(tr)) tr$minallowedvalue else NA
+          hi <- if ("maxallowedvalue" %in% names(tr)) tr$maxallowedvalue else NA
+          text <- vapply(check$errors, function(code) switch(
+            code,
+            census_missing = i18n()$t("Choose the census the value was measured at."),
+            duplicate      = i18n()$t("A value of this feature is already recorded for this census. To correct it, edit it in section 4."),
+            below_min      = sprintf(i18n()$t("The value is below the lowest allowed for this feature (%s)."), lo),
+            above_max      = sprintf(i18n()$t("The value is above the highest allowed for this feature (%s)."), hi),
+            code
+          ), character(1))
+          shiny::showNotification(paste(text, collapse = " "), type = "error",
+                                  duration = 10)
+          return()
+        }
+        if ("lower_than_previous" %in% check$warnings) {
+          shiny::showNotification(
+            i18n()$t("The value is lower than at an earlier census. It is added with an issue saying so; check it before applying."),
+            type = "warning", duration = 10
+          )
+        }
+
+        row <- check$row
+        cs <- msr_censuses()
+        census_text <- if (is.na(row$id_sub_plots) || is.null(cs)) {
+          NA_character_
+        } else {
+          census_label(cs[cs$id_sub_plots == row$id_sub_plots, , drop = FALSE])
+        }
+        value_label <- if (!is.na(tr$valuetype) && grepl("^table_colnam", tr$valuetype)) {
+          people <- msr_people()
+          hit <- names(people)[people == as.character(row$traitvalue)]
+          if (length(hit) == 1) hit else NA_character_
+        } else {
+          NA_character_
+        }
+        row <- .upd_ind_measure_label(row, tr$trait, census_text, value_label, staged)
+        msr_staged(if (is.null(staged)) row else rbind(staged, row))
+        msr_value_reset(msr_value_reset() + 1)
+        diff_tbl(NULL)
+      })
+    }
+
+    # =========================================================================
     # 5. PREVIEW & APPLY
     # =========================================================================
 
@@ -1616,6 +1946,20 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
         }
       }
 
+      # New measurements of an individual (section 4b): whole rows added.
+      ms <- msr_staged()
+      for (i in seq_len(NROW(ms))) {
+        rows[[length(rows) + 1]] <- data.frame(
+          scope   = if (is.na(ms$.census[i])) ms$.trait[i]
+                    else sprintf("%s [%s]", ms$.trait[i], ms$.census[i]),
+          target  = i18n()$t("data_traits_measures (new row)"),
+          current = "-",
+          new     = .upd_fmt(ms$.label[i]),
+          changed = TRUE,
+          stringsAsFactors = FALSE
+        )
+      }
+
       if (length(rows) == 0) return(NULL)
       do.call(rbind, rows)
     }
@@ -1724,12 +2068,13 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       features <- pending_feat()
       link     <- link_values()
       obs      <- obs_changes()
+      measures <- msr_staged()
 
       shiny::withProgress(message = i18n()$t("Applying update..."), value = 0, {
         result <- tryCatch({
           out <- with_main(function(con) {
             .upd_apply_all(entity, id_value, values, features, con, link = link,
-                           obs = obs)
+                           obs = obs, measures = measures)
           })
           shiny::incProgress(0.5)
           c(list(ok = TRUE), out)
@@ -1762,6 +2107,11 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
             shiny::tagList(" ", sprintf(
               i18n()$t("Observation features: %d added, %d removed."),
               res$n_obs_added, res$n_obs_removed
+            ))
+          },
+          if (isTRUE(res$n_measures_added > 0)) {
+            shiny::tagList(" ", sprintf(
+              i18n()$t("New measurements: %d added."), res$n_measures_added
             ))
           }
         )

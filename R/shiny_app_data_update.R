@@ -67,11 +67,23 @@
 #' the section and in the preview. Re-identifying the specimen is done with
 #' \code{\link{launch_specimen_identification_app}}.
 #'
-#' Only existing records can be edited. Adding or deleting measurements is done
-#' with the feature wizard (\code{\link{launch_feature_wizard}}) and the
-#' \code{safe_delete_*} functions.
+#' Otherwise only existing records can be edited. Adding measurements in bulk
+#' is done with the feature wizard (\code{\link{launch_feature_wizard}}), and
+#' deleting them with the \code{safe_delete_*} functions. There are two
+#' exceptions.
 #'
-#' \strong{One exception: observation features of a plot feature.} A feature
+#' \strong{A missing measurement of an individual.} The individual section can
+#' add a measurement the individual does not have yet - a diameter missed at
+#' one census, for instance - one value at a time. The row is built as the
+#' feature wizard builds it, and refused when the same feature is already
+#' recorded for that census (edit it instead) or when the value lies outside
+#' the feature's allowed range. A numeric value lower than at an earlier census
+#' is accepted with an \code{issue} saying so. Features that describe the tree
+#' rather than a census (see \code{traitlist.census_link}) are recorded without
+#' one. New measurements are staged, listed in the preview, and written by
+#' \emph{Apply update} with the other edits.
+#'
+#' \strong{Observation features of a plot feature.} A feature
 #' record, a census most often, can itself be described by rows of
 #' \code{data_subplot_feat} - the people of that census (\code{team_leader},
 #' \code{additional_people}, ...). The plot section lists them for each feature
