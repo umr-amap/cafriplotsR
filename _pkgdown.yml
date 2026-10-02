@@ -235,6 +235,7 @@ reference:
       - safe_delete_taxa_traits
       - safe_delete_individual_features
       - safe_delete_specimen_links
+      - safe_delete_subplot_obs_features
       - .delete_country
       - .delete_individual_feature_type
       - .delete_specimens
