@@ -12,14 +12,33 @@
 #' @param subplot_type Filter by subplot type (e.g., "census")
 #' @param format Output format: "wide" (pivoted) or "long" (raw)
 #' @param include_subplot_obs_features Include subplot observation features
+#'   (rows of `data_subplot_feat`, e.g. the people of a census). With
+#'   `format = "wide"` they are pivoted into `obs_*` columns of
+#'   `features_raw`, one cell per subplot and type (text pasted, numbers
+#'   averaged). With `format = "long"` they are not pivoted: they come back
+#'   one row per database record in `subplot_obs_features`, with
+#'   `id_subplot_feat` so a record can be updated or deleted.
 #' @param con Database connection (optional)
-#' 
+#'
 #' @importFrom tidyr pivot_wider separate_rows
 #'
 #' @return List with components:
 #'   - features_raw: Raw subplot features
 #'   - features_aggregated: Aggregated features by plot (if format="wide")
 #'   - census_info: Census-specific information (if census data present)
+#'   - subplot_obs_features: Only with `format = "long"` and
+#'     `include_subplot_obs_features = TRUE`. One row per `data_subplot_feat`
+#'     record, all its columns as stored, plus the feature `type` and
+#'     `valuetype`, the parent subplot's plot, type and year, and `colnam`
+#'     (the person's name) for people features.
+#'
+#' @examples
+#' \dontrun{
+#' # Observation features of one census, one row per record
+#' res <- query_plot_features(subplot_ids = 15063, format = "long",
+#'                            include_subplot_obs_features = TRUE)
+#' res$subplot_obs_features
+#' }
 #'
 #' @export
 query_plot_features <- function(
@@ -64,10 +83,22 @@ query_plot_features <- function(
     cli::cli_alert_info("Filtered to subplot type: {subplot_type}")
   }
   
-  # 3. Optional: Add subplot observation features
+  # 3. Optional: Add subplot observation features. Long format keeps them
+  # unpivoted, one row per record, so they can be edited or deleted.
+  subplot_obs_features <- NULL
   if (include_subplot_obs_features) {
-    cli::cli_alert_info("Enriching with subplot observation features")
-    features_raw <- enrich_subplot_obs_features(features_raw, con)
+    if (format == "long") {
+      cli::cli_alert_info("Fetching subplot observation features (long)")
+      subplot_obs_features <- fetch_subplot_obs_features_long(
+        unique(features_raw$id_sub_plots), con
+      )
+      cli::cli_alert_success(
+        "Found {nrow(subplot_obs_features)} observation feature record(s)"
+      )
+    } else {
+      cli::cli_alert_info("Enriching with subplot observation features")
+      features_raw <- enrich_subplot_obs_features(features_raw, con)
+    }
   }
   
   # 4. Extract census information if present
@@ -86,12 +117,16 @@ query_plot_features <- function(
   }
   
   cli::cli_alert_success("Query completed")
-  
-  return(list(
+
+  res <- list(
     features_raw = features_raw,
     features_aggregated = features_aggregated,
     census_info = census_info
-  ))
+  )
+  if (!is.null(subplot_obs_features)) {
+    res$subplot_obs_features <- subplot_obs_features
+  }
+  res
 }
 
 # -----------------------------------------------------------------------------
@@ -209,6 +244,50 @@ fetch_subplot_obs_features <- function(subplot_ids, con) {
   }
   
   return(result)
+}
+
+#' Fetch subplot observation features, one row per record
+#'
+#' Unlike [fetch_subplot_obs_features()], the stored columns are returned
+#' untouched: the person's name of a people feature goes in its own `colnam`
+#' column instead of overwriting `typevalue_char`, so the table can be edited
+#' and written back.
+#' @keywords internal
+fetch_subplot_obs_features_long <- function(subplot_ids, con) {
+
+  if (length(subplot_ids) == 0) {
+    return(tibble::tibble())
+  }
+
+  query <- "
+    SELECT
+      sf.*,
+      spt.type,
+      spt.valuetype,
+      tc.colnam,
+      sp.id_table_liste_plots,
+      psp.type AS subplot_type,
+      sp.year  AS subplot_year
+    FROM data_subplot_feat sf
+    LEFT JOIN subplotype_list spt ON sf.id_type_sub_plot = spt.id_subplotype
+    LEFT JOIN table_colnam tc
+           ON spt.valuetype = 'table_colnam'
+          AND sf.typevalue = tc.id_table_colnam
+    LEFT JOIN data_liste_sub_plots sp ON sf.id_sub_plots = sp.id_sub_plots
+    LEFT JOIN subplotype_list psp ON sp.id_type_sub_plot = psp.id_subplotype
+    WHERE sf.id_sub_plots IN ({subplot_ids*})
+    ORDER BY sf.id_sub_plots, spt.type, sf.id_subplot_feat
+  "
+
+  sql <- glue::glue_sql(query, subplot_ids = subplot_ids, .con = con)
+
+  res <- tibble::as_tibble(DBI::dbGetQuery(con, sql))
+
+  dplyr::relocate(
+    res,
+    id_subplot_feat, id_sub_plots, id_table_liste_plots, subplot_type,
+    subplot_year, type, valuetype, typevalue, typevalue_char, colnam
+  )
 }
 
 #' Resolve table references in features

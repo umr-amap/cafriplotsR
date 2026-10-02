@@ -161,3 +161,52 @@ test_that('aggregate_plot_features includes table-valuetype features and returns
   expect_equal(nrow(result_empty), 0)
 })
 
+
+test_that('query_plot_features long format returns obs features unpivoted', {
+  features <- tibble::tibble(
+    id_sub_plots = 10L, id_table_liste_plots = 1L, year = 2021L,
+    month = 6L, day = NA_integer_, typevalue = 1, typevalue_char = NA_character_,
+    original_subplot_name = NA_character_, comment = NA_character_,
+    type = 'plot_area', valuetype = 'numeric', typedescription = NA_character_
+  )
+  obs_long <- tibble::tibble(
+    id_subplot_feat = c(101L, 102L), id_sub_plots = 10L,
+    type = 'additional_people', typevalue = c(5, 6),
+    colnam = c('Person A', 'Person B')
+  )
+  asked <- NULL
+  testthat::local_mocked_bindings(
+    .package = 'CafriplotsR',
+    fetch_subplot_features = function(plot_ids, subplot_ids, con) features,
+    fetch_subplot_obs_features_long = function(subplot_ids, con) {
+      asked <<- subplot_ids
+      obs_long
+    },
+    enrich_subplot_obs_features = function(data, con) stop('must not pivot')
+  )
+  con <- structure(list(), class = 'mock_con')
+
+  res <- suppressMessages(query_plot_features(
+    subplot_ids = 10L, format = 'long',
+    include_subplot_obs_features = TRUE, con = con
+  ))
+
+  expect_equal(asked, 10L)
+  expect_identical(res$subplot_obs_features, obs_long)
+  expect_false(any(startsWith(names(res$features_raw), 'obs_')))
+  expect_identical(res$features_aggregated, features)
+
+  # Without the flag there is no extra element, so the long shape is unchanged
+  res_plain <- suppressMessages(query_plot_features(
+    subplot_ids = 10L, format = 'long', con = con
+  ))
+  expect_named(res_plain, c('features_raw', 'features_aggregated', 'census_info'))
+})
+
+test_that('fetch_subplot_obs_features_long skips the query for no subplots', {
+  testthat::local_mocked_bindings(
+    .package = 'DBI',
+    dbGetQuery = function(...) stop('must not query')
+  )
+  expect_equal(nrow(fetch_subplot_obs_features_long(integer(), con = NULL)), 0)
+})
