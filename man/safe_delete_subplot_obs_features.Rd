@@ -43,7 +43,8 @@ Default TRUE for safety.}
 \value{
 List with deletion summary (invisible). Includes `feat_info`, a
   data frame with one row per record to be deleted (`id_subplot_feat`,
-  `id_sub_plots`, `type`, `typevalue`, `typevalue_char`, `colnam`).
+  `id_sub_plots`, `type`, `typevalue`, `typevalue_char`, `colnam`), and
+  `error`, the database message, when the deletion failed.
 }
 \description{
 **DANGER: This permanently deletes data from the database!**

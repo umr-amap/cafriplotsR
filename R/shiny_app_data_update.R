@@ -71,6 +71,16 @@
 #' with the feature wizard (\code{\link{launch_feature_wizard}}) and the
 #' \code{safe_delete_*} functions.
 #'
+#' \strong{One exception: observation features of a plot feature.} A feature
+#' record, a census most often, can itself be described by rows of
+#' \code{data_subplot_feat} - the people of that census (\code{team_leader},
+#' \code{additional_people}, ...). The plot section lists them for each feature
+#' record and lets you add and remove them. These rows are never edited in
+#' place: replacing a person is removing one and adding the other. Additions and
+#' removals are staged like any other edit, listed in the preview, and written
+#' by \emph{Apply update} in the same transaction. Outside the app, records are
+#' removed with \code{\link{safe_delete_subplot_obs_features}}.
+#'
 #' Every write goes through \code{detect_direct_changes()} and
 #' \code{execute_direct_updates()}, so stored values are re-read immediately
 #' before writing, only genuine differences are written, and records are backed

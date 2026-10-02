@@ -898,10 +898,13 @@
 #' @param con A DBI connection.
 #' @param link Plots only: `NULL`, or a list with `id_parent_plot` and
 #'   `parent_relation` to write as the plot's parent link.
-#' @return A list with `n_direct`, `n_feature` and `n_link`: how many values
-#'   were written.
+#' @param obs Plots only: `NULL`, or the staged observation feature changes
+#'   (see [.upd_apply_obs_features()]).
+#' @return A list with `n_direct`, `n_feature`, `n_link`, `n_obs_added` and
+#'   `n_obs_removed`: how many values or rows were written.
 #' @keywords internal
-.upd_apply_all <- function(entity, id, values, features, con, link = NULL) {
+.upd_apply_all <- function(entity, id, values, features, con, link = NULL,
+                           obs = NULL) {
   DBI::dbBegin(con)
   result <- tryCatch({
     direct_applied  <- .upd_apply_direct(entity, id, values, con)
@@ -911,11 +914,18 @@
     } else {
       0L
     }
+    obs_applied <- if (entity == "plot") {
+      .upd_apply_obs_features(obs, con)
+    } else {
+      list(n_added = 0L, n_removed = 0L)
+    }
     DBI::dbCommit(con)
     list(
-      n_direct  = if (is.null(direct_applied)) 0L else nrow(direct_applied),
-      n_feature = if (is.null(feature_applied)) 0L else nrow(feature_applied),
-      n_link    = link_applied
+      n_direct      = if (is.null(direct_applied)) 0L else nrow(direct_applied),
+      n_feature     = if (is.null(feature_applied)) 0L else nrow(feature_applied),
+      n_link        = link_applied,
+      n_obs_added   = obs_applied$n_added,
+      n_obs_removed = obs_applied$n_removed
     )
   }, error = function(e) {
     tryCatch(DBI::dbRollback(con), error = function(e2) {

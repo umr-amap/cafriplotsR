@@ -34,7 +34,8 @@
 #'
 #' @return List with deletion summary (invisible). Includes `feat_info`, a
 #'   data frame with one row per record to be deleted (`id_subplot_feat`,
-#'   `id_sub_plots`, `type`, `typevalue`, `typevalue_char`, `colnam`).
+#'   `id_sub_plots`, `type`, `typevalue`, `typevalue_char`, `colnam`), and
+#'   `error`, the database message, when the deletion failed.
 #'
 #' @examples
 #' \dontrun{
@@ -244,6 +245,7 @@ safe_delete_subplot_obs_features <- function(id_subplot_feat = NULL,
     }
   }, error = function(e) {
     tryCatch(DBI::dbRollback(raw_con), error = function(e2) {})
+    summary$error <<- conditionMessage(e)
     cli::cli_alert_danger("Error deleting subplot observation features: {e$message}")
     cli::cli_alert_warning("Deletion rolled back - nothing was deleted")
   })
