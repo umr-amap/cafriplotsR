@@ -21,8 +21,8 @@
 #' }
 #'
 #' A person recorded twice (say principal investigator of the plot and team
-#' leader of its second census) appears once per plot/role/source combination
-#' in `by_plot`, and once overall in `authors_all`.
+#' leader of its second census) appears once per record in `by_plot`, and once
+#' overall in either `authors_core` or `authors_other` - never both.
 #'
 #' The person id is read from `typevalue` for both routes. `typevalue_char`
 #' and `id_colnam` are never read: for `table_colnam` features they are empty
@@ -51,7 +51,7 @@
 #'   `authors_core`, or `NULL` for no restriction. Defaults to `"plot"` and
 #'   `"census"` - the plot itself and the events that produced its data.
 #'   People recorded against an ancillary observation, a soil sample say,
-#'   stay in `authors_all` and in `by_plot` but do not reach the short list.
+#'   go to `authors_other` instead, and stay in `by_plot`.
 #'
 #'   This is a default rather than something read from the database because
 #'   there is nothing in the database to read. `subplotype_list` says what a
@@ -82,7 +82,13 @@
 #' \describe{
 #'   \item{`authors_core`}{One row per person, restricted to `core_roles` and
 #'     `core_sources`. This is the short invitation list.}
-#'   \item{`authors_all`}{One row per person, all roles. Same columns.}
+#'   \item{`authors_other`}{One row per person **not** in `authors_core`:
+#'     everyone else recorded on the plots - `additional_people`, and anyone
+#'     holding a core role only through a source outside `core_sources`.
+#'     Same columns. The two tables partition the people, so a person is in
+#'     exactly one of them; someone in `authors_core` does not reappear here
+#'     for the non-core roles they also hold. Bind the two for the complete
+#'     list.}
 #'   \item{`by_plot`}{The detail behind both: one row per record, with
 #'     `plot_name`, `role`, `source`, `id_sub_plots`, `census_number` and
 #'     `census_year`. This is what to save alongside a dataset as authorship
@@ -127,7 +133,8 @@
 #'   query_plot_authors(plot_name = "mbalmayo01", exact_match = FALSE)
 #'
 #'   authors$authors_core   # PI / data manager / team leader only
-#'   authors$authors_all    # everyone, additional_people included
+#'   authors$authors_other  # everyone not in authors_core
+#'   dplyr::bind_rows(authors$authors_core, authors$authors_other)  # everyone
 #'   authors$by_plot        # who, on which plot, in which role
 #'
 #'   # Back to the raw subplot records behind the census people
@@ -266,13 +273,18 @@ query_plot_authors <- function(plot_name = NULL,
     ) %>%
     arrange(family_name, surname, plot_name, role)
 
-  authors_all <- .summarise_authors(by_plot)
-
   core_rows <- by_plot %>% filter(role %in% core_roles)
   if (!is.null(core_sources)) {
     core_rows <- core_rows %>% filter(source %in% core_sources)
   }
   authors_core <- .summarise_authors(core_rows)
+
+  # Everyone else: the two tables partition the people, so a person is in
+  # exactly one of them. Taken by person, not by row, so someone in the core
+  # list does not reappear here for the non-core roles they also hold.
+  authors_other <- .summarise_authors(
+    by_plot %>% filter(!id_table_colnam %in% authors_core$id_table_colnam)
+  )
 
   roles_found <- by_plot %>%
     group_by(role, source) %>%
@@ -287,13 +299,13 @@ query_plot_authors <- function(plot_name = NULL,
     filter(!id_liste_plots %in% unique(by_plot$id_liste_plots))
 
   if (verbose) {
-    n_people <- nrow(authors_all)
+    n_people <- n_distinct(by_plot$id_table_colnam)
     n_plots_with <- n_distinct(by_plot$id_liste_plots)
     cli::cli_alert_success(
       "{n_people} people found over {n_plots_with} plot{?s}"
     )
     cli::cli_alert_info(
-      "{nrow(authors_core)} of them in the core roles: {.val {intersect(core_roles, people_types$type)}}"
+      "{nrow(authors_core)} in {.field authors_core} (core roles: {.val {intersect(core_roles, people_types$type)}}), {nrow(authors_other)} in {.field authors_other}"
     )
 
     # An author excluded only by where they were recorded is worth naming:
@@ -317,7 +329,7 @@ query_plot_authors <- function(plot_name = NULL,
         "{nrow(plots_without_people)} queried plot{?s} with nobody recorded: {.val {plots_without_people$plot_name}}"
       )
     }
-    n_missing <- sum(!authors_all$has_contact)
+    n_missing <- sum(!authors_core$has_contact) + sum(!authors_other$has_contact)
     if (n_missing > 0) {
       cli::cli_alert_warning("{n_missing} of them have no contact and cannot be invited")
     }
@@ -325,7 +337,7 @@ query_plot_authors <- function(plot_name = NULL,
 
   list(
     authors_core         = authors_core,
-    authors_all          = authors_all,
+    authors_other        = authors_other,
     by_plot              = by_plot,
     roles_found          = roles_found,
     plots_without_people = plots_without_people
@@ -656,9 +668,9 @@ query_plot_authors <- function(plot_name = NULL,
 #' @noRd
 .empty_plot_authors <- function(plot_names) {
   list(
-    authors_core = .empty_author_table(),
-    authors_all  = .empty_author_table(),
-    by_plot      = tibble(
+    authors_core  = .empty_author_table(),
+    authors_other = .empty_author_table(),
+    by_plot       = tibble(
       id_table_colnam = integer(),
       colnam          = character(),
       surname         = character(),
