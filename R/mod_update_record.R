@@ -14,6 +14,8 @@
 #      aggregate of several such records - so the app never edits the
 #      aggregate. It shows it read-only, with a badge saying how many records
 #      it came from, and edits those records individually.
+#   4b. Plots only: stage additions and removals of the observation features
+#      (data_subplot_feat) of a feature record, such as the people of a census.
 #   5. Preview a diff and apply.
 
 #' Record update module - UI
@@ -138,6 +140,51 @@ mod_update_record_ui <- function(id, entity = c("plot", "individual"), i18n) {
     NULL
   }
 
+  # Features of a feature: rows of data_subplot_feat describing one subplot
+  # record, such as the people of a census. A record here is never edited in
+  # place, only added or removed; both are staged and written by section 5.
+  obs_panel <- if (entity == "plot") {
+    shiny::wellPanel(
+      shiny::h4(shiny::icon("users"), " ",
+                i18n$t("4b. Census team and other observations of a feature")),
+      shiny::tags$p(
+        class = "text-muted",
+        shiny::tags$small(
+          i18n$t("Some feature records are themselves described by features - most often the people of a census (team_leader, additional_people...). Add and remove them here: they are marked 'to add' or 'to remove' and, like every other change, written only when you apply them in section 5. To replace a person, remove them and add the other one.")
+        )
+      ),
+      shiny::selectInput(ns("obs_subplot"), i18n$t("Feature record described"),
+                         choices = NULL, width = "100%"),
+      shiny::uiOutput(ns("obs_info")),
+      DT::DTOutput(ns("obs_tbl")),
+      shiny::actionButton(
+        ns("obs_delete"),
+        shiny::tagList(shiny::icon("trash"), " ",
+                       i18n$t("Remove, or undo, the selected rows")),
+        class = "btn-danger btn-sm", style = "margin-top: 8px;"
+      ),
+      shiny::hr(),
+      shiny::h5(i18n$t("Add to this record")),
+      shiny::fluidRow(
+        shiny::column(4, shiny::selectInput(ns("obs_type"), i18n$t("Feature type"),
+                                            choices = NULL)),
+        shiny::column(5, shiny::uiOutput(ns("obs_value_ui"))),
+        shiny::column(
+          3, style = "padding-top: 25px;",
+          shiny::actionButton(
+            ns("obs_add"),
+            shiny::tagList(shiny::icon("plus"), " ", i18n$t("Add")),
+            class = "btn-success btn-sm"
+          )
+        )
+      ),
+      shiny::checkboxInput(ns("obs_all_types"), i18n$t("Show every feature type"),
+                           value = FALSE)
+    )
+  } else {
+    NULL
+  }
+
   shiny::tagList(
     search_panel,
 
@@ -215,6 +262,8 @@ mod_update_record_ui <- function(id, entity = c("plot", "individual"), i18n) {
         shiny::uiOutput(ns("feature_form"))
       ),
 
+      obs_panel,
+
       # --- 5. Preview & apply ---
       shiny::wellPanel(
         shiny::h4(shiny::icon("eye"), " ", i18n$t("5. Preview & apply")),
@@ -268,6 +317,9 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     identification <- shiny::reactiveVal(NULL)  # individuals only: idtax cascade
     plot_link     <- shiny::reactiveVal(NULL)   # plots only: parent, chain, children
     link_ready    <- shiny::reactiveVal(FALSE)  # plots only: see link_values()
+    # Bumped by every load. A reload after apply usually sets feat_records() to
+    # an identical value, which does not invalidate it.
+    load_count    <- shiny::reactiveVal(0)
 
     with_main <- function(fun) {
       shiny::req(pool_main())
@@ -346,6 +398,7 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       diff_tbl(NULL)
       apply_status(NULL)
       taxa_reset(taxa_reset() + 1)
+      load_count(load_count() + 1)
       invisible(NULL)
     }
 
@@ -1171,6 +1224,252 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
     }
 
     # =========================================================================
+    # 4b. OBSERVATION FEATURES OF A FEATURE RECORD (plots only)
+    # =========================================================================
+
+    # Rows of data_subplot_feat are never edited in place: they are added or
+    # removed. Both are staged here and written by section 5, in the same
+    # transaction as everything else. Defined for both entities so build_diff()
+    # and apply can read them unconditionally.
+    obs_records     <- shiny::reactiveVal(NULL)  # stored data_subplot_feat rows
+    obs_staged_add  <- shiny::reactiveVal(NULL)  # rows to insert (+ .type/.label/.key)
+    obs_staged_drop <- shiny::reactiveVal(integer(0))  # id_subplot_feat to delete
+
+    obs_changes <- function() {
+      add <- obs_staged_add()
+      drop <- obs_staged_drop()
+      if ((is.null(add) || nrow(add) == 0) && length(drop) == 0) return(NULL)
+      list(add = add, remove = drop)
+    }
+
+    if (entity == "plot") {
+      obs_types       <- shiny::reactiveVal(NULL)  # feature types offered for adding
+      obs_value_reset <- shiny::reactiveVal(0)
+
+      reload_obs <- function() {
+        fr <- feat_records()
+        ids <- if (is.null(fr) || nrow(fr) == 0) integer(0) else unique(fr$record_id)
+        res <- tryCatch(
+          with_main(function(con) fetch_subplot_obs_features_long(ids, con)),
+          error = function(e) {
+            shiny::showNotification(
+              paste(i18n()$t("Could not load the observation features:"), e$message),
+              type = "error", duration = NULL
+            )
+            NULL
+          }
+        )
+        obs_records(res)
+      }
+
+      # A newly loaded record - or the same one re-read after apply - starts
+      # with nothing staged.
+      shiny::observeEvent(load_count(), {
+        shiny::req(feat_records())
+        obs_staged_add(NULL)
+        obs_staged_drop(integer(0))
+        reload_obs()
+        fr <- feat_records()
+        choices <- if (nrow(fr) == 0) character(0) else {
+          # Censuses first: they are what observation features nearly always
+          # describe.
+          fr <- fr[order(fr$feature != "census", fr$feature, fr$year, fr$record_id), ,
+                   drop = FALSE]
+          stats::setNames(
+            as.character(fr$record_id),
+            sprintf("%s = %s%s  (id_sub_plots %s)",
+                    fr$feature,
+                    ifelse(is.na(fr$value_display), "-", fr$value_display),
+                    ifelse(is.na(fr$year), "", paste0(", ", fr$year)),
+                    fr$record_id)
+          )
+        }
+        shiny::updateSelectInput(session, "obs_subplot", choices = choices,
+                                 selected = if (length(choices) > 0) {
+                                   if (isTRUE(input$obs_subplot %in% choices)) {
+                                     input$obs_subplot
+                                   } else {
+                                     choices[[1]]
+                                   }
+                                 })
+      })
+
+      shiny::observeEvent(list(record(), input$obs_all_types), {
+        shiny::req(record())
+        types <- tryCatch(
+          with_main(function(con) {
+            .upd_obs_feature_types(con, all_types = isTRUE(input$obs_all_types))
+          }),
+          error = function(e) NULL
+        )
+        obs_types(types)
+        shiny::req(types, nrow(types) > 0)
+
+        labels <- c(people = i18n()$t("People"),
+                    used   = i18n()$t("Already used as observation features"),
+                    other  = i18n()$t("Other feature types"))
+        groups <- split(types, factor(types$group, levels = names(labels)))
+        groups <- groups[vapply(groups, nrow, integer(1)) > 0]
+        choices <- lapply(groups, function(g) {
+          stats::setNames(as.character(g$id_subplotype), g$type)
+        })
+        names(choices) <- labels[names(choices)]
+        keep <- if (!is.null(input$obs_type) &&
+                    input$obs_type %in% as.character(types$id_subplotype)) {
+          input$obs_type
+        } else {
+          NULL
+        }
+        shiny::updateSelectInput(session, "obs_type", choices = choices,
+                                 selected = keep)
+      })
+
+      obs_type_row <- shiny::reactive({
+        types <- obs_types()
+        shiny::req(types, input$obs_type)
+        types[as.character(types$id_subplotype) == input$obs_type, , drop = FALSE]
+      })
+
+      people_choices <- shiny::reactive({
+        shiny::req(record())
+        with_main(function(con) {
+          .upd_lookup_choices("table_colnam", "id_table_colnam", "colnam", con)
+        })
+      })
+
+      output$obs_value_ui <- shiny::renderUI({
+        obs_value_reset()
+        tp <- obs_type_row()
+        shiny::req(nrow(tp) == 1)
+        vt <- tp$valuetype
+
+        if (!is.na(vt) && vt == "table_colnam") {
+          shiny::selectizeInput(
+            ns("obs_value"), i18n()$t("People"), choices = people_choices(),
+            multiple = TRUE,
+            options = list(placeholder = i18n()$t("Type a name..."))
+          )
+        } else if (!is.na(vt) && vt %in% c("numeric", "integer")) {
+          shiny::numericInput(ns("obs_value"), i18n()$t("Value"), value = NA)
+        } else {
+          shiny::textInput(ns("obs_value"), i18n()$t("Value"))
+        }
+      })
+
+      # Stored rows and staged additions of the selected feature record, with
+      # what will happen to each.
+      obs_shown <- shiny::reactive({
+        shiny::req(input$obs_subplot)
+        .upd_obs_view(obs_records(), obs_staged_add(), obs_staged_drop(),
+                      as.integer(input$obs_subplot))
+      })
+
+      output$obs_info <- shiny::renderUI({
+        v <- obs_shown()
+        n_pending <- length(obs_staged_drop()) + NROW(obs_staged_add())
+        shiny::tagList(
+          if (nrow(v) == 0) {
+            shiny::div(class = "alert alert-secondary",
+                       i18n()$t("No observation feature is recorded for this record."))
+          } else {
+            shiny::tags$p(class = "text-muted", shiny::tags$small(
+              i18n()$t("Select rows and use the button below to remove them, or to undo a pending change.")
+            ))
+          },
+          if (n_pending > 0) {
+            shiny::div(
+              class = "alert alert-warning",
+              shiny::icon("exclamation-triangle"), " ",
+              sprintf(i18n()$t("%d observation feature change(s) pending for this plot. Nothing is written until you apply them in section 5."),
+                      n_pending)
+            )
+          }
+        )
+      })
+
+      output$obs_tbl <- DT::renderDT({
+        v <- obs_shown()
+        shiny::req(nrow(v) > 0)
+        status_label <- c(stored = i18n()$t("stored"),
+                          add    = i18n()$t("to add"),
+                          remove = i18n()$t("to remove"))
+        tb <- data.frame(
+          ifelse(is.na(v$id_subplot_feat), "-", as.character(v$id_subplot_feat)),
+          v$type, v$label, unname(status_label[v$status]),
+          stringsAsFactors = FALSE
+        )
+        names(tb) <- c("id_subplot_feat", i18n()$t("Feature type"),
+                       i18n()$t("Value"), i18n()$t("Status"))
+        DT::formatStyle(
+          DT::datatable(tb, selection = "multiple", rownames = FALSE,
+                        options = list(dom = "t", paging = FALSE)),
+          i18n()$t("Status"), target = "row",
+          backgroundColor = DT::styleEqual(
+            unname(status_label[c("add", "remove")]), c("#d4edda", "#f8d7da")
+          )
+        )
+      })
+
+      # One button toggles the selection: a stored row is staged for removal,
+      # a pending row is taken back.
+      shiny::observeEvent(input$obs_delete, {
+        v <- obs_shown()
+        rows <- input$obs_tbl_rows_selected
+        if (length(rows) == 0 || nrow(v) == 0) {
+          shiny::showNotification(i18n()$t("Select the records to remove first."),
+                                  type = "warning")
+          return()
+        }
+        sel <- v[rows, , drop = FALSE]
+        drop <- obs_staged_drop()
+        drop <- setdiff(drop, sel$id_subplot_feat[sel$status == "remove"])
+        drop <- union(drop, sel$id_subplot_feat[sel$status == "stored"])
+        obs_staged_drop(as.integer(drop))
+
+        add <- obs_staged_add()
+        if (!is.null(add) && any(sel$status == "add")) {
+          obs_staged_add(add[!add$.key %in% sel$key[sel$status == "add"], , drop = FALSE])
+        }
+        diff_tbl(NULL)
+      })
+
+      shiny::observeEvent(input$obs_add, {
+        tp <- obs_type_row()
+        sp <- input$obs_subplot
+        shiny::req(nrow(tp) == 1, sp, nzchar(sp))
+
+        staged <- obs_staged_add()
+        rows <- tryCatch(
+          .upd_obs_feature_rows(as.integer(sp), tp$id_subplotype, tp$valuetype,
+                                input$obs_value,
+                                existing = .upd_obs_existing(obs_records(), staged)),
+          error = function(e) {
+            shiny::showNotification(conditionMessage(e), type = "error")
+            NULL
+          }
+        )
+        shiny::req(rows)
+        if (nrow(rows) == 0) {
+          shiny::showNotification(
+            i18n()$t("Nothing to add: the value is empty or already recorded."),
+            type = "warning"
+          )
+          return()
+        }
+
+        people <- if (!is.na(tp$valuetype) && tp$valuetype == "table_colnam") {
+          people_choices()
+        } else {
+          NULL
+        }
+        rows <- .upd_obs_label_rows(rows, tp$type, people, staged)
+        obs_staged_add(if (is.null(staged)) rows else rbind(staged, rows))
+        obs_value_reset(obs_value_reset() + 1)
+        diff_tbl(NULL)
+      })
+    }
+
+    # =========================================================================
     # 5. PREVIEW & APPLY
     # =========================================================================
 
@@ -1275,6 +1574,42 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
             current = if (show_as_name) .upd_fmt(rec$value_display) else .upd_fmt(old_value),
             new     = if (show_as_name) resolve_reference(changes[[column]])
                       else .upd_fmt(changes[[column]]),
+            changed = TRUE,
+            stringsAsFactors = FALSE
+          )
+        }
+      }
+
+      # Observation features (section 4b): whole rows added or removed.
+      oc <- obs_changes()
+      if (!is.null(oc)) {
+        stored <- obs_records()
+        for (fid in oc$remove) {
+          s <- if (.upd_obs_has_rows(stored)) {
+            stored[stored$id_subplot_feat == fid, , drop = FALSE]
+          } else {
+            NULL
+          }
+          if (is.null(s) || nrow(s) != 1) next
+          label <- if (!is.na(s$colnam)) s$colnam
+                   else if (!is.na(s$typevalue)) s$typevalue
+                   else s$typevalue_char
+          rows[[length(rows) + 1]] <- data.frame(
+            scope   = sprintf("%s [id_sub_plots = %s]", s$type, s$id_sub_plots),
+            target  = sprintf("data_subplot_feat (id_subplot_feat = %s)", fid),
+            current = .upd_fmt(label),
+            new     = i18n()$t("(removed)"),
+            changed = TRUE,
+            stringsAsFactors = FALSE
+          )
+        }
+        add <- oc$add
+        for (i in seq_len(NROW(add))) {
+          rows[[length(rows) + 1]] <- data.frame(
+            scope   = sprintf("%s [id_sub_plots = %s]", add$.type[i], add$id_sub_plots[i]),
+            target  = i18n()$t("data_subplot_feat (new row)"),
+            current = "-",
+            new     = .upd_fmt(add$.label[i]),
             changed = TRUE,
             stringsAsFactors = FALSE
           )
@@ -1388,11 +1723,13 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
       values   <- direct_inputs()
       features <- pending_feat()
       link     <- link_values()
+      obs      <- obs_changes()
 
       shiny::withProgress(message = i18n()$t("Applying update..."), value = 0, {
         result <- tryCatch({
           out <- with_main(function(con) {
-            .upd_apply_all(entity, id_value, values, features, con, link = link)
+            .upd_apply_all(entity, id_value, values, features, con, link = link,
+                           obs = obs)
           })
           shiny::incProgress(0.5)
           c(list(ok = TRUE), out)
@@ -1420,6 +1757,12 @@ mod_update_record_server <- function(id, entity = c("plot", "individual"),
                   res$n_direct, res$n_feature),
           if (isTRUE(res$n_link > 0)) {
             shiny::tagList(" ", i18n()$t("The parent link was updated."))
+          },
+          if (isTRUE(res$n_obs_added > 0 || res$n_obs_removed > 0)) {
+            shiny::tagList(" ", sprintf(
+              i18n()$t("Observation features: %d added, %d removed."),
+              res$n_obs_added, res$n_obs_removed
+            ))
           }
         )
       } else {

@@ -4,7 +4,7 @@
 \alias{.upd_apply_all}
 \title{Write a record's flat columns and its feature records as one unit}
 \usage{
-.upd_apply_all(entity, id, values, features, con, link = NULL)
+.upd_apply_all(entity, id, values, features, con, link = NULL, obs = NULL)
 }
 \arguments{
 \item{entity}{`"plot"` or `"individual"`.}
@@ -20,10 +20,13 @@
 
 \item{link}{Plots only: `NULL`, or a list with `id_parent_plot` and
 `parent_relation` to write as the plot's parent link.}
+
+\item{obs}{Plots only: `NULL`, or the staged observation feature changes
+(see [.upd_apply_obs_features()]).}
 }
 \value{
-A list with `n_direct`, `n_feature` and `n_link`: how many values
-  were written.
+A list with `n_direct`, `n_feature`, `n_link`, `n_obs_added` and
+  `n_obs_removed`: how many values or rows were written.
 }
 \description{
 Flat columns and features live in different tables, so applying them

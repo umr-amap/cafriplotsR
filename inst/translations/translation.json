@@ -11144,6 +11144,106 @@
     {
       "en": "Import failed and was rolled back: %s",
       "fr": "L'import a échoué et a été annulé : %s"
+    },
+    {
+      "en": "4b. Census team and other observations of a feature",
+      "fr": "4b. Équipe du recensement et autres observations d'une caractéristique"
+    },
+    {
+      "en": "Feature record described",
+      "fr": "Enregistrement de caractéristique décrit"
+    },
+    {
+      "en": "Add to this record",
+      "fr": "Ajouter à cet enregistrement"
+    },
+    {
+      "en": "Feature type",
+      "fr": "Type de caractéristique"
+    },
+    {
+      "en": "Add",
+      "fr": "Ajouter"
+    },
+    {
+      "en": "Show every feature type",
+      "fr": "Afficher tous les types de caractéristiques"
+    },
+    {
+      "en": "Could not load the observation features:",
+      "fr": "Impossible de charger les caractéristiques d'observation :"
+    },
+    {
+      "en": "People",
+      "fr": "Personnes"
+    },
+    {
+      "en": "Already used as observation features",
+      "fr": "Déjà utilisés comme caractéristiques d'observation"
+    },
+    {
+      "en": "Other feature types",
+      "fr": "Autres types de caractéristiques"
+    },
+    {
+      "en": "Type a name...",
+      "fr": "Tapez un nom..."
+    },
+    {
+      "en": "No observation feature is recorded for this record.",
+      "fr": "Aucune caractéristique d'observation n'est enregistrée pour cet enregistrement."
+    },
+    {
+      "en": "Select the records to remove first.",
+      "fr": "Sélectionnez d'abord les enregistrements à retirer."
+    },
+    {
+      "en": "Remove",
+      "fr": "Retirer"
+    },
+    {
+      "en": "Nothing to add: the value is empty or already recorded.",
+      "fr": "Rien à ajouter : la valeur est vide ou déjà enregistrée."
+    },
+    {
+      "en": "Some feature records are themselves described by features - most often the people of a census (team_leader, additional_people...). Add and remove them here: they are marked 'to add' or 'to remove' and, like every other change, written only when you apply them in section 5. To replace a person, remove them and add the other one.",
+      "fr": "Certains enregistrements de caractéristiques sont eux-mêmes décrits par des caractéristiques - le plus souvent les personnes d'un recensement (team_leader, additional_people...). Ajoutez-les et retirez-les ici : ils sont marqués « à ajouter » ou « à retirer » et, comme toute autre modification, ne sont écrits que lorsque vous les appliquez à la section 5. Pour remplacer une personne, retirez-la puis ajoutez l'autre."
+    },
+    {
+      "en": "Remove, or undo, the selected rows",
+      "fr": "Retirer, ou annuler, les lignes sélectionnées"
+    },
+    {
+      "en": "Select rows and use the button below to remove them, or to undo a pending change.",
+      "fr": "Sélectionnez des lignes et utilisez le bouton ci-dessous pour les retirer, ou pour annuler une modification en attente."
+    },
+    {
+      "en": "%d observation feature change(s) pending for this plot. Nothing is written until you apply them in section 5.",
+      "fr": "%d modification(s) de caractéristiques d'observation en attente pour cette placette. Rien n'est écrit tant que vous ne les appliquez pas à la section 5."
+    },
+    {
+      "en": "stored",
+      "fr": "enregistré"
+    },
+    {
+      "en": "to add",
+      "fr": "à ajouter"
+    },
+    {
+      "en": "to remove",
+      "fr": "à retirer"
+    },
+    {
+      "en": "(removed)",
+      "fr": "(retiré)"
+    },
+    {
+      "en": "data_subplot_feat (new row)",
+      "fr": "data_subplot_feat (nouvelle ligne)"
+    },
+    {
+      "en": "Observation features: %d added, %d removed.",
+      "fr": "Caractéristiques d'observation : %d ajoutée(s), %d retirée(s)."
     }
   ]
 }
