@@ -69,6 +69,13 @@
 
 ### New Features
 
+* **The data update app adds a missing measurement to an individual** (`R/mod_update_record.R`, `R/update_app_ind_measures.R`) - `launch_data_update_app()` could only edit the measurements an individual already had, so a single missing value (a diameter not recorded at one census) needed a file and the feature wizard
+  - A new section *4b* in the individual section adds one measurement at a time: feature (those already measured on the individual first), census (the latest preselected), a value input matching the feature's type and allowed range, an optional date and `issue`
+  - New values are **staged** - marked *to add*, listed in the preview of section 5, and written to `data_traits_measures` by *Apply update* in the same transaction as the other edits. A staged value can be taken back before applying
+  - The row is built as the feature wizard builds it (plot, `id_diconame` and `id_specimen` copied from the individual). A value is refused when no census is chosen, when the same feature is already recorded or staged for that census (edit it in section 4 instead), or when it lies outside the feature's allowed range. A numeric value lower than at an earlier census is accepted with `issue = "value lower than previous census"`
+  - Features that describe the tree rather than a census (`traitlist.census_link = "never"`, e.g. position) are recorded without one; the census picker is disabled for them
+  - Removing a stored measurement is not part of this change; use `safe_delete_individual_features()`
+
 * **The data update app edits the people of a census** (`R/mod_update_record.R`, `R/update_app_subplot_obs.R`) - `launch_data_update_app()` could edit the features of a plot, but not the features that describe one of those features: the rows of `data_subplot_feat`, in practice the `team_leader` and `additional_people` of a census. No app could add one to an existing census; the feature wizard only writes them while creating a census
   - A new section *4b* in the plot section lists, for each feature record of the plot (censuses first), its observation features with people shown by name. People types come first in the type picker, then the types already used in `data_subplot_feat`; a checkbox offers every type
   - Rows are added and removed, never edited in place - replacing a person is removing one and adding the other. Both are **staged** like every other edit: marked *to add* / *to remove* in the table, listed in the preview of section 5, and written by *Apply update* in the same transaction as the rest. A person already recorded for that census and type is not added twice

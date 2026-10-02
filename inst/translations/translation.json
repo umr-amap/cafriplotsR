@@ -11244,6 +11244,82 @@
     {
       "en": "Observation features: %d added, %d removed.",
       "fr": "Caractéristiques d'observation : %d ajoutée(s), %d retirée(s)."
+    },
+    {
+      "en": "4b. Add a missing measurement",
+      "fr": "4b. Ajouter une mesure manquante"
+    },
+    {
+      "en": "For a value this individual does not have yet, such as a diameter missed at one census. Values are marked 'to add' and, like every other change, written only when you apply them in section 5. To correct a value that is already stored, edit it in section 4. To add values for many individuals, use the feature wizard (launch_feature_wizard()).",
+      "fr": "Pour une valeur que cet individu n'a pas encore, comme un diamètre oublié lors d'un recensement. Les valeurs sont marquées « à ajouter » et, comme toute autre modification, ne sont écrites que lorsque vous les appliquez à la section 5. Pour corriger une valeur déjà enregistrée, modifiez-la à la section 4. Pour ajouter des valeurs à de nombreux individus, utilisez l'assistant des caractéristiques (launch_feature_wizard())."
+    },
+    {
+      "en": "Leave the date blank when the value was measured during the census: the census carries the date.",
+      "fr": "Laissez la date vide si la valeur a été mesurée pendant le recensement : c'est le recensement qui porte la date."
+    },
+    {
+      "en": "Take back the selected rows",
+      "fr": "Retirer les lignes sélectionnées"
+    },
+    {
+      "en": "census",
+      "fr": "recensement"
+    },
+    {
+      "en": "Could not load the features and censuses:",
+      "fr": "Impossible de charger les caractéristiques et les recensements :"
+    },
+    {
+      "en": "Already measured on this individual",
+      "fr": "Déjà mesurées sur cet individu"
+    },
+    {
+      "en": "Other features",
+      "fr": "Autres caractéristiques"
+    },
+    {
+      "en": "No census",
+      "fr": "Aucun recensement"
+    },
+    {
+      "en": "This feature describes the tree itself, not one census, so it is recorded without a census.",
+      "fr": "Cette caractéristique décrit l'arbre lui-même et non un recensement : elle est donc enregistrée sans recensement."
+    },
+    {
+      "en": "%d measurement(s) to add for this individual. Nothing is written until you apply them in section 5.",
+      "fr": "%d mesure(s) à ajouter pour cet individu. Rien n'est écrit tant que vous ne les appliquez pas à la section 5."
+    },
+    {
+      "en": "Select the rows to take back first.",
+      "fr": "Sélectionnez d'abord les lignes à retirer."
+    },
+    {
+      "en": "Choose the census the value was measured at.",
+      "fr": "Choisissez le recensement lors duquel la valeur a été mesurée."
+    },
+    {
+      "en": "A value of this feature is already recorded for this census. To correct it, edit it in section 4.",
+      "fr": "Une valeur de cette caractéristique est déjà enregistrée pour ce recensement. Pour la corriger, modifiez-la à la section 4."
+    },
+    {
+      "en": "The value is below the lowest allowed for this feature (%s).",
+      "fr": "La valeur est inférieure au minimum autorisé pour cette caractéristique (%s)."
+    },
+    {
+      "en": "The value is above the highest allowed for this feature (%s).",
+      "fr": "La valeur est supérieure au maximum autorisé pour cette caractéristique (%s)."
+    },
+    {
+      "en": "The value is lower than at an earlier census. It is added with an issue saying so; check it before applying.",
+      "fr": "La valeur est plus faible que lors d'un recensement antérieur. Elle est ajoutée avec un problème le signalant ; vérifiez-la avant d'appliquer."
+    },
+    {
+      "en": "data_traits_measures (new row)",
+      "fr": "data_traits_measures (nouvelle ligne)"
+    },
+    {
+      "en": "New measurements: %d added.",
+      "fr": "Nouvelles mesures : %d ajoutée(s)."
     }
   ]
 }
