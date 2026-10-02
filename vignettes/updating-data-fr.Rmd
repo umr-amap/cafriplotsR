@@ -254,6 +254,52 @@ update_records(
 )
 ```
 
+### Cas 4 : Les personnes d'un recensement (caractéristiques d'observation)
+
+Un recensement est lui-même une caractéristique de la parcelle (une ligne de
+`data_liste_sub_plots`), et il peut être décrit par ses propres
+caractéristiques : son `team_leader`, ses `additional_people`, etc. Ces lignes
+se trouvent un niveau plus bas, dans `data_subplot_feat`, rattachées à
+l'`id_sub_plots` du recensement. Dans une extraction large, elles apparaissent
+sous forme de colonnes `obs_*`, qui sont des agrégats et ne peuvent pas être
+réécrites.
+
+`update_records()` ne couvre pas cette table. Ses lignes ne sont jamais
+modifiées sur place, seulement ajoutées ou retirées : remplacer une personne
+revient à retirer une ligne et à en ajouter une autre. Deux façons de le faire.
+
+**Dans l'application (recommandé).** Ouvrez `launch_data_update_app()`,
+chargez la parcelle et allez à la section *4b. Équipe du recensement et autres
+observations d'une caractéristique*. Choisissez le recensement, puis ajoutez
+des personnes ou sélectionnez des lignes à retirer. Les changements sont
+marqués *à ajouter* ou *à retirer*. Comme toute autre modification, ils sont
+listés par *Aperçu des modifications* à la section 5 et écrits seulement
+par *Appliquer la mise à jour*.
+
+**Depuis R.** Extrayez les lignes au format long, choisissez celles à retirer,
+et supprimez-les avec `safe_delete_subplot_obs_features()` :
+
+```{r}
+obs <- query_plot_features(
+  subplot_ids = 15063,
+  format = "long",
+  include_subplot_obs_features = TRUE,
+  con = con
+)$subplot_obs_features
+
+# Une ligne par enregistrement : id_subplot_feat, le recensement, le type, et
+# pour les personnes le nom dans `colnam` (l'id de la personne est stocké
+# dans `typevalue`)
+obs[, c("id_subplot_feat", "subplot_type", "subplot_year", "type", "colnam")]
+
+ids_to_remove <- obs$id_subplot_feat[obs$colnam == "Une Personne"]
+
+# Simulation d'abord (par défaut), puis suppression
+safe_delete_subplot_obs_features(id_subplot_feat = ids_to_remove, con = con)
+safe_delete_subplot_obs_features(id_subplot_feat = ids_to_remove,
+                                 con = con, dry_run = FALSE)
+```
+
 ---
 
 ## Exemples pratiques
@@ -408,6 +454,10 @@ Je veux mettre à jour une colonne...
 │   │
 │   └─► NON → D'abord interroger avec query_subplot_features() pour obtenir les IDs
 │
+├─► Est-ce une personne d'un recensement donné (une colonne obs_*) ?
+│   └─► OUI → launch_data_update_app(), section 4b
+│             (ou query_plot_features(format = "long") + safe_delete_subplot_obs_features())
+│
 ├─► Est-ce une métadonnée sur une mesure (pom_height, method, etc.) ?
 │   └─► OUI → table_type = "individual_features_metadata"
 │
@@ -426,6 +476,7 @@ Je veux mettre à jour une colonne...
    - Données de base parcelle → `table_type = "plots"`
    - Mesures (DHP, hauteur) → `table_type = "individual_features"`
    - Caractéristiques parcelle (recensement, équipe) → `table_type = "subplot_features"`
+   - Personnes d'un recensement (colonnes `obs_*`) → section 4b de `launch_data_update_app()`, pas `update_records()`
 4. **Les valeurs agrégées ne peuvent pas être mises à jour directement** - obtenez d'abord les IDs des mesures brutes
 5. **Les valeurs de référence sont auto-résolues** - vous pouvez utiliser des noms lisibles comme "Gabon" au lieu des IDs
 6. **Les changements sont sauvegardés** automatiquement dans les tables `followup_updates_*` quand disponibles

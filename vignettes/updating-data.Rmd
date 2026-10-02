@@ -254,6 +254,48 @@ update_records(
 )
 ```
 
+### Case 4: The People of a Census (Observation Features)
+
+A census is itself a plot feature (a row of `data_liste_sub_plots`), and it can
+be described by features of its own: its `team_leader`, its
+`additional_people`, and so on. These rows live one level further down, in
+`data_subplot_feat`, keyed on the census's `id_sub_plots`. In a wide
+extraction they appear as `obs_*` columns, which are aggregates and cannot be
+written back.
+
+`update_records()` does not cover this table. Its rows are never edited in
+place, only added or removed: replacing a person means removing one row and
+adding another. There are two ways to do this.
+
+**In the app (recommended).** Open `launch_data_update_app()`, load the plot,
+and go to section *4b. Census team and other observations of a feature*. Pick
+the census, then add people or select rows to remove. Changes are marked
+*to add* or *to remove*. Like every other edit, they are listed by *Preview
+changes* in section 5 and written only by *Apply update*.
+
+**From R.** Extract the rows in long format, pick the ones to remove, and
+delete them with `safe_delete_subplot_obs_features()`:
+
+```{r}
+obs <- query_plot_features(
+  subplot_ids = 15063,
+  format = "long",
+  include_subplot_obs_features = TRUE,
+  con = con
+)$subplot_obs_features
+
+# One row per record: id_subplot_feat, the census, the type, and for people
+# the name in `colnam` (the person's id is stored in `typevalue`)
+obs[, c("id_subplot_feat", "subplot_type", "subplot_year", "type", "colnam")]
+
+ids_to_remove <- obs$id_subplot_feat[obs$colnam == "Some Person"]
+
+# Dry run first (the default), then delete
+safe_delete_subplot_obs_features(id_subplot_feat = ids_to_remove, con = con)
+safe_delete_subplot_obs_features(id_subplot_feat = ids_to_remove,
+                                 con = con, dry_run = FALSE)
+```
+
 ---
 
 ## Practical Examples
@@ -408,6 +450,10 @@ I want to update a column...
 │   │
 │   └─► NO → First query with query_subplot_features() to get IDs
 │
+├─► Is it a person of a given census (an obs_* column)?
+│   └─► YES → launch_data_update_app(), section 4b
+│             (or query_plot_features(format = "long") + safe_delete_subplot_obs_features())
+│
 ├─► Is it metadata on a measurement (pom_height, method, etc.)?
 │   └─► YES → table_type = "individual_features_metadata"
 │
@@ -426,6 +472,7 @@ I want to update a column...
    - Plot core data → `table_type = "plots"`
    - Measurements (DBH, height) → `table_type = "individual_features"`
    - Plot features (census, team) → `table_type = "subplot_features"`
+   - People of a census (`obs_*` columns) → section 4b of `launch_data_update_app()`, not `update_records()`
 4. **Aggregated values cannot be updated directly** - get the raw measurement IDs first
 5. **Lookup values are auto-resolved** - you can use friendly names like "Gabon" instead of IDs
 6. **Changes are backed up** automatically in `followup_updates_*` tables when available
