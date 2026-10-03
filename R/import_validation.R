@@ -783,18 +783,9 @@ validate_plot_metadata <- function(data,
 
       if (!is.null(parent_lookup)) {
         supplied <- trimws(as.character(parent_vals))
-        are_numeric <- suppressWarnings(
-          !any(is.na(as.numeric(supplied[parent_set])))
-        )
-
-        if (are_numeric) {
-          invalid_rows <- which(
-            parent_set & !(suppressWarnings(as.numeric(supplied)) %in%
-                             parent_lookup$id_liste_plots)
-          )
-        } else {
-          invalid_rows <- which(parent_set & !(supplied %in% parent_lookup$plot_name))
-        }
+        # Ids from step 4 and names left as typed can share the column
+        resolved <- .resolve_parent_plot_ids(supplied, parent_lookup)
+        invalid_rows <- which(parent_set & is.na(resolved))
 
         for (row in invalid_rows) {
           errors <- c(errors, list(list(
