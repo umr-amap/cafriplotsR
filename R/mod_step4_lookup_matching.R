@@ -499,7 +499,10 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, config, con, i1
       lookup_info <- .get_lookup_info(db_col, con)
       cli::cli_alert_info("  Lookup info: function_name={lookup_info$function_name %||% 'NULL'}, value_col={lookup_info$value_col %||% 'NULL'}")
 
-      if (is.null(lookup_info$function_name)) {
+      if (identical(lookup_info$table, "data_liste_plots")) {
+        # Parent plot: .get_lookup_info() has already read the plots
+        db_values <- lookup_info$data
+      } else if (is.null(lookup_info$function_name)) {
         # Special handling for people columns (no function, query directly)
         cli::cli_alert_info("  Querying table_colnam directly...")
         db_values <- DBI::dbGetQuery(con, "
@@ -622,7 +625,13 @@ mod_step4_lookup_matching_server <- function(id, data, mappings, config, con, i1
     lookup_info <- .get_lookup_info(col_name, con)
 
     # Query database for name -> ID mapping
-    if (is.null(lookup_info$function_name)) {
+    if (col_name == "parent_plot") {
+      db_lookup <- DBI::dbGetQuery(con, "
+        SELECT id_liste_plots AS id, plot_name AS name
+        FROM data_liste_plots
+        WHERE plot_name IS NOT NULL
+      ")
+    } else if (is.null(lookup_info$function_name)) {
       # People columns: query table_colnam
       db_lookup <- DBI::dbGetQuery(con, "
         SELECT id_table_colnam AS id, colnam AS name

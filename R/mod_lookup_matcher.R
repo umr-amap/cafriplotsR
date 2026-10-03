@@ -845,6 +845,18 @@ mod_lookup_matcher_server <- function(id, invalid_values, con,
       allow_add_new = FALSE,
       add_fields = NULL
     )
+  } else if (column_name == "parent_plot") {
+    # The plot a new plot sits inside, matched against the plots already in
+    # the database. Never created here: a parent is an established plot.
+    lookup_info <- list(
+      table = "data_liste_plots",
+      value_col = "plot_name",
+      id_col = "id_liste_plots",
+      desc_col = NULL,
+      function_name = NULL,
+      allow_add_new = FALSE,
+      add_fields = NULL
+    )
   } else if (is_people_column) {
     # ANY feature with valuetype == table_colnam (current and future)
     lookup_info <- list(
@@ -874,6 +886,18 @@ mod_lookup_matcher_server <- function(id, invalid_values, con,
     cli::cli_alert_info("Fetching {column_name} using function: {lookup_info$function_name}")
     lookup_info$data <- tryCatch({
       do.call(lookup_info$function_name, list())
+    }, error = function(e) {
+      cli::cli_alert_warning("Failed to fetch {column_name} lookup table: {e$message}")
+      NULL
+    })
+  } else if (identical(lookup_info$table, "data_liste_plots")) {
+    lookup_info$data <- tryCatch({
+      DBI::dbGetQuery(con, "
+        SELECT id_liste_plots, plot_name
+        FROM data_liste_plots
+        WHERE plot_name IS NOT NULL
+        ORDER BY plot_name
+      ")
     }, error = function(e) {
       cli::cli_alert_warning("Failed to fetch {column_name} lookup table: {e$message}")
       NULL

@@ -726,20 +726,10 @@ DBI::dbDisconnect(con)
     con, "SELECT id_liste_plots, plot_name FROM data_liste_plots"
   )
 
-  are_numeric <- suppressWarnings(!any(is.na(as.numeric(parent_values))))
-
-  if (are_numeric) {
-    # Already ids, from step 4 lookup matching
-    if (progress) cli::cli_alert_info("Parent plot values are already IDs from lookup matching")
-    resolved <- suppressWarnings(as.numeric(data$parent_plot))
-    unmatched <- parent_values[!(as.numeric(parent_values) %in% parent_lookup$id_liste_plots)]
-  } else {
-    if (progress) cli::cli_alert_info("Resolving parent plot names")
-    resolved <- parent_lookup$id_liste_plots[
-      match(trimws(data$parent_plot), parent_lookup$plot_name)
-    ]
-    unmatched <- parent_values[!(trimws(parent_values) %in% parent_lookup$plot_name)]
-  }
+  if (progress) cli::cli_alert_info("Resolving parent plots")
+  resolved <- .resolve_parent_plot_ids(data$parent_plot, parent_lookup)
+  is_set <- !is.na(data$parent_plot) & trimws(data$parent_plot) != ""
+  unmatched <- trimws(as.character(data$parent_plot))[is_set & is.na(resolved)]
 
   if (length(unmatched) > 0) {
     stop(sprintf(
@@ -782,6 +772,42 @@ DBI::dbDisconnect(con)
 
   # parent_plot itself is removed later by .prepare_plot_data()
   return(data)
+}
+
+
+#' Resolve parent plot values to id_liste_plots
+#'
+#' Step 4 of the import wizard replaces each parent plot name it matched with
+#' its \code{id_liste_plots}, and leaves a name it was not asked to match as
+#' typed. One column can therefore hold both, so each value is resolved on its
+#' own: a whole number that is an existing \code{id_liste_plots} is taken as
+#' that id, anything else is looked up by \code{plot_name}, ignoring case and
+#' surrounding spaces.
+#'
+#' @param values Vector of parent plot values (ids or plot names).
+#' @param parent_lookup Data frame with \code{id_liste_plots} and
+#'   \code{plot_name}.
+#' @return Integer vector of ids, NA where a value is blank or unknown.
+#' @keywords internal
+.resolve_parent_plot_ids <- function(values, parent_lookup) {
+
+  supplied <- trimws(as.character(values))
+  out <- rep(NA_integer_, length(supplied))
+  if (length(supplied) == 0 || is.null(parent_lookup) || nrow(parent_lookup) == 0) {
+    return(out)
+  }
+
+  as_num <- suppressWarnings(as.numeric(supplied))
+  is_id <- !is.na(as_num) & as_num == round(as_num) &
+    as_num %in% parent_lookup$id_liste_plots
+  out[is_id] <- as.integer(as_num[is_id])
+
+  by_name <- !is_id & !is.na(supplied) & nzchar(supplied)
+  out[by_name] <- as.integer(parent_lookup$id_liste_plots[
+    match(tolower(supplied[by_name]), tolower(trimws(parent_lookup$plot_name)))
+  ])
+
+  out
 }
 
 
