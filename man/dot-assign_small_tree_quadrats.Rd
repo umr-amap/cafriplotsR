@@ -14,7 +14,8 @@ plot_name_raw).}
 \code{.prepare_openforis_small_tree_quadrats()}.}
 }
 \value{
-List with \code{trees} (assignable rows, with \code{plot_name} set),
+List with \code{trees} (assignable rows, with \code{quadrat_unit},
+  \code{quadrat_label} and the small-tree \code{plot_name} set),
   \code{unassigned} (rows dropped, or NULL) and \code{mismatches} (rows the
   raw spelling disagrees about, or NULL).
 }

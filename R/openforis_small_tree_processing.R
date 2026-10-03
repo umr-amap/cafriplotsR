@@ -21,15 +21,17 @@
 #' diameter threshold, censused inside a handful of 20 x 20 m quadrats of an
 #' already established 1-ha plot — and returns clean tables ready for import.
 #'
-#' Each sampled quadrat becomes **its own plot**, named
-#' \code{<parent plot>_<quadrat label>} (e.g. \code{"mbalmayo001_20_20"}) with
-#' an area of \code{quadrat_area} hectares. See the section below for why.
+#' All the quadrats sampled in one parent plot together make **one small-tree
+#' plot**, named \code{<parent plot><plot_suffix>} (e.g.
+#' \code{"mbalmayo001_smalltree"}), with an area of the number of sampled
+#' quadrats times \code{quadrat_area}. It is linked to its parent plot as a
+#' \code{nested_subsample}. See the sections below for why.
 #'
 #' Plot coordinates are **not** produced: they are not part of the OpenForis
 #' raw export and must be added separately (e.g. with
 #' \code{add_plot_coordinates()}).
 #'
-#' @section Why one plot per quadrat:
+#' @section Why a plot of its own:
 #' The small trees are tagged 1..N within their parent plot, and those numbers
 #' collide head-on with the tags the parent plot already uses for its large
 #' stems — \code{mbalmayo001} holds tags 1-445 for D >= 10 cm and the small
@@ -38,12 +40,26 @@
 #' recorded it cannot be undone, so the small trees cannot be filed under the
 #' parent plot without mangling their field tags.
 #'
-#' Registering each quadrat as a plot of its own avoids that: the
-#' \code{firsttag} column makes the tag ranges of the quadrats disjoint, so
-#' every tag is kept exactly as written in the field. It also stores the right
-#' area for a density per hectare, and keeps the date, forest type and field
-#' team that \code{plot.xlsx} records **per quadrat** rather than collapsing
-#' them. The link back is kept in the \code{parent_plot_name} column.
+#' Within one parent plot, though, the \code{firsttag} column makes the tag
+#' ranges of the quadrats disjoint, so the quadrats of a plot share one tag
+#' sequence and are one sampling unit: every tag is kept exactly as written in
+#' the field. The quadrat of each stem is not lost — it is recorded in the
+#' \code{quadrat} feature of the individual, together with its 10 x 10 m
+#' sub-quadrat (e.g. \code{"20_20_A"}).
+#'
+#' @section Link to the parent plot:
+#' The plot table carries \code{parent_plot_name} and
+#' \code{parent_relation = "nested_subsample"}, which the Import Wizard turns
+#' into the \code{id_parent_plot} link. The relation says that the small-tree
+#' plot overlaps the ground of its parent with another diameter threshold, so
+#' the two must never be summed. The parent plot must already be in the
+#' database.
+#'
+#' @section Quadrats sampled on different occasions:
+#' \code{plot.xlsx} records date, team and forest type for each quadrat, and
+#' one plot holds one value. The earliest date is kept, the team and forest
+#' types of all quadrats are pooled, and any other column on which the
+#' quadrats disagree keeps its first value. Each disagreement is announced.
 #'
 #' @section How stems are assigned to quadrats:
 #' \code{tree_list.xlsx} does not name the quadrat a stem sits in. Its
@@ -86,25 +102,25 @@
 #' @param quadrat_codes Path to the code list of the 20 x 20 m quadrats of the
 #'   parent plot (\code{code_quadrat.csv}: codes 1-25, labels \code{"0_0"},
 #'   \code{"20_20"}, ...). Decodes the \code{quadrat} column of
-#'   \code{plot.xlsx} and so names the plots this function creates. NULL to
-#'   auto-detect, FALSE to keep the raw codes.
+#'   \code{plot.xlsx}, the first part of the \code{quadrat} feature of each
+#'   individual. NULL to auto-detect, FALSE to keep the raw codes.
 #' @param subquadrat_codes Path to the code list of the 10 x 10 m sub-quadrats
 #'   (\code{code_subquadrat_smalltree.csv}: codes 1-4, labels A-D). Decodes the
-#'   \code{quadrat} column of \code{tree_list.xlsx} into the \code{quadrat}
-#'   feature of each individual. NULL to auto-detect, FALSE to keep the raw
-#'   codes.
+#'   \code{quadrat} column of \code{tree_list.xlsx}, the second part of the
+#'   \code{quadrat} feature of each individual. NULL to auto-detect, FALSE to
+#'   keep the raw codes.
 #' @param forest_state_codes,forest_type_codes,country_codes,team_leader_codes
 #'   Paths to the plot-level code-list CSVs. NULL to auto-detect from
 #'   \code{codes_dir}, FALSE to skip that decoding.
-#' @param method Character. Plot method for the quadrats. Not present in the
+#' @param method Character. Plot method for the small-tree plots. Not present in the
 #'   OpenForis export — supply it here. Required by the Import Wizard, so a
 #'   warning is raised when it is missing. NULL to omit.
 #' @param province Character. Province/region. NULL to omit.
 #' @param locality_name Character. Locality or site name. Not present in the
 #'   OpenForis export — supply it here. NULL to omit.
-#' @param quadrat_area Numeric. Area of one quadrat in hectares, written to
-#'   \code{plots$plot_area}. Default \code{0.04} (a 20 x 20 m quadrat). NULL to
-#'   omit.
+#' @param quadrat_area Numeric. Area of one quadrat in hectares. Default
+#'   \code{0.04} (a 20 x 20 m quadrat). \code{plots$plot_area} is this times
+#'   the number of quadrats sampled in the plot. NULL to omit.
 #' @param country Character. Overrides the country decoded from the export.
 #'   NULL keeps the decoded value.
 #' @param data_provider Character. Data provider (e.g. \code{"IRD"}).
@@ -126,8 +142,13 @@
 #' @param plot_name_map Named character vector of explicit plot-name
 #'   replacements, applied to the raw value before padding and winning over it
 #'   (e.g. \code{c("Mbalmayo-09" = "mbalmayo009")}). NULL for none.
-#' @param quadrat_sep Character inserted between the parent plot name and the
-#'   quadrat label (default \code{"_"}).
+#' @param plot_suffix Character appended to the parent plot name to name the
+#'   small-tree plot (default \code{"_smalltree"}). It may not end with a
+#'   digit, which \code{.normalise_plot_name()} would take for the plot number.
+#' @param quadrat_sep Character joining the parts of a quadrat identifier: the
+#'   parent plot name and the quadrat label in the review tables
+#'   (\code{"mbalmayo001_20_20"}), and the quadrat label and the sub-quadrat in
+#'   the \code{quadrat} feature (\code{"20_20_A"}). Default \code{"_"}.
 #' @param dbh_max Numeric. Diameter above which a stem is reported as outside
 #'   the small-tree protocol (default \code{10}). NULL to skip the check.
 #' @param specimen_prefix Character prefix for specimen numbers (e.g.
@@ -163,18 +184,22 @@
 #'
 #' @return A list with components:
 #' \describe{
-#'   \item{plots}{Tibble, one row per sampled quadrat, ready to upload to the
-#'     Import Wizard as inventory metadata: plot_name (\code{<parent>_<quadrat>}),
-#'     parent_plot_name, quadrat, country, province, method, locality_name,
-#'     plot_area, data_provider, team_leader, principal_investigator,
-#'     data_manager, additional_people, identified_by, forest_state,
-#'     forest_type, date_y, date_m, date_d, census.}
-#'   \item{quadrats}{Tibble, the same units with the numbers used to assign
-#'     stems to them — firsttag, the tag range actually observed, the stem
-#'     count, and the raw \code{plot_plot_name_old} spellings that fell in the
-#'     range. A review table, not an upload.}
-#'   \item{individuals}{Tibble of every stem: plot_name (the quadrat),
-#'     parent_plot_name, tag, quadrat (the 10 x 10 m sub-quadrat A-D),
+#'   \item{plots}{Tibble, one row per small-tree plot (one per parent plot),
+#'     ready to upload to the Import Wizard as inventory metadata: plot_name
+#'     (\code{<parent><plot_suffix>}), parent_plot_name, parent_relation,
+#'     quadrats (the sampled quadrat labels), country, province, method,
+#'     locality_name, plot_area, data_provider, team_leader,
+#'     principal_investigator, data_manager, additional_people, identified_by,
+#'     forest_state, forest_type, date_y, date_m, date_d, census.}
+#'   \item{quadrats}{Tibble, one row per sampled quadrat: the small-tree
+#'     plot_name it belongs to, its quadrat_unit identifier
+#'     (\code{<parent>_<quadrat>}), and the numbers used to assign stems to it
+#'     — firsttag, the tag range actually observed, the stem count, and the
+#'     raw \code{plot_plot_name_old} spellings that fell in the range. A review
+#'     table, not an upload.}
+#'   \item{individuals}{Tibble of every stem: plot_name (the small-tree plot),
+#'     parent_plot_name, tag, quadrat (the 20 x 20 m quadrat and the
+#'     10 x 10 m sub-quadrat, e.g. \code{"20_20_A"}),
 #'     original_tax_name, idtax_n, tax_appendix, herbarium_nbe_char,
 #'     herbarium_nbe_type, position_x, position_y, multi_stem,
 #'     number_multi_stem, multi_tiges_id (tag of the main stem, NA for the main
@@ -198,13 +223,14 @@
 #'   \item{multi_stems}{Tibble of candidate multi-stem groupings with a
 #'     \code{flag} column to review, or NULL.}
 #'   \item{name_mismatches}{Tibble of stems whose \code{plot_plot_name_old}
-#'     spelling puts them in a different quadrat than their tag does, or NULL.
-#'     The tag wins; these rows are for review.}
+#'     spelling puts them in a different quadrat than their tag does
+#'     (quadrat_unit against majority_quadrat_unit), or NULL. The tag wins;
+#'     these rows are for review.}
 #'   \item{unassigned_stems}{Tibble of stems that could not be placed in any
 #'     quadrat — an unknown parent plot, a missing tag, or a tag below every
 #'     \code{firsttag} of its plot — or NULL. A \code{warning()} is also
 #'     raised. These stems are excluded from every other table.}
-#'   \item{duplicated_stems}{Tibble of rows sharing a quadrat + tag pair, or
+#'   \item{duplicated_stems}{Tibble of rows sharing a plot + tag pair, or
 #'     NULL. A \code{warning()} is also raised.}
 #'   \item{oversized_stems}{Tibble of stems at or above \code{dbh_max}, or
 #'     NULL. They belong to the large-stem census of the parent plot, not here.}
@@ -277,6 +303,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
                                           census = 1,
                                           plot_name_digits = 3L,
                                           plot_name_map = NULL,
+                                          plot_suffix = "_smalltree",
                                           quadrat_sep = "_",
                                           dbh_max = 10,
                                           specimen_prefix = NULL,
@@ -289,6 +316,8 @@ process_openforis_small_trees <- function(data_dir = NULL,
                                           specimen_description_col = "stem_diameter",
                                           plot_name_col = "plot_plot_name_old",
                                           tag_col = "tag") {
+
+  .check_small_tree_plot_suffix(plot_suffix)
 
   # ---- Auto-detect files from directories ----
   if (is.null(tree_file) && !is.null(data_dir)) {
@@ -362,7 +391,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
   country_code_list <- .read_code_csv(country_codes)
   tl_code_list      <- .read_code_csv(team_leader_codes)
 
-  # ---- Quadrat units (one plot each) ----
+  # ---- Quadrat units (pooled into one plot per parent plot) ----
   cli::cli_alert_info("Reading quadrat metadata from {.file {plot_file}}")
   plots_raw <- as.data.frame(readxl::read_excel(plot_file))
 
@@ -371,7 +400,8 @@ process_openforis_small_trees <- function(data_dir = NULL,
     quadrat_codes = quad_code_list,
     plot_name_digits = plot_name_digits,
     plot_name_map = plot_name_map,
-    quadrat_sep = quadrat_sep
+    quadrat_sep = quadrat_sep,
+    plot_suffix = plot_suffix
   )
   cli::cli_alert_success(
     "{nrow(quadrats)} sampled quadrat{?s} across {length(unique(quadrats$parent_plot_name))} parent plot{?s}"
@@ -413,12 +443,13 @@ process_openforis_small_trees <- function(data_dir = NULL,
   if (nrow(trees) == 0) {
     stop("No stem could be assigned to a quadrat — check the firsttag column of the plot file.")
   }
-  cli::cli_alert_success(
-    "Assigned {nrow(trees)} stem{?s} to {length(unique(trees$plot_name))} quadrat plot{?s}"
-  )
+  cli::cli_alert_success(paste(
+    "Assigned {nrow(trees)} stem{?s} to {length(unique(trees$quadrat_unit))}",
+    "quadrat{?s} of {length(unique(trees$plot_name))} small-tree plot{?s}"
+  ))
 
-  # ---- Quadrat plots seen in one file but not the other ----
-  empty_quadrats <- setdiff(quadrats$plot_name, trees$plot_name)
+  # ---- Quadrats seen in one file but not the other ----
+  empty_quadrats <- setdiff(quadrats$quadrat_unit, trees$quadrat_unit)
   if (length(empty_quadrats) > 0) {
     cli::cli_alert_warning(
       "Quadrat{?s} in the plot file with no stem in the tree list: {.val {empty_quadrats}}"
@@ -431,14 +462,14 @@ process_openforis_small_trees <- function(data_dir = NULL,
     )
   }
 
-  # ---- Duplicated quadrat + tag combinations ----
+  # ---- Duplicated plot + tag combinations ----
   dup_key <- paste(trees$plot_name, trees$tag, sep = "__")
   dup_mask <- duplicated(dup_key) | duplicated(dup_key, fromLast = TRUE)
   duplicated_stems <- NULL
   if (any(dup_mask)) {
     dup_cols <- intersect(
-      c("plot_name", "parent_plot_name", "tag", "species_scientific_name",
-        "species_code", "stem_diameter", "quadrat"),
+      c("plot_name", "parent_plot_name", "quadrat_unit", "tag",
+        "species_scientific_name", "species_code", "stem_diameter", "quadrat"),
       names(trees)
     )
     duplicated_stems <- trees[dup_mask, dup_cols, drop = FALSE]
@@ -447,11 +478,11 @@ process_openforis_small_trees <- function(data_dir = NULL,
     rownames(duplicated_stems) <- NULL
     n_dup_pairs <- length(unique(dup_key[dup_mask]))
     warning(sprintf(
-      "%d duplicated quadrat + tag combination(s) found (%d rows). Check result$duplicated_stems.",
+      "%d duplicated plot + tag combination(s) found (%d rows). Check result$duplicated_stems.",
       n_dup_pairs, sum(dup_mask)
     ), call. = FALSE)
     cli::cli_alert_warning(
-      "{n_dup_pairs} duplicated quadrat + tag combination(s) detected ({sum(dup_mask)} rows) — review result$duplicated_stems"
+      "{n_dup_pairs} duplicated plot + tag combination(s) detected ({sum(dup_mask)} rows) — review result$duplicated_stems"
     )
   }
 
@@ -468,7 +499,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
     trees <- .remap_specimen_numbers(trees, specimen_remap_file, data_dir)
   }
 
-  # ---- Plot-level table, one row per quadrat ----
+  # ---- Plot-level table, one row per small-tree plot ----
   plots <- .prepare_openforis_small_tree_plots(
     quadrats, plots_raw,
     country_codes = country_code_list,
@@ -483,7 +514,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
     additional_people = additional_people,
     census = census
   )
-  cli::cli_alert_success("Plot metadata for {nrow(plots)} quadrat plot{?s}")
+  cli::cli_alert_success("Plot metadata for {nrow(plots)} small-tree plot{?s}")
 
   # plot_name, method and country are required by the Import Wizard
   missing_req <- Filter(
@@ -520,16 +551,20 @@ process_openforis_small_trees <- function(data_dir = NULL,
 
   # ---- Individuals ----
   # The tree-level `quadrat` is the 10 x 10 m sub-quadrat (A-D), so it is
-  # decoded against the sub-quadrat list, not the 20 x 20 m one that named the
-  # plots.
+  # decoded against the sub-quadrat list, not the 20 x 20 m one. The 20 x 20 m
+  # quadrat is then put in front of it: once the quadrats of a plot are pooled,
+  # the individual is the only place left that says which one a stem was in.
   individuals <- .prepare_openforis_new_plot_individuals(
     trees, specimen_prefix,
     quadrat_codes = subquad_code_list,
     morpho_codes = morpho_code_list
   )
-  individuals$parent_plot_name <- quadrats$parent_plot_name[
-    match(individuals$plot_name, quadrats$plot_name)
-  ]
+  stem_idx <- match(paste(individuals$plot_name, individuals$tag),
+                    paste(trees$plot_name, trees$tag))
+  individuals$quadrat <- .combine_small_tree_quadrat(
+    trees$quadrat_label[stem_idx], individuals$quadrat, sep = quadrat_sep
+  )
+  individuals$parent_plot_name <- trees$parent_plot_name[stem_idx]
   individuals <- individuals[
     , union(c("plot_name", "parent_plot_name", "tag"), names(individuals)),
     drop = FALSE
@@ -629,11 +664,17 @@ process_openforis_small_trees <- function(data_dir = NULL,
   }
 
   # ---- Multi-stem grouping ----
-  # Grouping is by consecutive tags within a plot; because the quadrats hold
-  # disjoint tag ranges, splitting the parent plot into quadrats cannot break a
-  # group unless it straddled two quadrats, which the field protocol excludes.
-  multi_stems <- .build_openforis_multi_stems(trees)
+  # Grouping takes the next tags of the same plot. It runs per quadrat, so the
+  # last stem of one quadrat cannot be swept into a group opened at the end of
+  # the previous one - the field protocol keeps a multi-stem tree in one
+  # quadrat - and the result is then put back under the small-tree plot.
+  trees_by_quadrat <- trees
+  trees_by_quadrat$plot_name <- trees$quadrat_unit
+  multi_stems <- .build_openforis_multi_stems(trees_by_quadrat)
   if (!is.null(multi_stems)) {
+    multi_stems$plot_name <- trees$plot_name[
+      match(multi_stems$plot_name, trees$quadrat_unit)
+    ]
     n_groups <- length(unique(paste(multi_stems$plot_name, multi_stems$group_tag)))
     n_flagged <- sum(!is.na(multi_stems$flag))
     cli::cli_alert_success(
@@ -724,6 +765,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
 
   # ---- Summary ----
   summary_info <- list(
+    n_plots = nrow(plots),
     n_parent_plots = length(unique(trees$parent_plot_name)),
     n_quadrats = nrow(quadrats),
     n_individuals = nrow(individuals),
@@ -742,7 +784,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
   cli::cli_rule()
   cli::cli_alert_success("Processing complete:")
   cli::cli_bullets(c(
-    "*" = "{summary_info$n_quadrats} quadrat plot(s) from {summary_info$n_parent_plots} parent plot(s)",
+    "*" = "{summary_info$n_plots} small-tree plot(s) pooling {summary_info$n_quadrats} quadrat(s)",
     "*" = "{summary_info$n_individuals} individual(s)",
     "*" = "{summary_info$n_measurements} measurement rows",
     "*" = "{summary_info$n_specimens} specimen(s)",
@@ -753,9 +795,11 @@ process_openforis_small_trees <- function(data_dir = NULL,
     "*" = "{summary_info$n_oversized_stems} stem(s) at or above the small-tree threshold",
     "*" = "Traits: {paste(summary_info$trait_names, collapse = ', ')}"
   ))
-  cli::cli_alert_info(
-    "Each quadrat is a plot of its own; the parent plot is kept in {.field parent_plot_name}."
-  )
+  cli::cli_alert_info(paste(
+    "Each small-tree plot is linked to its parent plot through",
+    "{.field parent_plot_name} as a {.val nested_subsample};",
+    "the parent must already be in the database."
+  ))
   cli::cli_alert_info(
     "Plot coordinates are not part of the OpenForis export — add them separately."
   )
@@ -832,10 +876,11 @@ process_openforis_small_trees <- function(data_dir = NULL,
 
 #' Build the sampled-quadrat units from a raw OpenForis small-tree plot export
 #'
-#' One row of \code{plot.xlsx} is one 20 x 20 m quadrat of a parent plot, and
-#' becomes one plot in the output. The quadrat code is decoded to its grid
-#' label (\code{9} to \code{"20_20"}) and appended to the normalised parent
-#' plot name.
+#' One row of \code{plot.xlsx} is one 20 x 20 m quadrat of a parent plot. The
+#' quadrat code is decoded to its grid label (\code{9} to \code{"20_20"}),
+#' which, appended to the normalised parent plot name, identifies the quadrat
+#' (\code{quadrat_unit}). Every quadrat of a parent plot belongs to the same
+#' small-tree plot, named after the parent plus \code{plot_suffix}.
 #'
 #' @param plots_raw Data frame read from \code{plot.xlsx}.
 #' @param quadrat_codes Parsed 20 x 20 m quadrat code list, or NULL to keep the
@@ -843,15 +888,18 @@ process_openforis_small_trees <- function(data_dir = NULL,
 #' @param plot_name_digits,plot_name_map Passed to
 #'   \code{\link{.normalise_plot_name}}.
 #' @param quadrat_sep Separator between parent plot name and quadrat label.
+#' @param plot_suffix Appended to the parent plot name to name the small-tree
+#'   plot.
 #' @return Data frame with one row per quadrat: row_id (the row of
-#'   \code{plots_raw} it came from), parent_plot_name, quadrat, quadrat_code,
-#'   plot_name, firsttag.
+#'   \code{plots_raw} it came from), parent_plot_name, plot_name, quadrat_unit,
+#'   quadrat, quadrat_code, firsttag.
 #' @keywords internal
 .prepare_openforis_small_tree_quadrats <- function(plots_raw,
                                                    quadrat_codes = NULL,
                                                    plot_name_digits = 3L,
                                                    plot_name_map = NULL,
-                                                   quadrat_sep = "_") {
+                                                   quadrat_sep = "_",
+                                                   plot_suffix = "_smalltree") {
 
   required <- c("plot_name", "quadrat", "firsttag")
   missing <- setdiff(required, names(plots_raw))
@@ -882,9 +930,11 @@ process_openforis_small_trees <- function(data_dir = NULL,
   result <- data.frame(
     row_id = seq_len(nrow(plots_raw)),
     parent_plot_name = parent,
+    plot_name = ifelse(is.na(parent), NA_character_, paste0(parent, plot_suffix)),
+    quadrat_unit = ifelse(is.na(parent), NA_character_,
+                          paste0(parent, quadrat_sep, quad_label)),
     quadrat = quad_label,
     quadrat_code = quad_code,
-    plot_name = paste0(parent, quadrat_sep, quad_label),
     firsttag = suppressWarnings(as.numeric(plots_raw$firsttag)),
     stringsAsFactors = FALSE
   )
@@ -893,18 +943,19 @@ process_openforis_small_trees <- function(data_dir = NULL,
   if (any(no_firsttag)) {
     cli::cli_alert_warning(paste(
       "{sum(no_firsttag)} quadrat{?s} with no {.field firsttag}",
-      "({.val {result$plot_name[no_firsttag]}}) — no stem can be assigned to {?it/them}"
+      "({.val {result$quadrat_unit[no_firsttag]}}) — no stem can be assigned to {?it/them}"
     ))
   }
 
-  dup <- duplicated(result$plot_name) | duplicated(result$plot_name, fromLast = TRUE)
+  dup <- duplicated(result$quadrat_unit) |
+    duplicated(result$quadrat_unit, fromLast = TRUE)
   if (any(dup)) {
     warning(sprintf(
       "The plot file names the same quadrat more than once: %s",
-      paste(unique(result$plot_name[dup]), collapse = ", ")
+      paste(unique(result$quadrat_unit[dup]), collapse = ", ")
     ), call. = FALSE)
     cli::cli_alert_warning(
-      "Repeated quadrat{?s} in the plot file: {.val {unique(result$plot_name[dup])}}"
+      "Repeated quadrat{?s} in the plot file: {.val {unique(result$quadrat_unit[dup])}}"
     )
   }
 
@@ -1006,7 +1057,8 @@ process_openforis_small_trees <- function(data_dir = NULL,
 #'   plot_name_raw).
 #' @param quadrats Quadrat units from
 #'   \code{.prepare_openforis_small_tree_quadrats()}.
-#' @return List with \code{trees} (assignable rows, with \code{plot_name} set),
+#' @return List with \code{trees} (assignable rows, with \code{quadrat_unit},
+#'   \code{quadrat_label} and the small-tree \code{plot_name} set),
 #'   \code{unassigned} (rows dropped, or NULL) and \code{mismatches} (rows the
 #'   raw spelling disagrees about, or NULL).
 #' @keywords internal
@@ -1032,7 +1084,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
     # findInterval() returns 0 for a tag below every firsttag
     k <- findInterval(trees$tag[rows], q$firsttag)
     placed <- k >= 1L
-    assigned[rows[placed]] <- q$plot_name[k[placed]]
+    assigned[rows[placed]] <- q$quadrat_unit[k[placed]]
     reason[rows[!placed]] <- sprintf("tag below the first firsttag of %s (%s)",
                                      parent, min(q$firsttag))
   }
@@ -1054,7 +1106,10 @@ process_openforis_small_trees <- function(data_dir = NULL,
     rownames(unassigned) <- NULL
   }
 
-  trees$plot_name <- assigned
+  unit_idx <- match(assigned, quadrats$quadrat_unit)
+  trees$quadrat_unit <- assigned
+  trees$quadrat_label <- quadrats$quadrat[unit_idx]
+  trees$plot_name <- quadrats$plot_name[unit_idx]
   trees <- trees[keep, , drop = FALSE]
   rownames(trees) <- NULL
 
@@ -1072,8 +1127,10 @@ process_openforis_small_trees <- function(data_dir = NULL,
 #' smaller share are the suspicious ones — either the tag or the trailing
 #' underscore was mistyped.
 #'
-#' @param trees Assigned tree data frame (plot_name, plot_name_raw).
-#' @return Data frame of the minority rows, or NULL when every spelling is
+#' @param trees Assigned tree data frame (quadrat_unit, plot_name_raw).
+#' @return Data frame of the minority rows, with the quadrat their tag puts
+#'   them in (\code{quadrat_unit}) and the one most stems of that spelling
+#'   landed in (\code{majority_quadrat_unit}), or NULL when every spelling is
 #'   consistent.
 #' @keywords internal
 .flag_small_tree_name_mismatches <- function(trees) {
@@ -1083,25 +1140,25 @@ process_openforis_small_trees <- function(data_dir = NULL,
   out <- list()
   for (raw in unique(trees$plot_name_raw)) {
     rows <- which(trees$plot_name_raw == raw)
-    tab <- table(trees$plot_name[rows])
+    tab <- table(trees$quadrat_unit[rows])
     if (length(tab) < 2) next
 
     majority <- names(tab)[which.max(tab)]
-    odd <- rows[trees$plot_name[rows] != majority]
+    odd <- rows[trees$quadrat_unit[rows] != majority]
 
     cols <- intersect(
-      c("plot_name_raw", "parent_plot_name", "plot_name", "tag",
+      c("plot_name_raw", "parent_plot_name", "plot_name", "quadrat_unit", "tag",
         "species_scientific_name"),
       names(trees)
     )
     piece <- trees[odd, cols, drop = FALSE]
-    piece$majority_plot_name <- majority
+    piece$majority_quadrat_unit <- majority
     out[[raw]] <- piece
   }
 
   if (length(out) == 0) return(NULL)
   result <- do.call(rbind, out)
-  result <- result[order(result$plot_name, result$tag), , drop = FALSE]
+  result <- result[order(result$quadrat_unit, result$tag), , drop = FALSE]
   rownames(result) <- NULL
   result
 }
@@ -1217,11 +1274,12 @@ process_openforis_small_trees <- function(data_dir = NULL,
 }
 
 
-#' Build the plot-level table, one row per sampled quadrat
+#' Build the plot-level table, one row per small-tree plot
 #'
 #' Reuses \code{.prepare_openforis_new_plots()} for everything the two forms
-#' share — country, team, forest state and type, dates — then swaps in the
-#' quadrat plot name and adds the columns specific to a quadrat.
+#' share — country, team, forest state and type, dates — one row per quadrat,
+#' then pools the quadrats of each parent plot into its small-tree plot with
+#' \code{.collapse_small_tree_plots()}.
 #'
 #' The quadrat units carry \code{row_id}, the row of \code{plots_raw} they came
 #' from, so the join back is positional and unaffected by the repeated plot
@@ -1230,13 +1288,15 @@ process_openforis_small_trees <- function(data_dir = NULL,
 #' @param quadrats Quadrat units from
 #'   \code{.prepare_openforis_small_tree_quadrats()}.
 #' @param plots_raw Data frame read from \code{plot.xlsx}.
-#' @param quadrat_codes,forest_state_codes,forest_type_codes,team_leader_codes,country_codes
+#' @param forest_state_codes,forest_type_codes,team_leader_codes,country_codes
 #'   Parsed code lists, or NULL to skip that decoding.
-#' @param country,province,method,data_provider,locality_name,plot_area,principal_investigator,data_manager
+#' @param country,province,method,data_provider,locality_name,principal_investigator,data_manager
 #'   Constants not present in the export. NULL to omit.
+#' @param plot_area Area of one quadrat in hectares, multiplied by the number
+#'   of quadrats of each plot. NULL to omit.
 #' @param additional_people Overrides the exported \code{add_people} column.
 #' @param census Census number written to a \code{census} column. NULL to omit.
-#' @return Data frame with one row per quadrat.
+#' @return Data frame with one row per small-tree plot.
 #' @keywords internal
 .prepare_openforis_small_tree_plots <- function(quadrats, plots_raw,
                                                 country_codes = NULL,
@@ -1253,13 +1313,13 @@ process_openforis_small_trees <- function(data_dir = NULL,
                                                 additional_people = NULL,
                                                 census = NULL) {
 
-  # .prepare_openforis_new_plots() collapses forest_type per plot_name, so the
-  # quadrat name has to be in place before it runs — otherwise the quadrats of
-  # one parent plot would pool their forest types.
+  # .prepare_openforis_new_plots() collapses forest_type per plot_name, so each
+  # row is named after its quadrat first; the pooling below then decides how
+  # the quadrats of one plot combine.
   raw <- plots_raw
-  raw$plot_name <- quadrats$plot_name[match(seq_len(nrow(raw)), quadrats$row_id)]
+  raw$plot_name <- quadrats$quadrat_unit[match(seq_len(nrow(raw)), quadrats$row_id)]
 
-  base <- .prepare_openforis_new_plots(
+  per_quadrat <- .prepare_openforis_new_plots(
     raw,
     country_codes = country_codes,
     forest_state_codes = forest_state_codes,
@@ -1267,26 +1327,194 @@ process_openforis_small_trees <- function(data_dir = NULL,
     team_leader_codes = team_leader_codes,
     country = country, province = province, method = method,
     data_provider = data_provider,
-    locality_name = locality_name, plot_area = plot_area,
+    locality_name = locality_name, plot_area = NULL,
     principal_investigator = principal_investigator,
     data_manager = data_manager,
     additional_people = additional_people,
     census = census
   )
-
-  idx <- match(base$plot_name, quadrats$plot_name)
-  base$parent_plot_name <- quadrats$parent_plot_name[idx]
-  base$quadrat <- quadrats$quadrat[idx]
+  names(per_quadrat)[names(per_quadrat) == "plot_name"] <- "quadrat_unit"
 
   # A row of plots_raw with no quadrat unit cannot be named and is dropped
-  base <- base[!is.na(base$plot_name), , drop = FALSE]
+  per_quadrat <- per_quadrat[!is.na(per_quadrat$quadrat_unit), , drop = FALSE]
 
-  base <- base[, union(c("plot_name", "parent_plot_name", "quadrat"),
-                       names(base)), drop = FALSE]
-  base <- base[order(base$parent_plot_name, base$plot_name), , drop = FALSE]
-  rownames(base) <- NULL
-  base
+  .collapse_small_tree_plots(per_quadrat, quadrats, quadrat_area = plot_area)
 }
+
+
+#' Pool the per-quadrat metadata of each small-tree plot into one row
+#'
+#' \code{plot.xlsx} describes every quadrat, a plot row holds one value per
+#' column. The rules:
+#' \itemize{
+#'   \item \code{plot_area} is the number of quadrats times \code{quadrat_area};
+#'   \item \code{quadrats} lists the quadrat labels in firsttag order;
+#'   \item the date is the earliest of the quadrats;
+#'   \item \code{team_leader}, \code{additional_people} and
+#'     \code{identified_by} pool the people of every quadrat;
+#'   \item \code{forest_type} and \code{forest_state} pool their values;
+#'   \item any other column keeps its first non-missing value.
+#' }
+#' A plot whose quadrats disagree on its date or on a column of the last kind
+#' is announced, naming the values found.
+#'
+#' @param per_quadrat Plot metadata with one row per quadrat, keyed by
+#'   \code{quadrat_unit}.
+#' @param quadrats Quadrat units (quadrat_unit, plot_name, parent_plot_name,
+#'   quadrat, firsttag).
+#' @param quadrat_area Area of one quadrat in hectares, or NULL.
+#' @param relation Value written to \code{parent_relation}.
+#' @return Data frame with one row per small-tree plot: plot_name,
+#'   parent_plot_name, parent_relation, quadrats, plot_area (when
+#'   \code{quadrat_area} is given), then the pooled metadata columns.
+#' @keywords internal
+.collapse_small_tree_plots <- function(per_quadrat, quadrats,
+                                       quadrat_area = NULL,
+                                       relation = "nested_subsample") {
+
+  q <- quadrats[!is.na(quadrats$plot_name), , drop = FALSE]
+  q <- q[order(q$plot_name, q$firsttag, na.last = TRUE), , drop = FALSE]
+  plot_names <- unique(q$plot_name)
+
+  people_cols <- c("team_leader", "additional_people", "identified_by")
+  pooled_cols <- c("forest_type", "forest_state")
+  date_cols <- c("date_y", "date_m", "date_d")
+  meta_cols <- setdiff(names(per_quadrat), "quadrat_unit")
+
+  first_value <- function(x) {
+    x <- x[!is.na(x)]
+    if (length(x) == 0) x[NA_integer_] else x[1]
+  }
+  pool_values <- function(x) {
+    x <- trimws(unlist(strsplit(as.character(x[!is.na(x)]), ",")))
+    x <- unique(x[nzchar(x)])
+    if (length(x) == 0) NA_character_ else paste(x, collapse = ", ")
+  }
+
+  conflicts <- character(0)
+  rows <- vector("list", length(plot_names))
+
+  for (i in seq_along(plot_names)) {
+    p <- plot_names[i]
+    units <- q[q$plot_name == p, , drop = FALSE]
+    sub <- per_quadrat[match(units$quadrat_unit, per_quadrat$quadrat_unit), ,
+                       drop = FALSE]
+    sub <- sub[!is.na(sub$quadrat_unit), , drop = FALSE]
+
+    row <- data.frame(
+      plot_name = p,
+      parent_plot_name = units$parent_plot_name[1],
+      parent_relation = relation,
+      quadrats = paste(units$quadrat, collapse = ", "),
+      stringsAsFactors = FALSE
+    )
+    if (!is.null(quadrat_area)) row$plot_area <- nrow(units) * quadrat_area
+
+    for (cl in setdiff(meta_cols, date_cols)) {
+      vals <- sub[[cl]]
+      if (cl %in% people_cols) {
+        row[[cl]] <- .collapse_people(vals)
+      } else if (cl %in% pooled_cols) {
+        row[[cl]] <- pool_values(vals)
+      } else {
+        distinct <- unique(vals[!is.na(vals)])
+        if (length(distinct) > 1) {
+          conflicts <- c(conflicts, sprintf(
+            "%s: %s differs between quadrats (%s), kept %s",
+            p, cl, paste(distinct, collapse = " / "), distinct[1]
+          ))
+        }
+        row[[cl]] <- first_value(vals)
+      }
+    }
+
+    present_dates <- intersect(date_cols, names(sub))
+    if (length(present_dates) > 0 && nrow(sub) > 0) {
+      ord <- do.call(order, c(unname(as.list(sub[present_dates])),
+                              list(na.last = TRUE)))
+      for (cl in present_dates) row[[cl]] <- sub[[cl]][ord[1]]
+
+      stamps <- unique(do.call(paste, c(unname(as.list(sub[present_dates])),
+                                        list(sep = "-"))))
+      if (length(stamps) > 1) {
+        conflicts <- c(conflicts, sprintf(
+          "%s: quadrats sampled on different dates (%s), kept the earliest",
+          p, paste(stamps, collapse = " / ")
+        ))
+      }
+    }
+
+    rows[[i]] <- row
+  }
+
+  if (length(rows) == 0) {
+    return(data.frame(plot_name = character(0), parent_plot_name = character(0),
+                      parent_relation = character(0), quadrats = character(0),
+                      stringsAsFactors = FALSE))
+  }
+
+  result <- do.call(rbind, rows)
+  rownames(result) <- NULL
+
+  if (length(conflicts) > 0) {
+    cli::cli_alert_warning(
+      "Quadrats of a plot disagree on {length(conflicts)} value{?s}:"
+    )
+    cli::cli_bullets(stats::setNames(conflicts, rep("*", length(conflicts))))
+  }
+
+  result
+}
+
+
+#' Join the 20 x 20 m quadrat and the 10 x 10 m sub-quadrat of each stem
+#'
+#' @param quadrat Character. Quadrat label (\code{"20_20"}).
+#' @param subquadrat Character. Sub-quadrat label (\code{"A"}), or NULL.
+#' @param sep Separator.
+#' @return Character vector such as \code{"20_20_A"}; the quadrat alone when
+#'   the sub-quadrat is missing, NA when the quadrat is.
+#' @keywords internal
+.combine_small_tree_quadrat <- function(quadrat, subquadrat = NULL, sep = "_") {
+
+  quadrat <- as.character(quadrat)
+  if (is.null(subquadrat)) return(quadrat)
+
+  subquadrat <- trimws(as.character(subquadrat))
+  has_sub <- !is.na(subquadrat) & nzchar(subquadrat)
+
+  out <- ifelse(has_sub, paste0(quadrat, sep, subquadrat), quadrat)
+  out[is.na(quadrat)] <- NA_character_
+  out
+}
+
+
+#' Refuse a small-tree plot suffix that cannot name a plot safely
+#'
+#' The suffix must be non-empty, so the small-tree plot is never filed under
+#' its parent's name, and must not end with a digit, which
+#' \code{.normalise_plot_name()} would read as the plot number and pad.
+#'
+#' @param plot_suffix Value of the \code{plot_suffix} argument.
+#' @return \code{plot_suffix}, invisibly.
+#' @keywords internal
+.check_small_tree_plot_suffix <- function(plot_suffix) {
+
+  if (!is.character(plot_suffix) || length(plot_suffix) != 1 ||
+      is.na(plot_suffix) || !nzchar(trimws(plot_suffix))) {
+    stop("plot_suffix must be a single non-empty string, e.g. \"_smalltree\".",
+         call. = FALSE)
+  }
+  if (grepl("[0-9]$", plot_suffix)) {
+    stop(sprintf(paste(
+      "plot_suffix '%s' ends with a digit, which would be read as the plot",
+      "number. Use a suffix ending with a letter, e.g. \"_smalltree\"."
+    ), plot_suffix), call. = FALSE)
+  }
+
+  invisible(plot_suffix)
+}
+
 
 
 #' Add the observed tag ranges to the quadrat review table
@@ -1304,7 +1532,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
 .summarise_small_tree_quadrats <- function(quadrats, trees,
                                            plot_name_col = "plot_plot_name_old") {
 
-  idx <- split(seq_len(nrow(trees)), trees$plot_name)
+  idx <- split(seq_len(nrow(trees)), trees$quadrat_unit)
 
   pick <- function(plot, fun, default) {
     rows <- idx[[plot]]
@@ -1312,16 +1540,16 @@ process_openforis_small_trees <- function(data_dir = NULL,
     fun(rows)
   }
 
-  quadrats$n_stems <- unname(vapply(quadrats$plot_name, pick, integer(1),
+  quadrats$n_stems <- unname(vapply(quadrats$quadrat_unit, pick, integer(1),
                                     fun = length, default = 0L))
   quadrats$tag_min <- unname(vapply(
-    quadrats$plot_name, pick, numeric(1),
+    quadrats$quadrat_unit, pick, numeric(1),
     fun = function(r) min(trees$tag[r], na.rm = TRUE), default = NA_real_))
   quadrats$tag_max <- unname(vapply(
-    quadrats$plot_name, pick, numeric(1),
+    quadrats$quadrat_unit, pick, numeric(1),
     fun = function(r) max(trees$tag[r], na.rm = TRUE), default = NA_real_))
   quadrats$raw_plot_names <- unname(vapply(
-    quadrats$plot_name, pick, character(1),
+    quadrats$quadrat_unit, pick, character(1),
     fun = function(r) paste(sort(unique(trees$plot_name_raw[r])), collapse = "; "),
     default = NA_character_
   ))
@@ -1330,7 +1558,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
   if (any(drifted)) {
     cli::cli_alert_warning(paste(
       "{sum(drifted)} quadrat{?s} whose lowest observed tag is not its",
-      "{.field firsttag} ({.val {quadrats$plot_name[drifted]}}) — check the",
+      "{.field firsttag} ({.val {quadrats$quadrat_unit[drifted]}}) — check the",
       "{.field {plot_name_col}} column for {?it/them}"
     ))
   }

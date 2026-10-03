@@ -110,18 +110,34 @@ quadrat_codes <- data.frame(
   stringsAsFactors = FALSE
 )
 
-test_that("each row becomes a plot named parent + quadrat label", {
+test_that("each row is a quadrat unit of the parent's small-tree plot", {
   q <- .prepare_openforis_small_tree_quadrats(fake_plot_file(),
                                               quadrat_codes = quadrat_codes)
-  expect_equal(sort(q$plot_name),
+  expect_equal(sort(q$quadrat_unit),
                c("mbalmayo001_20_20", "mbalmayo001_40_40", "mbalmayo012_20_20"))
-  expect_equal(q$parent_plot_name[q$plot_name == "mbalmayo001_40_40"],
+  expect_equal(q$parent_plot_name[q$quadrat_unit == "mbalmayo001_40_40"],
                "mbalmayo001")
+  expect_equal(sort(unique(q$plot_name)),
+               c("mbalmayo001_smalltree", "mbalmayo012_smalltree"))
 })
 
-test_that("without a code list the raw quadrat code names the plot", {
+test_that("the small-tree plot takes the suffix given", {
+  q <- .prepare_openforis_small_tree_quadrats(fake_plot_file(),
+                                              plot_suffix = "_st")
+  expect_setequal(q$plot_name, c("mbalmayo001_st", "mbalmayo012_st"))
+})
+
+test_that("without a code list the raw quadrat code names the quadrat", {
   q <- .prepare_openforis_small_tree_quadrats(fake_plot_file())
-  expect_true("mbalmayo001_9" %in% q$plot_name)
+  expect_true("mbalmayo001_9" %in% q$quadrat_unit)
+})
+
+test_that("a quadrat with no parent plot name has no unit and no plot", {
+  q <- .prepare_openforis_small_tree_quadrats(
+    fake_plot_file(plot_name = c("mbalmayo01", NA, "mbalmayo12"))
+  )
+  expect_equal(sum(is.na(q$quadrat_unit)), 1)
+  expect_equal(sum(is.na(q$plot_name)), 1)
 })
 
 test_that("a missing required column is an error naming it", {
@@ -149,7 +165,8 @@ fake_quadrats <- data.frame(
   parent_plot_name = c("mbalmayo001", "mbalmayo001", "mbalmayo001"),
   quadrat = c("20_20", "40_40", "60_60"),
   quadrat_code = c(9, 13, 17),
-  plot_name = c("mbalmayo001_20_20", "mbalmayo001_40_40", "mbalmayo001_60_60"),
+  plot_name = "mbalmayo001_smalltree",
+  quadrat_unit = c("mbalmayo001_20_20", "mbalmayo001_40_40", "mbalmayo001_60_60"),
   firsttag = c(1, 105, 216),
   stringsAsFactors = FALSE
 )
@@ -166,16 +183,23 @@ fake_trees <- function(tag, parent = "mbalmayo001", raw = "Mbalmayo1") {
 test_that("a stem lands in the quadrat whose firsttag range holds its tag", {
   res <- .assign_small_tree_quadrats(fake_trees(c(1, 104, 105, 215, 216, 400)),
                                      fake_quadrats)
-  expect_equal(res$trees$plot_name,
+  expect_equal(res$trees$quadrat_unit,
                c("mbalmayo001_20_20", "mbalmayo001_20_20",
                  "mbalmayo001_40_40", "mbalmayo001_40_40",
                  "mbalmayo001_60_60", "mbalmayo001_60_60"))
+  expect_equal(res$trees$quadrat_label,
+               c("20_20", "20_20", "40_40", "40_40", "60_60", "60_60"))
   expect_null(res$unassigned)
+})
+
+test_that("every stem of a parent plot lands in its one small-tree plot", {
+  res <- .assign_small_tree_quadrats(fake_trees(c(1, 105, 216)), fake_quadrats)
+  expect_equal(unique(res$trees$plot_name), "mbalmayo001_smalltree")
 })
 
 test_that("firsttag is inclusive — the boundary tag opens the next quadrat", {
   res <- .assign_small_tree_quadrats(fake_trees(105), fake_quadrats)
-  expect_equal(res$trees$plot_name, "mbalmayo001_40_40")
+  expect_equal(res$trees$quadrat_unit, "mbalmayo001_40_40")
 })
 
 test_that("a tag below every firsttag is held out with a reason", {
@@ -218,7 +242,8 @@ test_that("a raw spelling split across two quadrats reports its minority", {
 
   expect_equal(nrow(res$mismatches), 1)
   expect_equal(res$mismatches$tag, 105)
-  expect_equal(res$mismatches$majority_plot_name, "mbalmayo001_20_20")
+  expect_equal(res$mismatches$majority_quadrat_unit, "mbalmayo001_20_20")
+  expect_equal(res$mismatches$quadrat_unit, "mbalmayo001_40_40")
 })
 
 test_that("consistent spellings raise nothing", {
@@ -397,4 +422,183 @@ test_that("a stem with a number but no herbarium code is not called a split", {
   f <- write_remap(c(1, 2), c(4530, 4531))
   msgs <- testthat::capture_messages(.remap_specimen_numbers(trees, f))
   expect_false(any(grepl("different collections", msgs)))
+})
+
+
+# =============================================================================
+# One small-tree plot per parent plot
+# =============================================================================
+
+fake_per_quadrat <- data.frame(
+  quadrat_unit = c("mbalmayo001_20_20", "mbalmayo001_40_40", "mbalmayo001_60_60"),
+  country = "Cameroon",
+  method = c("small-tree quadrat", "small-tree quadrat", NA),
+  team_leader = c("Ann", "Bob", "Ann"),
+  additional_people = c("Cid; Dee", "Dee", NA),
+  forest_type = c("terra firme", "terra firme, swamp", NA),
+  date_y = c(2026L, 2026L, 2026L),
+  date_m = c(3L, 2L, 3L),
+  date_d = c(10L, 28L, 11L),
+  stringsAsFactors = FALSE
+)
+
+test_that("the quadrats of a parent plot pool into one plot linked to it", {
+  res <- .collapse_small_tree_plots(fake_per_quadrat, fake_quadrats,
+                                    quadrat_area = 0.04)
+  expect_equal(nrow(res), 1)
+  expect_equal(res$plot_name, "mbalmayo001_smalltree")
+  expect_equal(res$parent_plot_name, "mbalmayo001")
+  expect_equal(res$parent_relation, "nested_subsample")
+  expect_equal(res$quadrats, "20_20, 40_40, 60_60")
+  expect_equal(res$plot_area, 0.12)
+})
+
+test_that("the area is left out when no quadrat area is given", {
+  res <- .collapse_small_tree_plots(fake_per_quadrat, fake_quadrats)
+  expect_false("plot_area" %in% names(res))
+})
+
+test_that("people and forest types are pooled, a constant is kept", {
+  res <- .collapse_small_tree_plots(fake_per_quadrat, fake_quadrats)
+  expect_equal(res$team_leader, "Ann, Bob")
+  expect_equal(res$additional_people, "Cid, Dee")
+  expect_equal(res$forest_type, "terra firme, swamp")
+  expect_equal(res$country, "Cameroon")
+  expect_equal(res$method, "small-tree quadrat")
+})
+
+test_that("the earliest date is kept and the disagreement announced", {
+  expect_message(
+    res <- .collapse_small_tree_plots(fake_per_quadrat, fake_quadrats),
+    "disagree"
+  )
+  expect_equal(c(res$date_y, res$date_m, res$date_d), c(2026L, 2L, 28L))
+})
+
+test_that("a conflicting constant keeps its first value and is announced", {
+  pq <- fake_per_quadrat
+  pq$date_m <- 3L
+  pq$date_d <- 10L
+  pq$country <- c("Cameroon", "Gabon", "Cameroon")
+  msgs <- testthat::capture_messages(
+    res <- .collapse_small_tree_plots(pq, fake_quadrats)
+  )
+  expect_equal(res$country, "Cameroon")
+  expect_true(any(grepl("country differs", msgs)))
+  expect_false(any(grepl("different dates", msgs)))
+})
+
+test_that("two parent plots give two small-tree plots", {
+  q <- rbind(fake_quadrats, data.frame(
+    row_id = 4L, parent_plot_name = "mbalmayo012", quadrat = "20_20",
+    quadrat_code = 9, plot_name = "mbalmayo012_smalltree",
+    quadrat_unit = "mbalmayo012_20_20", firsttag = 1, stringsAsFactors = FALSE
+  ))
+  pq <- rbind(fake_per_quadrat, transform(fake_per_quadrat[1, ],
+                                          quadrat_unit = "mbalmayo012_20_20"))
+  res <- suppressMessages(.collapse_small_tree_plots(pq, q, quadrat_area = 0.04))
+  expect_equal(res$plot_name, c("mbalmayo001_smalltree", "mbalmayo012_smalltree"))
+  expect_equal(res$plot_area, c(0.12, 0.04))
+})
+
+
+# =============================================================================
+# .combine_small_tree_quadrat() / .check_small_tree_plot_suffix()
+# =============================================================================
+
+test_that("quadrat and sub-quadrat are joined", {
+  expect_equal(
+    .combine_small_tree_quadrat(c("20_20", "20_20", "40_40", NA),
+                                c("A", NA, " ", "B")),
+    c("20_20_A", "20_20", "40_40", NA)
+  )
+})
+
+test_that("no sub-quadrat column leaves the quadrat alone", {
+  expect_equal(.combine_small_tree_quadrat("20_20", NULL), "20_20")
+})
+
+test_that("a usable suffix passes", {
+  expect_silent(.check_small_tree_plot_suffix("_smalltree"))
+})
+
+test_that("an empty or digit-ending suffix is refused", {
+  expect_error(.check_small_tree_plot_suffix(""), "non-empty")
+  expect_error(.check_small_tree_plot_suffix(NA_character_), "non-empty")
+  expect_error(.check_small_tree_plot_suffix(c("_a", "_b")), "non-empty")
+  expect_error(.check_small_tree_plot_suffix("_d10"), "digit")
+})
+
+
+# =============================================================================
+# process_openforis_small_trees() end to end
+# =============================================================================
+
+write_small_tree_export <- function(dir) {
+  writexl::write_xlsx(data.frame(
+    plot_name = c("Mbalmayo1", "Mbalmayo1", "Mbalmayo12"),
+    quadrat = c(9, 13, 9),
+    firsttag = c(1, 4, 1),
+    date_year = 2026, date_month = 3, date_day = c(10, 11, 12),
+    add_people = c("Ann", "Bob", "Ann")
+  ), file.path(dir, "plot.xlsx"))
+
+  writexl::write_xlsx(data.frame(
+    plot_plot_name_old = c("Mbalmayo1", "Mbalmayo1", "Mbalmayo1",
+                           "Mbalmayo1_", "Mbalmayo1_", "Mbalmayo12"),
+    tag = c(1, 2, 3, 4, 5, 1),
+    quadrat = c("A", "A", "B", "C", "D", "A"),
+    dbh = c(2, 3, 4, 5, 6, 7),
+    taxa_code = c(10, 10, 11, 12, 12, 13),
+    taxa_scientific_name = c("Sp a", "Sp a", "Sp b", "Sp c", "Sp c", "Sp d"),
+    multi_stem = c("no", "no", "yes", "no", "no", "no"),
+    number_stem = c(NA, NA, 2, NA, NA, NA)
+  ), file.path(dir, "tree_list.xlsx"))
+}
+
+test_that("an export becomes one small-tree plot per parent plot", {
+  skip_if_not_installed("writexl")
+  dir <- withr::local_tempdir()
+  write_small_tree_export(dir)
+
+  res <- suppressWarnings(suppressMessages(
+    process_openforis_small_trees(data_dir = dir, method = "small-tree quadrat",
+                                  country = "Cameroon")
+  ))
+
+  expect_equal(res$plots$plot_name,
+               c("mbalmayo001_smalltree", "mbalmayo012_smalltree"))
+  expect_equal(res$plots$parent_plot_name, c("mbalmayo001", "mbalmayo012"))
+  expect_equal(res$plots$parent_relation, rep("nested_subsample", 2))
+  expect_equal(res$plots$plot_area, c(0.08, 0.04))
+  expect_equal(res$plots$date_d, c(10L, 12L))
+
+  expect_equal(nrow(res$quadrats), 3)
+  expect_equal(res$quadrats$n_stems, c(3L, 2L, 1L))
+
+  ind <- res$individuals
+  expect_equal(unique(ind$plot_name[ind$parent_plot_name == "mbalmayo001"]),
+               "mbalmayo001_smalltree")
+  expect_equal(ind$quadrat[ind$plot_name == "mbalmayo001_smalltree"],
+               c("9_A", "9_A", "9_B", "13_C", "13_D"))
+  expect_true(all(res$individuals_wide$plot_name %in% res$plots$plot_name))
+})
+
+test_that("a multi-stem group does not reach into the next quadrat", {
+  skip_if_not_installed("writexl")
+  dir <- withr::local_tempdir()
+  write_small_tree_export(dir)
+
+  res <- suppressWarnings(suppressMessages(
+    process_openforis_small_trees(data_dir = dir)
+  ))
+
+  # Tag 3 opens a 2-stem group but is the last stem of its quadrat; tag 4
+  # starts the next one and must not be its second stem.
+  expect_equal(res$multi_stems$plot_name, "mbalmayo001_smalltree")
+  expect_equal(res$multi_stems$tag, 3)
+  expect_true(is.na(res$individuals$multi_tiges_id[
+    res$individuals$plot_name == "mbalmayo001_smalltree" &
+      res$individuals$tag == 4
+  ]))
 })

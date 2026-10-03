@@ -34,6 +34,7 @@ process_openforis_small_trees(
   census = 1,
   plot_name_digits = 3L,
   plot_name_map = NULL,
+  plot_suffix = "_smalltree",
   quadrat_sep = "_",
   dbh_max = 10,
   specimen_prefix = NULL,
@@ -82,19 +83,19 @@ CSVs. Files are auto-detected by pattern: \code{code_observations*} (or
 \item{quadrat_codes}{Path to the code list of the 20 x 20 m quadrats of the
 parent plot (\code{code_quadrat.csv}: codes 1-25, labels \code{"0_0"},
 \code{"20_20"}, ...). Decodes the \code{quadrat} column of
-\code{plot.xlsx} and so names the plots this function creates. NULL to
-auto-detect, FALSE to keep the raw codes.}
+\code{plot.xlsx}, the first part of the \code{quadrat} feature of each
+individual. NULL to auto-detect, FALSE to keep the raw codes.}
 
 \item{subquadrat_codes}{Path to the code list of the 10 x 10 m sub-quadrats
 (\code{code_subquadrat_smalltree.csv}: codes 1-4, labels A-D). Decodes the
-\code{quadrat} column of \code{tree_list.xlsx} into the \code{quadrat}
-feature of each individual. NULL to auto-detect, FALSE to keep the raw
-codes.}
+\code{quadrat} column of \code{tree_list.xlsx}, the second part of the
+\code{quadrat} feature of each individual. NULL to auto-detect, FALSE to
+keep the raw codes.}
 
 \item{forest_state_codes, forest_type_codes, country_codes, team_leader_codes}{Paths to the plot-level code-list CSVs. NULL to auto-detect from
 \code{codes_dir}, FALSE to skip that decoding.}
 
-\item{method}{Character. Plot method for the quadrats. Not present in the
+\item{method}{Character. Plot method for the small-tree plots. Not present in the
 OpenForis export — supply it here. Required by the Import Wizard, so a
 warning is raised when it is missing. NULL to omit.}
 
@@ -103,9 +104,9 @@ warning is raised when it is missing. NULL to omit.}
 \item{locality_name}{Character. Locality or site name. Not present in the
 OpenForis export — supply it here. NULL to omit.}
 
-\item{quadrat_area}{Numeric. Area of one quadrat in hectares, written to
-\code{plots$plot_area}. Default \code{0.04} (a 20 x 20 m quadrat). NULL to
-omit.}
+\item{quadrat_area}{Numeric. Area of one quadrat in hectares. Default
+\code{0.04} (a 20 x 20 m quadrat). \code{plots$plot_area} is this times
+the number of quadrats sampled in the plot. NULL to omit.}
 
 \item{country}{Character. Overrides the country decoded from the export.
 NULL keeps the decoded value.}
@@ -136,8 +137,14 @@ disables padding.}
 replacements, applied to the raw value before padding and winning over it
 (e.g. \code{c("Mbalmayo-09" = "mbalmayo009")}). NULL for none.}
 
-\item{quadrat_sep}{Character inserted between the parent plot name and the
-quadrat label (default \code{"_"}).}
+\item{plot_suffix}{Character appended to the parent plot name to name the
+small-tree plot (default \code{"_smalltree"}). It may not end with a
+digit, which \code{.normalise_plot_name()} would take for the plot number.}
+
+\item{quadrat_sep}{Character joining the parts of a quadrat identifier: the
+parent plot name and the quadrat label in the review tables
+(\code{"mbalmayo001_20_20"}), and the quadrat label and the sub-quadrat in
+the \code{quadrat} feature (\code{"20_20_A"}). Default \code{"_"}.}
 
 \item{dbh_max}{Numeric. Diameter above which a stem is reported as outside
 the small-tree protocol (default \code{10}). NULL to skip the check.}
@@ -184,18 +191,22 @@ normalised, resolves the parent plot more reliably than the tidied
 \value{
 A list with components:
 \describe{
-  \item{plots}{Tibble, one row per sampled quadrat, ready to upload to the
-    Import Wizard as inventory metadata: plot_name (\code{<parent>_<quadrat>}),
-    parent_plot_name, quadrat, country, province, method, locality_name,
-    plot_area, data_provider, team_leader, principal_investigator,
-    data_manager, additional_people, identified_by, forest_state,
-    forest_type, date_y, date_m, date_d, census.}
-  \item{quadrats}{Tibble, the same units with the numbers used to assign
-    stems to them — firsttag, the tag range actually observed, the stem
-    count, and the raw \code{plot_plot_name_old} spellings that fell in the
-    range. A review table, not an upload.}
-  \item{individuals}{Tibble of every stem: plot_name (the quadrat),
-    parent_plot_name, tag, quadrat (the 10 x 10 m sub-quadrat A-D),
+  \item{plots}{Tibble, one row per small-tree plot (one per parent plot),
+    ready to upload to the Import Wizard as inventory metadata: plot_name
+    (\code{<parent><plot_suffix>}), parent_plot_name, parent_relation,
+    quadrats (the sampled quadrat labels), country, province, method,
+    locality_name, plot_area, data_provider, team_leader,
+    principal_investigator, data_manager, additional_people, identified_by,
+    forest_state, forest_type, date_y, date_m, date_d, census.}
+  \item{quadrats}{Tibble, one row per sampled quadrat: the small-tree
+    plot_name it belongs to, its quadrat_unit identifier
+    (\code{<parent>_<quadrat>}), and the numbers used to assign stems to it
+    — firsttag, the tag range actually observed, the stem count, and the
+    raw \code{plot_plot_name_old} spellings that fell in the range. A review
+    table, not an upload.}
+  \item{individuals}{Tibble of every stem: plot_name (the small-tree plot),
+    parent_plot_name, tag, quadrat (the 20 x 20 m quadrat and the
+    10 x 10 m sub-quadrat, e.g. \code{"20_20_A"}),
     original_tax_name, idtax_n, tax_appendix, herbarium_nbe_char,
     herbarium_nbe_type, position_x, position_y, multi_stem,
     number_multi_stem, multi_tiges_id (tag of the main stem, NA for the main
@@ -219,13 +230,14 @@ A list with components:
   \item{multi_stems}{Tibble of candidate multi-stem groupings with a
     \code{flag} column to review, or NULL.}
   \item{name_mismatches}{Tibble of stems whose \code{plot_plot_name_old}
-    spelling puts them in a different quadrat than their tag does, or NULL.
-    The tag wins; these rows are for review.}
+    spelling puts them in a different quadrat than their tag does
+    (quadrat_unit against majority_quadrat_unit), or NULL. The tag wins;
+    these rows are for review.}
   \item{unassigned_stems}{Tibble of stems that could not be placed in any
     quadrat — an unknown parent plot, a missing tag, or a tag below every
     \code{firsttag} of its plot — or NULL. A \code{warning()} is also
     raised. These stems are excluded from every other table.}
-  \item{duplicated_stems}{Tibble of rows sharing a quadrat + tag pair, or
+  \item{duplicated_stems}{Tibble of rows sharing a plot + tag pair, or
     NULL. A \code{warning()} is also raised.}
   \item{oversized_stems}{Tibble of stems at or above \code{dbh_max}, or
     NULL. They belong to the large-stem census of the parent plot, not here.}
@@ -239,15 +251,17 @@ diameter threshold, censused inside a handful of 20 x 20 m quadrats of an
 already established 1-ha plot — and returns clean tables ready for import.
 }
 \details{
-Each sampled quadrat becomes **its own plot**, named
-\code{<parent plot>_<quadrat label>} (e.g. \code{"mbalmayo001_20_20"}) with
-an area of \code{quadrat_area} hectares. See the section below for why.
+All the quadrats sampled in one parent plot together make **one small-tree
+plot**, named \code{<parent plot><plot_suffix>} (e.g.
+\code{"mbalmayo001_smalltree"}), with an area of the number of sampled
+quadrats times \code{quadrat_area}. It is linked to its parent plot as a
+\code{nested_subsample}. See the sections below for why.
 
 Plot coordinates are **not** produced: they are not part of the OpenForis
 raw export and must be added separately (e.g. with
 \code{add_plot_coordinates()}).
 }
-\section{Why one plot per quadrat}{
+\section{Why a plot of its own}{
 
 The small trees are tagged 1..N within their parent plot, and those numbers
 collide head-on with the tags the parent plot already uses for its large
@@ -257,12 +271,30 @@ everywhere else in this package (see \code{\link{split_census_table}}), and once
 recorded it cannot be undone, so the small trees cannot be filed under the
 parent plot without mangling their field tags.
 
-Registering each quadrat as a plot of its own avoids that: the
-\code{firsttag} column makes the tag ranges of the quadrats disjoint, so
-every tag is kept exactly as written in the field. It also stores the right
-area for a density per hectare, and keeps the date, forest type and field
-team that \code{plot.xlsx} records **per quadrat** rather than collapsing
-them. The link back is kept in the \code{parent_plot_name} column.
+Within one parent plot, though, the \code{firsttag} column makes the tag
+ranges of the quadrats disjoint, so the quadrats of a plot share one tag
+sequence and are one sampling unit: every tag is kept exactly as written in
+the field. The quadrat of each stem is not lost — it is recorded in the
+\code{quadrat} feature of the individual, together with its 10 x 10 m
+sub-quadrat (e.g. \code{"20_20_A"}).
+}
+
+\section{Link to the parent plot}{
+
+The plot table carries \code{parent_plot_name} and
+\code{parent_relation = "nested_subsample"}, which the Import Wizard turns
+into the \code{id_parent_plot} link. The relation says that the small-tree
+plot overlaps the ground of its parent with another diameter threshold, so
+the two must never be summed. The parent plot must already be in the
+database.
+}
+
+\section{Quadrats sampled on different occasions}{
+
+\code{plot.xlsx} records date, team and forest type for each quadrat, and
+one plot holds one value. The earliest date is kept, the team and forest
+types of all quadrats are pooled, and any other column on which the
+quadrats disagree keeps its first value. Each disagreement is announced.
 }
 
 \section{How stems are assigned to quadrats}{

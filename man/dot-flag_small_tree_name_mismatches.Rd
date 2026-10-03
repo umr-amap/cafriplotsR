@@ -7,10 +7,12 @@
 .flag_small_tree_name_mismatches(trees)
 }
 \arguments{
-\item{trees}{Assigned tree data frame (plot_name, plot_name_raw).}
+\item{trees}{Assigned tree data frame (quadrat_unit, plot_name_raw).}
 }
 \value{
-Data frame of the minority rows, or NULL when every spelling is
+Data frame of the minority rows, with the quadrat their tag puts
+  them in (\code{quadrat_unit}) and the one most stems of that spelling
+  landed in (\code{majority_quadrat_unit}), or NULL when every spelling is
   consistent.
 }
 \description{

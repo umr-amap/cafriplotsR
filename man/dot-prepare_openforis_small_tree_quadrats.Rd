@@ -9,7 +9,8 @@
   quadrat_codes = NULL,
   plot_name_digits = 3L,
   plot_name_map = NULL,
-  quadrat_sep = "_"
+  quadrat_sep = "_",
+  plot_suffix = "_smalltree"
 )
 }
 \arguments{
@@ -22,16 +23,20 @@ raw codes.}
 \code{\link{.normalise_plot_name}}.}
 
 \item{quadrat_sep}{Separator between parent plot name and quadrat label.}
+
+\item{plot_suffix}{Appended to the parent plot name to name the small-tree
+plot.}
 }
 \value{
 Data frame with one row per quadrat: row_id (the row of
-  \code{plots_raw} it came from), parent_plot_name, quadrat, quadrat_code,
-  plot_name, firsttag.
+  \code{plots_raw} it came from), parent_plot_name, plot_name, quadrat_unit,
+  quadrat, quadrat_code, firsttag.
 }
 \description{
-One row of \code{plot.xlsx} is one 20 x 20 m quadrat of a parent plot, and
-becomes one plot in the output. The quadrat code is decoded to its grid
-label (\code{9} to \code{"20_20"}) and appended to the normalised parent
-plot name.
+One row of \code{plot.xlsx} is one 20 x 20 m quadrat of a parent plot. The
+quadrat code is decoded to its grid label (\code{9} to \code{"20_20"}),
+which, appended to the normalised parent plot name, identifies the quadrat
+(\code{quadrat_unit}). Every quadrat of a parent plot belongs to the same
+small-tree plot, named after the parent plus \code{plot_suffix}.
 }
 \keyword{internal}
