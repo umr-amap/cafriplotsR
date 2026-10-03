@@ -469,11 +469,8 @@ mod_lookup_matcher_server <- function(id, invalid_values, con,
 
       # Insert into database
       tryCatch({
-        new_id <- DBI::dbGetQuery(con(), sprintf("
-          INSERT INTO methodslist (method, description_method)
-          VALUES ('%s', '%s')
-          RETURNING id_method
-        ", DBI::dbQuoteLiteral(con(), method_name), DBI::dbQuoteLiteral(con(), description)))$id_method
+        method_name <- trimws(method_name)
+        new_id <- .insert_method(con(), method_name, description)
 
         cli::cli_alert_success("Added new method: {method_name} (ID: {new_id})")
 
@@ -739,6 +736,54 @@ mod_lookup_matcher_server <- function(id, invalid_values, con,
       )
     )
   })
+}
+
+
+#' Insert a new method into methodslist
+#'
+#' Values are bound as parameters, never pasted into the SQL. A blank
+#' description is stored as NULL. A name that already exists, compared without
+#' regard to case or surrounding spaces, is refused rather than duplicated.
+#'
+#' @param con DBI connection to the main database.
+#' @param method_name Character. Name of the new method.
+#' @param description Character or NULL. Protocol description.
+#' @return Integer, the \code{id_method} of the new row.
+#' @keywords internal
+.insert_method <- function(con, method_name, description = NULL) {
+
+  method_name <- trimws(as.character(method_name %||% ""))
+  if (!nzchar(method_name)) {
+    stop("Method name is required", call. = FALSE)
+  }
+
+  description <- trimws(as.character(description %||% ""))
+  description <- if (length(description) == 1 && nzchar(description)) {
+    description
+  } else {
+    NA_character_
+  }
+
+  existing <- DBI::dbGetQuery(
+    con,
+    "SELECT id_method, method FROM methodslist
+     WHERE lower(trim(method)) = lower($1)",
+    params = list(method_name)
+  )
+  if (nrow(existing) > 0) {
+    stop(sprintf(
+      "Method '%s' already exists (id_method %s) - select it from the list instead",
+      existing$method[1], existing$id_method[1]
+    ), call. = FALSE)
+  }
+
+  DBI::dbGetQuery(
+    con,
+    "INSERT INTO methodslist (method, description_method)
+     VALUES ($1, $2)
+     RETURNING id_method",
+    params = list(method_name, description)
+  )$id_method
 }
 
 

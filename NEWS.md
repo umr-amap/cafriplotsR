@@ -357,6 +357,10 @@
 
 ### Bug Fixes
 
+* **Adding a new method in the Import Wizard always failed** (`R/mod_lookup_matcher.R`) - the "Create New Entry" option of the method lookup built its `INSERT INTO methodslist` by wrapping values already quoted by `DBI::dbQuoteLiteral()` in a second pair of quotes, so every attempt was a syntax error, reported only as an "Error adding method" notification. The insert now lives in `.insert_method()`, which binds the name and description as parameters
+  - The name is trimmed and a blank description stored as NULL
+  - A name that already exists, ignoring case and surrounding spaces, is refused with its `id_method` instead of being duplicated
+
 * **The full-census validation step reported in English to a French user** (`R/census_import_transaction.R`, `R/import_individuals_validation.R`, `R/mod_feat_step5_validation.R`) - `.validate_census_import()` built its errors and warnings with bare `sprintf()` and the step pasted them straight into the validation table, so a session running in French got rows like "31 row(s) held for review are excluded from this import" next to translated ones. Every message it produces is now routed through the translator, along with the ones from `.validate_multi_stem_grouping()`, which it calls and which had the same problem on both of its call paths
   - `.validate_census_import()` and `.validate_multi_stem_grouping()` take `i18n = NULL`, the pattern `.execute_census_import()` already used. Passing nothing leaves the messages in English, so the console callers are unaffected
   - The six messages of `.execute_census_import()` were already wrapped but had **no entry in `translation.json`**, so the import result itself stayed English however the wrapper was called. Added, with the 33 validation strings
