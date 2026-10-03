@@ -2,7 +2,7 @@
 % Please edit documentation in R/openforis_small_tree_processing.R
 \name{.prepare_openforis_small_tree_plots}
 \alias{.prepare_openforis_small_tree_plots}
-\title{Build the plot-level table, one row per sampled quadrat}
+\title{Build the plot-level table, one row per small-tree plot}
 \usage{
 .prepare_openforis_small_tree_plots(
   quadrats,
@@ -29,21 +29,25 @@
 
 \item{plots_raw}{Data frame read from \code{plot.xlsx}.}
 
-\item{country, province, method, data_provider, locality_name, plot_area, principal_investigator, data_manager}{Constants not present in the export. NULL to omit.}
+\item{forest_state_codes, forest_type_codes, team_leader_codes, country_codes}{Parsed code lists, or NULL to skip that decoding.}
+
+\item{country, province, method, data_provider, locality_name, principal_investigator, data_manager}{Constants not present in the export. NULL to omit.}
+
+\item{plot_area}{Area of one quadrat in hectares, multiplied by the number
+of quadrats of each plot. NULL to omit.}
 
 \item{additional_people}{Overrides the exported \code{add_people} column.}
 
 \item{census}{Census number written to a \code{census} column. NULL to omit.}
-
-\item{quadrat_codes, forest_state_codes, forest_type_codes, team_leader_codes, country_codes}{Parsed code lists, or NULL to skip that decoding.}
 }
 \value{
-Data frame with one row per quadrat.
+Data frame with one row per small-tree plot.
 }
 \description{
 Reuses \code{.prepare_openforis_new_plots()} for everything the two forms
-share — country, team, forest state and type, dates — then swaps in the
-quadrat plot name and adds the columns specific to a quadrat.
+share — country, team, forest state and type, dates — one row per quadrat,
+then pools the quadrats of each parent plot into its small-tree plot with
+\code{.collapse_small_tree_plots()}.
 }
 \details{
 The quadrat units carry \code{row_id}, the row of \code{plots_raw} they came
