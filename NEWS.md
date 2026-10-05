@@ -69,6 +69,12 @@
 
 ### New Features
 
+* **`generate_specimen_labels()` can print the collection date, the determination and extra fields such as the description** (`R/generate_specimen_labels.R`) - the labels showed only number, family, name and locality, so anything else on a `query_specimens()` row had to be written by hand
+  - `include_date = TRUE` appends the collection date to the specimen line in parentheses with a lower-case month, `IRD plot 2508 (12 mar 2024)`. It reads `cold`/`colm`/`coly` (`date_cols`) and drops what is missing: `(nov 2023)`, `(2022)`, nothing at all. A day without a month is dropped, and so is an out-of-range or non-numeric value
+  - `include_determination = TRUE` now builds `det. G. Dauby (4 may 2025)` from `detby`/`detd`/`detm`/`dety` (`det_cols`). The line used to read a `Determination` column that `query_specimens()` never returns, so it always came out blank. A `determination_col` present in the data still takes precedence, so existing calls keep their output
+  - `extra_cols` prints one or more columns (e.g. `"description"`) in a small font (`size_extra`) below the locality. Long text is word-wrapped to `extra_max_lines` lines per column and cropped with `...` rather than shrunk. When a label would overflow, extra lines are dropped from the bottom, so the specimen number, family and name are never pushed off the sticker
+  - All three are off by default; a call that sets none of them prints the same labels as before
+
 * **The data update app adds a missing measurement to an individual** (`R/mod_update_record.R`, `R/update_app_ind_measures.R`) - `launch_data_update_app()` could only edit the measurements an individual already had, so a single missing value (a diameter not recorded at one census) needed a file and the feature wizard
   - A new section *4b* in the individual section adds one measurement at a time: feature (those already measured on the individual first), census (the latest preselected), a value input matching the feature's type and allowed range, an optional date and `issue`
   - New values are **staged** - marked *to add*, listed in the preview of section 5, and written to `data_traits_measures` by *Apply update* in the same transaction as the other edits. A staged value can be taken back before applying
