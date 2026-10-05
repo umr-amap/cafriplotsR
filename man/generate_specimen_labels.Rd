@@ -13,6 +13,12 @@ generate_specimen_labels(
   locality_col = "Locality",
   determination_col = "Determination",
   include_determination = FALSE,
+  det_cols = c(by = "detby", day = "detd", month = "detm", year = "dety"),
+  include_date = FALSE,
+  date_cols = c(day = "cold", month = "colm", year = "coly"),
+  extra_cols = NULL,
+  extra_max_lines = 2L,
+  size_extra = 7,
   page_width = 210,
   page_height = 297,
   n_cols = 3L,
@@ -47,13 +53,50 @@ otherwise valid text (e.g. \code{"Xylopia NA"}, from an upstream
 removed and the surrounding whitespace collapsed; words that merely
 contain "NA" (e.g. "Annonaceae") are left untouched.}
 
-\item{determination_col}{Character or \code{NULL}. Optional column holding a
-determination / revised identification. Only used when
-\code{include_determination = TRUE}.}
+\item{determination_col}{Character or \code{NULL}. Optional column holding
+ready-made determination text. When it is present in \code{data}, its
+non-empty values are printed as-is and take precedence over
+\code{det_cols}. Only used when \code{include_determination = TRUE}.}
 
 \item{include_determination}{Logical. If \code{TRUE}, an extra line with the
-determination is inserted below the scientific name. Default \code{FALSE}
+determination is inserted below the scientific name, built from
+\code{det_cols} as \code{"det. <determiner> (<date>)"}, e.g.
+\code{"det. G. Dauby (mar 2024)"}, with the date formatted as for
+\code{include_date}. Missing parts are dropped and the line is left blank
+when there is neither a determiner nor a date. Default \code{FALSE}
 (matches the original template, which leaves this field blank).}
+
+\item{det_cols}{Named character vector giving the \code{by} (determiner),
+\code{day}, \code{month} and \code{year} columns of the determination.
+Defaults to the \code{detby}, \code{detd}, \code{detm}, \code{dety}
+columns returned by \code{\link{query_specimens}()}. A missing column is
+treated as all \code{NA}.}
+
+\item{include_date}{Logical. If \code{TRUE}, the collection date is
+appended to the specimen line, in parentheses with a lower-case month
+abbreviation, e.g. \code{"IRD plot 2508 (12 mar 2024)"}. Missing parts
+are dropped: \code{"(mar 2024)"}, \code{"(2024)"}; a day without a month
+is dropped too, and nothing is appended when all three are missing.
+Default \code{FALSE}.}
+
+\item{date_cols}{Named character vector giving the \code{day},
+\code{month} and \code{year} columns of the collection date. Defaults to
+the \code{cold}, \code{colm}, \code{coly} columns returned by
+\code{\link{query_specimens}()}. A missing column is treated as all
+\code{NA}; out-of-range days or months are ignored.}
+
+\item{extra_cols}{Character vector or \code{NULL}. Additional columns
+(e.g. \code{"description"}) each printed in a small font below the
+locality. Long text is word-wrapped onto at most \code{extra_max_lines}
+lines and cropped with \code{"..."} where it no longer fits. Default
+\code{NULL} (no extra lines).}
+
+\item{extra_max_lines}{Integer. Maximum number of lines per extra column
+(default 2).}
+
+\item{size_extra}{Numeric. Font size in points of the extra lines
+(default 7). Unlike the other lines, extra lines are cropped rather than
+shrunk to fit.}
 
 \item{page_width, page_height}{Numeric. Page size in millimetres
 (default A4: 210 x 297).}
@@ -127,5 +170,21 @@ df <- data.frame(
 )
 out <- tempfile(fileext = ".pdf")
 generate_specimen_labels(df, out)
+
+# With the collection date and a (cropped) description, using the
+# column names returned by query_specimens()
+df$cold <- c(12, NA)
+df$colm <- c(3, 11)
+df$coly <- c(2024, 2023)
+df$description <- c(
+  "Tree 25 m, bark smooth, slash red with abundant white latex, fruits green",
+  NA
+)
+df$detby <- c("G. Dauby", NA)
+df$detm <- c(5, NA)
+df$dety <- c(2025, NA)
+generate_specimen_labels(df, out, include_date = TRUE,
+                         include_determination = TRUE,
+                         extra_cols = "description")
 
 }
