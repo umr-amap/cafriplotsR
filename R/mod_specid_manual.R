@@ -703,7 +703,8 @@ mod_specid_manual_server <- function(id, pool_main, pool_taxa, i18n,
             add_backup    = TRUE,
             show_results  = FALSE,
             only_new_ident = FALSE,
-            ask_before_update = FALSE
+            ask_before_update = FALSE,
+            show_comparison = FALSE
           )
 
           shiny::incProgress(0.3)

@@ -126,7 +126,8 @@ mod_specid_batch_update_server <- function(id, validated_data, mappings,
               add_backup    = TRUE,
               show_results  = FALSE,
               only_new_ident = FALSE,
-              ask_before_update = FALSE
+              ask_before_update = FALSE,
+              show_comparison = FALSE
             )
             TRUE
           }, error = function(e) e$message)
