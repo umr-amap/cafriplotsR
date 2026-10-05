@@ -24,12 +24,43 @@
 #'   \code{paste(genus, species)} where \code{species} was \code{NA}) is
 #'   removed and the surrounding whitespace collapsed; words that merely
 #'   contain "NA" (e.g. "Annonaceae") are left untouched.
-#' @param determination_col Character or \code{NULL}. Optional column holding a
-#'   determination / revised identification. Only used when
-#'   \code{include_determination = TRUE}.
+#' @param determination_col Character or \code{NULL}. Optional column holding
+#'   ready-made determination text. When it is present in \code{data}, its
+#'   non-empty values are printed as-is and take precedence over
+#'   \code{det_cols}. Only used when \code{include_determination = TRUE}.
 #' @param include_determination Logical. If \code{TRUE}, an extra line with the
-#'   determination is inserted below the scientific name. Default \code{FALSE}
+#'   determination is inserted below the scientific name, built from
+#'   \code{det_cols} as \code{"det. <determiner> (<date>)"}, e.g.
+#'   \code{"det. G. Dauby (mar 2024)"}, with the date formatted as for
+#'   \code{include_date}. Missing parts are dropped and the line is left blank
+#'   when there is neither a determiner nor a date. Default \code{FALSE}
 #'   (matches the original template, which leaves this field blank).
+#' @param det_cols Named character vector giving the \code{by} (determiner),
+#'   \code{day}, \code{month} and \code{year} columns of the determination.
+#'   Defaults to the \code{detby}, \code{detd}, \code{detm}, \code{dety}
+#'   columns returned by \code{\link{query_specimens}()}. A missing column is
+#'   treated as all \code{NA}.
+#' @param include_date Logical. If \code{TRUE}, the collection date is
+#'   appended to the specimen line, in parentheses with a lower-case month
+#'   abbreviation, e.g. \code{"IRD plot 2508 (12 mar 2024)"}. Missing parts
+#'   are dropped: \code{"(mar 2024)"}, \code{"(2024)"}; a day without a month
+#'   is dropped too, and nothing is appended when all three are missing.
+#'   Default \code{FALSE}.
+#' @param date_cols Named character vector giving the \code{day},
+#'   \code{month} and \code{year} columns of the collection date. Defaults to
+#'   the \code{cold}, \code{colm}, \code{coly} columns returned by
+#'   \code{\link{query_specimens}()}. A missing column is treated as all
+#'   \code{NA}; out-of-range days or months are ignored.
+#' @param extra_cols Character vector or \code{NULL}. Additional columns
+#'   (e.g. \code{"description"}) each printed in a small font below the
+#'   locality. Long text is word-wrapped onto at most \code{extra_max_lines}
+#'   lines and cropped with \code{"..."} where it no longer fits. Default
+#'   \code{NULL} (no extra lines).
+#' @param extra_max_lines Integer. Maximum number of lines per extra column
+#'   (default 2).
+#' @param size_extra Numeric. Font size in points of the extra lines
+#'   (default 7). Unlike the other lines, extra lines are cropped rather than
+#'   shrunk to fit.
 #' @param page_width,page_height Numeric. Page size in millimetres
 #'   (default A4: 210 x 297).
 #' @param n_cols,n_rows Integer. Number of label columns and rows per page
@@ -80,6 +111,22 @@
 #' out <- tempfile(fileext = ".pdf")
 #' generate_specimen_labels(df, out)
 #'
+#' # With the collection date and a (cropped) description, using the
+#' # column names returned by query_specimens()
+#' df$cold <- c(12, NA)
+#' df$colm <- c(3, 11)
+#' df$coly <- c(2024, 2023)
+#' df$description <- c(
+#'   "Tree 25 m, bark smooth, slash red with abundant white latex, fruits green",
+#'   NA
+#' )
+#' df$detby <- c("G. Dauby", NA)
+#' df$detm <- c(5, NA)
+#' df$dety <- c(2025, NA)
+#' generate_specimen_labels(df, out, include_date = TRUE,
+#'                          include_determination = TRUE,
+#'                          extra_cols = "description")
+#'
 #' @export
 generate_specimen_labels <- function(
     data,
@@ -90,6 +137,12 @@ generate_specimen_labels <- function(
     locality_col = "Locality",
     determination_col = "Determination",
     include_determination = FALSE,
+    det_cols = c(by = "detby", day = "detd", month = "detm", year = "dety"),
+    include_date = FALSE,
+    date_cols = c(day = "cold", month = "colm", year = "coly"),
+    extra_cols = NULL,
+    extra_max_lines = 2L,
+    size_extra = 7,
     page_width = 210,
     page_height = 297,
     n_cols = 3L,
@@ -156,7 +209,40 @@ generate_specimen_labels <- function(
   family_v <- get_col(family_col)
   name_v   <- get_col(name_col)
   locality <- get_col(locality_col)
-  determ   <- if (include_determination) get_col(determination_col) else NULL
+  extras   <- lapply(as.character(extra_cols), get_col)
+
+  ## raw column looked up by role (e.g. "day") in a named vector of columns
+  raw_col <- function(cols, key) {
+    col <- unname(cols[key])
+    if (length(col) != 1L || is.na(col) || !col %in% names(data)) {
+      return(rep(NA, n))
+    }
+    data[[col]]
+  }
+
+  determ <- NULL
+  if (include_determination) {
+    det_by <- get_col(unname(det_cols["by"]))
+    det_date <- .format_label_date(raw_col(det_cols, "day"),
+                                   raw_col(det_cols, "month"),
+                                   raw_col(det_cols, "year"))
+    det_date[nzchar(det_date)] <- paste0("(", det_date[nzchar(det_date)], ")")
+    determ <- trimws(paste(det_by, det_date))
+    determ[nzchar(determ)] <- paste("det.", determ[nzchar(determ)])
+    ## ready-made text, where provided, wins
+    free_txt <- get_col(determination_col)
+    determ[nzchar(free_txt)] <- free_txt[nzchar(free_txt)]
+  }
+
+  if (include_date) {
+    date_txt <- .format_label_date(raw_col(date_cols, "day"),
+                                   raw_col(date_cols, "month"),
+                                   raw_col(date_cols, "year"))
+    has_date <- nzchar(date_txt)
+    specimen[has_date] <- trimws(
+      paste0(specimen[has_date], " (", date_txt[has_date], ")")
+    )
+  }
 
   ## --- grid geometry ---
   per_page <- n_cols * n_rows
@@ -166,22 +252,45 @@ generate_specimen_labels <- function(
 
   ## --- per-label line specification (text, size, fontface, alignment) ---
   ## fontface codes: 1 = plain, 2 = bold, 3 = italic
+  ## `crop` marks lines that are wrapped/cropped instead of shrunk to fit.
   build_lines <- function(i) {
     txt   <- c(specimen[i], family_v[i], name_v[i])
     size  <- c(size_specimen, size_family, size_name)
     face  <- c(1L, 2L, 3L)
     align <- c("left", "right", "left")
+    crop  <- c(FALSE, FALSE, FALSE)
     if (!is.null(determ)) {
       txt   <- c(txt, determ[i])
       size  <- c(size, size_locality)
       face  <- c(face, 1L)
       align <- c(align, "left")
+      crop  <- c(crop, FALSE)
     }
     txt   <- c(txt, locality[i])
     size  <- c(size, size_locality)
     face  <- c(face, 1L)
     align <- c(align, "left")
-    list(txt = txt, size = size, face = face, align = align)
+    crop  <- c(crop, FALSE)
+    for (ex in extras) {
+      ## an empty extra line would only waste vertical space
+      if (!nzchar(ex[i])) next
+      txt   <- c(txt, ex[i])
+      size  <- c(size, size_extra)
+      face  <- c(face, 1L)
+      align <- c(align, "left")
+      crop  <- c(crop, TRUE)
+    }
+    list(txt = txt, size = size, face = face, align = align, crop = crop)
+  }
+
+  text_w <- function(txt, fs, face) {
+    grid::convertWidth(
+      grid::grobWidth(grid::textGrob(
+        txt,
+        gp = grid::gpar(fontsize = fs, fontface = face, fontfamily = family)
+      )),
+      "mm", valueOnly = TRUE
+    )
   }
 
   ## --- shrink a line's font until it fits the label width ---
@@ -189,17 +298,61 @@ generate_specimen_labels <- function(
     if (!shrink_to_fit || !nzchar(txt)) return(size)
     fs <- size
     while (fs > 5) {
-      w <- grid::convertWidth(
-        grid::grobWidth(grid::textGrob(
-          txt,
-          gp = grid::gpar(fontsize = fs, fontface = face, fontfamily = family)
-        )),
-        "mm", valueOnly = TRUE
-      )
-      if (w <= max_text_w) break
+      if (text_w(txt, fs, face) <= max_text_w) break
       fs <- fs - 0.5
     }
     fs
+  }
+
+  ## --- longest prefix of `txt` (in characters) that fits, given a suffix ---
+  fit_chars <- function(txt, fs, face, suffix = "") {
+    lo <- 0L
+    hi <- nchar(txt)
+    while (lo < hi) {
+      mid <- (lo + hi + 1L) %/% 2L
+      if (text_w(paste0(substr(txt, 1L, mid), suffix), fs, face) <= max_text_w) {
+        lo <- mid
+      } else {
+        hi <- mid - 1L
+      }
+    }
+    lo
+  }
+
+  ## --- crop a string with an ellipsis so that it fits the label width ---
+  crop_line <- function(txt, fs, face) {
+    if (text_w(txt, fs, face) <= max_text_w) return(txt)
+    k <- fit_chars(txt, fs, face, suffix = "...")
+    paste0(trimws(substr(txt, 1L, k), which = "right"), "...")
+  }
+
+  ## --- word-wrap onto at most `extra_max_lines` lines, cropping the last ---
+  wrap_crop <- function(txt, fs, face) {
+    max_lines <- max(1L, as.integer(extra_max_lines))
+    words <- strsplit(txt, " ", fixed = TRUE)[[1]]
+    out <- character(0)
+    while (length(words) > 0L) {
+      if (length(out) == max_lines - 1L) {
+        out <- c(out, crop_line(paste(words, collapse = " "), fs, face))
+        break
+      }
+      k <- 1L
+      while (k < length(words) &&
+             text_w(paste(words[seq_len(k + 1L)], collapse = " "),
+                    fs, face) <= max_text_w) {
+        k <- k + 1L
+      }
+      line <- paste(words[seq_len(k)], collapse = " ")
+      words <- words[-seq_len(k)]
+      if (k == 1L && text_w(line, fs, face) > max_text_w) {
+        ## a single word wider than the label: hard-break it
+        cut <- max(1L, fit_chars(line, fs, face))
+        words <- c(substr(line, cut + 1L, nchar(line)), words)
+        line <- substr(line, 1L, cut)
+      }
+      out <- c(out, line)
+    }
+    out
   }
 
   ## --- draw one label in cell (col, row), both 0-based, top-left origin ---
@@ -220,15 +373,42 @@ generate_specimen_labels <- function(
     }
 
     ln <- build_lines(i)
+    ## expand croppable lines into their wrapped sub-lines
+    if (any(ln$crop)) {
+      pieces <- lapply(seq_along(ln$txt), function(j) {
+        if (ln$crop[j]) wrap_crop(ln$txt[j], ln$size[j], ln$face[j])
+        else ln$txt[j]
+      })
+      reps <- lengths(pieces)
+      ln <- list(
+        txt   = unlist(pieces, use.names = FALSE),
+        size  = rep(ln$size, reps),
+        face  = rep(ln$face, reps),
+        align = rep(ln$align, reps),
+        crop  = rep(ln$crop, reps)
+      )
+    }
     fs <- vapply(
       seq_along(ln$txt),
-      function(j) fit_size(ln$txt[j], ln$size[j], ln$face[j]),
+      function(j) {
+        if (ln$crop[j]) ln$size[j]
+        else fit_size(ln$txt[j], ln$size[j], ln$face[j])
+      },
       numeric(1)
     )
     ## line heights (mm) with a 1.15 leading factor, plus inter-line gap
     lh <- fs / 72 * 25.4 * 1.15
     gap <- 1.1
     total <- sum(lh) + gap * (length(lh) - 1L)
+    ## too tall for the cell (keeping a 1.5 mm margin top and bottom against
+    ## sheet misalignment): drop trailing extra lines, the core lines stay
+    while (total > label_height - 3 && utils::tail(ln$crop, 1L)) {
+      keep <- seq_len(length(lh) - 1L)
+      ln <- lapply(ln, `[`, keep)
+      fs <- fs[keep]
+      lh <- lh[keep]
+      total <- sum(lh) + gap * (length(lh) - 1L)
+    }
     cursor <- (label_height - total) / 2   # distance from top of cell
 
     for (j in seq_along(ln$txt)) {
@@ -284,4 +464,30 @@ generate_specimen_labels <- function(
   }
 
   invisible(output_file)
+}
+
+#' Format a collection date for a specimen label
+#'
+#' Vectorised. Builds \code{"12 mar 2024"}-style strings from separate day,
+#' month and year values, any of which may be \code{NA}. Non-numeric or
+#' out-of-range values are treated as missing, and a day is dropped when the
+#' month is missing (a bare day number is meaningless). Rows with nothing to
+#' show give \code{""}.
+#'
+#' @param day,month,year Vectors of the same length (numeric or coercible).
+#' @return A character vector.
+#' @keywords internal
+#' @noRd
+.format_label_date <- function(day, month, year) {
+  as_int <- function(x) suppressWarnings(as.integer(as.character(x)))
+  d <- as_int(day)
+  m <- as_int(month)
+  y <- as_int(year)
+  m[!is.na(m) & (m < 1L | m > 12L)] <- NA_integer_
+  d[!is.na(d) & (d < 1L | d > 31L)] <- NA_integer_
+  d[is.na(m)] <- NA_integer_
+  y[!is.na(y) & y <= 0L] <- NA_integer_
+  mon <- tolower(month.abb[m])
+  parts <- cbind(as.character(d), mon, as.character(y))
+  apply(parts, 1L, function(p) paste(p[!is.na(p)], collapse = " "))
 }
