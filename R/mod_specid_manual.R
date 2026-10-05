@@ -216,9 +216,11 @@ mod_specid_manual_server <- function(id, pool_main, pool_taxa, i18n,
     taxa_reset_counter <- shiny::reactiveVal(0)
 
     # Bump reset counter whenever the user picks a different specimen so that
-    # any previously-selected taxon is cleared.
+    # any previously-selected taxon is cleared, and drop the preview, which
+    # still shows the previous specimen's new identification.
     shiny::observeEvent(selected_speci(), {
       taxa_reset_counter(taxa_reset_counter() + 1)
+      diff_tbl(NULL)
     }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
     # ----- Non-identification fields: pre-fill with current values -----
@@ -402,6 +404,7 @@ mod_specid_manual_server <- function(id, pool_main, pool_taxa, i18n,
         )
         speci_hits(hits)
         selected_speci(NULL)
+        apply_status(NULL)
         if (is.null(hits) || nrow(hits) == 0) {
           shiny::showNotification(i18n()$t("No specimen matches."), type = "warning")
         }
