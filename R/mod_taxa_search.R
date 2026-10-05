@@ -43,11 +43,20 @@ mod_taxa_search_server <- function(id, pool, i18n,
       last_search_params = NULL
     )
 
-    # Clear selection whenever the reset trigger changes value
+    # Callers bump the reset trigger when they move to another record: clear
+    # the selection, the results and the typed search so the previous taxon
+    # is no longer on screen
     shiny::observeEvent(reset(), {
-      rv$selected_row <- NULL
+      rv$selected_row       <- NULL
+      rv$search_results     <- NULL
+      rv$last_search_params <- NULL
       DT::dataTableProxy("results_table", session = session) %>%
         DT::selectRows(NULL)
+      for (field in c("binomial_input", "genus_filter", "species_filter",
+                      "family_filter", "order_filter")) {
+        shiny::updateTextInput(session, field, value = "")
+      }
+      shiny::updateNumericInput(session, "id_filter", value = NA)
     }, ignoreNULL = TRUE, ignoreInit = TRUE)
 
     # Main UI with translations

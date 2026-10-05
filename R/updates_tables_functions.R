@@ -1004,6 +1004,9 @@
 #' @param add_backup string if labels are produced name of the rtf file
 #' @param show_results string if labels are produced name of the rtf file
 #' @param only_new_ident string if labels are produced name of the rtf file
+#' @param show_comparison logical, whether to print the HTML table comparing
+#'   current and new values. Printing it opens the RStudio Viewer, which
+#'   replaces a running Shiny app, so apps must pass \code{FALSE}.
 #'
 #' @return A tibble
 #' @export
@@ -1025,7 +1028,8 @@ update_ident_specimens <- function(colnam = NULL,
                                    add_backup = TRUE,
                                    show_results = TRUE,
                                    only_new_ident = TRUE,
-                                   ask_before_update = TRUE) {
+                                   ask_before_update = TRUE,
+                                   show_comparison = TRUE) {
 
   mydb <- call.mydb()
 
@@ -1167,7 +1171,7 @@ update_ident_specimens <- function(colnam = NULL,
                                     dplyr::select(!!colnames(new_values)),
                                   vec_2 = new_values)
 
-      if (!is.na(comp_res$comp_html))
+      if (show_comparison && !is.na(comp_res$comp_html))
         print(comp_res$comp_html)
 
 
