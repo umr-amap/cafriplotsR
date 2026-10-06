@@ -64,7 +64,7 @@ correct order to respect foreign key constraints:
 2. Trait measurements
 3. Individual measurements (if exists)
 4. Individuals
-5. Subplot features
+5. Subplot observation features (\code{data_subplot_feat})
 6. Subplots
 7. Plot (skipped if \code{delete_plot = FALSE})
 

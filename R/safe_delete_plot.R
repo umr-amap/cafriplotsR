@@ -9,7 +9,7 @@
 #' 2. Trait measurements
 #' 3. Individual measurements (if exists)
 #' 4. Individuals
-#' 5. Subplot features
+#' 5. Subplot observation features (\code{data_subplot_feat})
 #' 6. Subplots
 #' 7. Plot (skipped if \code{delete_plot = FALSE})
 #'
@@ -179,6 +179,7 @@ safe_delete_plot <- function(plot_ids,
       measurement_features = 0L,
       trait_measurements   = 0L,
       individuals          = 0L,
+      subplot_obs_features = 0L,
       subplots             = 0L,
       plots                = 0L
     ),
@@ -277,8 +278,24 @@ safe_delete_plot <- function(plot_ids,
   ", ids_sql))$n
 
   summary$counts$subplots <- n_subplots
+  n_subplot_obs <- 0L
   if (n_subplots > 0) {
     cli::cli_alert_warning("{n_subplots} subplot feature(s) will be deleted")
+
+    # data_subplot_feat (e.g. the people of a census) has a foreign key to the
+    # subplot, so it has to go first or the subplot deletion is refused
+    n_subplot_obs <- DBI::dbGetQuery(con, sprintf("
+      SELECT COUNT(*) as n FROM data_subplot_feat
+      WHERE id_sub_plots IN (
+        SELECT id_sub_plots FROM data_liste_sub_plots
+        WHERE id_table_liste_plots IN (%s)
+      )
+    ", ids_sql))$n
+
+    summary$counts$subplot_obs_features <- n_subplot_obs
+    if (n_subplot_obs > 0) {
+      cli::cli_alert_warning("  └─ {n_subplot_obs} subplot observation feature(s)")
+    }
   } else {
     cli::cli_alert_success("No subplot features found")
   }
@@ -373,7 +390,8 @@ safe_delete_plot <- function(plot_ids,
       if (n_individuals > 0 && delete_individuals)          "{n_individuals} individual(s)" else NULL,
       if (n_trait_measures > 0 && delete_individuals)       "{n_trait_measures} trait measurement(s)" else NULL,
       if (n_meas_feat > 0 && delete_individuals)            "{n_meas_feat} measurement feature(s)" else NULL,
-      if (n_subplots > 0 && delete_subplots)                "{n_subplots} subplot feature(s)" else NULL
+      if (n_subplots > 0 && delete_subplots)                "{n_subplots} subplot feature(s)" else NULL,
+      if (n_subplot_obs > 0 && delete_subplots)             "{n_subplot_obs} subplot observation feature(s)" else NULL
     ))
     if (!delete_plot) cli::cli_alert_success("Plot metadata will be PRESERVED (not deleted)")
     if (nrow(outside_children) > 0 && child_plots == "detach") {
@@ -532,6 +550,23 @@ safe_delete_plot <- function(plot_ids,
 
       # ---- 5.4 Subplot features ----
       if (n_subplots > 0 && delete_subplots) {
+        # Their observation features first: data_subplot_feat references the
+        # subplot, and would otherwise make the subplot deletion fail
+        if (n_subplot_obs > 0) {
+          sub_ids <- DBI::dbGetQuery(raw_con, sprintf("
+            SELECT id_sub_plots FROM data_liste_sub_plots
+            WHERE id_table_liste_plots IN (%s)
+          ", pb_ids_sql))$id_sub_plots
+          if (length(sub_ids) > 0) {
+            if (verbose) cli::cli_alert_info("Deleting subplot observation features...")
+            n_del <- batch_delete_ids(raw_con, "data_subplot_feat", "id_sub_plots",
+                                      sub_ids, "subplot observation feature(s)")
+            summary$deleted$subplot_obs_features <-
+              summary$deleted$subplot_obs_features + n_del
+            if (verbose) cli::cli_alert_success("  Deleted {n_del} subplot observation feature(s)")
+          }
+        }
+
         if (verbose) cli::cli_alert_info("Deleting subplot features...")
         n_del <- batch_delete_ids(raw_con, "data_liste_sub_plots", "id_table_liste_plots",
                                   pb_ids, "subplot feature(s)")
@@ -604,6 +639,7 @@ safe_delete_plot <- function(plot_ids,
       if (d$trait_measurements   > 0) "{d$trait_measurements} trait measurement(s)" else NULL,
       if (d$measurement_features > 0) "{d$measurement_features} measurement feature(s)" else NULL,
       if (d$subplots             > 0) "{d$subplots} subplot feature(s)" else NULL,
+      if (d$subplot_obs_features > 0) "{d$subplot_obs_features} subplot observation feature(s)" else NULL,
       if (d$specimen_links       > 0) "{d$specimen_links} specimen link(s)" else NULL
     ))
     if (summary$detached$child_plots > 0) {
