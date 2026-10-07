@@ -2,6 +2,8 @@
 
 ### Breaking Changes
 
+* **`get_database_fk()` removed** - superseded by `draw_database_structure()` in `inst/scripts/draw_database_structure.R`, which is a script rather than an exported function: `source(system.file("scripts", "draw_database_structure.R", package = "CafriplotsR"))`, then `draw_database_structure(include = CORE_TABLES)` for the equivalent overview. The outdated `man/figures/mydb_structure.png` was removed with it
+
 * **`define_user_policy()` no longer grants `DELETE`, and now revokes the privileges it was not asked for** (`R/connections_db.R`) - two defects in one function, both of which handed out more than the caller asked for
   - `grant_privileges = TRUE` granted `SELECT, INSERT, UPDATE, DELETE` unconditionally, whatever `operations` said. `define_read_only_policy()`, whose entire purpose is read-only access, therefore granted full DML to every account it touched. The privileges are now derived from `operations`, and **anything not asked for is revoked**, so narrowing an account's `operations` narrows its privileges instead of silently leaving the old ones in place. `UPDATE` and `DELETE` imply `SELECT`, which they need to evaluate their own `WHERE` clause
   - `operations = "ALL"` used to mean all four commands and to create a `_delete` policy. It is how **13,913 of 14,018 plot grants came to carry `DELETE`** - nine accounts on more than 1,100 plots each - because `"ALL"` is the natural thing to type when handing out access. `"ALL"` now stops short of `DELETE`; a caller who wants it passes `operations = "DELETE"` explicitly and is told what that means
@@ -643,6 +645,13 @@
   - Net effect: `update_records(data.frame(id_n = ..., quadrat = ...), table_type = "individuals", execute = TRUE)` now does the correction directly, with no manual `id_trait_measures` lookup required
 
 ### Infrastructure
+
+* **`inst/scripts/draw_database_structure.R` draws both databases from the live catalogue** - replaces `get_database_fk()` (see Breaking Changes). The old diagram covered ten hard-coded tables of the main database and their declared keys only; the script reads `pg_catalog` each time it runs, so it does not go stale as the schema changes
+  - Draws `plots_transects` and `rainbio` side by side, tables coloured by domain, with approximate row counts
+  - Shows three kinds of link: declared foreign keys (solid), undeclared joins the package relies on (dashed grey, from `LINK_HINTS` plus column-name matching), and `idtax_n` links across the two databases (dashed red). Most joins in `R/` use columns with no FOREIGN KEY constraint, so declared keys alone left most tables unconnected
+  - `include = CORE_TABLES` gives a compact overview; `columns = "all"` lists every column with its type; `out_file` saves SVG, PNG or PDF
+  - Audit (`followup_*`), scratch and backup tables, and the stale `table_taxa` copy on the main database, are left out by default
+  - `rsvg` added to Suggests (PNG/PDF output); `dm` removed from Suggests, as nothing else used it
 
 * **Six indexes on the columns that link plot data back to a plot** (`inst/migrations/fk_indexes_plot_scope.R`, applied) - one per child table. A row-level security predicate is evaluated per row, so the child-table policies would have been a sequential scan per query without them
   - `inst/scripts/check_plot_access_cost.R` measured the predicate at both ends of the grant range before anything was enforced. The finding worth keeping: **cost tracks the number of hops between a row and its plot, and the floor scales with table size** - a 0-hop predicate on `data_ind_measures_feat` (476,701 rows) costs 71 ms at 2,036 plots, not the 3 ms measured on `data_liste_plots` (2,194 rows)

@@ -104,7 +104,6 @@ reference:
       - create_db_config
       - func_try_fetch
       - try_open_postgres_table
-      - get_database_fk
       - check_db_network
 
   - title: "Data Queries"
