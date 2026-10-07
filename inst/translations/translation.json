@@ -11320,6 +11320,62 @@
     {
       "en": "New measurements: %d added.",
       "fr": "Nouvelles mesures : %d ajoutée(s)."
+    },
+    {
+      "en": "Duplicates (not imported)",
+      "fr": "Doublons (non importés)"
+    },
+    {
+      "en": "Could not check the database for existing specimens",
+      "fr": "Impossible de vérifier les spécimens déjà présents dans la base"
+    },
+    {
+      "en": "Import is blocked until this check succeeds.",
+      "fr": "L'import est bloqué tant que cette vérification n'aboutit pas."
+    },
+    {
+      "en": "Duplicate specimens",
+      "fr": "Spécimens en doublon"
+    },
+    {
+      "en": "A specimen is identified by its collector, number and suffix. The lines below will NOT be imported:",
+      "fr": "Un spécimen est identifié par son collecteur, son numéro et son suffixe. Les lignes ci-dessous ne seront PAS importées :"
+    },
+    {
+      "en": "%d line(s) are already in the database (see id_specimen)",
+      "fr": "%d ligne(s) déjà présente(s) dans la base (voir id_specimen)"
+    },
+    {
+      "en": "%d line(s) share the same collector, number and suffix within your file. Keep one line per specimen, then upload the file again.",
+      "fr": "%d ligne(s) partagent le même collecteur, numéro et suffixe dans votre fichier. Gardez une seule ligne par spécimen, puis chargez à nouveau le fichier."
+    },
+    {
+      "en": "Line numbers refer to your spreadsheet, the header being line 1.",
+      "fr": "Les numéros de ligne correspondent à votre tableur, l'en-tête étant la ligne 1."
+    },
+    {
+      "en": "Download the list of duplicates (CSV)",
+      "fr": "Télécharger la liste des doublons (CSV)"
+    },
+    {
+      "en": "Already in database (id_specimen %s)",
+      "fr": "Déjà dans la base (id_specimen %s)"
+    },
+    {
+      "en": "Repeated in file (lines %s)",
+      "fr": "Répété dans le fichier (lignes %s)"
+    },
+    {
+      "en": "No specimens to import: the remaining lines are duplicates. See the list of duplicates.",
+      "fr": "Aucun spécimen à importer : les lignes restantes sont des doublons. Voir la liste des doublons."
+    },
+    {
+      "en": "%d duplicate specimens would be skipped.",
+      "fr": "%d spécimens en doublon seraient ignorés."
+    },
+    {
+      "en": "%d duplicate specimens were skipped.",
+      "fr": "%d spécimens en doublon ont été ignorés."
     }
   ]
 }

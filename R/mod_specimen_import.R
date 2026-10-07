@@ -88,6 +88,34 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
     # Import results storage
     import_results <- shiny::reactiveVal(NULL)
     import_complete <- shiny::reactiveVal(FALSE)
+    # Bumped after each real import so the duplicate check sees the new rows
+    db_refresh <- shiny::reactiveVal(0)
+
+    # Flag rows already in the database or repeated in the file.
+    # Returns list(data = flagged data, error = message or NULL).
+    run_dup_check <- function(data, maps) {
+      db_con <- con()
+      actual_con <- if (inherits(db_con, "Pool")) pool::poolCheckout(db_con) else db_con
+      on.exit({
+        if (inherits(db_con, "Pool") && !is.null(actual_con)) pool::poolReturn(actual_con)
+      }, add = TRUE)
+
+      tryCatch(
+        list(
+          data = .check_specimen_duplicates(data, maps$colnbr, maps$suffix, actual_con),
+          error = NULL
+        ),
+        error = function(e) list(data = NULL, error = conditionMessage(e))
+      )
+    }
+
+    dup_check <- shiny::reactive({
+      data <- matched_data()
+      maps <- mappings()
+      shiny::req(data, maps, con())
+      db_refresh()
+      run_dup_check(data, maps)
+    })
 
     # Import summary
     output$import_summary <- shiny::renderUI({
@@ -106,12 +134,16 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
       }
 
       n_rows <- nrow(data)
-      n_valid <- sum(!is.na(data$id_colnam) & !is.na(data$idtax_n))
-      n_invalid <- n_rows - n_valid
+      has_ids <- !is.na(data$id_colnam) & !is.na(data$idtax_n)
+      flagged <- dup_check()$data
+      is_dup <- if (!is.null(flagged)) flagged$is_duplicate else rep(FALSE, n_rows)
+      n_valid <- sum(has_ids & !is_dup)
+      n_dup <- sum(is_dup)
+      n_invalid <- sum(!has_ids & !is_dup)
 
       shiny::fluidRow(
         shiny::column(
-          4,
+          3,
           shiny::div(
             class = "card",
             style = "padding: 15px; background: #f8f9fa; border-left: 4px solid #007bff; text-align: center;",
@@ -120,7 +152,7 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
           )
         ),
         shiny::column(
-          4,
+          3,
           shiny::div(
             class = "card",
             style = "padding: 15px; background: #f8f9fa; border-left: 4px solid #28a745; text-align: center;",
@@ -129,7 +161,18 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
           )
         ),
         shiny::column(
-          4,
+          3,
+          shiny::div(
+            class = "card",
+            style = sprintf("padding: 15px; background: #f8f9fa; border-left: 4px solid %s; text-align: center;",
+                            if (n_dup == 0) "#28a745" else "#fd7e14"),
+            shiny::h3(n_dup, style = sprintf("margin: 0; color: %s;",
+                                              if (n_dup == 0) "#28a745" else "#fd7e14")),
+            shiny::p(i18n()$t("Duplicates (not imported)"), style = "margin: 5px 0 0 0; color: #6c757d;")
+          )
+        ),
+        shiny::column(
+          3,
           shiny::div(
             class = "card",
             style = sprintf("padding: 15px; background: #f8f9fa; border-left: 4px solid %s; text-align: center;",
@@ -168,6 +211,12 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
         "Ready",
         "Missing IDs"
       )
+      flagged <- dup_check()$data
+      if (!is.null(flagged)) {
+        display_data$status[flagged$dup_in_file] <- "Duplicate in file"
+        display_data$status[flagged$in_db] <- "Already in database"
+      }
+      display_data <- cbind(line = seq_len(nrow(data)) + 1L, display_data)
 
       DT::datatable(
         display_data,
@@ -185,8 +234,8 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
         DT::formatStyle(
           "status",
           backgroundColor = DT::styleEqual(
-            c("Ready", "Missing IDs"),
-            c("#d4edda", "#f8d7da")
+            c("Ready", "Missing IDs", "Duplicate in file", "Already in database"),
+            c("#d4edda", "#f8d7da", "#ffe5d0", "#ffe5d0")
           )
         )
     })
@@ -211,18 +260,7 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
         issues <- c(issues, sprintf(i18n()$t("%d specimens have missing or invalid taxonomic IDs"), missing_taxa))
       }
 
-      # Check for duplicate specimens
-      if (!is.null(maps$suffix)) {
-        dup_key <- paste(data$id_colnam, data[[maps$colnbr]], data[[maps$suffix]], sep = "_")
-      } else {
-        dup_key <- paste(data$id_colnam, data[[maps$colnbr]], sep = "_")
-      }
-      n_dups <- sum(duplicated(dup_key))
-      if (n_dups > 0) {
-        issues <- c(issues, sprintf(i18n()$t("%d potential duplicate specimens detected"), n_dups))
-      }
-
-      if (length(issues) > 0) {
+      issues_ui <- if (length(issues) > 0) {
         shiny::div(
           class = "alert alert-warning",
           style = "margin-top: 20px;",
@@ -231,7 +269,54 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
             lapply(issues, function(issue) shiny::tags$li(issue))
           )
         )
-      } else {
+      }
+
+      # Duplicate specimens (collector + number + suffix)
+      check <- dup_check()
+      dup_ui <- if (!is.null(check$error)) {
+        shiny::div(
+          class = "alert alert-danger",
+          style = "margin-top: 20px;",
+          shiny::h5(shiny::icon("times-circle"), " ",
+                    i18n()$t("Could not check the database for existing specimens")),
+          shiny::p(check$error),
+          shiny::p(i18n()$t("Import is blocked until this check succeeds."))
+        )
+      } else if (any(check$data$is_duplicate)) {
+        flagged <- check$data
+        n_db <- sum(flagged$in_db)
+        n_file <- sum(flagged$dup_in_file)
+        shiny::div(
+          class = "alert alert-warning",
+          style = "margin-top: 20px; border-left: 4px solid #fd7e14;",
+          shiny::h5(shiny::icon("clone"), " ", i18n()$t("Duplicate specimens")),
+          shiny::p(i18n()$t("A specimen is identified by its collector, number and suffix. The lines below will NOT be imported:")),
+          shiny::tags$ul(
+            if (n_db > 0) shiny::tags$li(sprintf(
+              i18n()$t("%d line(s) are already in the database (see id_specimen)"), n_db
+            )),
+            if (n_file > 0) shiny::tags$li(sprintf(
+              i18n()$t("%d line(s) share the same collector, number and suffix within your file. Keep one line per specimen, then upload the file again."),
+              n_file
+            ))
+          ),
+          shiny::p(
+            class = "text-muted",
+            i18n()$t("Line numbers refer to your spreadsheet, the header being line 1.")
+          ),
+          DT::dataTableOutput(session$ns("duplicates_table")),
+          shiny::div(
+            style = "margin-top: 10px;",
+            shiny::downloadButton(
+              session$ns("download_duplicates"),
+              i18n()$t("Download the list of duplicates (CSV)"),
+              class = "btn-outline-secondary btn-sm"
+            )
+          )
+        )
+      }
+
+      if (is.null(issues_ui) && is.null(dup_ui)) {
         shiny::div(
           class = "alert alert-success",
           style = "margin-top: 20px;",
@@ -239,8 +324,55 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
           " ",
           i18n()$t("All specimens are valid and ready to import.")
         )
+      } else {
+        shiny::tagList(issues_ui, dup_ui)
       }
     })
+
+    # Duplicate lines, as the user typed them, so they can be found in the file
+    duplicates_report <- shiny::reactive({
+      flagged <- dup_check()$data
+      maps <- mappings()
+      shiny::req(flagged, maps)
+      flagged <- flagged[flagged$is_duplicate, , drop = FALSE]
+
+      user_cols <- unique(c(maps$collector, maps$colnbr, maps$suffix))
+      user_cols <- user_cols[user_cols %in% names(flagged)]
+
+      reason <- ifelse(
+        flagged$in_db,
+        sprintf(i18n()$t("Already in database (id_specimen %s)"), flagged$existing_id_specimen),
+        ""
+      )
+      in_file <- ifelse(
+        flagged$dup_in_file,
+        sprintf(i18n()$t("Repeated in file (lines %s)"), flagged$dup_file_lines),
+        ""
+      )
+      reason <- ifelse(reason != "" & in_file != "", paste(reason, in_file, sep = "; "),
+                       paste0(reason, in_file))
+
+      out <- data.frame(line = flagged$file_line, stringsAsFactors = FALSE)
+      out <- cbind(out, flagged[, user_cols, drop = FALSE])
+      out$problem <- reason
+      out
+    })
+
+    output$duplicates_table <- DT::renderDataTable({
+      DT::datatable(
+        duplicates_report(),
+        options = list(pageLength = 10, scrollX = TRUE, dom = "frtip"),
+        rownames = FALSE,
+        class = "cell-border stripe"
+      )
+    })
+
+    output$download_duplicates <- shiny::downloadHandler(
+      filename = function() paste0("specimen_duplicates_", Sys.Date(), ".csv"),
+      content = function(file) {
+        utils::write.csv(duplicates_report(), file, row.names = FALSE, fileEncoding = "UTF-8")
+      }
+    )
 
     # Import handler
     shiny::observeEvent(input$import_btn, {
@@ -250,12 +382,30 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
 
       dry_run <- input$dry_run
 
-      # Filter to only valid rows
-      valid_data <- data[!is.na(data$id_colnam) & !is.na(data$idtax_n), ]
+      # Re-check duplicates against the database now, not a cached result
+      check <- run_dup_check(data, maps)
+      if (!is.null(check$error)) {
+        shiny::showNotification(
+          paste(i18n()$t("Could not check the database for existing specimens"), check$error),
+          type = "error",
+          duration = NULL
+        )
+        return()
+      }
+      flagged <- check$data
+
+      # Filter to only valid, non-duplicate rows
+      keep <- !is.na(data$id_colnam) & !is.na(data$idtax_n) & !flagged$is_duplicate
+      valid_data <- data[keep, ]
+      n_skipped_dup <- sum(flagged$is_duplicate)
 
       if (nrow(valid_data) == 0) {
         shiny::showNotification(
-          i18n()$t("No valid specimens to import. Please complete the lookup matching step."),
+          if (n_skipped_dup > 0) {
+            i18n()$t("No specimens to import: the remaining lines are duplicates. See the list of duplicates.")
+          } else {
+            i18n()$t("No valid specimens to import. Please complete the lookup matching step.")
+          },
           type = "error",
           duration = 5
         )
@@ -316,6 +466,7 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
             success = TRUE,
             dry_run = TRUE,
             n_specimens = nrow(specimens),
+            n_skipped_dup = n_skipped_dup,
             preview = specimens
           ))
 
@@ -356,10 +507,12 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
             import_results(list(
               success = TRUE,
               dry_run = FALSE,
-              n_specimens = nrow(specimens)
+              n_specimens = nrow(specimens),
+              n_skipped_dup = n_skipped_dup
             ))
 
             import_complete(TRUE)
+            db_refresh(db_refresh() + 1)
 
             shiny::showNotification(
               sprintf(i18n()$t("Successfully imported %d specimens"), nrow(specimens)),
@@ -403,6 +556,9 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
             class = "alert alert-info",
             shiny::h5(shiny::icon("flask"), " ", i18n()$t("Dry Run Results")),
             shiny::p(sprintf(i18n()$t("%d specimens would be imported to the database."), results$n_specimens)),
+            if (isTRUE(results$n_skipped_dup > 0)) shiny::p(sprintf(
+              i18n()$t("%d duplicate specimens would be skipped."), results$n_skipped_dup
+            )),
             shiny::p(
               class = "text-muted",
               i18n()$t("Uncheck 'Dry run' and click Import again to perform the actual import.")
@@ -416,7 +572,10 @@ mod_specimen_import_server <- function(id, matched_data, mappings, matching_comp
           class = "alert alert-success",
           style = "margin-top: 30px;",
           shiny::h4(shiny::icon("check-circle"), " ", i18n()$t("Import Successful!")),
-          shiny::p(sprintf(i18n()$t("%d specimens have been added to the database."), results$n_specimens))
+          shiny::p(sprintf(i18n()$t("%d specimens have been added to the database."), results$n_specimens)),
+          if (isTRUE(results$n_skipped_dup > 0)) shiny::p(sprintf(
+            i18n()$t("%d duplicate specimens were skipped."), results$n_skipped_dup
+          ))
         )
       } else {
         shiny::div(
