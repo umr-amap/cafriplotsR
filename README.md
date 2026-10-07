@@ -173,7 +173,8 @@ plots <- query_plots(id_plot = c(1, 2, 3))
 plots <- query_plots(country = "GABON")
 
 # Visualize database structure
-get_database_fk(mydb)
+source(system.file("scripts", "draw_database_structure.R", package = "CafriplotsR"))
+draw_database_structure(include = CORE_TABLES)
 
 
 ```
