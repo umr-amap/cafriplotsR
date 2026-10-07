@@ -71,6 +71,9 @@ test_that("safe_delete_plot returns a dry-run summary with related counts", {
       if (grepl("COUNT(*) as n FROM data_liste_sub_plots", sql_chr, fixed = TRUE)) {
         return(data.frame(n = 5L))
       }
+      if (grepl("COUNT(*) as n FROM data_subplot_feat", sql_chr, fixed = TRUE)) {
+        return(data.frame(n = 6L))
+      }
       stop(sprintf("Unexpected query: %s", sql_chr))
     }
   )
@@ -88,7 +91,68 @@ test_that("safe_delete_plot returns a dry-run summary with related counts", {
   expect_equal(summary$counts$trait_measurements, 3L)
   expect_equal(summary$counts$measurement_features, 4L)
   expect_equal(summary$counts$subplots, 5L)
+  expect_equal(summary$counts$subplot_obs_features, 6L)
   expect_equal(summary$deleted$plots, 0L)
+})
+
+test_that("safe_delete_plot deletes subplot observation features before their subplots", {
+  env <- new.env()
+  env$deletes <- character()
+  testthat::local_mocked_bindings(
+    .package = "CafriplotsR",
+    test_connection = function(con) TRUE,
+    .has_plot_hierarchy = function(con) FALSE
+  )
+  testthat::local_mocked_bindings(
+    .package = "DBI",
+    dbGetQuery = function(con, sql) {
+      sql_chr <- gsub("\\s+", " ", as.character(sql))
+      if (grepl("COUNT(*) as n FROM data_individuals", sql_chr, fixed = TRUE)) {
+        return(data.frame(n = 0L))
+      }
+      if (grepl("COUNT(*) as n FROM data_liste_sub_plots", sql_chr, fixed = TRUE)) {
+        return(data.frame(n = 2L))
+      }
+      if (grepl("COUNT(*) as n FROM data_subplot_feat", sql_chr, fixed = TRUE)) {
+        return(data.frame(n = 3L))
+      }
+      if (grepl("SELECT id_sub_plots FROM data_liste_sub_plots", sql_chr, fixed = TRUE)) {
+        return(data.frame(id_sub_plots = c(10L, 11L)))
+      }
+      if (grepl("FROM data_liste_plots", sql_chr, fixed = TRUE)) {
+        return(data.frame(id_liste_plots = 1L, plot_name = "P1"))
+      }
+      if (grepl("COUNT(*) as n FROM data_link_specimens", sql_chr, fixed = TRUE)) {
+        return(data.frame(n = 0L))
+      }
+      stop(sprintf("Unexpected query: %s", sql_chr))
+    },
+    dbSendQuery = function(conn, statement, ...) {
+      env$deletes <- c(env$deletes, statement)
+      statement
+    },
+    dbGetRowsAffected = function(res, ...) {
+      if (grepl("data_subplot_feat", res)) 3L else 1L
+    },
+    dbClearResult = function(res, ...) invisible(TRUE),
+    dbBegin = function(conn, ...) invisible(TRUE),
+    dbCommit = function(conn, ...) invisible(TRUE),
+    dbRollback = function(conn, ...) invisible(TRUE)
+  )
+
+  summary <- safe_delete_plot(
+    plot_ids = 1L,
+    con = structure(list(), class = "mock_connection"),
+    dry_run = FALSE, force = TRUE, verbose = FALSE
+  )
+
+  expect_true(summary$success)
+  expect_equal(env$deletes, c(
+    "DELETE FROM data_subplot_feat WHERE id_sub_plots IN (10,11)",
+    "DELETE FROM data_liste_sub_plots WHERE id_table_liste_plots IN (1)",
+    "DELETE FROM data_liste_plots WHERE id_liste_plots IN (1)"
+  ))
+  expect_equal(summary$deleted$subplot_obs_features, 3L)
 })
 
 
