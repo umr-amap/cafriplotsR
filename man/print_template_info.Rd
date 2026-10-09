@@ -5,11 +5,14 @@
 \title{Print Template Column Information}
 \usage{
 print_template_info(
-  template_type = c("permanent_plot", "transect", "minimal", "full")
+  template_type = c("permanent_plot", "transect", "nested_plot", "minimal", "full"),
+  con = NULL
 )
 }
 \arguments{
 \item{template_type}{Character: Type of template (see [get_plot_metadata_template()])}
+
+\item{con}{Optional database connection or pool (see [get_plot_metadata_template()])}
 }
 \value{
 Invisibly returns a data frame with column information

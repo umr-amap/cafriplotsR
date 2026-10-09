@@ -4,7 +4,7 @@
 \alias{.get_column_descriptions_from_db}
 \title{Get Column Descriptions from Database (Internal Helper)}
 \usage{
-.get_column_descriptions_from_db()
+.get_column_descriptions_from_db(con = NULL)
 }
 \value{
 Named list with column descriptions and validation info
