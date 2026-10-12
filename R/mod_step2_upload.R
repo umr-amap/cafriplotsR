@@ -156,11 +156,12 @@ mod_step2_upload_server <- function(id, import_type, config, con, i18n) {
             session$ns("template_type"),
             tr("Template Type:"),
             choices = stats::setNames(
-              c("minimal", "permanent_plot", "transect", "full"),
+              c("minimal", "permanent_plot", "transect", "nested_plot", "full"),
               c(
                 tr("Minimal (Required fields only)"),
                 tr("Permanent Plot (Recommended)"),
                 tr("Transect Survey"),
+                tr("Nested or Block Plot (parent plot already in database)"),
                 tr("Full (All optional fields)")
               )
             ),
@@ -224,7 +225,8 @@ mod_step2_upload_server <- function(id, import_type, config, con, i18n) {
             if (import_type() == "plots") {
               get_plot_metadata_template(
                 template_type = input$template_type,
-                with_examples = input$with_examples
+                with_examples = input$with_examples,
+                con = tryCatch(con(), error = function(e) NULL)
               )
             } else {
               # For individuals, generate individual tree template

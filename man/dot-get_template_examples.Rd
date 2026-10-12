@@ -4,17 +4,21 @@
 \alias{.get_template_examples}
 \title{Get Template Examples (Internal Helper)}
 \usage{
-.get_template_examples(template_type, n_examples = 3)
+.get_template_examples(template_type, n_examples = 3, ctx = NULL)
 }
 \arguments{
 \item{template_type}{Character: Type of template}
 
-\item{n_examples}{Integer: Number of examples}
+\item{n_examples}{Integer: Number of examples (1 to 3)}
+
+\item{ctx}{List from `.get_template_context()` (optional)}
 }
 \value{
-Tibble with example rows
+Tibble with example rows (a superset of the template columns; the
+  caller keeps the ones it needs)
 }
 \description{
-Generate example data rows for templates
+Generate example data rows for templates. Real `method` / `country` values
+are used when the database context supplies them.
 }
 \keyword{internal}

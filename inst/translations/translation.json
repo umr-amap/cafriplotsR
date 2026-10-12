@@ -11376,6 +11376,10 @@
     {
       "en": "%d duplicate specimens were skipped.",
       "fr": "%d spécimens en doublon ont été ignorés."
+    },
+    {
+      "en": "Nested or Block Plot (parent plot already in database)",
+      "fr": "Placette emboîtée ou bloc (placette mère déjà dans la base)"
     }
   ]
 }

@@ -12,43 +12,50 @@
 #' @param template_type Character: Type of template to generate
 #'   - `"permanent_plot"`: Standard permanent forest plot (default)
 #'   - `"transect"`: Linear transect survey
+#'   - `"nested_plot"`: Plot nested in, or tiling part of, a plot already in the
+#'     database (adds `parent_plot` and `parent_relation`)
 #'   - `"minimal"`: Minimum required fields only
 #'   - `"full"`: All available optional fields included
 #' @param with_examples Logical: Include example rows with sample data? Default: TRUE
 #' @param include_optional Logical: Include optional columns? Default: TRUE (ignored if template_type = "minimal")
-#' @param n_examples Integer: Number of example rows to include. Default: 3
+#' @param n_examples Integer: Number of example rows to include (1 to 3). Default: 3
+#' @param con Optional database connection (or pool). When supplied, the
+#'   template follows the live database: the people columns are the
+#'   `subplotype_list` features of valuetype `table_colnam`, plot
+#'   characteristics are offered only if the database defines them, the
+#'   hierarchy columns only if the plot hierarchy migration has been applied,
+#'   and the example `method` / `country` values are real entries of
+#'   `methodslist` / `table_countries`. Without it (or if the database cannot be
+#'   queried) a static fallback is used.
 #'
 #' @details
-#' The template includes standard column names that match the database schema:
+#' Columns follow the three storage kinds of the import (see
+#' [get_import_column_routing()]):
 #'
-#' **Required columns:**
+#' **Required columns (lookups to `methodslist` / `table_countries`):**
 #' - `plot_name`: Unique identifier for the plot (character)
 #' - `method`: Survey method (must match [method_list()])
 #' - `country`: Country name (must match [country_list()])
 #'
-#' **Location columns:**
-#' - `ddlat`: Latitude in decimal degrees (-90 to 90)
-#' - `ddlon`: Longitude in decimal degrees (-180 to 180)
-#' - `elevation`: Elevation in meters above sea level
-#' - `locality_name`: Name of the locality or site
-#' - `province`: Province or state name
+#' **Flat columns (stored in `data_liste_plots`):**
+#' - `ddlat`, `ddlon`: Decimal degrees
+#' - `elevation`: Metres above sea level
+#' - `locality_name`, `province`: Place names
+#' - `date_y`, `date_m`, `date_d`: Survey date
+#' - `subplot_shape` (full): Shape of the subplots
+#' - `id_citation` (full): Numeric id of the source, from `query_citations()`
+#' - `parent_plot`, `parent_relation` (nested_plot, full): the plot this one
+#'   sits inside, by `plot_name`, and how (`"nested_subsample"` when the two
+#'   overlap with different protocols - never sum them; `"block_member"` when
+#'   this plot tiles part of the parent). The parent must already be in the
+#'   database; import parents before children.
 #'
-#' **Date columns:**
-#' - `date_y`: Year of survey (YYYY)
-#' - `date_m`: Month of survey (1-12)
-#' - `date_d`: Day of survey (1-31)
-#'
-#' **People columns (subplot features with valuetype='table_colnam'):**
-#' - Dynamically determined from database via [subplot_list()]
-#' - Common examples: team_leader, principal_investigator, data_manager, etc.
-#' - Multiple names can be comma-separated
-#'
-#' **Plot characteristics:**
-#' - `plot_area`: Plot area in hectares
-#' - Other characteristics as defined in database
-#'
-#' Column descriptions and validation rules are pulled from the database
-#' via [subplot_list()] for subplot features.
+#' **Features (stored in `data_liste_sub_plots`):**
+#' - People (`valuetype = "table_colnam"`, e.g. `team_leader`,
+#'   `principal_investigator`, `data_manager`, `additional_people`): names as
+#'   they appear in `table_colnam`, comma-separated for several.
+#' - `data_provider` (full): free text.
+#' - `plot_area`, `vegetation_type`: when defined in `subplotype_list`.
 #'
 #' @return A tibble with template structure. If `with_examples = TRUE`, includes
 #'   example rows with realistic sample data.
@@ -59,14 +66,14 @@
 #' template <- get_plot_metadata_template()
 #' View(template)
 #'
+#' # Follow the live database (real methods, countries and feature types)
+#' template <- get_plot_metadata_template(con = call.mydb())
+#'
 #' # Get minimal template (required fields only)
 #' minimal <- get_plot_metadata_template(template_type = "minimal")
 #'
-#' # Get full template without examples (for large imports)
-#' empty_full <- get_plot_metadata_template(
-#'   template_type = "full",
-#'   with_examples = FALSE
-#' )
+#' # Template for plots nested in existing plots
+#' nested <- get_plot_metadata_template(template_type = "nested_plot")
 #'
 #' # Export to Excel for filling
 #' export_plot_template("my_plots_template.xlsx", template_type = "permanent_plot")
@@ -79,88 +86,53 @@
 #' [subplot_list()] to see available subplot features with validation rules
 #'
 #' @export
-get_plot_metadata_template <- function(template_type = c("permanent_plot", "transect", "minimal", "full"),
+get_plot_metadata_template <- function(template_type = c("permanent_plot", "transect",
+                                                         "nested_plot", "minimal", "full"),
                                        with_examples = TRUE,
                                        include_optional = TRUE,
-                                       n_examples = 3) {
+                                       n_examples = 3,
+                                       con = NULL) {
 
   template_type <- match.arg(template_type)
+  n_examples <- max(1L, min(3L, as.integer(n_examples)))
 
-  # Define column structure based on template type
-  if (template_type == "minimal") {
-    columns <- list(
-      plot_name = character(),
-      method = character(),
-      country = character()
-    )
-  } else if (template_type == "full") {
-    columns <- list(
-      # Required
-      plot_name = character(),
-      method = character(),
-      country = character(),
-      # Location
-      ddlat = numeric(),
-      ddlon = numeric(),
-      elevation = numeric(),
-      locality_name = character(),
-      province = character(),
-      # Dates
-      date_y = integer(),
-      date_m = integer(),
-      date_d = integer(),
-      # People
-      team_leader = character(),
-      principal_investigator = character(),
-      data_manager = character(),
-      additional_people = character(),
-      data_provider = character(),
-      # Plot characteristics
-      plot_area = numeric(),
-      vegetation_type = character(),
-      forest_type = character()
-    )
-  } else {
-    # Standard templates (permanent_plot, transect)
-    columns <- list(
-      # Required
-      plot_name = character(),
-      method = character(),
-      country = character(),
-      # Location
-      ddlat = numeric(),
-      ddlon = numeric(),
-      elevation = numeric(),
-      locality_name = character(),
-      # Dates
-      date_y = integer(),
-      date_m = integer(),
-      date_d = integer(),
-      # People
-      team_leader = character(),
-      principal_investigator = character(),
-      data_manager = character(),
-      additional_people = character()
-    )
+  ctx <- .get_template_context(con)
 
-    if (include_optional) {
-      columns$province <- character()
-      columns$plot_area <- numeric()
-      columns$vegetation_type <- character()
-    }
-  }
+  required <- c("plot_name", "method", "country")
+  location <- c("ddlat", "ddlon", "elevation", "locality_name")
+  dates <- c("date_y", "date_m", "date_d")
+  people <- ctx$people
+  # plot characteristics are features: offer them only where the database has them
+  characteristics <- intersect(c("plot_area", "vegetation_type"), ctx$features)
+  hierarchy <- c("parent_plot", "parent_relation")
 
-  # Create empty tibble with correct types
-  template <- dplyr::tibble(!!!columns)
+  col_names <- switch(
+    template_type,
+    minimal = required,
+    full = c(required, location, "province", dates, people,
+             intersect("data_provider", ctx$features),
+             characteristics, "subplot_shape", "id_citation",
+             if (ctx$hierarchy) hierarchy),
+    nested_plot = c(required, location, dates, people, hierarchy),
+    # permanent_plot, transect
+    c(required, location, dates, people,
+      if (include_optional) c("province", characteristics))
+  )
 
-  # Add examples if requested
+  template <- dplyr::as_tibble(stats::setNames(
+    lapply(col_names, .template_column_type),
+    col_names
+  ))
+
   if (with_examples) {
-    examples <- .get_template_examples(template_type, n_examples)
+    examples <- .get_template_examples(template_type, n_examples, ctx)
+    examples <- examples[, intersect(col_names, names(examples)), drop = FALSE]
     template <- dplyr::bind_rows(template, examples)
+    template <- template[, col_names, drop = FALSE]
   }
 
   # Add column descriptions as attribute (pulled from database for subplot features)
-  attr(template, "column_info") <- .get_column_descriptions_from_db()
+  attr(template, "column_info") <- .get_column_descriptions_from_db(con)
 
   return(template)
 }
@@ -178,6 +150,8 @@ get_plot_metadata_template <- function(template_type = c("permanent_plot", "tran
 #' @param include_optional Logical: Include optional columns? Default: TRUE
 #' @param n_examples Integer: Number of example rows. Default: 3
 #' @param open_file Logical: Open the file after creating it? Default: TRUE (Windows only)
+#' @param con Optional database connection or pool; makes the template follow
+#'   the live database (see [get_plot_metadata_template()]).
 #'
 #' @return Invisibly returns the template data frame
 #'
@@ -203,11 +177,12 @@ get_plot_metadata_template <- function(template_type = c("permanent_plot", "tran
 #'
 #' @export
 export_plot_template <- function(file_path,
-                                  template_type = c("permanent_plot", "transect", "minimal", "full"),
+                                  template_type = c("permanent_plot", "transect", "nested_plot", "minimal", "full"),
                                   with_examples = TRUE,
                                   include_optional = TRUE,
                                   n_examples = 3,
-                                  open_file = TRUE) {
+                                  open_file = TRUE,
+                                  con = NULL) {
 
   template_type <- match.arg(template_type)
 
@@ -222,7 +197,8 @@ export_plot_template <- function(file_path,
     template_type = template_type,
     with_examples = with_examples,
     include_optional = include_optional,
-    n_examples = n_examples
+    n_examples = n_examples,
+    con = con
   )
 
   # Check if writexl is available
@@ -257,69 +233,138 @@ export_plot_template <- function(file_path,
 }
 
 
+#' Column Prototype for a Template Column (Internal Helper)
+#' @param col Character: column name
+#' @keywords internal
+.template_column_type <- function(col) {
+  if (col %in% c("ddlat", "ddlon", "elevation", "plot_area")) return(numeric())
+  if (col %in% c("date_y", "date_m", "date_d", "id_citation")) return(integer())
+  character()
+}
+
+
+#' Live Database Context for Templates (Internal Helper)
+#'
+#' Collects what the template needs from the database, with a static fallback
+#' for every piece so a template can always be produced.
+#'
+#' @param con Database connection, pool, or NULL
+#' @return List: people (character), features (character), hierarchy (logical),
+#'   methods (character), countries (character); the last two are NULL when
+#'   unknown.
+#' @keywords internal
+.get_template_context <- function(con = NULL) {
+
+  fallback <- list(
+    people = c("team_leader", "principal_investigator", "data_manager",
+               "additional_people"),
+    # Static fallback: no database to contradict these
+    features = c("data_provider", "plot_area", "vegetation_type"),
+    hierarchy = TRUE,
+    methods = NULL,
+    countries = NULL
+  )
+  if (is.null(con)) return(fallback)
+
+  tryCatch({
+    subplot_info <- subplot_list(con)
+    people <- subplot_info$type[subplot_info$valuetype == "table_colnam"]
+    if (length(people) == 0) people <- fallback$people
+
+    methods <- DBI::dbGetQuery(
+      con, "SELECT method FROM methodslist WHERE method IS NOT NULL ORDER BY method"
+    )$method
+    countries <- DBI::dbGetQuery(
+      con, "SELECT country FROM table_countries WHERE country IS NOT NULL ORDER BY country"
+    )$country
+
+    list(
+      people = people,
+      features = subplot_info$type,
+      hierarchy = isTRUE(.has_plot_hierarchy(con)),
+      methods = if (length(methods)) methods else NULL,
+      countries = if (length(countries)) countries else NULL
+    )
+  }, error = function(e) {
+    message("Note: Could not read the database for the template (", e$message,
+            "). Using static columns.")
+    fallback
+  })
+}
+
+
 #' Get Template Examples (Internal Helper)
 #'
-#' Generate example data rows for templates
+#' Generate example data rows for templates. Real `method` / `country` values
+#' are used when the database context supplies them.
 #'
 #' @param template_type Character: Type of template
-#' @param n_examples Integer: Number of examples
+#' @param n_examples Integer: Number of examples (1 to 3)
+#' @param ctx List from `.get_template_context()` (optional)
 #'
-#' @return Tibble with example rows
+#' @return Tibble with example rows (a superset of the template columns; the
+#'   caller keeps the ones it needs)
 #' @keywords internal
-.get_template_examples <- function(template_type, n_examples = 3) {
+.get_template_examples <- function(template_type, n_examples = 3, ctx = NULL) {
+
+  idx <- seq_len(max(1L, min(3L, as.integer(n_examples))))
+
+  pick <- function(real, fallback) {
+    if (is.null(real) || length(real) == 0) return(fallback[idx])
+    rep_len(utils::head(real, 3), 3)[idx]
+  }
+  methods <- pick(ctx$methods, rep("1ha permanent plot", 3))
+  countries <- pick(ctx$countries, c("Cameroon", "Gabon", "Gabon"))
 
   if (template_type == "minimal") {
-    examples <- dplyr::tibble(
-      plot_name = c("PLOT001", "PLOT002", "PLOT003")[1:n_examples],
-      method = c("1ha permanent plot", "transect 500m", "1ha permanent plot")[1:n_examples],
-      country = c("Cameroon", "Gabon", "Democratic Republic of the Congo")[1:n_examples]
-    )
-  } else if (template_type == "transect") {
-    examples <- dplyr::tibble(
-      plot_name = c("TRANSECT_A", "TRANSECT_B", "TRANSECT_C")[1:n_examples],
-      method = rep("transect 500m", n_examples),
-      country = c("Cameroon", "Gabon", "Central African Republic")[1:n_examples],
-      ddlat = c(3.845, -0.422, 4.123)[1:n_examples],
-      ddlon = c(11.523, 9.876, 18.456)[1:n_examples],
-      elevation = c(450, 320, 580)[1:n_examples],
-      locality_name = c("Dja Reserve", "Lope NP", "Dzanga-Sangha")[1:n_examples],
-      date_y = c(2023, 2023, 2024)[1:n_examples],
-      date_m = c(6, 8, 3)[1:n_examples],
-      date_d = c(15, 22, 10)[1:n_examples],
-      team_leader = c("John Doe", "Jane Smith", "Bob Wilson")[1:n_examples],
-      principal_investigator = c("Dr. Sarah Johnson", "Prof. Marie Dubois", "Dr. Paul Nguema")[1:n_examples],
-      data_manager = c("Alice Brown", "Tom Jones", "Emma Davis")[1:n_examples],
-      additional_people = c("Peter Pan, Mary Jane", "Chris Lee, Ana Garcia", "David Kim")[1:n_examples]
-    )
-  } else {
-    # permanent_plot or full
-    examples <- dplyr::tibble(
-      plot_name = c("DJA_PLOT_001", "LOPE_PLOT_023", "IVINDO_PLOT_012")[1:n_examples],
-      method = rep("1ha permanent plot", n_examples),
-      country = c("Cameroon", "Gabon", "Gabon")[1:n_examples],
-      ddlat = c(3.123, -0.567, 0.789)[1:n_examples],
-      ddlon = c(12.456, 11.234, 12.890)[1:n_examples],
-      elevation = c(650, 420, 380)[1:n_examples],
-      locality_name = c("Dja Faunal Reserve", "Lope National Park", "Ivindo National Park")[1:n_examples],
-      date_y = c(2022, 2023, 2023)[1:n_examples],
-      date_m = c(11, 5, 9)[1:n_examples],
-      date_d = c(12, 8, 20)[1:n_examples],
-      team_leader = c("Dr. Marie Blanc", "John Doe", "Dr. Jean Nguema")[1:n_examples],
-      principal_investigator = c("Prof. Gilles Dauby", "Dr. Sarah White", "Prof. Pierre Dupont")[1:n_examples],
-      data_manager = c("Alice Martin", "Bob Johnson", "Claire Leblanc")[1:n_examples],
-      additional_people = c("Tom Smith, Lisa Brown", "Mike Wilson", "Anna Garcia, Chris Lee")[1:n_examples]
-    )
-
-    if (template_type == "full") {
-      examples$province <- c("Sud", "Ogooue-Ivindo", "Ogooue-Ivindo")[1:n_examples]
-      examples$data_provider <- c("IRD", "ANPN", "CENAREST")[1:n_examples]
-      examples$plot_area <- c(1.0, 1.0, 0.5)[1:n_examples]
-      examples$vegetation_type <- c("Tropical rainforest", "Semi-deciduous forest", "Dense evergreen forest")[1:n_examples]
-      examples$forest_type <- c("Terra firme", "Transition", "Terra firme")[1:n_examples]
-    }
+    return(dplyr::tibble(
+      plot_name = c("PLOT001", "PLOT002", "PLOT003")[idx],
+      method = methods,
+      country = countries
+    ))
   }
 
-  return(examples)
+  examples <- dplyr::tibble(
+    plot_name = c("DJA_PLOT_001", "LOPE_PLOT_023", "IVINDO_PLOT_012")[idx],
+    method = methods,
+    country = countries,
+    ddlat = c(3.123, -0.567, 0.789)[idx],
+    ddlon = c(12.456, 11.234, 12.890)[idx],
+    elevation = c(650, 420, 380)[idx],
+    locality_name = c("Dja Faunal Reserve", "Lope National Park", "Ivindo National Park")[idx],
+    province = c("Sud", "Ogooue-Ivindo", "Ogooue-Ivindo")[idx],
+    date_y = c(2022L, 2023L, 2023L)[idx],
+    date_m = c(11L, 5L, 9L)[idx],
+    date_d = c(12L, 8L, 20L)[idx],
+    # Names must match table_colnam; several names are comma-separated
+    team_leader = c("Jane Doe", "John Smith", "Marie Martin")[idx],
+    principal_investigator = c("Jane Doe", "John Smith", "Marie Martin")[idx],
+    data_manager = c("Alex Moreau", "Alex Moreau", "Sam Leroy")[idx],
+    additional_people = c("Tom Brown, Lisa Green", "Mike Wilson", "Anna Garcia, Chris Lee")[idx],
+    data_provider = c("Institution A", "Institution B", "Institution A")[idx],
+    plot_area = c(1.0, 1.0, 0.5)[idx],
+    vegetation_type = c("Tropical rainforest", "Semi-deciduous forest", "Dense evergreen forest")[idx],
+    subplot_shape = NA_character_,
+    id_citation = NA_integer_,
+    parent_plot = NA_character_,
+    parent_relation = NA_character_
+  )
+
+  if (template_type == "transect") {
+    examples$plot_name <- c("TRANSECT_A", "TRANSECT_B", "TRANSECT_C")[idx]
+    examples$locality_name <- c("Dja Reserve", "Lope NP", "Dzanga-Sangha")[idx]
+  }
+
+  if (template_type %in% c("nested_plot", "full")) {
+    # Parents are NOT created by the import: they must already be in the
+    # database, so the examples name an existing plot, and the first row is a
+    # top-level plot with no parent.
+    examples$plot_name <- c("DJA_PLOT_001", "DJA_PLOT_001_REGEN", "DJA_BLOCK_A2")[idx]
+    examples$parent_plot <- c(NA, "DJA_PLOT_001", "DJA_BLOCK_A")[idx]
+    examples$parent_relation <- c(NA, "nested_subsample", "block_member")[idx]
+  }
+
+  examples
 }
 
 
@@ -330,11 +375,11 @@ export_plot_template <- function(file_path,
 #'
 #' @return Named list with column descriptions and validation info
 #' @keywords internal
-.get_column_descriptions_from_db <- function() {
+.get_column_descriptions_from_db <- function(con = NULL) {
 
   # Try to get subplot feature info from database
   subplot_info <- tryCatch({
-    subplot_list()
+    subplot_list(con)
   }, error = function(e) {
     cli::cli_alert_warning("Could not retrieve subplot features from database")
     NULL
@@ -409,8 +454,28 @@ export_plot_template <- function(file_path,
       description = "Type of vegetation (e.g., 'Tropical rainforest')",
       type = "character"
     ),
-    forest_type = list(
-      description = "Forest type classification (e.g., 'Terra firme', 'Flooded')",
+    subplot_shape = list(
+      description = "Shape of the subplots (optional)",
+      type = "character"
+    ),
+    id_citation = list(
+      description = "Numeric id of the source in table_citations (optional); look it up with query_citations()",
+      type = "integer",
+      lookup_table = "table_citations"
+    ),
+    parent_plot = list(
+      description = paste0(
+        "plot_name of the plot this one sits inside (optional). The parent must ",
+        "already be in the database - import parents before children. Requires parent_relation."
+      ),
+      type = "character",
+      lookup_table = "data_liste_plots"
+    ),
+    parent_relation = list(
+      description = paste0(
+        "'nested_subsample' (overlaps the parent with a different protocol - never sum) or ",
+        "'block_member' (tiles part of the parent). Required whenever parent_plot is given."
+      ),
       type = "character"
     )
   )
@@ -462,6 +527,7 @@ export_plot_template <- function(file_path,
 #' and validation rules pulled from the database
 #'
 #' @param template_type Character: Type of template (see [get_plot_metadata_template()])
+#' @param con Optional database connection or pool (see [get_plot_metadata_template()])
 #'
 #' @return Invisibly returns a data frame with column information
 #'
@@ -476,12 +542,13 @@ export_plot_template <- function(file_path,
 #'
 #' @export
 print_template_info <- 
-  function(template_type = c("permanent_plot", "transect", "minimal", "full")) {
+  function(template_type = c("permanent_plot", "transect", "nested_plot", "minimal", "full"),
+                            con = NULL) {
 
   template_type <- match.arg(template_type)
 
-  template <- get_plot_metadata_template(template_type, with_examples = FALSE)
-  descriptions <- .get_column_descriptions_from_db()
+  template <- get_plot_metadata_template(template_type, with_examples = FALSE, con = con)
+  descriptions <- .get_column_descriptions_from_db(con)
 
   cli::cli_h1("Plot Metadata Template: {.val {template_type}}")
 
