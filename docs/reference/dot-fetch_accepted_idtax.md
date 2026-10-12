@@ -1,0 +1,30 @@
+# Fetch the accepted taxon behind a set of taxon ids
+
+Reads the \*\*taxa\*\* database, where the live taxonomy is — the copy
+of \`table_taxa\` on the main database is stale and must not be used for
+this. Kept separate from \[.fetch_taxon_names()\] so a caller that only
+needs to tell two determinations apart — \[split_census_table()\] does —
+pays for one narrow query rather than for assembled names it will never
+show.
+
+## Usage
+
+``` r
+.fetch_accepted_idtax(idtax, con_taxa)
+```
+
+## Arguments
+
+- idtax:
+
+  Vector of taxon ids.
+
+- con_taxa:
+
+  Connection or pool for the taxa database.
+
+## Value
+
+Data frame with \`idtax_n\` and \`idtax_accepted\`. Empty when nothing
+can be fetched — the caller then compares the raw ids, which is the
+behaviour it had before.

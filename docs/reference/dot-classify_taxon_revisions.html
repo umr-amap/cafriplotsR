@@ -11,7 +11,7 @@ overwrite — and therefore whether accepting it should be the default."><meta p
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -75,7 +75,9 @@ herbarium number recorded against a revised stem in this census.</p></dd>
 
 
 <dt id="arg-taxa">taxa<a class="anchor" aria-label="anchor" href="#arg-taxa"></a></dt>
-<dd><p>Output of [.fetch_taxon_names()], or `NULL`.</p></dd>
+<dd><p>Output of [.fetch_taxon_names()], or `NULL`. Its
+`idtax_accepted` column, when present, is what tells a synonym apart
+from a redetermination.</p></dd>
 
 
 <dt id="arg-unidentified-idtax">unidentified_idtax<a class="anchor" aria-label="anchor" href="#arg-unidentified-idtax"></a></dt>
@@ -120,7 +122,12 @@ revisions:</p>
     where there was a species — is almost always a data entry regression.
     It defaults to keeping the database value even with no evidence at all,
     and is reported as `precision_lost`.</p></li>
-</ul></div>
+</ul><p>A third case is dropped outright rather than defaulted: when the two ids
+resolve to the same accepted taxon they name the same plant, one of them
+through a synonym. Nothing was redetermined, so there is nothing to ask
+about. This needs `taxa` to carry `idtax_accepted`, which
+[.fetch_taxon_names()] supplies.</p>
+    </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p>[split_census_table()], which produces the drift this consumes.</p></div>

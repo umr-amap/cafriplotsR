@@ -183,6 +183,14 @@ un par un. C’est la contrepartie accessible de
 plus puissante mais qui suppose de savoir déjà dans quelle table vit la
 valeur à changer.
 
+Pour une parcelle, elle gère aussi les personnes de chaque recensement
+(`team_leader`, `additional_people`, …), à la section *4b* : ajoutez-les
+ou retirez-les, puis vérifiez-les et écrivez-les avec vos autres
+modifications à la section *5*. C’est la seule application qui permet de
+changer l’équipe d’un recensement déjà existant. Voir la vignette
+*Mettre à jour les données existantes dans la base de données* pour le
+détail.
+
 ### Import de traits au niveau du taxon
 
 ``` r

@@ -9,7 +9,7 @@ missing grouping after the insert, so it is checked beforehand.
 ## Usage
 
 ``` r
-.validate_multi_stem_grouping(data, con)
+.validate_multi_stem_grouping(data, con, i18n = NULL)
 ```
 
 ## Arguments
@@ -21,6 +21,12 @@ missing grouping after the insert, so it is checked beforehand.
 - con:
 
   Database connection
+
+- i18n:
+
+  Translator object from shiny.i18n, or `NULL` to leave the messages in
+  English. Both callers render them straight into a validation table, so
+  an untranslated one reaches the user as it is written here.
 
 ## Value
 

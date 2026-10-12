@@ -82,10 +82,33 @@ but changes nothing an extraction shows, and the app says so both in the
 section and in the preview. Re-identifying the specimen is done with
 [`launch_specimen_identification_app`](https://umr-amap.github.io/cafriplotsR/reference/launch_specimen_identification_app.md).
 
-Only existing records can be edited. Adding or deleting measurements is
-done with the feature wizard
-([`launch_feature_wizard`](https://umr-amap.github.io/cafriplotsR/reference/launch_feature_wizard.md))
-and the `safe_delete_*` functions.
+Otherwise only existing records can be edited. Adding measurements in
+bulk is done with the feature wizard
+([`launch_feature_wizard`](https://umr-amap.github.io/cafriplotsR/reference/launch_feature_wizard.md)),
+and deleting them with the `safe_delete_*` functions. There are two
+exceptions.
+
+**A missing measurement of an individual.** The individual section can
+add a measurement the individual does not have yet - a diameter missed
+at one census, for instance - one value at a time. The row is built as
+the feature wizard builds it, and refused when the same feature is
+already recorded for that census (edit it instead) or when the value
+lies outside the feature's allowed range. A numeric value lower than at
+an earlier census is accepted with an `issue` saying so. Features that
+describe the tree rather than a census (see `traitlist.census_link`) are
+recorded without one. New measurements are staged, listed in the
+preview, and written by *Apply update* with the other edits.
+
+**Observation features of a plot feature.** A feature record, a census
+most often, can itself be described by rows of `data_subplot_feat` - the
+people of that census (`team_leader`, `additional_people`, ...). The
+plot section lists them for each feature record and lets you add and
+remove them. These rows are never edited in place: replacing a person is
+removing one and adding the other. Additions and removals are staged
+like any other edit, listed in the preview, and written by *Apply
+update* in the same transaction. Outside the app, records are removed
+with
+[`safe_delete_subplot_obs_features`](https://umr-amap.github.io/cafriplotsR/reference/safe_delete_subplot_obs_features.md).
 
 Every write goes through
 [`detect_direct_changes()`](https://umr-amap.github.io/cafriplotsR/reference/detect_direct_changes.md)

@@ -10,7 +10,16 @@ back. For a plot the parent link joins them, written by
 ## Usage
 
 ``` r
-.upd_apply_all(entity, id, values, features, con, link = NULL)
+.upd_apply_all(
+  entity,
+  id,
+  values,
+  features,
+  con,
+  link = NULL,
+  obs = NULL,
+  measures = NULL
+)
 ```
 
 ## Arguments
@@ -40,7 +49,18 @@ back. For a plot the parent link joins them, written by
   Plots only: \`NULL\`, or a list with \`id_parent_plot\` and
   \`parent_relation\` to write as the plot's parent link.
 
+- obs:
+
+  Plots only: \`NULL\`, or the staged observation feature changes (see
+  \[.upd_apply_obs_features()\]).
+
+- measures:
+
+  Individuals only: \`NULL\`, or the staged new measurements (see
+  \[.upd_apply_ind_measures()\]).
+
 ## Value
 
-A list with \`n_direct\`, \`n_feature\` and \`n_link\`: how many values
-were written.
+A list with \`n_direct\`, \`n_feature\`, \`n_link\`, \`n_obs_added\`,
+\`n_obs_removed\` and \`n_measures_added\`: how many values or rows were
+written.

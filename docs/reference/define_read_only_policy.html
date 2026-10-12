@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -79,6 +79,16 @@ These are plots created by OTHER users that this user should also access.</p></d
 - "remove": Remove specified IDs from existing access</p></dd>
 
 </dl></div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Before 2026-09-26 the name overpromised: the underlying
+<code><a href="define_user_policy.html">define_user_policy</a></code> created a SELECT policy but granted
+`SELECT, INSERT, UPDATE, DELETE` at the table level regardless, so an
+account set up this way carried write privileges it was never meant to have.
+The grant now follows `operations`, and this wrapper leaves the account with
+`SELECT` and nothing else. Accounts created before that date may still hold
+the old grant - re-running this function on them removes it.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>

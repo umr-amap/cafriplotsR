@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -429,6 +429,53 @@ automatiquement</strong> les valeurs de référence :</p>
 <span>  execute <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  con <span class="op">=</span> <span class="va">con</span></span>
 <span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="cas-4-les-personnes-dun-recensement-caractéristiques-dobservation">Cas 4 : Les personnes d’un recensement (caractéristiques
+d’observation)<a class="anchor" aria-label="anchor" href="#cas-4-les-personnes-dun-recensement-caract%C3%A9ristiques-dobservation"></a>
+</h3>
+<p>Un recensement est lui-même une caractéristique de la parcelle (une
+ligne de <code>data_liste_sub_plots</code>), et il peut être décrit par
+ses propres caractéristiques : son <code>team_leader</code>, ses
+<code>additional_people</code>, etc. Ces lignes se trouvent un niveau
+plus bas, dans <code>data_subplot_feat</code>, rattachées à
+l’<code>id_sub_plots</code> du recensement. Dans une extraction large,
+elles apparaissent sous forme de colonnes <code>obs_*</code>, qui sont
+des agrégats et ne peuvent pas être réécrites.</p>
+<p><code><a href="../reference/update_records.html">update_records()</a></code> ne couvre pas cette table. Ses lignes
+ne sont jamais modifiées sur place, seulement ajoutées ou retirées :
+remplacer une personne revient à retirer une ligne et à en ajouter une
+autre. Deux façons de le faire.</p>
+<p><strong>Dans l’application (recommandé).</strong> Ouvrez
+<code><a href="../reference/launch_data_update_app.html">launch_data_update_app()</a></code>, chargez la parcelle et allez à la
+section <em>4b. Équipe du recensement et autres observations d’une
+caractéristique</em>. Choisissez le recensement, puis ajoutez des
+personnes ou sélectionnez des lignes à retirer. Les changements sont
+marqués <em>à ajouter</em> ou <em>à retirer</em>. Comme toute autre
+modification, ils sont listés par <em>Aperçu des modifications</em> à la
+section 5 et écrits seulement par <em>Appliquer la mise à jour</em>.</p>
+<p><strong>Depuis R.</strong> Extrayez les lignes au format long,
+choisissez celles à retirer, et supprimez-les avec
+<code><a href="../reference/safe_delete_subplot_obs_features.html">safe_delete_subplot_obs_features()</a></code> :</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">obs</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plot_features.html">query_plot_features</a></span><span class="op">(</span></span>
+<span>  subplot_ids <span class="op">=</span> <span class="fl">15063</span>,</span>
+<span>  format <span class="op">=</span> <span class="st">"long"</span>,</span>
+<span>  include_subplot_obs_features <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  con <span class="op">=</span> <span class="va">con</span></span>
+<span><span class="op">)</span><span class="op">$</span><span class="va">subplot_obs_features</span></span>
+<span></span>
+<span><span class="co"># Une ligne par enregistrement : id_subplot_feat, le recensement, le type, et</span></span>
+<span><span class="co"># pour les personnes le nom dans `colnam` (l'id de la personne est stocké</span></span>
+<span><span class="co"># dans `typevalue`)</span></span>
+<span><span class="va">obs</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"id_subplot_feat"</span>, <span class="st">"subplot_type"</span>, <span class="st">"subplot_year"</span>, <span class="st">"type"</span>, <span class="st">"colnam"</span><span class="op">)</span><span class="op">]</span></span>
+<span></span>
+<span><span class="va">ids_to_remove</span> <span class="op">&lt;-</span> <span class="va">obs</span><span class="op">$</span><span class="va">id_subplot_feat</span><span class="op">[</span><span class="va">obs</span><span class="op">$</span><span class="va">colnam</span> <span class="op">==</span> <span class="st">"Une Personne"</span><span class="op">]</span></span>
+<span></span>
+<span><span class="co"># Simulation d'abord (par défaut), puis suppression</span></span>
+<span><span class="fu"><a href="../reference/safe_delete_subplot_obs_features.html">safe_delete_subplot_obs_features</a></span><span class="op">(</span>id_subplot_feat <span class="op">=</span> <span class="va">ids_to_remove</span>, con <span class="op">=</span> <span class="va">con</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/safe_delete_subplot_obs_features.html">safe_delete_subplot_obs_features</a></span><span class="op">(</span>id_subplot_feat <span class="op">=</span> <span class="va">ids_to_remove</span>,</span>
+<span>                                 con <span class="op">=</span> <span class="va">con</span>, dry_run <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
 </div>
@@ -438,7 +485,7 @@ automatiquement</strong> les valeurs de référence :</p>
 <div class="section level3">
 <h3 id="exemple-1-mettre-à-jour-les-coordonnées-dune-parcelle">Exemple 1 : Mettre à jour les coordonnées d’une parcelle<a class="anchor" aria-label="anchor" href="#exemple-1-mettre-%C3%A0-jour-les-coordonn%C3%A9es-dune-parcelle"></a>
 </h3>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Étape 1 : Interroger la parcelle pour obtenir son ID</span></span>
 <span><span class="va">plot</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_plots.html">query_plots</a></span><span class="op">(</span>plot_name <span class="op">=</span> <span class="st">"ma_parcelle"</span><span class="op">)</span></span>
 <span><span class="va">plot_id</span> <span class="op">&lt;-</span> <span class="va">plot</span><span class="op">$</span><span class="va">id_liste_plots</span></span>
@@ -469,7 +516,7 @@ automatiquement</strong> les valeurs de référence :</p>
 <div class="section level3">
 <h3 id="exemple-2-mettre-à-jour-la-taxonomie-dun-individu">Exemple 2 : Mettre à jour la taxonomie d’un individu<a class="anchor" aria-label="anchor" href="#exemple-2-mettre-%C3%A0-jour-la-taxonomie-dun-individu"></a>
 </h3>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Mettre à jour l'ID taxonomique d'un individu</span></span>
 <span><span class="va">update_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  id_n <span class="op">=</span> <span class="fl">1001</span>,</span>
@@ -486,7 +533,7 @@ automatiquement</strong> les valeurs de référence :</p>
 <div class="section level3">
 <h3 id="exemple-3-mettre-à-jour-des-mesures-de-dhp">Exemple 3 : Mettre à jour des mesures de DHP<a class="anchor" aria-label="anchor" href="#exemple-3-mettre-%C3%A0-jour-des-mesures-de-dhp"></a>
 </h3>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Étape 1 : Obtenir les IDs des mesures pour les valeurs de DHP à mettre à jour</span></span>
 <span><span class="va">measures</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_individual_features.html">query_individual_features</a></span><span class="op">(</span></span>
 <span>  individual_ids <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1001</span>, <span class="fl">1002</span>, <span class="fl">1003</span><span class="op">)</span>,</span>
@@ -515,7 +562,7 @@ automatiquement</strong> les valeurs de référence :</p>
 <h3 id="exemple-4-mettre-à-jour-les-métadonnées-de-mesure-hauteur-pom">Exemple 4 : Mettre à jour les métadonnées de mesure (hauteur
 POM)<a class="anchor" aria-label="anchor" href="#exemple-4-mettre-%C3%A0-jour-les-m%C3%A9tadonn%C3%A9es-de-mesure-hauteur-pom"></a>
 </h3>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Obtenir les IDs des caractéristiques de mesure</span></span>
 <span><span class="va">feat</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/query_traits_measures_features.html">query_traits_measures_features</a></span><span class="op">(</span>id_trait_measures <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">5001</span>, <span class="fl">5002</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
@@ -539,7 +586,7 @@ POM)<a class="anchor" aria-label="anchor" href="#exemple-4-mettre-%C3%A0-jour-le
 </h2>
 <p><strong>Utilisez toujours <code>execute = FALSE</code>
 d’abord</strong> pour prévisualiser les changements :</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Simulation - montre ce qui changerait sans modifier la base de données</span></span>
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/update_records.html">update_records</a></span><span class="op">(</span></span>
 <span>  data <span class="op">=</span> <span class="va">update_data</span>,</span>
@@ -585,6 +632,10 @@ d’abord</strong> pour prévisualiser les changements :</p>
 │   │
 │   └─► NON → D'abord interroger avec query_subplot_features() pour obtenir les IDs
 │
+├─► Est-ce une personne d'un recensement donné (une colonne obs_*) ?
+│   └─► OUI → launch_data_update_app(), section 4b
+│             (ou query_plot_features(format = "long") + safe_delete_subplot_obs_features())
+│
 ├─► Est-ce une métadonnée sur une mesure (pom_height, method, etc.) ?
 │   └─► OUI → table_type = "individual_features_metadata"
 │
@@ -614,6 +665,10 @@ prévisualiser tous les changements</li>
 </li>
 <li>Caractéristiques parcelle (recensement, équipe) →
 <code>table_type = "subplot_features"</code>
+</li>
+<li>Personnes d’un recensement (colonnes <code>obs_*</code>) → section
+4b de <code><a href="../reference/launch_data_update_app.html">launch_data_update_app()</a></code>, pas
+<code><a href="../reference/update_records.html">update_records()</a></code>
 </li>
 </ul>
 </li>

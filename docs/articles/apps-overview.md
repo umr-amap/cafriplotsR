@@ -173,6 +173,13 @@ friendly counterpart to
 which is more powerful but expects you to already know which table a
 value lives in.
 
+For a plot, it also manages the people of each census (`team_leader`,
+`additional_people`, …), in section *4b*: add or remove them, then
+review and write them with the rest of your edits in section *5*. This
+is the only app that can change the team of a census that already
+exists. See the *Updating Existing Data in the Database* vignette for
+details.
+
 ### Taxa-level trait import
 
 ``` r

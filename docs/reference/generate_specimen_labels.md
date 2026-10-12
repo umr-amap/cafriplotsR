@@ -24,6 +24,12 @@ generate_specimen_labels(
   locality_col = "Locality",
   determination_col = "Determination",
   include_determination = FALSE,
+  det_cols = c(by = "detby", day = "detd", month = "detm", year = "dety"),
+  include_date = FALSE,
+  date_cols = c(day = "cold", month = "colm", year = "coly"),
+  extra_cols = NULL,
+  extra_max_lines = 2L,
+  size_extra = 7,
   page_width = 210,
   page_height = 297,
   n_cols = 3L,
@@ -67,14 +73,61 @@ generate_specimen_labels(
 
 - determination_col:
 
-  Character or `NULL`. Optional column holding a determination / revised
-  identification. Only used when `include_determination = TRUE`.
+  Character or `NULL`. Optional column holding ready-made determination
+  text. When it is present in `data`, its non-empty values are printed
+  as-is and take precedence over `det_cols`. Only used when
+  `include_determination = TRUE`.
 
 - include_determination:
 
   Logical. If `TRUE`, an extra line with the determination is inserted
-  below the scientific name. Default `FALSE` (matches the original
-  template, which leaves this field blank).
+  below the scientific name, built from `det_cols` as
+  `"det. <determiner> (<date>)"`, e.g. `"det. G. Dauby (mar 2024)"`,
+  with the date formatted as for `include_date`. Missing parts are
+  dropped and the line is left blank when there is neither a determiner
+  nor a date. Default `FALSE` (matches the original template, which
+  leaves this field blank).
+
+- det_cols:
+
+  Named character vector giving the `by` (determiner), `day`, `month`
+  and `year` columns of the determination. Defaults to the `detby`,
+  `detd`, `detm`, `dety` columns returned by
+  [`query_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/query_specimens.md).
+  A missing column is treated as all `NA`.
+
+- include_date:
+
+  Logical. If `TRUE`, the collection date is appended to the specimen
+  line, in parentheses with a lower-case month abbreviation, e.g.
+  `"IRD plot 2508 (12 mar 2024)"`. Missing parts are dropped:
+  `"(mar 2024)"`, `"(2024)"`; a day without a month is dropped too, and
+  nothing is appended when all three are missing. Default `FALSE`.
+
+- date_cols:
+
+  Named character vector giving the `day`, `month` and `year` columns of
+  the collection date. Defaults to the `cold`, `colm`, `coly` columns
+  returned by
+  [`query_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/query_specimens.md).
+  A missing column is treated as all `NA`; out-of-range days or months
+  are ignored.
+
+- extra_cols:
+
+  Character vector or `NULL`. Additional columns (e.g. `"description"`)
+  each printed in a small font below the locality. Long text is
+  word-wrapped onto at most `extra_max_lines` lines and cropped with
+  `"..."` where it no longer fits. Default `NULL` (no extra lines).
+
+- extra_max_lines:
+
+  Integer. Maximum number of lines per extra column (default 2).
+
+- size_extra:
+
+  Numeric. Font size in points of the extra lines (default 7). Unlike
+  the other lines, extra lines are cropped rather than shrunk to fit.
 
 - page_width, page_height:
 
@@ -156,4 +209,20 @@ df <- data.frame(
 )
 out <- tempfile(fileext = ".pdf")
 generate_specimen_labels(df, out)
+
+# With the collection date and a (cropped) description, using the
+# column names returned by query_specimens()
+df$cold <- c(12, NA)
+df$colm <- c(3, 11)
+df$coly <- c(2024, 2023)
+df$description <- c(
+  "Tree 25 m, bark smooth, slash red with abundant white latex, fruits green",
+  NA
+)
+df$detby <- c("G. Dauby", NA)
+df$detm <- c(5, NA)
+df$dety <- c(2025, NA)
+generate_specimen_labels(df, out, include_date = TRUE,
+                         include_determination = TRUE,
+                         extra_cols = "description")
 ```

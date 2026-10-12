@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Morpho-esp��ces dans cafriplotsR ��� note
+d'impl��mentation</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+  await mermaid.run({ querySelector: "pre.mermaid" });
+  </script>
+  <style>pre.mermaid{background:none;text-align:center} body{max-width:48em}</style>
+</head>
+<body>
+<h1
+id="morpho-espèces-dans-cafriplotsr-note-dimplémentation">Morpho-espèces
+dans cafriplotsR — note d’implémentation</h1>
+<p>Gilles Dauby · 2026-10-07 · note de conception</p>
+<p>Note compagnon de <a
+href="design_note_morpho_species_concept.html">note de concept</a>. En
+résumé : le nom suit la forme Genre spN Auteur, numérotée par auteur ;
+le qualificatif, facultatif (aff. ou sp. nov.), devient une colonne clé
+étrangère vers une petite table de référence dans <code>rainbio</code> ;
+la fiche de la morpho-espèce est une table 1‑1 avec
+<code>table_taxa</code>, placée dans plots_transects ; les utilisateurs
+autorisés à modifier le backbone créent directement les morpho-espèces,
+sous réserve d’une diagnose rédigée ; les critères morphologiques,
+facultatifs, sont des traits de catégorie <code>morphology</code> dans
+<code>traitlist</code>, stockés dans
+<code>taxa_traits_measures</code>.</p>
+<h2 id="point-de-départ-dans-le-code">Point de départ dans le code</h2>
+<p>Le modèle s’appuie sur quatre briques existantes ; la contrainte
+structurante est que taxons et données vivent dans deux bases
+distinctes.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Brique</th>
+<th>Base</th>
+<th>Ce qui existe</th>
+<th>Conséquence pour les morpho-espèces</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>table_taxa</code></td>
+<td><code>rainbio</code></td>
+<td><code>idtax_n</code>, <code>idtax_good_n</code> (synonymie),
+<code>id_parent</code> (hiérarchie), <code>tax_level</code>,
+<code>author1‑3</code>, <code>year_description</code>, flag booléen
+<code>morpho_species</code> ; journal
+<code>followup_updates_table_taxa</code></td>
+<td>La morpho-espèce reste une ligne de <code>table_taxa</code> ; la
+résolution réutilise <code>idtax_good_n</code> ; le flag reste le
+marqueur des morpho-espèces</td>
+</tr>
+<tr class="even">
+<td><code>table_idtax</code></td>
+<td><code>plots_transects</code></td>
+<td>Vue matérialisée <code>idtax_n → idtax_good_n</code> copiée depuis
+<code>rainbio</code>, rafraîchie manuellement</td>
+<td>Toute résolution de morpho-espèce doit déclencher un
+rafraîchissement</td>
+</tr>
+<tr class="odd">
+<td><code>traitlist</code> + <code>taxa_traits_measures</code> (+
+<code>_feat</code>)</td>
+<td><code>plots_transects</code></td>
+<td>Définition des traits (<code>valuetype</code> numeric / categorical
+/ ordinal / character, <code>factorlevels</code>, <code>category</code>,
+bornes, unité) ; mesures par <code>idtax</code> avec
+<code>basisofrecord</code>, <code>measurementremarks</code>,
+<code>reference</code>, localité, date</td>
+<td>Porte les critères morpho sans nouvelle table de mesures</td>
+</tr>
+<tr class="even">
+<td><code>specimens</code> + <code>data_link_specimens</code>,
+<code>table_colnam</code></td>
+<td><code>plots_transects</code></td>
+<td>Spécimen = <code>id_colnam</code> + <code>colnbr</code> (+ suffixe),
+détermination <code>idtax_n</code>, <code>detby</code>,
+<code>dety/m/d</code> ; lien spécimen ↔︎ individu ; personnes dans
+<code>table_colnam</code></td>
+<td>Auteurs pris ici ; les spécimens d’une morpho-espèce sont ceux
+déterminés sous son nom ; le cf. va sur la détermination</td>
+</tr>
+</tbody>
+</table>
+<p>Conséquence : une fiche de morpho-espèce placée dans
+<code>rainbio</code> pointerait vers des spécimens et des personnes de
+<code>plots_transects</code>, sans clé étrangère possible entre bases.
+D’où le choix, détaillé dans Modèle de données, de placer la fiche dans
+<code>plots_transects</code> : il ne reste qu’un lien inter-bases
+(<code>idtax_n</code>), contrôlé en R à l’écriture comme c’est déjà le
+cas pour <code>taxa_traits_measures.idtax</code>.</p>
+<h2 id="qualificatif-attribut-ou-table-de-référence">Qualificatif :
+attribut ou table de référence</h2>
+<p>Recommandation : une table de référence
+<code>table_tax_qualifier</code> dans <code>rainbio</code>, et une
+colonne <code>id_qualifier</code> (clé étrangère, facultative : NULL
+pour un nom accepté, un synonyme ordinaire ou une morpho-espèce sans
+qualificatif) dans <code>table_taxa</code>. C’est le même schéma qu’un
+lookup <code>id_colnam</code>, mais la vraie raison est ailleurs :
+chaque qualificatif déclenche un comportement différent (espèce de
+référence exigée ou non, mode de description, exigences à
+l’enregistrement, format du nom, exportable comme nom valide ou non), et
+ces règles se lisent mieux dans une table que dans des <code>if</code>
+dispersés dans le code.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Option</th>
+<th>Pour</th>
+<th>Contre</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Colonne texte avec
+<code>CHECK (qualifier IN ('aff.','sp. nov.'))</code></td>
+<td>Simple, lisible en SQL brut</td>
+<td>Les règles par qualificatif restent codées en dur en R ; ajouter une
+valeur = migration du <code>CHECK</code></td>
+</tr>
+<tr class="even">
+<td><strong>Table de référence + <code>id_qualifier</code>
+(recommandé)</strong></td>
+<td>Règles stockées avec la valeur ; listes déroulantes Shiny générées
+depuis la table ; ajout d’une valeur sans toucher au code</td>
+<td>Une jointure de plus pour l’affichage (négligeable : la table a 2
+lignes)</td>
+</tr>
+<tr class="odd">
+<td>Plusieurs booléens (<code>is_aff</code>,
+<code>is_spnov</code>…)</td>
+<td>Aucun</td>
+<td>États contradictoires possibles ; à écarter</td>
+</tr>
+</tbody>
+</table>
+<p>Contenu proposé de <code>table_tax_qualifier</code> :</p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+<col style="width: 16%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th><code>qualifier</code></th>
+<th><code>requires_ref_taxon</code></th>
+<th><code>description_mode</code></th>
+<th><code>required_at_save</code></th>
+<th><code>exportable_as_valid</code></th>
+<th><code>display_suffix</code></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>aff.</code></td>
+<td>TRUE</td>
+<td><code>differential</code></td>
+<td>diagnose différentielle + espèce de référence</td>
+<td>FALSE</td>
+<td><code>aff. {ref_esp}</code></td>
+</tr>
+<tr class="even">
+<td><code>sp. nov.</code></td>
+<td>FALSE</td>
+<td><code>absolute</code></td>
+<td>diagnose</td>
+<td>FALSE</td>
+<td><code>sp. nov.</code></td>
+</tr>
+</tbody>
+</table>
+<p>Sans qualificatif, la règle par défaut s’applique : seule la diagnose
+en texte libre est exigée, et les critères éventuels sont saisis en mode
+<code>absolute</code>. Dans tous les cas, les critères morphologiques
+sont facultatifs. <code>check_morpho_completeness()</code> vérifie ces
+règles.</p>
+<h3 id="ce-que-contient-tax_esp">Ce que contient
+<code>tax_esp</code></h3>
+<p>Point délicat : beaucoup de fonctions existantes lisent
+<code>tax_gen</code> + <code>tax_esp</code> (détection de doublons,
+<code>.taxon_level()</code>, appariement de noms). Une morpho-espèce
+doit donc avoir un <code>tax_esp</code> non vide (sinon elle serait
+classée au rang genre) et qui ne puisse jamais être confondu avec un nom
+publié.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Cas</th>
+<th><code>tax_esp</code></th>
+<th><code>author1</code></th>
+<th>Nom affiché (<code>format_taxon_name()</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>sans qualificatif</td>
+<td><code>sp1</code></td>
+<td><code>Dauby</code></td>
+<td><em>Diospyros</em> sp1 Dauby</td>
+</tr>
+<tr class="even">
+<td>aff.</td>
+<td><code>sp1</code></td>
+<td><code>Dauby</code></td>
+<td><em>Diospyros</em> sp1 Dauby aff. <em>iturensis</em></td>
+</tr>
+<tr class="odd">
+<td>sp. nov., sans nom latin</td>
+<td><code>sp2</code></td>
+<td><code>Dauby</code></td>
+<td><em>Diospyros</em> sp2 Dauby sp. nov.</td>
+</tr>
+<tr class="even">
+<td>sp. nov., nom latin choisi</td>
+<td><code>nova</code></td>
+<td><code>Dauby</code></td>
+<td><em>Diospyros nova</em> sp. nov.</td>
+</tr>
+</tbody>
+</table>
+<p><code>tax_esp</code> contient « sp » suivi du numéro, sans espace :
+il ne peut pas être confondu avec une épithète publiée, et un code
+ancien qui ignore <code>id_qualifier</code> affiche quand même, avec
+<code>author1</code>, un nom sans ambiguïté. Le qualificatif n’est plus
+écrit dans <code>tax_esp</code> : il vient de <code>id_qualifier</code>
+et, pour aff., de l’espèce de référence
+(<code>morpho_taxa_compared.is_primary</code>).
+<code>format_taxon_name()</code> assemble le nom complet, et tout
+affichage doit passer par elle. Le choix d’un nom latin pour une sp.
+nov. remplace <code>sp2</code> par l’épithète dans <code>tax_esp</code>
+(l’ancien nom va dans <code>legacy_name</code>) ; <code>idtax_n</code>
+ne change pas. Le risque est alors qu’un code ancien affiche
+<em>Diospyros nova</em> comme un nom accepté, d’où la même règle
+d’affichage. Toute morpho-espèce, avec ou sans qualificatif, peut être
+rattachée à un nom existant par <code>idtax_good_n</code>.</p>
+<p><strong>Numérotation par auteur.</strong> Le numéro est propre au
+premier auteur dans un genre : <em>Diospyros</em> sp1 Dauby et
+<em>Diospyros</em> sp1 Lachenaud coexistent. <code>author1</code> porte
+les auteurs de la morpho-espèce (chaîne abrégée dérivée de
+<code>morpho_taxa_people</code>, jamais l’auteur de l’espèce de
+référence). <code>next_morpho_number()</code> calcule le numéro suivant
+: le plus grand numéro déjà utilisé par ce premier auteur dans ce genre,
+morpho-espèces résolues comprises, plus un ; un numéro n’est donc jamais
+réattribué. Le numéro est conservé dans
+<code>morpho_taxa.morpho_number</code>. Côté <code>rainbio</code>, un
+index unique partiel sur
+<code>(tax_gen, tax_esp, author1) WHERE morpho_species</code> bloque les
+doublons. <code>year_description</code> porte l’année du nom : par
+défaut l’année de création dans la base, modifiable quand la
+morpho-espèce a été décrite avant d’être saisie. Si une morpho-espèce
+change de genre, elle reçoit le numéro suivant dans la série de son
+auteur pour le nouveau genre ; <code>morpho_code</code> ne change
+pas.</p>
+<h3 id="le-flag-morpho_species">Le flag <code>morpho_species</code></h3>
+<p>Il reste le marqueur des morpho-espèces : le qualificatif étant
+facultatif, <code>id_qualifier IS NOT NULL</code> ne suffit pas à les
+reconnaître. <code>backbone_matching.R</code>,
+<code>census_taxon_revision.R</code> et les modules Shiny continuent de
+le lire ; un trigger impose <code>morpho_species = TRUE</code> dès
+qu’une ligne porte un <code>id_qualifier</code>.</p>
+<h3 id="le-cas-de-cf.">Le cas de cf.</h3>
+<p>cf. n’entre pas dans <code>table_tax_qualifier</code> : il qualifie
+une détermination. Il devient une colonne
+<code>identification_qualifier TEXT CHECK (identification_qualifier IN ('cf.'))</code>
+sur <code>specimens</code> et sur la table qui porte la détermination
+des individus, à côté de <code>idtax_n</code>, <code>detby</code>,
+<code>dety</code>. Une seule valeur et aucun comportement associé : un
+<code>CHECK</code> suffit ici, et il vit dans
+<code>plots_transects</code>, là où sont les déterminations. Un individu
+peut ainsi être « cf. <em>Genre</em> aff. <em>iturensis</em> ».</p>
+<h2 id="modèle-de-données">Modèle de données</h2>
+<p>Recommandation : seuls le qualificatif et la résolution restent dans
+<code>rainbio</code>, avec le nom ; la fiche et ses tables satellites
+vont dans <code>plots_transects</code>. Les liens vers
+<code>specimens</code> et <code>table_colnam</code> deviennent de vraies
+clés étrangères, et il ne reste qu’un lien inter-bases
+(<code>idtax_n</code>), exactement comme pour
+<code>taxa_traits_measures</code>. La fiche ne contient aucune
+information géographique : la répartition se déduit des spécimens et des
+individus identifiés sous le nom.</p>
+<pre class="mermaid">flowchart LR
+    subgraph rainbio
+        Q[table_tax_qualifier&lt;br/&gt;aff. / sp. nov. - facultatif]
+        T[table_taxa&lt;br/&gt;+ id_qualifier FK&lt;br/&gt;idtax_good_n = résolution]
+        T --&gt; Q
+    end
+    subgraph plots_transects
+        M[morpho_taxa - fiche&lt;br/&gt;idtax_n, morpho_code, morpho_number&lt;br/&gt;reason, diagnosis obligatoire&lt;br/&gt;created_by, updated_at]
+        P[morpho_taxa_people&lt;br/&gt;→ table_colnam]
+        S[(specimens - existante&lt;br/&gt;déterminés sous idtax_n)]
+        C[morpho_taxa_compared&lt;br/&gt;taxons comparés - aff.]
+        R[morpho_taxa_resolution&lt;br/&gt;résolutions, ajout seul]
+        TR[traitlist + taxa_traits_measures&lt;br/&gt;category = morphology]
+        M --- P
+        M -.-&gt;|idtax_n| S
+        M --- C
+        M --- R
+        M ---|idtax_n| TR
+    end
+    M -.-&gt;|lien inter-bases, contrôlé en R| T</pre>
+<p><em>Modèle de données : la fiche vit avec les données
+(plots_transects), le qualificatif avec le nom (rainbio). Les nouvelles
+tables sont celles préfixées <code>morpho_</code> et
+<code>table_tax_qualifier</code>.</em></p>
+<p>Le pointillé est le seul lien sans clé étrangère ; il est vérifié en
+R à l’écriture et par une fonction de contrôle périodique (fiches
+orphelines, morpho-espèces sans fiche).</p>
+<h3
+id="morpho_taxa-une-ligne-par-morpho-espèce"><code>morpho_taxa</code>
+(une ligne par morpho-espèce)</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Colonne</th>
+<th>Type</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>idtax_n</code></td>
+<td>INTEGER, PK</td>
+<td>Renvoie à <code>table_taxa.idtax_n</code> (rainbio)</td>
+</tr>
+<tr class="even">
+<td><code>morpho_code</code></td>
+<td>TEXT, UNIQUE, NOT NULL</td>
+<td>Code stable <code>MS-0001</code>, généré par séquence, jamais
+réutilisé</td>
+</tr>
+<tr class="odd">
+<td><code>morpho_number</code></td>
+<td>INTEGER, NOT NULL</td>
+<td>Numéro dans la série du premier auteur pour le genre (le N de spN),
+attribué par next_morpho_number(), jamais réattribué</td>
+</tr>
+<tr class="even">
+<td><code>reason</code></td>
+<td>TEXT, CHECK</td>
+<td><code>sterile</code>, <code>unmatched_fertile</code>,
+<code>potential_new</code>, <code>unresolved_complex</code></td>
+</tr>
+<tr class="odd">
+<td><code>diagnosis</code></td>
+<td>TEXT, NOT NULL</td>
+<td>Diagnose en texte libre, obligatoire (différentielle pour aff.)</td>
+</tr>
+<tr class="even">
+<td><code>created_by</code>, <code>created_at</code></td>
+<td>TEXT défaut <code>current_user</code>, TIMESTAMPTZ défaut
+<code>now()</code></td>
+<td>Qui l’a saisie, quand</td>
+</tr>
+<tr class="odd">
+<td><code>updated_at</code></td>
+<td>TIMESTAMPTZ, tenu par trigger</td>
+<td>Dernière modification</td>
+</tr>
+</tbody>
+</table>
+<p>La résolution n’est pas une colonne de la fiche : elle vient de
+<code>morpho_taxa_resolution</code>, et le statut est calculé (voir
+Droits et statut).</p>
+<h3 id="tables-satellites">Tables satellites</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Table</th>
+<th>Colonnes</th>
+<th>Contraintes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>morpho_taxa_people</code></td>
+<td><code>idtax_n</code>, <code>id_colnam</code> (FK
+<code>table_colnam</code>), <code>role</code> (<code>author</code>),
+<code>author_order</code></td>
+<td>PK (<code>idtax_n</code>, <code>id_colnam</code>, <code>role</code>)
+; au moins un <code>author</code> exigé à la création</td>
+</tr>
+<tr class="even">
+<td><code>morpho_taxa_compared</code></td>
+<td><code>idtax_n</code>, <code>idtax_compared</code>,
+<code>is_primary</code>, <code>note</code></td>
+<td>Index unique partiel : une seule espèce <code>is_primary</code> ;
+obligatoire si qualificatif aff.</td>
+</tr>
+<tr class="odd">
+<td><code>morpho_taxa_resolution</code></td>
+<td><code>idtax_n</code>, <code>resolution_type</code>,
+<code>note</code>, <code>decided_by</code>, <code>decided_at</code></td>
+<td>Ajout seul ; <code>decided_by</code> et <code>decided_at</code>
+forcés par trigger</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Pas de table de liaison pour les spécimens, ni de spécimen de
+référence.</strong> La création d’une morpho-espèce n’exige aucun
+spécimen : souvent, elle est créée d’abord, puis des spécimens sont
+déterminés sous ce nom. Les spécimens d’une morpho-espèce se retrouvent
+donc par leur détermination (<code>specimens.idtax_n</code>, résolue par
+<code>table_idtax</code>), sans table dédiée qui ferait doublon. Il n’y
+a pas de spécimen de référence unique : tous les spécimens déterminés
+sous la morpho-espèce la documentent. Faut-il que la description cite
+des spécimens ? La question reste ouverte (note de concept).</p>
+<p><code>created_by</code> et <code>decided_by</code> stockent
+l’utilisateur PostgreSQL connecté (rattachable à
+<code>user_registry</code>), pas une personne de
+<code>table_colnam</code> : ils disent qui a saisi et qui a décidé dans
+la base, alors que <code>morpho_taxa_people</code> dit qui sont les
+auteurs botaniques. Les deux peuvent différer.</p>
+<p>La base ne gère pas d’images : aucun champ média n’est prévu, et ce
+sont les spécimens déterminés sous la morpho-espèce qui servent de
+support de comparaison. Les modifications de ces tables sont
+journalisées dans une table <code>followup_updates_morpho_taxa</code>,
+sur le modèle des <code>followup_updates_*</code> existantes.</p>
+<h2 id="droits-et-statut">Droits et statut</h2>
+<p>Les utilisateurs autorisés à modifier le backbone créent directement
+les morpho-espèces, et une morpho-espèce n’est enregistrée que si sa
+diagnose est rédigée (et, pour une aff., son espèce de référence
+choisie) ; les critères morphologiques restent facultatifs. Le droit est
+celui que l’appli backbone teste déjà, <code>INSERT</code> sur
+<code>table_taxa</code>
+(<code>has_table_privilege(current_user, 'table_taxa', 'INSERT')</code>).
+Aucun rôle PostgreSQL nouveau n’est nécessaire, ce qui convient au
+serveur OVH, où les rôles ne se créent que depuis le portail.</p>
+<ul>
+<li><strong>Droits</strong> :
+<code>grant_morpho_permissions(username)</code>, à ajouter dans
+<code>user_management.R</code>, accorde par <code>GRANT</code>
+<code>INSERT</code> et <code>UPDATE</code> sur <code>morpho_taxa</code>,
+ses tables satellites et <code>taxa_traits_measures</code> aux
+utilisateurs qui ont déjà <code>INSERT</code> sur
+<code>table_taxa</code>. Le propriétaire des tables peut l’accorder,
+comme le fait déjà <code>setup_user()</code>.</li>
+<li><strong>Garde-fou</strong> : <code>add_morpho_taxon()</code> et
+l’assistant Shiny refusent l’enregistrement tant que
+<code>check_morpho_completeness()</code> ne passe pas. C’est la seule
+barrière ; elle est en R, parce que les règles sont dans
+<code>rainbio</code> et les critères dans
+<code>plots_transects</code>.</li>
+<li><strong>Traçabilité</strong> : <code>created_by</code> et
+<code>created_at</code> sur la fiche, journal
+<code>followup_updates_morpho_taxa</code> pour chaque modification,
+trigger <code>BEFORE UPDATE</code> qui tient <code>updated_at</code> à
+jour. Créer ces triggers ne demande que d’être propriétaire des tables ;
+il faut vérifier que <code>plpgsql</code> est disponible sur l’instance
+OVH.</li>
+</ul>
+<h3 id="statut">Statut</h3>
+<p>Le statut n’est pas saisi : une vue <code>v_morpho_taxa_status</code>
+le calcule.</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Statut</th>
+<th>Condition</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>incomplete</code></td>
+<td>Diagnose absente ; n’existe que pour les morpho-espèces reprises de
+l’existant</td>
+</tr>
+<tr class="even">
+<td><code>active</code></td>
+<td>Diagnose rédigée, aucune résolution</td>
+</tr>
+<tr class="odd">
+<td><code>resolved</code></td>
+<td>Une ligne dans <code>morpho_taxa_resolution</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>morpho_taxa_resolution</code> (<code>idtax_n</code>,
+<code>resolution_type</code> CHECK <code>linked</code> /
+<code>merged</code> / <code>published</code> / <code>discarded</code>,
+<code>note</code>, <code>decided_by</code> défaut
+<code>current_user</code>, <code>decided_at</code> défaut
+<code>now()</code>) est une table en ajout seul : ni <code>UPDATE</code>
+ni <code>DELETE</code> ne sont accordés, et un trigger
+<code>BEFORE INSERT</code> force <code>decided_by</code> et
+<code>decided_at</code>. Elle garde ainsi qui a résolu quoi, et
+quand.</p>
+<h3 id="résolution">Résolution</h3>
+<p><code>resolve_morpho_taxon(idtax_n, to_idtax_n = NULL, type = c("linked", "merged", "published"), note)</code>
+:</p>
+<ol type="1">
+<li>Dans <code>rainbio</code> : les trois types posent
+<code>idtax_good_n = to_idtax_n</code>. Pour <code>published</code>,
+<code>to_idtax_n</code> est le nom publié, ajouté au backbone comme
+nouvelle entrée s’il n’y est pas déjà. La ligne de la morpho-espèce
+n’est pas modifiée (nom, auteurs et qualificatif conservés) : par
+exemple, <em>Tessmannia</em> ‘microphylla’ sp. nov. reste dans le
+backbone, synonyme de <em>Tessmannia microphylla</em>.</li>
+<li>Dans <code>plots_transects</code> : une ligne dans
+<code>morpho_taxa_resolution</code>, avec <code>resolution_type</code>
+et une note.</li>
+<li><code>REFRESH MATERIALIZED VIEW table_idtax</code>, pour que les
+individus suivent le nom retenu.</li>
+</ol>
+<p>Les deux bases ne partagent pas de transaction : la fonction exécute
+les étapes dans cet ordre, en <code>dry_run = TRUE</code> par défaut, et
+une fonction de contrôle détecte les états incohérents (fiche
+<code>resolved</code> dont le taxon n’a pas d’<code>idtax_good_n</code>,
+et inversement).</p>
+<h3 id="effet-sur-les-extractions">Effet sur les extractions</h3>
+<p>Les fonctions d’enrichissement taxonomique ajoutent les colonnes
+<code>tax_qualifier</code> et <code>morpho_status</code>. Les fonctions
+de requête gagnent un argument
+<code>morpho = c("all", "complete", "none")</code> : <code>all</code>
+par défaut, avec les fiches incomplètes signalées par
+<code>morpho_status = "incomplete"</code> ; <code>complete</code> les
+écarte ; <code>none</code> remplace les morpho-espèces par leur
+genre.</p>
+<h2 id="critères-morphologiques-via-les-traits">Critères morphologiques
+via les traits</h2>
+<p>Les 52 critères deviennent des lignes de <code>traitlist</code> avec
+<code>category = 'morphology'</code>, et leurs valeurs des lignes de
+<code>taxa_traits_measures</code> ; les fonctions existantes
+(<code>query_taxa_traits()</code>, pivots, import de traits) les lisent
+sans modification. Trois ajouts sont nécessaires : une table de
+configuration, le lien au spécimen et le marqueur diagnostique.</p>
+<h3 id="définition-des-critères">Définition des critères</h3>
+<ul>
+<li><strong>Dans <code>traitlist</code></strong> : un trait par critère,
+nom préfixé (<code>morpho_bark_aspect</code>,
+<code>morpho_slash_colour</code>…), <code>valuetype</code>
+<code>categorical</code> avec les états dans <code>factorlevels</code>,
+<code>numeric</code> avec <code>expectedunit</code> et bornes, ou
+<code>character</code> pour les champs libres courts.</li>
+<li><strong>Critères numériques en min–max</strong> : deux traits
+(<code>morpho_lamina_length_min</code>,
+<code>morpho_lamina_length_max</code>). Plus simple à saisir, à valider
+(min ≤ max) et à comparer qu’une série de mesures dont on déduit
+l’intervalle. Les mesures par spécimen restent possibles plus tard sur
+le trait de base.</li>
+<li><strong>Polymorphisme</strong> : un critère catégoriel à plusieurs
+états = plusieurs lignes de mesure pour le même taxon et le même trait,
+comme pour les formes de croissance aujourd’hui.</li>
+<li><strong>Table <code>morpho_criteria_config</code></strong>
+(<code>id_trait</code>, <code>organ</code>, <code>priority</code> 1–3,
+<code>display_order</code>) dans <code>plots_transects</code> : elle
+porte ce qui est propre à l’usage morpho (regroupement par organe,
+priorité, ordre d’affichage) sans alourdir <code>traitlist</code>, qui
+reste générique. La grille Shiny la lit ; aucun critère n’est exigé à
+l’enregistrement.</li>
+</ul>
+<h3 id="ce-que-porte-chaque-valeur">Ce que porte chaque valeur</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Information</th>
+<th>Où</th>
+<th>Remarque</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Taxon, critère, valeur</td>
+<td><code>idtax</code>, <code>fk_id_trait</code>,
+<code>traitvalue</code> / <code>traitvalue_char</code></td>
+<td>Existant</td>
+</tr>
+<tr class="even">
+<td>Base de l’observation</td>
+<td><code>basisofrecord</code></td>
+<td>Vocabulaire Darwin Core : <code>PreservedSpecimen</code> (herbier),
+<code>HumanObservation</code> (terrain), <code>MaterialCitation</code>
+(flore, littérature)</td>
+</tr>
+<tr class="odd">
+<td>Spécimen observé</td>
+<td>nouvelle colonne <code>id_specimen</code> (FK
+<code>specimens</code>, nullable)</td>
+<td>Recommandé plutôt qu’un trait de <code>_feat</code> : vraie clé
+étrangère, et utile au-delà des morpho-espèces</td>
+</tr>
+<tr class="even">
+<td>Critère diagnostique (aff.)</td>
+<td>feature <code>morpho_diagnostic</code> dans
+<code>taxa_traits_measures_feat</code></td>
+<td>Marque les critères déclarés comme différentiels ; pas de changement
+de schéma</td>
+</tr>
+<tr class="odd">
+<td>Source bibliographique</td>
+<td><code>reference</code></td>
+<td>Pour les valeurs de l’espèce de référence reprises d’une flore</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mode-différentiel-pour-aff.">Mode différentiel pour aff.</h3>
+<p>On stocke toujours des valeurs absolues, jamais une différence : pour
+<em>Genre</em> aff. <em>iturensis</em>, la ligne dit « limbe 18–25 cm »,
+pas « plus grand ». Le sens de la différence est calculé à l’affichage
+en comparant aux valeurs de l’espèce de référence
+(<code>morpho_taxa_compared.is_primary</code>). Conséquences :</p>
+<ol type="1">
+<li>Pour une aff., seuls les critères différentiels sont saisis et
+marqués <code>morpho_diagnostic</code> ; un critère absent est affiché «
+comme la référence ».</li>
+<li>Si l’espèce de référence n’a pas de valeurs dans la base, la grille
+propose de les saisir aussi, sur l’espèce nommée, avec
+<code>basisofrecord = 'MaterialCitation'</code> et la flore en
+<code>reference</code>. La base s’enrichit au passage de descriptions
+d’espèces publiées.</li>
+<li>Le jour où l’aff. devient sp. nov., la description est complétée en
+mode absolu sur les mêmes lignes, sans conversion.</li>
+</ol>
+<h2 id="reprise-des-morpho-espèces-existantes">Reprise des
+morpho-espèces existantes</h2>
+<p>Le cache local du référentiel (copie de <code>table_taxa</code>,
+environ le 25 septembre 2026, 365 106 taxons) contient environ 500 noms
+informels, rangés ci-dessous en 14 formes de nom. Le volume est modeste
+; le vrai problème est l’hétérogénéité de l’écriture, une vingtaine de
+conventions coexistant. Pour environ 330 noms, le qualificatif cible se
+déduit du nom par script ; c’est le cas des 164 sp. nov. sans nom latin,
+qui sont des espèces nouvelles potentielles et restent sp. nov. Environ
+120 noms demandent une revue, dont l’ampleur réelle dépend de l’usage de
+chaque taxon. Le cache ne contient ni le flag
+<code>morpho_species</code>, ni l’usage (individus, spécimens) : ces
+deux informations demandent la base.</p>
+<h3 id="ce-quon-observe-déjà">Ce qu’on observe déjà</h3>
+<p>Détection par expressions régulières sur <code>tax_esp</code> et
+<code>tax_gen</code> (hybrides « × » et cultivars exclus). La liste
+complète, une ligne par taxon avec sa forme, est dans
+<code>morpho_existants_cache_2026-09.csv</code> à la racine du
+package.</p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Forme du nom</th>
+<th>Taxons</th>
+<th>Exemples</th>
+<th>Qualificatif cible</th>
+<th>Traitement</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>sp. nov. + nom latin</td>
+<td>7</td>
+<td><em>Guarea tripelata</em> sp. nov. ; <em>Angraecum biteaui</em> sp.
+nov. ined.</td>
+<td>sp. nov., nom latin choisi (<code>tax_esp</code> = épithète
+seule)</td>
+<td>Script, contrôle rapide</td>
+</tr>
+<tr class="even">
+<td>sp. nov. + aff. / near</td>
+<td>29</td>
+<td><em>Alchornea</em> sp.nov. near <em>hirtella</em> ;
+<em>Polystachya</em> aff. <em>kubale</em> sp. nov.</td>
+<td>sp. nov. ; l’espèce citée devient l’espèce comparée principale</td>
+<td>Semi-automatique : espèce extraite du nom et appariée au
+backbone</td>
+</tr>
+<tr class="odd">
+<td>sp. nov. + collecteur, localité ou description</td>
+<td>91</td>
+<td><em>Hermannia</em> spec.nov. =Friis 2977 ; <em>Impatiens</em> spec.
+nov. (Chaillu) ; <em>Palisota</em> spec.nov. gabon-decumbent</td>
+<td>sp. nov. sans nom latin</td>
+<td>Script : auteur repris, numéro attribué dans sa série ; l’ancien
+libellé va dans <code>legacy_name</code></td>
+</tr>
+<tr class="even">
+<td>sp. nov. numéroté</td>
+<td>39</td>
+<td><em>Keetia</em> spec.nov.1 ; <em>Psychotria</em> sp.nov.10</td>
+<td>sp. nov. sans nom latin</td>
+<td>Script : numéro conservé s’il est libre dans la série de l’auteur,
+sinon renuméroté ; ancien nom dans <code>legacy_name</code></td>
+</tr>
+<tr class="odd">
+<td>sp. nov. nu</td>
+<td>34</td>
+<td><em>Microcoelia</em> sp. nov. ; <em>Salacia</em> sp. nov.</td>
+<td>sp. nov. sans nom latin</td>
+<td>Script + complément : auteur à attribuer, puis numéro dans sa
+série</td>
+</tr>
+<tr class="even">
+<td>aff.</td>
+<td>76</td>
+<td><em>Cola</em> aff nitida ; <em>Garcinia</em> sp11 aff conrauana ;
+<em>Keetia</em> sp. aff. molundensis</td>
+<td>aff.</td>
+<td>Semi-automatique : espèce de référence extraite et appariée au
+backbone</td>
+</tr>
+<tr class="odd">
+<td>sp. + numéro + localité</td>
+<td>54</td>
+<td><em>Millettia</em> sp1 sanaga ; <em>Xylopia</em> sp1 Sanaga</td>
+<td>morpho-espèce sans qualificatif</td>
+<td>Script : numéro conservé ou renuméroté dans la série de l’auteur ;
+la localité va dans <code>legacy_name</code></td>
+</tr>
+<tr class="even">
+<td>sp. + numéro</td>
+<td>30</td>
+<td><em>Artabotrys</em> sp.2 ; <em>Ardisia</em> sp. no 3</td>
+<td>morpho-espèce sans qualificatif</td>
+<td>Revue (doublons possibles entre sites)</td>
+</tr>
+<tr class="odd">
+<td>sp. + lettre (style flores)</td>
+<td>45</td>
+<td><em>Chisocheton</em> species a ; <em>Aporosa</em> spec. c</td>
+<td>morpho-espèce sans qualificatif</td>
+<td>Revue ; souvent issus de flores, spécimens cités retrouvables</td>
+</tr>
+<tr class="even">
+<td>sp. seul</td>
+<td>15</td>
+<td><em>Anthocleista</em> sp ; <em>Tetraria</em> sp.</td>
+<td>pas une morpho-espèce : identification au genre</td>
+<td>Script : rattachement au genre</td>
+</tr>
+<tr class="odd">
+<td>cf. ou « ? »</td>
+<td>27</td>
+<td><em>Sterculia</em> cf. pruriens ; <em>Cassia leiandra</em> ?</td>
+<td>pas une morpho-espèce : déterminations incertaines</td>
+<td>Script : rattachement au taxon nommé,
+<code>identification_qualifier = 'cf.'</code> sur les
+déterminations</td>
+</tr>
+<tr class="even">
+<td>genre inconnu</td>
+<td>10</td>
+<td>Rub unknown sp.1 ; unknown GD2639</td>
+<td>morpho-genre (question ouverte)</td>
+<td>Décision à prendre</td>
+</tr>
+<tr class="odd">
+<td>codes de terrain</td>
+<td>21</td>
+<td><em>Dactyladenia</em> 13b1, 26a, 28d ; <em>Drypetes</em> 1
+MtMbilan</td>
+<td>morpho-espèce sans qualificatif</td>
+<td>Revue (codes d’une révision en cours ?)</td>
+</tr>
+<tr class="even">
+<td>autres sp. (section, description)</td>
+<td>22</td>
+<td><em>Bulbophyllum</em> sp. (Desmosanthes) ; <em>Phreatia</em> sp.
+sbgo 3330</td>
+<td>morpho-espèce sans qualificatif</td>
+<td>Revue</td>
+</tr>
+</tbody>
+</table>
+<p>Trois constats complètent le tableau :</p>
+<ul>
+<li><strong><code>author1</code> n’a pas de sens stable.</strong> Pour
+<em>Millettia</em> sp1 sanaga, c’est l’auteur de la morpho-espèce
+(Djonko) ; pour <em>Keetia</em> sp. aff. molundensis, c’est l’auteur de
+l’espèce de référence ((K.Krause) Bridson). La reprise doit déplacer les
+auteurs de morpho-espèces vers <code>morpho_taxa_people</code> et vider
+<code>author1</code> quand il appartient à l’espèce de référence, puis y
+écrire les auteurs de la morpho-espèce ; year_description reçoit l’année
+du nom, à défaut l’année de création du taxon dans la base.</li>
+<li><strong>Seuls 11 de ces taxons sont déjà synonymes</strong>
+(<code>idtax_good_n</code> renseigné) : la quasi-totalité reste à
+traiter.</li>
+<li><strong>Les familles les plus concernées</strong> sont les
+<em>Rubiaceae</em> (61), les <em>Fabaceae</em> (55), les
+<em>Orchidaceae</em> (41), puis les <em>Sapindaceae</em>,
+<em>Euphorbiaceae</em> et <em>Sapotaceae</em> (environ 20 chacune).
+Elles se prêtent à une revue par lots, famille par famille.</li>
+</ul>
+<p>Ce repérage par la forme du nom a deux limites, que seule la base
+peut lever : un morpho-taxon au nom d’apparence normale passe inaperçu,
+et un nom informel n’est pas forcément marqué
+<code>morpho_species</code>. Le diagnostic doit croiser les deux
+listes.</p>
+<p>Le code d’import OpenForis
+(<code>openforis_new_plot_processing.R</code>) fabrique le nom en
+accolant l’identification de terrain et l’étiquette morpho de la
+campagne (« <em>Drypetes</em> sp. » + « sp1 »). Ces étiquettes sont
+locales à une campagne : deux « <em>Drypetes</em> sp1 » de deux sites
+peuvent être deux taxons différents, et inversement un même taxon peut
+porter deux étiquettes. Enfin, le taxon d’un individu peut venir de deux
+sources, sa propre détermination (<code>data_individuals.idtax_n</code>)
+ou celle du spécimen lié (<code>idtax_individual_f</code>) ; le
+diagnostic doit compter les deux.</p>
+<h3 id="étape-0-diagnostic-en-lecture-seule">Étape 0 : diagnostic en
+lecture seule</h3>
+<p>Une fonction <code>diagnose_morpho_taxa()</code> produit un tableau,
+une ligne par morpho-taxon existant, avec :</p>
+<ul>
+<li>la forme du nom (colonne <code>cat</code> du fichier CSV) ;</li>
+<li>le statut de synonymie (<code>idtax_good_n</code> renseigné ou non)
+;</li>
+<li>le nombre d’individus (par les deux voies), de parcelles, de pays et
+de recensements où il apparaît ;</li>
+<li>le nombre de spécimens déterminés sous ce nom, et parmi eux ceux
+déposés en herbier ;</li>
+<li>le nombre de mesures de traits ;</li>
+<li>les autres morpho-taxons du même genre présents dans les mêmes pays
+(doublons possibles entre sites).</li>
+</ul>
+<p>Les formes de nom sont déjà classées (tableau ci-dessus). Côté
+<code>rainbio</code>, il reste à croiser ce classement avec le flag
+:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>flag <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">as.data.table</span>(DBI<span class="sc">::</span><span class="fu">dbGetQuery</span>(con_taxa,</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;SELECT idtax_n, morpho_species FROM table_taxa&quot;</span>))</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>forms <span class="ot">&lt;-</span> data.table<span class="sc">::</span><span class="fu">fread</span>(<span class="st">&quot;morpho_existants_cache_2026-09.csv&quot;</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>check <span class="ot">&lt;-</span> <span class="fu">merge</span>(flag[morpho_species <span class="sc">==</span> <span class="cn">TRUE</span>], forms, <span class="at">by =</span> <span class="st">&quot;idtax_n&quot;</span>, <span class="at">all =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># flagués sans forme reconnue  -&gt; morpho-taxons au nom d&#39;apparence normale</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co"># forme reconnue sans flag      -&gt; noms informels non marqués</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>check[, .N, by <span class="ot">=</span> .(<span class="at">flagged =</span> <span class="sc">!</span><span class="fu">is.na</span>(morpho_species), <span class="at">form =</span> <span class="sc">!</span><span class="fu">is.na</span>(cat))]</span></code></pre></div>
+<p>Les comptages d’usage réutilisent la logique qui calcule
+<code>idtax_individual_f</code> dans <code>functions_manip_db.R</code>,
+plutôt qu’une requête SQL réécrite à part. Le classement des formes de
+nom est un point de départ : quelques cas limites seront à reclasser à
+la main pendant la revue.</p>
+<h3 id="tri-en-catégories">Tri en catégories</h3>
+<p>La forme du nom donne le qualificatif cible ; l’usage donne la
+priorité et l’effort. Le tri croise les deux :</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Catégorie</th>
+<th>Critère de tri</th>
+<th>Traitement</th>
+<th>Qui</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>A — déjà résolues</td>
+<td><code>idtax_good_n</code> renseigné (11 dans le cache)</td>
+<td>Qualificatif posé, résolution <code>linked</code> importée par
+script ; pas de fiche à remplir</td>
+<td>Script</td>
+</tr>
+<tr class="even">
+<td>B — pas des morpho-espèces</td>
+<td>sp. seul, cf., « ? » (42 dans le cache)</td>
+<td>Rattachement au genre ou au taxon nommé ; cf. reporté sur les
+déterminations</td>
+<td>Script + contrôle</td>
+</tr>
+<tr class="odd">
+<td>C — orphelines</td>
+<td>Aucun individu, aucun spécimen, aucun trait</td>
+<td>Liste soumise pour décision : résolution <code>discarded</code>
+(réservée à la reprise) ou conservation</td>
+<td>Script + décision</td>
+</tr>
+<tr class="even">
+<td>D — forme décidable</td>
+<td>Toutes les sp. nov. (avec ou sans nom latin), aff., sp. + numéro +
+localité (environ 330 dans le cache)</td>
+<td>Qualificatif et espèce de référence posés par script ; fiche
+<code>incomplete</code> à compléter (auteurs et diagnose ; critères si
+disponibles)</td>
+<td>Script + complément</td>
+</tr>
+<tr class="odd">
+<td>E — à revoir</td>
+<td>sp. + numéro ou lettre, codes de terrain, autres (environ 120 dans
+le cache)</td>
+<td>Revue experte : qualificatif, auteurs, fusion des doublons entre
+sites</td>
+<td>Experts du groupe, par lots</td>
+</tr>
+<tr class="even">
+<td>F — genre inconnu</td>
+<td>10 dans le cache</td>
+<td>Selon la décision sur les morpho-genres</td>
+<td>À trancher</td>
+</tr>
+</tbody>
+</table>
+<p>Seule E demande du temps d’expert, et D un complément de fiche. Elles
+se traitent famille par famille dans <code>mod_morpho_review</code>, en
+commençant par les taxons qui ont le plus d’individus, puisque ce sont
+eux qui pèsent dans les analyses. Le volume de D et E et le temps par
+taxon ne sont pas estimables sans le diagnostic : un premier lot pilote
+sur un genre riche en morpho-taxons donnera le temps moyen par taxon et
+permettra de chiffrer le reste.</p>
+<h3 id="ce-quil-faut-ajouter-au-modèle-pour-la-reprise">Ce qu’il faut
+ajouter au modèle pour la reprise</h3>
+<ul>
+<li><strong><code>legacy_name</code></strong> dans
+<code>morpho_taxa</code> : l’ancien nom (« <em>Anthonotha</em> sp1
+Bouamir ») reste consultable et utilisable pour retrouver les jeux de
+données déjà exportés ou publiés sous ce nom. Le renommage ne change pas
+<code>idtax_n</code>, donc les individus ne sont pas touchés.</li>
+<li><strong><code>discarded</code></strong> comme type de résolution,
+réservé aux orphelines de la catégorie C.</li>
+<li><strong>Table <code>morpho_field_alias</code></strong>
+(<code>label</code>, campagne ou site, <code>idtax_n</code>) : elle fait
+correspondre les étiquettes de terrain (« sp1 » d’une campagne
+OpenForis) à une morpho-espèce existante. L’import OpenForis s’en sert
+au lieu de créer un nouveau taxon à chaque campagne, ce qui évite de
+recréer le problème après la reprise.</li>
+</ul>
+<h2 id="fonctions-r-modules-shiny-et-migration">Fonctions R, modules
+Shiny et migration</h2>
+<p>Toutes les fonctions qui écrivent suivent les conventions du package
+: <code>dry_run = TRUE</code> par défaut, sauvegarde avant modification,
+data.table pour les manipulations, journalisation dans les
+<code>followup_updates_*</code>.</p>
+<h3 id="fonctions-r">Fonctions R</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Fonction</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>add_morpho_taxon()</code></td>
+<td>Crée la ligne <code>table_taxa</code> (via
+<code>.add_taxa_noninteractive()</code>), la fiche, les satellites et
+les critères en un appel ; attribue le numéro par
+<code>next_morpho_number()</code> et construit <code>tax_esp</code> ;
+refuse si <code>check_morpho_completeness()</code> échoue</td>
+</tr>
+<tr class="even">
+<td><code>next_morpho_number()</code></td>
+<td>Numéro suivant pour un genre et un premier auteur, morpho-espèces
+résolues comprises</td>
+</tr>
+<tr class="odd">
+<td><code>format_taxon_name()</code></td>
+<td>Nom d’affichage unique, qualificatif compris ; à utiliser partout à
+la place de <code>paste(tax_gen, tax_esp)</code></td>
+</tr>
+<tr class="even">
+<td><code>get_morpho_fiche()</code></td>
+<td>Renvoie la fiche complète (liste : fiche, auteurs, spécimens, taxons
+comparés, critères par organe)</td>
+</tr>
+<tr class="odd">
+<td><code>compare_morpho_taxa()</code></td>
+<td>Tableau large critère × taxon pour 2 à 4 taxons, avec le sens des
+différences</td>
+</tr>
+<tr class="even">
+<td><code>find_morpho_candidates()</code></td>
+<td>Morpho-espèces d’un genre compatibles avec quelques critères
+observés (petite clé multi-accès)</td>
+</tr>
+<tr class="odd">
+<td><code>list_genus_morpho()</code></td>
+<td>Morpho-espèces d’un genre avec auteurs, année, qualificatif, statut,
+nombre de spécimens et d’individus identifiés ; alimente l’assistant de
+création</td>
+</tr>
+<tr class="even">
+<td><code>check_morpho_completeness()</code></td>
+<td>Vérifie la présence de la diagnose (et de l’espèce de référence pour
+une aff.) ; renvoie ce qui manque</td>
+</tr>
+<tr class="odd">
+<td><code>resolve_morpho_taxon()</code></td>
+<td>Résolution sur les deux bases + rafraîchissement de
+<code>table_idtax</code></td>
+</tr>
+<tr class="even">
+<td><code>check_morpho_integrity()</code></td>
+<td>Contrôles inter-bases : fiches orphelines, morpho-espèces sans
+fiche, résolutions incohérentes</td>
+</tr>
+<tr class="odd">
+<td><code>export_morpho_fiche()</code></td>
+<td>Fiche HTML/PDF (et tableur pour une liste)</td>
+</tr>
+<tr class="even">
+<td><code>grant_morpho_permissions()</code></td>
+<td>Accorde ou retire par <code>GRANT</code> l’écriture sur les tables
+morpho, aux utilisateurs qui ont déjà <code>INSERT</code> sur
+<code>table_taxa</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="modules-shiny-appli-backbone">Modules Shiny (appli
+backbone)</h3>
+<ul>
+<li><strong>Nouveaux</strong> : <code>mod_morpho_add</code> (assistant :
+dès le choix du genre, il liste les morpho-espèces existantes de ce
+genre avec nom, auteurs, année, qualificatif, statut, nombre de
+spécimens et d’individus identifiés, avec accès à leur fiche et à la
+comparaison ; réutilise <code>mod_specimen_lookup</code> et la recherche
+de taxons), <code>mod_morpho_view</code> (fiche),
+<code>mod_morpho_compare</code>, <code>mod_morpho_review</code> (liste
+des fiches incomplètes de la reprise, à compléter famille par famille).
+Les onglets d’écriture n’apparaissent que si
+<code>has_table_privilege(current_user, 'table_taxa', 'INSERT')</code>,
+comme aujourd’hui.</li>
+<li><strong>Modifiés</strong> : <code>mod_taxa_add</code> (la case «
+Morphotaxon » renvoie vers l’assistant), <code>mod_taxa_update</code>
+(le bouton bascule <code>morpho_species</code> reste, et un sélecteur de
+qualificatif facultatif s’y ajoute), <code>mod_taxa_search</code>
+(affiche qualificatif et statut).</li>
+</ul>
+<h3 id="plan-de-migration">Plan de migration</h3>
+<p>Une branche de fonctionnalité par étape, chacune livrable seule :</p>
+<ol type="1">
+<li><strong>rainbio</strong> — <code>table_tax_qualifier</code>, colonne
+<code>id_qualifier</code>, trigger de synchronisation de
+<code>morpho_species</code>. Précédé du diagnostic en lecture seule
+(voir Reprise des morpho-espèces existantes).</li>
+<li><strong>plots_transects</strong> — tables <code>morpho_taxa*</code>
+(dont <code>morpho_taxa_resolution</code>), vue
+<code>v_morpho_taxa_status</code>, <code>morpho_criteria_config</code>,
+colonne <code>taxa_traits_measures.id_specimen</code>, triggers
+d’horodatage, <code>GRANT</code> aux utilisateurs du backbone, journal ;
+chargement des 52 critères dans <code>traitlist</code>.</li>
+<li><strong>Fonctions R</strong> et tests (<code>testthat</code>), y
+compris les refus faute de droits et faute de diagnose.</li>
+<li><strong>Modules Shiny</strong>.</li>
+<li><strong>Fiches pour les morpho-espèces existantes</strong> :
+catégories A à D par script, catégorie E en revue experte par lots,
+famille par famille ; adaptation de l’import OpenForis à
+<code>morpho_field_alias</code>.</li>
+<li><strong>Bascule</strong> : fonctions de requête avec l’argument
+<code>morpho</code>, <code>backbone_matching.R</code> et
+<code>census_taxon_revision.R</code> adaptés à <code>id_qualifier</code>
+et à la nouvelle forme des noms. <code>morpho_species</code> est
+conservé comme marqueur.</li>
+<li><strong>Ajout de <code>identification_qualifier</code></strong>
+(cf.) sur les déterminations ; indépendant, peut se faire à tout
+moment.</li>
+</ol>
+<h3 id="points-à-trancher-avant-de-coder">Points à trancher avant de
+coder</h3>
+<ul class="task-list">
+<li><label><input type="checkbox" checked="" />Critères numériques :
+paire de traits <code>_min</code> / <code>_max</code> (proposé) ou
+mesures par spécimen.</label></li>
+<li><label><input type="checkbox" checked="" />Liste exacte des tables
+portant la détermination des individus, pour y ajouter
+<code>identification_qualifier</code>.</label></li>
+</ul>
+</body>
+</html>

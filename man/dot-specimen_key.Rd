@@ -4,7 +4,7 @@
 \alias{.specimen_key}
 \title{Compare a specimen number as text, whatever column type it arrived in}
 \usage{
-.specimen_key(x)
+.specimen_key(id_colnam, colnbr, suffix = NULL)
 }
 \arguments{
 \item{x}{Vector of specimen numbers.}

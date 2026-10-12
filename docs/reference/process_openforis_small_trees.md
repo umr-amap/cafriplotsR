@@ -39,7 +39,10 @@ process_openforis_small_trees(
   census = 1,
   plot_name_digits = 3L,
   plot_name_map = NULL,
+  plot_suffix = "_smalltree",
   quadrat_sep = "_",
+  quadrat_decisions = NULL,
+  mismatch_file = NULL,
   dbh_max = 10,
   specimen_prefix = NULL,
   specimen_remap_file = NULL,
@@ -100,16 +103,17 @@ process_openforis_small_trees(
 
   Path to the code list of the 20 x 20 m quadrats of the parent plot
   (`code_quadrat.csv`: codes 1-25, labels `"0_0"`, `"20_20"`, ...).
-  Decodes the `quadrat` column of `plot.xlsx` and so names the plots
-  this function creates. NULL to auto-detect, FALSE to keep the raw
-  codes.
+  Decodes the `quadrat` column of `plot.xlsx`, the first part of the
+  `quadrat` feature of each individual. NULL to auto-detect, FALSE to
+  keep the raw codes.
 
 - subquadrat_codes:
 
   Path to the code list of the 10 x 10 m sub-quadrats
   (`code_subquadrat_smalltree.csv`: codes 1-4, labels A-D). Decodes the
-  `quadrat` column of `tree_list.xlsx` into the `quadrat` feature of
-  each individual. NULL to auto-detect, FALSE to keep the raw codes.
+  `quadrat` column of `tree_list.xlsx`, the second part of the `quadrat`
+  feature of each individual. NULL to auto-detect, FALSE to keep the raw
+  codes.
 
 - forest_state_codes, forest_type_codes, country_codes,
   team_leader_codes:
@@ -119,9 +123,9 @@ process_openforis_small_trees(
 
 - method:
 
-  Character. Plot method for the quadrats. Not present in the OpenForis
-  export — supply it here. Required by the Import Wizard, so a warning
-  is raised when it is missing. NULL to omit.
+  Character. Plot method for the small-tree plots. Not present in the
+  OpenForis export — supply it here. Required by the Import Wizard, so a
+  warning is raised when it is missing. NULL to omit.
 
 - province:
 
@@ -134,8 +138,9 @@ process_openforis_small_trees(
 
 - quadrat_area:
 
-  Numeric. Area of one quadrat in hectares, written to
-  `plots$plot_area`. Default `0.04` (a 20 x 20 m quadrat). NULL to omit.
+  Numeric. Area of one quadrat in hectares. Default `0.04` (a 20 x 20 m
+  quadrat). `plots$plot_area` is this times the number of quadrats
+  sampled in the plot. NULL to omit.
 
 - country:
 
@@ -181,10 +186,37 @@ process_openforis_small_trees(
   the raw value before padding and winning over it (e.g.
   `c("Mbalmayo-09" = "mbalmayo009")`). NULL for none.
 
+- plot_suffix:
+
+  Character appended to the parent plot name to name the small-tree plot
+  (default `"_smalltree"`). It may not end with a digit, which
+  [`.normalise_plot_name()`](https://umr-amap.github.io/cafriplotsR/reference/dot-normalise_plot_name.md)
+  would take for the plot number.
+
 - quadrat_sep:
 
-  Character inserted between the parent plot name and the quadrat label
-  (default `"_"`).
+  Character joining the parts of a quadrat identifier: the parent plot
+  name and the quadrat label in the review tables
+  (`"mbalmayo001_20_20"`), and the quadrat label and the sub-quadrat in
+  the `quadrat` feature (`"20_20_A"`). Default `"_"`.
+
+- quadrat_decisions:
+
+  The reviewed `name_mismatches` table, as a data frame or the path of
+  an xlsx, or NULL to keep the tag quadrat for every stem. Needs
+  `parent_plot_name`, `tag` and `keep` (`"tag"` or `"name"`; blank
+  counts as `"tag"`), and uses `quadrat_by_name` when present, plus
+  `plot_name_raw` to tell apart two stems sharing a tag. A relative path
+  is taken inside `data_dir` when it is set. See the section "Deciding a
+  mismatch".
+
+- mismatch_file:
+
+  Path of an xlsx to write `name_mismatches` to, for review, or NULL. A
+  relative path is taken inside `data_dir` when it is set. Nothing is
+  written when there is no mismatch. Output only: to apply an edited
+  file, pass it as `quadrat_decisions` (both may name the same file,
+  which is then rewritten with what was applied).
 
 - dbh_max:
 
@@ -253,24 +285,28 @@ A list with components:
 
 - plots:
 
-  Tibble, one row per sampled quadrat, ready to upload to the Import
-  Wizard as inventory metadata: plot_name (`<parent>_<quadrat>`),
-  parent_plot_name, quadrat, country, province, method, locality_name,
-  plot_area, data_provider, team_leader, principal_investigator,
-  data_manager, additional_people, identified_by, forest_state,
-  forest_type, date_y, date_m, date_d, census.
+  Tibble, one row per small-tree plot (one per parent plot), ready to
+  upload to the Import Wizard as inventory metadata: plot_name
+  (`<parent><plot_suffix>`), parent_plot_name, parent_relation, quadrats
+  (the sampled quadrat labels), country, province, method,
+  locality_name, plot_area, data_provider, team_leader,
+  principal_investigator, data_manager, additional_people,
+  identified_by, forest_state, forest_type, date_y, date_m, date_d,
+  census.
 
 - quadrats:
 
-  Tibble, the same units with the numbers used to assign stems to them —
-  firsttag, the tag range actually observed, the stem count, and the raw
-  `plot_plot_name_old` spellings that fell in the range. A review table,
-  not an upload.
+  Tibble, one row per sampled quadrat: the small-tree plot_name it
+  belongs to, its quadrat_unit identifier (`<parent>_<quadrat>`), and
+  the numbers used to assign stems to it — firsttag, the tag range
+  actually observed, the stem count, and the raw `plot_plot_name_old`
+  spellings that fell in the range. A review table, not an upload.
 
 - individuals:
 
-  Tibble of every stem: plot_name (the quadrat), parent_plot_name, tag,
-  quadrat (the 10 x 10 m sub-quadrat A-D), original_tax_name, idtax_n,
+  Tibble of every stem: plot_name (the small-tree plot),
+  parent_plot_name, tag, quadrat (the 20 x 20 m quadrat and the 10 x 10
+  m sub-quadrat, e.g. `"20_20_A"`), original_tax_name, idtax_n,
   tax_appendix, herbarium_nbe_char, herbarium_nbe_type, position_x,
   position_y, multi_stem, number_multi_stem, multi_tiges_id (tag of the
   main stem, NA for the main stem itself). The two position columns are
@@ -309,8 +345,11 @@ A list with components:
 - name_mismatches:
 
   Tibble of stems whose `plot_plot_name_old` spelling puts them in a
-  different quadrat than their tag does, or NULL. The tag wins; these
-  rows are for review.
+  different quadrat than their tag does, or NULL: plot_name_raw,
+  parent_plot_name, plot_name, tag, species_scientific_name,
+  quadrat_by_tag, quadrat_by_name and keep (the side used, `"tag"`
+  unless `quadrat_decisions` says otherwise). Edit `keep` and pass it
+  back as `quadrat_decisions`.
 
 - unassigned_stems:
 
@@ -321,7 +360,7 @@ A list with components:
 
 - duplicated_stems:
 
-  Tibble of rows sharing a quadrat + tag pair, or NULL. A
+  Tibble of rows sharing a plot + tag pair, or NULL. A
   [`warning()`](https://rdrr.io/r/base/warning.html) is also raised.
 
 - oversized_stems:
@@ -335,15 +374,17 @@ A list with components:
 
 ## Details
 
-Each sampled quadrat becomes \*\*its own plot\*\*, named
-`<parent plot>_<quadrat label>` (e.g. `"mbalmayo001_20_20"`) with an
-area of `quadrat_area` hectares. See the section below for why.
+All the quadrats sampled in one parent plot together make \*\*one
+small-tree plot\*\*, named `<parent plot><plot_suffix>` (e.g.
+`"mbalmayo001_smalltree"`), with an area of the number of sampled
+quadrats times `quadrat_area`. It is linked to its parent plot as a
+`nested_subsample`. See the sections below for why.
 
 Plot coordinates are \*\*not\*\* produced: they are not part of the
 OpenForis raw export and must be added separately (e.g. with
 [`add_plot_coordinates()`](https://umr-amap.github.io/cafriplotsR/reference/add_plot_coordinates.md)).
 
-## Why one plot per quadrat
+## Why a plot of its own
 
 The small trees are tagged 1..N within their parent plot, and those
 numbers collide head-on with the tags the parent plot already uses for
@@ -354,12 +395,28 @@ data defect everywhere else in this package (see
 and once recorded it cannot be undone, so the small trees cannot be
 filed under the parent plot without mangling their field tags.
 
-Registering each quadrat as a plot of its own avoids that: the
-`firsttag` column makes the tag ranges of the quadrats disjoint, so
-every tag is kept exactly as written in the field. It also stores the
-right area for a density per hectare, and keeps the date, forest type
-and field team that `plot.xlsx` records \*\*per quadrat\*\* rather than
-collapsing them. The link back is kept in the `parent_plot_name` column.
+Within one parent plot, though, the `firsttag` column makes the tag
+ranges of the quadrats disjoint, so the quadrats of a plot share one tag
+sequence and are one sampling unit: every tag is kept exactly as written
+in the field. The quadrat of each stem is not lost — it is recorded in
+the `quadrat` feature of the individual, together with its 10 x 10 m
+sub-quadrat (e.g. `"20_20_A"`).
+
+## Link to the parent plot
+
+The plot table carries `parent_plot_name` and
+`parent_relation = "nested_subsample"`, which the Import Wizard turns
+into the `id_parent_plot` link. The relation says that the small-tree
+plot overlaps the ground of its parent with another diameter threshold,
+so the two must never be summed. The parent plot must already be in the
+database.
+
+## Quadrats sampled on different occasions
+
+`plot.xlsx` records date, team and forest type for each quadrat, and one
+plot holds one value. The earliest date is kept, the team and forest
+types of all quadrats are pooled, and any other column on which the
+quadrats disagree keeps its first value. Each disagreement is announced.
 
 ## How stems are assigned to quadrats
 
@@ -373,8 +430,28 @@ The reliable key is `firsttag`: `plot.xlsx` records, for every quadrat,
 the tag its numbering started at. Stems are therefore assigned by tag
 range — a stem belongs to the quadrat with the largest `firsttag` not
 above its tag. The `plot_plot_name_old` grouping is used only as a
-cross-check, and any disagreement is reported in `name_mismatches`
-rather than acted on.
+cross-check, and any disagreement is reported in `name_mismatches`.
+
+## Deciding a mismatch
+
+A mismatch has no single right answer. A mistyped underscore makes the
+tag right; a stem forgotten behind the team and tagged later, from the
+next quadrat's range, makes the name right. Only the person who knows
+the field work can tell, so the decision is theirs, taken in two runs:
+
+1.  Run once. The tag is used for every stem, and `name_mismatches`
+    lists the disputed stems with the quadrat each side gives
+    (`quadrat_by_tag`, `quadrat_by_name`) and a `keep` column set to
+    `"tag"`. Set `mismatch_file` to get the table as an xlsx.
+
+2.  Change `keep` to `"name"` for the stems that belong where the name
+    puts them, then run again with that table as `quadrat_decisions`.
+
+`quadrat_by_name` may also be edited, to send a stem to a third quadrat
+of the same parent plot. A stem the decisions do not mention keeps its
+tag quadrat. Only the stem's `quadrat` feature changes: every quadrat of
+a parent plot is in the same small-tree plot. Multi-stem grouping runs
+after the decisions, so a moved stem is grouped with its new neighbours.
 
 ## Taxonomy
 
@@ -415,6 +492,20 @@ result <- process_openforis_small_trees(
 result$quadrats
 result$name_mismatches
 result$unassigned_stems
+
+# Settle the quadrat of the disputed stems: write the mismatches, set
+# keep = "name" where the name is right, and run again with the file
+result <- process_openforis_small_trees(
+  data_dir  = "path/to/mission/plot/small_tree/",
+  codes_dir = "path/to/openforis/",
+  mismatch_file = "mismatches.xlsx"
+)
+# ... edit mismatches.xlsx ...
+result <- process_openforis_small_trees(
+  data_dir  = "path/to/mission/plot/small_tree/",
+  codes_dir = "path/to/openforis/",
+  quadrat_decisions = "mismatches.xlsx"
+)
 
 # One file per Import Wizard upload
 export_openforis_for_wizard(result, dir = "to_import")

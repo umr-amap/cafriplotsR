@@ -23,7 +23,7 @@ rejected review row costs one look.'><meta property="og:image" content="https://
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -70,7 +70,9 @@ rejected review row costs one look.</p>
 <span>  <span class="va">data</span>,</span>
 <span>  plot_names <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  con <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  con_taxa <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  existing <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  synonyms <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  plot_col <span class="op">=</span> <span class="st">"plot_name"</span>,</span>
 <span>  tag_col <span class="op">=</span> <span class="st">"tag"</span>,</span>
 <span>  idtax_col <span class="op">=</span> <span class="st">"idtax_n"</span>,</span>
@@ -101,10 +103,23 @@ every plot present in `data`.</p></dd>
 <dd><p>Database connection or pool. Required unless `existing` is given.</p></dd>
 
 
+<dt id="arg-con-taxa">con_taxa<a class="anchor" aria-label="anchor" href="#arg-con-taxa"></a></dt>
+<dd><p>Connection or pool for the **taxa** database, used to tell
+a redetermination from a mere renaming. Without it — and without
+`synonyms` — taxa are compared on the raw `idtax_n`, and every stem whose
+identification moved between two synonyms is reported as revised.</p></dd>
+
+
 <dt id="arg-existing">existing<a class="anchor" aria-label="anchor" href="#arg-existing"></a></dt>
 <dd><p>Data frame of individuals already recorded, with at least
 `plot_name` and `tag`; `id_n`, `idtax_n` and `last_status` are used when
 present. Fetched from `con` when `NULL`.</p></dd>
+
+
+<dt id="arg-synonyms">synonyms<a class="anchor" aria-label="anchor" href="#arg-synonyms"></a></dt>
+<dd><p>Data frame with `idtax_n` and `idtax_accepted`, as
+[.fetch_accepted_idtax()] returns it. Supplied directly it replaces the
+`con_taxa` lookup, which is how this is tested without a connection.</p></dd>
 
 
 <dt id="arg-plot-col-tag-col-idtax-col">plot_col, tag_col, idtax_col<a class="anchor" aria-label="anchor" href="#arg-plot-col-tag-col-idtax-col"></a></dt>
@@ -169,6 +184,11 @@ report; stems already recorded dead are not expected to reappear.</p></dd>
 <dd><p>remeasures whose taxon differs from the database —
       a report, not a reclassification.</p></dd>
 
+    <dt>`taxon_synonyms`</dt>
+<dd><p>remeasures whose taxon id differs but resolves
+      to the same accepted taxon, with that `idtax_accepted`. The tree was
+      renamed, not redetermined, so it is kept out of `taxon_drift`.</p></dd>
+
     <dt>`missing_stems`</dt>
 <dd><p>recorded stems with no row in `data`.</p></dd>
 
@@ -214,6 +234,12 @@ report; stems already recorded dead are not expected to reappear.</p></dd>
 part of that test — an identification revised between two censuses is
 expected, and letting it break the match would turn every correction into a
 spurious recruit. Revisions are reported in `taxon_drift` instead.</p>
+<p>Comparing the two ids straight would also call a *renaming* a revision: a
+synonym is a row of its own in `table_taxa`, so a file and a database
+following different nomenclatures disagree on the id of every tree they
+agree about. Given `con_taxa` (or `synonyms`), both sides are resolved
+through `idtax_good_n` first, and the pairs that meet there are reported
+separately in `taxon_synonyms` rather than as revisions.</p>
     </div>
     <div class="section level2">
     <h2 id="tags-that-are-not-unique">Tags that are not unique<a class="anchor" aria-label="anchor" href="#tags-that-are-not-unique"></a></h2>

@@ -42,8 +42,6 @@ Connect to and manage PostgreSQL database connections
   : Safely execute a SQL query with automatic retry
 - [`try_open_postgres_table()`](https://umr-amap.github.io/cafriplotsR/reference/try_open_postgres_table.md)
   : Try to open PostgreSQL table
-- [`get_database_fk()`](https://umr-amap.github.io/cafriplotsR/reference/get_database_fk.md)
-  : Get database foreign keys
 - [`check_db_network()`](https://umr-amap.github.io/cafriplotsR/reference/check_db_network.md)
   : Diagnose why the database cannot be reached
 
@@ -75,6 +73,8 @@ Query plots, individuals, taxa, traits, and specimens from the database
   : Query features associated with trait measurements
 - [`query_colnam()`](https://umr-amap.github.io/cafriplotsR/reference/query_colnam.md)
   : Query in colnam table
+- [`query_plot_authors()`](https://umr-amap.github.io/cafriplotsR/reference/query_plot_authors.md)
+  : People attached to a set of plots, as a co-author list
 - [`query_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/query_specimens.md)
   : Query Specimens
 - [`query_all_specimen_links()`](https://umr-amap.github.io/cafriplotsR/reference/query_all_specimen_links.md)
@@ -286,6 +286,10 @@ Update existing records and safely delete data with cascade handling
   : Safely delete individual feature measurements with all related data
 - [`safe_delete_specimen_links()`](https://umr-amap.github.io/cafriplotsR/reference/safe_delete_specimen_links.md)
   : Safely delete individual-specimen links
+- [`safe_delete_subplot_obs_features()`](https://umr-amap.github.io/cafriplotsR/reference/safe_delete_subplot_obs_features.md)
+  : Safely delete subplot observation features
+- [`safe_delete_plot_features()`](https://umr-amap.github.io/cafriplotsR/reference/safe_delete_plot_features.md)
+  : Safely delete plot features
 - [`.delete_country()`](https://umr-amap.github.io/cafriplotsR/reference/dot-delete_country.md)
   : Delete an entry in country table
 - [`.delete_individual_feature_type()`](https://umr-amap.github.io/cafriplotsR/reference/dot-delete_individual_feature_type.md)
@@ -762,5 +766,13 @@ User management, database permissions, backup, and migration utilities
   : Get table_idtax Metadata
 - [`print_user_access_summary()`](https://umr-amap.github.io/cafriplotsR/reference/print_user_access_summary.md)
   : Print user access summary
+- [`grant_delete_right()`](https://umr-amap.github.io/cafriplotsR/reference/grant_delete_right.md)
+  : Give an account the right to delete plots
+- [`revoke_delete_right()`](https://umr-amap.github.io/cafriplotsR/reference/revoke_delete_right.md)
+  : Take the right to delete plots back
+- [`plot_access_delete_rights()`](https://umr-amap.github.io/cafriplotsR/reference/plot_access_delete_rights.md)
+  : Who can delete what
+- [`plot_access_drift()`](https://umr-amap.github.io/cafriplotsR/reference/plot_access_drift.md)
+  : Where plot_access and the row-level security policies disagree
 - [`setup_add_person_function()`](https://umr-amap.github.io/cafriplotsR/reference/setup_add_person_function.md)
   : Grant permissions for adding people to table_colnam

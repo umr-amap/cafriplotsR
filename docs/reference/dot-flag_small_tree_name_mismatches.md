@@ -16,9 +16,17 @@ trailing underscore was mistyped.
 
 - trees:
 
-  Assigned tree data frame (plot_name, plot_name_raw).
+  Assigned tree data frame (quadrat_unit, quadrat_label, plot_name_raw).
 
 ## Value
 
-Data frame of the minority rows, or NULL when every spelling is
+Data frame of the minority rows, with the quadrat their tag puts them in
+(`quadrat_by_tag`), the one most stems of that spelling landed in
+(`quadrat_by_name`) and `keep = "tag"`, or NULL when every spelling is
 consistent.
+
+## Details
+
+The table is laid out to be edited and handed back as
+`quadrat_decisions`: quadrats are named by their label, which is what a
+person types, and `keep` says which side is used.
