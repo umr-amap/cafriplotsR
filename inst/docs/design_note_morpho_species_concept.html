@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Morpho-esp��ces dans cafriplotsR ��� note de concept</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+  await mermaid.run({ querySelector: "pre.mermaid" });
+  </script>
+  <style>pre.mermaid{background:none;text-align:center} body{max-width:48em}</style>
+</head>
+<body>
+<h1 id="morpho-espèces-dans-cafriplotsr-note-de-concept">Morpho-espèces
+dans cafriplotsR — note de concept</h1>
+<p>Gilles Dauby · 2026-10-07 · note de conception (compagnon : <a
+href="design_note_morpho_species_implementation.html">note
+d’implémentation</a>)</p>
+<h2 id="contexte-et-objectifs">Contexte et objectifs</h2>
+<p>Une morpho-espèce devient dans cafriplotsR un taxon à part entière :
+nommé, daté, attribué à des auteurs et décrit par une diagnose en texte
+libre, complétée si possible par une liste fermée de critères
+morphologiques. Ses spécimens sont ceux qui sont identifiés sous son
+nom. Aujourd’hui, <code>table_taxa</code> ne porte qu’un flag
+<code>morpho_species</code> (oui/non) : on sait qu’un nom est une
+morpho-espèce, mais pas ce qu’il recouvre.</p>
+<p>Sans fiche descriptive, une morpho-espèce n’est interprétable que par
+la personne qui l’a créée. Elle ne peut être ni comparée d’un site à
+l’autre, ni transmise à un taxonomiste, ni résolue proprement quand une
+identification arrive. Baker et al. (2017) pointent exactement ce
+problème pour les réseaux de parcelles tropicales : les concepts de
+morpho-espèces sont rarement standardisés entre chercheurs et entre
+sites.</p>
+<p>Objectifs :</p>
+<ul>
+<li>Répondre pour chaque morpho-espèce à six questions : qui l’a nommée,
+où, quand, pourquoi, avec quels caractères et, point à décider, sur la
+base de quels spécimens (la description d’une morpho-espèce doit-elle
+citer des spécimens, ou ses spécimens sont-ils seulement ceux identifiés
+sous son nom ?).</li>
+<li>Permettre de comparer des morpho-espèces entre elles et avec des
+espèces décrites, puis de les résoudre (rattachement, fusion,
+description).</li>
+<li>Faire évoluer l’appli Shiny de gestion du backbone pour la création,
+la consultation, la comparaison et la résolution.</li>
+</ul>
+<h2 id="ce-qui-existe-ailleurs">Ce qui existe ailleurs</h2>
+<p>Aucun réseau tropical ne propose un modèle complet « nom + auteurs +
+spécimen + diagnose structurée » ; les briques existent séparément et
+peuvent être combinées. Le modèle le plus abouti pour le nommage est
+celui des <em>phrase names</em> australiens ; pour la description
+structurée, c’est le format de données descriptives SDD / Xper3.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Initiative</th>
+<th>Ce qu’elle fait</th>
+<th>À reprendre dans cafriplotsR</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="https://en.wikipedia.org/wiki/Phrase_name">Phrase names
+australiens</a> (Australian Herbarium Information Systems Committee,
+1992)</td>
+<td>Nom informel à 4 éléments : genre + « sp. » + localité ou trait +
+(collecteur numéro). Ex. <em>Derris</em> sp. Wenlock River (B.Hyland
+21082V). Devient synonyme quand le taxon est décrit.</td>
+<td>Le principe d’un nom autoporteur et unique. Ici, l’unicité vient du
+couple numéro + auteur plutôt que d’un libellé et d’un numéro de
+collecte.</td>
+</tr>
+<tr class="even">
+<td>Flores régionales africaines (Flora of Tropical East Africa, Flore
+du Gabon…)</td>
+<td>Taxons non décrits notés « sp. A », « sp. B », avec description
+courte et spécimens cités.</td>
+<td>La diagnose différentielle (« diffère de X par… ») et la liste des
+spécimens cités.</td>
+</tr>
+<tr class="odd">
+<td><a href="https://atdnmorphospecies.myspecies.info/node/7499">ATDN
+tree morphospecies website</a> (Amazon Tree Diversity Network)</td>
+<td>Plateforme collaborative pour standardiser les morpho-espèces
+d’arbres amazoniens entre inventaires ; noms du type « sp. PlotA#1 ».
+Exige au minimum une image scannée de l’exsiccatum.</td>
+<td>L’objectif de comparaison entre sites. L’exigence d’image n’est pas
+reprise : la base ne gère pas d’images.</td>
+</tr>
+<tr class="even">
+<td><a
+href="https://forestplots.net/upload/fr/VoucherImport_FR.pdf">ForestPlots.net</a>
+(RAINFOR, AfriTRON…)</td>
+<td>Chaque voucher est lié à un arbre marqué de la parcelle ; code
+voucher, collecteur et herbier sont validés à l’import.</td>
+<td>Déjà en place dans cafriplotsR : lien spécimen ↔︎ individu de
+parcelle et contrôle collecteur / herbier (app Shiny,
+data_link_specimens). Les spécimens d’une morpho-espèce sont ceux
+identifiés sous son nom, retrouvés par ce lien existant.</td>
+</tr>
+<tr class="odd">
+<td><a href="https://doi.org/10.1111/2041-210X.12594">Open
+Nomenclature</a> (Sigovini et al. 2016) ; <a
+href="https://www.frontiersin.org/journals/marine-science/articles/10.3389/fmars.2021.620702/pdf">Horton
+et al. 2021</a></td>
+<td>Recommandations pour l’usage des qualificatifs (sp., cf., aff., sp.
+nov., indet.) et pour distinguer incertitude d’identification et taxon
+non décrit.</td>
+<td>Un champ « qualificatif » normalisé et la distinction «
+morpho-espèce » vs « identification incertaine ».</td>
+</tr>
+<tr class="even">
+<td><a
+href="https://europeanjournaloftaxonomy.eu/index.php/ejt/article/view/2875">Xper3</a>
+(Kerner et al. 2025) / standard <a
+href="https://sdd.tdwg.org/2006/Schema/1.1/documentation/SDD_TypeLib_Overview.html">SDD</a>
+du TDWG</td>
+<td>Données descriptives : caractères × états × taxons, clés
+d’identification multi-accès.</td>
+<td>La structure des critères (caractère catégoriel à états définis, ou
+numérique avec unité) ; un export éventuel vers Xper3.</td>
+</tr>
+</tbody>
+</table>
+<p>Deux résultats cadrent l’enjeu. <a
+href="https://donoghuelab.yale.edu/sites/default/files/baker_tree_2017.pdf">Baker
+et al. (2017)</a> recommandent de déposer les vouchers de parcelles en
+herbier et de les rendre disponibles en images liées aux enregistrements
+de parcelles, pour permettre la comparaison à l’écran. <a
+href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4278815">Pos et
+al. (2014)</a> montrent qu’écarter les taxons non identifiés change peu
+la diversité alpha et la composition (R² &gt; 0,95 sur 202 parcelles d’1
+ha) : la valeur des morpho-espèces se joue donc surtout dans le turnover
+entre sites et la résolution taxonomique à long terme, ce qui exige leur
+cohérence entre sites.</p>
+<h2 id="concept-proposé">Concept proposé</h2>
+<p>Une morpho-espèce reste une ligne de <code>table_taxa</code>
+(<code>morpho_species = TRUE</code>) rattachée à un genre, ou à défaut à
+une famille, et reçoit en plus une <strong>fiche</strong> et,
+facultativement, une <strong>description morphologique</strong>. Aucun
+spécimen n’est exigé à la création : souvent, la morpho-espèce est créée
+d’abord, puis des spécimens sont identifiés sous ce nom. Il n’y a pas de
+spécimen de référence unique : ce sont les spécimens identifiés sous la
+morpho-espèce qui la documentent.</p>
+<h3 id="la-fiche-six-questions">La fiche : six questions</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Question</th>
+<th>Contenu de la fiche</th>
+<th>Obligatoire</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Quoi</td>
+<td>Nom (genre + sp + numéro + auteur), code stable, taxon parent (genre
+ou famille), qualificatif facultatif (aff. avec son espèce de référence,
+ou sp. nov.), statut</td>
+<td>Oui (sauf le qualificatif)</td>
+</tr>
+<tr class="even">
+<td>Qui</td>
+<td>Auteur(s) de la morpho-espèce, pris dans la liste des
+collecteurs/personnes existante ; le premier auteur porte la
+numérotation ; utilisateur qui l’a saisie (enregistré
+automatiquement)</td>
+<td>Oui (auteurs)</td>
+</tr>
+<tr class="odd">
+<td>Où</td>
+<td>Rien à saisir : la répartition se déduit des spécimens et des
+individus de parcelles identifiés sous ce nom</td>
+<td>—</td>
+</tr>
+<tr class="even">
+<td>Quand</td>
+<td>Année du nom (par défaut l’année de création dans la base,
+modifiable si la description est antérieure à la saisie) ; date de
+création dans la base, dates de révision</td>
+<td>Oui (automatique)</td>
+</tr>
+<tr class="odd">
+<td>Pourquoi</td>
+<td>Diagnose en texte libre ; motif : matériel stérile non identifiable,
+spécimen fertile ne correspondant à aucune espèce connue, espèce
+potentiellement nouvelle, complexe taxonomique non résolu ; espèces
+proches comparées (pour une aff., la diagnose est différentielle : «
+diffère de <em>X</em> par… »)</td>
+<td>Oui (diagnose) ; motif et espèces comparées facultatifs</td>
+</tr>
+<tr class="even">
+<td>Sur quelle base</td>
+<td>Spécimens et individus de parcelles identifiés sous ce nom</td>
+<td>Rien à saisir ; à décider : la description doit-elle citer des
+spécimens ?</td>
+</tr>
+</tbody>
+</table>
+<p>Les critères morphologiques (section suivante) complètent la fiche ;
+ils sont facultatifs. Chaque valeur peut indiquer sa source (spécimen
+d’herbier, observation de terrain, littérature). Les mêmes critères
+peuvent aussi décrire une espèce nommée, ce qui rend la comparaison
+directe.</p>
+<h3 id="qualificatifs">Qualificatifs</h3>
+<p>Toute morpho-espèce porte un nom de la forme <em>Genre</em> spN
+Auteur (voir Convention de nom). Le qualificatif est
+<strong>facultatif</strong> : il précise ce qu’on sait de plus sur le
+taxon. Deux valeurs : <strong>aff.</strong> et <strong>sp. nov.</strong>
+Le cas le plus fréquent reste la morpho-espèce sans qualificatif.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Qualificatif</th>
+<th>Sens</th>
+<th>Espèce de référence</th>
+<th>Description attendue</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>aucun</td>
+<td>Morpho-espèce rattachée au genre, sans hypothèse sur une espèce
+proche</td>
+<td>Aucune</td>
+<td>Diagnose : ce qui la distingue des autres espèces du genre (décrites
+et morpho-espèces) ; critères facultatifs</td>
+</tr>
+<tr class="even">
+<td>aff.</td>
+<td>Proche d’une espèce connue du même genre, mais distincte (ex.
+<em>Diospyros</em> sp1 Dauby aff. <em>iturensis</em>)</td>
+<td>Obligatoire, choisie dans le backbone ; une ou deux espèces proches
+supplémentaires possibles</td>
+<td>Diagnose différentielle : ce qui la distingue de l’espèce de
+référence (feuilles plus grandes, indument présent…)</td>
+</tr>
+<tr class="odd">
+<td>sp. nov.</td>
+<td>Espèce considérée comme nouvelle, potentielle ou certaine ; d’abord
+sans nom latin, puis éventuellement avec un nom latin choisi, en attente
+de publication</td>
+<td>Facultative (espèce la plus proche, utile pour la diagnose)</td>
+<td>Diagnose ; critères facultatifs, utiles pour préparer la future
+description</td>
+</tr>
+</tbody>
+</table>
+<p>Le qualificatif peut être ajouté, changé ou retiré sans changer
+d’identifiant ni de nom : <em>Diospyros</em> sp1 Dauby peut devenir aff.
+<em>iturensis</em>, puis sp. nov. Quand un nom latin est choisi pour une
+sp. nov., il remplace « sp1 » (l’ancien nom reste consultable). À la
+publication, la morpho-espèce n’est pas modifiée : le nom publié entre
+dans le backbone comme une nouvelle entrée, et la morpho-espèce en
+devient synonyme (<code>idtax_good_n</code>). Par exemple,
+<em>Tessmannia</em> ‘microphylla’ sp. nov. est devenue synonyme de
+<em>Tessmannia microphylla</em> ; les deux entrées restent dans le
+backbone. De même, une morpho-espèce peut se révéler être une espèce
+déjà décrite : elle devient alors synonyme de ce nom. Une sp. nov., avec
+ou sans nom latin, ne sort jamais de la base comme un nom valide.</p>
+<p><strong>cf.</strong> est traité à part : il qualifie une
+identification (« cet individu ou ce spécimen est probablement
+<em>X</em>, à confirmer »), pas un taxon. Il est donc porté par la
+détermination d’un individu de parcelle ou d’un spécimen, et pointe vers
+un taxon existant, qui peut lui-même être une morpho-espèce. Il ne crée
+pas de ligne dans le backbone.</p>
+<h3 id="convention-de-nom">Convention de nom</h3>
+<p>Le nom d’une morpho-espèce a toujours la même forme : genre, « sp »
+suivi d’un numéro, puis le ou les auteurs, par exemple
+<em>Diospyros</em> sp1 Dauby et <em>Diospyros</em> sp1 Lachenaud. La
+numérotation est séquentielle et propre à chaque auteur dans un genre :
+le premier auteur porte la série, et un numéro n’est jamais réattribué,
+même après résolution de la morpho-espèce. Deux auteurs peuvent donc
+avoir chacun leur <em>Diospyros</em> sp1 : c’est le couple numéro +
+auteur qui rend le nom unique, pas un libellé géographique ou
+descriptif.</p>
+<p>Le qualificatif s’affiche à la suite : <em>Diospyros</em> sp1 Dauby
+aff. <em>iturensis</em>, <em>Diospyros</em> sp2 Dauby sp. nov. L’année
+du nom figure dans la fiche ; par défaut c’est l’année de création dans
+la base, modifiable quand la morpho-espèce a été décrite avant d’être
+saisie. Un code court stable (ex. <code>MS-0001</code>) accompagne le
+nom et ne change jamais, même si la morpho-espèce change de genre et
+reçoit un nouveau numéro.</p>
+<h3 id="règles-de-gestion">Règles de gestion</h3>
+<ul>
+<li>Une morpho-espèce n’est jamais supprimée : elle est résolue. Sa
+résolution passe par le mécanisme de synonymie déjà en place
+(<code>idtax_good_n</code>), donc les individus de parcelles suivent
+sans retraitement.</li>
+<li>Elle a une portée globale à la base, pas à une parcelle : avant d’en
+créer une, on cherche si une morpho-espèce existante du même genre
+correspond.</li>
+<li>Seuls les utilisateurs autorisés à modifier le backbone créent des
+morpho-espèces, et une morpho-espèce n’est enregistrée que si sa
+diagnose est rédigée (et, pour une aff., son espèce de référence
+choisie). La caractérisation morphologique par les critères est
+facultative.</li>
+<li>Toute modification de la fiche ou des critères est historisée (qui,
+quand, quoi).</li>
+</ul>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; Active : création par un éditeur du backbone (diagnose rédigée)
+    [*] --&gt; Incomplete : reprise de l&#39;existant
+    Incomplete --&gt; Active : fiche complétée
+    Active --&gt; Rattachee : devient synonyme (idtax_good_n)
+    Active --&gt; Fusionnee : synonyme d&#39;une autre morpho-espèce
+    Active --&gt; Publiee : synonyme du nom publié
+    Incomplete : Incomplète
+    Rattachee : Rattachée à une espèce
+    Fusionnee : Fusionnée
+    Publiee : Décrite et publiée</pre>
+<p><em>Cycle de vie d’une morpho-espèce : elle n’est jamais supprimée,
+elle est résolue.</em></p>
+<p>Dans les trois résolutions, l’identifiant de la morpho-espèce est
+conservé et pointe vers le nom retenu : les spécimens et individus de
+parcelles identifiés sous la morpho-espèce suivent.</p>
+<h2 id="liste-des-critères-morphologiques">Liste des critères
+morphologiques</h2>
+<p>La liste compte 52 critères, tous facultatifs : seule la diagnose en
+texte libre est exigée pour enregistrer une morpho-espèce. Les 19
+critères de priorité 1 sont ceux à renseigner en premier quand on
+décrit. La liste privilégie les caractères végétatifs observables sur un
+arbre stérile et sur un spécimen d’herbier, dans la tradition des guides
+d’identification végétative (Letouzey, Tailfer, Hawthorne &amp;
+Jongkind, Keller, Gentry). Les termes de nervation suivent le <em>Manual
+of Leaf Architecture</em> (Ellis et al. 2009) et ceux d’écorce Junikka
+(1994).</p>
+<p>Types : <strong>cat</strong> = catégoriel à états définis (plusieurs
+états possibles si polymorphe) ; <strong>num</strong> = numérique, saisi
+en min–max ; <strong>bool</strong> = présence/absence ;
+<strong>texte</strong> = libre court. Priorité : 1 = à renseigner en
+premier, 2 = recommandé, 3 = si disponible.</p>
+<p><strong>Deux modes de description.</strong> Quand on renseigne des
+critères pour une morpho-espèce sans qualificatif ou sp. nov., ils le
+sont en valeur absolue. Pour une aff., la description est différentielle
+: on ne renseigne que les critères qui la distinguent de l’espèce de
+référence, chacun avec sa valeur et le sens de la différence ; tout
+critère non renseigné est réputé « comme l’espèce de référence ». Dans
+les deux cas, c’est la diagnose rédigée qui est obligatoire, pas les
+critères. Les critères de l’espèce de référence, s’ils sont renseignés
+dans la base, s’affichent à côté pour comparaison.</p>
+<p>Exemple fictif de description différentielle :</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Critère</th>
+<th><em>Genre iturensis</em> (référence)</th>
+<th><em>Genre</em> aff. <em>iturensis</em></th>
+<th>Différence</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Longueur du limbe</td>
+<td>8–14 cm</td>
+<td>18–25 cm</td>
+<td>plus grande</td>
+</tr>
+<tr class="even">
+<td>Indument, face inférieure</td>
+<td>glabre</td>
+<td>poils étoilés denses</td>
+<td>présent au lieu d’absent</td>
+</tr>
+<tr class="odd">
+<td>Nombre de paires de nervures secondaires</td>
+<td>6–8</td>
+<td>10–13</td>
+<td>plus nombreuses</td>
+</tr>
+</tbody>
+</table>
+<p>Diagnose correspondante : « diffère de <em>G. iturensis</em> par ses
+limbes plus grands (18–25 vs 8–14 cm), pubescents dessous, à 10–13
+paires de nervures secondaires ».</p>
+<p><strong>Liste des critères :</strong></p>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Organe</th>
+<th>Critère</th>
+<th>Type</th>
+<th>États ou unité</th>
+<th>Priorité</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Port et fût</td>
+<td>Base du fût</td>
+<td>cat</td>
+<td>sans contreforts ; contreforts courts (&lt; 1 m) ; contreforts hauts
+; contreforts ailés ; racines-échasses ; fût cannelé</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td>Port et fût</td>
+<td>Épines ou aiguillons sur le fût</td>
+<td>bool</td>
+<td>—</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td>Écorce externe</td>
+<td>Aspect</td>
+<td>cat</td>
+<td>lisse ; finement fissurée ; profondément fissurée ; écailleuse
+(plaques) ; desquamante en lanières ; rugueuse</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td>Écorce externe</td>
+<td>Couleur</td>
+<td>cat</td>
+<td>blanchâtre ; gris ; brun ; rougeâtre ; verdâtre ; noirâtre</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td>Écorce externe</td>
+<td>Lenticelles</td>
+<td>cat</td>
+<td>absentes ; éparses ; abondantes ; en lignes horizontales</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Tranche</td>
+<td>Couleur de l’écorce interne</td>
+<td>cat</td>
+<td>blanc/crème ; jaune ; orange ; rose ; rouge ; brun</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Tranche</td>
+<td>Changement de couleur à l’air</td>
+<td>texte</td>
+<td>ex. « rose devenant brun en 1 min »</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Tranche</td>
+<td>Texture</td>
+<td>cat</td>
+<td>granuleuse ; fibreuse ; feuilletée ; marbrée/striée ; homogène</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Tranche</td>
+<td>Épaisseur de l’écorce</td>
+<td>num</td>
+<td>mm</td>
+<td>3</td>
+</tr>
+<tr class="even">
+<td>Tranche</td>
+<td>Odeur</td>
+<td>cat</td>
+<td>nulle ; aromatique ; résineuse ; aillée ; désagréable ; autre
+(préciser)</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Tranche</td>
+<td>Couleur de l’aubier</td>
+<td>cat</td>
+<td>blanc/crème ; jaune ; rose ; brun</td>
+<td>3</td>
+</tr>
+<tr class="even">
+<td>Exsudat</td>
+<td>Présence</td>
+<td>bool</td>
+<td>sur tranche, pétiole ou feuille cassée</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Exsudat</td>
+<td>Nature</td>
+<td>cat</td>
+<td>latex ; résine ; gomme ; sève aqueuse</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td>Exsudat</td>
+<td>Couleur</td>
+<td>cat</td>
+<td>blanc ; jaune ; orange ; rouge ; translucide</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Exsudat</td>
+<td>Abondance et évolution</td>
+<td>texte</td>
+<td>ex. « abondant, collant, noircit à l’air »</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Rameaux</td>
+<td>Section des jeunes rameaux</td>
+<td>cat</td>
+<td>cylindrique ; anguleuse ; quadrangulaire ; aplatie</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td>Rameaux</td>
+<td>Moelle fistuleuse ou domaties caulinaires (fourmis)</td>
+<td>bool</td>
+<td>—</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Rameaux</td>
+<td>Épines axillaires ou rameaux épineux</td>
+<td>bool</td>
+<td>—</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td>Stipules</td>
+<td>Présence</td>
+<td>cat</td>
+<td>absentes ; présentes ; cicatrice seule (annulaire ou latérale)</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td>Stipules</td>
+<td>Type</td>
+<td>cat</td>
+<td>libres latérales ; interpétiolaires ; intrapétiolaires ; soudées en
+gaine ; terminale enveloppant le bourgeon</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td>Stipules</td>
+<td>Persistance</td>
+<td>cat</td>
+<td>caduques ; persistantes</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Feuille</td>
+<td>Phyllotaxie</td>
+<td>cat</td>
+<td>alterne spiralée ; alterne distique ; opposée ; verticillée</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Feuille</td>
+<td>Type de feuille</td>
+<td>cat</td>
+<td>simple ; unifoliolée ; trifoliolée ; digitée ; paripennée ;
+imparipennée ; bipennée</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td>Feuille</td>
+<td>Nombre de folioles ou paires de folioles</td>
+<td>num</td>
+<td>nombre</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Feuille</td>
+<td>Disposition des folioles</td>
+<td>cat</td>
+<td>opposées ; alternées ; subopposées</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Feuille</td>
+<td>Rachis ailé</td>
+<td>bool</td>
+<td>—</td>
+<td>3</td>
+</tr>
+<tr class="odd">
+<td>Pétiole</td>
+<td>Longueur</td>
+<td>num</td>
+<td>mm</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Pétiole</td>
+<td>Pulvinus</td>
+<td>cat</td>
+<td>absent ; basal ; apical ; basal et apical</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Pétiole</td>
+<td>Forme</td>
+<td>cat</td>
+<td>cylindrique ; canaliculé ; ailé ; renflé</td>
+<td>3</td>
+</tr>
+<tr class="even">
+<td>Limbe</td>
+<td>Longueur</td>
+<td>num</td>
+<td>cm</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Limbe</td>
+<td>Largeur</td>
+<td>num</td>
+<td>cm</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Limbe</td>
+<td>Forme</td>
+<td>cat</td>
+<td>elliptique ; oblongue ; ovale ; obovale ; lancéolée ; oblancéolée ;
+orbiculaire ; linéaire</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td>Limbe</td>
+<td>Base</td>
+<td>cat</td>
+<td>cunéiforme ; arrondie ; tronquée ; cordée ; décurrente ;
+asymétrique</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Limbe</td>
+<td>Apex</td>
+<td>cat</td>
+<td>acuminé ; aigu ; obtus ; arrondi ; émarginé ; mucroné</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td>Limbe</td>
+<td>Longueur de l’acumen</td>
+<td>num</td>
+<td>mm</td>
+<td>3</td>
+</tr>
+<tr class="even">
+<td>Limbe</td>
+<td>Marge</td>
+<td>cat</td>
+<td>entière ; dentée ; serrulée ; crénelée ; ondulée ; révolutée</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Limbe</td>
+<td>Consistance</td>
+<td>cat</td>
+<td>membraneuse ; papyracée ; subcoriace ; coriace ; charnue</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Limbe</td>
+<td>Discolore (faces de couleurs nettement différentes)</td>
+<td>bool</td>
+<td>—</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td>Nervation</td>
+<td>Nervation principale</td>
+<td>cat</td>
+<td>pennée ; triplinervée ; palmée (≥ 3 nervures basales) ;
+parallèle</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td>Nervation</td>
+<td>Nombre de paires de nervures secondaires</td>
+<td>num</td>
+<td>nombre</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Nervation</td>
+<td>Trajet des secondaires</td>
+<td>cat</td>
+<td>brochidodrome ; eucamptodrome ; craspédodrome ; avec nervure
+intramarginale</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Nervation</td>
+<td>Nervation tertiaire</td>
+<td>cat</td>
+<td>scalariforme (parallèle) ; réticulée ; peu visible</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td>Nervation</td>
+<td>Nervure médiane face supérieure</td>
+<td>cat</td>
+<td>saillante ; plane ; enfoncée</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Indument</td>
+<td>Présence par organe</td>
+<td>cat</td>
+<td>glabre ; poils sur rameaux ; sur pétiole ; sur face inférieure ; sur
+face supérieure</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Indument</td>
+<td>Type de poils</td>
+<td>cat</td>
+<td>simples ; étoilés ; écailles (lépidote) ; glanduleux ; en T
+(malpighiacés)</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Indument</td>
+<td>Couleur et densité</td>
+<td>texte</td>
+<td>ex. « tomentum roux dense »</td>
+<td>3</td>
+</tr>
+<tr class="odd">
+<td>Glandes et structures</td>
+<td>Ponctuations translucides (vues par transparence)</td>
+<td>bool</td>
+<td>—</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td>Glandes et structures</td>
+<td>Glandes</td>
+<td>cat</td>
+<td>absentes ; sur pétiole ; à la base du limbe ; sur la marge ; sur la
+face inférieure</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td>Glandes et structures</td>
+<td>Domaties</td>
+<td>cat</td>
+<td>absentes ; en touffe de poils ; en pochette ; en fosse</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>Glandes et structures</td>
+<td>Odeur de la feuille froissée</td>
+<td>texte</td>
+<td>—</td>
+<td>3</td>
+</tr>
+<tr class="odd">
+<td>Fertile</td>
+<td>Position de l’inflorescence</td>
+<td>cat</td>
+<td>axillaire ; terminale ; caulinaire/raméeale</td>
+<td>3</td>
+</tr>
+<tr class="even">
+<td>Fertile</td>
+<td>Type de fruit, taille, couleur à maturité</td>
+<td>cat + num</td>
+<td>baie ; drupe ; capsule ; gousse ; samare ; syncarpe ; follicule —
+cm</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<p>Les caractères fertiles restent volontairement sommaires : quand on
+dispose de fleurs et de fruits, une morpho-espèce a vocation à être
+identifiée ou décrite plutôt que décrite plus finement ici. La liste est
+extensible par famille (ex. glandes extraflorales chez les
+<em>Fabaceae</em>, ponctuations chez les <em>Myrtaceae</em>) sans
+modifier le modèle.</p>
+<h2 id="évolutions-de-lappli-shiny-backbone">Évolutions de l’appli Shiny
+backbone</h2>
+<p>L’appli gagne cinq fonctions autour des morpho-espèces ; les modules
+actuels d’ajout, de recherche et de mise à jour des taxons restent le
+point d’entrée.</p>
+<ol type="1">
+<li><strong>Créer</strong> — un assistant en étapes : taxon parent ;
+qualificatif facultatif (aff. avec son espèce de référence, ou sp. nov.)
+; dès le genre choisi, affichage des morpho-espèces existantes de ce
+genre (nom, auteurs, année, qualificatif, statut, nombre de spécimens et
+d’individus identifiés), avec accès à leur fiche et à la comparaison,
+pour éviter les doublons ; nom attribué automatiquement (numéro suivant
+dans la série du premier auteur pour ce genre) ; auteurs ; motif et
+espèces comparées ; diagnose ; puis saisie facultative des critères, en
+mode différentiel pour une aff. (grille pré-remplie avec les valeurs de
+l’espèce de référence, on ne modifie que ce qui diffère).
+L’enregistrement est bloqué tant que la diagnose n’est pas rédigée (et,
+pour une aff., tant que l’espèce de référence n’est pas choisie).</li>
+<li><strong>Consulter</strong> — une fiche lisible : en-tête (nom,
+auteurs, date, statut), diagnose, critères groupés par organe,
+spécimens, individus de parcelles rattachés avec leur carte.</li>
+<li><strong>Comparer</strong> — deux à quatre taxons côte à côte
+(morpho-espèces ou espèces nommées), critère par critère, différences
+mises en évidence. Variante : saisir quelques critères observés sur un
+arbre et obtenir les morpho-espèces compatibles du genre, comme une
+petite clé multi-accès.</li>
+<li><strong>Résoudre</strong> — un utilisateur autorisé à modifier le
+backbone rattache la morpho-espèce à une espèce, la fusionne avec une
+autre ou, une fois l’espèce décrite, la rattache au nom publié, avec une
+note justificative. Les droits sont ceux du backbone.</li>
+<li><strong>Exporter</strong> — une fiche HTML/PDF à envoyer à un
+herbier ou à un taxonomiste, et la liste des morpho-espèces d’un jeu de
+données avec leurs critères (tableur ; export vers Xper3 en
+option).</li>
+</ol>
+<h2 id="questions-ouvertes">Questions ouvertes</h2>
+<ul class="task-list">
+<li><label><input type="checkbox" />Numérotation : série portée par le
+premier auteur seul, ou par la combinaison d’auteurs ? Faut-il
+renuméroter les morpho-espèces existantes (sp1 de terrain, codes
+OpenForis) dans la série de leur auteur ?</label></li>
+<li><label><input type="checkbox" />Spécimens cités : la description
+d’une morpho-espèce doit-elle citer des spécimens (et, si oui, exiger un
+dépôt en herbier ?), ou ses spécimens sont-ils seulement ceux identifiés
+sous son nom ?</label></li>
+<li><label><input type="checkbox" />Reprise de l’existant : comment
+organiser, famille par famille, la complétion des fiches des
+morpho-espèces déjà dans la base (environ 500 noms dans le cache du
+référentiel, dont environ 330 traitables par script et 120 à revoir par
+des experts ; voir la note d’implémentation) ?</label></li>
+<li><label><input type="checkbox" />Critères numériques : saisie min–max
+sur le taxon seulement, ou aussi des mesures par spécimen dont on déduit
+min–max ?</label></li>
+<li><label><input type="checkbox" />Morpho-genres (« <em>Fabaceae</em>
+sp. » non rattachable à un genre) : même mécanisme ?</label></li>
+</ul>
+<h2 id="documents-de-référence">Documents de référence</h2>
+<p>Nomenclature informelle et morpho-espèces</p>
+<ul>
+<li>Sigovini M., Keppel E., Tagliapietra D. (2016). <a
+href="https://doi.org/10.1111/2041-210X.12594">Open Nomenclature in the
+biodiversity era</a>. <em>Methods in Ecology and Evolution</em> 7(10):
+1217–1225.</li>
+<li>Horton T. et al. (2021). <a
+href="https://www.frontiersin.org/journals/marine-science/articles/10.3389/fmars.2021.620702/pdf">Recommendations
+for the standardisation of open taxonomic nomenclature for image-based
+identifications</a>. <em>Frontiers in Marine Science</em> 8:
+620702.</li>
+<li><a href="https://en.wikipedia.org/wiki/Phrase_name">Phrase name</a>
+— convention australienne des noms informels (Australian Herbarium
+Information Systems Committee, 1992).</li>
+<li><a href="https://atdnmorphospecies.myspecies.info/node/7499">ATDN
+tree morphospecies website</a> — standardisation des morpho-espèces
+d’arbres amazoniens.</li>
+<li>Baker T.R. et al. (2017). <a
+href="https://donoghuelab.yale.edu/sites/default/files/baker_tree_2017.pdf">Maximising
+synergy among tropical plant systematists, ecologists, and evolutionary
+biologists</a>. <em>Trends in Ecology &amp; Evolution</em> 32(4):
+258–267.</li>
+<li>Pos E. et al. (2014). <a
+href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4278815">Are all species
+necessary to reveal ecologically important patterns?</a> <em>Ecology and
+Evolution</em> 4(24).</li>
+<li>ForestPlots.net. <a
+href="https://forestplots.net/upload/fr/VoucherImport_FR.pdf">Import des
+vouchers</a>.</li>
+</ul>
+<p>Caractères morphologiques et terminologie</p>
+<ul>
+<li>Ellis B. et al. (2009). <a
+href="https://personal.ems.psu.edu/~pwilf/Manual_of_Leaf_Architecture_small.pdf"><em>Manual
+of Leaf Architecture</em></a>. Cornell University Press — référence pour
+forme, marge et nervation.</li>
+<li>Junikka L. (1994). <a
+href="https://sidalc.net/search/Record/unfao:638331">Survey of English
+macroscopic bark terminology</a>. <em>IAWA Journal</em> 15(1) —
+terminologie de l’écorce.</li>
+<li>Keller R. (1996). <a
+href="https://link.springer.com/book/9783764364533"><em>Identification
+of tropical woody plants in the absence of flowers and fruits</em></a>.
+Birkhäuser — caractères végétatifs utiles à l’échelle des
+tropiques.</li>
+<li>Gentry A.H. (1993). <em>A field guide to the families and genera of
+woody plants of northwest South America</em>. Conservation
+International.</li>
+<li>Hawthorne W.D., Jongkind C.C.H. (2006). <em>Woody plants of western
+African forests</em>. Kew Publishing — clés végétatives, très proche du
+contexte d’Afrique centrale.</li>
+<li>Letouzey R. (1969–1972). <em>Manuel de botanique forestière, Afrique
+tropicale</em>. CTFT — tranche, écorce, exsudats.</li>
+<li>Tailfer Y. (1989). <em>La forêt dense d’Afrique centrale :
+identification pratique des principaux arbres</em>. CTA.</li>
+<li>Wilks C., Issembé Y. (2000). <em>Les arbres de la Guinée Équatoriale
+: guide pratique d’identification</em>. Projet CUREF.</li>
+<li>Beentje H. (2016). <em>The Kew plant glossary</em>, 2e éd. Kew
+Publishing — définitions des états.</li>
+</ul>
+<p>Données descriptives</p>
+<ul>
+<li>Kerner A. et al. (2025). <a
+href="https://europeanjournaloftaxonomy.eu/index.php/ejt/article/view/2875">An
+Xper3 reference guide for taxonomists</a>. <em>European Journal of
+Taxonomy</em> 987.</li>
+<li>TDWG. <a
+href="https://sdd.tdwg.org/2006/Schema/1.1/documentation/SDD_TypeLib_Overview.html">Structured
+Descriptive Data (SDD)</a>.</li>
+</ul>
+<p>Les ouvrages sans lien sont cités de mémoire et n’ont pas été
+consultés en ligne pour cette note.</p>
+</body>
+</html>

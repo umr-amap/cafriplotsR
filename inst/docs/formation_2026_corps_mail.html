@@ -1,0 +1,57 @@
+<div style="font-family: Calibri, Arial, sans-serif; font-size: 15px; line-height: 1.55; color: #1a1a1a; max-width: 680px;">
+
+<p>Bonjour,</p>
+
+<p>Rendez-vous demain samedi à <b>09h00, heure de Douala</b> (10h00 en France). Je serai connecté dès 08h40.</p>
+
+<p style="background: #eef4fb; border-left: 4px solid #2b6cb0; padding: 12px 16px; margin: 16px 0;">
+<b>Lien Zoom</b><br>
+<a href="https://umontpellier-fr.zoom.us/j/97678683045" style="color: #2b6cb0;">https://umontpellier-fr.zoom.us/j/97678683045</a><br>
+<span style="color: #555; font-size: 14px;">Le même lien sert le matin (09h00–12h30) et l'après-midi (14h00–16h30).</span>
+</p>
+
+<p><b>Le programme détaillé est en pièce jointe.</b> Ci-dessous, seulement ce qui doit être fait d'ici demain matin.</p>
+
+<h2 style="font-size: 18px; margin: 26px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #2b6cb0; color: #1a3a5c;">1. Installer le package, et le faire tourner une fois</h2>
+
+<p>C'est la seule condition réelle pour suivre la matinée. Et le «&nbsp;une fois&nbsp;» compte autant que l'installation&nbsp;: le premier appariement télécharge le référentiel taxonomique sur votre machine. Une fois qu'il y est, l'application fonctionne <b>sans connexion</b> — c'est notre filet de sécurité collectif si la connexion de la salle est mauvaise.</p>
+
+<pre style="font-family: Consolas, 'Courier New', monospace; font-size: 13px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 12px; white-space: pre-wrap; word-wrap: break-word; margin: 12px 0;">options(timeout = max(3000, getOption("timeout")))
+
+if (!requireNamespace("remotes", quietly = TRUE)) install.packages("remotes")
+
+remotes::install_github("umr-amap/cafriplotsR", upgrade = "never")</pre>
+
+<p>Puis, et c'est la partie à ne pas sauter&nbsp;:</p>
+
+<pre style="font-family: Consolas, 'Courier New', monospace; font-size: 13px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 12px; white-space: pre-wrap; word-wrap: break-word; margin: 12px 0;">library(CafriplotsR)
+launch_taxonomic_match_app()</pre>
+
+<p>L'application s'ouvre dans votre navigateur. Cliquez sur <b>Se connecter en utilisateur public</b>, chargez n'importe quelle petite liste de noms — trois suffisent — et lancez l'appariement. C'est tout. Au lancement suivant, un bouton <b>utiliser hors ligne</b> apparaîtra&nbsp;: c'est le signe que le référentiel est bien sur votre machine.</p>
+
+<p style="background: #fdf3e7; border-left: 4px solid #c47f2a; padding: 10px 16px; margin: 16px 0;">
+<b>Si quelque chose bloque, écrivez-moi ce soir</b> plutôt que demain matin. Les trois causes habituelles&nbsp;: une version de R antérieure à 4.1 (vérifier avec <code style="font-family: Consolas, monospace;">R.version.string</code>)&nbsp;; sous Windows, la question «&nbsp;installer depuis les sources qui nécessitent compilation&nbsp;?&nbsp;», à laquelle il faut répondre <b>non</b> (<code style="font-family: Consolas, monospace;">n</code>)&nbsp;; une connexion lente, ce à quoi sert la première ligne.
+</p>
+
+<h2 style="font-size: 18px; margin: 26px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #2b6cb0; color: #1a3a5c;">2. Apporter une liste d'espèces</h2>
+
+<p>Un fichier <code style="font-family: Consolas, monospace; background: #f5f5f5; padding: 1px 4px;">.xlsx</code> ou <code style="font-family: Consolas, monospace; background: #f5f5f5; padding: 1px 4px;">.csv</code> à vous, avec des noms d'espèces. L'heure d'atelier du matin se fait sur vos données, pas sur un exemple.</p>
+
+<p><b>Si vous pouvez me l'envoyer aujourd'hui</b>, faites-le&nbsp;: cela me permet de préparer l'atelier sur vos cas réels plutôt que sur des exemples fabriqués.</p>
+
+<p>Ceux qui viendront sans fichier ne resteront pas spectateurs&nbsp;: le second fichier joint, <b>formation_2026_liste_especes_exemple2.xlsx</b>, est là pour ça — une liste de terrain de 33 noms, à traiter exactement comme la vôtre. Inutile de l'ouvrir avant samedi.</p>
+
+<h2 style="font-size: 18px; margin: 26px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #2b6cb0; color: #1a3a5c;">3. Dans la salle</h2>
+
+<ol style="padding-left: 22px; margin: 12px 0;">
+<li style="margin-bottom: 8px;"><b>Une connexion Zoom par personne ou binôme.</b></li>
+<li style="margin-bottom: 8px;"><b>Une seule machine porte le son</b> — celle qui est branchée au vidéoprojecteur. Toutes les autres rejoignent la réunion <b>sans audio</b>&nbsp;: micro coupé <i>et</i> haut-parleurs coupés. Sinon, larsen garanti en trente secondes.</li>
+<li style="margin-bottom: 8px;"><b>Caméras coupées</b>, des deux côtés.</li>
+</ol>
+
+<p>Prévoyez une multiprise.</p>
+
+<p style="margin-top: 26px;">À demain,<br>
+Gilles Dauby — <a href="mailto:gilles.dauby@ird.fr" style="color: #2b6cb0;">gilles.dauby@ird.fr</a></p>
+
+</div>
