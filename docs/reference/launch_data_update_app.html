@@ -13,7 +13,7 @@ already know which table a value lives in."><meta property="og:image" content="h
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -114,9 +114,29 @@ specimen is linked, its identification wins: editing <code>idtax_n</code> is
 stored but changes nothing an extraction shows, and the app says so both in
 the section and in the preview. Re-identifying the specimen is done with
 <code><a href="launch_specimen_identification_app.html">launch_specimen_identification_app</a></code>.</p>
-<p>Only existing records can be edited. Adding or deleting measurements is done
-with the feature wizard (<code><a href="launch_feature_wizard.html">launch_feature_wizard</a></code>) and the
-<code>safe_delete_*</code> functions.</p>
+<p>Otherwise only existing records can be edited. Adding measurements in bulk
+is done with the feature wizard (<code><a href="launch_feature_wizard.html">launch_feature_wizard</a></code>), and
+deleting them with the <code>safe_delete_*</code> functions. There are two
+exceptions.</p>
+<p><strong>A missing measurement of an individual.</strong> The individual section can
+add a measurement the individual does not have yet - a diameter missed at
+one census, for instance - one value at a time. The row is built as the
+feature wizard builds it, and refused when the same feature is already
+recorded for that census (edit it instead) or when the value lies outside
+the feature's allowed range. A numeric value lower than at an earlier census
+is accepted with an <code>issue</code> saying so. Features that describe the tree
+rather than a census (see <code>traitlist.census_link</code>) are recorded without
+one. New measurements are staged, listed in the preview, and written by
+<em>Apply update</em> with the other edits.</p>
+<p><strong>Observation features of a plot feature.</strong> A feature
+record, a census most often, can itself be described by rows of
+<code>data_subplot_feat</code> - the people of that census (<code>team_leader</code>,
+<code>additional_people</code>, ...). The plot section lists them for each feature
+record and lets you add and remove them. These rows are never edited in
+place: replacing a person is removing one and adding the other. Additions and
+removals are staged like any other edit, listed in the preview, and written
+by <em>Apply update</em> in the same transaction. Outside the app, records are
+removed with <code><a href="safe_delete_subplot_obs_features.html">safe_delete_subplot_obs_features</a></code>.</p>
 <p>Every write goes through <code><a href="detect_direct_changes.html">detect_direct_changes()</a></code> and
 <code>execute_direct_updates()</code>, so stored values are re-read immediately
 before writing, only genuine differences are written, and records are backed

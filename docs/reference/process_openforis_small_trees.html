@@ -13,7 +13,7 @@ already established 1-ha plot — and returns clean tables ready for import."><m
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -81,7 +81,10 @@ already established 1-ha plot — and returns clean tables ready for import.</p>
 <span>  census <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  plot_name_digits <span class="op">=</span> <span class="fl">3L</span>,</span>
 <span>  plot_name_map <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  plot_suffix <span class="op">=</span> <span class="st">"_smalltree"</span>,</span>
 <span>  quadrat_sep <span class="op">=</span> <span class="st">"_"</span>,</span>
+<span>  quadrat_decisions <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  mismatch_file <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dbh_max <span class="op">=</span> <span class="fl">10</span>,</span>
 <span>  specimen_prefix <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  specimen_remap_file <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -148,16 +151,16 @@ CSVs. Files are auto-detected by pattern: <code>code_observations*</code> (or
 <dd><p>Path to the code list of the 20 x 20 m quadrats of the
 parent plot (<code>code_quadrat.csv</code>: codes 1-25, labels <code>"0_0"</code>,
 <code>"20_20"</code>, ...). Decodes the <code>quadrat</code> column of
-<code>plot.xlsx</code> and so names the plots this function creates. NULL to
-auto-detect, FALSE to keep the raw codes.</p></dd>
+<code>plot.xlsx</code>, the first part of the <code>quadrat</code> feature of each
+individual. NULL to auto-detect, FALSE to keep the raw codes.</p></dd>
 
 
 <dt id="arg-subquadrat-codes">subquadrat_codes<a class="anchor" aria-label="anchor" href="#arg-subquadrat-codes"></a></dt>
 <dd><p>Path to the code list of the 10 x 10 m sub-quadrats
 (<code>code_subquadrat_smalltree.csv</code>: codes 1-4, labels A-D). Decodes the
-<code>quadrat</code> column of <code>tree_list.xlsx</code> into the <code>quadrat</code>
-feature of each individual. NULL to auto-detect, FALSE to keep the raw
-codes.</p></dd>
+<code>quadrat</code> column of <code>tree_list.xlsx</code>, the second part of the
+<code>quadrat</code> feature of each individual. NULL to auto-detect, FALSE to
+keep the raw codes.</p></dd>
 
 
 <dt id="arg-forest-state-codes-forest-type-codes-country-codes-team-leader-codes">forest_state_codes, forest_type_codes, country_codes, team_leader_codes<a class="anchor" aria-label="anchor" href="#arg-forest-state-codes-forest-type-codes-country-codes-team-leader-codes"></a></dt>
@@ -166,7 +169,7 @@ codes.</p></dd>
 
 
 <dt id="arg-method">method<a class="anchor" aria-label="anchor" href="#arg-method"></a></dt>
-<dd><p>Character. Plot method for the quadrats. Not present in the
+<dd><p>Character. Plot method for the small-tree plots. Not present in the
 OpenForis export — supply it here. Required by the Import Wizard, so a
 warning is raised when it is missing. NULL to omit.</p></dd>
 
@@ -181,9 +184,9 @@ OpenForis export — supply it here. NULL to omit.</p></dd>
 
 
 <dt id="arg-quadrat-area">quadrat_area<a class="anchor" aria-label="anchor" href="#arg-quadrat-area"></a></dt>
-<dd><p>Numeric. Area of one quadrat in hectares, written to
-<code>plots$plot_area</code>. Default <code>0.04</code> (a 20 x 20 m quadrat). NULL to
-omit.</p></dd>
+<dd><p>Numeric. Area of one quadrat in hectares. Default
+<code>0.04</code> (a 20 x 20 m quadrat). <code>plots$plot_area</code> is this times
+the number of quadrats sampled in the plot. NULL to omit.</p></dd>
 
 
 <dt id="arg-country">country<a class="anchor" aria-label="anchor" href="#arg-country"></a></dt>
@@ -231,9 +234,35 @@ replacements, applied to the raw value before padding and winning over it
 (e.g. <code>c("Mbalmayo-09" = "mbalmayo009")</code>). NULL for none.</p></dd>
 
 
+<dt id="arg-plot-suffix">plot_suffix<a class="anchor" aria-label="anchor" href="#arg-plot-suffix"></a></dt>
+<dd><p>Character appended to the parent plot name to name the
+small-tree plot (default <code>"_smalltree"</code>). It may not end with a
+digit, which <code><a href="dot-normalise_plot_name.html">.normalise_plot_name()</a></code> would take for the plot number.</p></dd>
+
+
 <dt id="arg-quadrat-sep">quadrat_sep<a class="anchor" aria-label="anchor" href="#arg-quadrat-sep"></a></dt>
-<dd><p>Character inserted between the parent plot name and the
-quadrat label (default <code>"_"</code>).</p></dd>
+<dd><p>Character joining the parts of a quadrat identifier: the
+parent plot name and the quadrat label in the review tables
+(<code>"mbalmayo001_20_20"</code>), and the quadrat label and the sub-quadrat in
+the <code>quadrat</code> feature (<code>"20_20_A"</code>). Default <code>"_"</code>.</p></dd>
+
+
+<dt id="arg-quadrat-decisions">quadrat_decisions<a class="anchor" aria-label="anchor" href="#arg-quadrat-decisions"></a></dt>
+<dd><p>The reviewed <code>name_mismatches</code> table, as a
+data frame or the path of an xlsx, or NULL to keep the tag quadrat for
+every stem. Needs <code>parent_plot_name</code>, <code>tag</code> and <code>keep</code>
+(<code>"tag"</code> or <code>"name"</code>; blank counts as <code>"tag"</code>), and uses
+<code>quadrat_by_name</code> when present, plus <code>plot_name_raw</code> to tell
+apart two stems sharing a tag. A relative path is taken inside
+<code>data_dir</code> when it is set. See the section "Deciding a mismatch".</p></dd>
+
+
+<dt id="arg-mismatch-file">mismatch_file<a class="anchor" aria-label="anchor" href="#arg-mismatch-file"></a></dt>
+<dd><p>Path of an xlsx to write <code>name_mismatches</code> to, for
+review, or NULL. A relative path is taken inside <code>data_dir</code> when it
+is set. Nothing is written when there is no mismatch. Output only: to
+apply an edited file, pass it as <code>quadrat_decisions</code> (both may name
+the same file, which is then rewritten with what was applied).</p></dd>
 
 
 <dt id="arg-dbh-max">dbh_max<a class="anchor" aria-label="anchor" href="#arg-dbh-max"></a></dt>
@@ -301,22 +330,26 @@ normalised, resolves the parent plot more reliably than the tidied
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A list with components:</p><dl><dt>plots</dt>
-<dd><p>Tibble, one row per sampled quadrat, ready to upload to the
-    Import Wizard as inventory metadata: plot_name (<code>&lt;parent&gt;_&lt;quadrat&gt;</code>),
-    parent_plot_name, quadrat, country, province, method, locality_name,
-    plot_area, data_provider, team_leader, principal_investigator,
-    data_manager, additional_people, identified_by, forest_state,
-    forest_type, date_y, date_m, date_d, census.</p></dd>
+<dd><p>Tibble, one row per small-tree plot (one per parent plot),
+    ready to upload to the Import Wizard as inventory metadata: plot_name
+    (<code>&lt;parent&gt;&lt;plot_suffix&gt;</code>), parent_plot_name, parent_relation,
+    quadrats (the sampled quadrat labels), country, province, method,
+    locality_name, plot_area, data_provider, team_leader,
+    principal_investigator, data_manager, additional_people, identified_by,
+    forest_state, forest_type, date_y, date_m, date_d, census.</p></dd>
 
   <dt>quadrats</dt>
-<dd><p>Tibble, the same units with the numbers used to assign
-    stems to them — firsttag, the tag range actually observed, the stem
-    count, and the raw <code>plot_plot_name_old</code> spellings that fell in the
-    range. A review table, not an upload.</p></dd>
+<dd><p>Tibble, one row per sampled quadrat: the small-tree
+    plot_name it belongs to, its quadrat_unit identifier
+    (<code>&lt;parent&gt;_&lt;quadrat&gt;</code>), and the numbers used to assign stems to it
+    — firsttag, the tag range actually observed, the stem count, and the
+    raw <code>plot_plot_name_old</code> spellings that fell in the range. A review
+    table, not an upload.</p></dd>
 
   <dt>individuals</dt>
-<dd><p>Tibble of every stem: plot_name (the quadrat),
-    parent_plot_name, tag, quadrat (the 10 x 10 m sub-quadrat A-D),
+<dd><p>Tibble of every stem: plot_name (the small-tree plot),
+    parent_plot_name, tag, quadrat (the 20 x 20 m quadrat and the
+    10 x 10 m sub-quadrat, e.g. <code>"20_20_A"</code>),
     original_tax_name, idtax_n, tax_appendix, herbarium_nbe_char,
     herbarium_nbe_type, position_x, position_y, multi_stem,
     number_multi_stem, multi_tiges_id (tag of the main stem, NA for the main
@@ -350,8 +383,12 @@ normalised, resolves the parent plot more reliably than the tidied
 
   <dt>name_mismatches</dt>
 <dd><p>Tibble of stems whose <code>plot_plot_name_old</code>
-    spelling puts them in a different quadrat than their tag does, or NULL.
-    The tag wins; these rows are for review.</p></dd>
+    spelling puts them in a different quadrat than their tag does, or
+    NULL: plot_name_raw, parent_plot_name, plot_name, tag,
+    species_scientific_name, quadrat_by_tag, quadrat_by_name and keep (the
+    side used, <code>"tag"</code> unless <code>quadrat_decisions</code> says
+    otherwise). Edit <code>keep</code> and pass it back as
+    <code>quadrat_decisions</code>.</p></dd>
 
   <dt>unassigned_stems</dt>
 <dd><p>Tibble of stems that could not be placed in any
@@ -360,7 +397,7 @@ normalised, resolves the parent plot more reliably than the tidied
     raised. These stems are excluded from every other table.</p></dd>
 
   <dt>duplicated_stems</dt>
-<dd><p>Tibble of rows sharing a quadrat + tag pair, or
+<dd><p>Tibble of rows sharing a plot + tag pair, or
     NULL. A <code><a href="https://rdrr.io/r/base/warning.html" class="external-link">warning()</a></code> is also raised.</p></dd>
 
   <dt>oversized_stems</dt>
@@ -374,15 +411,17 @@ normalised, resolves the parent plot more reliably than the tidied
 </dl></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Each sampled quadrat becomes **its own plot**, named
-<code>&lt;parent plot&gt;_&lt;quadrat label&gt;</code> (e.g. <code>"mbalmayo001_20_20"</code>) with
-an area of <code>quadrat_area</code> hectares. See the section below for why.</p>
+    <p>All the quadrats sampled in one parent plot together make **one small-tree
+plot**, named <code>&lt;parent plot&gt;&lt;plot_suffix&gt;</code> (e.g.
+<code>"mbalmayo001_smalltree"</code>), with an area of the number of sampled
+quadrats times <code>quadrat_area</code>. It is linked to its parent plot as a
+<code>nested_subsample</code>. See the sections below for why.</p>
 <p>Plot coordinates are **not** produced: they are not part of the OpenForis
 raw export and must be added separately (e.g. with
 <code><a href="add_plot_coordinates.html">add_plot_coordinates()</a></code>).</p>
     </div>
     <div class="section level2">
-    <h2 id="why-one-plot-per-quadrat">Why one plot per quadrat<a class="anchor" aria-label="anchor" href="#why-one-plot-per-quadrat"></a></h2>
+    <h2 id="why-a-plot-of-its-own">Why a plot of its own<a class="anchor" aria-label="anchor" href="#why-a-plot-of-its-own"></a></h2>
 
 
 <p>The small trees are tagged 1..N within their parent plot, and those numbers
@@ -392,12 +431,32 @@ trees restart at 1. A repeated plot + tag pair is treated as a data defect
 everywhere else in this package (see <code><a href="split_census_table.html">split_census_table</a></code>), and once
 recorded it cannot be undone, so the small trees cannot be filed under the
 parent plot without mangling their field tags.</p>
-<p>Registering each quadrat as a plot of its own avoids that: the
-<code>firsttag</code> column makes the tag ranges of the quadrats disjoint, so
-every tag is kept exactly as written in the field. It also stores the right
-area for a density per hectare, and keeps the date, forest type and field
-team that <code>plot.xlsx</code> records **per quadrat** rather than collapsing
-them. The link back is kept in the <code>parent_plot_name</code> column.</p>
+<p>Within one parent plot, though, the <code>firsttag</code> column makes the tag
+ranges of the quadrats disjoint, so the quadrats of a plot share one tag
+sequence and are one sampling unit: every tag is kept exactly as written in
+the field. The quadrat of each stem is not lost — it is recorded in the
+<code>quadrat</code> feature of the individual, together with its 10 x 10 m
+sub-quadrat (e.g. <code>"20_20_A"</code>).</p>
+    </div>
+    <div class="section level2">
+    <h2 id="link-to-the-parent-plot">Link to the parent plot<a class="anchor" aria-label="anchor" href="#link-to-the-parent-plot"></a></h2>
+
+
+<p>The plot table carries <code>parent_plot_name</code> and
+<code>parent_relation = "nested_subsample"</code>, which the Import Wizard turns
+into the <code>id_parent_plot</code> link. The relation says that the small-tree
+plot overlaps the ground of its parent with another diameter threshold, so
+the two must never be summed. The parent plot must already be in the
+database.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="quadrats-sampled-on-different-occasions">Quadrats sampled on different occasions<a class="anchor" aria-label="anchor" href="#quadrats-sampled-on-different-occasions"></a></h2>
+
+
+<p><code>plot.xlsx</code> records date, team and forest type for each quadrat, and
+one plot holds one value. The earliest date is kept, the team and forest
+types of all quadrats are pooled, and any other column on which the
+quadrats disagree keeps its first value. Each disagreement is announced.</p>
     </div>
     <div class="section level2">
     <h2 id="how-stems-are-assigned-to-quadrats">How stems are assigned to quadrats<a class="anchor" aria-label="anchor" href="#how-stems-are-assigned-to-quadrats"></a></h2>
@@ -412,8 +471,29 @@ follow.</p>
 quadrat, the tag its numbering started at. Stems are therefore assigned by
 tag range — a stem belongs to the quadrat with the largest <code>firsttag</code>
 not above its tag. The <code>plot_plot_name_old</code> grouping is used only as a
-cross-check, and any disagreement is reported in <code>name_mismatches</code>
-rather than acted on.</p>
+cross-check, and any disagreement is reported in <code>name_mismatches</code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="deciding-a-mismatch">Deciding a mismatch<a class="anchor" aria-label="anchor" href="#deciding-a-mismatch"></a></h2>
+
+
+<p>A mismatch has no single right answer. A mistyped underscore makes the tag
+right; a stem forgotten behind the team and tagged later, from the next
+quadrat's range, makes the name right. Only the person who knows the field
+work can tell, so the decision is theirs, taken in two runs:</p><ol><li><p>Run once. The tag is used for every stem, and
+    <code>name_mismatches</code> lists the disputed stems with the quadrat each
+    side gives (<code>quadrat_by_tag</code>, <code>quadrat_by_name</code>) and a
+    <code>keep</code> column set to <code>"tag"</code>. Set <code>mismatch_file</code> to get
+    the table as an xlsx.</p></li>
+<li><p>Change <code>keep</code> to <code>"name"</code> for the stems that belong where
+    the name puts them, then run again with that table as
+    <code>quadrat_decisions</code>.</p></li>
+</ol><p><code>quadrat_by_name</code> may also be edited, to send a stem to a third
+quadrat of the same parent plot. A stem the decisions do not mention keeps
+its tag quadrat. Only the stem's <code>quadrat</code> feature changes: every
+quadrat of a parent plot is in the same small-tree plot. Multi-stem
+grouping runs after the decisions, so a moved stem is grouped with its new
+neighbours.</p>
     </div>
     <div class="section level2">
     <h2 id="taxonomy">Taxonomy<a class="anchor" aria-label="anchor" href="#taxonomy"></a></h2>
@@ -452,6 +532,20 @@ importing. A warning is raised as a reminder.</p>
 <span class="r-in"><span><span class="va">result</span><span class="op">$</span><span class="va">quadrats</span></span></span>
 <span class="r-in"><span><span class="va">result</span><span class="op">$</span><span class="va">name_mismatches</span></span></span>
 <span class="r-in"><span><span class="va">result</span><span class="op">$</span><span class="va">unassigned_stems</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Settle the quadrat of the disputed stems: write the mismatches, set</span></span></span>
+<span class="r-in"><span><span class="co"># keep = "name" where the name is right, and run again with the file</span></span></span>
+<span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">process_openforis_small_trees</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  data_dir  <span class="op">=</span> <span class="st">"path/to/mission/plot/small_tree/"</span>,</span></span>
+<span class="r-in"><span>  codes_dir <span class="op">=</span> <span class="st">"path/to/openforis/"</span>,</span></span>
+<span class="r-in"><span>  mismatch_file <span class="op">=</span> <span class="st">"mismatches.xlsx"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># ... edit mismatches.xlsx ...</span></span></span>
+<span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">process_openforis_small_trees</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  data_dir  <span class="op">=</span> <span class="st">"path/to/mission/plot/small_tree/"</span>,</span></span>
+<span class="r-in"><span>  codes_dir <span class="op">=</span> <span class="st">"path/to/openforis/"</span>,</span></span>
+<span class="r-in"><span>  quadrat_decisions <span class="op">=</span> <span class="st">"mismatches.xlsx"</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># One file per Import Wizard upload</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="export_openforis_for_wizard.html">export_openforis_for_wizard</a></span><span class="op">(</span><span class="va">result</span>, dir <span class="op">=</span> <span class="st">"to_import"</span><span class="op">)</span></span></span>

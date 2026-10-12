@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,7 +61,8 @@
 <span>  add_backup <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  show_results <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  only_new_ident <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  ask_before_update <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  ask_before_update <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  show_comparison <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -131,6 +132,12 @@
 
 <dt id="arg-only-new-ident">only_new_ident<a class="anchor" aria-label="anchor" href="#arg-only-new-ident"></a></dt>
 <dd><p>string if labels are produced name of the rtf file</p></dd>
+
+
+<dt id="arg-show-comparison">show_comparison<a class="anchor" aria-label="anchor" href="#arg-show-comparison"></a></dt>
+<dd><p>logical, whether to print the HTML table comparing
+current and new values. Printing it opens the RStudio Viewer, which
+replaces a running Shiny app, so apps must pass <code>FALSE</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -5,7 +5,13 @@ Feature Wizard Step 3: Full Census Import - Server
 ## Usage
 
 ``` r
-mod_feat_step3_census_import_server(id, selected_plots, con, i18n)
+mod_feat_step3_census_import_server(
+  id,
+  selected_plots,
+  con,
+  con_taxa = shiny::reactive(NULL),
+  i18n
+)
 ```
 
 ## Arguments
@@ -21,6 +27,12 @@ mod_feat_step3_census_import_server(id, selected_plots, con, i18n)
 - con:
 
   Reactive containing database connection pool
+
+- con_taxa:
+
+  Reactive containing the taxa database pool. Used only to resolve
+  synonyms when comparing identifications; without it a stem renamed
+  between two synonyms is reported as an identification change.
 
 - i18n:
 

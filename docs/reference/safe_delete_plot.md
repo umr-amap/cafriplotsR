@@ -5,8 +5,9 @@
 This function safely deletes one or more plots and all related data in
 the correct order to respect foreign key constraints: 1. Individual
 measurement features 2. Trait measurements 3. Individual measurements
-(if exists) 4. Individuals 5. Subplot features 6. Subplots 7. Plot
-(skipped if `delete_plot = FALSE`)
+(if exists) 4. Individuals 5. Subplot observation features
+(`data_subplot_feat`) 6. Subplots 7. Plot (skipped if
+`delete_plot = FALSE`)
 
 \*\*Safety features:\*\* - Dry-run mode to preview what will be
 deleted - Shows counts of all related data - Requires explicit

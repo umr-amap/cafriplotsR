@@ -11,7 +11,7 @@ table spells that way.
 ## Usage
 
 ``` r
-.specimen_key(x)
+.specimen_key(id_colnam, colnbr, suffix = NULL)
 ```
 
 ## Arguments

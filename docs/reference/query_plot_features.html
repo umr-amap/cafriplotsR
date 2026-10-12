@@ -9,7 +9,7 @@ aggregation and enrichment with subplot observation features."><meta property="o
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -76,7 +76,13 @@ aggregation and enrichment with subplot observation features.</p>
 
 
 <dt id="arg-include-subplot-obs-features">include_subplot_obs_features<a class="anchor" aria-label="anchor" href="#arg-include-subplot-obs-features"></a></dt>
-<dd><p>Include subplot observation features</p></dd>
+<dd><p>Include subplot observation features
+(rows of `data_subplot_feat`, e.g. the people of a census). With
+`format = "wide"` they are pivoted into `obs_*` columns of
+`features_raw`, one cell per subplot and type (text pasted, numbers
+averaged). With `format = "long"` they are not pivoted: they come back
+one row per database record in `subplot_obs_features`, with
+`id_subplot_feat` so a record can be updated or deleted.</p></dd>
 
 
 <dt id="arg-con">con<a class="anchor" aria-label="anchor" href="#arg-con"></a></dt>
@@ -88,9 +94,25 @@ aggregation and enrichment with subplot observation features.</p>
     <p>List with components:
   - features_raw: Raw subplot features
   - features_aggregated: Aggregated features by plot (if format="wide")
-  - census_info: Census-specific information (if census data present)</p>
+  - census_info: Census-specific information (if census data present)
+  - subplot_obs_features: Only with `format = "long"` and
+    `include_subplot_obs_features = TRUE`. One row per `data_subplot_feat`
+    record, all its columns as stored, plus the feature `type` and
+    `valuetype`, the parent subplot's plot, type and year, and `colnam`
+    (the person's name) for people features.</p>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="co"># Observation features of one census, one row per record</span></span></span>
+<span class="r-in"><span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu">query_plot_features</span><span class="op">(</span>subplot_ids <span class="op">=</span> <span class="fl">15063</span>, format <span class="op">=</span> <span class="st">"long"</span>,</span></span>
+<span class="r-in"><span>                           include_subplot_obs_features <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">res</span><span class="op">$</span><span class="va">subplot_obs_features</span></span></span>
+<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-in"><span></span></span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 

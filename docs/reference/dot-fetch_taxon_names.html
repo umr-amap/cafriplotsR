@@ -11,7 +11,7 @@ make it unusable, so this is not optional decoration."><meta property="og:image"
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -65,7 +65,9 @@ make it unusable, so this is not optional decoration.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Data frame with `idtax_n`, `taxon_name`, `tax_level`, `precision`.
+    <p>Data frame with `idtax_n`, `taxon_name`, `tax_level`, `precision`
+  and `idtax_accepted` — the id of the accepted taxon, so the caller can
+  tell a renaming from a redetermination without a second query.
   An empty frame if nothing can be fetched — the caller degrades to ids.</p>
     </div>
 

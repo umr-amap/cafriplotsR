@@ -1,10 +1,11 @@
-# Build the plot-level table, one row per sampled quadrat
+# Build the plot-level table, one row per small-tree plot
 
 Reuses
 [`.prepare_openforis_new_plots()`](https://umr-amap.github.io/cafriplotsR/reference/dot-prepare_openforis_new_plots.md)
 for everything the two forms share — country, team, forest state and
-type, dates — then swaps in the quadrat plot name and adds the columns
-specific to a quadrat.
+type, dates — one row per quadrat, then pools the quadrats of each
+parent plot into its small-tree plot with
+[`.collapse_small_tree_plots()`](https://umr-amap.github.io/cafriplotsR/reference/dot-collapse_small_tree_plots.md).
 
 ## Usage
 
@@ -40,10 +41,20 @@ specific to a quadrat.
 
   Data frame read from `plot.xlsx`.
 
-- country, province, method, data_provider, locality_name, plot_area,
+- forest_state_codes, forest_type_codes, team_leader_codes,
+  country_codes:
+
+  Parsed code lists, or NULL to skip that decoding.
+
+- country, province, method, data_provider, locality_name,
   principal_investigator, data_manager:
 
   Constants not present in the export. NULL to omit.
+
+- plot_area:
+
+  Area of one quadrat in hectares, multiplied by the number of quadrats
+  of each plot. NULL to omit.
 
 - additional_people:
 
@@ -53,14 +64,9 @@ specific to a quadrat.
 
   Census number written to a `census` column. NULL to omit.
 
-- quadrat_codes, forest_state_codes, forest_type_codes,
-  team_leader_codes, country_codes:
-
-  Parsed code lists, or NULL to skip that decoding.
-
 ## Value
 
-Data frame with one row per quadrat.
+Data frame with one row per small-tree plot.
 
 ## Details
 

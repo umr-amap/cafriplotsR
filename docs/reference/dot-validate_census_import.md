@@ -8,7 +8,7 @@ identity, the recruits' taxonomy, and the multi-stem grouping.
 ## Usage
 
 ``` r
-.validate_census_import(data, config, con)
+.validate_census_import(data, config, con, i18n = NULL)
 ```
 
 ## Arguments
@@ -24,6 +24,13 @@ identity, the recruits' taxonomy, and the multi-stem grouping.
 - con:
 
   Database connection or pool.
+
+- i18n:
+
+  Translator object from shiny.i18n, or \`NULL\` to leave the messages
+  in English. The step renders what this returns straight into the
+  validation table, so a message left untranslated here reaches a French
+  user in English.
 
 ## Value
 

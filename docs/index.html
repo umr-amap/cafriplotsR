@@ -29,7 +29,7 @@
 
     <a class="navbar-brand me-2" href="index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -73,7 +73,7 @@
 The advantage of this package is allow managing inventories, traits and observations under the same taxonomic backbone, facilitating data integration, reproductibility in data analysis and manipulation, data reusability.</p>
 <p><strong>Key features:</strong> - Query plot data, individual tree measurements, and ecological features - Access and aggregate species-level traits <em>sensus largo</em> - Shiny app for standardize and correct your own list of taxonomic names</p>
 <hr>
-<p><strong><a href="README.fr.html">Version française disponible ici / French version available here</a></strong></p>
+<p><strong><a href="https://umr-amap.github.io/cafriplotsR/articles/readme-fr.html">Version française disponible ici / French version available here</a></strong></p>
 <hr>
 </div>
 <div class="section level2">
@@ -219,7 +219,8 @@ The advantage of this package is allow managing inventories, traits and observat
 <span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/query_plots.html">query_plots</a></span><span class="op">(</span>country <span class="op">=</span> <span class="st">"GABON"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Visualize database structure</span></span>
-<span><span class="fu"><a href="reference/get_database_fk.html">get_database_fk</a></span><span class="op">(</span><span class="va">mydb</span><span class="op">)</span></span></code></pre></div>
+<span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"scripts"</span>, <span class="st">"draw_database_structure.R"</span>, package <span class="op">=</span> <span class="st">"CafriplotsR"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu">draw_database_structure</span><span class="op">(</span>include <span class="op">=</span> <span class="va">CORE_TABLES</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
 <div class="section level2">

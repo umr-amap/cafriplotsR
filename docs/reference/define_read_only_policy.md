@@ -43,6 +43,17 @@ define_read_only_policy(
   Replace existing access with new IDs - "add": Add new IDs to existing
   access - "remove": Remove specified IDs from existing access
 
+## Details
+
+Before 2026-09-26 the name overpromised: the underlying
+[`define_user_policy`](https://umr-amap.github.io/cafriplotsR/reference/define_user_policy.md)
+created a SELECT policy but granted \`SELECT, INSERT, UPDATE, DELETE\`
+at the table level regardless, so an account set up this way carried
+write privileges it was never meant to have. The grant now follows
+\`operations\`, and this wrapper leaves the account with \`SELECT\` and
+nothing else. Accounts created before that date may still hold the old
+grant - re-running this function on them removes it.
+
 ## Examples
 
 ``` r

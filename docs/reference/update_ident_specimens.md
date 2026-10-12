@@ -24,7 +24,8 @@ update_ident_specimens(
   add_backup = TRUE,
   show_results = TRUE,
   only_new_ident = TRUE,
-  ask_before_update = TRUE
+  ask_before_update = TRUE,
+  show_comparison = TRUE
 )
 ```
 
@@ -94,6 +95,12 @@ update_ident_specimens(
 - only_new_ident:
 
   string if labels are produced name of the rtf file
+
+- show_comparison:
+
+  logical, whether to print the HTML table comparing current and new
+  values. Printing it opens the RStudio Viewer, which replaces a running
+  Shiny app, so apps must pass `FALSE`.
 
 ## Value
 

@@ -17,7 +17,7 @@ ordinary way."><meta property="og:image" content="https://umr-amap.github.io/caf
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,7 +57,16 @@ ordinary way.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.upd_apply_all</span><span class="op">(</span><span class="va">entity</span>, <span class="va">id</span>, <span class="va">values</span>, <span class="va">features</span>, <span class="va">con</span>, link <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">.upd_apply_all</span><span class="op">(</span></span>
+<span>  <span class="va">entity</span>,</span>
+<span>  <span class="va">id</span>,</span>
+<span>  <span class="va">values</span>,</span>
+<span>  <span class="va">features</span>,</span>
+<span>  <span class="va">con</span>,</span>
+<span>  link <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  obs <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  measures <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -89,11 +98,22 @@ ordinary way.</p>
 <dd><p>Plots only: `NULL`, or a list with `id_parent_plot` and
 `parent_relation` to write as the plot's parent link.</p></dd>
 
+
+<dt id="arg-obs">obs<a class="anchor" aria-label="anchor" href="#arg-obs"></a></dt>
+<dd><p>Plots only: `NULL`, or the staged observation feature changes
+(see [.upd_apply_obs_features()]).</p></dd>
+
+
+<dt id="arg-measures">measures<a class="anchor" aria-label="anchor" href="#arg-measures"></a></dt>
+<dd><p>Individuals only: `NULL`, or the staged new measurements
+(see [.upd_apply_ind_measures()]).</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A list with `n_direct`, `n_feature` and `n_link`: how many values
-  were written.</p>
+    <p>A list with `n_direct`, `n_feature`, `n_link`, `n_obs_added`,
+  `n_obs_removed` and `n_measures_added`: how many values or rows were
+  written.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

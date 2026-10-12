@@ -15,7 +15,7 @@ underscore was mistyped."><meta property="og:image" content="https://umr-amap.gi
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -62,13 +62,22 @@ underscore was mistyped.</p>
 
 
 <dl><dt id="arg-trees">trees<a class="anchor" aria-label="anchor" href="#arg-trees"></a></dt>
-<dd><p>Assigned tree data frame (plot_name, plot_name_raw).</p></dd>
+<dd><p>Assigned tree data frame (quadrat_unit, quadrat_label,
+plot_name_raw).</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Data frame of the minority rows, or NULL when every spelling is
-  consistent.</p>
+    <p>Data frame of the minority rows, with the quadrat their tag puts
+  them in (<code>quadrat_by_tag</code>), the one most stems of that spelling
+  landed in (<code>quadrat_by_name</code>) and <code>keep = "tag"</code>, or NULL when
+  every spelling is consistent.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>The table is laid out to be edited and handed back as
+<code>quadrat_decisions</code>: quadrats are named by their label, which is what
+a person types, and <code>keep</code> says which side is used.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

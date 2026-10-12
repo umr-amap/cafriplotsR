@@ -21,7 +21,7 @@ handle INSERT (open to all) and creator access (automatic)."><meta property="og:
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -119,10 +119,15 @@ Default TRUE. Ignored when mode is "add" or "remove".</p></dd>
 
 
 <dt id="arg-grant-table-privileges">grant_table_privileges<a class="anchor" aria-label="anchor" href="#arg-grant-table-privileges"></a></dt>
-<dd><p>Logical. Whether to automatically grant table-level
-SELECT, INSERT, UPDATE, DELETE privileges to the user. Default TRUE. These are
-required for the RLS policies to work - RLS controls which rows, table privileges
-control which operations. Without these privileges, RLS policies have no effect.</p></dd>
+<dd><p>Logical. Whether to also set the table-level
+  privileges the policies need. Default TRUE. RLS controls which rows, table
+  privileges control which operations, and a policy without the matching
+  privilege has no effect.</p>
+<p>The privileges granted are derived from `operations`, and anything not
+  asked for is **revoked**, so narrowing a user's `operations` narrows their
+  real access rather than leaving the earlier grant behind. `UPDATE` and
+  `DELETE` additionally imply `SELECT`, which they need to evaluate their own
+  `WHERE` clause.</p></dd>
 
 </dl></div>
     <div class="section level2">

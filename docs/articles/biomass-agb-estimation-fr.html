@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">CafriplotsR</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.951</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">1.9.952</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -188,7 +188,7 @@ enrichis</strong> :</p>
 <span><span class="co">#&gt;  $ source_taxa_mean_wood_density     : chr [1:888] "species" "species" "species" "species" ...</span></span>
 <span><span class="co">#&gt;  $ source_taxa_n_wood_density        : chr [1:888] "species" "species" "species" "species" ...</span></span>
 <span><span class="co">#&gt;  $ source_taxa_sd_wood_density       : chr [1:888] "species" "species" "species" "species" ...</span></span>
-<span><span class="co">#&gt;  $ taxa_sd_wood_density_plot_level   : num [1:888] 0.0762 0.0762 0.0762 0.0762 0.0762 ...</span></span>
+<span><span class="co">#&gt;  $ taxa_sd_wood_density_plot_level   : num [1:888] 0.0761 0.0761 0.0761 0.0761 0.0761 ...</span></span>
 <span><span class="co">#&gt;  $ pom                               : num [1:888] 1.3 1.3 1.3 1.3 1.3 1.3 1.3 1.8 3.3 1.3 ...</span></span>
 <span><span class="co">#&gt;  $ taxa_mean_stem_diameter_p95       : num [1:888] 35 76.4 50 40 23.5 ...</span></span>
 <span><span class="co">#&gt;  $ taxa_n_stem_diameter_p95          : num [1:888] 1 1 1 1 1 1 1 1 1 1 ...</span></span>
@@ -448,12 +448,12 @@ pour la hauteur</li>
 <code class="sourceCode R"><span><span class="co"># Résumé des variables requises</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">agb_data</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"dbh"</span>, <span class="st">"taxa_mean_wood_density"</span>, <span class="st">"H_final"</span>, <span class="st">"H_RSE"</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt;       dbh        taxa_mean_wood_density    H_final          H_RSE      </span></span>
-<span><span class="co">#&gt;  Min.   : 10.0   Min.   :0.290          Min.   : 8.93   Min.   :4.280  </span></span>
-<span><span class="co">#&gt;  1st Qu.: 12.3   1st Qu.:0.590          1st Qu.:16.39   1st Qu.:4.280  </span></span>
-<span><span class="co">#&gt;  Median : 16.2   Median :0.650          Median :19.07   Median :5.299  </span></span>
-<span><span class="co">#&gt;  Mean   : 23.3   Mean   :0.639          Mean   :20.97   Mean   :4.824  </span></span>
-<span><span class="co">#&gt;  3rd Qu.: 24.8   3rd Qu.:0.710          3rd Qu.:23.86   3rd Qu.:5.299  </span></span>
-<span><span class="co">#&gt;  Max.   :175.0   Max.   :0.870          Max.   :41.10   Max.   :5.299</span></span>
+<span><span class="co">#&gt;  Min.   : 10.0   Min.   :0.2900         Min.   : 8.93   Min.   :4.280  </span></span>
+<span><span class="co">#&gt;  1st Qu.: 12.3   1st Qu.:0.5900         1st Qu.:16.39   1st Qu.:4.280  </span></span>
+<span><span class="co">#&gt;  Median : 16.2   Median :0.6500         Median :19.07   Median :5.299  </span></span>
+<span><span class="co">#&gt;  Mean   : 23.3   Mean   :0.6391         Mean   :20.97   Mean   :4.824  </span></span>
+<span><span class="co">#&gt;  3rd Qu.: 24.8   3rd Qu.:0.7175         3rd Qu.:23.86   3rd Qu.:5.299  </span></span>
+<span><span class="co">#&gt;  Max.   :175.0   Max.   :0.8700         Max.   :41.10   Max.   :5.299</span></span>
 <span></span>
 <span><span class="co"># Vérifier les données manquantes</span></span>
 <span><span class="va">agb_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>

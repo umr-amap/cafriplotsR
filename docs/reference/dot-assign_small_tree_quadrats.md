@@ -26,9 +26,9 @@ teams do not apply consistently.
 
 ## Value
 
-List with `trees` (assignable rows, with `plot_name` set), `unassigned`
-(rows dropped, or NULL) and `mismatches` (rows the raw spelling
-disagrees about, or NULL).
+List with `trees` (assignable rows, with `quadrat_unit`, `quadrat_label`
+and the small-tree `plot_name` set), `unassigned` (rows dropped, or
+NULL) and `mismatches` (rows the raw spelling disagrees about, or NULL).
 
 ## Details
 

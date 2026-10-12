@@ -4,6 +4,89 @@
 
 #### Breaking Changes
 
+- **`get_database_fk()` removed** - superseded by
+  `draw_database_structure()` in
+  `inst/scripts/draw_database_structure.R`, which is a script rather
+  than an exported function:
+  `source(system.file("scripts", "draw_database_structure.R", package = "CafriplotsR"))`,
+  then `draw_database_structure(include = CORE_TABLES)` for the
+  equivalent overview. The outdated `man/figures/mydb_structure.png` was
+  removed with it
+
+- **[`define_user_policy()`](https://umr-amap.github.io/cafriplotsR/reference/define_user_policy.md)
+  no longer grants `DELETE`, and now revokes the privileges it was not
+  asked for** (`R/connections_db.R`) - two defects in one function, both
+  of which handed out more than the caller asked for
+
+  - `grant_privileges = TRUE` granted `SELECT, INSERT, UPDATE, DELETE`
+    unconditionally, whatever `operations` said.
+    [`define_read_only_policy()`](https://umr-amap.github.io/cafriplotsR/reference/define_read_only_policy.md),
+    whose entire purpose is read-only access, therefore granted full DML
+    to every account it touched. The privileges are now derived from
+    `operations`, and **anything not asked for is revoked**, so
+    narrowing an account’s `operations` narrows its privileges instead
+    of silently leaving the old ones in place. `UPDATE` and `DELETE`
+    imply `SELECT`, which they need to evaluate their own `WHERE` clause
+  - `operations = "ALL"` used to mean all four commands and to create a
+    `_delete` policy. It is how **13,913 of 14,018 plot grants came to
+    carry `DELETE`** - nine accounts on more than 1,100 plots each -
+    because `"ALL"` is the natural thing to type when handing out
+    access. `"ALL"` now stops short of `DELETE`; a caller who wants it
+    passes `operations = "DELETE"` explicitly and is told what that
+    means
+  - **No account loses the ability to delete its own plots.**
+    `creator_access_delete` covers the plots an account created, which
+    is the case this was almost always used for. What goes away is
+    deleting other people’s
+
+- **`plots_transects` now enforces row-level security on the six child
+  tables** - `data_liste_sub_plots`, `data_subplot_feat`,
+  `data_individuals`, `data_traits_measures`, `data_ind_measures_feat`
+  and `data_link_specimens`. Applied to the production database on
+  2026-09-29 by `inst/migrations/plot_access_child_rls.R`
+
+  - Until now row-level security covered `data_liste_plots` only. The
+    ~125 per-account policies on it were real, but every account could
+    read and write all ~3.2M rows beneath it whatever plots it held -
+    which made the exposure a geolocated, attributed occurrence dataset
+    rather than a list of plot names
+  - Measured from a connection opened as an ordinary account holding 8
+    of 2,194 plots: **3,205,617 rows visible before, 9,996 after**.
+    `data_individuals` 446,156 to 1,081; `data_traits_measures`
+    2,053,478 to 5,778; `data_ind_measures_feat` 476,701 to 2,662
+  - **Scripts that read these tables now return only the caller’s
+    plots.** Nothing errors - a query that used to return the whole
+    table returns a subset, silently. Anything aggregating across plots
+    (regional summaries, trait means, census comparisons) needs its
+    access widened through `plot_access` rather than assumed.
+    [`plot_access_drift()`](https://umr-amap.github.io/cafriplotsR/reference/plot_access_drift.md)
+    reports disagreements between the two layers
+  - Writes are unaffected for accounts that hold the plot: the policies
+    key `INSERT`/`UPDATE`/`DELETE` on `plot_access.can_write`,
+    deliberately **not** on `can_delete`, because deleting a measurement
+    row is ordinary curation that
+    [`safe_delete_individual_features()`](https://umr-amap.github.io/cafriplotsR/reference/safe_delete_individual_features.md)
+    performs on every re-import. `can_delete` gates `data_liste_plots`
+    alone
+  - `data_liste_plots` keeps its per-account policies.
+    `creator_access_select` is the only thing that lets
+    `INSERT ... RETURNING` return a brand-new plot, since the
+    `AFTER INSERT` creator trigger has not fired when the returned row
+    is checked
+  - Reversible in one statement per table; the migration writes
+    `restore_child_rls.sql` before it changes anything
+
+- **`created_by` on `data_liste_plots` is set by the server, not by the
+  client** (`inst/migrations/created_by_server_asserted.R`, applied
+  2026-09-26) - a client could previously name anyone as the creator of
+  a plot it inserted. Every permissive `INSERT` policy on the table was
+  dropped and replaced with a single `insert_own` policy plus a
+  `BEFORE INSERT` trigger that overwrites `created_by` with
+  `current_user`
+
+  - Any code that supplied `created_by` explicitly on a plot insert now
+    has that value ignored rather than honoured
+
 - **[`query_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/query_specimens.md)
   no longer accepts `genus`, `species` and `family`**
   (`R/functions_manip_db.R`, `R/specimen_query_builder.R`) — the three
@@ -282,6 +365,326 @@
   `data_traits_measures`.
 
 #### New Features
+
+- **[`launch_specimen_import_wizard()`](https://umr-amap.github.io/cafriplotsR/reference/launch_specimen_import_wizard.md)
+  no longer imports specimens that are already in the database**
+  (`R/specimen_duplicate_check.R`, `R/mod_specimen_import.R`) - the
+  `specimens` table has no unique constraint on collector + number +
+  suffix, and the wizard appended every row with `dbWriteTable()`. Its
+  only duplicate check compared rows of the file with each other, and
+  that was a warning that did not stop the import, so a re-uploaded or
+  overlapping file silently created duplicate specimens
+
+  - A specimen is identified by `id_colnam` + `colnbr` + `suffix`.
+    Numbers are compared as values (`"123"` = `123`), and suffixes
+    ignore case and surrounding spaces; an empty suffix equals a missing
+    one
+  - Step 4 checks each line against the database and against the rest of
+    the file. A “Duplicates (not imported)” card, new statuses in the
+    preview, and a warning panel list the affected lines by their
+    spreadsheet line number with the collector, number and suffix as
+    typed and the reason: the existing `id_specimen`(s), or the other
+    lines of the file carrying the same specimen. The list can be
+    downloaded as CSV
+  - Lines already in the database are skipped. Lines repeated within the
+    file are **all** skipped, since nothing says which copy is right;
+    the user keeps one and uploads again
+  - The check is re-run against the database when Import is clicked, and
+    refreshed after a successful import, so clicking Import twice does
+    not insert the batch twice. If the check cannot run, the import is
+    blocked rather than allowed through unchecked
+
+- **[`generate_specimen_labels()`](https://umr-amap.github.io/cafriplotsR/reference/generate_specimen_labels.md)
+  can print the collection date, the determination and extra fields such
+  as the description** (`R/generate_specimen_labels.R`) - the labels
+  showed only number, family, name and locality, so anything else on a
+  [`query_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/query_specimens.md)
+  row had to be written by hand
+
+  - `include_date = TRUE` appends the collection date to the specimen
+    line in parentheses with a lower-case month,
+    `IRD plot 2508 (12 mar 2024)`. It reads `cold`/`colm`/`coly`
+    (`date_cols`) and drops what is missing: `(nov 2023)`, `(2022)`,
+    nothing at all. A day without a month is dropped, and so is an
+    out-of-range or non-numeric value
+  - `include_determination = TRUE` now builds
+    `det. G. Dauby (4 may 2025)` from `detby`/`detd`/`detm`/`dety`
+    (`det_cols`). The line used to read a `Determination` column that
+    [`query_specimens()`](https://umr-amap.github.io/cafriplotsR/reference/query_specimens.md)
+    never returns, so it always came out blank. A `determination_col`
+    present in the data still takes precedence, so existing calls keep
+    their output
+  - `extra_cols` prints one or more columns (e.g. `"description"`) in a
+    small font (`size_extra`) below the locality. Long text is
+    word-wrapped to `extra_max_lines` lines per column and cropped with
+    `...` rather than shrunk. When a label would overflow, extra lines
+    are dropped from the bottom, so the specimen number, family and name
+    are never pushed off the sticker
+  - All three are off by default; a call that sets none of them prints
+    the same labels as before
+
+- **The data update app adds a missing measurement to an individual**
+  (`R/mod_update_record.R`, `R/update_app_ind_measures.R`) -
+  [`launch_data_update_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_data_update_app.md)
+  could only edit the measurements an individual already had, so a
+  single missing value (a diameter not recorded at one census) needed a
+  file and the feature wizard
+
+  - A new section *4b* in the individual section adds one measurement at
+    a time: feature (those already measured on the individual first),
+    census (the latest preselected), a value input matching the
+    feature’s type and allowed range, an optional date and `issue`
+  - New values are **staged** - marked *to add*, listed in the preview
+    of section 5, and written to `data_traits_measures` by *Apply
+    update* in the same transaction as the other edits. A staged value
+    can be taken back before applying
+  - The row is built as the feature wizard builds it (plot,
+    `id_diconame` and `id_specimen` copied from the individual). A value
+    is refused when no census is chosen, when the same feature is
+    already recorded or staged for that census (edit it in section 4
+    instead), or when it lies outside the feature’s allowed range. A
+    numeric value lower than at an earlier census is accepted with
+    `issue = "value lower than previous census"`
+  - Features that describe the tree rather than a census
+    (`traitlist.census_link = "never"`, e.g. position) are recorded
+    without one; the census picker is disabled for them
+  - Removing a stored measurement is not part of this change; use
+    [`safe_delete_individual_features()`](https://umr-amap.github.io/cafriplotsR/reference/safe_delete_individual_features.md)
+
+- **The data update app edits the people of a census**
+  (`R/mod_update_record.R`, `R/update_app_subplot_obs.R`) -
+  [`launch_data_update_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_data_update_app.md)
+  could edit the features of a plot, but not the features that describe
+  one of those features: the rows of `data_subplot_feat`, in practice
+  the `team_leader` and `additional_people` of a census. No app could
+  add one to an existing census; the feature wizard only writes them
+  while creating a census
+
+  - A new section *4b* in the plot section lists, for each feature
+    record of the plot (censuses first), its observation features with
+    people shown by name. People types come first in the type picker,
+    then the types already used in `data_subplot_feat`; a checkbox
+    offers every type
+  - Rows are added and removed, never edited in place - replacing a
+    person is removing one and adding the other. Both are **staged**
+    like every other edit: marked *to add* / *to remove* in the table,
+    listed in the preview of section 5, and written by *Apply update* in
+    the same transaction as the rest. A person already recorded for that
+    census and type is not added twice
+  - A people feature stores the person id in `typevalue`, as the feature
+    wizard and
+    [`add_subplot_features()`](https://umr-amap.github.io/cafriplotsR/reference/add_subplot_features.md)
+    do; `typevalue_char` is left empty
+
+- **`query_plot_features(format = "long", include_subplot_obs_features = TRUE)`
+  returns the observation features unpivoted**
+  (`R/subsplots_features_function.R`) - the wide format pivots
+  `data_subplot_feat` into `obs_*` columns, which cannot be traced back
+  to the rows they came from. In long format the rows now come back as
+  they are stored, in a new `subplot_obs_features` element: one row per
+  record, with `id_subplot_feat`, the subplot and its type and year, the
+  feature type, `typevalue` / `typevalue_char` as stored, and `colnam`
+  resolved separately for people features. The wide format is unchanged
+
+- **[`safe_delete_subplot_obs_features()`](https://umr-amap.github.io/cafriplotsR/reference/safe_delete_subplot_obs_features.md)**
+  (`R/safe_delete_subplot_obs_features.R`) - deletes rows of
+  `data_subplot_feat`, by `id_subplot_feat` or by subplot (optionally
+  restricted to some `types`), with the safeguards of the
+  `safe_delete_*` family: dry run by default, confirmation unless
+  `force = TRUE`, one transaction. Nothing references the table, so
+  subplots and plots are never touched. Pairs with the long format
+  above: extract, pick the `id_subplot_feat`, delete
+
+- **[`query_plot_authors()`](https://umr-amap.github.io/cafriplotsR/reference/query_plot_authors.md):
+  the co-author list of a set of plots** (`R/plot_authors_function.R`) -
+  who to invite on a paper drawn from a set of plots was a question the
+  package could not answer, so it was answered by hand each time: two
+  ad-hoc extractions, one per storage route, joined back to
+  `table_colnam` and stacked. The function does that, and says what it
+  found
+
+  - Takes the plot filters of
+    [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+    under the same names - `plot_name`, `country`, `locality_name`,
+    `method`, `feature_filters`, `exact_match`, `interactive` - and
+    hands them to the same query builder, so
+    `query_plot_authors(plot_name = "mbalmayo010")` selects the plots
+    [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+    would. `id_plot` takes already-resolved ids, and `plots` takes a
+    [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+    result in any of its shapes. Going through the builder rather than
+    through
+    [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+    itself skips the individuals, the traits, the taxa connection and
+    the output styling, none of which an author list needs
+  - People reach a plot by two routes and both are followed.
+    **Plot-level features** are rows of `data_liste_sub_plots` whose
+    subplot type has `valuetype = 'table_colnam'` -
+    `principal_investigator`, `data_manager`, `team_leader`,
+    `additional_people`. Selecting on `valuetype` rather than on role
+    names means a people type added later is picked up with no code
+    change. **Subplot-observation features** are rows of
+    `data_subplot_feat` carrying the same types, attached to a subplot
+    of the plot; in practice the people of a census, so the census
+    number and year come back with them
+  - Matching is **exact by default**, unlike
+    [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md):
+    an author list is a claim about a named set of plots, so a
+    `plot_name` that quietly pulls in the neighbouring plots adds people
+    who do not belong on it. `exact_match = FALSE` restores the
+    substring matching
+    [`query_plots()`](https://umr-amap.github.io/cafriplotsR/reference/query_plots.md)
+    does
+  - `core_sources` decides which routes count towards `authors_core`,
+    and defaults to `"plot"` and `"census"` - the plot itself and the
+    events that produced its data. Someone recorded as team leader of a
+    soil sample holds a core role by a route that does not confer
+    authorship; they go to `authors_other` instead, stay in `by_plot`,
+    and are named in the console when they are excluded. `NULL` lifts
+    the restriction. It is a default rather than something read from the
+    database because there is nothing there to read: `subplotype_list`
+    says what a subplot type *is*, not whether running one earns a place
+    on a paper, and that judgement differs by study
+  - Returns `authors_core` (the three roles that normally carry an
+    authorship claim, `additional_people` left out), `authors_other`,
+    and `by_plot` - the detail behind both, one row per record, which is
+    what to save alongside a dataset as authorship metadata.
+    `core_roles` and `core_sources` move the line between the first two
+  - **`authors_core` and `authors_other` split the people between
+    them**: `authors_other` is everyone *not* in `authors_core`, so each
+    person is in exactly one table. Someone in `authors_core` does not
+    reappear in `authors_other` for a lesser role they also hold.
+    [`dplyr::bind_rows()`](https://dplyr.tidyverse.org/reference/bind_rows.html)
+    of the two is the complete list
+  - `by_plot$id_sub_plots` feeds straight back into
+    [`query_subplots()`](https://umr-amap.github.io/cafriplotsR/reference/query_subplots.md)
+    for the raw record. What it points at depends on `source`: the
+    census when `source == "census"`, and the people feature row itself
+    when `source == "plot"`, a plot-level feature being its own row of
+    `data_liste_sub_plots`. It is never `NA`, so the chain needs no
+    defensive filtering - though filtering on `source` is how to follow
+    only one of the two
+  - `by_plot` is one row per record rather than per person x plot x
+    role: the same person recorded twice against one plot in one role is
+    two rows of `data_liste_sub_plots` with two ids, and both are shown
+    rather than collapsed, so a duplicated entry is visible. The author
+    tables are one row per person either way
+  - Also returns `roles_found`, so it is visible which roles actually
+    carry data, and `plots_without_people`, which names the queried
+    plots that returned nobody - normally a gap in the metadata rather
+    than an empty plot. A person id absent from `table_colnam` is
+    dropped with a warning naming the id, not silently
+  - People with no `contact` are kept and flagged `has_contact = FALSE`
+    rather than dropped, since a missing address is a thing to go and
+    find; `require_contact = TRUE` drops them. `subplot_type = "census"`
+    ignores people hanging off any other kind of subplot
+  - The person id is read from `typevalue` on both routes.
+    `typevalue_char` and `id_colnam` are never read: for `table_colnam`
+    features the first is empty and the second is populated only on rows
+    filled in error
+
+- **`plot_access`: one row per (account, plot), and the thing the
+  policies read** (`R/plot_access.R`,
+  `inst/migrations/plot_access_table.R`,
+  `inst/migrations/plot_access_seed.R`) - access used to live in ~125
+  hand-maintained PostgreSQL policies, one per account, each carrying a
+  literal list of plot IDs. It could not be queried, joined, or reasoned
+  about, and nothing could tell you what an account could see without
+  parsing policy expressions
+
+  - The table carries `can_write`, `can_delete`, `can_grant` and
+    `origin`, and was seeded from the two things that granted access
+    before it: the per-account policies and the creator links. 14,001
+    grants, and the two layers agreed plot-for-plot
+  - `plot_access_self` restricts every reader to its own rows, so an
+    account cannot enumerate who else has access to what
+  - [`define_user_policy()`](https://umr-amap.github.io/cafriplotsR/reference/define_user_policy.md)
+    mirrors into it on every call, and
+    [`deactivate_user()`](https://umr-amap.github.io/cafriplotsR/reference/deactivate_user.md)
+    clears it - an account left with rows here would regain everything
+    the moment the policies read them
+  - [`plot_access_drift()`](https://umr-amap.github.io/cafriplotsR/reference/plot_access_drift.md)
+    compares the two records at any time and names the consequence of
+    each disagreement
+
+- **[`grant_delete_right()`](https://umr-amap.github.io/cafriplotsR/reference/grant_delete_right.md)
+  and
+  [`revoke_delete_right()`](https://umr-amap.github.io/cafriplotsR/reference/revoke_delete_right.md)**
+  (`R/plot_access.R`) - `DELETE` is now off by default for every
+  account, on both layers that have to agree: the table privilege, and
+  `plot_access.can_delete`. These two hand it out and take it back one
+  account at a time, with `dry_run = TRUE` by default
+
+  - [`plot_access_delete_rights()`](https://umr-amap.github.io/cafriplotsR/reference/plot_access_delete_rights.md)
+    reports the two layers side by side, because the failure mode is an
+    account holding the table privilege with no `can_delete` row - able
+    to delete child rows but no plot
+
+- **[`.db_append_table()`](https://umr-amap.github.io/cafriplotsR/reference/dot-db_append_table.md),
+  a drop-in replacement for `dbWriteTable(append = TRUE)`**
+  (`R/db_append.R`) - RPostgres implements `dbWriteTable()` and
+  `dbAppendTable()` with `COPY ... FROM STDIN`, and **PostgreSQL refuses
+  `COPY FROM` outright on any table where row-level security applies to
+  the caller** (`HINT: Use INSERT statements instead`). The owner is
+  exempt, so this could not have been found by testing as the owner.
+  Every write to the seven plot-scope tables now goes through
+  parametrised multi-row `INSERT` instead, which is what makes the
+  import wizard keep working under the policies above
+
+- **[`.parse_policy_plot_ids()`](https://umr-amap.github.io/cafriplotsR/reference/dot-parse_policy_plot_ids.md)
+  reads an existing policy instead of guessing what it grants**
+  (`R/plot_access.R`) - the seed had to know which plots each of the
+  ~125 policies named, and which commands it covered. Reading the
+  privileges granted on the table would have overstated it, since a
+  policy can be narrower than the grant
+
+- **Choosing APD or WCVP now asks you to cite them**
+  (`R/backbone_core.R`, `R/shiny_app_taxonomic_match.R`,
+  `R/mod_results_export.R`, `R/citations_functions.R`) — the name
+  standardization app let you report results in the words of an external
+  reference without ever saying that the reference is a published work.
+  The package did state the citation, once per backbone through `cli` on
+  the console, which in a hosted app reaches the server log and nobody
+  else. The reminder existed; no user could see it
+
+  - The app prints the citation and a link to the source under the
+    **“Names in the output”** menu, in the interface language, as soon
+    as a reference other than the internal backbone is picked. It is a
+    separate output from the menu itself, so switching reference does
+    not rebuild — and reset — the selector
+  - The Excel export writes a `citations` sheet beside the names, as the
+    traits export already does, so the source travels with the data
+    instead of staying in the app. Its columns are `reference`, `code`,
+    `publisher`, `version`, `accessed`, `url` and `citation`, in English
+    whatever the interface language, so a file opened by a collaborator
+    has the same headers everywhere. The names sheet is now called
+    `taxonomy` rather than `Sheet1`. A CSV holds one table and cannot
+    carry the citation; an RDS gets the sentence as an attribute
+  - **[`query_citations()`](https://umr-amap.github.io/cafriplotsR/reference/query_citations.md)
+    lists the backbones beside the trait citations**, which is where
+    people look for them. Their rows are marked `source = "backbone"`
+    and carry no `id_citation`: a backbone is described in the taxa
+    database, not in `table_citations`, and no foreign key may point at
+    one. The sentence to paste is in `notes`. `keys`, `dataset_names`
+    and `pattern` apply to both halves of the result, `pattern` as the
+    literal case-insensitive substring `ILIKE` matches rather than a
+    regex
+  - It never opens a taxa connection of its own. Reading the main
+    database must not stop to ask for a second password to add something
+    optional, so it uses a connection already open, or says it skipped
+    the backbones
+  - [`backbone_reference()`](https://umr-amap.github.io/cafriplotsR/reference/backbone_reference.md)
+    is the seam the three share: the citation with the parts it was
+    built from — publisher, site, version, access date — as a table, for
+    anything needing more than the sentence.
+    [`backbone_citation()`](https://umr-amap.github.io/cafriplotsR/reference/backbone_citation.md)
+    now reads through it instead of repeating the query
+  - The version and date cited are those of the import held in the
+    database, not today’s, so a run from last year keeps citing what it
+    actually used
+  - Documented in both `taxonomic-app` vignettes under *Citing the
+    reference you chose*, with the APD and WCVP links and the credit to
+    **rWCVP** that Kew’s own wording requires
 
 - **The African Plant Database (APD) is available as a third backbone**
   (`R/apd_integration.R`, `inst/migrations/apd_backbone.R`) —
@@ -1460,6 +1863,325 @@
 
 #### Bug Fixes
 
+- **Adding a new method in the Import Wizard always failed**
+  (`R/mod_lookup_matcher.R`) - the “Create New Entry” option of the
+  method lookup built its `INSERT INTO methodslist` by wrapping values
+  already quoted by
+  [`DBI::dbQuoteLiteral()`](https://dbi.r-dbi.org/reference/dbQuoteLiteral.html)
+  in a second pair of quotes, so every attempt was a syntax error,
+  reported only as an “Error adding method” notification. The insert now
+  lives in
+  [`.insert_method()`](https://umr-amap.github.io/cafriplotsR/reference/dot-insert_method.md),
+  which binds the name and description as parameters
+
+  - The name is trimmed and a blank description stored as NULL
+  - A name that already exists, ignoring case and surrounding spaces, is
+    refused with its `id_method` instead of being duplicated
+
+- **The full-census validation step reported in English to a French
+  user** (`R/census_import_transaction.R`,
+  `R/import_individuals_validation.R`,
+  `R/mod_feat_step5_validation.R`) -
+  [`.validate_census_import()`](https://umr-amap.github.io/cafriplotsR/reference/dot-validate_census_import.md)
+  built its errors and warnings with bare
+  [`sprintf()`](https://rdrr.io/r/base/sprintf.html) and the step pasted
+  them straight into the validation table, so a session running in
+  French got rows like “31 row(s) held for review are excluded from this
+  import” next to translated ones. Every message it produces is now
+  routed through the translator, along with the ones from
+  [`.validate_multi_stem_grouping()`](https://umr-amap.github.io/cafriplotsR/reference/dot-validate_multi_stem_grouping.md),
+  which it calls and which had the same problem on both of its call
+  paths
+
+  - [`.validate_census_import()`](https://umr-amap.github.io/cafriplotsR/reference/dot-validate_census_import.md)
+    and
+    [`.validate_multi_stem_grouping()`](https://umr-amap.github.io/cafriplotsR/reference/dot-validate_multi_stem_grouping.md)
+    take `i18n = NULL`, the pattern
+    [`.execute_census_import()`](https://umr-amap.github.io/cafriplotsR/reference/dot-execute_census_import.md)
+    already used. Passing nothing leaves the messages in English, so the
+    console callers are unaffected
+  - The six messages of
+    [`.execute_census_import()`](https://umr-amap.github.io/cafriplotsR/reference/dot-execute_census_import.md)
+    were already wrapped but had **no entry in `translation.json`**, so
+    the import result itself stayed English however the wrapper was
+    called. Added, with the 33 validation strings
+  - Two wordings fixed while they were being translated: “%d of them
+    **has** a specimen collected from that very tree” for a count that
+    is usually plural, and the missing-stem warning, which said only
+    “Run Compute Stem Status after the import” and now names the
+    outcome - `presumed_dead` after one census absent, `dead` after two
+    consecutive - matching the step 3 panel
+  - The synonym count from `taxon_synonyms` is now reported in
+    validation too, so the step does not silently differ from what step
+    3 showed
+
+- **The French UI named stem statuses that do not exist**
+  (`inst/translations/translation.json`) - two strings in the stem
+  status step translated the quoted status *codes* into prose,
+  `'présumé mort'` for `'presumed_dead'` and `'vivant'` for `'alive'`,
+  while every other string in the same step and the results table itself
+  keep them literal. A French user reading “corrigées en ‘vivant’” then
+  looked for a value that `stem_vital_status` never holds. The codes are
+  now literal in both languages; the prose card labels (*Vivantes* /
+  *Mortes* / *Présumées mortes*) stay translated, since they are
+  headings rather than values to match against
+
+- **A census import called a renamed stem redetermined, because
+  identifications were compared on the raw `idtax_n`**
+  (`R/census_split.R`, `R/census_taxon_revision.R`,
+  `R/mod_feat_step3_census_import.R`) - `table_taxa` keeps a synonym as
+  a row of its own pointing at the accepted name through `idtax_good_n`,
+  so a file written against one nomenclature and a database written
+  against another disagree on the id of every tree they agree about. On
+  a real import this filled *Vérifier les identifications révisées* with
+  440 stems of which 435 were the same taxon under two names, burying
+  the five actual redeterminations - a reviewer clearing the list in
+  bulk accepted the noise with the signal
+
+  - Both sides are now resolved through `idtax_good_n` before being
+    compared, one hop, the convention already used by
+    [`query_taxa_traits()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa_traits.md)
+    and the backbone functions.
+    [`split_census_table()`](https://umr-amap.github.io/cafriplotsR/reference/split_census_table.md)
+    gained `con_taxa` (and `synonyms`, for callers working from an
+    exported list without a connection) and reports the renamed stems in
+    a new `taxon_synonyms` element, shown in step 3 and exported as
+    `08_taxon_synonyms.xlsx` - nothing is decided for them, but a file
+    following a different nomenclature is worth knowing about
+  - [`.classify_taxon_revisions()`](https://umr-amap.github.io/cafriplotsR/reference/dot-classify_taxon_revisions.md)
+    drops them again on its own from the new `idtax_accepted` column of
+    [`.fetch_taxon_names()`](https://umr-amap.github.io/cafriplotsR/reference/dot-fetch_taxon_names.md),
+    so
+    [`collect_taxon_revisions()`](https://umr-amap.github.io/cafriplotsR/reference/collect_taxon_revisions.md)
+    is correct whether or not the split had a taxa connection. They are
+    **dropped, not defaulted to `keep_db`**: a renamed stem is not a
+    decision with an obvious answer, it is not a decision, and
+    preselecting one would put it back in the list the reviewer has to
+    read
+  - New internals
+    [`.resolve_idtax()`](https://umr-amap.github.io/cafriplotsR/reference/dot-resolve_idtax.md)
+    and
+    [`.fetch_accepted_idtax()`](https://umr-amap.github.io/cafriplotsR/reference/dot-fetch_accepted_idtax.md).
+    An id the map does not know resolves to itself, never to `NA`, so an
+    incomplete or failed lookup degrades to the previous raw comparison
+    rather than making two unrelated unknown taxa compare equal
+
+- **The “Connect as public user” button vanished silently when its
+  descriptor could not be read** (`R/public_credential.R`,
+  `R/mod_database_login.R`) - the login screen rendered no button and no
+  notice either, because the notice was shown only when the descriptor
+  carried a message, and one that could not be fetched carries none. A
+  user behind a proxy saw the button simply disappear, which reads as
+  the app being broken or as their access having been withdrawn, and it
+  was reported as exactly that
+
+  - The resolver now distinguishes the two kinds of unavailable. A
+    descriptor that was read and says no is **withdrawn** and keeps its
+    own message; one that could not be read at all is **unreachable**,
+    and the login screen says so - a network, proxy or firewall problem,
+    not a change to their access, with their own account unaffected.
+    Both strings translated
+  - A failed fetch is cached for 30 seconds rather than the full 300.
+    The long TTL exists so that a withdrawal propagates and repeated
+    asks do not hammer the host; applied to a failure it stranded
+    someone who had just fixed their proxy and relaunched, since the
+    cache lives in the package namespace and outlives the Shiny session
+
+- **The descriptor is now read over two hostnames, so a network
+  filtering one of them still resolves** (`R/public_credential.R`,
+  `inst/public-access/README.md`) - the site behind the report above was
+  not behind a proxy after all. Its network resets the TLS handshake to
+  `*.github.io` while leaving `raw.githubusercontent.com` alone, so
+  [`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md)
+  offered no public button there while the descriptor was healthy
+  everywhere else, with
+  `SSL connect error [umr-amap.github.io] Recv failure: connection was reset`
+  in the console
+
+  - `.public_credential_urls` holds the Pages URL and the
+    `raw.githubusercontent.com` URL, tried in order. They are **not two
+    descriptors**: both serve `docs/public-access.json` from the same
+    commit, so rotation and the kill switch still take one push and
+    reach both, and nothing has to be kept in step. Both hostnames
+    resolve into GitHub’s `185.199.108-111.x` range, so a block by
+    address defeats both — only the hostname case is covered
+  - **The kill switch is not weakened.** A location that is *read*
+    settles the question, including when it says `enabled: false`; the
+    resolver falls through only when a location could not be read at
+    all. A withdrawal stops everyone who can reach the first location,
+    and everyone who cannot reads the same withdrawn file from the
+    second
+  - Resolutions are cached **per location** rather than globally, which
+    is what makes `options(CafriplotsR.public_access_url = )` usable as
+    the escape hatch it is documented to be. Pointing it at a mirror
+    after a failed lookup now answers from the mirror, instead of
+    replaying the abandoned location’s failure for the rest of its TTL;
+    that previously needed a call into an internal function or a restart
+    of R
+  - Failures name the route they came from, and a non-200 now says so
+    rather than failing silently, so the console identifies which
+    hostname went wrong
+
+- **An orphaned `@export` in `R/helpers.R` wrote ~50 bogus exports into
+  `NAMESPACE` on every
+  [`devtools::document()`](https://devtools.r-lib.org/reference/document.html)** -
+  the roxygen block documenting
+  [`.comp_print_vec()`](https://umr-amap.github.io/cafriplotsR/reference/dot-comp_print_vec.md)
+  was left as roxygen when the function beneath it was commented out.
+  With no object to attach to, roxygen carried the block’s tags forward
+  to the next documented object and took that block’s title as the value
+  of `@export`, exporting each of its words: `export(The)`,
+  `export(Windows)`, `export(`utils::zip()`)`, `export(and)`,
+  `export(a)`, and so on down the paragraph
+
+  - The result was an unloadable namespace -
+    [`devtools::load_all()`](https://devtools.r-lib.org/reference/load_all.html)
+    reported `Objects listed as exports, but not present in namespace`
+    for every one of them - and it reappeared on each `document()` run,
+    so it could not be fixed by editing `NAMESPACE`
+  - The block is now plain comments, like the code it describes.
+    `NAMESPACE` regenerates clean
+
+- **[`launch_query_plots_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_query_plots_app.md)
+  refused to start over a `zip` package it never used**
+  (`R/launch_query_plots_app.R`) — its startup check listed `zip` among
+  the required packages, so a fresh install without that package stopped
+  at `The following packages are required but not installed: zip`.
+  Nothing in `CafriplotsR` ever called it: the two zipped downloads in
+  [`mod_results_display_server()`](https://umr-amap.github.io/cafriplotsR/reference/mod_results_display_server.md)
+  use [`utils::zip()`](https://rdrr.io/r/utils/zip.html), which is
+  base R. The check blocked the app on a dependency that did not exist
+
+  - `bslib` was in the same list, and in
+    [`launch_taxo_backbone_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxo_backbone_app.md)’s,
+    and is equally unused — nothing in `R/` references it. It passed
+    only because `shiny` happens to install it, so the two entries would
+    have started refusing launches the day that stopped being true. Both
+    are gone from both launchers, which now check only hard `Imports`
+  - Zipped downloads were genuinely fragile underneath, though, so
+    removing the check alone would have moved the failure from launch to
+    download time: [`utils::zip()`](https://rdrr.io/r/utils/zip.html)
+    shells out to a `zip` executable, which most Windows installations
+    do not have. New internal `.write_zip()` (`R/helpers.R`) prefers
+    [`zip::zipr()`](https://r-lib.github.io/zip/reference/zip.html) when
+    the package is available, falls back to the external tool, and
+    reports `install.packages("zip")` when neither works instead of
+    writing a silently truncated archive
+  - `zip` is now in `Suggests`, where an optional download helper
+    belongs. **The taxonomic standardization app was never affected** —
+    [`launch_taxonomic_match_app()`](https://umr-amap.github.io/cafriplotsR/reference/launch_taxonomic_match_app.md)
+    has no package check at all
+
+- **[`define_user_policy()`](https://umr-amap.github.io/cafriplotsR/reference/define_user_policy.md)
+  granted full DML whatever its `operations` argument said**
+  (`R/connections_db.R`) — with `grant_table_privileges = TRUE`, its
+  default, it ran
+  `GRANT SELECT, INSERT, UPDATE, DELETE ON <table> TO <user>`
+  unconditionally. So
+  [`define_read_only_policy()`](https://umr-amap.github.io/cafriplotsR/reference/define_read_only_policy.md),
+  whose entire purpose is SELECT-only access, handed the account
+  table-level INSERT, UPDATE and DELETE as well. Row-level security
+  contained that only for as long as no write *policy* happened to match
+  — a statement with the privilege but no policy affects zero rows —
+  which made the defect look harmless right up to the moment a policy
+  existed
+
+  - It did. `CafriP_public`, the account whose credential is published
+    on the pkgdown site for anyone to read, held INSERT, UPDATE and
+    DELETE on `data_liste_plots` **and** `policy_CafriP_public_update` /
+    `policy_CafriP_public_delete` covering 83 plot ids — both conditions
+    PostgreSQL requires for a write to succeed. `user_test3` and
+    `user_test4` were in the same state with INSERT. Confirmed by
+    privilege audit 2026-09-26
+  - P0.2 of `inst/docs/PLAN_SECURITY_REMEDIATION.md` revoked write
+    `FROM PUBLIC`, which removes the grantee-0 entry from the ACL and
+    nothing else; a grant made directly to a role is a separate entry.
+    The post-P0.2 check reported “CafriP_public writable = 0” and was
+    not wrong about what it measured — it walked the 32 tables that had
+    been granted to `PUBLIC`, and `data_liste_plots` was never one of
+    them
+  - The privileges are now derived from `operations`, and whatever is
+    not asked for is **revoked**, so narrowing a user’s `operations`
+    narrows their real access instead of leaving the earlier grant in
+    place. `UPDATE` and `DELETE` imply `SELECT`, which they need to
+    evaluate their own `WHERE` clause
+  - **Accounts set up before this change still carry the old grant.**
+    `inst/migrations/revoke_stray_dml_grants.R` strips it from the
+    published and test logins and drops their write policies, keeping
+    SELECT so the public apps are unaffected. It refuses to run if a
+    policy names more than one role, and the 32 other accounts holding
+    the same grant are reported and deliberately left alone — some are
+    real collaborators, and that is a per-user decision to make against
+    `inst/scripts/who_actually_writes.R`
+
+- **[`query_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa.md)
+  returned every already-selected synonym twice**
+  (`R/taxonomic_query_functions.R`) —
+  [`.resolve_synonyms()`](https://umr-amap.github.io/cafriplotsR/reference/dot-resolve_synonyms.md)
+  fetched *all* synonyms of the selected taxa, including those the query
+  had already returned, through a recursive
+  `query_taxa(check_synonymy = FALSE)` call. That call formats names on
+  its way out and drops the legacy columns, so the second copy of a row
+  carried `tax_sp_level` / `tax_infra_level*` and no `a_habit`, `fktax`,
+  `id_good` or `tax_tax`, while the first carried the reverse.
+  [`bind_rows()`](https://dplyr.tidyverse.org/reference/bind_rows.html)
+  padded both with `NA` in complementary places, and the
+  [`distinct()`](https://dplyr.tidyverse.org/reference/distinct.html)
+  meant to collapse them compared all columns and kept both. The parent
+  then formatted the whole frame, filling the gaps and making the two
+  copies identical — after
+  [`distinct()`](https://dplyr.tidyverse.org/reference/distinct.html)
+  had run, and nothing ran after it
+
+  - `query_taxa(species = "polyaltia suaveolens", exact_match = FALSE)`
+    returned eight rows for seven taxa, *Polyalthia suaveolens*
+    (`idtax_n` 48718) appearing at rows 1 and 5. Any taxon with synonyms
+    was affected; it was visible on families with duplicated entries but
+    was never about those duplicates
+  - Only the ids not already present are fetched now, raw from
+    `table_taxa` and with the same columns as the rows they join,
+    formatting happening once on the whole frame after the helper
+    returns — the pattern
+    [`.include_children()`](https://umr-amap.github.io/cafriplotsR/reference/dot-include_children.md)
+    already followed. The final
+    [`distinct()`](https://dplyr.tidyverse.org/reference/distinct.html)
+    is keyed on `idtax_n`, the primary key of `table_taxa`, so one row
+    per taxon whatever the column sets bound above
+  - The recursion is gone with it: one query instead of a full
+    [`query_taxa()`](https://umr-amap.github.io/cafriplotsR/reference/query_taxa.md)
+    round trip per call
+
+- **One visitor’s backbone citation silenced it for every other
+  visitor** (`R/backbone_core.R`) — `.backbone_citation_notice()` states
+  a backbone’s citation once per session, tracked in `.backbone_cited`,
+  an environment keyed by the backbone code alone. That environment
+  lives as long as the R process, which in the console is one user’s
+  session but in a hosted Shiny app is every visitor at once. The first
+  person to select WCVP marked it cited, and nobody after them was told
+  anything until the process restarted
+
+  - The key now carries the Shiny session token when there is one, and
+    the keys are dropped when the session ends so the environment does
+    not grow with traffic. Outside Shiny the behaviour is unchanged: one
+    notice per backbone per R session
+  - It also assigned under the wrong name — the bare backbone rather
+    than the key it had just tested — which the new keying makes visible
+
+- **pkgdown could not build the reference index** (`_pkgdown.yml`) —
+  [`apply_plot_citation_backfill()`](https://umr-amap.github.io/cafriplotsR/reference/apply_plot_citation_backfill.md),
+  [`build_plot_data_sources_table()`](https://umr-amap.github.io/cafriplotsR/reference/build_plot_data_sources_table.md)
+  and
+  [`export_plots_for_citation_backfill()`](https://umr-amap.github.io/cafriplotsR/reference/export_plots_for_citation_backfill.md)
+  are exported but were listed in no section, and `build_site()` stops
+  rather than dropping a topic it was not told where to put. Each now
+  sits beside the equivalent it mirrors, the taxa-trait version of the
+  same job
+
+  - The database schema diagram was copied into `man/figures`. pkgdown
+    reads images only from there and from the vignettes, so the
+    reference into `vignettes/images` resolved to nothing and the page
+    showed a broken image
+
 - **Login screen: a bare “TRUE” was printed below the connection panel**
   (`R/mod_database_login.R`) — `has_saved_credentials` is a text output
   whose only job is to feed the two `conditionalPanel` conditions that
@@ -2570,6 +3292,205 @@
 
 #### Infrastructure
 
+- **`inst/scripts/draw_database_structure.R` draws both databases from
+  the live catalogue** - replaces `get_database_fk()` (see Breaking
+  Changes). The old diagram covered ten hard-coded tables of the main
+  database and their declared keys only; the script reads `pg_catalog`
+  each time it runs, so it does not go stale as the schema changes
+
+  - Draws `plots_transects` and `rainbio` side by side, tables coloured
+    by domain, with approximate row counts
+  - Shows three kinds of link: declared foreign keys (solid), undeclared
+    joins the package relies on (dashed grey, from `LINK_HINTS` plus
+    column-name matching), and `idtax_n` links across the two databases
+    (dashed red). Most joins in `R/` use columns with no FOREIGN KEY
+    constraint, so declared keys alone left most tables unconnected
+  - `include = CORE_TABLES` gives a compact overview; `columns = "all"`
+    lists every column with its type; `out_file` saves SVG, PNG or PDF
+  - Audit (`followup_*`), scratch and backup tables, and the stale
+    `table_taxa` copy on the main database, are left out by default
+  - `rsvg` added to Suggests (PNG/PDF output); `dm` removed from
+    Suggests, as nothing else used it
+
+- **Six indexes on the columns that link plot data back to a plot**
+  (`inst/migrations/fk_indexes_plot_scope.R`, applied) - one per child
+  table. A row-level security predicate is evaluated per row, so the
+  child-table policies would have been a sequential scan per query
+  without them
+
+  - `inst/scripts/check_plot_access_cost.R` measured the predicate at
+    both ends of the grant range before anything was enforced. The
+    finding worth keeping: **cost tracks the number of hops between a
+    row and its plot, and the floor scales with table size** - a 0-hop
+    predicate on `data_ind_measures_feat` (476,701 rows) costs 71 ms at
+    2,036 plots, not the 3 ms measured on `data_liste_plots` (2,194
+    rows)
+
+- **`data_ind_measures_feat` carries its own plot key**
+  (`inst/migrations/denormalise_ind_measures_plot.R`, applied) - the
+  largest child table reached its plot in two joins, through
+  `data_traits_measures` and `data_individuals`. It now has
+  `id_table_liste_plots`, backfilled for all 476,701 rows, so its policy
+  is a direct comparison
+
+  - `data_traits_measures` has a similar denormalised column and its
+    policy deliberately does **not** use it: it is `NULL` on 256,179
+    rows and disagrees with the individual on 8,575. That policy routes
+    through `data_individuals`
+
+- **Foreign keys and an orphan cleanup on the plot tables**
+  (`inst/migrations/fk_subplot_plot_integrity.R`,
+  `inst/migrations/delete_orphan_plot_rows.R`, both applied) -
+  `data_liste_sub_plots.id_table_liste_plots` and
+  `data_traits_measures.id_data_individuals` had no constraint, so rows
+  could point at plots that did not exist. Rows nothing could attribute
+  to a plot were exported to CSV and deleted first, since under the
+  policies above they would have become invisible to everyone but the
+  owner
+
+- **132 offline assertions over the policy SQL**
+  (`R/plot_scope_policies.R`,
+  `tests/testthat/test-plot-scope-policies.R`) - the predicates live in
+  `R/` rather than in the migration because enabling row-level security
+  with a wrong policy fails silently: it hides rows or blocks writes,
+  and the owner sees neither. The tests pin every route, that `SELECT`
+  reads the full grant list while writes read the `can_write` list, that
+  no child policy keys on `can_delete`, and that every `UPDATE` policy
+  carries `WITH CHECK` as well as `USING`
+
+- **The plot tables now enforce that a subplot belongs to a plot**
+  (`inst/migrations/delete_orphan_plot_rows.R`,
+  `inst/migrations/fk_subplot_plot_integrity.R`, both applied
+  2026-09-28) — `data_liste_sub_plots.id_table_liste_plots` and
+  `data_traits_measures.id_table_liste_plots` each name a plot and
+  neither had a foreign key, so nothing had been stopping either from
+  holding an id that does not exist. 890 subplot rows were in exactly
+  that state, and would have become invisible to everyone but the table
+  owner the moment row-level security reached the table — a policy
+  follows a key, and a key that names nothing matches no policy
+
+  - Removed first, after export to CSV: 890 `data_liste_sub_plots` rows
+    (23 with no plot id, 867 naming a plot absent from
+    `data_liste_plots`), the 139 `data_subplot_feat` rows hanging off
+    them, and 3 `data_traits_measures` rows with no individual. None was
+    recoverable — the 23 carry `original_subplot_name` values
+    `GD0301`-`GD0314` matching no plot name, 189 of the 193 missing plot
+    ids appear in no table including `followup_updates_liste_plots`, and
+    the 3 measurements carry no `original_tag_plot` to name the tree.
+    The CSVs are under `%LOCALAPPDATA%\cafri_deleted_rows\<timestamp>\`
+  - Then constrained: both foreign keys `ON DELETE NO ACTION`, matching
+    every other plot key, so deleting a plot that still has subplots
+    fails rather than cascading silently — the cascade stays explicit
+    and counted in
+    [`safe_delete_plot()`](https://umr-amap.github.io/cafriplotsR/reference/safe_delete_plot.md).
+    `data_liste_sub_plots.id_table_liste_plots` is additionally
+    `NOT NULL`, since a foreign key alone still permits NULL and NULL
+    was half the problem
+  - **What you may notice.**
+    [`add_subplot_features()`](https://umr-amap.github.io/cafriplotsR/reference/add_subplot_features.md)
+    asks “Remove features not linked to plot?” when a row has no plot
+    id. Answering *no* used to insert it with a NULL plot — which is how
+    those 23 rows were created — and now raises a not-null violation
+    instead. Both Shiny wizards pass `interactive = FALSE` and drop such
+    rows automatically, so neither is affected; this only reaches
+    someone calling the function from the console
+  - **The cause was never found, and that is why the constraint
+    matters.** Plot deletion was ruled out:
+    [`safe_delete_plot()`](https://umr-amap.github.io/cafriplotsR/reference/safe_delete_plot.md)
+    is the only path that deletes plots and it removes subplots first,
+    so a failure there strands the opposite orphan. The plot import was
+    ruled out:
+    [`import_plot_metadata()`](https://umr-amap.github.io/cafriplotsR/reference/import_plot_metadata.md)
+    holds one transaction across the plot insert and the
+    [`add_subplot_features()`](https://umr-amap.github.io/cafriplotsR/reference/add_subplot_features.md)
+    calls and passes its checked-out connection down. The 867 rows are
+    from 2025, their missing plot ids running in contiguous blocks —
+    1998-2000 with 44 subplots each, 2453-2473 with 10 — which reads as
+    one bulk operation writing subplots whose plots never persisted.
+    Whatever it was, a constrained column now refuses it at the moment
+    of the write
+  - Verified end to end by `inst/scripts/verify_write_paths.R`, which
+    inserts through the real code paths inside a rolled-back
+    transaction: all five write targets succeed, and each constraint is
+    proven to reject the bad row **by matching the error text** rather
+    than by treating any error as success
+
+- **Writes to the plot tables no longer go through `COPY`**
+  (`R/db_append.R`, 13 call sites) — RPostgres implements
+  `dbWriteTable(append = TRUE)` and `dbAppendTable()` with
+  `COPY ... FROM STDIN`, and PostgreSQL refuses `COPY FROM` on any table
+  where row-level security applies to the current user: *“COPY FROM not
+  supported with row level security. Use INSERT statements instead.”*
+  The table owner is exempt, which is the only reason this has never
+  bitten — almost every write to this database is made by `dauby`, who
+  owns all 38 tables. It would have bitten every account in
+  `plots_transects-rw` the moment RLS reached the child tables, and it
+  would have looked like a broken import rather than a permission model
+
+  - [`.db_append_table()`](https://umr-amap.github.io/cafriplotsR/reference/dot-db_append_table.md)
+    is the “use INSERT statements instead”: parametrised multi-row
+    `INSERT`, columns matched to the table by name as `dbWriteTable()`
+    does, values bound rather than interpolated. One statement per chunk
+    rather than per row, because a round trip per row against a remote
+    managed instance turns a ten-thousand-row import into minutes of
+    latency; placeholders are laid out column-major so the parameter
+    list is one [`as.list()`](https://rdrr.io/r/base/list.html) per
+    column instead of a loop over every cell, and chunk size is derived
+    from the column count to stay under PostgreSQL’s limit of 65535
+    bound parameters
+  - Given a `pool`, one connection is held for the whole call. A pool
+    hands out a connection per operation, so a multi-chunk insert would
+    otherwise spread across backends and a failing chunk would leave the
+    earlier ones committed — `COPY` was one statement on one connection,
+    and this matches it
+  - The 13 sites cover all seven plot-scoped tables: `R/add_functions.R`
+    (plots, subplots, subplot features, individuals, measurement
+    features), `R/import_individuals_with_transactions.R`
+    (`data_traits_measures`), `R/mod_feat_step6_import.R` (three),
+    `R/mod_census_information.R`, `R/observations_standardization.R`,
+    `R/specimen_linking_functions.R`, `R/stem_status_functions.R`. No
+    behaviour changes while RLS is off, so this is safe to run on well
+    before any policy exists
+  - 23 assertions in `tests/testthat/test-db-append.R`, most of them on
+    the placeholder arithmetic: a mistake there would write every value
+    into the wrong column, silently
+
+- **Groundwork for row-level security on the plot child tables**
+  (`inst/migrations/`) — P4.2 and P4.4 of
+  `inst/docs/PLAN_SECURITY_REMEDIATION.md`: RLS guards the 2,194-row
+  `data_liste_plots` while 3.2 M rows underneath it are unfiltered, and
+  `data_traits_measures` carries its own copy of the coordinates, dates
+  and collectors. Three migrations prepare the ground without changing
+  what anyone can see, each rehearsing by default
+
+  - `fk_indexes_plot_scope.R` builds the six missing indexes on the
+    columns that reach a plot. Four are declared foreign keys;
+    PostgreSQL indexes the referenced side and never the referencing
+    side, so every “rows belonging to these plots” lookup is a
+    sequential scan today — measured at 75 ms and 24,219 buffer reads on
+    `data_traits_measures`, 116 ms two-hop. `CONCURRENTLY`, so no lock
+    and no transaction, re-runnable, and it aborts if an earlier failed
+    build left an invalid index behind. Worth applying on its own merits
+    whatever is decided about RLS
+  - `plot_scope_orphans.R` resolves the rows a policy could not find. A
+    policy follows a key, so a NULL key matches nothing and the row
+    becomes invisible to everyone including its owner: 23
+    `data_liste_sub_plots` rows have no plot and 3
+    `data_traits_measures` rows have no individual. It infers a
+    subplot’s plot where every measurement on it agrees, and reports the
+    ambiguous cases rather than guessing — attributing a row to the
+    wrong plot is attributing it to the wrong team. An `OR key IS NULL`
+    clause in the policy would have been the easy fix and would have
+    made every future orphan world-readable
+  - **The audit corrected the plan’s stated fix.** P4.4 offered RLS
+    keyed on `data_traits_measures.id_table_liste_plots` as the faster
+    option; that column is NULL on 256,179 rows whose individual *does*
+    have a plot, and names a different plot from the individual on 8,575
+    more. Keyed on it, 256,179 rows would go dark and 8,575 would be
+    scoped to the wrong plot’s grant list — the fix would create an
+    exposure of its own. The key is `id_data_individuals`, non-null on
+    2,053,478 of 2,053,481 rows and a real foreign key
+
 - **The Query Plots app can be deployed on SSP Cloud**
   (`deployment/query_plots/`, `inst/app/query_plots/app.R`,
   `.github/workflows/docker-query-plots.yml`) — a second hosted app
@@ -2581,6 +3502,7 @@
   hard dependencies, a Helm chart wrapping InseeFrLab’s generic `shiny`
   chart, and a CI job pushing `ghcr.io/umr-amap/cafri-queryplots` to the
   GitHub Container Registry
+
   - Both releases share one `cafri-public-credential` Secret and one
     namespace; the probe-patch hook is templated on the release name, so
     nothing collides. `deployment/query_plots/README.md` records only
@@ -2595,6 +3517,7 @@
     public login becomes world-usable, and this app hands out bulk
     inventory exports where the taxonomic matcher hands out names. What
     that exposes is whatever `CafriP_public` is granted in PostgreSQL
+
 - **The public account’s password is no longer shipped in the package**
   (`R/public_credential.R`, `R/mod_database_login.R`) —
   `CafriP_public`’s credential was a literal at
@@ -2607,6 +3530,7 @@
   withdrawal as the only control over a published login exhausting
   `max_connections` — and a password compiled into the package stays
   valid in every installed copy until every user reinstalls
+
   - The package now ships a URL.
     [`.public_credential()`](https://umr-amap.github.io/cafriplotsR/reference/dot-public_credential.md)
     resolves the credential at each app launch from `CAFRI_PUBLIC_USER`
@@ -2654,6 +3578,31 @@
     network
 
 #### Documentation
+
+- **The census import says what happens to a stem missing from the
+  file** (`R/mod_feat_step3_census_import.R`) - the panel read “Run
+  Compute Stem Status after the import to mark them”, which names a
+  chore and not its consequence, so there was no way to tell from the
+  wizard whether ten absent stems were about to be recorded as dead
+
+  - Verified against `R/stem_status_functions.R`: evidence C ranks each
+    plot’s censuses by date and counts consecutive censuses with no
+    positive `stem_diameter` after the stem was first measured - one
+    gives `presumed_dead`, two or more give `dead`, and a later
+    remeasurement retroactively restores `alive`. The panel now states
+    all three.
+    [`split_census_table()`](https://umr-amap.github.io/cafriplotsR/reference/split_census_table.md)
+    excludes only stems already recorded `dead`, so the two-consecutive
+    case is genuinely reachable from this list
+  - The literal status values are used rather than a translation of
+    them, because that is what the stem status step and the database
+    itself show
+
+- **The taxon drift panel no longer promises the database value is
+  kept** (`R/mod_feat_step3_census_import.R`) - it said so
+  unconditionally, written before step 3b existed; accepting a revision
+  there does overwrite it. It now says “unless a revision is accepted
+  below”
 
 - **[`devtools::document()`](https://devtools.r-lib.org/reference/document.html)
   runs clean again** (`R/functions_manip_db.R`, `R/add_functions.R`) —
@@ -5070,7 +6019,7 @@
   - `getPass`: Used only for secure password prompts (has fallbacks to
     rstudioapi and readline)
   - `dm`: Used only for database structure visualization with
-    [`get_database_fk()`](https://umr-amap.github.io/cafriplotsR/reference/get_database_fk.md)
+    `get_database_fk()`
   - Both packages now checked with
     [`requireNamespace()`](https://rdrr.io/r/base/ns-load.html) before
     use with helpful error messages

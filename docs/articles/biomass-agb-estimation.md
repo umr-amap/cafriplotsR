@@ -117,7 +117,7 @@ str(plot_data$individuals)
 #>  $ source_taxa_mean_wood_density     : chr [1:888] "species" "species" "species" "species" ...
 #>  $ source_taxa_n_wood_density        : chr [1:888] "species" "species" "species" "species" ...
 #>  $ source_taxa_sd_wood_density       : chr [1:888] "species" "species" "species" "species" ...
-#>  $ taxa_sd_wood_density_plot_level   : num [1:888] 0.0762 0.0762 0.0762 0.0762 0.0762 ...
+#>  $ taxa_sd_wood_density_plot_level   : num [1:888] 0.0761 0.0761 0.0761 0.0761 0.0761 ...
 #>  $ pom                               : num [1:888] 1.3 1.3 1.3 1.3 1.3 1.3 1.3 1.8 3.3 1.3 ...
 #>  $ taxa_mean_stem_diameter_p95       : num [1:888] 35 76.4 50 40 23.5 ...
 #>  $ taxa_n_stem_diameter_p95          : num [1:888] 1 1 1 1 1 1 1 1 1 1 ...
@@ -383,12 +383,12 @@ Now we have all required inputs for BIOMASS:
 # Summary of required variables
 summary(agb_data[, c("dbh", "taxa_mean_wood_density", "H_final", "H_RSE")])
 #>       dbh        taxa_mean_wood_density    H_final          H_RSE      
-#>  Min.   : 10.0   Min.   :0.290          Min.   : 8.93   Min.   :4.280  
-#>  1st Qu.: 12.3   1st Qu.:0.590          1st Qu.:16.39   1st Qu.:4.280  
-#>  Median : 16.2   Median :0.650          Median :19.07   Median :5.299  
-#>  Mean   : 23.3   Mean   :0.639          Mean   :20.97   Mean   :4.824  
-#>  3rd Qu.: 24.8   3rd Qu.:0.710          3rd Qu.:23.86   3rd Qu.:5.299  
-#>  Max.   :175.0   Max.   :0.870          Max.   :41.10   Max.   :5.299
+#>  Min.   : 10.0   Min.   :0.2900         Min.   : 8.93   Min.   :4.280  
+#>  1st Qu.: 12.3   1st Qu.:0.5900         1st Qu.:16.39   1st Qu.:4.280  
+#>  Median : 16.2   Median :0.6500         Median :19.07   Median :5.299  
+#>  Mean   : 23.3   Mean   :0.6391         Mean   :20.97   Mean   :4.824  
+#>  3rd Qu.: 24.8   3rd Qu.:0.7175         3rd Qu.:23.86   3rd Qu.:5.299  
+#>  Max.   :175.0   Max.   :0.8700         Max.   :41.10   Max.   :5.299
 
 # Check for missing data
 agb_data %>%

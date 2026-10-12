@@ -1,8 +1,8 @@
 # Resolve the public login credential
 
 Reports whether the "Connect as public user" button can be offered, and
-with which credential. Anything unexpected — no network, a blocked host,
-a malformed descriptor, or public access switched off upstream — comes
+with which credential. Anything unexpected - no network, a blocked host,
+a malformed descriptor, or public access switched off upstream - comes
 back as unavailable. There is deliberately no built-in fallback value; a
 credential with a default in the source is a credential that gets
 published the first time the file moves.
@@ -11,7 +11,7 @@ published the first time the file moves.
 
 ``` r
 .public_credential(
-  url = getOption("CafriplotsR.public_access_url", .public_credential_url),
+  url = getOption("CafriplotsR.public_access_url", .public_credential_urls),
   timeout = 5,
   force = FALSE
 )
@@ -21,14 +21,16 @@ published the first time the file moves.
 
 - url:
 
-  Descriptor to read. Defaults to the published one, or to
-  \`getOption("CafriplotsR.public_access_url")\` when set — which is how
-  a test, or a site mirroring the descriptor behind its own firewall,
-  points this elsewhere.
+  Descriptor locations, tried in order until one is read. Defaults to
+  the published ones - the same file under two hostnames, so a network
+  that filters one of them still resolves - or to
+  \`getOption("CafriplotsR.public_access_url")\` when set, which
+  replaces the list outright. That is how a test, or a site mirroring
+  the descriptor behind its own firewall, points this elsewhere.
 
 - timeout:
 
-  Seconds to wait for it. Kept short: this runs while the user is
+  Seconds to wait for each. Kept short: this runs while the user is
   looking at the login screen.
 
 - force:
@@ -40,7 +42,11 @@ published the first time the file moves.
 A list with: - \`available\`: logical, whether public login can be
 offered - \`user\`, \`password\`: the credential, empty strings when
 unavailable - \`message\`: text to show in place of the button, possibly
-empty
+empty - \`reason\`: \`"ok"\`, \`"withdrawn"\` when the descriptor was
+read and says no, or \`"unreachable"\` when no location could be read at
+all. The login screen needs the distinction: a withdrawal is a decision
+and carries its own \`message\`, whereas an unreachable descriptor is a
+local fault the user can go and fix
 
 ## Details
 

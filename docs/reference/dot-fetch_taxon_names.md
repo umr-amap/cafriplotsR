@@ -23,5 +23,7 @@ step would make it unusable, so this is not optional decoration.
 ## Value
 
 Data frame with \`idtax_n\`, \`taxon_name\`, \`tax_level\`,
-\`precision\`. An empty frame if nothing can be fetched — the caller
-degrades to ids.
+\`precision\` and \`idtax_accepted\` — the id of the accepted taxon, so
+the caller can tell a renaming from a redetermination without a second
+query. An empty frame if nothing can be fetched — the caller degrades to
+ids.

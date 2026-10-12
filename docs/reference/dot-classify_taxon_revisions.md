@@ -34,7 +34,9 @@ should be the default.
 
 - taxa:
 
-  Output of \[.fetch_taxon_names()\], or \`NULL\`.
+  Output of \[.fetch_taxon_names()\], or \`NULL\`. Its
+  \`idtax_accepted\` column, when present, is what tells a synonym apart
+  from a redetermination.
 
 - unidentified_idtax:
 
@@ -85,6 +87,12 @@ revisions:
   where there was a species — is almost always a data entry regression.
   It defaults to keeping the database value even with no evidence at
   all, and is reported as \`precision_lost\`.
+
+A third case is dropped outright rather than defaulted: when the two ids
+resolve to the same accepted taxon they name the same plant, one of them
+through a synonym. Nothing was redetermined, so there is nothing to ask
+about. This needs \`taxa\` to carry \`idtax_accepted\`, which
+\[.fetch_taxon_names()\] supplies.
 
 ## See also
 
