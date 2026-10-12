@@ -242,14 +242,169 @@ test_that("a raw spelling split across two quadrats reports its minority", {
 
   expect_equal(nrow(res$mismatches), 1)
   expect_equal(res$mismatches$tag, 105)
-  expect_equal(res$mismatches$majority_quadrat_unit, "mbalmayo001_20_20")
-  expect_equal(res$mismatches$quadrat_unit, "mbalmayo001_40_40")
+  expect_equal(res$mismatches$quadrat_by_tag, "40_40")
+  expect_equal(res$mismatches$quadrat_by_name, "20_20")
+  expect_equal(res$mismatches$keep, "tag")
 })
 
 test_that("consistent spellings raise nothing", {
   trees <- rbind(fake_trees(c(1, 2), raw = "Mbalmayo1"),
                  fake_trees(c(105, 106), raw = "Mbalmayo1_"))
   expect_null(.assign_small_tree_quadrats(trees, fake_quadrats)$mismatches)
+})
+
+
+# =============================================================================
+# .apply_small_tree_quadrat_decisions()
+# =============================================================================
+
+# Tag 105 was typed with the first quadrat's spelling: a stem forgotten in
+# 20_20 and tagged from the 40_40 range, or a mistyped underscore.
+disputed <- function() {
+  .assign_small_tree_quadrats(fake_trees(c(1, 2, 3, 105)), fake_quadrats)
+}
+
+decide <- function(res, decisions) {
+  suppressMessages(.apply_small_tree_quadrat_decisions(
+    res$trees, res$mismatches, decisions, fake_quadrats
+  ))
+}
+
+test_that("keep = name moves the stem to the quadrat its name gives", {
+  res <- disputed()
+  dec <- res$mismatches
+  dec$keep <- "name"
+
+  out <- decide(res, dec)
+  stem <- out$trees[out$trees$tag == 105, ]
+  expect_equal(stem$quadrat_unit, "mbalmayo001_20_20")
+  expect_equal(stem$quadrat_label, "20_20")
+  expect_equal(stem$plot_name, "mbalmayo001_smalltree")
+  expect_equal(out$mismatches$keep, "name")
+})
+
+test_that("keep = tag, or a blank keep, leaves the stem where its tag put it", {
+  res <- disputed()
+  for (k in c("tag", "", NA, " TAG ")) {
+    dec <- res$mismatches
+    dec$keep <- k
+    out <- decide(res, dec)
+    expect_equal(out$trees$quadrat_unit[out$trees$tag == 105],
+                 "mbalmayo001_40_40")
+    expect_equal(out$mismatches$keep, "tag")
+  }
+})
+
+test_that("an edited quadrat_by_name sends the stem to that quadrat", {
+  res <- disputed()
+  dec <- res$mismatches
+  dec$keep <- "name"
+  dec$quadrat_by_name <- "60_60"
+
+  out <- decide(res, dec)
+  expect_equal(out$trees$quadrat_unit[out$trees$tag == 105],
+               "mbalmayo001_60_60")
+  expect_equal(out$mismatches$quadrat_by_name, "60_60")
+})
+
+test_that("a decision needs only plot, tag and keep", {
+  res <- disputed()
+  out <- decide(res, data.frame(parent_plot_name = "mbalmayo001",
+                                tag = "105", keep = "name"))
+  expect_equal(out$trees$quadrat_unit[out$trees$tag == 105],
+               "mbalmayo001_20_20")
+})
+
+test_that("an unflagged stem can be moved when a quadrat is given", {
+  res <- disputed()
+  out <- decide(res, data.frame(parent_plot_name = "mbalmayo001", tag = 2,
+                                keep = "name", quadrat_by_name = "40_40"))
+  expect_equal(out$trees$quadrat_unit[out$trees$tag == 2], "mbalmayo001_40_40")
+  # Recorded alongside the flagged one, which kept its tag
+  expect_equal(out$mismatches$tag, c(2, 105))
+  expect_equal(out$mismatches$quadrat_by_tag, c("20_20", "40_40"))
+  expect_equal(out$mismatches$keep, c("name", "tag"))
+})
+
+test_that("mismatches left out of the decisions are announced", {
+  res <- disputed()
+  expect_message(
+    .apply_small_tree_quadrat_decisions(
+      res$trees, res$mismatches,
+      data.frame(parent_plot_name = "mbalmayo001", tag = 1, keep = "tag"),
+      fake_quadrats
+    ),
+    "not in"
+  )
+})
+
+test_that("decisions that cannot be applied as written are errors", {
+  res <- disputed()
+  row <- function(...) {
+    utils::modifyList(list(parent_plot_name = "mbalmayo001", tag = 105,
+                           keep = "name"), list(...))
+  }
+  bad <- function(...) as.data.frame(row(...), stringsAsFactors = FALSE)
+
+  expect_error(decide(res, bad(keep = "maybe")), "\"tag\" or \"name\"")
+  expect_error(decide(res, bad(tag = 999)), "absent from the tree list")
+  expect_error(decide(res, bad(quadrat_by_name = "99_99")), "no sampled quadrat")
+  expect_error(decide(res, bad(tag = 2)), "no quadrat_by_name")
+  expect_error(decide(res, rbind(bad(), bad())), "more than one row")
+  expect_error(decide(res, data.frame(tag = 105, keep = "name")),
+               "parent_plot_name")
+})
+
+test_that("a duplicated stem cannot be decided on", {
+  res <- .assign_small_tree_quadrats(fake_trees(c(1, 2, 105, 105)),
+                                     fake_quadrats)
+  expect_error(
+    decide(res, data.frame(parent_plot_name = "mbalmayo001", tag = 105,
+                           keep = "name", quadrat_by_name = "20_20")),
+    "two stems of the plot share"
+  )
+})
+
+test_that("a tag used in two quadrats is told apart by its raw spelling", {
+  # Quadrat 20_20 was tagged on to 106 after 40_40 had opened at 105: tags
+  # 105-106 exist twice, and the range puts both copies in 40_40
+  trees <- rbind(fake_trees(c(1, 2, 3, 105, 106), raw = "Mbalmayo1"),
+                 fake_trees(c(105, 106, 107, 108), raw = "Mbalmayo1_"))
+  res <- .assign_small_tree_quadrats(trees, fake_quadrats)
+  expect_equal(res$mismatches$plot_name_raw, c("Mbalmayo1", "Mbalmayo1"))
+
+  dec <- res$mismatches
+  dec$keep <- "name"
+  out <- decide(res, dec)
+
+  unit <- function(raw, t) {
+    out$trees$quadrat_unit[out$trees$plot_name_raw == raw & out$trees$tag == t]
+  }
+  expect_equal(unit("Mbalmayo1", 105), "mbalmayo001_20_20")
+  expect_equal(unit("Mbalmayo1", 106), "mbalmayo001_20_20")
+  expect_equal(unit("Mbalmayo1_", 105), "mbalmayo001_40_40")
+  expect_equal(unit("Mbalmayo1_", 106), "mbalmayo001_40_40")
+  expect_equal(out$mismatches$keep, c("name", "name"))
+})
+
+test_that("decisions are read from an xlsx, by path or by name in data_dir", {
+  skip_if_not_installed("writexl")
+  res <- disputed()
+  dec <- res$mismatches
+  dec$keep <- "name"
+  dir <- withr::local_tempdir()
+  writexl::write_xlsx(dec, file.path(dir, "reviewed.xlsx"))
+
+  out <- suppressMessages(.apply_small_tree_quadrat_decisions(
+    res$trees, res$mismatches, "reviewed.xlsx", fake_quadrats, data_dir = dir
+  ))
+  expect_equal(out$trees$quadrat_unit[out$trees$tag == 105],
+               "mbalmayo001_20_20")
+  expect_error(
+    .apply_small_tree_quadrat_decisions(res$trees, res$mismatches,
+                                        "nowhere.xlsx", fake_quadrats),
+    "not found"
+  )
 })
 
 
@@ -601,4 +756,81 @@ test_that("a multi-stem group does not reach into the next quadrat", {
     res$individuals$plot_name == "mbalmayo001_smalltree" &
       res$individuals$tag == 4
   ]))
+})
+
+test_that("a reviewed mismatch file sends a stem to the quadrat its name gives", {
+  skip_if_not_installed("writexl")
+  dir <- withr::local_tempdir()
+  write_small_tree_export(dir)
+  # Tag 4 was typed with the first quadrat's spelling: forgotten in quadrat 9
+  # and tagged once the team had moved on to quadrat 13
+  trees <- as.data.frame(readxl::read_excel(file.path(dir, "tree_list.xlsx")))
+  trees$plot_plot_name_old[trees$tag == 4] <- "Mbalmayo1"
+  writexl::write_xlsx(trees, file.path(dir, "tree_list.xlsx"))
+  mm_file <- file.path(dir, "mismatches.xlsx")
+
+  first <- suppressWarnings(suppressMessages(
+    process_openforis_small_trees(data_dir = dir,
+                                  mismatch_file = "mismatches.xlsx")
+  ))
+  expect_true(file.exists(mm_file))
+  expect_equal(first$name_mismatches$tag, 4)
+  expect_equal(first$name_mismatches$keep, "tag")
+  expect_equal(first$individuals$quadrat[first$individuals$tag == 4 &
+                                            first$individuals$plot_name == "mbalmayo001_smalltree"],
+               "13_C")
+
+  reviewed <- as.data.frame(readxl::read_excel(mm_file))
+  reviewed$keep <- "name"
+  writexl::write_xlsx(reviewed, mm_file)
+
+  second <- suppressWarnings(suppressMessages(
+    process_openforis_small_trees(data_dir = dir,
+                                  quadrat_decisions = "mismatches.xlsx")
+  ))
+  ind <- second$individuals[second$individuals$plot_name == "mbalmayo001_smalltree", ]
+  expect_equal(ind$quadrat[ind$tag == 4], "9_C")
+  expect_equal(second$name_mismatches$keep, "name")
+  expect_equal(second$summary$n_placed_by_name, 1L)
+  expect_equal(second$quadrats$n_stems, c(4L, 1L, 1L))
+  # Now in the same quadrat as tag 3, tag 4 is the second stem of its group
+  expect_equal(ind$multi_tiges_id[ind$tag == 4], 3)
+})
+
+test_that("a relative review-file path lives in data_dir", {
+  expect_equal(.resolve_in_data_dir("mm.xlsx", "D:/mission"), "D:/mission/mm.xlsx")
+  expect_equal(.resolve_in_data_dir("sub/mm.xlsx", "D:/mission"),
+               "D:/mission/sub/mm.xlsx")
+  expect_equal(.resolve_in_data_dir("D:/elsewhere/mm.xlsx", "D:/mission"),
+               "D:/elsewhere/mm.xlsx")
+  expect_equal(.resolve_in_data_dir("/tmp/mm.xlsx", "D:/mission"), "/tmp/mm.xlsx")
+  expect_equal(.resolve_in_data_dir("~/mm.xlsx", "D:/mission"), "~/mm.xlsx")
+  expect_equal(.resolve_in_data_dir("mm.xlsx", NULL), "mm.xlsx")
+})
+
+test_that("two stems sharing a tag keep their own quadrat in the individuals", {
+  skip_if_not_installed("writexl")
+  dir <- withr::local_tempdir()
+  write_small_tree_export(dir)
+  # Quadrat 9 was tagged on to 4 after quadrat 13 had opened at 4
+  trees <- as.data.frame(readxl::read_excel(file.path(dir, "tree_list.xlsx")))
+  trees <- rbind(trees, transform(trees[trees$tag == 3, ], tag = 4, quadrat = "D"))
+  writexl::write_xlsx(trees, file.path(dir, "tree_list.xlsx"))
+
+  first <- suppressWarnings(suppressMessages(
+    process_openforis_small_trees(data_dir = dir,
+                                  mismatch_file = "mismatches.xlsx")
+  ))
+  dec <- as.data.frame(readxl::read_excel(file.path(dir, "mismatches.xlsx")))
+  expect_equal(dec$tag, 4)
+  dec$keep <- "name"
+  writexl::write_xlsx(dec, file.path(dir, "mismatches.xlsx"))
+
+  res <- suppressWarnings(suppressMessages(
+    process_openforis_small_trees(data_dir = dir,
+                                  quadrat_decisions = "mismatches.xlsx")
+  ))
+  ind <- res$individuals[res$individuals$plot_name == "mbalmayo001_smalltree" &
+                           res$individuals$tag == 4, ]
+  expect_setequal(ind$quadrat, c("9_D", "13_C"))
 })

@@ -36,6 +36,8 @@ process_openforis_small_trees(
   plot_name_map = NULL,
   plot_suffix = "_smalltree",
   quadrat_sep = "_",
+  quadrat_decisions = NULL,
+  mismatch_file = NULL,
   dbh_max = 10,
   specimen_prefix = NULL,
   specimen_remap_file = NULL,
@@ -146,6 +148,20 @@ parent plot name and the quadrat label in the review tables
 (\code{"mbalmayo001_20_20"}), and the quadrat label and the sub-quadrat in
 the \code{quadrat} feature (\code{"20_20_A"}). Default \code{"_"}.}
 
+\item{quadrat_decisions}{The reviewed \code{name_mismatches} table, as a
+data frame or the path of an xlsx, or NULL to keep the tag quadrat for
+every stem. Needs \code{parent_plot_name}, \code{tag} and \code{keep}
+(\code{"tag"} or \code{"name"}; blank counts as \code{"tag"}), and uses
+\code{quadrat_by_name} when present, plus \code{plot_name_raw} to tell
+apart two stems sharing a tag. A relative path is taken inside
+\code{data_dir} when it is set. See the section "Deciding a mismatch".}
+
+\item{mismatch_file}{Path of an xlsx to write \code{name_mismatches} to, for
+review, or NULL. A relative path is taken inside \code{data_dir} when it
+is set. Nothing is written when there is no mismatch. Output only: to
+apply an edited file, pass it as \code{quadrat_decisions} (both may name
+the same file, which is then rewritten with what was applied).}
+
 \item{dbh_max}{Numeric. Diameter above which a stem is reported as outside
 the small-tree protocol (default \code{10}). NULL to skip the check.}
 
@@ -230,9 +246,12 @@ A list with components:
   \item{multi_stems}{Tibble of candidate multi-stem groupings with a
     \code{flag} column to review, or NULL.}
   \item{name_mismatches}{Tibble of stems whose \code{plot_plot_name_old}
-    spelling puts them in a different quadrat than their tag does
-    (quadrat_unit against majority_quadrat_unit), or NULL. The tag wins;
-    these rows are for review.}
+    spelling puts them in a different quadrat than their tag does, or
+    NULL: plot_name_raw, parent_plot_name, plot_name, tag,
+    species_scientific_name, quadrat_by_tag, quadrat_by_name and keep (the
+    side used, \code{"tag"} unless \code{quadrat_decisions} says
+    otherwise). Edit \code{keep} and pass it back as
+    \code{quadrat_decisions}.}
   \item{unassigned_stems}{Tibble of stems that could not be placed in any
     quadrat — an unknown parent plot, a missing tag, or a tag below every
     \code{firsttag} of its plot — or NULL. A \code{warning()} is also
@@ -309,8 +328,31 @@ The reliable key is \code{firsttag}: \code{plot.xlsx} records, for every
 quadrat, the tag its numbering started at. Stems are therefore assigned by
 tag range — a stem belongs to the quadrat with the largest \code{firsttag}
 not above its tag. The \code{plot_plot_name_old} grouping is used only as a
-cross-check, and any disagreement is reported in \code{name_mismatches}
-rather than acted on.
+cross-check, and any disagreement is reported in \code{name_mismatches}.
+}
+
+\section{Deciding a mismatch}{
+
+A mismatch has no single right answer. A mistyped underscore makes the tag
+right; a stem forgotten behind the team and tagged later, from the next
+quadrat's range, makes the name right. Only the person who knows the field
+work can tell, so the decision is theirs, taken in two runs:
+\enumerate{
+  \item Run once. The tag is used for every stem, and
+    \code{name_mismatches} lists the disputed stems with the quadrat each
+    side gives (\code{quadrat_by_tag}, \code{quadrat_by_name}) and a
+    \code{keep} column set to \code{"tag"}. Set \code{mismatch_file} to get
+    the table as an xlsx.
+  \item Change \code{keep} to \code{"name"} for the stems that belong where
+    the name puts them, then run again with that table as
+    \code{quadrat_decisions}.
+}
+\code{quadrat_by_name} may also be edited, to send a stem to a third
+quadrat of the same parent plot. A stem the decisions do not mention keeps
+its tag quadrat. Only the stem's \code{quadrat} feature changes: every
+quadrat of a parent plot is in the same small-tree plot. Multi-stem
+grouping runs after the decisions, so a moved stem is grouped with its new
+neighbours.
 }
 
 \section{Taxonomy}{
@@ -341,6 +383,20 @@ result <- process_openforis_small_trees(
 result$quadrats
 result$name_mismatches
 result$unassigned_stems
+
+# Settle the quadrat of the disputed stems: write the mismatches, set
+# keep = "name" where the name is right, and run again with the file
+result <- process_openforis_small_trees(
+  data_dir  = "path/to/mission/plot/small_tree/",
+  codes_dir = "path/to/openforis/",
+  mismatch_file = "mismatches.xlsx"
+)
+# ... edit mismatches.xlsx ...
+result <- process_openforis_small_trees(
+  data_dir  = "path/to/mission/plot/small_tree/",
+  codes_dir = "path/to/openforis/",
+  quadrat_decisions = "mismatches.xlsx"
+)
 
 # One file per Import Wizard upload
 export_openforis_for_wizard(result, dir = "to_import")

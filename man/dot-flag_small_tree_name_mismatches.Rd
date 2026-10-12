@@ -7,13 +7,14 @@
 .flag_small_tree_name_mismatches(trees)
 }
 \arguments{
-\item{trees}{Assigned tree data frame (quadrat_unit, plot_name_raw).}
+\item{trees}{Assigned tree data frame (quadrat_unit, quadrat_label,
+plot_name_raw).}
 }
 \value{
 Data frame of the minority rows, with the quadrat their tag puts
-  them in (\code{quadrat_unit}) and the one most stems of that spelling
-  landed in (\code{majority_quadrat_unit}), or NULL when every spelling is
-  consistent.
+  them in (\code{quadrat_by_tag}), the one most stems of that spelling
+  landed in (\code{quadrat_by_name}) and \code{keep = "tag"}, or NULL when
+  every spelling is consistent.
 }
 \description{
 Every stem carrying the same \code{plot_plot_name_old} value was entered as
@@ -21,5 +22,10 @@ one quadrat in the field, so they should all land in the same quadrat once
 assigned by tag. Where a spelling straddles two quadrats, the rows in the
 smaller share are the suspicious ones — either the tag or the trailing
 underscore was mistyped.
+}
+\details{
+The table is laid out to be edited and handed back as
+\code{quadrat_decisions}: quadrats are named by their label, which is what
+a person types, and \code{keep} says which side is used.
 }
 \keyword{internal}

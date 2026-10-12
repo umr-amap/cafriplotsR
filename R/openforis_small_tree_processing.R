@@ -72,8 +72,29 @@
 #' quadrat, the tag its numbering started at. Stems are therefore assigned by
 #' tag range — a stem belongs to the quadrat with the largest \code{firsttag}
 #' not above its tag. The \code{plot_plot_name_old} grouping is used only as a
-#' cross-check, and any disagreement is reported in \code{name_mismatches}
-#' rather than acted on.
+#' cross-check, and any disagreement is reported in \code{name_mismatches}.
+#'
+#' @section Deciding a mismatch:
+#' A mismatch has no single right answer. A mistyped underscore makes the tag
+#' right; a stem forgotten behind the team and tagged later, from the next
+#' quadrat's range, makes the name right. Only the person who knows the field
+#' work can tell, so the decision is theirs, taken in two runs:
+#' \enumerate{
+#'   \item Run once. The tag is used for every stem, and
+#'     \code{name_mismatches} lists the disputed stems with the quadrat each
+#'     side gives (\code{quadrat_by_tag}, \code{quadrat_by_name}) and a
+#'     \code{keep} column set to \code{"tag"}. Set \code{mismatch_file} to get
+#'     the table as an xlsx.
+#'   \item Change \code{keep} to \code{"name"} for the stems that belong where
+#'     the name puts them, then run again with that table as
+#'     \code{quadrat_decisions}.
+#' }
+#' \code{quadrat_by_name} may also be edited, to send a stem to a third
+#' quadrat of the same parent plot. A stem the decisions do not mention keeps
+#' its tag quadrat. Only the stem's \code{quadrat} feature changes: every
+#' quadrat of a parent plot is in the same small-tree plot. Multi-stem
+#' grouping runs after the decisions, so a moved stem is grouped with its new
+#' neighbours.
 #'
 #' @param data_dir Path to the directory containing the OpenForis xlsx exports.
 #'   The function looks for a tree file matching \code{tree_file_pattern} and a
@@ -149,6 +170,18 @@
 #'   parent plot name and the quadrat label in the review tables
 #'   (\code{"mbalmayo001_20_20"}), and the quadrat label and the sub-quadrat in
 #'   the \code{quadrat} feature (\code{"20_20_A"}). Default \code{"_"}.
+#' @param quadrat_decisions The reviewed \code{name_mismatches} table, as a
+#'   data frame or the path of an xlsx, or NULL to keep the tag quadrat for
+#'   every stem. Needs \code{parent_plot_name}, \code{tag} and \code{keep}
+#'   (\code{"tag"} or \code{"name"}; blank counts as \code{"tag"}), and uses
+#'   \code{quadrat_by_name} when present, plus \code{plot_name_raw} to tell
+#'   apart two stems sharing a tag. A relative path is taken inside
+#'   \code{data_dir} when it is set. See the section "Deciding a mismatch".
+#' @param mismatch_file Path of an xlsx to write \code{name_mismatches} to, for
+#'   review, or NULL. A relative path is taken inside \code{data_dir} when it
+#'   is set. Nothing is written when there is no mismatch. Output only: to
+#'   apply an edited file, pass it as \code{quadrat_decisions} (both may name
+#'   the same file, which is then rewritten with what was applied).
 #' @param dbh_max Numeric. Diameter above which a stem is reported as outside
 #'   the small-tree protocol (default \code{10}). NULL to skip the check.
 #' @param specimen_prefix Character prefix for specimen numbers (e.g.
@@ -223,9 +256,12 @@
 #'   \item{multi_stems}{Tibble of candidate multi-stem groupings with a
 #'     \code{flag} column to review, or NULL.}
 #'   \item{name_mismatches}{Tibble of stems whose \code{plot_plot_name_old}
-#'     spelling puts them in a different quadrat than their tag does
-#'     (quadrat_unit against majority_quadrat_unit), or NULL. The tag wins;
-#'     these rows are for review.}
+#'     spelling puts them in a different quadrat than their tag does, or
+#'     NULL: plot_name_raw, parent_plot_name, plot_name, tag,
+#'     species_scientific_name, quadrat_by_tag, quadrat_by_name and keep (the
+#'     side used, \code{"tag"} unless \code{quadrat_decisions} says
+#'     otherwise). Edit \code{keep} and pass it back as
+#'     \code{quadrat_decisions}.}
 #'   \item{unassigned_stems}{Tibble of stems that could not be placed in any
 #'     quadrat — an unknown parent plot, a missing tag, or a tag below every
 #'     \code{firsttag} of its plot — or NULL. A \code{warning()} is also
@@ -263,6 +299,20 @@
 #' result$quadrats
 #' result$name_mismatches
 #' result$unassigned_stems
+#'
+#' # Settle the quadrat of the disputed stems: write the mismatches, set
+#' # keep = "name" where the name is right, and run again with the file
+#' result <- process_openforis_small_trees(
+#'   data_dir  = "path/to/mission/plot/small_tree/",
+#'   codes_dir = "path/to/openforis/",
+#'   mismatch_file = "mismatches.xlsx"
+#' )
+#' # ... edit mismatches.xlsx ...
+#' result <- process_openforis_small_trees(
+#'   data_dir  = "path/to/mission/plot/small_tree/",
+#'   codes_dir = "path/to/openforis/",
+#'   quadrat_decisions = "mismatches.xlsx"
+#' )
 #'
 #' # One file per Import Wizard upload
 #' export_openforis_for_wizard(result, dir = "to_import")
@@ -305,6 +355,8 @@ process_openforis_small_trees <- function(data_dir = NULL,
                                           plot_name_map = NULL,
                                           plot_suffix = "_smalltree",
                                           quadrat_sep = "_",
+                                          quadrat_decisions = NULL,
+                                          mismatch_file = NULL,
                                           dbh_max = 10,
                                           specimen_prefix = NULL,
                                           specimen_remap_file = NULL,
@@ -433,12 +485,39 @@ process_openforis_small_trees <- function(data_dir = NULL,
       "{nrow(unassigned_stems)} stem{?s} left unassigned — review result$unassigned_stems"
     )
   }
+  # ---- The processor's decisions on those mismatches ----
+  # Before anything reads the quadrat of a stem: the individuals' quadrat
+  # feature, the review table and the per-quadrat multi-stem grouping.
+  if (!is.null(quadrat_decisions)) {
+    decided <- .apply_small_tree_quadrat_decisions(
+      trees, name_mismatches, quadrat_decisions, quadrats,
+      data_dir = data_dir
+    )
+    trees <- decided$trees
+    name_mismatches <- decided$mismatches
+  }
+
   if (!is.null(name_mismatches)) {
-    cli::cli_alert_warning(paste(
-      "{nrow(name_mismatches)} stem{?s} whose {.field {plot_name_col}} spelling",
-      "disagrees with the quadrat its tag places it in — the tag was used;",
-      "review result$name_mismatches"
-    ))
+    n_by_name <- sum(name_mismatches$keep == "name")
+    n_by_tag <- nrow(name_mismatches) - n_by_name
+    if (is.null(quadrat_decisions)) {
+      cli::cli_alert_warning(paste(
+        "{nrow(name_mismatches)} stem{?s} whose {.field {plot_name_col}} spelling",
+        "disagrees with the quadrat its tag places it in — the tag was used.",
+        "Review result$name_mismatches, set {.field keep} to {.val name} where",
+        "the name is right and pass it back as {.arg quadrat_decisions}"
+      ))
+    } else {
+      cli::cli_alert_info(paste(
+        "Quadrat mismatches: {n_by_name} stem{?s} placed by name,",
+        "{n_by_tag} by tag"
+      ))
+    }
+    if (!is.null(mismatch_file)) {
+      mismatch_file <- .resolve_in_data_dir(mismatch_file, data_dir)
+      writexl::write_xlsx(dplyr::as_tibble(name_mismatches), mismatch_file)
+      cli::cli_alert_info("Mismatches written to {.file {mismatch_file}}")
+    }
   }
   if (nrow(trees) == 0) {
     stop("No stem could be assigned to a quadrat — check the firsttag column of the plot file.")
@@ -559,8 +638,12 @@ process_openforis_small_trees <- function(data_dir = NULL,
     quadrat_codes = subquad_code_list,
     morpho_codes = morpho_code_list
   )
-  stem_idx <- match(paste(individuals$plot_name, individuals$tag),
-                    paste(trees$plot_name, trees$tag))
+  # Row for row, not looked up by plot + tag: a tag used in two quadrats is
+  # two stems, each with its own quadrat. The individuals are `trees` in the
+  # stable order(plot_name, tag) that function sorts by.
+  stem_idx <- order(trees$plot_name, trees$tag)
+  stopifnot(nrow(individuals) == length(stem_idx),
+            identical(individuals$tag, trees$tag[stem_idx]))
   individuals$quadrat <- .combine_small_tree_quadrat(
     trees$quadrat_label[stem_idx], individuals$quadrat, sep = quadrat_sep
   )
@@ -776,6 +859,9 @@ process_openforis_small_trees <- function(data_dir = NULL,
     } else 0L,
     n_unassigned_stems = if (!is.null(unassigned_stems)) nrow(unassigned_stems) else 0L,
     n_name_mismatches = if (!is.null(name_mismatches)) nrow(name_mismatches) else 0L,
+    n_placed_by_name = if (!is.null(name_mismatches)) {
+      sum(name_mismatches$keep == "name")
+    } else 0L,
     n_duplicated_stems = if (!is.null(duplicated_stems)) nrow(duplicated_stems) else 0L,
     n_oversized_stems = if (!is.null(oversized_stems)) nrow(oversized_stems) else 0L,
     trait_names = if (nrow(measurements) > 0) unique(measurements$trait_name) else character(0)
@@ -790,7 +876,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
     "*" = "{summary_info$n_specimens} specimen(s)",
     "*" = "{summary_info$n_multi_stem_groups} multi-stem group(s)",
     "*" = "{summary_info$n_unassigned_stems} unassigned stem(s)",
-    "*" = "{summary_info$n_name_mismatches} plot-name mismatch(es)",
+    "*" = "{summary_info$n_name_mismatches} plot-name mismatch(es), {summary_info$n_placed_by_name} placed by name",
     "*" = "{summary_info$n_duplicated_stems} duplicated stem row(s)",
     "*" = "{summary_info$n_oversized_stems} stem(s) at or above the small-tree threshold",
     "*" = "Traits: {paste(summary_info$trait_names, collapse = ', ')}"
@@ -1127,15 +1213,26 @@ process_openforis_small_trees <- function(data_dir = NULL,
 #' smaller share are the suspicious ones — either the tag or the trailing
 #' underscore was mistyped.
 #'
-#' @param trees Assigned tree data frame (quadrat_unit, plot_name_raw).
+#' The table is laid out to be edited and handed back as
+#' \code{quadrat_decisions}: quadrats are named by their label, which is what
+#' a person types, and \code{keep} says which side is used.
+#'
+#' @param trees Assigned tree data frame (quadrat_unit, quadrat_label,
+#'   plot_name_raw).
 #' @return Data frame of the minority rows, with the quadrat their tag puts
-#'   them in (\code{quadrat_unit}) and the one most stems of that spelling
-#'   landed in (\code{majority_quadrat_unit}), or NULL when every spelling is
-#'   consistent.
+#'   them in (\code{quadrat_by_tag}), the one most stems of that spelling
+#'   landed in (\code{quadrat_by_name}) and \code{keep = "tag"}, or NULL when
+#'   every spelling is consistent.
 #' @keywords internal
 .flag_small_tree_name_mismatches <- function(trees) {
 
   if (!"plot_name_raw" %in% names(trees) || nrow(trees) == 0) return(NULL)
+
+  cols <- intersect(
+    c("plot_name_raw", "parent_plot_name", "plot_name", "tag",
+      "species_scientific_name"),
+    names(trees)
+  )
 
   out <- list()
   for (raw in unique(trees$plot_name_raw)) {
@@ -1146,21 +1243,235 @@ process_openforis_small_trees <- function(data_dir = NULL,
     majority <- names(tab)[which.max(tab)]
     odd <- rows[trees$quadrat_unit[rows] != majority]
 
-    cols <- intersect(
-      c("plot_name_raw", "parent_plot_name", "plot_name", "quadrat_unit", "tag",
-        "species_scientific_name"),
-      names(trees)
-    )
     piece <- trees[odd, cols, drop = FALSE]
-    piece$majority_quadrat_unit <- majority
+    piece$quadrat_by_tag <- trees$quadrat_label[odd]
+    piece$quadrat_by_name <-
+      trees$quadrat_label[rows[match(majority, trees$quadrat_unit[rows])]]
+    piece$keep <- "tag"
     out[[raw]] <- piece
   }
 
   if (length(out) == 0) return(NULL)
   result <- do.call(rbind, out)
-  result <- result[order(result$quadrat_unit, result$tag), , drop = FALSE]
+  result <- result[order(result$parent_plot_name, result$tag), , drop = FALSE]
   rownames(result) <- NULL
   result
+}
+
+
+#' Apply the processor's decisions on quadrat mismatches
+#'
+#' Moves the stems marked \code{keep = "name"} to the quadrat given by
+#' \code{quadrat_by_name}, the one taken from the mismatch table unless the
+#' decision row names another. A decision is matched to a stem on parent
+#' plot and tag, so it survives a re-export as long as those do.
+#'
+#' Anything that cannot be applied as written is an error, not a skip: a
+#' decision for a stem that is not there, a quadrat that was not sampled in
+#' that parent plot, a \code{"name"} without a quadrat, or two decisions for
+#' one stem. A silently dropped decision would put a stem back in the quadrat
+#' someone had taken it out of.
+#'
+#' @param trees Assigned tree data frame (parent_plot_name, tag, quadrat_unit,
+#'   quadrat_label).
+#' @param mismatches Output of \code{.flag_small_tree_name_mismatches()}, or
+#'   NULL.
+#' @param decisions Data frame, or path of an xlsx, with parent_plot_name, tag,
+#'   keep and optionally quadrat_by_name.
+#' @param quadrats Quadrat units from
+#'   \code{.prepare_openforis_small_tree_quadrats()}.
+#' @param data_dir Directory a bare filename in \code{decisions} is looked up
+#'   in, or NULL.
+#' @return List with \code{trees} (stems moved) and \code{mismatches} (keep
+#'   and quadrat_by_name set to what was applied; stems moved by a decision
+#'   but not flagged are appended).
+#' @keywords internal
+.apply_small_tree_quadrat_decisions <- function(trees, mismatches, decisions,
+                                                quadrats, data_dir = NULL) {
+
+  if (is.character(decisions)) {
+    path <- .resolve_in_data_dir(decisions, data_dir)
+    if (!file.exists(path)) {
+      stop("quadrat_decisions file not found: ", path, call. = FALSE)
+    }
+    decisions <- readxl::read_excel(path)
+  }
+  decisions <- as.data.frame(decisions, stringsAsFactors = FALSE)
+
+  missing_cols <- setdiff(c("parent_plot_name", "tag", "keep"), names(decisions))
+  if (length(missing_cols) > 0) {
+    stop("quadrat_decisions lacks column(s): ",
+         paste(missing_cols, collapse = ", "), call. = FALSE)
+  }
+
+  if (nrow(decisions) == 0) {
+    return(list(trees = trees, mismatches = mismatches))
+  }
+
+  parent <- trimws(as.character(decisions$parent_plot_name))
+  tag <- suppressWarnings(as.numeric(decisions$tag))
+  keep <- tolower(trimws(as.character(decisions$keep)))
+  keep[is.na(keep) | keep == ""] <- "tag"
+  wanted <- if ("quadrat_by_name" %in% names(decisions)) {
+    trimws(as.character(decisions$quadrat_by_name))
+  } else {
+    rep(NA_character_, nrow(decisions))
+  }
+  wanted[!is.na(wanted) & wanted == ""] <- NA_character_
+  row_label <- sprintf("%s tag %s", parent, decisions$tag)
+
+  bad_keep <- !keep %in% c("tag", "name")
+  if (any(bad_keep)) {
+    stop("quadrat_decisions: keep must be \"tag\" or \"name\"; got ",
+         paste(sprintf("\"%s\" (%s)", decisions$keep[bad_keep],
+                       row_label[bad_keep]), collapse = ", "),
+         call. = FALSE)
+  }
+
+  # A decision is matched to its stem on parent plot and tag. A tag typed
+  # twice in one parent plot (a quadrat's numbering run on past the next
+  # one's firsttag) names two stems; the raw spelling, which the mismatch
+  # table carries, then tells them apart.
+  base_tree_key <- paste(trees$parent_plot_name, trees$tag, sep = "\r")
+  tree_raw <- if ("plot_name_raw" %in% names(trees)) {
+    trimws(as.character(trees$plot_name_raw))
+  } else rep(NA_character_, nrow(trees))
+  find_stems <- function(p, t, r) {
+    rows <- which(base_tree_key == paste(p, t, sep = "\r"))
+    if (length(rows) > 1 && !is.na(r)) rows <- rows[tree_raw[rows] %in% r]
+    rows
+  }
+  raw_of <- function(df) {
+    if ("plot_name_raw" %in% names(df)) {
+      trimws(as.character(df$plot_name_raw))
+    } else rep(NA_character_, nrow(df))
+  }
+
+  dec_raw <- raw_of(decisions)
+  matched <- lapply(seq_along(parent),
+                    function(i) find_stems(parent[i], tag[i], dec_raw[i]))
+  n_stems <- lengths(matched)
+  if (any(n_stems == 0)) {
+    stop("quadrat_decisions names stem(s) absent from the tree list: ",
+         paste(row_label[n_stems == 0], collapse = ", "), call. = FALSE)
+  }
+  if (any(n_stems > 1)) {
+    stop("quadrat_decisions names a tag that two stems of the plot share; ",
+         "add plot_name_raw to tell them apart: ",
+         paste(row_label[n_stems > 1], collapse = ", "), call. = FALSE)
+  }
+  stem_of <- unlist(matched)
+
+  dup <- duplicated(stem_of) | duplicated(stem_of, fromLast = TRUE)
+  if (any(dup)) {
+    stop("quadrat_decisions has more than one row for: ",
+         paste(unique(row_label[dup]), collapse = ", "), call. = FALSE)
+  }
+
+  # The quadrat a "name" decision sends a stem to: the row's own, else the
+  # mismatch table's
+  mm_stem <- if (!is.null(mismatches)) {
+    mm_raw <- raw_of(mismatches)
+    vapply(seq_len(nrow(mismatches)), function(i) {
+      rows <- find_stems(mismatches$parent_plot_name[i], mismatches$tag[i],
+                         mm_raw[i])
+      if (length(rows) == 1) rows else NA_integer_
+    }, integer(1))
+  } else integer(0)
+  flagged <- stem_of %in% mm_stem
+  fill <- is.na(wanted) & flagged
+  if (any(fill)) {
+    wanted[fill] <- mismatches$quadrat_by_name[match(stem_of[fill], mm_stem)]
+  }
+
+  by_name <- keep == "name"
+  no_target <- by_name & is.na(wanted)
+  if (any(no_target)) {
+    stop("quadrat_decisions: keep = \"name\" but no quadrat_by_name for ",
+         paste(row_label[no_target], collapse = ", "), call. = FALSE)
+  }
+
+  target_unit <- paste(parent, wanted, sep = "\r")
+  quadrat_key <- paste(quadrats$parent_plot_name, quadrats$quadrat, sep = "\r")
+  unknown <- by_name & !target_unit %in% quadrat_key
+  if (any(unknown)) {
+    stop("quadrat_decisions: no sampled quadrat ",
+         paste(sprintf("\"%s\" (%s)", wanted[unknown], row_label[unknown]),
+               collapse = ", "),
+         " in that parent plot", call. = FALSE)
+  }
+
+  # ---- Move the stems ----
+  for (i in which(by_name)) {
+    stem <- stem_of[i]
+    q <- match(target_unit[i], quadrat_key)
+    trees$quadrat_unit[stem] <- quadrats$quadrat_unit[q]
+    trees$quadrat_label[stem] <- quadrats$quadrat[q]
+  }
+
+  # ---- Record what was applied ----
+  if (!is.null(mismatches)) {
+    d <- match(mm_stem, stem_of)
+    hit <- !is.na(d)
+    mismatches$keep[hit] <- keep[d[hit]]
+    mismatches$quadrat_by_name[hit] <- ifelse(
+      is.na(wanted[d[hit]]), mismatches$quadrat_by_name[hit], wanted[d[hit]]
+    )
+    n_undecided <- sum(!hit)
+    if (n_undecided > 0) {
+      cli::cli_alert_warning(paste(
+        "{n_undecided} quadrat mismatch{?es} not in {.arg quadrat_decisions}",
+        "— the tag was used for {?it/them}"
+      ))
+    }
+  }
+
+  # A stem moved without having been flagged (e.g. sent to a third quadrat)
+  extra <- which(by_name & !flagged)
+  if (length(extra) > 0) {
+    stems <- stem_of[extra]
+    cols <- intersect(
+      c("plot_name_raw", "parent_plot_name", "plot_name", "tag",
+        "species_scientific_name"),
+      names(trees)
+    )
+    added <- trees[stems, cols, drop = FALSE]
+    # The quadrat its tag gave, before the move
+    tag_q <- quadrats[quadrats$parent_plot_name %in% parent[extra] &
+                        !is.na(quadrats$firsttag), , drop = FALSE]
+    added$quadrat_by_tag <- vapply(seq_along(extra), function(j) {
+      q <- tag_q[tag_q$parent_plot_name == parent[extra[j]], , drop = FALSE]
+      q <- q[order(q$firsttag), , drop = FALSE]
+      k <- findInterval(tag[extra[j]], q$firsttag)
+      if (k >= 1L) q$quadrat[k] else NA_character_
+    }, character(1))
+    added$quadrat_by_name <- wanted[extra]
+    added$keep <- "name"
+    mismatches <- rbind(mismatches, added)
+    mismatches <- mismatches[order(mismatches$parent_plot_name,
+                                   mismatches$tag), , drop = FALSE]
+    rownames(mismatches) <- NULL
+  }
+
+  list(trees = trees, mismatches = mismatches)
+}
+
+
+#' Resolve a relative path against the export directory
+#'
+#' The review files of a mission belong next to its export, not wherever R
+#' happens to be running, so a relative path is taken inside \code{data_dir}.
+#' An absolute path, or any path when \code{data_dir} is NULL, is returned
+#' as given.
+#'
+#' @param path Character path.
+#' @param data_dir Export directory, or NULL.
+#' @return Character path.
+#' @keywords internal
+.resolve_in_data_dir <- function(path, data_dir = NULL) {
+  if (is.null(data_dir) || is.null(path)) return(path)
+  absolute <- grepl("^([A-Za-z]:)?[/\\\\]|^~", path)
+  if (absolute) path else file.path(data_dir, path)
 }
 
 
