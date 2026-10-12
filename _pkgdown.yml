@@ -121,6 +121,7 @@ reference:
       - query_traits_measures
       - query_traits_measures_features
       - query_colnam
+      - query_plot_authors
       - query_specimens
       - query_all_specimen_links
       - query_citations
@@ -484,6 +485,10 @@ reference:
       - check_table_idtax_staleness
       - get_table_idtax_metadata
       - print_user_access_summary
+      - grant_delete_right
+      - revoke_delete_right
+      - plot_access_delete_rights
+      - plot_access_drift
       - setup_add_person_function
       # One-shot schema migrations, and the checks that only existed to say
       # whether they had run, are archived under inst/migrations/. They altered

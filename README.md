@@ -24,7 +24,7 @@ manipulation, data reusability.
 
 ---
 
-**[Version française disponible ici / French version available here](README.fr.md)**
+**[Version française disponible ici / French version available here](https://umr-amap.github.io/cafriplotsR/articles/readme-fr.html)**
 
 ---
 
