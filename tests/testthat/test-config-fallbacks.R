@@ -203,9 +203,11 @@ test_that("connect_database uses environment credentials and caches successful c
   expect_equal(length(calls), 1)
   expect_equal(calls[[1]]$dbname, 'main_db')
   expect_equal(calls[[1]]$user, 'env_user')
-  expect_equal(calls[[1]]$password, 'env_pass')
+  # Passwords are checked with identical(): a failing expect_equal() prints the
+  # actual value, which may be a real password.
+  expect_true(identical(calls[[1]]$password, 'env_pass'))
   expect_equal(credentials$user_db, 'env_user')
-  expect_equal(credentials$password, 'env_pass')
+  expect_true(identical(credentials$password, 'env_pass'))
 })
 
 test_that("call.mydb returns pool when available and get_connection_info summarizes connections", {
