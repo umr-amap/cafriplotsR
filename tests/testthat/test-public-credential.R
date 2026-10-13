@@ -2,6 +2,9 @@
 # offered. Every path that is not an intact, enabled descriptor must come back
 # unavailable, and no path may ever produce a credential the package carried
 # itself.
+#
+# Passwords are checked with expect_true(identical()), never expect_identical():
+# a failure would print the actual value, which may be a real password.
 
 test_that("environment variables win over the descriptor", {
   withr::with_envvar(
@@ -13,7 +16,7 @@ test_that("environment variables win over the descriptor", {
       )
       expect_true(result$available)
       expect_identical(result$user, "env_user")
-      expect_identical(result$password, "env_pass")
+      expect_true(identical(result$password, "env_pass"))
     }
   )
 })
@@ -25,7 +28,7 @@ test_that("an unreachable descriptor means unavailable, not an error", {
     ))
     expect_false(result$available)
     expect_identical(result$user, "")
-    expect_identical(result$password, "")
+    expect_true(identical(result$password, ""))
   })
 })
 
@@ -34,7 +37,7 @@ test_that("a well-formed enabled descriptor yields the credential", {
   result <- CafriplotsR:::.public_credential_from(descriptor)
   expect_true(result$available)
   expect_identical(result$user, "u")
-  expect_identical(result$password, "p")
+  expect_true(identical(result$password, "p"))
 })
 
 test_that("enabled = false is the kill switch and keeps its message", {
