@@ -11,7 +11,8 @@
 `id_liste_plots`, and optionally `id_sub_plots`.}
 
 \item{individuals}{Data frame of the individuals recorded for the selected
-plots, with `tag`, `id_table_liste_plots_n` and `id_n`.}
+plots, with `tag`, `id_table_liste_plots_n` and `id_n`, and optionally
+`tag_label`, which tells recruit `22.10` from `22.1`.}
 
 \item{measures}{Data frame of the measurements already recorded for those
 individuals, with `id_data_individuals`, `traitid` and `id_sub_plots`.}
