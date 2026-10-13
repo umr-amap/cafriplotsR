@@ -9,11 +9,12 @@ guide users.
 ``` r
 export_plot_template(
   file_path,
-  template_type = c("permanent_plot", "transect", "minimal", "full"),
+  template_type = c("permanent_plot", "transect", "nested_plot", "minimal", "full"),
   with_examples = TRUE,
   include_optional = TRUE,
   n_examples = 3,
-  open_file = TRUE
+  open_file = TRUE,
+  con = NULL
 )
 ```
 
@@ -43,6 +44,11 @@ export_plot_template(
 - open_file:
 
   Logical: Open the file after creating it? Default: TRUE (Windows only)
+
+- con:
+
+  Optional database connection or pool; makes the template follow the
+  live database (see \[get_plot_metadata_template()\]).
 
 ## Value
 

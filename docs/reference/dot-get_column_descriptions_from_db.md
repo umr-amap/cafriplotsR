@@ -7,7 +7,7 @@ feature lists.
 ## Usage
 
 ``` r
-.get_column_descriptions_from_db()
+.get_column_descriptions_from_db(con = NULL)
 ```
 
 ## Value

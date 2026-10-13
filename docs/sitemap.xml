@@ -289,6 +289,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_specimen_column_synonyms.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_specimen_import_config.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_subplot_feature_synonyms.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_template_context.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_template_examples.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_trait_columns_from_db.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-get_trait_column_synonyms.html</loc></url>
@@ -443,6 +444,7 @@
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-taxo_match_combined_code.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-taxo_match_matching_code.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-taxo_match_prep_code.html</loc></url>
+<url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-template_column_type.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-trait_group_idtax.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-trigram_sim.html</loc></url>
 <url><loc>https://umr-amap.github.io/cafriplotsR/reference/dot-trigram_sim_lc.html</loc></url>

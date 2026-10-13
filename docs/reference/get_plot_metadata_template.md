@@ -8,10 +8,11 @@ import it using the plot metadata import functions.
 
 ``` r
 get_plot_metadata_template(
-  template_type = c("permanent_plot", "transect", "minimal", "full"),
+  template_type = c("permanent_plot", "transect", "nested_plot", "minimal", "full"),
   with_examples = TRUE,
   include_optional = TRUE,
-  n_examples = 3
+  n_examples = 3,
+  con = NULL
 )
 ```
 
@@ -21,7 +22,9 @@ get_plot_metadata_template(
 
   Character: Type of template to generate - \`"permanent_plot"\`:
   Standard permanent forest plot (default) - \`"transect"\`: Linear
-  transect survey - \`"minimal"\`: Minimum required fields only -
+  transect survey - \`"nested_plot"\`: Plot nested in, or tiling part
+  of, a plot already in the database (adds \`parent_plot\` and
+  \`parent_relation\`) - \`"minimal"\`: Minimum required fields only -
   \`"full"\`: All available optional fields included
 
 - with_examples:
@@ -35,7 +38,18 @@ get_plot_metadata_template(
 
 - n_examples:
 
-  Integer: Number of example rows to include. Default: 3
+  Integer: Number of example rows to include (1 to 3). Default: 3
+
+- con:
+
+  Optional database connection (or pool). When supplied, the template
+  follows the live database: the people columns are the
+  \`subplotype_list\` features of valuetype \`table_colnam\`, plot
+  characteristics are offered only if the database defines them, the
+  hierarchy columns only if the plot hierarchy migration has been
+  applied, and the example \`method\` / \`country\` values are real
+  entries of \`methodslist\` / \`table_countries\`. Without it (or if
+  the database cannot be queried) a static fallback is used.
 
 ## Value
 
@@ -44,33 +58,33 @@ example rows with realistic sample data.
 
 ## Details
 
-The template includes standard column names that match the database
-schema:
+Columns follow the three storage kinds of the import (see
+\[get_import_column_routing()\]):
 
-\*\*Required columns:\*\* - \`plot_name\`: Unique identifier for the
+\*\*Required columns (lookups to \`methodslist\` /
+\`table_countries\`):\*\* - \`plot_name\`: Unique identifier for the
 plot (character) - \`method\`: Survey method (must match
 \[method_list()\]) - \`country\`: Country name (must match
 \[country_list()\])
 
-\*\*Location columns:\*\* - \`ddlat\`: Latitude in decimal degrees (-90
-to 90) - \`ddlon\`: Longitude in decimal degrees (-180 to 180) -
-\`elevation\`: Elevation in meters above sea level - \`locality_name\`:
-Name of the locality or site - \`province\`: Province or state name
+\*\*Flat columns (stored in \`data_liste_plots\`):\*\* - \`ddlat\`,
+\`ddlon\`: Decimal degrees - \`elevation\`: Metres above sea level -
+\`locality_name\`, \`province\`: Place names - \`date_y\`, \`date_m\`,
+\`date_d\`: Survey date - \`subplot_shape\` (full): Shape of the
+subplots - \`id_citation\` (full): Numeric id of the source, from
+\`query_citations()\` - \`parent_plot\`, \`parent_relation\`
+(nested_plot, full): the plot this one sits inside, by \`plot_name\`,
+and how (\`"nested_subsample"\` when the two overlap with different
+protocols - never sum them; \`"block_member"\` when this plot tiles part
+of the parent). The parent must already be in the database; import
+parents before children.
 
-\*\*Date columns:\*\* - \`date_y\`: Year of survey (YYYY) - \`date_m\`:
-Month of survey (1-12) - \`date_d\`: Day of survey (1-31)
-
-\*\*People columns (subplot features with
-valuetype='table_colnam'):\*\* - Dynamically determined from database
-via \[subplot_list()\] - Common examples: team_leader,
-principal_investigator, data_manager, etc. - Multiple names can be
-comma-separated
-
-\*\*Plot characteristics:\*\* - \`plot_area\`: Plot area in hectares -
-Other characteristics as defined in database
-
-Column descriptions and validation rules are pulled from the database
-via \[subplot_list()\] for subplot features.
+\*\*Features (stored in \`data_liste_sub_plots\`):\*\* - People
+(\`valuetype = "table_colnam"\`, e.g. \`team_leader\`,
+\`principal_investigator\`, \`data_manager\`, \`additional_people\`):
+names as they appear in \`table_colnam\`, comma-separated for several. -
+\`data_provider\` (full): free text. - \`plot_area\`,
+\`vegetation_type\`: when defined in \`subplotype_list\`.
 
 ## See also
 
@@ -87,14 +101,14 @@ if (FALSE) { # \dontrun{
 template <- get_plot_metadata_template()
 View(template)
 
+# Follow the live database (real methods, countries and feature types)
+template <- get_plot_metadata_template(con = call.mydb())
+
 # Get minimal template (required fields only)
 minimal <- get_plot_metadata_template(template_type = "minimal")
 
-# Get full template without examples (for large imports)
-empty_full <- get_plot_metadata_template(
-  template_type = "full",
-  with_examples = FALSE
-)
+# Template for plots nested in existing plots
+nested <- get_plot_metadata_template(template_type = "nested_plot")
 
 # Export to Excel for filling
 export_plot_template("my_plots_template.xlsx", template_type = "permanent_plot")
