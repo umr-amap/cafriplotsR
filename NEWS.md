@@ -71,6 +71,10 @@
 
 ### New Features
 
+* **`launch_taxonomic_match_app()`: the "Load names" button now shows whether pasted names were loaded** (`R/mod_data_input.R`) - user feedback: names were pasted and the button left unclicked, since nothing on screen changed either way
+  - Grey while the text box is empty, pulsing orange once names are typed or pasted but not loaded, green with the count ("42 names loaded") once loaded. Editing the list afterwards turns it orange again
+  - The data summary box now ends with a pointer to the next step: check the selected column, then click "Start Matching" in the Auto Match tab. Shown for file uploads too
+
 * **`launch_specimen_import_wizard()` no longer imports specimens that are already in the database** (`R/specimen_duplicate_check.R`, `R/mod_specimen_import.R`) - the `specimens` table has no unique constraint on collector + number + suffix, and the wizard appended every row with `dbWriteTable()`. Its only duplicate check compared rows of the file with each other, and that was a warning that did not stop the import, so a re-uploaded or overlapping file silently created duplicate specimens
   - A specimen is identified by `id_colnam` + `colnbr` + `suffix`. Numbers are compared as values (`"123"` = `123`), and suffixes ignore case and surrounding spaces; an empty suffix equals a missing one
   - Step 4 checks each line against the database and against the rest of the file. A "Duplicates (not imported)" card, new statuses in the preview, and a warning panel list the affected lines by their spreadsheet line number with the collector, number and suffix as typed and the reason: the existing `id_specimen`(s), or the other lines of the file carrying the same specimen. The list can be downloaded as CSV
