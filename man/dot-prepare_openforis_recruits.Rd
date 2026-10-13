@@ -10,7 +10,8 @@
   observation_codes = NULL,
   pom_codes = NULL,
   light_codes = NULL,
-  status_codes = NULL
+  status_codes = NULL,
+  include_traits = TRUE
 )
 }
 \arguments{
@@ -25,6 +26,10 @@
 \item{light_codes}{Parsed light code list data frame, or NULL.}
 
 \item{status_codes}{Parsed status code list data frame, or NULL.}
+
+\item{include_traits}{If FALSE, stop at the identity columns (plot, tag,
+taxonomy, quadrat, specimens): no positions, multi-stem flags or
+measurements. The code lists are then ignored.}
 }
 \description{
 Builds a wide-format tibble with identity columns plus decoded

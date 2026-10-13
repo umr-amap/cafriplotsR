@@ -88,8 +88,12 @@
 #' \describe{
 #'   \item{census_metadata}{Tibble with plot_name, date_year, date_month,
 #'     date_day, census, and people columns. NULL if no plot file.}
-#'   \item{recruits}{Tibble of recruited individuals with wide-format
-#'     measurements. NULL if no recruits found.}
+#'   \item{recruits}{Tibble of recruited individuals: plot_name, tag,
+#'     taxonomy, quadrat and specimen columns, for the Import Wizard. No
+#'     measurements, positions or multi-stem flags: those are in
+#'     \code{measurements} (recruits included) and \code{multi_stems}, and
+#'     importing them here too would store each value twice, without a census
+#'     link. NULL if no recruits found.}
 #'   \item{measurements}{Tibble in long format with columns: plot_name,
 #'     tag, trait_name, traitvalue (numeric), traitvalue_char (character).
 #'     Numeric traits are stem_diameter, height_of_stem_diameter and, when
@@ -104,10 +108,11 @@
 #'     plot_name, tag, group_tag (parent tag), stem_order (position within
 #'     group), original_tax_name, idtax, flag (validation issues). NULL if
 #'     no multi-stem individuals detected. Review flags before uploading.}
-#'   \item{all_stems}{Tibble in the same wide format as \code{recruits} but
-#'     covering every stem in the dataset (recruits and existing individuals
-#'     alike). Useful for bulk imports or cross-census checks where you need
-#'     all stems in one table.}
+#'   \item{all_stems}{Tibble covering every stem in the dataset (recruits and
+#'     existing individuals alike): the identity columns of \code{recruits}
+#'     plus positions, multi-stem flags and wide-format measurements. The
+#'     table for the Feature Wizard's full census import, or for
+#'     cross-census checks.}
 #'   \item{duplicated_stems}{Tibble of all rows involved in duplicated
 #'     \code{plot_name + tag} combinations (i.e. every row that shares a
 #'     plot_name/tag pair with at least one other row), with columns
@@ -358,15 +363,14 @@ process_openforis_census <- function(data_dir = NULL,
     utils::read.csv(status_codes, stringsAsFactors = FALSE)
   }
 
-  # ---- Process recruits (with wide-format measurements) ----
+  # ---- Process recruits (identity only) ----
+  # Their measurements go through `measurements`, linked to the census; a copy
+  # here would be imported a second time by the Import Wizard
   recruits <- NULL
   if (nrow(recruits_raw) > 0) {
     recruits <- .prepare_openforis_recruits(
       recruits_raw, specimen_prefix,
-      observation_codes = obs_codes,
-      pom_codes = pom_code_list,
-      light_codes = light_code_list,
-      status_codes = status_code_list
+      include_traits = FALSE
     )
     cli::cli_alert_success("Prepared {nrow(recruits)} recruit(s)")
   }
@@ -654,6 +658,9 @@ process_openforis_census <- function(data_dir = NULL,
 #'
 #' @param data Data frame of recruit rows (already filtered).
 #' @param specimen_prefix Prefix for specimen numbers. NULL to skip.
+#' @param include_traits If FALSE, stop at the identity columns (plot, tag,
+#'   taxonomy, quadrat, specimens): no positions, multi-stem flags or
+#'   measurements. The code lists are then ignored.
 #' @param observation_codes Parsed observation code list data frame, or NULL.
 #' @param pom_codes Parsed POM code list data frame, or NULL.
 #' @param light_codes Parsed light code list data frame, or NULL.
@@ -663,7 +670,8 @@ process_openforis_census <- function(data_dir = NULL,
                                         observation_codes = NULL,
                                         pom_codes = NULL,
                                         light_codes = NULL,
-                                        status_codes = NULL) {
+                                        status_codes = NULL,
+                                        include_traits = TRUE) {
 
   result <- data.frame(
     plot_name = data$plot_name,
@@ -679,8 +687,11 @@ process_openforis_census <- function(data_dir = NULL,
 
   # Spatial
   if ("quadrat" %in% names(data)) result$quadrat <- data$quadrat
-  if ("position_x" %in% names(data)) result$position_x <- data$position_x
-  if ("position_y" %in% names(data)) result$position_y <- data$position_y
+  # Positions are in `measurements` as numeric traits
+  if (include_traits) {
+    if ("position_x" %in% names(data)) result$position_x <- data$position_x
+    if ("position_y" %in% names(data)) result$position_y <- data$position_y
+  }
 
   # Specimens
   if ("specimen_number" %in% names(data)) {
@@ -692,6 +703,9 @@ process_openforis_census <- function(data_dir = NULL,
     result$herbarium_nbe_char <- .apply_specimen_prefix(data$herbarium_nbe_char,
                                                         specimen_prefix)
   }
+
+  # Multi-stem flags are resolved through `multi_stems`, not imported
+  if (!include_traits) return(result)
 
   # Multi-stem info
   if ("multi_stem" %in% names(data)) result$multi_stem <- data$multi_stem
