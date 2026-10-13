@@ -175,6 +175,17 @@
       "la_cm2", "lacm2", "la.cm2"
     ),
 
+    # Crown light exposure. The trait is light_observations, too far from
+    # "light" for the fuzzy match to reach it
+    light_observations = c(
+      "light", "light_exposure", "lightexposure", "light.exposure",
+      "crown_illumination", "crownillumination", "crown.illumination",
+      "crown_illumination_index", "illumination", "illumination_index",
+      "dawkins", "dawkins_index",
+      "lumiere", "lumière", "eclairement", "éclairement",
+      "exposition_lumiere", "exposition lumiere"
+    ),
+
     # Census date (for features)
     census_date = c(
       "date", "survey_date", "surveydate", "survey.date",

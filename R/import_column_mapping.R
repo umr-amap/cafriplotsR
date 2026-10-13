@@ -1169,7 +1169,8 @@ map_user_columns <- function(user_data,
   user_col_with_sep <- to_sep_form(user_col_clean)
 
   for (target_col in names(synonyms)) {
-    for (synonym in synonyms[[target_col]]) {
+    # The target name counts too: "stem_diameter_cm" holds "stem_diameter"
+    for (synonym in c(target_col, synonyms[[target_col]])) {
       synonym_norm <- normalize(synonym)
 
       # Skip very short synonyms to avoid false positives (e.g., "y", "x", "h")
@@ -1237,7 +1238,14 @@ map_user_columns <- function(user_data,
 #' Score All Candidate Column Matches (Internal Helper)
 #'
 #' Evaluates all possible matches across exact, synonym, and fuzzy strategies
-#' for both direct and feature columns. Returns candidates ranked by final score.
+#' for both direct and feature columns. Returns candidates ranked by final score,
+#' except that an exact match on a column name always ranks first: the direct
+#' column multiplier must not let a synonym hit on a direct column (`stem` for
+#' `multi_tiges_id`) beat a trait named exactly like the user column
+#' (`stem_diameter`).
+#'
+#' Synonyms are searched once across direct and feature targets together, so
+#' the longest matching synonym wins whichever kind of column it points to.
 #'
 #' @param user_col_clean Cleaned user column name
 #' @param direct_cols Direct database columns
@@ -1247,7 +1255,8 @@ map_user_columns <- function(user_data,
 #' @param similarity_threshold Fuzzy match threshold
 #'
 #' @return List of candidate matches, each with: match, method, category, base_score, final_score.
-#'         Sorted descending by final_score. Returns NULL if no candidates found.
+#'         Exact matches first, then descending by final_score. Returns NULL if
+#'         no candidates found.
 #'
 #' @keywords internal
 .score_candidates <- function(user_col_clean, direct_cols, feature_cols,
@@ -1283,14 +1292,21 @@ map_user_columns <- function(user_data,
     add_candidate(exact_d[1], "exact", cat, 1.0)
   }
 
-  # 2. Synonym match in direct columns
-  # Filter synonyms to only include direct column targets
-  dir_synonyms <- synonyms[names(synonyms) %in% direct_cols]
-  if (length(dir_synonyms) > 0) {
-    syn_d <- .find_synonym_match(user_col_clean, dir_synonyms)
-    if (!is.null(syn_d)) {
-      cat <- if (syn_d %in% required_cols) "required_direct" else "direct"
-      add_candidate(syn_d, "synonym", cat, 0.9)
+  # 2. Synonym match, direct and feature targets together: searched apart, a
+  # short direct synonym ("stem") found inside "stem_diameter" would outscore
+  # the longer trait synonym through the direct multiplier
+  syn_targets <- synonyms[names(synonyms) %in% c(direct_cols, feature_cols)]
+  if (length(syn_targets) > 0) {
+    syn <- .find_synonym_match(user_col_clean, syn_targets)
+    if (!is.null(syn)) {
+      cat <- if (syn %in% required_cols) {
+        "required_direct"
+      } else if (syn %in% direct_cols) {
+        "direct"
+      } else {
+        "feature"
+      }
+      add_candidate(syn, "synonym", cat, 0.9)
     }
   }
 
@@ -1309,17 +1325,7 @@ map_user_columns <- function(user_data,
     add_candidate(exact_f[1], "exact", "feature", 1.0)
   }
 
-  # 5. Synonym match in feature columns
-  # Filter synonyms to only include feature column targets
-  feat_synonyms <- synonyms[names(synonyms) %in% feature_cols]
-  if (length(feat_synonyms) > 0) {
-    syn_f <- .find_synonym_match(user_col_clean, feat_synonyms)
-    if (!is.null(syn_f)) {
-      add_candidate(syn_f, "synonym", "feature", 0.9)
-    }
-  }
-
-  # 6. Fuzzy match in feature columns
+  # 5. Fuzzy match in feature columns
   fz_f <- .fuzzy_match_column(user_col_clean, feature_cols, similarity_threshold)
   if (!is.null(fz_f$match)) {
     add_candidate(fz_f$match, "fuzzy", "feature", fz_f$similarity)
@@ -1336,8 +1342,10 @@ map_user_columns <- function(user_data,
       candidates[[i]]$base_score * multipliers[candidates[[i]]$category]
   }
 
-  # Sort descending by final_score
-  candidates[order(-sapply(candidates, function(x) x$final_score))]
+  # Exact name matches first, then descending by final_score
+  is_exact <- vapply(candidates, function(x) x$method == "exact", logical(1))
+  final <- vapply(candidates, function(x) x$final_score, numeric(1))
+  candidates[order(!is_exact, -final)]
 }
 
 
