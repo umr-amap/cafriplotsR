@@ -4355,6 +4355,10 @@ get_column_routing <- function(table_type, con) {
       id_column = "id_n",
       backup_table = "followup_updates_individuals",
       direct_columns = get_table_columns("data_individuals", con),
+      # Written by update_records() but never offered as an import column:
+      # stem_grouping holds the main stem's id_n, which no field file has
+      # (the Feature Wizard's multi-stem step resolves it from tags)
+      update_columns = "stem_grouping",
       feature_columns = get_available_individual_features(con),
       metadata_mappings = get_metadata_mappings_individuals(con)
     ),
@@ -5616,6 +5620,7 @@ update_records <- function(data,
     data <- reverse_map_table_references(data, con)
   }
 
+  config$direct_columns <- union(config$direct_columns, config$update_columns)
   cols_in_data <- setdiff(names(data), config$id_column)
   direct_cols <- intersect(cols_in_data, config$direct_columns)
 
