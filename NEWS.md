@@ -385,6 +385,10 @@
 
 * **Large imports failed with `lost synchronization with server: got message type "t"`** (`R/db_append.R`) - `.db_append_table()` sized chunks against PostgreSQL's 65535-parameter limit, but libpq drops the connection once a statement's ParameterDescription passes 30000 bytes (~7500 parameters), rolling back the whole import. Seen when the import wizard inserted 2820 feature records (19740 parameters) in one INSERT. Chunks now bind at most 7000 parameters
 
+* **Import wizard mapped `stem_diameter` to `multi_tiges_id`** (`R/import_column_mapping.R`) - the `multi_tiges_id` synonym `stem` matched inside every stem trait name, and the 1.5 direct-column multiplier let it beat the trait named exactly like the file column. `height_of_stem_diameter` then lost the deduplication and was left unmapped. `.score_candidates()` now ranks exact name matches first and searches direct and trait synonyms together, so the longest synonym wins; `.find_synonym_match()` also finds a target's own name inside a longer column (`stem_diameter_cm`)
+
+* **A `light` column was not proposed for the `light_observations` trait** (`R/import_individuals_column_mapping.R`) - too far apart for the fuzzy match and no synonym. Added `light`, `light_exposure`, `crown_illumination`, `dawkins`, `lumiere`, `eclairement` and variants
+
 * **Importing new individuals warned `Trait 'tag_label' not found in traits_list()`** (`R/import_individuals_with_transactions.R`) - `.prepare_features_data()` joined every column returned by the individuals INSERT onto the features, so `tag_label` was read as a trait column. Only `id_individuals` is joined now
 
 * **`process_openforis_census()` flagged consecutive decimal stems as `tag_gap`** (`R/openforis_processing.R`, `R/census_split.R`) - the multi-stem check expected each stem to be the leader's tag plus 1, so `13.2` → `13.3` was a gap (it expected `14.2`), and so was every decimal group. `.tags_consecutive()` now compares each stem with the one before it, by the label's shape: `72` → `73`, `13.2` → `13.3`, `120.9` → `120.10`, `373` → `373.1`. Only the stem right after a break is flagged, not every stem after it

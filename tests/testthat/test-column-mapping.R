@@ -221,4 +221,42 @@ test_that("map_user_columns deduplicates competing mappings to same target", {
   expect_equal(result$methods[["plot name"]], "none")
 })
 
+test_that("map_user_columns keeps stem traits off multi_tiges_id", {
+  # multi_tiges_id has the synonym "stem", found inside every stem trait name;
+  # with the direct-column multiplier it used to win over the trait itself
+  synonyms <- modifyList(
+    modifyList(.get_column_synonyms(), .get_individual_column_synonyms()),
+    .get_trait_column_synonyms()
+  )
+  user_data <- data.frame(
+    stem_diameter = 10, height_of_stem_diameter = 1.3, light = 2,
+    stem_diameter_cm = 10, stem = "A",
+    check.names = FALSE
+  )
+  config <- list(
+    direct_columns = c("plot_name", "tag", "multi_tiges_id"),
+    feature_columns = c("stem_diameter", "height_of_stem_diameter",
+                        "light_observations"),
+    import_config = list(column_synonyms = synonyms)
+  )
+
+  result <- suppressMessages(map_user_columns(user_data, config))
+
+  expect_equal(result$mappings[["stem_diameter"]], "stem_diameter")
+  expect_equal(result$methods[["stem_diameter"]], "exact")
+  expect_equal(result$mappings[["height_of_stem_diameter"]],
+               "height_of_stem_diameter")
+  # Too far from "light_observations" for the fuzzy match: needs the synonym
+  expect_equal(result$mappings[["light"]], "light_observations")
+  expect_equal(result$methods[["light"]], "synonym")
+  expect_equal(result$mappings[["stem"]], "multi_tiges_id")
+  # Loses the stem_diameter target to the exact column, never to multi_tiges_id
+  expect_true(is.na(result$mappings[["stem_diameter_cm"]]))
+  expect_equal(
+    .score_candidates("stem_diameter_cm", config$direct_columns,
+                      config$feature_columns, synonyms, character(0))[[1]]$match,
+    "stem_diameter"
+  )
+})
+
 

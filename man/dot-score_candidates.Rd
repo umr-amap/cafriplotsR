@@ -28,10 +28,19 @@
 }
 \value{
 List of candidate matches, each with: match, method, category, base_score, final_score.
-        Sorted descending by final_score. Returns NULL if no candidates found.
+        Exact matches first, then descending by final_score. Returns NULL if
+        no candidates found.
 }
 \description{
 Evaluates all possible matches across exact, synonym, and fuzzy strategies
-for both direct and feature columns. Returns candidates ranked by final score.
+for both direct and feature columns. Returns candidates ranked by final score,
+except that an exact match on a column name always ranks first: the direct
+column multiplier must not let a synonym hit on a direct column (`stem` for
+`multi_tiges_id`) beat a trait named exactly like the user column
+(`stem_diameter`).
+}
+\details{
+Synonyms are searched once across direct and feature targets together, so
+the longest matching synonym wins whichever kind of column it points to.
 }
 \keyword{internal}
