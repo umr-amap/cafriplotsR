@@ -92,6 +92,10 @@ An object of class `census_split`, a list with:
       measures it, plus `n_stems` and `in_census` — a data-quality report on
       the recorded data itself, one row per stem so it joins back on
       `id_n`.}
+    \item{`lost_tag_zeros`}{plots whose recruit suffixes reach `.11` (or
+      `.21`, ...) with no `.10` (or `.20`) in the file or the database —
+      see [.lost_tag_zeros()]. A warning: the split cannot tell which `.1`
+      was a `.10`.}
     \item{`out_of_scope`}{rows for plots outside `plot_names`.}
     \item{`summary`}{per-plot counts.}
   }

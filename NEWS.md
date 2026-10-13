@@ -2,6 +2,8 @@
 
 ### Breaking Changes
 
+* **Tags are returned as text labels by the OpenForis processors and the import paths** (`R/openforis_processing.R`, `R/openforis_new_plot_processing.R`, `R/openforis_small_tree_processing.R`, `R/import_individuals_validation.R`) - `process_openforis_census()`, `process_openforis_new_plot()` and `process_openforis_small_trees()` now return `tag` (and `multi_tiges_id`, `group_tag`) as character - `"22.10"`, not `22.1`. `.generate_sequential_tags()` keeps a text tag column as text. Code that does arithmetic on these columns should go through `.tag_numeric()`; sorting should use `.tag_order()` or `.plot_tag_order()`, since `sort()` on labels puts `"22.10"` before `"22.2"`
+
 * **`get_database_fk()` removed** - superseded by `draw_database_structure()` in `inst/scripts/draw_database_structure.R`, which is a script rather than an exported function: `source(system.file("scripts", "draw_database_structure.R", package = "CafriplotsR"))`, then `draw_database_structure(include = CORE_TABLES)` for the equivalent overview. The outdated `man/figures/mydb_structure.png` was removed with it
 
 * **`define_user_policy()` no longer grants `DELETE`, and now revokes the privileges it was not asked for** (`R/connections_db.R`) - two defects in one function, both of which handed out more than the caller asked for
@@ -71,7 +73,13 @@
 
 ### New Features
 
-* **`launch_taxonomic_match_app()`: the "Load names" button now shows whether pasted names were loaded** (`R/mod_data_input.R`) - user feedback: names were pasted and the button left unclicked, since nothing on screen changed either way
+* **Recruits are identified by the tag written in the field, so `22.10` is no longer `22.1`** - field teams tag a recruit off its nearest stem (`22.1` ... `22.9`, `22.10`, `22.11`), either per parent stem or with a plot-wide counter. As numbers `22.10 = 22.1`, so the tenth recruit was either merged with the first or dropped as its duplicate: in `alpicam001` `22.10` and `22.20` never reached the database, and in `dengdeng001` recruits #10 and #20 sit under `.1`/`.2` tags. The new `data_individuals.tag_label` column (see Infrastructure) carries the label; `tag` keeps the numeric value for sorting
+  - `launch_feature_wizard()`: the census split, recruit insert, measurement and multi-stem steps match on `plot + tag_label`, falling back to `tag` for legacy rows. The multi-stem "change group tag" field is now text, so a recruit such as `22.10` can be a parent
+  - `launch_import_wizard()`: text tags are kept as labels through validation and written to `tag_label`; multi-stem parents and the feature linkage are resolved on the label
+  - `process_openforis_census()`, `process_openforis_new_plot()`, `process_openforis_small_trees()`: the tag columns (`arbre`, `label_recrut`, `tag`) are always read as text, whatever readxl would guess. Small-tree quadrats are still assigned on the tag's numeric value
+  - CSV uploads keep a column as text when converting it to numbers would merge two different values (`.type_convert_keep_labels()`)
+  - **A cell stored as a number in Excel has already lost its zero** - formatting a column as Text only changes cells typed afterwards. So the series that skip `.10` are reported: `split_census_table()$lost_tag_zeros` (shown in the census step and exported as `09_lost_tag_zeros`), and `lost_tag_zeros` in the output of the three OpenForis processors. Each row names the plot, the missing suffix and the one-digit tags it may have been read as
+ now shows whether pasted names were loaded** (`R/mod_data_input.R`) - user feedback: names were pasted and the button left unclicked, since nothing on screen changed either way
   - Grey while the text box is empty, pulsing orange once names are typed or pasted but not loaded, green with the count ("42 names loaded") once loaded. Editing the list afterwards turns it orange again
   - The data summary box now ends with a pointer to the next step: check the selected column, then click "Start Matching" in the Auto Match tab. Shown for file uploads too
 
@@ -375,6 +383,14 @@
 
 ### Bug Fixes
 
+* **Recruits `x.10` and `x.1` were reported as `duplicated_stems`** by the OpenForis processors - the tag was converted with `as.numeric()` before the duplicate check
+
+* **Measurements and multi-stems could be attached to the wrong stem** (`R/mod_feat_step6_import.R`) - in the feature wizard, the measurement and multi-stem imports compared `as.character(tag)` and took the first match, so a recruit `22.10` received the measurements of `22.1`. Both now resolve through `.match_tag_to_individual()`
+
+* **The import wizard never warned about tags already in the database** (`R/import_individuals_validation.R`) - `.validate_tag_conflicts_database()` queried `plot_name` on `data_individuals`, a column it does not have, and the error was swallowed, so the check always passed. It now joins through `data_liste_plots` and compares labels
+
+* **Import wizard inserts could write a numeric `NA` as the string `'NA'`** (`R/import_individuals_with_transactions.R`) - the `INSERT` was built with `apply()` over rows, which turns the frame into a character matrix. It now uses `.sql_values_rows()`, which also formats numbers to 15 significant digits rather than 7
+
 * **Adding a new method in the Import Wizard always failed** (`R/mod_lookup_matcher.R`) - the "Create New Entry" option of the method lookup built its `INSERT INTO methodslist` by wrapping values already quoted by `DBI::dbQuoteLiteral()` in a second pair of quotes, so every attempt was a syntax error, reported only as an "Error adding method" notification. The insert now lives in `.insert_method()`, which binds the name and description as parameters
   - The name is trimmed and a blank description stored as NULL
   - A name that already exists, ignoring case and surrounding spaces, is refused with its `id_method` instead of being duplicated
@@ -649,6 +665,8 @@
   - Net effect: `update_records(data.frame(id_n = ..., quadrat = ...), table_type = "individuals", execute = TRUE)` now does the correction directly, with no manual `id_trait_measures` lookup required
 
 ### Infrastructure
+
+* **`data_individuals.tag_label`** (`inst/migrations/tag_label.R`, applied 2026-10-13) - a text column holding the tag as written in the field, on `data_individuals` and `followup_updates_individuals`, backfilled from `tag::text`. Two `CHECK`s keep it trimmed and, when it reads as a number, equal to `tag`; a trigger fills or re-derives it when code writes `tag` alone; an index on `(id_table_liste_plots_n, tag_label)` serves the census match. Rows whose zero was already lost cannot be recovered by the backfill and are corrected by hand from the field sheets
 
 * **`inst/scripts/draw_database_structure.R` draws both databases from the live catalogue** - replaces `get_database_fk()` (see Breaking Changes). The old diagram covered ten hard-coded tables of the main database and their declared keys only; the script reads `pg_catalog` each time it runs, so it does not go stale as the schema changes
   - Draws `plots_transects` and `rainbio` side by side, tables coloured by domain, with approximate row counts

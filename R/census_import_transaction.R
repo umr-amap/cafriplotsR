@@ -21,7 +21,9 @@
   rendered <- lapply(names(df), function(nm) {
     v <- df[[nm]]
     if (is.numeric(v)) {
-      out <- format(v, scientific = FALSE, trim = TRUE, drop0trailing = TRUE)
+      # digits = 15: format()'s default of 7 would round a long tag
+      out <- format(v, digits = 15, scientific = FALSE, trim = TRUE,
+                    drop0trailing = TRUE)
     } else {
       out <- sprintf("'%s'", gsub("'", "''", as.character(v)))
     }
@@ -149,14 +151,16 @@
 #' @param recruits Data frame with `id_table_liste_plots_n`, `tag` and any of
 #'   the optional individual columns.
 #' @param con Database connection.
-#' @return Data frame with `id_individuals`, `tag` and `plot_name`.
+#' @return Data frame with `id_individuals`, `tag`, `tag_label` and
+#'   `plot_name`.
 #' @keywords internal
 #' @export
 .insert_census_recruits <- function(recruits, con) {
 
   if (is.null(recruits) || nrow(recruits) == 0) {
     return(data.frame(id_individuals = integer(0), tag = character(0),
-                      plot_name = character(0), stringsAsFactors = FALSE))
+                      tag_label = character(0), plot_name = character(0),
+                      stringsAsFactors = FALSE))
   }
 
   # Same column set the Import Wizard writes, so both paths stay in step
@@ -169,10 +173,16 @@
 
   payload <- recruits[, cols, drop = FALSE]
 
+  # The tag as written goes to tag_label: as a number, 22.10 is 22.1 and the
+  # recruit would be indistinguishable from its neighbour. A numeric tag
+  # column has already lost that, and gets the same label the trigger would
+  # give it.
+  payload$tag_label <- .normalize_tag(payload$tag)
+
   inserted <- DBI::dbGetQuery(con, sprintf(
     "INSERT INTO data_individuals (%s) VALUES %s
-     RETURNING id_n AS id_individuals, tag",
-    paste(cols, collapse = ", "),
+     RETURNING id_n AS id_individuals, tag, tag_label",
+    paste(names(payload), collapse = ", "),
     .sql_values_rows(payload)
   ))
 
@@ -205,7 +215,7 @@
     with_status = FALSE
   )
   lookup <- data.frame(
-    key  = paste(existing$plot_name, .normalize_tag(existing$tag), sep = "\r"),
+    key  = paste(existing$plot_name, .individual_tag_key(existing), sep = "\r"),
     id_n = as.integer(existing$id_n),
     stringsAsFactors = FALSE
   )
@@ -213,7 +223,7 @@
   if (!is.null(new_individuals) && nrow(new_individuals) > 0) {
     lookup <- rbind(lookup, data.frame(
       key  = paste(as.character(new_individuals$plot_name),
-                   .normalize_tag(new_individuals$tag), sep = "\r"),
+                   .individual_tag_key(new_individuals), sep = "\r"),
       id_n = as.integer(new_individuals$id_individuals),
       stringsAsFactors = FALSE
     ))

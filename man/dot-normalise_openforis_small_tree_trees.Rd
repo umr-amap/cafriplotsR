@@ -24,7 +24,8 @@
 }
 \value{
 Data frame with normalised column names, plus
-  \code{parent_plot_name}, \code{plot_name_raw} and a numeric \code{tag}.
+  \code{parent_plot_name}, \code{plot_name_raw} and \code{tag}, a
+  normalised label (\code{"22.10"} stays apart from \code{"22.1"}).
 }
 \description{
 Applies the same renaming as the new-plot form — the two share their

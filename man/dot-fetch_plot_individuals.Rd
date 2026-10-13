@@ -16,7 +16,7 @@
 as `NA`.}
 }
 \value{
-Data frame with `plot_name`, `id_n`, `tag`, `idtax_n`,
+Data frame with `plot_name`, `id_n`, `tag`, `tag_label`, `idtax_n`,
   `stem_grouping` and `last_status`.
 }
 \description{

@@ -19,10 +19,16 @@ Numeric tags are formatted without scientific notation — `as.character()`
 would turn a six-digit tag into `"1e+05"` and break every match.
 }
 \details{
-A tag column read from a spreadsheet as text carries whatever the typist
-wrote — `"0101"`, `"22.10"`, `"45.0"` — while the database returns the
-number itself. Purely numeric strings are therefore put through the same
-formatting as numeric input, so both sides reach one string. Anything with a
-letter or a separator in it is left exactly as written.
+A tag written as text is a label, not a number. Recruits are tagged off
+their nearest stem — `22.1`, ..., `22.9`, `22.10`, `22.11` — so `"22.10"`
+and `"22.1"` are two trees and must stay two keys. Only what cannot tell
+two trees apart is normalised away: leading zeros (`"0101"` is `"101"`) and
+an all-zero decimal (`"45.0"` is `"45"`, no recruit is numbered 0). Anything
+with a letter or a separator in it is left exactly as written.
+
+A numeric input has already lost the distinction — `22.10` and `22.1` are
+the same double — so it can only be formatted as its shortest form. That is
+why the database side keys on `data_individuals.tag_label`, see
+[.individual_tag_key()], and why tag columns should be read as text.
 }
 \keyword{internal}

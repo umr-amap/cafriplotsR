@@ -11388,6 +11388,14 @@
     {
       "en": "Next: check the selected column below, then click 'Start Matching' in the Auto Match tab.",
       "fr": "Étape suivante : vérifiez la colonne sélectionnée ci-dessous, puis cliquez sur « Démarrer l'appariement » dans l'onglet Appariement auto."
+    },
+    {
+      "en": "%d recruit series reach .11 (or .21, ...) with no .10 (or .20).",
+      "fr": "%d série(s) de recrues atteignent .11 (ou .21, ...) sans .10 (ni .20)."
+    },
+    {
+      "en": "A tag written 22.10 was probably read as the number 22.1, typed as a number in Excel or converted on reading, and can no longer be told from 22.1. Check the candidates against the field sheets, and type the tag column as text in the file so that 22.10 is kept.",
+      "fr": "Une étiquette écrite 22.10 a probablement été lue comme le nombre 22.1, saisie comme nombre dans Excel ou convertie à la lecture, et ne se distingue plus de 22.1. Vérifiez les candidates sur les fiches de terrain, et mettez la colonne des tags au format texte dans le fichier pour que 22.10 soit conservé."
     }
   ]
 }

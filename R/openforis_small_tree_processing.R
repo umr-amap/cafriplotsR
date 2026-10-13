@@ -267,7 +267,11 @@
 #'     \code{firsttag} of its plot — or NULL. A \code{warning()} is also
 #'     raised. These stems are excluded from every other table.}
 #'   \item{duplicated_stems}{Tibble of rows sharing a plot + tag pair, or
-#'     NULL. A \code{warning()} is also raised.}
+#'     NULL. A \code{warning()} is also raised. Tags are compared as written,
+#'     so \code{22.10} and \code{22.1} are two stems.}
+#'   \item{lost_tag_zeros}{Tibble of tag series reaching \code{.11} with no
+#'     \code{.10} - a \code{.10} stored as a number in the workbook - see
+#'     \code{.lost_tag_zeros()}. Zero rows when clean.}
 #'   \item{oversized_stems}{Tibble of stems at or above \code{dbh_max}, or
 #'     NULL. They belong to the large-stem census of the parent plot, not here.}
 #'   \item{summary}{List of counts.}
@@ -461,7 +465,8 @@ process_openforis_small_trees <- function(data_dir = NULL,
 
   # ---- Read and normalise the tree list ----
   cli::cli_alert_info("Reading tree list from {.file {tree_file}}")
-  trees_raw <- as.data.frame(readxl::read_excel(tree_file, guess_max = 5000))
+  # Tags as text: 22.10 is not 22.1
+  trees_raw <- .read_excel_text_cols(tree_file, tag_col, guess_max = 5000)
   cli::cli_alert_success("Read {nrow(trees_raw)} stem record{?s}")
 
   trees <- .normalise_openforis_small_tree_trees(
@@ -541,6 +546,16 @@ process_openforis_small_trees <- function(data_dir = NULL,
     )
   }
 
+  # A .10 stored as a number in the workbook leaves a gap after .9
+  lost_tag_zeros <- .lost_tag_zeros(trees$plot_name, trees$tag)
+  if (nrow(lost_tag_zeros) > 0) {
+    cli::cli_alert_warning(paste(
+      "{nrow(lost_tag_zeros)} tag series reach .11 (or .21, ...) with no",
+      ".10 (or .20): those tags were probably stored as numbers in the",
+      "workbook. Check result$lost_tag_zeros against the field sheets."
+    ))
+  }
+
   # ---- Duplicated plot + tag combinations ----
   dup_key <- paste(trees$plot_name, trees$tag, sep = "__")
   dup_mask <- duplicated(dup_key) | duplicated(dup_key, fromLast = TRUE)
@@ -552,8 +567,8 @@ process_openforis_small_trees <- function(data_dir = NULL,
       names(trees)
     )
     duplicated_stems <- trees[dup_mask, dup_cols, drop = FALSE]
-    duplicated_stems <- duplicated_stems[order(duplicated_stems$plot_name,
-                                               duplicated_stems$tag), ]
+    duplicated_stems <- duplicated_stems[.plot_tag_order(duplicated_stems$plot_name,
+                                                         duplicated_stems$tag), ]
     rownames(duplicated_stems) <- NULL
     n_dup_pairs <- length(unique(dup_key[dup_mask]))
     warning(sprintf(
@@ -640,8 +655,8 @@ process_openforis_small_trees <- function(data_dir = NULL,
   )
   # Row for row, not looked up by plot + tag: a tag used in two quadrats is
   # two stems, each with its own quadrat. The individuals are `trees` in the
-  # stable order(plot_name, tag) that function sorts by.
-  stem_idx <- order(trees$plot_name, trees$tag)
+  # stable .plot_tag_order(plot_name, tag) that function sorts by.
+  stem_idx <- .plot_tag_order(trees$plot_name, trees$tag)
   stopifnot(nrow(individuals) == length(stem_idx),
             identical(individuals$tag, trees$tag[stem_idx]))
   individuals$quadrat <- .combine_small_tree_quadrat(
@@ -739,7 +754,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
     )
   } else {
     measurements <- data.frame(
-      plot_name = character(0), tag = numeric(0),
+      plot_name = character(0), tag = character(0),
       trait_name = character(0), traitvalue = numeric(0),
       traitvalue_char = character(0), stringsAsFactors = FALSE
     )
@@ -901,6 +916,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
     name_mismatches = name_mismatches,
     unassigned_stems = unassigned_stems,
     duplicated_stems = duplicated_stems,
+    lost_tag_zeros = dplyr::as_tibble(lost_tag_zeros),
     oversized_stems = oversized_stems,
     summary = summary_info
   )
@@ -1065,7 +1081,8 @@ process_openforis_small_trees <- function(data_dir = NULL,
 #' @param plot_name_digits,plot_name_map Passed to
 #'   \code{\link{.normalise_plot_name}}.
 #' @return Data frame with normalised column names, plus
-#'   \code{parent_plot_name}, \code{plot_name_raw} and a numeric \code{tag}.
+#'   \code{parent_plot_name}, \code{plot_name_raw} and \code{tag}, a
+#'   normalised label (\code{"22.10"} stays apart from \code{"22.1"}).
 #' @keywords internal
 .normalise_openforis_small_tree_trees <- function(trees_raw,
                                                   plot_name_col = "plot_plot_name_old",
@@ -1120,7 +1137,9 @@ process_openforis_small_trees <- function(data_dir = NULL,
   trees$parent_plot_name <- .normalise_plot_name(trees$plot_name_raw,
                                                  digits = plot_name_digits,
                                                  map = plot_name_map)
-  trees$tag <- suppressWarnings(as.numeric(trees[[tag_col]]))
+  # A label: 22.10 is not 22.1. Tag arithmetic (quadrat ranges) goes through
+  # .tag_numeric()
+  trees$tag <- .normalize_tag(trees[[tag_col]])
 
   trees
 }
@@ -1157,6 +1176,9 @@ process_openforis_small_trees <- function(data_dir = NULL,
   known_parent <- trees$parent_plot_name %in% quadrats$parent_plot_name
   reason[!known_parent] <- "parent plot absent from the plot file"
   reason[is.na(trees$tag) & is.na(reason)] <- "missing tag"
+  # Quadrats are tag ranges, so the assignment needs the tag's numeric value
+  tag_num <- .tag_numeric(trees$tag)
+  reason[is.na(tag_num) & is.na(reason)] <- "tag is not a number"
 
   for (parent in unique(trees$parent_plot_name[known_parent])) {
     q <- quadrats[quadrats$parent_plot_name == parent &
@@ -1164,11 +1186,11 @@ process_openforis_small_trees <- function(data_dir = NULL,
     if (nrow(q) == 0) next
     q <- q[order(q$firsttag), , drop = FALSE]
 
-    rows <- which(trees$parent_plot_name == parent & !is.na(trees$tag))
+    rows <- which(trees$parent_plot_name == parent & !is.na(tag_num))
     if (length(rows) == 0) next
 
     # findInterval() returns 0 for a tag below every firsttag
-    k <- findInterval(trees$tag[rows], q$firsttag)
+    k <- findInterval(tag_num[rows], q$firsttag)
     placed <- k >= 1L
     assigned[rows[placed]] <- q$quadrat_unit[k[placed]]
     reason[rows[!placed]] <- sprintf("tag below the first firsttag of %s (%s)",
@@ -1253,7 +1275,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
 
   if (length(out) == 0) return(NULL)
   result <- do.call(rbind, out)
-  result <- result[order(result$parent_plot_name, result$tag), , drop = FALSE]
+  result <- result[.plot_tag_order(result$parent_plot_name, result$tag), , drop = FALSE]
   rownames(result) <- NULL
   result
 }
@@ -1294,7 +1316,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
     if (!file.exists(path)) {
       stop("quadrat_decisions file not found: ", path, call. = FALSE)
     }
-    decisions <- readxl::read_excel(path)
+    decisions <- .read_excel_text_cols(path, "tag")
   }
   decisions <- as.data.frame(decisions, stringsAsFactors = FALSE)
 
@@ -1309,7 +1331,8 @@ process_openforis_small_trees <- function(data_dir = NULL,
   }
 
   parent <- trimws(as.character(decisions$parent_plot_name))
-  tag <- suppressWarnings(as.numeric(decisions$tag))
+  # Matched to stems on the label, like trees$tag
+  tag <- .normalize_tag(decisions$tag)
   keep <- tolower(trimws(as.character(decisions$keep)))
   keep[is.na(keep) | keep == ""] <- "tag"
   wanted <- if ("quadrat_by_name" %in% names(decisions)) {
@@ -1442,7 +1465,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
     added$quadrat_by_tag <- vapply(seq_along(extra), function(j) {
       q <- tag_q[tag_q$parent_plot_name == parent[extra[j]], , drop = FALSE]
       q <- q[order(q$firsttag), , drop = FALSE]
-      k <- findInterval(tag[extra[j]], q$firsttag)
+      k <- findInterval(.tag_numeric(tag[extra[j]]), q$firsttag)
       if (k >= 1L) q$quadrat[k] else NA_character_
     }, character(1))
     added$quadrat_by_name <- wanted[extra]
@@ -1542,7 +1565,7 @@ process_openforis_small_trees <- function(data_dir = NULL,
     names(trees)
   )
   result <- trees[over, cols, drop = FALSE]
-  result <- result[order(result$plot_name, result$tag), , drop = FALSE]
+  result <- result[.plot_tag_order(result$plot_name, result$tag), , drop = FALSE]
   rownames(result) <- NULL
   result
 }
@@ -1855,10 +1878,12 @@ process_openforis_small_trees <- function(data_dir = NULL,
                                     fun = length, default = 0L))
   quadrats$tag_min <- unname(vapply(
     quadrats$quadrat_unit, pick, numeric(1),
-    fun = function(r) min(trees$tag[r], na.rm = TRUE), default = NA_real_))
+    fun = function(r) min(.tag_numeric(trees$tag[r]), na.rm = TRUE),
+    default = NA_real_))
   quadrats$tag_max <- unname(vapply(
     quadrats$quadrat_unit, pick, numeric(1),
-    fun = function(r) max(trees$tag[r], na.rm = TRUE), default = NA_real_))
+    fun = function(r) max(.tag_numeric(trees$tag[r]), na.rm = TRUE),
+    default = NA_real_))
   quadrats$raw_plot_names <- unname(vapply(
     quadrats$quadrat_unit, pick, character(1),
     fun = function(r) paste(sort(unique(trees$plot_name_raw[r])), collapse = "; "),

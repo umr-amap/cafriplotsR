@@ -173,9 +173,19 @@ test_that("generation accepts a text column of clean numbers", {
                      stringsAsFactors = FALSE)
   out <- .generate_sequential_tags(data)
 
-  expect_type(out$tag, "double")
-  expect_equal(out$tag[c(1, 3)], c(101, 103))
+  # A text column stays text: its values are labels
+  expect_type(out$tag, "character")
+  expect_equal(out$tag[c(1, 3)], c("101", "103"))
   expect_false(is.na(out$tag[2]))
+})
+
+test_that("generation keeps 22.10 apart from 22.1", {
+  data <- data.frame(plot_name = rep("P1", 3),
+                     tag = c("22.1", "22.10", NA),
+                     stringsAsFactors = FALSE)
+  out <- .generate_sequential_tags(data)
+
+  expect_equal(out$tag, c("22.1", "22.10", "3"))
 })
 
 test_that("generation creates the column when it is absent", {

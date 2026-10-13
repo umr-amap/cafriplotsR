@@ -786,7 +786,7 @@ test_that(".resolve_census_individuals matches both existing and new stems", {
     id_liste_plots = 1L, plot_name = "P1", stringsAsFactors = FALSE))
   DBI::dbWriteTable(con, "data_individuals", data.frame(
     id_n = c(11L, 12L), id_table_liste_plots_n = c(1L, 1L),
-    tag = c("101", "102"), idtax_n = c(500L, 500L),
+    tag = c("101", "102"), tag_label = c("101", "102"), idtax_n = c(500L, 500L),
     stem_grouping = c(NA_integer_, NA_integer_), stringsAsFactors = FALSE))
 
   data <- data.frame(
@@ -805,6 +805,57 @@ test_that(".resolve_census_individuals matches both existing and new stems", {
   expect_equal(res$id_data_individuals, c(11L, 12L, 99L))
 })
 
+test_that(".resolve_census_individuals keys on tag_label, not the number", {
+  skip_if_not_installed("RSQLite")
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  DBI::dbWriteTable(con, "data_liste_plots", data.frame(
+    id_liste_plots = 1L, plot_name = "P1", stringsAsFactors = FALSE))
+  # Two recorded stems with the same numeric tag, told apart by the label
+  DBI::dbWriteTable(con, "data_individuals", data.frame(
+    id_n = c(11L, 12L), id_table_liste_plots_n = c(1L, 1L),
+    tag = c(22.1, 22.1), tag_label = c("22.1", "22.10"),
+    idtax_n = c(500L, 500L), stem_grouping = c(NA_integer_, NA_integer_),
+    stringsAsFactors = FALSE))
+
+  data <- data.frame(plot_name = "P1", tag = c("22.10", "22.1", "22.20"),
+                     stringsAsFactors = FALSE)
+  new_individuals <- data.frame(
+    id_individuals = 99L, tag = 22.2, tag_label = "22.20", plot_name = "P1",
+    stringsAsFactors = FALSE
+  )
+
+  res <- suppressMessages(
+    .resolve_census_individuals(data, 1L, new_individuals, con)
+  )
+
+  expect_equal(res$id_data_individuals, c(12L, 11L, 99L))
+})
+
+test_that(".insert_census_recruits writes the tag as written to tag_label", {
+  skip_if_not_installed("RSQLite")
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  DBI::dbExecute(con, "CREATE TABLE data_individuals (
+    id_n INTEGER PRIMARY KEY, id_table_liste_plots_n INTEGER,
+    tag NUMERIC, tag_label TEXT, idtax_n INTEGER)")
+
+  recruits <- data.frame(
+    plot_name = c("P1", "P1"), id_table_liste_plots_n = c(1L, 1L),
+    tag = c("22.10", "22.1"), idtax_n = c(500L, 500L),
+    stringsAsFactors = FALSE
+  )
+  res <- .insert_census_recruits(recruits, con)
+
+  expect_equal(res$tag_label, c("22.10", "22.1"))
+  expect_equal(.individual_tag_key(res), c("22.10", "22.1"))
+  expect_equal(
+    DBI::dbGetQuery(con, "SELECT tag_label FROM data_individuals ORDER BY id_n")$tag_label,
+    c("22.10", "22.1")
+  )
+})
+
 test_that(".resolve_census_individuals leaves unknown stems unresolved", {
   skip_if_not_installed("RSQLite")
   con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
@@ -813,7 +864,7 @@ test_that(".resolve_census_individuals leaves unknown stems unresolved", {
   DBI::dbWriteTable(con, "data_liste_plots", data.frame(
     id_liste_plots = 1L, plot_name = "P1", stringsAsFactors = FALSE))
   DBI::dbWriteTable(con, "data_individuals", data.frame(
-    id_n = 11L, id_table_liste_plots_n = 1L, tag = "101",
+    id_n = 11L, id_table_liste_plots_n = 1L, tag = "101", tag_label = "101",
     idtax_n = 500L, stem_grouping = NA_integer_, stringsAsFactors = FALSE))
 
   data <- data.frame(plot_name = c("P1", "P1"), tag = c("101", "999"),

@@ -19,7 +19,8 @@
 }
 \value{
 Data frame with normalised column names, plus \code{plot_name} and
-  a numeric \code{tag}.
+  \code{tag}, a normalised label (\code{"22.10"} stays apart from
+  \code{"22.1"}).
 }
 \description{
 The new-plot form and the recensus form use different names for the same

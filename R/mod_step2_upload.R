@@ -285,10 +285,15 @@ mod_step2_upload_server <- function(id, import_type, config, con, i18n) {
 
           shiny::incProgress(0.3, detail = i18n()$t("Reading file..."))
 
+          # Tags are labels: 22.10 is not 22.1. A column holding any text
+          # cell is read as text when readxl sees every row; a CSV column
+          # whose numbers would merge two labels stays text.
           result <- if (file_ext %in% c("xlsx", "xls")) {
-            readxl::read_excel(file_path)
+            readxl::read_excel(file_path, guess_max = 30000)
           } else if (file_ext == "csv") {
-            read.csv(file_path, stringsAsFactors = FALSE)
+            .type_convert_keep_labels(utils::read.csv(
+              file_path, stringsAsFactors = FALSE, colClasses = "character"
+            ))
           } else {
             stop(sprintf(i18n()$t("Unsupported file format: %s"), file_ext))
           }

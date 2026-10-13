@@ -13,7 +13,8 @@ the optional individual columns.}
 \item{con}{Database connection.}
 }
 \value{
-Data frame with `id_individuals`, `tag` and `plot_name`.
+Data frame with `id_individuals`, `tag`, `tag_label` and
+  `plot_name`.
 }
 \description{
 Insert recruits into `data_individuals`

@@ -758,32 +758,22 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
   plot_ids <- unique(data$id_liste_plots[!is.na(data$id_liste_plots)])
 
   existing_inds <- DBI::dbGetQuery(con, sprintf(
-    "SELECT di.tag, di.id_table_liste_plots_n, di.id_n, di.id_diconame_n, di.id_specimen
+    "SELECT di.tag, di.tag_label, di.id_table_liste_plots_n, di.id_n,
+            di.id_diconame_n, di.id_specimen
      FROM data_individuals di
      WHERE di.id_table_liste_plots_n IN (%s)",
     paste(plot_ids, collapse = ",")
   ))
 
-  # Join to get individual IDs
-  data$id_data_individuals <- NA_integer_
-  data$id_diconame <- NA_integer_
-  data$id_specimen_ind <- NA_integer_
+  # Join to get individual IDs. Keyed on the label: as numbers, recruit 22.10
+  # is 22.1 and its measurements would land on its neighbour.
+  hit <- .match_tag_to_individual(data$id_liste_plots, data$tag,
+                                  existing_inds,
+                                  existing_inds$id_table_liste_plots_n)
 
-  for (i in seq_len(nrow(data))) {
-    tag_val <- data$tag[i]
-    plot_id <- data$id_liste_plots[i]
-    if (is.na(tag_val) || is.na(plot_id)) next
-
-    match_rows <- existing_inds[
-      as.character(existing_inds$tag) == as.character(tag_val) &
-        existing_inds$id_table_liste_plots_n == plot_id, ]
-
-    if (nrow(match_rows) > 0) {
-      data$id_data_individuals[i] <- match_rows$id_n[1]
-      data$id_diconame[i] <- match_rows$id_diconame_n[1]
-      data$id_specimen_ind[i] <- match_rows$id_specimen[1]
-    }
-  }
+  data$id_data_individuals <- as.integer(existing_inds$id_n[hit])
+  data$id_diconame <- as.integer(existing_inds$id_diconame_n[hit])
+  data$id_specimen_ind <- as.integer(existing_inds$id_specimen[hit])
 
   # Filter out unmatched individuals
   matched <- data[!is.na(data$id_data_individuals), , drop = FALSE]
@@ -1158,7 +1148,7 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
 
     db_inds <- tryCatch({
       DBI::dbGetQuery(con, sprintf(
-        "SELECT di.id_n, di.tag, dlp.plot_name
+        "SELECT di.id_n, di.tag, di.tag_label, dlp.plot_name
          FROM data_individuals di
          JOIN data_liste_plots dlp ON di.id_table_liste_plots_n = dlp.id_liste_plots
          WHERE dlp.plot_name IN (%s)",
@@ -1174,18 +1164,11 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
 
     if (is.list(db_inds) && !is.null(db_inds$success)) return(db_inds)
 
-    data$id_n <- NA_integer_
-    data$group_id_n <- NA_integer_
-
-    for (i in seq_len(nrow(data))) {
-      match_row <- db_inds[as.character(db_inds$tag) == as.character(data$tag[i]) &
-                           db_inds$plot_name == data$plot_name[i], ]
-      if (nrow(match_row) > 0) data$id_n[i] <- match_row$id_n[1]
-
-      match_parent <- db_inds[as.character(db_inds$tag) == as.character(data$group_tag[i]) &
-                              db_inds$plot_name == data$plot_name[i], ]
-      if (nrow(match_parent) > 0) data$group_id_n[i] <- match_parent$id_n[1]
-    }
+    # Keyed on the label, so recruit 22.10 is not resolved to stem 22.1
+    data$id_n <- as.integer(db_inds$id_n[.match_tag_to_individual(
+      data$plot_name, data$tag, db_inds, db_inds$plot_name)])
+    data$group_id_n <- as.integer(db_inds$id_n[.match_tag_to_individual(
+      data$plot_name, data$group_tag, db_inds, db_inds$plot_name)])
   }
 
   # Filter to non-parent rows only (parent stems don't need stem_grouping)
