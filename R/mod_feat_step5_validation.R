@@ -195,7 +195,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                 # including stems recorded as dead, which query_plots() leaves
                 # out unless several censuses are asked for.
                 existing_inds <- DBI::dbGetQuery(con(), sprintf(
-                  "SELECT di.tag, di.id_table_liste_plots_n, di.id_n
+                  "SELECT di.tag, di.tag_label, di.id_table_liste_plots_n, di.id_n
                    FROM data_individuals di
                    WHERE di.id_table_liste_plots_n IN (%s)",
                   paste(plot_ids, collapse = ",")
@@ -205,19 +205,13 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                 # covers several plots, so every message below names its plot.
                 plot_labels <- .plot_labels_for_ids(con(), plot_ids, data)
 
-                # Check each row
-                unmatched <- integer(0)
-                for (i in seq_len(nrow(data))) {
-                  tag_val <- data$tag[i]
-                  plot_id <- data$id_liste_plots[i]
-                  if (is.na(tag_val) || is.na(plot_id)) next
-                  match_rows <- existing_inds[
-                    as.character(existing_inds$tag) == as.character(tag_val) &
-                    existing_inds$id_table_liste_plots_n == plot_id, ]
-                  if (nrow(match_rows) == 0) {
-                    unmatched <- c(unmatched, i)
-                  }
-                }
+                # Keyed on the label, as the import is: as numbers, recruit
+                # 22.10 is 22.1 and would be reported missing
+                hit <- .match_tag_to_individual(
+                  data$id_liste_plots, data$tag,
+                  existing_inds, existing_inds$id_table_liste_plots_n)
+                unmatched <- which(!is.na(data$tag) &
+                                     !is.na(data$id_liste_plots) & is.na(hit))
 
                 if (length(unmatched) > 0) {
                   # Every unmatched row becomes an error - the table below
@@ -392,7 +386,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
               if (length(plot_ids) > 0 && length(trait_ids) > 0) {
                 # Get existing individuals and their trait measurements
                 existing_inds <- DBI::dbGetQuery(con(), sprintf(
-                  "SELECT di.tag, di.id_table_liste_plots_n, di.id_n
+                  "SELECT di.tag, di.tag_label, di.id_table_liste_plots_n, di.id_n
                    FROM data_individuals di
                    WHERE di.id_table_liste_plots_n IN (%s)",
                   paste(plot_ids, collapse = ",")
@@ -472,7 +466,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
               if (length(plot_ids) > 0 && length(trait_ids) > 0) {
                 # Get individuals
                 db_inds <- DBI::dbGetQuery(con(), sprintf(
-                  "SELECT di.tag, di.id_table_liste_plots_n, di.id_n
+                  "SELECT di.tag, di.tag_label, di.id_table_liste_plots_n, di.id_n
                    FROM data_individuals di
                    WHERE di.id_table_liste_plots_n IN (%s)",
                   paste(plot_ids, collapse = ",")
@@ -495,6 +489,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                     # Build lookup: tag+plot -> id_n
                     db_inds_lookup <- db_inds
                     names(db_inds_lookup)[names(db_inds_lookup) == "id_table_liste_plots_n"] <- "id_liste_plots"
+                    db_inds_lookup$tag_key <- .individual_tag_key(db_inds_lookup)
 
                     # Initialize issue and prev_census_value columns if not present
                     if (!"issue" %in% names(data)) data$issue <- NA_character_
@@ -510,7 +505,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                       if (!"id_sub_plots" %in% names(data) || is.na(data$id_sub_plots[i])) next
 
                       ind_match <- db_inds_lookup[
-                        as.character(db_inds_lookup$tag) == as.character(tag_val) &
+                        db_inds_lookup$tag_key %in% .normalize_tag(tag_val) &
                         db_inds_lookup$id_liste_plots == plot_id, ]
                       if (nrow(ind_match) == 0) next
 
@@ -703,21 +698,17 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
                 if (length(plot_names) > 0) {
                   placeholders <- paste(sprintf("'%s'", gsub("'", "''", plot_names)), collapse = ",")
                   db_inds <- DBI::dbGetQuery(con(), sprintf(
-                    "SELECT di.tag, dlp.plot_name, di.id_n, di.stem_grouping
+                    "SELECT di.tag, di.tag_label, dlp.plot_name, di.id_n, di.stem_grouping
                      FROM data_individuals di
                      JOIN data_liste_plots dlp ON di.id_table_liste_plots_n = dlp.id_liste_plots
                      WHERE dlp.plot_name IN (%s)",
                     placeholders
                   ))
 
-                  unmatched <- integer(0)
-                  for (i in seq_len(nrow(data))) {
-                    tag_val <- as.character(data$tag[i])
-                    pl <- data$plot_name[i]
-                    if (is.na(tag_val) || is.na(pl)) next
-                    match_rows <- db_inds[as.character(db_inds$tag) == tag_val & db_inds$plot_name == pl, ]
-                    if (nrow(match_rows) == 0) unmatched <- c(unmatched, i)
-                  }
+                  hit <- .match_tag_to_individual(data$plot_name, data$tag,
+                                                  db_inds, db_inds$plot_name)
+                  unmatched <- which(!is.na(data$tag) & !is.na(data$plot_name) &
+                                       is.na(hit))
 
                   if (length(unmatched) > 0) {
                     show_rows <- utils::head(unmatched, 10)
@@ -1375,7 +1366,8 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
 #' @param data Data frame of prepared measurements, with `tag`, `traitid` and
 #'   `id_liste_plots`, and optionally `id_sub_plots`.
 #' @param individuals Data frame of the individuals recorded for the selected
-#'   plots, with `tag`, `id_table_liste_plots_n` and `id_n`.
+#'   plots, with `tag`, `id_table_liste_plots_n` and `id_n`, and optionally
+#'   `tag_label`, which tells recruit `22.10` from `22.1`.
 #' @param measures Data frame of the measurements already recorded for those
 #'   individuals, with `id_data_individuals`, `traitid` and `id_sub_plots`.
 #'
@@ -1400,7 +1392,8 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
   rows <- data.frame(
     stringsAsFactors = FALSE,
     .row     = seq_len(nrow(data)),
-    .tag     = chr(data$tag),
+    # Labels on both sides: as numbers, recruit 22.10 is 22.1
+    .tag     = .normalize_tag(data$tag),
     .plot    = chr(data$id_liste_plots),
     .traitid = chr(data$traitid),
     .census  = if ("id_sub_plots" %in% names(data)) {
@@ -1415,7 +1408,7 @@ mod_feat_step5_validation_server <- function(id, matched_data, feature_config, s
 
   inds <- data.frame(
     stringsAsFactors = FALSE,
-    .tag  = chr(individuals$tag),
+    .tag  = .individual_tag_key(individuals),
     .plot = chr(individuals$id_table_liste_plots_n),
     .id_n = chr(individuals$id_n)
   )

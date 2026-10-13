@@ -192,3 +192,39 @@ utils::globalVariables(c(
 };"
   )))
 }
+
+
+#' DataTables options that keep the page across a re-render
+#'
+#' A table redrawn by `DT::renderDT()` restarts on page 1, so every edit sends
+#' the user back to the top of a long list. Pass the table's last state
+#' (`input$<id>_state`, read inside `shiny::isolate()`) and the new table opens
+#' on the same page, with the same page length and search.
+#'
+#' `stateSave` is what makes DT report that state at all. Restoring from the
+#' browser's storage is turned off: the state comes only from the server, so a
+#' table showing another plot can be started afresh by passing `NULL`.
+#'
+#' @param state The table's `input$<id>_state`, or `NULL` for a fresh table.
+#' @param page_length Page length when `state` has none.
+#' @return A list to merge into `DT::datatable(options = )`.
+#' @keywords internal
+#' @export
+.dt_keep_page_options <- function(state, page_length = 25) {
+  opts <- list(
+    stateSave = TRUE,
+    stateLoadCallback = DT::JS("function() { return null; }"),
+    pageLength = page_length
+  )
+  if (is.null(state)) return(opts)
+
+  len <- suppressWarnings(as.integer(state$length))
+  if (length(len) == 1 && !is.na(len) && len != 0) opts$pageLength <- len
+  start <- suppressWarnings(as.integer(state$start))
+  if (length(start) == 1 && !is.na(start) && start > 0) opts$displayStart <- start
+  search <- state$search$search
+  if (is.character(search) && length(search) == 1 && nzchar(search)) {
+    opts$search <- list(search = search)
+  }
+  opts
+}

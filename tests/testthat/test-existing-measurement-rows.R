@@ -194,3 +194,20 @@ test_that("data without an id_sub_plots column is treated as carrying no census"
   res <- .existing_measurement_rows(data, individuals, db)
   expect_equal(res$without_census, 1L)
 })
+
+test_that(".existing_measurement_rows tells recruit 22.10 from 22.1", {
+  inds <- data.frame(
+    stringsAsFactors = FALSE,
+    tag = c(22.1, 22.1),
+    tag_label = c("22.1", "22.10"),
+    id_table_liste_plots_n = 10,
+    id_n = c(201, 202)
+  )
+  # Only 22.10 already has the diameter of census 2
+  m <- measures(measure(202, 5, census = 2))
+
+  res <- .existing_measurement_rows(
+    import_rows(c("22.1", "22.10"), census = 2), inds, m)
+
+  expect_equal(res$with_census, 2L)
+})

@@ -495,6 +495,7 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
     })
 
     # Render individuals table with checkboxes and group info
+    individuals_table_plot <- NULL
     output$individuals_table <- DT::renderDT({
       ind <- plot_individuals()
       shiny::req(nrow(ind) > 0)
@@ -530,13 +531,23 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
         stringsAsFactors = FALSE
       )
 
+      # Each new group redraws the table: stay on the page being worked
+      # through, unless the plot changed underneath it
+      plot_now <- input$plot_selector
+      state <- if (identical(plot_now, individuals_table_plot)) {
+        shiny::isolate(input$individuals_table_state)
+      }
+      individuals_table_plot <<- plot_now
+
       DT::datatable(
         display,
         selection = "multiple",
-        options = list(
-          pageLength = 12,
-          lengthMenu = c(10, 12, 15, 25, 50),
-          order = list(list(0, "asc"))
+        options = c(
+          .dt_keep_page_options(state, page_length = 12),
+          list(
+            lengthMenu = c(10, 12, 15, 25, 50),
+            order = list(list(0, "asc"))
+          )
         ),
         rownames = FALSE
       )
@@ -796,16 +807,18 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
         names(display)
       )
 
+      # Each edit redraws the table: reopen it on the page being reviewed
+      state <- shiny::isolate(input$groups_table_state)
+
       dt <- DT::datatable(
         display[, display_cols, drop = FALSE],
         selection = "multiple",
-        options = list(
-          pageLength = 25,
+        options = c(.dt_keep_page_options(state, page_length = 25), list(
           scrollX = TRUE,
           scrollY = "400px",
           order = list(list(0, "asc"), list(1, "asc")),
           ordering = FALSE
-        ),
+        )),
         rownames = FALSE
       )
 
