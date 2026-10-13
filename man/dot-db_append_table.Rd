@@ -14,8 +14,8 @@
 \item{data}{A data frame or tibble. Zero rows is a no-op.}
 
 \item{chunk_size}{Integer or NULL. Rows per `INSERT`. When NULL (the
-default) it is derived from the column count so a chunk stays under
-PostgreSQL's limit of 65535 bound parameters per statement.}
+default) it is derived from the column count so a chunk binds at most
+7000 parameters (see Details).}
 }
 \value{
 Invisibly, the number of rows inserted.
@@ -46,6 +46,12 @@ row, because one round trip per row against a remote managed instance turns
 a ten-thousand-row import into minutes of latency. Within a chunk the
 placeholders are laid out column-major, so the parameter list can be built
 with one `as.list()` per column instead of a per-cell loop.
+
+A chunk binds at most 7000 parameters, well below the 65535 the protocol
+allows. libpq treats any ParameterDescription message over 30000 bytes
+(4 bytes per parameter) as corrupt. It fails with
+`lost synchronization with server: got message type "t"` and drops the
+connection, which also loses any open transaction.
 
 Columns are matched to the table by name, as `dbWriteTable()` does, so the
 order of columns in `data` does not matter. Nothing is quoted by hand:

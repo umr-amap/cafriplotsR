@@ -111,7 +111,7 @@ test_that(".db_append_table() chunks so no row is sent twice or dropped", {
   expect_setequal(all_params[seq_len(20)], c(as.character(1:10), letters[1:10]))
 })
 
-test_that(".db_append_table() derives a chunk size under the 65535 parameter limit", {
+test_that(".db_append_table() derives a chunk size libpq accepts", {
   sizes <- list()
   local_mocked_bindings(
     dbQuoteIdentifier = function(conn, x, ...) paste0("\"", x, "\""),
@@ -123,11 +123,13 @@ test_that(".db_append_table() derives a chunk size under the 65535 parameter lim
   )
 
   # 40 columns: a naive "all rows in one statement" would need 40 * 2000
-  # parameters, well past what PostgreSQL accepts.
+  # parameters. libpq drops the connection once a statement's
+  # ParameterDescription passes 30000 bytes, i.e. ~7500 parameters.
   wide <- as.data.frame(matrix(1L, nrow = 2000, ncol = 40))
   .db_append_table(structure(list(), class = "fake"), "t", wide)
 
-  expect_true(all(unlist(sizes) <= 65535))
+  expect_true(all(unlist(sizes) <= 7000))
+  expect_equal(sum(unlist(sizes)), 40 * 2000)
 })
 
 test_that(".db_append_table() converts factors, as dbWriteTable does", {

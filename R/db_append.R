@@ -27,6 +27,12 @@
 #' placeholders are laid out column-major, so the parameter list can be built
 #' with one `as.list()` per column instead of a per-cell loop.
 #'
+#' A chunk binds at most 7000 parameters, well below the 65535 the protocol
+#' allows. libpq treats any ParameterDescription message over 30000 bytes
+#' (4 bytes per parameter) as corrupt. It fails with
+#' `lost synchronization with server: got message type "t"` and drops the
+#' connection, which also loses any open transaction.
+#'
 #' Columns are matched to the table by name, as `dbWriteTable()` does, so the
 #' order of columns in `data` does not matter. Nothing is quoted by hand:
 #' values travel as bound parameters, which also removes the injection surface
@@ -44,8 +50,8 @@
 #' @param table Character. Name of the target table.
 #' @param data A data frame or tibble. Zero rows is a no-op.
 #' @param chunk_size Integer or NULL. Rows per `INSERT`. When NULL (the
-#'   default) it is derived from the column count so a chunk stays under
-#'   PostgreSQL's limit of 65535 bound parameters per statement.
+#'   default) it is derived from the column count so a chunk binds at most
+#'   7000 parameters (see Details).
 #'
 #' @returns Invisibly, the number of rows inserted.
 #'
@@ -94,9 +100,10 @@
   quoted_table <- DBI::dbQuoteIdentifier(con, table)
   quoted_cols  <- paste(DBI::dbQuoteIdentifier(con, names(data)), collapse = ", ")
 
-  # 65535 bound parameters per statement is a protocol limit, not a tunable.
+  # Not the protocol's 65535: libpq drops the connection once the
+  # ParameterDescription reply passes 30000 bytes (~7500 parameters).
   if (is.null(chunk_size)) {
-    chunk_size <- max(1L, as.integer(floor(60000 / n_cols)))
+    chunk_size <- max(1L, as.integer(floor(7000 / n_cols)))
   }
   chunk_size <- min(as.integer(chunk_size), n_rows)
 

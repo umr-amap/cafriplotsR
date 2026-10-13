@@ -584,8 +584,13 @@ import_individual_data <- function(individuals_data,
     features_data$tag <- .normalize_tag(features_data$tag)
     individuals_id_data$tag <- .individual_tag_key(individuals_id_data)
   }
+  # Only the id comes across: any other column the INSERT returned
+  # (tag_label, ...) would be read as a trait column below
   features_with_id <- features_data %>%
-    dplyr::left_join(individuals_id_data, by = join_keys)
+    dplyr::left_join(
+      individuals_id_data[, c(join_keys, "id_individuals"), drop = FALSE],
+      by = join_keys
+    )
 
   # Get trait definitions for trait IDs
   all_traits <- traits_list()
