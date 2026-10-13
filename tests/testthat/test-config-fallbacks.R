@@ -160,6 +160,9 @@ test_that("connect_database uses environment credentials and caches successful c
     rm(list = intersect(c('db_host', 'db_port', 'db_name', 'db_name_taxa'), ls(.GlobalEnv)), envir = .GlobalEnv)
   }, add = TRUE)
 
+  # Session credentials outrank the environment, so a real login cached earlier
+  # in the session would otherwise be used instead of the variables set here.
+  rm(list = ls(envir = credentials), envir = credentials)
   Sys.setenv(MYDB_USER = 'env_user', MYDB_PASS = 'env_pass')
   assign('db_host', 'host.test', envir = .GlobalEnv)
   assign('db_port', 5432, envir = .GlobalEnv)
