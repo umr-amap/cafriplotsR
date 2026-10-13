@@ -11380,6 +11380,14 @@
     {
       "en": "Nested or Block Plot (parent plot already in database)",
       "fr": "Placette emboîtée ou bloc (placette mère déjà dans la base)"
+    },
+    {
+      "en": "names loaded",
+      "fr": "noms chargés"
+    },
+    {
+      "en": "Next: check the selected column below, then click 'Start Matching' in the Auto Match tab.",
+      "fr": "Étape suivante : vérifiez la colonne sélectionnée ci-dessous, puis cliquez sur « Démarrer l'appariement » dans l'onglet Appariement auto."
     }
   ]
 }

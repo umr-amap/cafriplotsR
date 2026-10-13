@@ -13,6 +13,15 @@ mod_data_input_ui <- function(id) {
   ns <- shiny::NS(id)
 
   shiny::tagList(
+    # Pulse for the "Load names" button while pasted names are still unloaded
+    shiny::singleton(shiny::tags$head(shiny::tags$style(shiny::HTML("
+      @keyframes load-names-pulse {
+        0%   { box-shadow: 0 0 0 0 rgba(240, 173, 78, 0.7); }
+        70%  { box-shadow: 0 0 0 8px rgba(240, 173, 78, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(240, 173, 78, 0); }
+      }
+      .btn-load-pending { animation: load-names-pulse 1.5s infinite; }
+    ")))),
     shiny::h4(shiny::textOutput(ns("title"))),
     shiny::uiOutput(ns("input_method_selector")),
     shiny::uiOutput(ns("input_controls")),
@@ -135,13 +144,48 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
             style = "display: block; margin-top: -10px; margin-bottom: 10px;",
             i18n()$t("Accepted separators: newline, comma, semicolon, tab")
           ),
-          shiny::actionButton(
-            inputId = ns("btn_load_text"),
-            label = shiny::tagList(shiny::icon("check"), i18n()$t("Load names")),
-            class = "btn-primary btn-sm"
-          )
+          # Own output: restyling it must not re-render the text area above,
+          # which would drop the cursor while the user types.
+          shiny::uiOutput(ns("load_text_button"))
         )
       }
+    })
+
+    # Text in the box when names were last loaded, to tell whether the box
+    # still holds unloaded edits.
+    loaded_text <- shiny::reactiveVal(NULL)
+    typed_text <- shiny::debounce(shiny::reactive(input$text_input), 300)
+
+    # The button says where the user stands: grey with nothing typed, pulsing
+    # orange while pasted names wait to be loaded, green once they are. Users
+    # pasted names and moved on without clicking it, as nothing changed.
+    output$load_text_button <- shiny::renderUI({
+      text <- typed_text() %||% ""
+      state <- if (!nzchar(trimws(text))) {
+        "empty"
+      } else if (identical(text, loaded_text())) {
+        "loaded"
+      } else {
+        "pending"
+      }
+
+      shiny::actionButton(
+        inputId = session$ns("btn_load_text"),
+        label = switch(
+          state,
+          loaded = shiny::tagList(
+            shiny::icon("check-circle"),
+            paste0(nrow(user_data()), " ", i18n()$t("names loaded"))
+          ),
+          shiny::tagList(shiny::icon("upload"), i18n()$t("Load names"))
+        ),
+        class = switch(
+          state,
+          empty = "btn-default btn-sm",
+          pending = "btn-warning btn-sm btn-load-pending",
+          loaded = "btn-success btn-sm"
+        )
+      )
     })
 
     # Sheet selector UI (only for Excel files)
@@ -314,6 +358,7 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
         )
 
         user_data(data)
+        loaded_text(text_content)
         file_name(paste0(i18n()$t("Text input"), " (", length(names_vector), " ", i18n()$t("names"), ")"))
 
         shinybusy::hide_spinner()
@@ -369,6 +414,15 @@ mod_data_input_server <- function(id, provided_data = NULL, i18n) {
           shiny::strong(file_name()),
           shiny::br(),
           paste(nrow(data), i18n()$t("rows"), ",", ncol(data), i18n()$t("columns"))
+        ),
+        # Loading names starts nothing by itself; say where to go next.
+        shiny::p(
+          style = "margin: 6px 0 0 0; color: #2c7a3f;",
+          shiny::icon("arrow-right"), " ",
+          i18n()$t(paste0(
+            "Next: check the selected column below, then click ",
+            "'Start Matching' in the Auto Match tab."
+          ))
         )
       )
     })
