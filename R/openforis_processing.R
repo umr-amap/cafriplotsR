@@ -1473,7 +1473,7 @@ process_openforis_census <- function(data_dir = NULL,
 #' @param x Vector of specimen numbers.
 #' @return Character vector, trimmed.
 #' @keywords internal
-.specimen_key <- function(x) {
+.specimen_number_text <- function(x) {
   if (is.numeric(x)) {
     out <- format(x, scientific = FALSE, trim = TRUE)
     out[is.na(x)] <- NA_character_
@@ -1506,9 +1506,9 @@ process_openforis_census <- function(data_dir = NULL,
 #' @keywords internal
 .remap_specimen_column <- function(x, old, new) {
 
-  chr <- .specimen_key(x)
-  old_key <- .specimen_key(old)
-  new_key <- .specimen_key(new)
+  chr <- .specimen_number_text(x)
+  old_key <- .specimen_number_text(old)
+  new_key <- .specimen_number_text(new)
 
   out <- chr
   matched <- rep(FALSE, length(chr))
@@ -1609,7 +1609,7 @@ process_openforis_census <- function(data_dir = NULL,
     hits[[col]] <- res
 
     n_hit <- sum(res$matched)
-    n_left <- sum(!is.na(.specimen_key(trees[[paste0(col, "_original")]]))) - n_hit
+    n_left <- sum(!is.na(.specimen_number_text(trees[[paste0(col, "_original")]]))) - n_hit
     cli::cli_alert_success(
       "{.field {col}}: {n_hit} value{?s} remapped, {n_left} left unchanged"
     )
@@ -1625,8 +1625,8 @@ process_openforis_census <- function(data_dir = NULL,
   # evidence of that: a stem carrying a number but no herbarium code is a gap
   # in the export, which .check_openforis_voucher_flag() already reports.
   if (length(hits) == 2) {
-    both <- !is.na(.specimen_key(trees$specimen_number_original)) &
-      !is.na(.specimen_key(trees$herbarium_nbe_char_original))
+    both <- !is.na(.specimen_number_text(trees$specimen_number_original)) &
+      !is.na(.specimen_number_text(trees$herbarium_nbe_char_original))
     split <- both &
       (hits$specimen_number$matched != hits$herbarium_nbe_char$matched)
     if (any(split)) {

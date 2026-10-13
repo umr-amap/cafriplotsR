@@ -10,6 +10,12 @@ fake_i18n_reactive <- function() {
 # expected to degrade to "no backbone in this database" rather than crash.
 no_pool <- function() shiny::reactive(NULL)
 
+# A NULL connection falls back to call.mydb.taxa(), which would reach the real
+# database whenever MYDB_USER / MYDB_PASS are set in .Renviron.
+testthat::local_mocked_bindings(
+  call.mydb.taxa = function(...) stop("no database in these tests")
+)
+
 test_that("step 1 renders when the database offers no backbone", {
   shiny::testServer(
     mod_taxa_add_server,

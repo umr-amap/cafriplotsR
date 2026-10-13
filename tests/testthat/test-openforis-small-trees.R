@@ -461,7 +461,7 @@ test_that("a form without those fields at all says nothing", {
 
 
 # =============================================================================
-# .specimen_key() / .remap_specimen_column()
+# .specimen_number_text() / .remap_specimen_column()
 # =============================================================================
 
 # A remap table is keyed on bare numbers (1 -> 4530), but the OpenForis export
@@ -470,11 +470,11 @@ test_that("a form without those fields at all says nothing", {
 # the pair ends up naming two different collections.
 
 test_that("a large number is not keyed in scientific notation", {
-  expect_equal(.specimen_key(c(1234567, 1e6)), c("1234567", "1000000"))
+  expect_equal(.specimen_number_text(c(1234567, 1e6)), c("1234567", "1000000"))
 })
 
 test_that("numeric and character spellings of one number key alike", {
-  expect_equal(.specimen_key(107), .specimen_key("107"))
+  expect_equal(.specimen_number_text(107), .specimen_number_text("107"))
 })
 
 test_that("a bare number is substituted", {
