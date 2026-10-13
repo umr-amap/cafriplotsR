@@ -49,6 +49,15 @@
   numeric_like <- !is.na(x) & grepl("^[0-9]+([.][0-9]+)?$", x)
   if (any(numeric_like)) {
     v <- x[numeric_like]
+    # A number cell read as text comes at full binary precision: readxl gives
+    # 8.1999999999999993 for the 8.2 shown in Excel. No field label carries
+    # 16 significant digits after a decimal point, so these are re-rounded.
+    float_noise <- grepl("[.]", v) & nchar(gsub("[^0-9]", "", v)) > 15
+    if (any(float_noise)) {
+      v[float_noise] <- vapply(as.numeric(v[float_noise]), format,
+                               character(1), digits = 15, scientific = FALSE,
+                               trim = TRUE, drop0trailing = TRUE)
+    }
     v <- sub("^0+(?=[0-9])", "", v, perl = TRUE)
     v <- sub("[.]0+$", "", v)
     x[numeric_like] <- v
@@ -228,6 +237,49 @@
   numeric_like <- !is.na(x) & grepl("^[0-9]+([.][0-9]+)?$", x)
   out <- rep(NA_real_, length(x))
   out[numeric_like] <- as.numeric(x[numeric_like])
+  out
+}
+
+
+#' Does each tag follow the one before it?
+#'
+#' Stems of one individual are tagged in sequence, and the step depends on
+#' the tag's shape: whole tags count up (`72`, `73`), decimal tags count up
+#' their suffix under the same whole part (`13.2`, `13.3`; `120.9`,
+#' `120.10`), and a whole tag can be followed by its first decimal (`373`,
+#' `373.1`). Adding 1 to the numeric value gets only the first of these right.
+#'
+#' @param tags Character vector of normalised tags, in field order.
+#' @return Logical vector, one per tag; the first is always `TRUE`, and a
+#'   label that is not a plain number never follows anything.
+#' @keywords internal
+#' @export
+.tags_consecutive <- function(tags) {
+  n <- length(tags)
+  out <- rep(TRUE, n)
+  if (n < 2) return(out)
+
+  plain <- !is.na(tags) & grepl("^[0-9]+([.][0-9]+)?$", tags)
+  whole <- ifelse(plain, sub("[.].*$", "", tags), NA_character_)
+  suffix <- ifelse(plain & grepl("[.]", tags), sub("^[0-9]+[.]", "", tags),
+                   NA_character_)
+  whole_num <- suppressWarnings(as.numeric(whole))
+  suffix_num <- suppressWarnings(as.numeric(suffix))
+
+  for (k in 2:n) {
+    j <- k - 1
+    if (!plain[k] || !plain[j]) {
+      out[k] <- FALSE
+    } else if (is.na(suffix[j]) && is.na(suffix[k])) {
+      out[k] <- whole_num[k] == whole_num[j] + 1
+    } else if (is.na(suffix[j])) {
+      out[k] <- whole[k] == whole[j] && suffix_num[k] == 1
+    } else if (!is.na(suffix[k])) {
+      out[k] <- whole[k] == whole[j] && suffix_num[k] == suffix_num[j] + 1
+    } else {
+      out[k] <- FALSE
+    }
+  }
   out
 }
 

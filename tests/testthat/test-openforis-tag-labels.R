@@ -139,3 +139,50 @@ test_that(".plot_tag_order sorts by plot, then field order", {
   tag  <- c("1", "22.10", "22.2", "3")
   expect_equal(.plot_tag_order(plot, tag), c(4L, 3L, 2L, 1L))
 })
+
+
+# =============================================================================
+# Consecutive stems and number cells read as text
+# =============================================================================
+
+test_that(".tags_consecutive steps by the label's own shape", {
+  expect_equal(.tags_consecutive(c("13.2", "13.3")), c(TRUE, TRUE))
+  expect_equal(.tags_consecutive(c("120.8", "120.9", "120.10")),
+               c(TRUE, TRUE, TRUE))
+  expect_equal(.tags_consecutive(c("72", "73", "74")), c(TRUE, TRUE, TRUE))
+  expect_equal(.tags_consecutive(c("373", "373.1")), c(TRUE, TRUE))
+})
+
+test_that(".tags_consecutive flags the stem after a break", {
+  expect_equal(.tags_consecutive(c("50.2", "50.4")), c(TRUE, FALSE))
+  expect_equal(.tags_consecutive(c("22", "22.2")), c(TRUE, FALSE))
+  expect_equal(.tags_consecutive(c("111.1", "112")), c(TRUE, FALSE))
+  expect_equal(.tags_consecutive(c("13.2", "14.2")), c(TRUE, FALSE))
+  expect_equal(.tags_consecutive(c("12", "A13")), c(TRUE, FALSE))
+  expect_equal(.tags_consecutive(c("12", NA)), c(TRUE, FALSE))
+  expect_equal(.tags_consecutive("12"), TRUE)
+  expect_equal(.tags_consecutive(character(0)), logical(0))
+})
+
+test_that("decimal multi-stems in sequence raise no tag_gap", {
+  trees <- data.frame(
+    plot_name = "P1",
+    tag = c("13.2", "13.3", "14"),
+    multi_stem = c("yes", NA, NA),
+    number_multi_stem = c(2, NA, NA),
+    stringsAsFactors = FALSE
+  )
+  res <- .build_openforis_multi_stems(trees)
+  expect_equal(res$tag, c("13.2", "13.3"))
+  expect_true(all(is.na(res$flag)))
+})
+
+test_that("a number cell read as text loses its float noise", {
+  expect_equal(.normalize_tag(c("8.1999999999999993", "142.19999999999999",
+                                "303.10000000000002", "21.10", "8.2")),
+               c("8.2", "142.2", "303.1", "21.10", "8.2"))
+})
+
+test_that("long whole-number labels are left alone", {
+  expect_equal(.normalize_tag("1234567890123456789"), "1234567890123456789")
+})

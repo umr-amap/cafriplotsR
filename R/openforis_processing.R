@@ -1038,17 +1038,9 @@ process_openforis_census <- function(data_dir = NULL,
     # Build flags
     flags <- rep(NA_character_, nrow(group_data))
 
-    # Flag: tags not consecutive. Counted on the numeric value; a label that
-    # is not a plain number cannot be checked and is flagged too.
-    group_num <- .tag_numeric(group_data$tag)
-    start <- .tag_numeric(group_tag)
-    expected_tags <- if (is.na(start)) {
-      rep(NA_real_, nrow(group_data))
-    } else {
-      start + seq_len(nrow(group_data)) - 1
-    }
-    non_consec <- is.na(group_num) | is.na(expected_tags) |
-      abs(group_num - expected_tags) > 1e-9
+    # Flag: a stem whose tag does not follow the previous one. Compared as
+    # labels, so 13.2 -> 13.3 and 120.9 -> 120.10 are consecutive
+    non_consec <- !.tags_consecutive(group_data$tag)
     flags[non_consec] <- "tag_gap"
 
     # Flag: different taxonomy within group
