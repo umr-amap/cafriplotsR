@@ -383,6 +383,10 @@
 
 ### Bug Fixes
 
+* **`process_openforis_census()` flagged consecutive decimal stems as `tag_gap`** (`R/openforis_processing.R`, `R/census_split.R`) - the multi-stem check expected each stem to be the leader's tag plus 1, so `13.2` → `13.3` was a gap (it expected `14.2`), and so was every decimal group. `.tags_consecutive()` now compares each stem with the one before it, by the label's shape: `72` → `73`, `13.2` → `13.3`, `120.9` → `120.10`, `373` → `373.1`. Only the stem right after a break is flagged, not every stem after it
+
+* **Tags from number cells read as text showed float noise** (`R/census_split.R`) - a cell stored as a number in Excel and read as text comes back at full binary precision (`8.1999999999999993` for `8.2`). `.normalize_tag()` re-rounds a decimal label longer than 15 significant digits; labels typed as text, such as `21.10`, are untouched
+
 * **Recruits `x.10` and `x.1` were reported as `duplicated_stems`** by the OpenForis processors - the tag was converted with `as.numeric()` before the duplicate check
 
 * **Measurements and multi-stems could be attached to the wrong stem** (`R/mod_feat_step6_import.R`) - in the feature wizard, the measurement and multi-stem imports compared `as.character(tag)` and took the first match, so a recruit `22.10` received the measurements of `22.1`. Both now resolve through `.match_tag_to_individual()`
