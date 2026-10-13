@@ -551,6 +551,26 @@ mod_feat_step3_census_import_server <- function(id, selected_plots, con,
         )))
       }
 
+      # 22.10 read as a number is 22.1: the recruit either lands on its
+      # neighbour's tag or is dropped as its duplicate. Only the gap shows it.
+      lost <- split$lost_tag_zeros
+      if (!is.null(lost) && nrow(lost) > 0) {
+        blocks <- c(blocks, list(shiny::div(
+          class = "alert alert-warning",
+          shiny::icon("hashtag"), " ",
+          shiny::strong(sprintf(
+            i18n()$t("%d recruit series reach .11 (or .21, ...) with no .10 (or .20)."),
+            nrow(lost))),
+          shiny::br(),
+          i18n()$t("A tag written 22.10 was probably read as the number 22.1, typed as a number in Excel or converted on reading, and can no longer be told from 22.1. Check the candidates against the field sheets, and type the tag column as text in the file so that 22.10 is kept."),
+          shiny::br(), shiny::br(),
+          DT::renderDT(DT::datatable(
+            lost, rownames = FALSE,
+            options = list(pageLength = 5, scrollX = TRUE, dom = "tp")
+          ))
+        )))
+      }
+
       # A repeated plot + tag in the database is a defect in the recorded data,
       # not in this file. It is reported in full — including the collisions
       # this census does not touch — because the ambiguous panel above only

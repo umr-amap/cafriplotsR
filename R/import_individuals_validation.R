@@ -136,6 +136,13 @@ validate_individual_data <- function(individuals_data,
   warnings <- c(warnings, tag_check$warnings)
   tags_are_usable <- length(tag_check$errors) == 0
 
+  # A tag read as text is a label: recruit 22.10 is not 22.1. Normalised once
+  # here so every later check compares the same form
+  if ("tag" %in% names(validated_individuals) &&
+      !is.numeric(validated_individuals$tag)) {
+    validated_individuals$tag <- .normalize_tag(validated_individuals$tag)
+  }
+
   # 0b. Auto-generate tags if missing
   cli::cli_alert_info("Checking tag column...")
 
@@ -947,14 +954,20 @@ validate_individual_data <- function(individuals_data,
 
   unique_plots <- unique(data$plot_name)
 
-  # Query existing individuals for these plots
+  # Query existing individuals for these plots. data_individuals has no
+  # plot_name: the plot is reached through id_table_liste_plots_n. Compared on
+  # the label, so a recorded 22.1 does not hide a new 22.10.
   for (plot in unique_plots) {
     existing_indiv <- tryCatch({
       DBI::dbGetQuery(con, sprintf(
-        "SELECT tag FROM data_individuals WHERE plot_name = '%s'",
-        plot
+        "SELECT di.tag, di.tag_label
+           FROM data_individuals di
+           JOIN data_liste_plots dlp ON di.id_table_liste_plots_n = dlp.id_liste_plots
+          WHERE dlp.plot_name = '%s'",
+        gsub("'", "''", plot)
       ))
     }, error = function(e) {
+      message("Note: could not check tags against the database (", e$message, ").")
       return(NULL)
     })
 
@@ -962,10 +975,10 @@ validate_individual_data <- function(individuals_data,
       next
     }
 
-    import_tags <- data$tag[data$plot_name == plot]
-    existing_tags <- existing_indiv$tag
+    import_tags <- .normalize_tag(data$tag[data$plot_name == plot])
+    existing_tags <- .individual_tag_key(existing_indiv)
 
-    conflicts <- intersect(import_tags, existing_tags)
+    conflicts <- intersect(import_tags[!is.na(import_tags)], existing_tags)
 
     if (length(conflicts) > 0) {
       warnings <- c(warnings, list(sprintf(
@@ -1024,11 +1037,13 @@ validate_individual_data <- function(individuals_data,
     return(list(errors = errors, warnings = warnings))
   }
 
-  parent <- suppressWarnings(as.numeric(raw))
-  tag <- suppressWarnings(as.numeric(data$tag))
+  # Compared as labels: a stem can hang off recruit 22.10, which is not 22.1
+  parent <- .normalize_tag(raw)
+  tag <- .normalize_tag(data$tag)
   plot <- as.character(data$plot_name)
 
   # Values that are not a tag number at all
+  parent[has_value & is.na(.tag_numeric(parent))] <- NA_character_
   unparsed <- which(has_value & is.na(parent))
   if (length(unparsed) > 0) {
     errors <- c(errors, list(sprintf(
@@ -1066,7 +1081,7 @@ validate_individual_data <- function(individuals_data,
       collapse = ", "
     )
     DBI::dbGetQuery(con, sprintf(
-      "SELECT dlp.plot_name, di.tag, di.stem_grouping
+      "SELECT dlp.plot_name, di.tag, di.tag_label, di.stem_grouping
          FROM data_individuals di
          JOIN data_liste_plots dlp ON di.id_table_liste_plots_n = dlp.id_liste_plots
         WHERE dlp.plot_name IN (%s)",
@@ -1081,7 +1096,7 @@ validate_individual_data <- function(individuals_data,
   })
 
   if (!is.null(db_lookup) && nrow(db_lookup) > 0) {
-    db_keys <- paste(db_lookup$plot_name, db_lookup$tag)
+    db_keys <- paste(db_lookup$plot_name, .individual_tag_key(db_lookup))
     db_grouped_keys <- db_keys[!is.na(db_lookup$stem_grouping)]
   }
 
@@ -1246,8 +1261,8 @@ validate_individual_data <- function(individuals_data,
   }
 
   # Create keys for matching
-  features_keys <- paste(features_data$plot_name, features_data$tag, sep = "||")
-  individuals_keys <- paste(individuals_data$plot_name, individuals_data$tag, sep = "||")
+  features_keys <- paste(features_data$plot_name, .normalize_tag(features_data$tag), sep = "||")
+  individuals_keys <- paste(individuals_data$plot_name, .normalize_tag(individuals_data$tag), sep = "||")
 
   # Find features without matching individuals
   orphan_features <- features_keys[!features_keys %in% individuals_keys]
@@ -1474,7 +1489,20 @@ print_individual_validation_results <- function(validation) {
         paste(utils::head(unique(as.character(raw[lost])), 5), collapse = ", ")
       ), call. = FALSE)
     }
-    data$tag <- parsed
+
+    # Kept as labels, not replaced by `parsed`: 22.10 read as a number is 22.1
+    data$tag <- .normalize_tag(raw)
+    data <- data %>%
+      dplyr::group_by(plot_name) %>%
+      dplyr::mutate(
+        tag = dplyr::if_else(
+          is.na(tag),
+          as.character(dplyr::row_number()),
+          tag
+        )
+      ) %>%
+      dplyr::ungroup()
+    return(data)
   }
 
   # Generate sequential tags per plot

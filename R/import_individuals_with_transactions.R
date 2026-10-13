@@ -183,19 +183,11 @@ import_individual_data <- function(individuals_data,
       # Build INSERT with RETURNING clause
       # Note: id_n is the primary key column name in data_individuals
       insert_sql <- sprintf(
-        "INSERT INTO data_individuals (%s) VALUES %s RETURNING id_n AS id_individuals, tag",
+        "INSERT INTO data_individuals (%s) VALUES %s RETURNING id_n AS id_individuals, tag, tag_label",
         col_names,
-        paste(
-          apply(individuals_prepared, 1, function(row) {
-            values <- sapply(row, function(x) {
-              if (is.na(x)) "NULL"
-              else if (is.numeric(x)) as.character(x)
-              else sprintf("'%s'", gsub("'", "''", as.character(x)))
-            })
-            sprintf("(%s)", paste(values, collapse = ", "))
-          }),
-          collapse = ", "
-        )
+        # Column by column: apply() over rows turns the frame into a
+        # character matrix, where a numeric NA becomes the string 'NA'
+        .sql_values_rows(individuals_prepared)
       )
 
       # Execute and get returned IDs
@@ -206,6 +198,8 @@ import_individual_data <- function(individuals_data,
       # provides a reliable 1:1 link even when tags are duplicated within a plot.
       individuals_id_data$plot_name <- individuals_with_plot_id$plot_name
       individuals_id_data$.row_idx <- seq_len(nrow(individuals_id_data))
+      # Downstream keys on plot + tag compare labels, not the numeric tag
+      individuals_id_data$tag <- .individual_tag_key(individuals_id_data)
 
       if (progress) {
         cli::cli_alert_success("{nrow(individuals_prepared)} individuals inserted")
@@ -442,6 +436,11 @@ import_individual_data <- function(individuals_data,
   prepared_data <- individuals_data %>%
     dplyr::select(dplyr::all_of(available_cols))
 
+  # The tag as written: as a number, recruit 22.10 is 22.1
+  if ("tag" %in% names(prepared_data)) {
+    prepared_data$tag_label <- .normalize_tag(prepared_data$tag)
+  }
+
   if (progress) {
     cli::cli_alert_success("Prepared {nrow(prepared_data)} individual records")
     cli::cli_alert_info("Columns: {paste(names(prepared_data), collapse = ', ')}")
@@ -476,7 +475,9 @@ import_individual_data <- function(individuals_data,
 
   if (!"multi_tiges_id" %in% names(individuals_data)) return(0L)
 
-  parent_tag <- suppressWarnings(as.numeric(individuals_data$multi_tiges_id))
+  # Labels, not numbers: a stem can hang off recruit 22.10, which is not 22.1
+  parent_tag <- .normalize_tag(individuals_data$multi_tiges_id)
+  parent_tag[is.na(.tag_numeric(parent_tag))] <- NA_character_
   secondary <- which(!is.na(parent_tag))
   if (length(secondary) == 0) return(0L)
 
@@ -485,7 +486,8 @@ import_individual_data <- function(individuals_data,
   parent_keys <- paste(plot[secondary], parent_tag[secondary])
 
   # Parents inserted in this same batch
-  batch_keys <- paste(individuals_id_data$plot_name, individuals_id_data$tag)
+  batch_keys <- paste(individuals_id_data$plot_name,
+                      .individual_tag_key(individuals_id_data))
   parent_id <- individuals_id_data$id_individuals[match(parent_keys, batch_keys)]
 
   # Parents already in the plot
@@ -495,7 +497,7 @@ import_individual_data <- function(individuals_data,
       collapse = ", "
     )
     db_inds <- DBI::dbGetQuery(con, sprintf(
-      "SELECT dlp.plot_name, di.tag, di.id_n
+      "SELECT dlp.plot_name, di.tag, di.tag_label, di.id_n
          FROM data_individuals di
          JOIN data_liste_plots dlp ON di.id_table_liste_plots_n = dlp.id_liste_plots
         WHERE dlp.plot_name IN (%s)",
@@ -503,7 +505,7 @@ import_individual_data <- function(individuals_data,
     ))
     if (nrow(db_inds) > 0) {
       todo <- is.na(parent_id)
-      db_keys <- paste(db_inds$plot_name, db_inds$tag)
+      db_keys <- paste(db_inds$plot_name, .individual_tag_key(db_inds))
       parent_id[todo] <- db_inds$id_n[match(parent_keys[todo], db_keys)]
     }
   }
@@ -578,6 +580,9 @@ import_individual_data <- function(individuals_data,
     if (progress) {
       cli::cli_alert_info("Falling back to plot_name + tag for individual-feature linking")
     }
+    # Both sides as labels, so 22.10 joins to 22.10 and the types agree
+    features_data$tag <- .normalize_tag(features_data$tag)
+    individuals_id_data$tag <- .individual_tag_key(individuals_id_data)
   }
   features_with_id <- features_data %>%
     dplyr::left_join(individuals_id_data, by = join_keys)

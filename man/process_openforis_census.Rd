@@ -161,6 +161,11 @@ A list with components:
     plot_name, tag, state, species_scientific_name, species_code,
     stem_diameter, quadrat (whichever are present). NULL if no duplicates.
     A \code{warning()} is also raised when duplicates are found.}
+  \item{lost_tag_zeros}{Tibble of plots whose recruit tags reach
+    \code{.11} (or \code{.21}, ...) with no \code{.10} (or \code{.20}),
+    with the one-digit tags each may have been read as - see
+    \code{.lost_tag_zeros()}. Tags are read as text, so this only fires
+    for cells stored as numbers in the workbook. Zero rows when clean.}
   \item{summary}{List with counts: n_plots, n_recruits, n_existing,
     n_measurements, n_specimens, n_multi_stem_groups, n_all_stems,
     n_duplicated_stems, trait_names.}

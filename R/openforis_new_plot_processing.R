@@ -121,7 +121,11 @@
 #'   \item{multi_stems}{Tibble of candidate multi-stem groupings with a
 #'     \code{flag} column to review, or NULL.}
 #'   \item{duplicated_stems}{Tibble of rows sharing a plot_name + tag pair, or
-#'     NULL. A \code{warning()} is also raised.}
+#'     NULL. A \code{warning()} is also raised. Tags are compared as written,
+#'     so \code{22.10} and \code{22.1} are two stems.}
+#'   \item{lost_tag_zeros}{Tibble of tag series reaching \code{.11} with no
+#'     \code{.10} - a \code{.10} stored as a number in the workbook - see
+#'     \code{.lost_tag_zeros()}. Zero rows when clean.}
 #'   \item{summary}{List of counts.}
 #' }
 #'
@@ -258,10 +262,21 @@ process_openforis_new_plot <- function(data_dir = NULL,
 
   # ---- Read and normalise the tree list ----
   cli::cli_alert_info("Reading tree list from {.file {tree_file}}")
-  trees_raw <- as.data.frame(readxl::read_excel(tree_file, guess_max = 5000))
+  # Tags as text: 22.10 is not 22.1
+  trees_raw <- .read_excel_text_cols(tree_file, tag_col, guess_max = 5000)
   cli::cli_alert_success("Read {nrow(trees_raw)} tree record{?s}")
 
   trees <- .normalise_openforis_new_plot_trees(trees_raw, plot_name_col, tag_col)
+
+  # A .10 stored as a number in the workbook leaves a gap after .9
+  lost_tag_zeros <- .lost_tag_zeros(trees$plot_name, trees$tag)
+  if (nrow(lost_tag_zeros) > 0) {
+    cli::cli_alert_warning(paste(
+      "{nrow(lost_tag_zeros)} tag series reach .11 (or .21, ...) with no",
+      ".10 (or .20): those tags were probably stored as numbers in the",
+      "workbook. Check result$lost_tag_zeros against the field sheets."
+    ))
+  }
 
   # ---- Check for duplicated plot_name + tag combinations ----
   dup_key <- paste(trees$plot_name, trees$tag, sep = "__")
@@ -274,8 +289,8 @@ process_openforis_new_plot <- function(data_dir = NULL,
       names(trees)
     )
     duplicated_stems <- trees[dup_mask, dup_cols, drop = FALSE]
-    duplicated_stems <- duplicated_stems[order(duplicated_stems$plot_name,
-                                               duplicated_stems$tag), ]
+    duplicated_stems <- duplicated_stems[.plot_tag_order(duplicated_stems$plot_name,
+                                                         duplicated_stems$tag), ]
     rownames(duplicated_stems) <- NULL
     n_dup_pairs <- length(unique(dup_key[dup_mask]))
     warning(sprintf(
@@ -443,7 +458,7 @@ process_openforis_new_plot <- function(data_dir = NULL,
     )
   } else {
     measurements <- data.frame(
-      plot_name = character(0), tag = numeric(0),
+      plot_name = character(0), tag = character(0),
       trait_name = character(0), traitvalue = numeric(0),
       traitvalue_char = character(0), stringsAsFactors = FALSE
     )
@@ -578,6 +593,7 @@ process_openforis_new_plot <- function(data_dir = NULL,
     specimens = specimens,
     multi_stems = multi_stems,
     duplicated_stems = duplicated_stems,
+    lost_tag_zeros = dplyr::as_tibble(lost_tag_zeros),
     summary = summary_info
   )
 }
@@ -597,7 +613,8 @@ process_openforis_new_plot <- function(data_dir = NULL,
 #' @param plot_name_col Column holding the plot name.
 #' @param tag_col Column holding the tag.
 #' @return Data frame with normalised column names, plus \code{plot_name} and
-#'   a numeric \code{tag}.
+#'   \code{tag}, a normalised label (\code{"22.10"} stays apart from
+#'   \code{"22.1"}).
 #' @keywords internal
 .normalise_openforis_new_plot_trees <- function(trees_raw,
                                                 plot_name_col = "plot_plot_name",
@@ -647,7 +664,7 @@ process_openforis_new_plot <- function(data_dir = NULL,
   }
 
   trees$plot_name <- as.character(trees[[plot_name_col]])
-  trees$tag <- suppressWarnings(as.numeric(trees[[tag_col]]))
+  trees$tag <- .normalize_tag(trees[[tag_col]])
 
   trees
 }
@@ -981,7 +998,9 @@ process_openforis_new_plot <- function(data_dir = NULL,
 
   # Sorted up front so that "the first individual carrying a voucher" below is
   # the lowest tag of the lowest plot name, not an artefact of the file order
-  trees <- trees[order(trees$plot_name, trees$tag), , drop = FALSE]
+  # Field order (22.2 before 22.10). Callers relying on this order use
+  # .plot_tag_order() too.
+  trees <- trees[.plot_tag_order(trees$plot_name, trees$tag), , drop = FALSE]
 
   result <- data.frame(
     plot_name = trees$plot_name,

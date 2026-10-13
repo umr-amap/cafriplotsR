@@ -41,8 +41,9 @@
   ext <- tolower(tools::file_ext(file_info$name))
 
   if (ext == "csv") {
-    return(utils::read.csv(file_info$datapath, stringsAsFactors = FALSE,
-                           check.names = FALSE))
+    raw <- utils::read.csv(file_info$datapath, stringsAsFactors = FALSE,
+                           check.names = FALSE, colClasses = "character")
+    return(.type_convert_keep_labels(raw))
   }
 
   sheets <- .excel_sheet_names(file_info$datapath)
@@ -51,6 +52,58 @@
 
   as.data.frame(readxl::read_excel(file_info$datapath, sheet = use,
                                    guess_max = guess_max))
+}
+
+
+#' Read a workbook with some columns forced to text
+#'
+#' Tag columns have to arrive as text: `22.10` and `22.1` are two recruits.
+#' Formatting an Excel column as Text only changes cells typed afterwards, so
+#' a column is often a mix of text cells and number cells, and readxl's
+#' guessing cannot be relied on to keep it whole. Every other column is
+#' guessed as usual. A cell that was stored as a number still reads as its
+#' number (`22.1`) — no reader can recover a zero Excel never kept.
+#'
+#' @param path Path to the workbook.
+#' @param text_cols Names of the columns to read as text. Names absent from
+#'   the sheet are ignored.
+#' @param guess_max Rows used to guess the other columns' types.
+#' @param ... Passed to [readxl::read_excel()] (e.g. `sheet`).
+#' @return A data.frame.
+#' @keywords internal
+.read_excel_text_cols <- function(path, text_cols, guess_max = 5000, ...) {
+  header <- names(readxl::read_excel(path, n_max = 0, ...))
+  types <- ifelse(header %in% text_cols, "text", "guess")
+  as.data.frame(readxl::read_excel(path, col_types = types,
+                                   guess_max = guess_max, ...))
+}
+
+
+#' Convert text columns to their natural type, unless that merges values
+#'
+#' `read.csv()` turns a column of `"22.1"` and `"22.10"` into two equal
+#' numbers, and those are two recruits. Each column is converted as
+#' `read.csv()` would convert it, except a column where two different strings
+#' would become the same number: that one stays text, so nothing written in
+#' the field is lost. In an Excel workbook the question does not arise -
+#' readxl types a column from its cells, and a cell typed as a number already
+#' holds `22.1`.
+#'
+#' @param df Data frame of character columns.
+#' @return `df` with converted columns.
+#' @keywords internal
+.type_convert_keep_labels <- function(df) {
+  for (nm in names(df)) {
+    v <- df[[nm]]
+    conv <- utils::type.convert(v, as.is = TRUE, na.strings = "NA")
+    if (is.numeric(conv)) {
+      txt <- trimws(v)
+      seen <- !is.na(conv) & !duplicated(txt)
+      if (anyDuplicated(conv[seen]) > 0) next
+    }
+    df[[nm]] <- conv
+  }
+  df
 }
 
 

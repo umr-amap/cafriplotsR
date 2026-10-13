@@ -257,7 +257,11 @@ A list with components:
     \code{firsttag} of its plot — or NULL. A \code{warning()} is also
     raised. These stems are excluded from every other table.}
   \item{duplicated_stems}{Tibble of rows sharing a plot + tag pair, or
-    NULL. A \code{warning()} is also raised.}
+    NULL. A \code{warning()} is also raised. Tags are compared as written,
+    so \code{22.10} and \code{22.1} are two stems.}
+  \item{lost_tag_zeros}{Tibble of tag series reaching \code{.11} with no
+    \code{.10} - a \code{.10} stored as a number in the workbook - see
+    \code{.lost_tag_zeros()}. Zero rows when clean.}
   \item{oversized_stems}{Tibble of stems at or above \code{dbh_max}, or
     NULL. They belong to the large-stem census of the parent plot, not here.}
   \item{summary}{List of counts.}

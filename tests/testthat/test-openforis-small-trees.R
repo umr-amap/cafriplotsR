@@ -751,7 +751,7 @@ test_that("a multi-stem group does not reach into the next quadrat", {
   # Tag 3 opens a 2-stem group but is the last stem of its quadrat; tag 4
   # starts the next one and must not be its second stem.
   expect_equal(res$multi_stems$plot_name, "mbalmayo001_smalltree")
-  expect_equal(res$multi_stems$tag, 3)
+  expect_equal(res$multi_stems$tag, "3")   # tags are labels
   expect_true(is.na(res$individuals$multi_tiges_id[
     res$individuals$plot_name == "mbalmayo001_smalltree" &
       res$individuals$tag == 4
@@ -774,7 +774,7 @@ test_that("a reviewed mismatch file sends a stem to the quadrat its name gives",
                                   mismatch_file = "mismatches.xlsx")
   ))
   expect_true(file.exists(mm_file))
-  expect_equal(first$name_mismatches$tag, 4)
+  expect_equal(first$name_mismatches$tag, "4")
   expect_equal(first$name_mismatches$keep, "tag")
   expect_equal(first$individuals$quadrat[first$individuals$tag == 4 &
                                             first$individuals$plot_name == "mbalmayo001_smalltree"],
@@ -794,7 +794,7 @@ test_that("a reviewed mismatch file sends a stem to the quadrat its name gives",
   expect_equal(second$summary$n_placed_by_name, 1L)
   expect_equal(second$quadrats$n_stems, c(4L, 1L, 1L))
   # Now in the same quadrat as tag 3, tag 4 is the second stem of its group
-  expect_equal(ind$multi_tiges_id[ind$tag == 4], 3)
+  expect_equal(ind$multi_tiges_id[ind$tag == "4"], "3")
 })
 
 test_that("a relative review-file path lives in data_dir", {
@@ -822,7 +822,7 @@ test_that("two stems sharing a tag keep their own quadrat in the individuals", {
                                   mismatch_file = "mismatches.xlsx")
   ))
   dec <- as.data.frame(readxl::read_excel(file.path(dir, "mismatches.xlsx")))
-  expect_equal(dec$tag, 4)
+  expect_equal(dec$tag, "4")
   dec$keep <- "name"
   writexl::write_xlsx(dec, file.path(dir, "mismatches.xlsx"))
 

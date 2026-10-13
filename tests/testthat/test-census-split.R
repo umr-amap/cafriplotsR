@@ -59,10 +59,126 @@ test_that(".normalize_tag handles zero-length input", {
   expect_equal(.normalize_tag(character(0)), character(0))
 })
 
-test_that(".normalize_tag canonicalises numeric tags written as text", {
-  # The database returns the number; the spreadsheet carries what was typed
-  expect_equal(.normalize_tag(c("0101", "22.10", "45.0")), c("101", "22.1", "45"))
-  expect_equal(.normalize_tag("22.10"), .normalize_tag(22.1))
+test_that(".normalize_tag drops leading zeros and all-zero decimals", {
+  expect_equal(.normalize_tag(c("0101", "45.0", "45.00", "0.5")),
+               c("101", "45", "45", "0.5"))
+})
+
+test_that(".normalize_tag keeps 22.10 apart from 22.1", {
+  # Recruits are numbered .1 ... .9, .10, .11 off their nearest stem:
+  # 22.10 is the tenth recruit, 22.1 the first
+  expect_equal(.normalize_tag(c("22.10", "22.1", "22.20", "22.2")),
+               c("22.10", "22.1", "22.20", "22.2"))
+  expect_false(.normalize_tag("22.10") == .normalize_tag("22.1"))
+})
+
+test_that(".normalize_tag formats numeric input as its shortest form", {
+  # A number has already lost the trailing zero; nothing can bring it back
+  expect_equal(.normalize_tag(c(22.1, 22.15, 45)), c("22.1", "22.15", "45"))
+  expect_equal(.normalize_tag(22.1), .normalize_tag("22.1"))
+  expect_equal(.normalize_tag(123456.15), "123456.15")
+})
+
+
+# =============================================================================
+# .individual_tag_key()
+# =============================================================================
+
+test_that(".individual_tag_key prefers tag_label over the numeric tag", {
+  existing <- data.frame(tag = c(22.1, 22.1, 30),
+                         tag_label = c("22.1", "22.10", NA),
+                         stringsAsFactors = FALSE)
+  expect_equal(.individual_tag_key(existing), c("22.1", "22.10", "30"))
+})
+
+test_that(".individual_tag_key falls back to tag without a tag_label column", {
+  existing <- data.frame(tag = c(101, 22.1))
+  expect_equal(.individual_tag_key(existing), c("101", "22.1"))
+  expect_equal(.individual_tag_key(data.frame(tag = numeric(0))), character(0))
+})
+
+
+# =============================================================================
+# .lost_tag_zeros()
+# =============================================================================
+
+test_that(".lost_tag_zeros flags a per-parent series that skips .10 and .20", {
+  # alpicam001, tag 22: 22.1-22.9, 22.11-22.19, 22.21-22.23, no .10 nor .20
+  tags <- c("22", paste0("22.", c(1:9, 11:19, 21:23)))
+  res <- .lost_tag_zeros(rep("alpicam001", length(tags)), tags)
+
+  expect_equal(res$missing_suffix, c(".10", ".20"))
+  expect_equal(res$candidates, c("22.1", "22.2"))
+  expect_true(all(res$plot_name == "alpicam001"))
+})
+
+test_that(".lost_tag_zeros flags a plot-wide recruit counter", {
+  # dengdeng001: the suffix counts recruits across the plot, on any parent
+  tags <- c("2.1", "88.1", "5.2", "285.2", "89.11", "87.12", "96.13",
+            "284.21", "284.22")
+  res <- .lost_tag_zeros(rep("dengdeng001", length(tags)), tags)
+
+  expect_equal(res$missing_suffix, c(".10", ".20"))
+  expect_equal(res$candidates, c("2.1, 88.1", "285.2, 5.2"))
+})
+
+test_that(".lost_tag_zeros is silent when .10 is present or never reached", {
+  expect_equal(nrow(.lost_tag_zeros(rep("P", 3), c("22.9", "22.10", "22.11"))), 0)
+  expect_equal(nrow(.lost_tag_zeros(rep("P", 3), c("22.1", "22.2", "22.9"))), 0)
+  expect_equal(nrow(.lost_tag_zeros(character(0), character(0))), 0)
+  expect_equal(nrow(.lost_tag_zeros(c("P", NA), c(NA, "22.11"))), 0)
+})
+
+test_that(".lost_tag_zeros checks each plot on its own", {
+  res <- .lost_tag_zeros(c("A", "B", "B"), c("1.11", "2.10", "2.11"))
+  expect_equal(res$plot_name, "A")
+})
+
+
+# =============================================================================
+# split_census_table() with labels
+# =============================================================================
+
+test_that("split_census_table matches 22.10 and 22.1 to different stems", {
+  existing <- data.frame(
+    plot_name = "P1", id_n = c(1L, 2L, 3L),
+    tag = c(22, 22.1, 22.1), tag_label = c("22", "22.1", "22.10"),
+    stringsAsFactors = FALSE
+  )
+  data <- data.frame(plot_name = "P1", tag = c("22", "22.1", "22.10"),
+                     stringsAsFactors = FALSE)
+
+  res <- split_census_table(data, existing = existing)
+
+  expect_equal(res$data$row_role, rep("remeasure", 3))
+  expect_equal(res$data$id_n, c(1L, 2L, 3L))
+  expect_equal(nrow(res$ambiguous), 0)
+})
+
+test_that("split_census_table sees 22.10 as new when only 22.1 is recorded", {
+  existing <- data.frame(plot_name = "P1", id_n = c(1L, 2L),
+                         tag = c(22, 22.1), tag_label = c("22", "22.1"),
+                         stringsAsFactors = FALSE)
+  data <- data.frame(plot_name = "P1", tag = c("22.1", "22.10"),
+                     stringsAsFactors = FALSE)
+
+  res <- split_census_table(data, existing = existing)
+
+  expect_equal(res$data$row_role, c("remeasure", "recruit"))
+})
+
+test_that("split_census_table reports a lost .10 in the file or the database", {
+  existing <- data.frame(plot_name = "P1", id_n = 1:3,
+                         tag = c(22, 22.1, 22.11),
+                         tag_label = c("22", "22.1", "22.11"),
+                         stringsAsFactors = FALSE)
+  data <- data.frame(plot_name = "P1", tag = c("22", "22.1", "22.11"),
+                     stringsAsFactors = FALSE)
+
+  res <- split_census_table(data, existing = existing)
+
+  expect_equal(res$lost_tag_zeros$missing_suffix, ".10")
+  expect_equal(res$lost_tag_zeros$candidates, "22.1")
 })
 
 test_that(".normalize_tag leaves anything not purely numeric alone", {
@@ -703,6 +819,7 @@ make_sqlite_db <- function() {
     id_n                   = c(11L, 12L, 21L),
     id_table_liste_plots_n = c(1L, 1L, 2L),
     tag                    = c("101", "102", "301"),
+    tag_label              = c("101", "102", "301"),
     idtax_n                = c(500L, 600L, 700L),
     stem_grouping          = c(NA_integer_, 11L, NA_integer_),
     stringsAsFactors = FALSE

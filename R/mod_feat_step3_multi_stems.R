@@ -292,8 +292,9 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
 
       mapped <- data.frame(
         plot_name = as.character(data[[plot_col]]),
-        tag = suppressWarnings(as.numeric(data[[tag_col]])),
-        group_tag = suppressWarnings(as.numeric(data[[group_col]])),
+        # Labels, not numbers: recruit 22.10 is not stem 22.1
+        tag = .normalize_tag(data[[tag_col]]),
+        group_tag = .normalize_tag(data[[group_col]]),
         stringsAsFactors = FALSE
       )
 
@@ -342,8 +343,8 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
         plot_names_sql <- paste(sprintf("'%s'", gsub("'", "''", unique(mapped$plot_name))), collapse = ",")
 
         db_inds <- DBI::dbGetQuery(actual_con, sprintf(
-          "SELECT di.id_n, di.tag, di.stem_grouping, di.original_tax_name,
-                  dlp.plot_name
+          "SELECT di.id_n, di.tag, di.tag_label, di.stem_grouping,
+                  di.original_tax_name, dlp.plot_name
            FROM data_individuals di
            JOIN data_liste_plots dlp ON di.id_table_liste_plots_n = dlp.id_liste_plots
            WHERE dlp.plot_name IN (%s)
@@ -355,8 +356,8 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
         all_plot_individuals(db_inds)
 
         if (nrow(db_inds) > 0) {
-          # Coerce tag types to match for comparison
-          db_inds$tag_char <- as.character(db_inds$tag)
+          # Compare on the label, which tells 22.10 from 22.1
+          db_inds$tag_char <- .individual_tag_key(db_inds)
 
           # Resolve each row: id_n, group_id_n, existing grouping
           mapped$id_n <- NA_integer_
@@ -380,7 +381,7 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
               if (!is.na(sg)) {
                 parent_row <- db_inds[db_inds$id_n == sg, , drop = FALSE]
                 if (nrow(parent_row) > 0) {
-                  mapped$db_current_group[i] <- as.character(parent_row$tag[1])
+                  mapped$db_current_group[i] <- parent_row$tag_char[1]
                 } else {
                   mapped$db_current_group[i] <- paste0("id:", sg)
                 }
@@ -467,15 +468,20 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
 
       tryCatch({
         query <- sprintf(
-          "SELECT di.id_n, di.tag, di.stem_grouping,
+          "SELECT di.id_n, di.tag, di.tag_label, di.stem_grouping,
                   dlp.plot_name, di.original_tax_name AS taxon_name
            FROM data_individuals di
            JOIN data_liste_plots dlp ON di.id_table_liste_plots_n = dlp.id_liste_plots
-           WHERE dlp.plot_name = '%s'
-           ORDER BY di.tag",
+           WHERE dlp.plot_name = '%s'",
           gsub("'", "''", plot)
         )
         res <- DBI::dbGetQuery(actual_con, query)
+        # The groups built here are resolved back to individuals by tag at
+        # import, so they must carry the label: as a number, 22.10 is 22.1
+        res$tag <- .individual_tag_key(res)
+        res$tag_label <- NULL
+        res <- res[.tag_order(res$tag), , drop = FALSE]
+        rownames(res) <- NULL
         individuals_cache[[plot]] <- res
         res
       }, error = function(e) {
@@ -483,7 +489,7 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
           paste(i18n()$t("Error querying individuals:"), e$message),
           type = "error"
         )
-        data.frame(id_n = integer(0), tag = numeric(0), stem_grouping = integer(0),
+        data.frame(id_n = integer(0), tag = character(0), stem_grouping = integer(0),
                    plot_name = character(0), taxon_name = character(0))
       })
     })
@@ -495,7 +501,7 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
 
       # Add current group info from groups_rv
       current_groups <- groups_rv()
-      ind$current_group <- NA_real_
+      ind$current_group <- NA_character_
 
       if (!is.null(current_groups)) {
         plot <- input$plot_selector
@@ -552,7 +558,7 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
       plot <- input$plot_selector
 
       # First selected tag is the parent (lowest tag number)
-      tags <- sort(selected_ind$tag)
+      tags <- selected_ind$tag[.tag_order(selected_ind$tag)]
       parent_tag <- tags[1]
 
       new_rows <- data.frame(
@@ -710,10 +716,10 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
       # If we have all individuals from the DB, add the ones NOT in the upload
       if (!is.null(all_inds) && nrow(all_inds) > 0) {
         # Tags already in the groups
-        grouped_keys <- paste(as.character(grp$plot_name), as.character(grp$tag))
+        grouped_keys <- paste(as.character(grp$plot_name), .normalize_tag(grp$tag))
 
         # All DB individuals as keys
-        db_keys <- paste(as.character(all_inds$plot_name), as.character(all_inds$tag))
+        db_keys <- paste(as.character(all_inds$plot_name), .individual_tag_key(all_inds))
         not_in_upload <- !db_keys %in% grouped_keys
 
         if (any(not_in_upload)) {
@@ -722,8 +728,8 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
           # Build data frame with same columns as display
           extra <- data.frame(
             plot_name = as.character(remaining$plot_name),
-            tag = suppressWarnings(as.numeric(remaining$tag)),
-            group_tag = NA_real_,
+            tag = .individual_tag_key(remaining),
+            group_tag = NA_character_,
             stem_order = NA_integer_,
             stringsAsFactors = FALSE
           )
@@ -774,7 +780,7 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
       }
 
       # Sort by plot_name then tag so available rows sit next to their neighbours
-      display <- display[order(display$plot_name, display$tag), , drop = FALSE]
+      display <- display[.plot_tag_order(display$plot_name, display$tag), , drop = FALSE]
       rownames(display) <- NULL
 
       display
@@ -950,9 +956,10 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
       # Build choices: existing parent tags in the same plots
       sel_plots <- unique(as.character(display$plot_name[sel]))
       existing_parents <- if (!is.null(grp)) {
-        sort(unique(grp$group_tag[grp$plot_name %in% sel_plots]))
+        parents <- unique(grp$group_tag[grp$plot_name %in% sel_plots])
+        parents[.tag_order(parents)]
       } else {
-        numeric(0)
+        character(0)
       }
 
       shiny::showModal(shiny::modalDialog(
@@ -960,11 +967,11 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
         shiny::p(
           sprintf(i18n()$t("Reassigning %d stem(s): tags %s"), length(sel), selected_tags)
         ),
-        shiny::numericInput(
+        # Text, not numeric: a parent can be a recruit such as 22.10
+        shiny::textInput(
           ns("new_group_tag_value"),
           label = i18n()$t("New group tag (parent tag):"),
-          value = if (length(existing_parents) > 0) existing_parents[1] else NA,
-          min = 0
+          value = if (length(existing_parents) > 0) existing_parents[1] else ""
         ),
         if (length(existing_parents) > 0) {
           shiny::p(
@@ -988,8 +995,8 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
     shiny::observeEvent(input$btn_confirm_reassign, {
       shiny::removeModal()
 
-      new_gt <- input$new_group_tag_value
-      if (is.null(new_gt) || is.na(new_gt)) {
+      new_gt <- .normalize_tag(input$new_group_tag_value)
+      if (length(new_gt) != 1 || is.na(new_gt)) {
         shiny::showNotification(i18n()$t("Please enter a valid tag number."), type = "warning")
         return()
       }
@@ -1018,7 +1025,7 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
           gt_char <- as.character(new_gt)
           for (mi in match_idx) {
             pl <- as.character(grp$plot_name[mi])
-            parent_match <- all_inds[as.character(all_inds$tag) == gt_char &
+            parent_match <- all_inds[.individual_tag_key(all_inds) == gt_char &
                                      all_inds$plot_name == pl, , drop = FALSE]
             if (nrow(parent_match) > 0 && "group_id_n" %in% names(grp)) {
               grp$group_id_n[mi] <- parent_match$id_n[1]
@@ -1040,7 +1047,7 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
           if (!"group_id_n" %in% names(avail_rows)) avail_rows$group_id_n <- NA_integer_
           for (j in seq_len(nrow(avail_rows))) {
             pl <- as.character(avail_rows$plot_name[j])
-            parent_match <- all_inds[as.character(all_inds$tag) == gt_char &
+            parent_match <- all_inds[.individual_tag_key(all_inds) == gt_char &
                                      all_inds$plot_name == pl, , drop = FALSE]
             if (nrow(parent_match) > 0) {
               avail_rows$group_id_n[j] <- parent_match$id_n[1]
@@ -1154,7 +1161,11 @@ mod_feat_step3_multi_stems_server <- function(id, selected_plots, operation_mode
   groups <- unique(paste(data$plot_name, data$group_tag))
   for (g in groups) {
     mask <- paste(data$plot_name, data$group_tag) == g
-    data$stem_order[mask] <- rank(data$tag[mask], ties.method = "first")
+    # Field order, so 22.2 comes before 22.10
+    o <- .tag_order(data$tag[mask])
+    r <- integer(length(o))
+    r[o] <- seq_along(o)
+    data$stem_order[mask] <- r
   }
   data
 }

@@ -18,11 +18,17 @@
 #' Numeric tags are formatted without scientific notation — `as.character()`
 #' would turn a six-digit tag into `"1e+05"` and break every match.
 #'
-#' A tag column read from a spreadsheet as text carries whatever the typist
-#' wrote — `"0101"`, `"22.10"`, `"45.0"` — while the database returns the
-#' number itself. Purely numeric strings are therefore put through the same
-#' formatting as numeric input, so both sides reach one string. Anything with a
-#' letter or a separator in it is left exactly as written.
+#' A tag written as text is a label, not a number. Recruits are tagged off
+#' their nearest stem — `22.1`, ..., `22.9`, `22.10`, `22.11` — so `"22.10"`
+#' and `"22.1"` are two trees and must stay two keys. Only what cannot tell
+#' two trees apart is normalised away: leading zeros (`"0101"` is `"101"`) and
+#' an all-zero decimal (`"45.0"` is `"45"`, no recruit is numbered 0). Anything
+#' with a letter or a separator in it is left exactly as written.
+#'
+#' A numeric input has already lost the distinction — `22.10` and `22.1` are
+#' the same double — so it can only be formatted as its shortest form. That is
+#' why the database side keys on `data_individuals.tag_label`, see
+#' [.individual_tag_key()], and why tag columns should be read as text.
 #'
 #' @param x Vector of tags.
 #' @return Character vector, blanks returned as `NA`.
@@ -33,7 +39,8 @@
     x <- ifelse(
       is.na(x),
       NA_character_,
-      format(x, scientific = FALSE, trim = TRUE, drop0trailing = TRUE)
+      format(x, digits = 15, scientific = FALSE, trim = TRUE,
+             drop0trailing = TRUE)
     )
   }
   x <- trimws(as.character(x))
@@ -41,10 +48,161 @@
 
   numeric_like <- !is.na(x) & grepl("^[0-9]+([.][0-9]+)?$", x)
   if (any(numeric_like)) {
-    x[numeric_like] <- format(as.numeric(x[numeric_like]), scientific = FALSE,
-                              trim = TRUE, drop0trailing = TRUE)
+    v <- x[numeric_like]
+    # A number cell read as text comes at full binary precision: readxl gives
+    # 8.1999999999999993 for the 8.2 shown in Excel. No field label carries
+    # 16 significant digits after a decimal point, so these are re-rounded.
+    float_noise <- grepl("[.]", v) & nchar(gsub("[^0-9]", "", v)) > 15
+    if (any(float_noise)) {
+      v[float_noise] <- vapply(as.numeric(v[float_noise]), format,
+                               character(1), digits = 15, scientific = FALSE,
+                               trim = TRUE, drop0trailing = TRUE)
+    }
+    v <- sub("^0+(?=[0-9])", "", v, perl = TRUE)
+    v <- sub("[.]0+$", "", v)
+    x[numeric_like] <- v
   }
   x
+}
+
+
+#' Matching key for individuals read from the database
+#'
+#' `tag_label` is the tag as written in the field and tells `22.10` from
+#' `22.1`; `tag` is its numeric value and cannot. The label is used wherever
+#' it is filled, the numeric tag otherwise — rows written before the column
+#' existed, or a frame built without it.
+#'
+#' @param existing Data frame with `tag` and, optionally, `tag_label`.
+#' @return Character vector of normalised tags, one per row.
+#' @keywords internal
+#' @export
+.individual_tag_key <- function(existing) {
+  key <- if ("tag_label" %in% names(existing)) {
+    .normalize_tag(as.character(existing$tag_label))
+  } else {
+    rep(NA_character_, nrow(existing))
+  }
+  fallback <- is.na(key)
+  if (any(fallback)) key[fallback] <- .normalize_tag(existing$tag[fallback])
+  key
+}
+
+
+#' Find the recorded individual each plot + tag names
+#'
+#' File tags are normalised as labels and compared with
+#' [.individual_tag_key()], so `22.10` resolves to the stem labelled `22.10`
+#' and never to `22.1`. A missing plot or tag matches nothing. Where a plot +
+#' tag names several stems the first is returned, as `match()` does —
+#' callers that must not guess check for that separately.
+#'
+#' @param plot,tag Plot identifiers and tags of the rows to resolve.
+#' @param existing Recorded individuals, with `tag` and optionally
+#'   `tag_label`.
+#' @param existing_plot Plot identifiers of `existing`, comparable to `plot`.
+#' @return Integer row index into `existing`, `NA` where nothing matches.
+#' @keywords internal
+#' @export
+.match_tag_to_individual <- function(plot, tag, existing, existing_plot) {
+  key <- function(p, t) {
+    ifelse(is.na(p) | is.na(t), NA_character_,
+           paste(as.character(p), t, sep = "\r"))
+  }
+  db_key <- key(existing_plot, .individual_tag_key(existing))
+  db_key[is.na(db_key)] <- ""
+  match(key(plot, .normalize_tag(tag)), db_key)
+}
+
+
+#' Order tag labels the way a field team counts them
+#'
+#' `sort()` on labels puts `"22.10"` before `"22.2"` and `"100"` before
+#' `"22"`; `sort()` on numbers cannot tell `22.10` from `22.1`. Labels are
+#' ordered on their whole part, then their recruit suffix read as a count
+#' (`.2` before `.10`), then as text. Labels that are not numeric go last.
+#'
+#' @param x Vector of tags (normalised labels or numbers).
+#' @return Integer permutation, as [order()] returns it.
+#' @keywords internal
+#' @export
+.tag_order <- function(x) {
+  x <- .normalize_tag(x)
+  numeric_like <- !is.na(x) & grepl("^[0-9]+([.][0-9]+)?$", x)
+  whole  <- rep(NA_real_, length(x))
+  suffix <- rep(0, length(x))
+  whole[numeric_like] <- as.numeric(sub("[.].*$", "", x[numeric_like]))
+  has_suffix <- numeric_like & grepl("[.]", x)
+  suffix[has_suffix] <- as.numeric(sub("^[0-9]+[.]", "", x[has_suffix]))
+  order(whole, suffix, x, na.last = TRUE)
+}
+
+
+#' Order rows by plot, then by tag in field order
+#'
+#' @param plot Vector of plot names.
+#' @param tag Vector of tags, see [.tag_order()].
+#' @return Integer permutation, as [order()] returns it. Ties keep their
+#'   input order.
+#' @keywords internal
+#' @export
+.plot_tag_order <- function(plot, tag) {
+  tag_rank <- integer(length(tag))
+  tag_rank[.tag_order(tag)] <- seq_along(tag)
+  order(plot, tag_rank)
+}
+
+
+#' Recruit tags whose trailing zero looks lost
+#'
+#' A recruit suffix counts up `.1, ..., .9, .10, .11`, either per parent stem
+#' or as one counter across the plot. When a plot holds `.11` to `.19` but no
+#' `.10` anywhere, the tenth recruit was almost certainly written `.10` and
+#' read as a number — a numeric Excel cell, a CSV converted on read — and now
+#' sits under a `.1` tag beside the real one, or was dropped as its duplicate.
+#' The same holds for `.20` against `.21` to `.29`, and so on. Checked per
+#' plot rather than per parent so that the plot-wide counter is caught too.
+#'
+#' @param plot_name,tag Vectors of plot names and normalised tags.
+#' @return Data frame, one row per plot and missing suffix, with
+#'   `missing_suffix` (e.g. `".10"`), `evidence` (the two-digit tags that
+#'   show the series reached it) and `candidates` (the one-digit tags it may
+#'   have been read as).
+#' @keywords internal
+#' @export
+.lost_tag_zeros <- function(plot_name, tag) {
+
+  out <- data.frame(plot_name = character(0), missing_suffix = character(0),
+                    evidence = character(0), candidates = character(0),
+                    stringsAsFactors = FALSE)
+
+  ok <- !is.na(plot_name) & !is.na(tag) & grepl("^[0-9]+[.][0-9]+$", tag)
+  if (!any(ok)) return(out)
+  plot_name <- plot_name[ok]
+  tag <- unique(data.frame(plot_name = plot_name, tag = tag[ok],
+                           stringsAsFactors = FALSE))
+  tag$suffix <- sub("^[0-9]+[.]", "", tag$tag)
+
+  rows <- list()
+  for (pl in unique(tag$plot_name)) {
+    t_pl <- tag[tag$plot_name == pl, , drop = FALSE]
+    two <- t_pl$suffix[nchar(t_pl$suffix) == 2]
+    for (d in unique(substr(two, 1, 1))) {
+      if (d == "0") next
+      decade <- paste0(d, "0")
+      followers <- t_pl$tag[t_pl$suffix %in% paste0(d, 1:9)]
+      if (length(followers) == 0 || decade %in% t_pl$suffix) next
+      rows[[length(rows) + 1]] <- data.frame(
+        plot_name      = pl,
+        missing_suffix = paste0(".", decade),
+        evidence       = paste(utils::head(sort(followers), 5), collapse = ", "),
+        candidates     = paste(sort(t_pl$tag[t_pl$suffix == d]), collapse = ", "),
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+  if (length(rows) == 0) return(out)
+  do.call(rbind, rows)
 }
 
 
@@ -79,6 +237,49 @@
   numeric_like <- !is.na(x) & grepl("^[0-9]+([.][0-9]+)?$", x)
   out <- rep(NA_real_, length(x))
   out[numeric_like] <- as.numeric(x[numeric_like])
+  out
+}
+
+
+#' Does each tag follow the one before it?
+#'
+#' Stems of one individual are tagged in sequence, and the step depends on
+#' the tag's shape: whole tags count up (`72`, `73`), decimal tags count up
+#' their suffix under the same whole part (`13.2`, `13.3`; `120.9`,
+#' `120.10`), and a whole tag can be followed by its first decimal (`373`,
+#' `373.1`). Adding 1 to the numeric value gets only the first of these right.
+#'
+#' @param tags Character vector of normalised tags, in field order.
+#' @return Logical vector, one per tag; the first is always `TRUE`, and a
+#'   label that is not a plain number never follows anything.
+#' @keywords internal
+#' @export
+.tags_consecutive <- function(tags) {
+  n <- length(tags)
+  out <- rep(TRUE, n)
+  if (n < 2) return(out)
+
+  plain <- !is.na(tags) & grepl("^[0-9]+([.][0-9]+)?$", tags)
+  whole <- ifelse(plain, sub("[.].*$", "", tags), NA_character_)
+  suffix <- ifelse(plain & grepl("[.]", tags), sub("^[0-9]+[.]", "", tags),
+                   NA_character_)
+  whole_num <- suppressWarnings(as.numeric(whole))
+  suffix_num <- suppressWarnings(as.numeric(suffix))
+
+  for (k in 2:n) {
+    j <- k - 1
+    if (!plain[k] || !plain[j]) {
+      out[k] <- FALSE
+    } else if (is.na(suffix[j]) && is.na(suffix[k])) {
+      out[k] <- whole_num[k] == whole_num[j] + 1
+    } else if (is.na(suffix[j])) {
+      out[k] <- whole[k] == whole[j] && suffix_num[k] == 1
+    } else if (!is.na(suffix[k])) {
+      out[k] <- whole[k] == whole[j] && suffix_num[k] == suffix_num[j] + 1
+    } else {
+      out[k] <- FALSE
+    }
+  }
   out
 }
 
@@ -212,7 +413,7 @@
 #' @param with_status Logical. Also fetch each stem's most recent
 #'   `stem_status`? Failure to do so is not fatal — `last_status` comes back
 #'   as `NA`.
-#' @return Data frame with `plot_name`, `id_n`, `tag`, `idtax_n`,
+#' @return Data frame with `plot_name`, `id_n`, `tag`, `tag_label`, `idtax_n`,
 #'   `stem_grouping` and `last_status`.
 #' @keywords internal
 #' @export
@@ -222,7 +423,7 @@
 
   empty <- data.frame(
     plot_name = character(0), id_n = integer(0), tag = character(0),
-    idtax_n = integer(0), stem_grouping = integer(0),
+    tag_label = character(0), idtax_n = integer(0), stem_grouping = integer(0),
     last_status = character(0), stringsAsFactors = FALSE
   )
   if (length(plot_names) == 0) return(empty)
@@ -235,6 +436,7 @@
     "SELECT dlp.plot_name,
             di.id_n,
             di.tag,
+            di.tag_label,
             di.idtax_n,
             di.stem_grouping
        FROM data_individuals di
@@ -396,6 +598,10 @@
 #'       measures it, plus `n_stems` and `in_census` — a data-quality report on
 #'       the recorded data itself, one row per stem so it joins back on
 #'       `id_n`.}
+#'     \item{`lost_tag_zeros`}{plots whose recruit suffixes reach `.11` (or
+#'       `.21`, ...) with no `.10` (or `.20`) in the file or the database —
+#'       see [.lost_tag_zeros()]. A warning: the split cannot tell which `.1`
+#'       was a `.10`.}
 #'     \item{`out_of_scope`}{rows for plots outside `plot_names`.}
 #'     \item{`summary`}{per-plot counts.}
 #'   }
@@ -486,7 +692,7 @@ split_census_table <- function(data,
   }
 
   db_plot <- trimws(as.character(existing$plot_name))
-  db_tag  <- .normalize_tag(existing$tag)
+  db_tag  <- .individual_tag_key(existing)
   existing <- existing[db_plot %in% plot_names, , drop = FALSE]
   db_tag   <- db_tag[db_plot %in% plot_names]
   db_plot  <- db_plot[db_plot %in% plot_names]
@@ -775,6 +981,12 @@ split_census_table <- function(data,
     )
   }
 
+  # File and database together: the .10 may be missing from either
+  lost_zeros <- .lost_tag_zeros(
+    c(file_plot[in_scope], db_plot),
+    c(file_tag[in_scope], db_tag)
+  )
+
   pick <- function(what) data[which(data$row_role == what), , drop = FALSE]
 
   structure(
@@ -791,6 +1003,7 @@ split_census_table <- function(data,
       missing_stems  = missing_stems,
       duplicates     = duplicates,
       existing_duplicates = existing_duplicates,
+      lost_tag_zeros = lost_zeros,
       out_of_scope   = out_of_scope,
       summary        = summary_df
     ),
@@ -841,6 +1054,13 @@ print.census_split <- function(x, ...) {
       "in the database. The recorded data cannot tell them apart —",
       "see `$existing_duplicates` for the {n_stems} stem{?s} concerned",
       "({n_latent} untouched by this census)."
+    ))
+  }
+  if (!is.null(x$lost_tag_zeros) && nrow(x$lost_tag_zeros) > 0) {
+    cli::cli_alert_warning(paste(
+      "{nrow(x$lost_tag_zeros)} recruit series reach .11 (or .21, ...) with no",
+      ".10 (or .20) - probably read as a number, so 22.10 became 22.1.",
+      "See `$lost_tag_zeros`."
     ))
   }
   if (nrow(x$taxon_drift) > 0) {
@@ -904,7 +1124,8 @@ export_census_split <- function(x, dir = ".", prefix = NULL, overwrite = FALSE) 
     "05_report"        = x$summary,
     "06_ambiguous"     = x$ambiguous,
     "07_existing_duplicates" = x$existing_duplicates,
-    "08_taxon_synonyms"      = x$taxon_synonyms
+    "08_taxon_synonyms"      = x$taxon_synonyms,
+    "09_lost_tag_zeros"      = x$lost_tag_zeros
   )
 
   written <- character(0)

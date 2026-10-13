@@ -114,6 +114,11 @@
 #'     plot_name, tag, state, species_scientific_name, species_code,
 #'     stem_diameter, quadrat (whichever are present). NULL if no duplicates.
 #'     A \code{warning()} is also raised when duplicates are found.}
+#'   \item{lost_tag_zeros}{Tibble of plots whose recruit tags reach
+#'     \code{.11} (or \code{.21}, ...) with no \code{.10} (or \code{.20}),
+#'     with the one-digit tags each may have been read as - see
+#'     \code{.lost_tag_zeros()}. Tags are read as text, so this only fires
+#'     for cells stored as numbers in the workbook. Zero rows when clean.}
 #'   \item{summary}{List with counts: n_plots, n_recruits, n_existing,
 #'     n_measurements, n_specimens, n_multi_stem_groups, n_all_stems,
 #'     n_duplicated_stems, trait_names.}
@@ -222,7 +227,9 @@ process_openforis_census <- function(data_dir = NULL,
 
   # ---- Read raw data ----
   cli::cli_alert_info("Reading tree data from {.file {tree_file}}")
-  trees <- as.data.frame(readxl::read_excel(tree_file, guess_max = 5000))
+  # Tags as text: recruit 22.10 is not 22.1
+  trees <- .read_excel_text_cols(tree_file, c(tag_col, recruit_tag_col),
+                                 guess_max = 5000)
   cli::cli_alert_success("Read {nrow(trees)} tree records")
 
   # Standardise plot_name and tag columns
@@ -262,7 +269,19 @@ process_openforis_census <- function(data_dir = NULL,
     trees$tag_recruit,
     trees$tag_existing
   )
-  trees$tag <- as.numeric(trees$tag)
+  # Kept as a label: a recruit numbered off its neighbour runs 22.1 ... 22.9,
+  # 22.10, and as a number 22.10 is 22.1 - a false duplicate, then a lost tree
+  trees$tag <- .normalize_tag(trees$tag)
+
+  # A .10 already read as a number leaves a gap after .9 - report it
+  lost_tag_zeros <- .lost_tag_zeros(trees$plot_name, trees$tag)
+  if (nrow(lost_tag_zeros) > 0) {
+    cli::cli_alert_warning(paste(
+      "{nrow(lost_tag_zeros)} recruit series reach .11 (or .21, ...) with no",
+      ".10 (or .20): those tags were probably stored as numbers in the",
+      "workbook. Check result$lost_tag_zeros against the field sheets."
+    ))
+  }
 
   # ---- Check for duplicated plot_name + tag combinations ----
   dup_key <- paste(trees$plot_name, trees$tag, sep = "__")
@@ -275,8 +294,8 @@ process_openforis_census <- function(data_dir = NULL,
       names(trees)
     )
     duplicated_stems <- trees[dup_mask, dup_cols, drop = FALSE]
-    duplicated_stems <- duplicated_stems[order(duplicated_stems$plot_name,
-                                               duplicated_stems$tag), ]
+    duplicated_stems <- duplicated_stems[.plot_tag_order(duplicated_stems$plot_name,
+                                                         duplicated_stems$tag), ]
     rownames(duplicated_stems) <- NULL
     n_dup_pairs <- length(unique(dup_key[dup_mask]))
     warning(sprintf(
@@ -522,7 +541,7 @@ process_openforis_census <- function(data_dir = NULL,
     )
   } else {
     measurements <- dplyr::tibble(
-      plot_name = character(0), tag = numeric(0),
+      plot_name = character(0), tag = character(0),
       trait_name = character(0), traitvalue = numeric(0),
       traitvalue_char = character(0)
     )
@@ -618,6 +637,7 @@ process_openforis_census <- function(data_dir = NULL,
     multi_stems = multi_stems,
     all_stems = all_stems,
     duplicated_stems = duplicated_stems,
+    lost_tag_zeros = dplyr::as_tibble(lost_tag_zeros),
     summary = summary_info
   )
 }
@@ -971,8 +991,9 @@ process_openforis_census <- function(data_dir = NULL,
 
   if (!"multi_stem" %in% names(trees)) return(NULL)
 
-  # Sort by plot_name then tag (critical for consecutive-tag logic)
-  trees <- trees[order(trees$plot_name, trees$tag), , drop = FALSE]
+  # Sort by plot_name then tag (critical for consecutive-tag logic). Tags are
+  # labels, so field order: 22.2 before 22.10, 22 before 100
+  trees <- trees[.plot_tag_order(trees$plot_name, trees$tag), , drop = FALSE]
   trees$.row_idx <- seq_len(nrow(trees))
 
   # Find group leaders
@@ -1017,12 +1038,10 @@ process_openforis_census <- function(data_dir = NULL,
     # Build flags
     flags <- rep(NA_character_, nrow(group_data))
 
-    # Flag: tags not consecutive
-    expected_tags <- seq(from = group_tag, length.out = nrow(group_data))
-    if (!all(group_data$tag == expected_tags)) {
-      non_consec <- group_data$tag != expected_tags
-      flags[non_consec] <- "tag_gap"
-    }
+    # Flag: a stem whose tag does not follow the previous one. Compared as
+    # labels, so 13.2 -> 13.3 and 120.9 -> 120.10 are consecutive
+    non_consec <- !.tags_consecutive(group_data$tag)
+    flags[non_consec] <- "tag_gap"
 
     # Flag: different taxonomy within group
     if ("species_code" %in% names(group_data)) {

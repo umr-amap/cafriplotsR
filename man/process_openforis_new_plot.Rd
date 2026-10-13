@@ -164,7 +164,11 @@ A list with components:
   \item{multi_stems}{Tibble of candidate multi-stem groupings with a
     \code{flag} column to review, or NULL.}
   \item{duplicated_stems}{Tibble of rows sharing a plot_name + tag pair, or
-    NULL. A \code{warning()} is also raised.}
+    NULL. A \code{warning()} is also raised. Tags are compared as written,
+    so \code{22.10} and \code{22.1} are two stems.}
+  \item{lost_tag_zeros}{Tibble of tag series reaching \code{.11} with no
+    \code{.10} - a \code{.10} stored as a number in the workbook - see
+    \code{.lost_tag_zeros()}. Zero rows when clean.}
   \item{summary}{List of counts.}
 }
 }
