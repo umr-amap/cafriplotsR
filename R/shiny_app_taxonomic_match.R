@@ -11,7 +11,7 @@
 #' @param data Optional data.frame or reactive, pre-loaded data to standardize
 #' @param name_column Optional character, pre-selected column name containing taxa
 #' @param language Character, initial language ("en" or "fr"), default: "fr"
-#' @param max_suggestions Integer, maximum suggestions per name, default: 10
+#' @param max_suggestions Integer, most suggestions listed per name in Review, default: 20
 #' @param mode Character, review mode ("interactive" or "batch"), default: "interactive"
 #' @param pool_taxa Optional connection pool for taxa database (will prompt for login if NULL)
 #'
@@ -23,7 +23,7 @@ app_taxonomic_match <- function(
   data = NULL,
   name_column = NULL,
   language = "fr",
-  max_suggestions = 10,
+  max_suggestions = 20,
   mode = "interactive",
   pool_taxa = NULL
 ) {

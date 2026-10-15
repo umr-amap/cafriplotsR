@@ -8,7 +8,7 @@ mod_name_review_server(
   id,
   match_results,
   mode = "interactive",
-  max_suggestions = 10,
+  max_suggestions = 20,
   min_similarity = .default_min_similarity(),
   i18n,
   backbone = shiny::reactive(NULL)
@@ -21,7 +21,7 @@ mod_name_review_server(
 
 \item{mode}{Character, review mode ("interactive" or "batch")}
 
-\item{max_suggestions}{Integer, maximum suggestions per name}
+\item{max_suggestions}{Integer, most suggestions listed per name}
 
 \item{min_similarity}{Numeric, initial value of the suggestions slider.
 The slider takes over once the user moves it.}

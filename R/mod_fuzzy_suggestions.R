@@ -25,7 +25,9 @@ mod_fuzzy_suggestions_ui <- function(id) {
 #'
 #' @param id Character, module ID
 #' @param input_name Reactive character, the name to find suggestions for
-#' @param max_suggestions Reactive or numeric, maximum suggestions to show
+#' @param max_suggestions Reactive or numeric, most suggestions listed at once.
+#'   Which suggestions are listed is set by the similarity slider; this only
+#'   caps a long list, and a note says when it does.
 #' @param min_similarity Reactive or numeric, minimum similarity threshold
 #' @param include_authors Reactive or logical, whether to include author names
 #' @param i18n Reactive returning shiny.i18n translator
@@ -53,7 +55,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
     selected_id <- shiny::reactiveVal(NULL)
 
     # Fetch suggestions when input name OR filters change
-    # Make reactive to: input_name, num_suggestions, min_similarity_slider, filter_level
+    # Make reactive to: input_name, min_similarity_slider, filter_level
     shiny::observe({
       req(input_name())
 
@@ -68,9 +70,6 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       } else {
         min_similarity
       }
-
-      # Use input value if available, otherwise use parameter default
-      max_sug <- input$num_suggestions %||% (if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions)
 
       incl_auth <- if (shiny::is.reactive(include_authors)) include_authors() else include_authors
 
@@ -205,6 +204,11 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       suggestions(matches)
     })
 
+    # Most suggestions listed at once, whatever the slider lets through
+    suggestion_cap <- shiny::reactive({
+      if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions
+    })
+
     # Suggestions header
     output$suggestions_header <- shiny::renderUI({
       req(input_name())
@@ -237,18 +241,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       shiny::tagList(
         shiny::fluidRow(
           shiny::column(
-            width = 4,
-            shiny::numericInput(
-              inputId = ns("num_suggestions"),
-              label = i18n()$t("Number of suggestions:"),
-              value = if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions,
-              min = 5,
-              max = 30,
-              step = 5
-            )
-          ),
-          shiny::column(
-            width = 4,
+            width = 6,
             shiny::sliderInput(
               inputId = ns("min_similarity_slider"),
               # The "?" opens on click as well as hover, so it also works on
@@ -289,7 +282,7 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
             )
           ),
           shiny::column(
-            width = 4,
+            width = 6,
             shiny::selectInput(
               inputId = ns("filter_level"),
               label = i18n()$t("Filter by level"),
@@ -346,9 +339,10 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       # the card index it receives lines up with the row shown here.
       sug <- sug %>% dplyr::arrange(desc(match_score))
 
-      # Limit number shown
-      num_show <- input$num_suggestions %||% (if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions)
-      sug <- head(sug, num_show)
+      # The slider decides what is listed; the cap only keeps a long list
+      # (a misspelling in a large genus, a low threshold) readable
+      n_found <- nrow(sug)
+      sug <- head(sug, suggestion_cap())
 
       ns <- session$ns
 
@@ -423,7 +417,20 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
         )
       })
 
-      shiny::div(suggestion_cards)
+      shiny::div(
+        if (n_found > nrow(sug)) {
+          shiny::p(
+            class = "text-muted",
+            style = "font-size: 0.9em;",
+            shiny::icon("info-circle"),
+            sprintf(
+              i18n()$t("Showing the %d best of %d suggestions. Raise the minimum similarity to narrow the list."),
+              nrow(sug), n_found
+            )
+          )
+        },
+        suggestion_cards
+      )
     })
 
     # Handle selection
@@ -442,9 +449,8 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
       # Sort same way as display
       sug <- sug %>% dplyr::arrange(desc(match_score))
 
-      # Limit to num_suggestions (same as display)
-      num_show <- input$num_suggestions %||% (if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions)
-      sug <- head(sug, num_show)
+      # Same cap as the display
+      sug <- head(sug, suggestion_cap())
 
       selected_row_idx <- input$selected_row
 

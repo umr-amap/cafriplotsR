@@ -20,7 +20,9 @@ mod_fuzzy_suggestions_server(
 
 \item{input_name}{Reactive character, the name to find suggestions for}
 
-\item{max_suggestions}{Reactive or numeric, maximum suggestions to show}
+\item{max_suggestions}{Reactive or numeric, most suggestions listed at once.
+Which suggestions are listed is set by the similarity slider; this only
+caps a long list, and a note says when it does.}
 
 \item{min_similarity}{Reactive or numeric, minimum similarity threshold}
 

@@ -75,8 +75,8 @@ launch_taxonomic_match_app(data = my_data, name_column = "nom_espece")
 # Lancer en anglais (le français est la langue par défaut)
 launch_taxonomic_match_app(language = "en")
 
-# Afficher davantage de suggestions par nom lors de la révision
-launch_taxonomic_match_app(max_suggestions = 20)
+# Lister jusqu'à 40 suggestions par nom lors de la révision (20 par défaut)
+launch_taxonomic_match_app(max_suggestions = 40)
 ```
 
 Le seuil d'appariement n'est **pas** un argument de lancement : il se règle dans l'onglet Appariement auto, en pourcentage, et peut être modifié d'une exécution à l'autre. Voir [Ajuster l'appariement approximatif](#ajuster-la-correspondance-approximative).
@@ -228,11 +228,10 @@ Affiche des suggestions automatiques classées par similarité avec des options 
 
 **Options de filtrage :**
 
-- **Nombre de suggestions** : Curseur pour afficher 5–30 suggestions
 - **Similarité min. (%)** : Ajuster le seuil (30–100 %), en pourcentage comme le champ de l'onglet Appariement auto. Il change seulement les suggestions affichées pour le nom en cours. Si aucune ne convient, baissez-le pour voir des noms moins ressemblants au vôtre. Le **?** à côté du curseur le rappelle dans l'application
 - **Filtre de niveau taxonomique** : Filtrer par Tous, Espèce, Genre, Famille, Ordre, Classe ou Infraspécifique
 
-Les suggestions sont toujours classées par score de similarité décroissant, la meilleure en premier.
+Les suggestions sont toujours classées par score de similarité décroissant, la meilleure en premier. Le curseur choisit celles qui sont listées ; si plus de 20 le passent (faute de frappe dans un grand genre, seuil bas), les 20 meilleures sont affichées et une note le signale. Montez le curseur pour resserrer la liste, ou voyez `max_suggestions` plus bas pour changer cette limite.
 
 Chaque carte de suggestion affiche :
 
@@ -467,11 +466,11 @@ Ce même seuil sert de valeur initiale au curseur **Similarité min. (%)** de l'
 
 ### Augmenter les Suggestions
 
-Afficher plus de suggestions approximatives par nom :
+Lister plus de suggestions par nom dans l'onglet Révision (le curseur de similarité choisit lesquelles ; ce paramètre ne fait que limiter une longue liste, et 50 au plus sont récupérées) :
 
 ```{r}
-# Afficher les 20 meilleures suggestions au lieu des 10 par défaut
-launch_taxonomic_match_app(max_suggestions = 20)
+# Lister jusqu'à 40 suggestions au lieu des 20 par défaut
+launch_taxonomic_match_app(max_suggestions = 40)
 ```
 
 Vous pouvez aussi ajuster ceci de manière interactive dans l'onglet Révision en utilisant le curseur.
@@ -493,7 +492,7 @@ launch_taxonomic_match_app(
   data            = NULL,          # Optionnel : pré-charger un data.frame
   name_column     = NULL,          # Optionnel : pré-sélectionner une colonne
   language        = c("fr", "en"), # Langue de l'interface (par défaut : "fr")
-  max_suggestions = 10,            # Max suggestions par nom non apparié
+  max_suggestions = 20,            # Suggestions listées au plus par nom en Révision
   mode            = "interactive", # Mode de révision ("interactive" ou "batch")
   launch.browser  = TRUE           # Ouvrir l'application dans le navigateur
 )

@@ -8,7 +8,7 @@ launch_taxonomic_match_app(
   data = NULL,
   name_column = NULL,
   language = c("fr", "en"),
-  max_suggestions = 10,
+  max_suggestions = 20,
   mode = c("interactive", "batch"),
   launch.browser = TRUE
 )
@@ -24,8 +24,9 @@ containing taxonomic names. If NULL, user will select interactively.}
 - "fr" (French, default)
 - "en" (English)}
 
-\item{max_suggestions}{Integer, maximum number of fuzzy match suggestions
-to show per unmatched name. Default: 10}
+\item{max_suggestions}{Integer, most suggestions listed per name in the
+Review tab. Which ones are listed is set by the similarity slider; this
+only caps a long list. At most 50 are fetched. Default: 20}
 
 \item{mode}{Character, review mode for unmatched names. Options:
 - "interactive" (default): Review names one-by-one
@@ -98,8 +99,8 @@ launch_taxonomic_match_app(
 # Launch in French
 launch_taxonomic_match_app(language = "fr")
 
-# Show more suggestions per name
-launch_taxonomic_match_app(max_suggestions = 20)
+# List up to 40 suggestions per name
+launch_taxonomic_match_app(max_suggestions = 40)
 }
 
 }
