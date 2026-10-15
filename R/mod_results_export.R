@@ -129,9 +129,9 @@ mod_results_export_server <- function(id, results, original_data, i18n,
       column_choices <- c("original", "ids", "corrected", "metadata")
       names(column_choices) <- c(
         i18n()$t("Original data"),
-        i18n()$t("Matched IDs (idtax_n, idtax_good_n)"),
-        i18n()$t("Corrected names"),
-        i18n()$t("Match metadata (method, score)")
+        i18n()$t("Taxon identifiers (idtax_n, idtax_good_n)"),
+        i18n()$t("Standardized names (corrected_name, matched_name)"),
+        i18n()$t("Match details (method, score, synonymy)")
       )
 
       shiny::tagList(
@@ -253,16 +253,19 @@ mod_results_export_server <- function(id, results, original_data, i18n,
 
       present <- names(results()$data)
 
+      # One vocabulary throughout: "input name" is the user's, matched_name is
+      # the backbone entry it was paired with, and the name to use is
+      # corrected_name - which is why corrected_name comes first.
       descriptions <- list(
-        idtax_n            = i18n()$t("Identifier of the matched taxon in the taxonomic backbone."),
-        idtax_good_n       = i18n()$t("Identifier of the accepted taxon. Differs from idtax_n when the matched name is a synonym."),
-        matched_name       = i18n()$t("Name found in the backbone corresponding to your input name (may be a synonym)."),
-        corrected_name     = i18n()$t("Final standardized name: the accepted name when the match is a synonym (or the name from the chosen reference, when one was chosen)."),
-        accepted_name      = i18n()$t("Accepted name when the matched name is a synonym; empty otherwise."),
-        is_synonym         = i18n()$t("TRUE when the matched name is a synonym of an accepted name."),
+        corrected_name     = i18n()$t("The name to use. Same as matched_name, except when matched_name is a synonym: it then holds the accepted name instead (or the name from the chosen reference, when one was chosen)."),
+        matched_name       = i18n()$t("Name in the backbone that your input name was matched to, spelling corrected. It may be a synonym: use corrected_name for your analyses."),
+        idtax_n            = i18n()$t("Identifier of matched_name in the taxonomic backbone."),
+        idtax_good_n       = i18n()$t("Identifier of the accepted taxon in the taxonomic backbone. Differs from idtax_n when matched_name is a synonym."),
+        is_synonym         = i18n()$t("TRUE when matched_name is a synonym; corrected_name then holds its accepted name."),
+        accepted_name      = i18n()$t("Filled only when matched_name is a synonym: the accepted name it refers to, already copied into corrected_name. Empty otherwise."),
         match_method       = i18n()$t("How the name was matched: exact, genus_constrained, fuzzy, manual (chosen during review), or unresolved."),
-        match_score        = i18n()$t("Similarity between your input name and the matched name, from 0 to 1 (1 = exact or user-confirmed match)."),
-        backbone_taxon_name   = i18n()$t("Accepted name in the reference chosen for the output."),
+        match_score        = i18n()$t("Similarity between your input name and matched_name, from 0 to 1 (1 = exact or user-confirmed match)."),
+        backbone_taxon_name   = i18n()$t("Accepted name in the reference chosen for the output, already copied into corrected_name."),
         backbone_family       = i18n()$t("Family according to the chosen reference."),
         backbone_authors      = i18n()$t("Taxonomic authorship according to the chosen reference."),
         backbone_status_raw   = i18n()$t("Status of the name in the chosen reference (e.g. Accepted)."),
@@ -288,7 +291,32 @@ mod_results_export_server <- function(id, results, original_data, i18n,
         )
       })
 
-      shiny::tags$details(
+      # Answers the first question people ask of the export - "which column
+      # holds the valid name?" - without making them open the table below.
+      which_name <- if ("corrected_name" %in% present) {
+        shiny::div(
+          style = "margin: 10px 0; background:#eafaf1; padding:12px 16px; border-radius:5px; border-left:4px solid #27ae60;",
+          shiny::tags$strong(
+            shiny::icon("check-circle"), " ",
+            i18n()$t("Which name should I use?")
+          ),
+          shiny::tags$p(
+            style = "margin: 6px 0 0 0;",
+            i18n()$t("Use the corrected_name column. Each name goes through two steps:")
+          ),
+          shiny::tags$p(
+            style = "margin: 6px 0 0 0; font-family: monospace;",
+            i18n()$t("your input name"), " → matched_name → corrected_name"
+          ),
+          shiny::tags$ul(
+            style = "margin: 6px 0 0 0; padding-left: 20px;",
+            shiny::tags$li(i18n()$t("matched_name: the name found in the backbone, spelling corrected. It may be a synonym.")),
+            shiny::tags$li(i18n()$t("corrected_name: the accepted name of that taxon, synonyms resolved. This is the valid name."))
+          )
+        )
+      }
+
+      shiny::tagList(which_name, shiny::tags$details(
         style = "margin: 10px 0 18px 0; background:#eaf3fb; padding:12px 16px; border-radius:5px; border-left:4px solid #3498db;",
         shiny::tags$summary(
           style = "cursor:pointer; font-weight:bold; color:#2c3e50;",
@@ -309,7 +337,7 @@ mod_results_export_server <- function(id, results, original_data, i18n,
           style = "background: transparent; margin-bottom: 0;",
           shiny::tags$tbody(rows)
         )
-      )
+      ))
     })
 
     # Preview

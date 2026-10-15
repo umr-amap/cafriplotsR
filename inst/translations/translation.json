@@ -23,7 +23,7 @@
     },
     {
       "en": "Enrich with Traits",
-      "fr": "Enrichir avec traits"
+      "fr": "Enrichir avec les traits"
     },
     {
       "en": "Data Input",
@@ -99,15 +99,15 @@
     },
     {
       "en": "Exact matches:",
-      "fr": "Correspondances exactes :"
+      "fr": "Appariements exacts :"
     },
     {
       "en": "Genus-level matches:",
-      "fr": "Correspondances au niveau du genre :"
+      "fr": "Appariements au niveau du genre :"
     },
     {
       "en": "Fuzzy matches:",
-      "fr": "Correspondances approximatives :"
+      "fr": "Appariements approximatifs :"
     },
     {
       "en": "Requiring review:",
@@ -115,11 +115,11 @@
     },
     {
       "en": "Minimum similarity (%):",
-      "fr": "Similarité minimum (%) :"
+      "fr": "Similarité minimale (%) :"
     },
     {
       "en": "Minimum similarity percentage for fuzzy matching. Names with similarity below this threshold will not be matched. Higher values = more strict matching (fewer but more accurate matches).",
-      "fr": "Pourcentage de similarité minimum pour la correspondance floue. Les noms avec une similarité inférieure à ce seuil ne seront pas appariés. Valeurs plus élevées = appariement plus strict (moins de correspondances mais plus précises)."
+      "fr": "Pourcentage de similarité minimale pour l'appariement approximatif. Les noms dont la similarité est inférieure à ce seuil ne seront pas appariés. Valeurs plus élevées = appariement plus strict (moins d'appariements, mais plus fiables)."
     },
     {
       "en": "Progress Summary",
@@ -354,36 +354,12 @@
       "fr": "Toutes les colonnes de votre fichier d'origine sont conservées. L'application ajoute les colonnes standardisées décrites ci-dessous."
     },
     {
-      "en": "Identifier of the matched taxon in the taxonomic backbone.",
-      "fr": "Identifiant du taxon apparié dans le référentiel taxonomique."
-    },
-    {
-      "en": "Identifier of the accepted taxon. Differs from idtax_n when the matched name is a synonym.",
-      "fr": "Identifiant du taxon accepté. Diffère de idtax_n lorsque le nom apparié est un synonyme."
-    },
-    {
-      "en": "Name found in the backbone corresponding to your input name (may be a synonym).",
-      "fr": "Nom trouvé dans le référentiel correspondant à votre nom d'entrée (peut être un synonyme)."
-    },
-    {
       "en": "Final standardized name: the accepted name when the match is a synonym (or the WCVP name if that option was enabled).",
       "fr": "Nom standardisé final : le nom accepté lorsque l'appariement est un synonyme (ou le nom WCVP si cette option a été activée)."
     },
     {
-      "en": "Accepted name when the matched name is a synonym; empty otherwise.",
-      "fr": "Nom accepté lorsque le nom apparié est un synonyme ; vide sinon."
-    },
-    {
-      "en": "TRUE when the matched name is a synonym of an accepted name.",
-      "fr": "TRUE lorsque le nom apparié est un synonyme d'un nom accepté."
-    },
-    {
       "en": "How the name was matched: exact, genus_constrained, fuzzy, manual (chosen during review), or unresolved.",
       "fr": "Méthode d'appariement : exact, genus_constrained, fuzzy, manual (choisi lors de la révision) ou unresolved."
-    },
-    {
-      "en": "Similarity between your input name and the matched name, from 0 to 1 (1 = exact or user-confirmed match).",
-      "fr": "Similarité entre votre nom d'entrée et le nom apparié, de 0 à 1 (1 = appariement exact ou confirmé par l'utilisateur)."
     },
     {
       "en": "Accepted name from the World Checklist of Vascular Plants (WCVP).",
@@ -994,14 +970,6 @@
       "fr": "Noms saisis originaux"
     },
     {
-      "en": "Taxonomic IDs",
-      "fr": "IDs taxonomiques"
-    },
-    {
-      "en": "Match metadata",
-      "fr": "Métadonnées d'appariement"
-    },
-    {
       "en": "Fetch Traits from Database",
       "fr": "Récupérer les traits de la base de données"
     },
@@ -1056,10 +1024,6 @@
     {
       "en": "Filter by level",
       "fr": "Filtrer par niveau"
-    },
-    {
-      "en": "Min. similarity",
-      "fr": "Similarité min."
     },
     {
       "en": "Level:",
@@ -7867,15 +7831,15 @@
     },
     {
       "en": "Interrupted matching found",
-      "fr": "Correspondance interrompue trouvée"
+      "fr": "Appariement interrompu trouvé"
     },
     {
       "en": "An interrupted matching session was found for this dataset:",
-      "fr": "Une session de correspondance interrompue a été trouvée pour ce jeu de données :"
+      "fr": "Une session d'appariement interrompue a été trouvée pour ce jeu de données :"
     },
     {
       "en": "names processed by fuzzy matching",
-      "fr": "noms traités par correspondance floue"
+      "fr": "noms traités par appariement approximatif"
     },
     {
       "en": "Do you want to resume where you left off, or start fresh?",
@@ -7895,7 +7859,7 @@
     },
     {
       "en": "Starting fuzzy matching for",
-      "fr": "Démarrage de la correspondance floue pour"
+      "fr": "Démarrage de l'appariement approximatif pour"
     },
     {
       "en": "unmatched name(s)... This may take some time.",
@@ -7923,11 +7887,11 @@
     },
     {
       "en": "Cached backbone is invalid. Please connect online to refresh it.",
-      "fr": "Le referentiel en cache est invalide. Veuillez vous connecter en ligne pour le rafraichir."
+      "fr": "Le référentiel en cache est invalide. Veuillez vous connecter en ligne pour le rafraîchir."
     },
     {
       "en": "Offline mode - using cached taxonomic backbone.",
-      "fr": "Mode hors ligne - utilisation du referentiel taxonomique en cache."
+      "fr": "Mode hors ligne - utilisation du référentiel taxonomique en cache."
     },
     {
       "en": "Review and create the validated links between individuals and specimens in the database.",
@@ -8495,7 +8459,7 @@
     },
     {
       "en": "The minimum similarity (%) controls how strict the automatic matching is. A higher threshold is more conservative — it reduces incorrect matches but may result in more names to review manually. A lower threshold increases automatic matching but raises the risk of errors.",
-      "fr": "La similarité minimum (%) détermine la rigueur de l'appariement automatique. Un seuil élevé est plus conservateur : il réduit les mauvais appariements mais peut générer plus de noms à réviser manuellement. Un seuil plus bas augmente l'appariement automatique au prix d'un risque accru d'erreurs."
+      "fr": "La similarité minimale (%) détermine la rigueur de l'appariement automatique. Un seuil élevé est plus conservateur : il réduit les mauvais appariements mais peut générer plus de noms à réviser manuellement. Un seuil plus bas augmente l'appariement automatique au prix d'un risque accru d'erreurs."
     },
     {
       "en": "Important:",
@@ -9554,10 +9518,6 @@
       "fr": "Export :"
     },
     {
-      "en": "Download the standardized table as Excel, CSV or RDS. Your original columns are kept and the added ones - matched and accepted name, match method and score, taxon identifiers - are described one by one on the Export tab.",
-      "fr": "Téléchargez le tableau standardisé au format Excel, CSV ou RDS. Vos colonnes d'origine sont conservées et les colonnes ajoutées - nom apparié et nom accepté, méthode et score d'appariement, identifiants de taxon - sont décrites une à une dans l'onglet Export."
-    },
-    {
       "en": "Full documentation:",
       "fr": "Documentation complète :"
     },
@@ -9571,7 +9531,7 @@
     },
     {
       "en": "Existing columns renamed to avoid conflicts with the matching results:",
-      "fr": "Colonnes existantes renommées pour éviter les conflits avec les résultats de correspondance :"
+      "fr": "Colonnes existantes renommées pour éviter les conflits avec les résultats de l'appariement :"
     },
     {
       "en": "%d fuzzy matches applied.",
@@ -10635,23 +10595,23 @@
     },
     {
       "en": "Matched to: %s",
-      "fr": "Associé à : %s"
+      "fr": "Apparié à : %s"
     },
     {
       "en": "No matches found for '%s' at '%s' level. Try 'All levels' or a different level.",
-      "fr": "Aucune correspondance trouvée pour '%s' au niveau '%s'. Essayez 'Tous les niveaux' ou un autre niveau."
+      "fr": "Aucun nom trouvé pour '%s' au niveau '%s'. Essayez 'Tous les niveaux' ou un autre niveau."
     },
     {
       "en": "No matches found for '%s' in the backbone database.",
-      "fr": "Aucune correspondance trouvée pour '%s' dans le référentiel taxonomique."
+      "fr": "Aucun nom trouvé pour '%s' dans le référentiel taxonomique."
     },
     {
       "en": "Found %d exact match(es).",
-      "fr": "%d correspondance(s) exacte(s) trouvée(s)."
+      "fr": "%d résultat(s) exact(s)."
     },
     {
       "en": "Found %d fuzzy match(es).",
-      "fr": "%d correspondance(s) approchée(s) trouvée(s)."
+      "fr": "%d résultat(s) approximatif(s)."
     },
     {
       "en": "Search Results (%d found)",
@@ -10940,14 +10900,6 @@
     {
       "en": "Names from",
       "fr": "Noms de"
-    },
-    {
-      "en": "Final standardized name: the accepted name when the match is a synonym (or the name from the chosen reference, when one was chosen).",
-      "fr": "Nom standardisé final : le nom accepté lorsque la correspondance est un synonyme (ou le nom du référentiel choisi, si un référentiel a été choisi)."
-    },
-    {
-      "en": "Accepted name in the reference chosen for the output.",
-      "fr": "Nom accepté dans le référentiel choisi pour les résultats."
     },
     {
       "en": "Family according to the chosen reference.",
@@ -11396,6 +11348,86 @@
     {
       "en": "A tag written 22.10 was probably read as the number 22.1, typed as a number in Excel or converted on reading, and can no longer be told from 22.1. Check the candidates against the field sheets, and type the tag column as text in the file so that 22.10 is kept.",
       "fr": "Une étiquette écrite 22.10 a probablement été lue comme le nombre 22.1, saisie comme nombre dans Excel ou convertie à la lecture, et ne se distingue plus de 22.1. Vérifiez les candidates sur les fiches de terrain, et mettez la colonne des tags au format texte dans le fichier pour que 22.10 soit conservé."
+    },
+    {
+      "en": "Taxon identifiers (idtax_n, idtax_good_n)",
+      "fr": "Identifiants des taxons (idtax_n, idtax_good_n)"
+    },
+    {
+      "en": "Standardized names (corrected_name, matched_name)",
+      "fr": "Noms standardisés (corrected_name, matched_name)"
+    },
+    {
+      "en": "Match details (method, score, synonymy)",
+      "fr": "Détails de l'appariement (méthode, score, synonymie)"
+    },
+    {
+      "en": "The name to use. Same as matched_name, except when matched_name is a synonym: it then holds the accepted name instead (or the name from the chosen reference, when one was chosen).",
+      "fr": "Le nom à utiliser. Identique à matched_name, sauf lorsque matched_name est un synonyme : il contient alors le nom accepté à la place (ou le nom du référentiel choisi, si un référentiel a été choisi)."
+    },
+    {
+      "en": "Name in the backbone that your input name was matched to, spelling corrected. It may be a synonym: use corrected_name for your analyses.",
+      "fr": "Nom du référentiel auquel votre nom saisi a été apparié, orthographe corrigée. Il peut s'agir d'un synonyme : utilisez corrected_name pour vos analyses."
+    },
+    {
+      "en": "Identifier of matched_name in the taxonomic backbone.",
+      "fr": "Identifiant de matched_name dans le référentiel taxonomique."
+    },
+    {
+      "en": "Identifier of the accepted taxon in the taxonomic backbone. Differs from idtax_n when matched_name is a synonym.",
+      "fr": "Identifiant du taxon accepté dans le référentiel taxonomique. Diffère de idtax_n lorsque matched_name est un synonyme."
+    },
+    {
+      "en": "TRUE when matched_name is a synonym; corrected_name then holds its accepted name.",
+      "fr": "TRUE lorsque matched_name est un synonyme ; corrected_name contient alors son nom accepté."
+    },
+    {
+      "en": "Filled only when matched_name is a synonym: the accepted name it refers to, already copied into corrected_name. Empty otherwise.",
+      "fr": "Renseigné uniquement lorsque matched_name est un synonyme : le nom accepté auquel il renvoie, déjà reporté dans corrected_name. Vide sinon."
+    },
+    {
+      "en": "Similarity between your input name and matched_name, from 0 to 1 (1 = exact or user-confirmed match).",
+      "fr": "Similarité entre votre nom saisi et matched_name, de 0 à 1 (1 = appariement exact ou confirmé par l'utilisateur)."
+    },
+    {
+      "en": "Accepted name in the reference chosen for the output, already copied into corrected_name.",
+      "fr": "Nom accepté dans le référentiel choisi pour les résultats, déjà reporté dans corrected_name."
+    },
+    {
+      "en": "Which name should I use?",
+      "fr": "Quel nom utiliser ?"
+    },
+    {
+      "en": "Use the corrected_name column. Each name goes through two steps:",
+      "fr": "Utilisez la colonne corrected_name. Chaque nom passe par deux étapes :"
+    },
+    {
+      "en": "your input name",
+      "fr": "votre nom saisi"
+    },
+    {
+      "en": "matched_name: the name found in the backbone, spelling corrected. It may be a synonym.",
+      "fr": "matched_name : le nom trouvé dans le référentiel, orthographe corrigée. Il peut s'agir d'un synonyme."
+    },
+    {
+      "en": "corrected_name: the accepted name of that taxon, synonyms resolved. This is the valid name.",
+      "fr": "corrected_name : le nom accepté de ce taxon, synonymes résolus. C'est le nom valide."
+    },
+    {
+      "en": "Matched to: %s (synonym; accepted name kept in corrected_name: %s)",
+      "fr": "Apparié à : %s (synonyme ; nom accepté reporté dans corrected_name : %s)"
+    },
+    {
+      "en": "Download the standardized table as Excel, CSV or RDS. Your original columns are kept. The name to use is in the corrected_name column (accepted name, synonyms resolved); the other added columns are described one by one on the Export tab.",
+      "fr": "Téléchargez le tableau standardisé au format Excel, CSV ou RDS. Vos colonnes d'origine sont conservées. Le nom à utiliser se trouve dans la colonne corrected_name (nom accepté, synonymes résolus) ; les autres colonnes ajoutées sont décrites une à une dans l'onglet Exporter."
+    },
+    {
+      "en": "Min. similarity (%)",
+      "fr": "Similarité min. (%)"
+    },
+    {
+      "en": "This slider only changes which suggestions are listed below for this name; it does not re-run the automatic matching. If none of the suggestions is right, lower it: names that look less like yours are then listed too, which can bring up the right one despite a bad misspelling or an unusual spelling. Raise it to keep only the closest names.",
+      "fr": "Ce curseur change seulement les suggestions affichées ci-dessous pour ce nom ; il ne relance pas l'appariement automatique. Si aucune suggestion ne convient, baissez-le : des noms moins ressemblants au vôtre s'affichent alors aussi, ce qui peut faire apparaître le bon malgré une grosse faute ou une orthographe inhabituelle. Montez-le pour ne garder que les noms les plus proches."
     }
   ]
 }

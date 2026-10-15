@@ -59,8 +59,15 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
 
       name <- input_name()
 
-      # Use slider value if available, otherwise use parameter default
-      min_sim <- input$min_similarity_slider %||% (if (shiny::is.reactive(min_similarity)) min_similarity() else min_similarity)
+      # Use slider value if available, otherwise use parameter default. The
+      # slider is in percent, like the Auto Match field; matching takes 0-1.
+      min_sim <- if (!is.null(input$min_similarity_slider)) {
+        input$min_similarity_slider / 100
+      } else if (shiny::is.reactive(min_similarity)) {
+        min_similarity()
+      } else {
+        min_similarity
+      }
 
       # Use input value if available, otherwise use parameter default
       max_sug <- input$num_suggestions %||% (if (shiny::is.reactive(max_suggestions)) max_suggestions() else max_suggestions)
@@ -244,11 +251,41 @@ mod_fuzzy_suggestions_server <- function(id, input_name, max_suggestions = shiny
             width = 4,
             shiny::sliderInput(
               inputId = ns("min_similarity_slider"),
-              label = i18n()$t("Min. similarity"),
-              value = if (shiny::is.reactive(min_similarity)) min_similarity() else min_similarity,
-              min = 0.3,
-              max = 1.0,
-              step = 0.05
+              # The "?" opens on click as well as hover, so it also works on
+              # touch screens, where there is no hover.
+              label = shiny::tagList(
+                i18n()$t("Min. similarity (%)"), " ",
+                shiny::tags$a(
+                  id = ns("min_similarity_help"),
+                  href = "#",
+                  tabindex = "0",
+                  role = "button",
+                  `data-toggle` = "popover",
+                  `data-trigger` = "hover focus",
+                  `data-placement` = "top",
+                  `data-content` = i18n()$t(paste0(
+                    "This slider only changes which suggestions are listed below for this name; ",
+                    "it does not re-run the automatic matching. If none of the suggestions is right, ",
+                    "lower it: names that look less like yours are then listed too, which can bring up ",
+                    "the right one despite a bad misspelling or an unusual spelling. Raise it to keep ",
+                    "only the closest names."
+                  )),
+                  onclick = "return false;",
+                  style = "color: #3498db;",
+                  shiny::icon("question-circle")
+                ),
+                shiny::tags$script(sprintf(
+                  "$(function() { $('#%s').popover(); });",
+                  ns("min_similarity_help")
+                ))
+              ),
+              # Percent, as on the Auto Match tab and the score badges, so
+              # the same threshold reads the same everywhere in the app
+              value = round(100 * (if (shiny::is.reactive(min_similarity)) min_similarity() else min_similarity)),
+              min = 30,
+              max = 100,
+              step = 5,
+              post = " %"
             )
           ),
           shiny::column(

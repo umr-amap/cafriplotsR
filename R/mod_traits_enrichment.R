@@ -261,9 +261,9 @@ mod_traits_enrichment_server <- function(id, results, column_name, i18n) {
       col_choices <- c("original", "corrected", "ids", "metadata")
       names(col_choices) <- c(
         i18n()$t("Original input names"),
-        i18n()$t("Corrected names"),
-        i18n()$t("Taxonomic IDs"),
-        i18n()$t("Match metadata")
+        i18n()$t("Standardized names (corrected_name, matched_name)"),
+        i18n()$t("Taxon identifiers (idtax_n, idtax_good_n)"),
+        i18n()$t("Match details (method, score, synonymy)")
       )
 
       shiny::tagList(
