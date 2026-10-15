@@ -8,7 +8,7 @@ app_taxonomic_match(
   data = NULL,
   name_column = NULL,
   language = "fr",
-  max_suggestions = 10,
+  max_suggestions = 20,
   mode = "interactive",
   pool_taxa = NULL
 )
@@ -20,7 +20,7 @@ app_taxonomic_match(
 
 \item{language}{Character, initial language ("en" or "fr"), default: "fr"}
 
-\item{max_suggestions}{Integer, maximum suggestions per name, default: 10}
+\item{max_suggestions}{Integer, most suggestions listed per name in Review, default: 20}
 
 \item{mode}{Character, review mode ("interactive" or "batch"), default: "interactive"}
 

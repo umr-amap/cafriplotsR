@@ -14,8 +14,9 @@
 #' @param language Character, initial interface language. Options:
 #'   - "fr" (French, default)
 #'   - "en" (English)
-#' @param max_suggestions Integer, maximum number of fuzzy match suggestions
-#'   to show per unmatched name. Default: 10
+#' @param max_suggestions Integer, most suggestions listed per name in the
+#'   Review tab. Which ones are listed is set by the similarity slider; this
+#'   only caps a long list. At most 50 are fetched. Default: 20
 #' @param mode Character, review mode for unmatched names. Options:
 #'   - "interactive" (default): Review names one-by-one
 #'   - "batch": Review all names in table view (not yet implemented)
@@ -79,8 +80,8 @@
 #' # Launch in French
 #' launch_taxonomic_match_app(language = "fr")
 #'
-#' # Show more suggestions per name
-#' launch_taxonomic_match_app(max_suggestions = 20)
+#' # List up to 40 suggestions per name
+#' launch_taxonomic_match_app(max_suggestions = 40)
 #' }
 #'
 #' @seealso
@@ -93,7 +94,7 @@ launch_taxonomic_match_app <- function(
   data = NULL,
   name_column = NULL,
   language = c("fr", "en"),
-  max_suggestions = 10,
+  max_suggestions = 20,
   mode = c("interactive", "batch"),
   launch.browser = TRUE
 ) {

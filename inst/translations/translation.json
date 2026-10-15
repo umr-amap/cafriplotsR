@@ -202,10 +202,6 @@
       "fr": "Accepter"
     },
     {
-      "en": "Number of suggestions:",
-      "fr": "Nombre de suggestions :"
-    },
-    {
       "en": "Review mode:",
       "fr": "Mode de révision :"
     },
@@ -11428,6 +11424,10 @@
     {
       "en": "This slider only changes which suggestions are listed below for this name; it does not re-run the automatic matching. If none of the suggestions is right, lower it: names that look less like yours are then listed too, which can bring up the right one despite a bad misspelling or an unusual spelling. Raise it to keep only the closest names.",
       "fr": "Ce curseur change seulement les suggestions affichées ci-dessous pour ce nom ; il ne relance pas l'appariement automatique. Si aucune suggestion ne convient, baissez-le : des noms moins ressemblants au vôtre s'affichent alors aussi, ce qui peut faire apparaître le bon malgré une grosse faute ou une orthographe inhabituelle. Montez-le pour ne garder que les noms les plus proches."
+    },
+    {
+      "en": "Showing the %d best of %d suggestions. Raise the minimum similarity to narrow the list.",
+      "fr": "Affichage des %d meilleures suggestions sur %d. Montez la similarité minimale pour resserrer la liste."
     }
   ]
 }

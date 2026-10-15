@@ -75,8 +75,8 @@ launch_taxonomic_match_app(data = my_data, name_column = "species_name")
 # Launch in English (default is French)
 launch_taxonomic_match_app(language = "en")
 
-# Show more suggestions per name during review
-launch_taxonomic_match_app(max_suggestions = 20)
+# List up to 40 suggestions per name during review (default 20)
+launch_taxonomic_match_app(max_suggestions = 40)
 ```
 
 The matching threshold is **not** a launch argument: it is set on the Auto Match tab, as a percentage, and can be changed between runs. See [Adjusting Fuzzy Matching](#adjusting-fuzzy-matching).
@@ -228,11 +228,10 @@ Shows automatic suggestions ranked by similarity with advanced filtering options
 
 **Filtering options:**
 
-- **Number of suggestions**: Slider to show 5–30 suggestions
 - **Min. similarity (%)**: Adjust threshold (30–100 %), in percent like the Auto Match field. It only changes which suggestions are listed for the current name. If none of them is right, lower it to see names that look less like yours. The **?** beside it says the same in the app
 - **Taxonomic level filter**: Filter by All, Species, Genus, Family, Order, Class, or Infraspecific
 
-Suggestions are always listed best match first, by similarity score.
+Suggestions are always listed best match first, by similarity score. The slider decides which ones are listed; if more than 20 pass it (a misspelling in a large genus, a low threshold), the best 20 are shown and a note says so. Raise the slider to narrow the list, or see `max_suggestions` below to change that limit.
 
 Each suggestion card displays:
 
@@ -467,11 +466,11 @@ The same threshold seeds the **Min. similarity (%)** slider on the Review tab, w
 
 ### Increasing Suggestions
 
-Show more fuzzy match suggestions per name:
+List more suggestions per name in the Review tab (the similarity slider decides which ones; this only caps a long list, and at most 50 are fetched):
 
 ```{r}
-# Show top 20 suggestions instead of default 10
-launch_taxonomic_match_app(max_suggestions = 20)
+# List up to 40 suggestions instead of the default 20
+launch_taxonomic_match_app(max_suggestions = 40)
 ```
 
 You can also adjust this interactively in the Review tab using the slider.
@@ -493,7 +492,7 @@ launch_taxonomic_match_app(
   data           = NULL,         # Optional: pre-load a data.frame
   name_column    = NULL,         # Optional: pre-select a column name
   language       = c("fr", "en"),# Interface language (default: "fr")
-  max_suggestions = 10,          # Max suggestions per unmatched name
+  max_suggestions = 20,          # Most suggestions listed per name in Review
   mode           = "interactive",# Review mode ("interactive" or "batch")
   launch.browser = TRUE          # Whether to open app in the browser
 )
