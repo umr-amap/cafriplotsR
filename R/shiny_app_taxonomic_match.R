@@ -484,8 +484,8 @@ app_taxonomic_match <- function(
               shiny::tags$strong(i18n()$t("Export:")), " ",
               i18n()$t(paste0(
                 "Download the standardized table as Excel, CSV or RDS. Your original columns are ",
-                "kept and the added ones - matched and accepted name, match method and score, ",
-                "taxon identifiers - are described one by one on the Export tab."
+                "kept. The name to use is in the corrected_name column (accepted name, synonyms ",
+                "resolved); the other added columns are described one by one on the Export tab."
               ))
             ),
             shiny::tags$li(

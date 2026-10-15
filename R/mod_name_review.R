@@ -437,7 +437,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
 
         # Show success notification
         shiny::showNotification(
-          sprintf(i18n()$t("Matched to: %s"), matched_row$matched_name),
+          .review_match_message(decisions[[name]], i18n()),
           type = "message",
           duration = 3
         )
@@ -700,7 +700,7 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
 
         # Show success and move to next
         shiny::showNotification(
-          sprintf(i18n()$t("Matched to: %s"), matched_row$matched_name),
+          .review_match_message(decisions[[name]], i18n()),
           type = "message",
           duration = 3
         )
@@ -979,4 +979,29 @@ mod_name_review_server <- function(id, match_results, mode = "interactive",
   search <- search[search != from & pending[search]]
 
   if (length(search) == 0L) NA_integer_ else search[[1]]
+}
+
+
+#' Confirmation shown after a name is matched during review
+#'
+#' Names the matched name and, when it is a synonym, the accepted name that
+#' will actually end up in `corrected_name` - otherwise picking a synonym looks
+#' as if the synonym itself were kept.
+#'
+#' @param decision List recorded for the reviewed name, with `matched_name`
+#'   and `corrected_name`.
+#' @param translator A shiny.i18n translator.
+#' @return A character string.
+#' @noRd
+.review_match_message <- function(decision, translator) {
+  matched <- decision$matched_name
+  corrected <- decision$corrected_name
+  if (!is.null(corrected) && !is.na(corrected) && !identical(corrected, matched)) {
+    sprintf(
+      translator$t("Matched to: %s (synonym; accepted name kept in corrected_name: %s)"),
+      matched, corrected
+    )
+  } else {
+    sprintf(translator$t("Matched to: %s"), matched)
+  }
 }

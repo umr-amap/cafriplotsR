@@ -98,7 +98,7 @@ The app uses a **tabbed workflow** that guides you through each phase sequential
 1. **Auto Match** — Automatic matching
 2. **Review** — Manual review of unmatched names
 3. **Export** — Download results
-4. **Traits Enrichment** — Add species traits (hidden in offline mode)
+4. **Enrich with Traits** — Add species traits (hidden in offline mode)
 
 ### Phase 2: Upload Your Data
 
@@ -200,7 +200,7 @@ When matching completes, the Auto Match tab shows a **Matching Summary**: counts
 The per-name results are not on this tab. To see them you go to one of two places:
 
 - The **Review tab**, which walks you through the names the matcher could not settle, one at a time.
-- The **Export tab**, whose preview table lists every row with all its columns — `matched_name`, `match_method`, `match_score`, `idtax_n`, `is_synonym`, `accepted_name` and the rest. See [Understanding Output Columns](#understanding-output-columns) for what each one holds.
+- The **Export tab**, whose preview table lists every row with all its columns — `corrected_name` (the name to use), `matched_name`, `match_method`, `match_score`, `idtax_n`, `is_synonym`, `accepted_name` and the rest. See [Understanding Output Columns](#understanding-output-columns) for what each one holds.
 
 **Where the colours are.** Scores are colour-coded as badges on the cards in the **Review tab** — beside each fuzzy suggestion and each manual-search result — and nowhere else. The Export preview is a plain table with no conditional colouring, and the Matching Summary above has no per-name scores to colour at all. Read the badges as:
 
@@ -229,7 +229,7 @@ Shows automatic suggestions ranked by similarity with advanced filtering options
 **Filtering options:**
 
 - **Number of suggestions**: Slider to show 5–30 suggestions
-- **Minimum similarity**: Adjust threshold (0.3–1.0)
+- **Min. similarity (%)**: Adjust threshold (30–100 %), in percent like the Auto Match field. It only changes which suggestions are listed for the current name. If none of them is right, lower it to see names that look less like yours. The **?** beside it says the same in the app
 - **Taxonomic level filter**: Filter by All, Species, Genus, Family, Order, Class, or Infraspecific
 
 Suggestions are always listed best match first, by similarity score.
@@ -270,11 +270,13 @@ Switch to the **"Export"** tab to download your standardized dataset:
 - **CSV (.csv)**: Universal tabular format
 - **RDS (.rds)**: R-native format preserving data types
 
+**Which column holds the name to use?** `corrected_name`. The Export tab says so in a green box above the column descriptions, and [Which name should I use?](#which-name-should-i-use) below explains why the other name columns exist.
+
 **Selectable columns.** Your original columns are always included; the three groups below can each be switched off:
 
-- **Matched IDs** — `idtax_n`, `idtax_good_n`
-- **Corrected names** — `corrected_name`, `matched_name`
-- **Match metadata** — `match_method`, `match_score`, `is_synonym`, `accepted_name`
+- **Taxon identifiers** — `idtax_n`, `idtax_good_n`
+- **Standardized names** — `corrected_name`, `matched_name`
+- **Match details** — `match_method`, `match_score`, `is_synonym`, `accepted_name`
 
 Backbone columns are not one of these groups: they are appended whenever a reference other than the internal backbone was chosen before matching, and travel with the export either way. The internal `id_data` row identifier is always stripped.
 
@@ -288,7 +290,7 @@ This tab exports the **standardized names**. If you also want traits attached, c
 
 ### Phase 8: Enrich Data with Traits
 
-Switch to the **"Traits Enrichment"** tab to add species-level traits to your matched data (requires a database connection; this tab is hidden in offline mode):
+Switch to the **"Enrich with Traits"** tab to add species-level traits to your matched data (requires a database connection; this tab is hidden in offline mode):
 
 ![Trait enrichment interface](images/app-enrich-data-interface.png)
 
@@ -305,9 +307,9 @@ A taxon usually carries several measurements of the same trait, from different i
 
 - **Select columns to include**:
   - Original input names
-  - Corrected names
-  - Taxonomic IDs
-  - Match metadata
+  - Standardized names (`corrected_name`, `matched_name`)
+  - Taxon identifiers (`idtax_n`, `idtax_good_n`)
+  - Match details (method, score, synonymy)
 
 Available traits include growth form, wood density, leaf traits, and ecological characteristics. Which traits come back depends on what the database actually holds for *your* taxa, so a list of well-studied timber species will be far better covered than a list of herbs.
 
@@ -336,22 +338,40 @@ The Export tab and these buttons answer different questions: Export gives you yo
 
 Your original columns are always preserved. The app appends the columns below — the same descriptions are shown in the app itself, beside the preview table on the Export tab, so you do not have to come back here to read them.
 
+### Which name should I use? {#which-name-should-i-use}
+
+**Use `corrected_name`.** It is the valid (accepted) name of each taxon, and the only name column you need for analyses. The other name columns record how the app got there. Each input name goes through two steps — *your input name → `matched_name` → `corrected_name`*:
+
+| Your input name | `matched_name` | `is_synonym` | `accepted_name` | `corrected_name` |
+|-----------------|----------------|--------------|-----------------|------------------|
+| Garcinea kola | Garcinia kola | `FALSE` | *(empty)* | **Garcinia kola** |
+| Chlorophora excelsa | Chlorophora excelsa | `TRUE` | Milicia excelsa | **Milicia excelsa** |
+
+1. **Matching** pairs your input name with an entry of the taxonomic backbone. That entry is `matched_name`: spelling is corrected, but the entry may be a synonym.
+2. **Synonym resolution** replaces a synonym with the accepted name it refers to. The result is `corrected_name`. When `matched_name` is not a synonym, the two are identical.
+
+The remaining name columns are evidence for that second step, not alternatives to `corrected_name`: `is_synonym` says whether a replacement happened, and `accepted_name` is filled **only** for synonyms (it is empty otherwise, which is why it cannot serve as the column to use). When a reference other than the internal backbone was chosen, `backbone_taxon_name` is likewise already copied into `corrected_name`.
+
+The words used in the app and in this guide follow the same chain: the **input name** is yours, the **matched name** is the backbone entry it was paired with, and the **accepted name** is the valid name of that taxon.
+
+### All added columns
+
 | Column | Description |
 |--------|-------------|
-| `idtax_n` | Identifier of the matched taxon in the taxonomic backbone |
-| `idtax_good_n` | Identifier of the accepted taxon. Differs from `idtax_n` when the matched name is a synonym |
-| `matched_name` | Name found in the backbone corresponding to your input name — this may itself be a synonym |
-| `corrected_name` | Final standardized name: the accepted name when the match is a synonym, or the name from the chosen reference when one was chosen |
-| `accepted_name` | Accepted name when the matched name is a synonym; empty otherwise |
-| `is_synonym` | `TRUE` when the matched name is a synonym of an accepted name |
+| `corrected_name` | **The name to use.** Same as `matched_name`, except when `matched_name` is a synonym: it then holds the accepted name instead (or the name from the chosen reference, when one was chosen) |
+| `matched_name` | Name in the backbone that your input name was matched to, spelling corrected. It may be a synonym: use `corrected_name` for analyses |
+| `idtax_n` | Identifier of `matched_name` in the taxonomic backbone |
+| `idtax_good_n` | Identifier of the accepted taxon in the taxonomic backbone. Differs from `idtax_n` when `matched_name` is a synonym |
+| `is_synonym` | `TRUE` when `matched_name` is a synonym; `corrected_name` then holds its accepted name |
+| `accepted_name` | Filled only when `matched_name` is a synonym: the accepted name it refers to, already copied into `corrected_name`. Empty otherwise |
 | `match_method` | How the name was matched — see the table below |
-| `match_score` | Similarity between your input name and the matched name, 0 to 1 (1 = exact, or a match you confirmed yourself) |
+| `match_score` | Similarity between your input name and `matched_name`, 0 to 1 (1 = exact, or a match you confirmed yourself) |
 
-When a reference other than the internal backbone is chosen (see [Names from another reference](#names-from-another-reference)), four more columns are appended and `corrected_name` is **replaced** by that reference's name wherever one exists:
+When a reference other than the internal backbone is chosen (see [Names from another reference](#names-from-another-reference)), the columns below are appended and `corrected_name` is **replaced** by that reference's name wherever one exists:
 
 | Column | Description |
 |--------|-------------|
-| `backbone_taxon_name` | Accepted name in the chosen reference |
+| `backbone_taxon_name` | Accepted name in the chosen reference, already copied into `corrected_name` |
 | `backbone_family` | Family according to the chosen reference |
 | `backbone_authors` | Taxonomic authorship according to the chosen reference |
 | `backbone_status_raw` | Status of the name in the chosen reference (e.g. `Accepted`) |
@@ -443,7 +463,7 @@ Lower values cast a wider net but may include false positives; higher values are
 
 The threshold each run actually used is recorded with that run: it appears in the generated script under **Show Equivalent R Code**, so a run remains reproducible without you having to note the value down.
 
-The same threshold seeds the **Min. similarity** slider on the Review tab, which filters the suggestions offered there. Moving one does not move the other — the review slider is for widening or narrowing what you are shown while reviewing a single name.
+The same threshold seeds the **Min. similarity (%)** slider on the Review tab, which filters the suggestions offered there. Moving one does not move the other — the review slider is for widening or narrowing what you are shown while reviewing a single name.
 
 ### Increasing Suggestions
 
@@ -463,7 +483,7 @@ If you do not have a database connection, click **"Use offline (cached backbone)
 - Downloads and caches the backbone locally on first use
 - Performs string matching entirely in R via `stringdist` (trigram-Jaccard)
 - Supports auto-matching, fuzzy suggestions, and manual search
-- Hides the Traits Enrichment tab (requires live connection)
+- Hides the Enrich with Traits tab (requires live connection)
 - Displays a **"Read-only"** badge throughout the session
 
 ## Function Parameters
@@ -507,7 +527,7 @@ Alternatively, use **offline mode** (click "Use offline (cached backbone)" on th
 - Names not present in the taxonomic backbone (e.g., non-African taxa)
 
 **Solutions**:
-- Lower **Minimum similarity (%)** on the Auto Match tab and run again, or widen the **Min. similarity** slider on the Review tab
+- Lower **Minimum similarity (%)** on the Auto Match tab and run again, or widen the **Min. similarity (%)** slider on the Review tab
 - Use the taxonomic level filter to search at genus or family level
 - Clean input names (remove extra spaces, fix obvious typos)
 - Verify names are African taxa
@@ -573,7 +593,7 @@ write.csv(result, "standardized_inventory.csv", row.names = FALSE)
 2. **Understand your data**: Know which taxonomic groups are in your dataset
 3. **Use multi-column mode**: If you have separate genus/species/family columns, combine them for better matching
 4. **Filter by taxonomic level**: Use the level filter in the Review tab to find genus or family matches
-5. **Review match scores**: Don't blindly accept low-similarity matches (<0.6)
+5. **Review match scores**: Don't blindly accept low-similarity matches (< 60 %)
 6. **Use checkpoint/resume**: The app saves your progress automatically — if you close the browser tab, you can pick up where you left off
 7. **Keep the run reproducible**: the threshold a run used is written into the script under **Show Equivalent R Code** — copy that rather than noting the value by hand
 8. **Cite data sources**: Check the Data Sources panel in the Traits tab for citations to include in your methods, and, if you chose a reference other than the internal backbone, cite it too — see [Citing the reference you chose](#citing-the-reference)
@@ -599,7 +619,7 @@ launch_taxonomic_match_app(
 #    - Review automatic matches in the Auto Match tab
 #    - Use the Review tab to resolve unmatched names
 #    - Optionally choose another reference for the output names in the sidebar
-#    - Optionally enrich with traits in the Traits Enrichment tab
+#    - Optionally enrich with traits in the Enrich with Traits tab
 #      (check the Data Sources panel for citations)
 #    - Export as "forest_inventory_standardized.xlsx"
 

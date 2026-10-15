@@ -383,6 +383,10 @@
 
 ### Bug Fixes
 
+* **Taxonomic matching app: the Review tab's similarity slider is in percent, like the Auto Match field** (`R/mod_fuzzy_suggestions.R`) - the Auto Match threshold was entered as a percentage (60 %) while the Review slider seeding from it ran from 0.3 to 1.0, so the same threshold showed up as two different numbers. The slider now runs 30-100 % and is divided by 100 before it reaches the matcher. A **?** beside it explains what it is for: it only changes the suggestions listed for the name under review and does not re-run the automatic matching, and lowering it is how you bring up a badly misspelled name
+
+* **Taxonomic matching app: picking a synonym during review now says which name will be kept** (`R/mod_name_review.R`) - the confirmation read "Matched to: <synonym>", which suggested the synonym itself would be exported. It now also names the accepted name written to `corrected_name`
+
 * **Feature Wizard multi-stem update failed with `No updatable columns found in data`** (`R/updates_tables_functions.R`) - the update writes `stem_grouping` through `update_records(table_type = "individuals")`, which accepted only the Import Wizard's column list, where `stem_grouping` never was. The dry run bypasses `update_records()`, so only the live update failed. `get_column_routing()` now routes `stem_grouping` as an update-only column (`update_columns`): `update_records()` writes it, the Import Wizard still does not offer it
 
 * **Recruits' measurements were imported twice from a `process_openforis_census()` output** (`R/openforis_processing.R`) - `recruits` carried each recruit's diameter, POM height, positions, observations, light, stem status and multi-stem flags, which `measurements` also holds. Importing `recruits` through the Import Wizard stored them with no census link, and the Feature Wizard stored them again from `measurements`. `recruits` now holds identity only (plot, tag, taxonomy, quadrat, specimens); measurements come from `measurements` and multi-stem groupings from `multi_stems`. `all_stems` keeps its wide traits for the full census import
@@ -738,6 +742,14 @@
   - 26 assertions in `tests/testthat/test-public-credential.R`, including that the source tree contains no embedded credential, so a later edit cannot quietly restore one. None of them touch the network
 
 ### Documentation
+
+* **Taxonomic matching app: the export says which column holds the name to use** (`R/mod_results_export.R`, `vignettes/taxonomic-app.Rmd`, `vignettes/taxonomic-app-fr.Rmd`) - user feedback asked which of `matched_name`, `accepted_name`, `corrected_name` and `backbone_taxon_name` was the valid name. Nothing said so: the descriptions sat in a collapsed panel in database order, and `accepted_name` - empty for every non-synonym - looked like the obvious candidate
+  - The Export tab opens with an always-visible "Which name should I use?" box: *input name → `matched_name` → `corrected_name`*, with `corrected_name` named as the valid name
+  - Column descriptions now list `corrected_name` first and say of `accepted_name` and `backbone_taxon_name` that they are already copied into it
+  - Export and Traits column groups renamed: *Standardized names*, *Taxon identifiers*, *Match details* (were *Corrected names*, which also held the uncorrected `matched_name`; *Matched IDs*, *Match metadata*)
+  - Both vignettes gain a "Which name should I use?" section with a worked synonym example (*Chlorophora excelsa* → *Milicia excelsa*), checked against the backbone
+
+* **Taxonomic matching app: one word per concept in French** (`inst/translations/translation.json`, `vignettes/taxonomic-app-fr.Rmd`) - matching was *appariement* and *correspondance*, fuzzy was *approximative*, *approchée* and *floue*, the backbone was *référentiel* and *référence taxonomique*, so "la correspondance" and "le nom apparié" read as two different things when they were the same one. Now *appariement*, *approximatif*, *référentiel* and *nom saisi* throughout the app's strings and the French vignette, which also now uses the French tab and button labels the interface actually shows. The English vignette's "Traits Enrichment" tab is now "Enrich with Traits", as in the app
 
 * **The census import says what happens to a stem missing from the file** (`R/mod_feat_step3_census_import.R`) - the panel read "Run Compute Stem Status after the import to mark them", which names a chore and not its consequence, so there was no way to tell from the wizard whether ten absent stems were about to be recorded as dead
   - Verified against `R/stem_status_functions.R`: evidence C ranks each plot's censuses by date and counts consecutive censuses with no positive `stem_diameter` after the stem was first measured - one gives `presumed_dead`, two or more give `dead`, and a later remeasurement retroactively restores `alive`. The panel now states all three. `split_census_table()` excludes only stems already recorded `dead`, so the two-consecutive case is genuinely reachable from this list
