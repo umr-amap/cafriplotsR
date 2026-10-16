@@ -2225,34 +2225,63 @@ reorganize_individual_columns <- function(individuals) {
     if (any(colnames_traits == "taxa_mean_wood_density")) {
       
       if (any(names(dataset_pivot_wider_num) == "taxa_sd_wood_density")) {
-        cli::cli_alert_info("Setting wood density SD to averaged species and genus level according to BIOMASS dataset")
-        
+        min_n_observed_sd <- 10
+        cli::cli_alert_info(paste0(
+          "Wood density SD: observed SD kept when based on >= ",
+          min_n_observed_sd,
+          " values, otherwise BIOMASS default SD (sd_10) for the taxonomic level"
+        ))
+
         if (!requireNamespace("BIOMASS", quietly = TRUE))
           stop("Package 'BIOMASS' (>= 2.2.4) is required for wood density SD. Install it with install.packages('BIOMASS').")
         sd_10 <- BIOMASS::sd_10
-        
-        
-        ### replacing wd sd to species and genus level sd from biomass
-        dataset_pivot_wider_num <-
-          dataset_pivot_wider_num %>%
-          mutate(taxa_sd_wood_density = replace(taxa_sd_wood_density,
-                                                source_taxa_mean_wood_density == "species",
-                                                      sd_10$sd[1])) %>%
-          mutate(taxa_sd_wood_density = replace(taxa_sd_wood_density,
-                                                      source_taxa_mean_wood_density == "genus",
-                                                      sd_10$sd[2]))
-        
-        if (wd_fam_level_add) {
-          
-          dataset_pivot_wider_num <-
-            dataset_pivot_wider_num %>%
-            mutate(taxa_sd_wood_density = replace(
-              taxa_sd_wood_density,
-              is.na(tax_gen) & !is.na(tax_fam),
-              sd_10$sd[3]
-            ))
-          
+
+        ### the observed SD is only trusted when it was computed at the same
+        ### taxonomic level as the mean (traits are filled independently, so a
+        ### species mean can sit next to a genus SD) and from enough values;
+        ### sd_10 is itself the mean SD of taxa with >= 10 measures
+        wd <- dataset_pivot_wider_num
+        n_wd <- if ("taxa_n_wood_density" %in% names(wd)) {
+          wd$taxa_n_wood_density
+        } else {
+          rep(NA_real_, nrow(wd))
         }
+        source_n_wd <- if ("source_taxa_n_wood_density" %in% names(wd)) {
+          wd$source_taxa_n_wood_density
+        } else {
+          rep(NA_character_, nrow(wd))
+        }
+        source_mean_wd <- wd$source_taxa_mean_wood_density
+
+        keep_observed <-
+          !is.na(wd$taxa_sd_wood_density) &
+          !is.na(source_mean_wd) &
+          !is.na(n_wd) & n_wd >= min_n_observed_sd &
+          wd$source_taxa_sd_wood_density == source_mean_wd &
+          source_n_wd == source_mean_wd
+        keep_observed[is.na(keep_observed)] <- FALSE
+
+        default_level <- dplyr::case_when(
+          source_mean_wd %in% c("species", "infraspecific") ~ "species",
+          source_mean_wd == "genus" ~ "genus",
+          source_mean_wd == "family" ~ "family",
+          TRUE ~ NA_character_
+        )
+        if (wd_fam_level_add) {
+          default_level[is.na(wd$tax_gen) & !is.na(wd$tax_fam)] <- "family"
+        }
+        default_sd <- sd_10$sd[match(default_level,
+                                     c("species", "genus", "family"))]
+
+        use_default <- !keep_observed & !is.na(default_level)
+
+        wd$taxa_sd_wood_density[use_default] <- default_sd[use_default]
+        wd$source_taxa_sd_wood_density[keep_observed] <-
+          paste0("observed_", source_mean_wd[keep_observed])
+        wd$source_taxa_sd_wood_density[use_default] <-
+          paste0("biomass_default_", default_level[use_default])
+
+        dataset_pivot_wider_num <- wd
       }
       
     }
@@ -2284,7 +2313,8 @@ reorganize_individual_columns <- function(individuals) {
                       ifelse(is.na(source_taxa_mean_wood_density),
                              "plot_mean",
                              source_taxa_mean_wood_density)) %>%
-      dplyr::select(-taxa_mean_wood_density_plot_level, taxa_sd_wood_density)
+      dplyr::select(-taxa_mean_wood_density_plot_level,
+                    -taxa_sd_wood_density_plot_level)
     
     
   } else {
