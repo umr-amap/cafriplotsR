@@ -534,16 +534,20 @@ feature_wizard_server <- function(input, output, session, translator) {
       i18n = i18n
     )
 
+    # NULL is heard too: step 3 withdraws its result when the mapping changes
+    # after it was applied, and the stale copy here must go with it, or the
+    # import would run on a role the user has since changed
     shiny::observeEvent(step3_meas_result(), {
-      shiny::req(step3_meas_result())
-      rv$feature_data <- step3_meas_result()$data
-      rv$feature_config <- step3_meas_result()$config
+      if (!identical(rv$operation_mode, "add_measurements")) return()
+      res <- step3_meas_result()
+      rv$feature_data <- if (!is.null(res)) res$data
+      rv$feature_config <- if (!is.null(res)) res$config
       # Reset downstream
       rv$matched_data <- NULL
       rv$lookup_complete <- FALSE
       rv$validation_result <- NULL
       rv$import_result <- NULL
-    })
+    }, ignoreNULL = FALSE, ignoreInit = TRUE)
 
     # Step 3: Full census import mode
     step3_census_result <- mod_feat_step3_census_import_server(
