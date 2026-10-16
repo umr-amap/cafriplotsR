@@ -741,6 +741,52 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
 }
 
 
+#' Feature columns that will not reach the database
+#'
+#' Two ways a column meant as measurement metadata is lost without an error:
+#' it is set as features_field but its name (or, in wide format, its mapped
+#' feature) is not in `traitlist`, so the insert skips it; or it is named
+#' exactly like a feature yet was left out of features_field, so it is not
+#' imported at all. Both are said before the write, not found afterwards.
+#'
+#' @param config Measurement configuration from step 3.
+#' @param con Database connection or pool.
+#'
+#' @return List with `missing` (features_field columns whose feature is not in
+#'   traitlist) and `left_out` (other columns named like a feature). Both empty
+#'   when traitlist cannot be read.
+#' @keywords internal
+.check_feature_columns <- function(config, con) {
+  none <- list(missing = character(0), left_out = character(0))
+
+  features_field <- as.character(config$features_field)
+  mappings <- config$features_field_mappings
+  feat_traits <- vapply(features_field, function(fc) {
+    if (!is.null(mappings) && fc %in% names(mappings)) mappings[[fc]] else fc
+  }, character(1), USE.NAMES = FALSE)
+
+  other_cols <- setdiff(as.character(config$metadata_columns), features_field)
+
+  candidates <- unique(c(feat_traits, other_cols))
+  if (length(candidates) == 0) return(none)
+
+  known <- tryCatch({
+    quoted <- paste0("'", gsub("'", "''", candidates), "'", collapse = ",")
+    DBI::dbGetQuery(con, sprintf(
+      "SELECT trait FROM traitlist WHERE trait IN (%s)", quoted))$trait
+  }, error = function(e) {
+    message("Note: Could not check feature columns (", e$message, ").")
+    NULL
+  })
+  if (is.null(known)) return(none)
+
+  list(
+    missing  = features_field[!feat_traits %in% known],
+    left_out = other_cols[other_cols %in% known]
+  )
+}
+
+
 #' Execute individual measurements import
 #'
 #' @param data Data frame with measurement rows (plot_name, tag, traitid, traitvalue, traitvalue_char, id_liste_plots, id_sub_plots)
@@ -801,6 +847,18 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
       matched, .feature_census_link(unique(matched$trait_name), con))
   }
 
+  feat_check <- .check_feature_columns(config, con)
+  feat_warning <- paste0(
+    if (length(feat_check$missing) > 0) {
+      sprintf(t(" Not in the feature list, will NOT be linked: %s."),
+              paste(feat_check$missing, collapse = ", "))
+    },
+    if (length(feat_check$left_out) > 0) {
+      sprintf(t(" Named like a feature but not set as features_field, will NOT be imported: %s. Go back to step 3 if they should be linked to the measurements."),
+              paste(feat_check$left_out, collapse = ", "))
+    }
+  )
+
   if (dry_run) {
     preview <- matched[, intersect(
       c("plot_name", "tag", "trait_name", "traitvalue", "traitvalue_char", "issue"),
@@ -811,11 +869,12 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
     if (n_unmatched > 0) {
       msg <- paste0(msg, sprintf(" %d row(s) unmatched (skipped).", n_unmatched))
     }
-    feat_preview <- config$features_field
-    if (!is.null(feat_preview) && length(feat_preview) > 0) {
+    feat_preview <- setdiff(config$features_field, feat_check$missing)
+    if (length(feat_preview) > 0) {
       msg <- paste0(msg, sprintf(" Metadata columns to be linked as features: %s.",
         paste(feat_preview, collapse = ", ")))
     }
+    msg <- paste0(msg, feat_warning)
 
     return(list(
       dry_run = TRUE,
@@ -941,6 +1000,7 @@ mod_feat_step6_import_server <- function(id, matched_data, feature_config, selec
     if (n_unmatched > 0) {
       msg <- paste0(msg, sprintf(" %d row(s) skipped (unmatched individuals).", n_unmatched))
     }
+    msg <- paste0(msg, feat_warning)
 
     return(list(
       dry_run = FALSE,

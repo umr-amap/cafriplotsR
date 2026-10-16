@@ -384,6 +384,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
       uploaded_raw(NULL)
       prepared_data(NULL)
       measurement_config(NULL)
+      applied_state(NULL)
 
       tryCatch({
         raw <- upload_table()
@@ -721,6 +722,32 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
       }
     })
 
+    # The prepared data is a snapshot of the mapping, taken on Apply. A role
+    # or a feature changed afterwards reached the screen but not the import,
+    # which ran on the snapshot: the change was lost without a word. So any
+    # change after Apply withdraws the snapshot until Apply is clicked again.
+    mapping_state <- shiny::reactive({
+      vals <- shiny::reactiveValuesToList(input)
+      keep <- grepl("^(map_|trait_map_|meta_role_|col_role_)", names(vals)) |
+        names(vals) %in% c("data_format", "census_ids")
+      vals <- vals[keep]
+      vals[order(names(vals))]
+    })
+    applied_state <- shiny::reactiveVal(NULL)
+
+    shiny::observeEvent(mapping_state(), {
+      applied <- applied_state()
+      if (is.null(applied) || identical(mapping_state(), applied)) return()
+
+      applied_state(NULL)
+      prepared_data(NULL)
+      measurement_config(NULL)
+      shiny::showNotification(
+        i18n()$t("The mapping changed after it was applied. Click 'Apply Mapping & Preview' again."),
+        type = "warning", duration = 8
+      )
+    })
+
     # Apply mapping
     shiny::observeEvent(input$apply_mapping, {
       shiny::req(uploaded_raw(), selected_plots())
@@ -787,6 +814,7 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
 
         prepared_data(result$data)
         measurement_config(result$config)
+        applied_state(mapping_state())
 
         shiny::showNotification(
           sprintf(i18n()$t("%d measurement(s) prepared."), nrow(result$data)),
@@ -1117,7 +1145,9 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
               ns(paste0("trait_map_", safe_col)),
               label = NULL,
               choices = trait_choices,
-              selected = .null_default(matched_trait, ""),
+              selected = .kept_choice(input, paste0("trait_map_", safe_col),
+                                      trait_choices,
+                                      .null_default(matched_trait, "")),
               width = "100%",
               options = list(placeholder = "(Skip this column)", allowEmptyOption = TRUE)
             ),
@@ -1133,7 +1163,8 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
                 c("trait", "feature"),
                 c(i18n$t("Measured feature"), i18n$t("Measurement metadata"))
               ),
-              selected = "trait",
+              selected = .kept_choice(input, paste0("col_role_", safe_col),
+                                      c("trait", "feature"), "trait"),
               inline = TRUE
             )
           )
@@ -1141,6 +1172,31 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
       )
     })
   )
+}
+
+
+#' The value an input should come back with when its UI is redrawn
+#'
+#' The mapping blocks are rebuilt whenever a key column, the format or the
+#' feature list changes. Rebuilt with their defaults, they silently undo what
+#' the user chose: a column set to features_field went back to metadata and
+#' its values were never imported. Read in isolation, so keeping a choice does
+#' not make the block depend on it.
+#'
+#' @param input Shiny input object.
+#' @param id Input id, without namespace.
+#' @param choices Allowed values (a grouped list is flattened). `""` is always
+#'   allowed: it is how a dropdown records "skip".
+#' @param default Value for a first draw, or when the kept one is no longer
+#'   offered.
+#'
+#' @return A single value.
+#' @keywords internal
+.kept_choice <- function(input, id, choices, default) {
+  current <- shiny::isolate(input[[id]])
+  if (is.null(current) || length(current) != 1) return(default)
+  if (!current %in% c("", unlist(choices, use.names = FALSE))) return(default)
+  current
 }
 
 
@@ -1259,7 +1315,9 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
               ns(paste0("trait_map_", safe_name)),
               label = NULL,
               choices = trait_choices,
-              selected = .null_default(matched_trait, ""),
+              selected = .kept_choice(input, paste0("trait_map_", safe_name),
+                                      trait_choices,
+                                      .null_default(matched_trait, "")),
               width = "100%",
               options = list(placeholder = "(Skip this feature)", allowEmptyOption = TRUE)
             ),
@@ -1277,22 +1335,36 @@ mod_feat_step3_measurements_server <- function(id, selected_plots, operation_mod
         style = "color: #495057;"
       ),
       shiny::p(
-        i18n$t("Select the role for each additional column. Columns designated as 'features_field' will be linked to each measurement as metadata."),
+        i18n$t("Select the role for each additional column. Columns designated as 'features_field' will be linked to each measurement as metadata; the others are not imported."),
         style = "color: #6c757d; font-size: 13px;"
       ),
       lapply(extra_cols_long, function(col) {
         safe_col <- gsub("[^a-zA-Z0-9]", "_", col)
+        # Only a column named exactly like a feature can be linked: step 6
+        # looks the name up in traitlist as it is
+        names_feature <- col %in% traits$trait
         shiny::fluidRow(
-          shiny::column(4, shiny::strong(col, style = "font-size: 13px;")),
+          shiny::column(4,
+            shiny::strong(col, style = "font-size: 13px;"),
+            if (names_feature) shiny::tagList(
+              shiny::br(),
+              shiny::tags$small(
+                shiny::icon("tag"), " ",
+                i18n$t("Named like a database feature"),
+                style = "color: #28a745;"
+              )
+            )
+          ),
           shiny::column(8,
             shiny::radioButtons(
               ns(paste0("meta_role_", safe_col)),
               label = NULL,
               choices = setNames(
                 c("meta", "feature"),
-                c(i18n$t("Keep as metadata"), i18n$t("Use as features_field"))
+                c(i18n$t("Ignore this column"), i18n$t("Use as features_field"))
               ),
-              selected = "meta",
+              selected = .kept_choice(input, paste0("meta_role_", safe_col),
+                                      c("meta", "feature"), "meta"),
               inline = TRUE
             )
           )

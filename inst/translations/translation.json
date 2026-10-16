@@ -7810,12 +7810,28 @@
       "fr": "Rôles des colonnes supplémentaires"
     },
     {
-      "en": "Select the role for each additional column. Columns designated as 'features_field' will be linked to each measurement as metadata.",
-      "fr": "Sélectionnez le rôle de chaque colonne supplémentaire. Les colonnes désignées comme 'features_field' seront liées à chaque mesure en tant que métadonnée."
+      "en": "Select the role for each additional column. Columns designated as 'features_field' will be linked to each measurement as metadata; the others are not imported.",
+      "fr": "Sélectionnez le rôle de chaque colonne supplémentaire. Les colonnes désignées comme 'features_field' seront liées à chaque mesure en tant que métadonnée ; les autres ne sont pas importées."
     },
     {
-      "en": "Keep as metadata",
-      "fr": "Conserver comme métadonnée"
+      "en": "Ignore this column",
+      "fr": "Ignorer cette colonne"
+    },
+    {
+      "en": "Named like a database feature",
+      "fr": "Nommée comme une variable de la base"
+    },
+    {
+      "en": "The mapping changed after it was applied. Click 'Apply Mapping & Preview' again.",
+      "fr": "La correspondance a changé après avoir été appliquée. Cliquez à nouveau sur « Appliquer la correspondance et prévisualiser »."
+    },
+    {
+      "en": " Not in the feature list, will NOT be linked: %s.",
+      "fr": " Absentes de la liste des variables, ne seront PAS liées : %s."
+    },
+    {
+      "en": " Named like a feature but not set as features_field, will NOT be imported: %s. Go back to step 3 if they should be linked to the measurements.",
+      "fr": " Nommées comme une variable mais non désignées comme features_field, ne seront PAS importées : %s. Revenez à l'étape 3 si elles doivent être liées aux mesures."
     },
     {
       "en": "Use as features_field",
